@@ -61,6 +61,16 @@ class AgreementIn(BaseModel):
 
 # ---------- логика ----------
 
+def _notify(hook: str, *args):
+    """Мягкий хук в Telegram (app/tgbot.py). Бот не загрузился или не подключён — согласование
+    продолжает работать как обычно: уведомление не обязательное звено."""
+    try:
+        from . import tgbot
+        getattr(tgbot, hook)(*args)
+    except Exception as e:                  # ошибка уведомления не отменяет уже принятое решение
+        print("уведомление в Telegram не ушло:", e)
+
+
 def recalc(con, request_id: int) -> str:
     """Пересчитывает итоговый статус согласования запроса и сохраняет его."""
     rows = db.rows(con, "SELECT status FROM request_reviewers WHERE request_id=?", request_id)
@@ -172,6 +182,7 @@ def assign(con, request_id: int, user_ids: List[int], who: Optional[str] = None,
     status = recalc(con, request_id)
     db.audit(con, who or "system", "назначены согласующие", f"request:{request_id}",
              {"было": [o["user_id"] for o in old], "стало": ids, "генсоглашение": agreement_id})
+    _notify("on_assigned", con, request_id, ids)
     return {"request_id": request_id, "approval_status": status, "reviewers": reviewers(con, request_id)}
 
 
@@ -195,7 +206,7 @@ def decide(con, request_id: int, who: str, decision: str, comment: Optional[str]
     status = recalc(con, request_id)
     db.audit(con, u["login"], "решение по согласованию", f"request:{request_id}",
              {"было": before, "стало": decision, "комментарий": comment, "итог": status})
-    # точка расширения: здесь же отправлять уведомление в Telegram остальным согласующим
+    _notify("on_decided", con, request_id, u, decision, comment, status)
     return {"request_id": request_id, "approval_status": status,
             "decision": decision, "reviewers": reviewers(con, request_id)}
 

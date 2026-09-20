@@ -11,9 +11,12 @@
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden}
 .wrap{max-width:520px;margin:0 auto;padding:14px 16px calc(var(--nav) + 24px)}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
 header b{font-size:17px;font-weight:800}
 header span{font-size:11.5px;color:var(--muted)}
+.whoami{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.whoami b{color:var(--ink);font-weight:700}
+.whoami button{width:auto;min-height:32px;padding:4px 12px;font-size:12px;background:transparent;border-radius:9px}
 .banner{border:1px solid var(--warn);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--warn);margin-bottom:12px}
 .banner.stop{border-color:var(--stop);color:var(--stop)}
 .banner.ok{border-color:var(--accent-dim);color:var(--accent)}
@@ -23,13 +26,17 @@ header span{font-size:11.5px;color:var(--muted)}
 label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
 label.f:first-child{margin-top:0}
 input,select,textarea,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:11px 12px;min-height:46px;width:100%;min-width:0}
+textarea{min-height:64px;resize:vertical}
 select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 21px,calc(100% - 13px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px}
 button{cursor:pointer;font-weight:700}
 button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
 button.ghost{background:transparent}
+button.no{background:transparent;border-color:var(--stop);color:var(--stop)}
 button:disabled{opacity:.5}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two>div{min-width:0}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row button{width:auto;flex:1 1 30%;min-width:96px}
 .note{font-size:12px;color:var(--muted)}
 .err{color:var(--stop)}.ok{color:var(--accent)}.warn{color:var(--warn)}
 .big{font:700 30px/1.1 var(--mono);margin:2px 0}
@@ -53,6 +60,24 @@ button:disabled{opacity:.5}
 .tip{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:8px;font-size:12.5px}
 .tip b{display:block}
 .tip span{color:var(--accent);font-family:var(--mono)}
+/* крупная плашка статуса согласования */
+.st{display:block;border:1px solid var(--line);border-left-width:4px;border-radius:11px;padding:9px 12px;margin:10px 0;font-size:14px;font-weight:800;color:var(--muted)}
+.st.wait{color:var(--warn);border-color:var(--warn)}
+.st.done{color:var(--accent);border-color:var(--accent-dim)}
+.st.no{color:var(--stop);border-color:var(--stop)}
+.rev{font-size:12.5px;border-top:1px solid var(--line);padding-top:8px}
+.rev>div{padding:7px 0;border-bottom:1px solid var(--line)}
+.rev>div:last-child{border-bottom:0}
+.rev .who{display:flex;justify-content:space-between;gap:10px}
+.rev .who b{font-weight:700}
+.rev .who em{font-style:normal;font-family:var(--mono);white-space:nowrap}
+.rev .who em.ok{color:var(--accent)}.rev .who em.no{color:var(--stop)}.rev .who em.q{color:var(--warn)}
+.rev .meta{color:var(--muted);font-size:11.5px}
+.pick{border:1px solid var(--line);border-radius:11px;max-height:220px;overflow:auto}
+.pick label{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.pick label:last-child{border-bottom:0}
+.pick input{width:20px;height:20px;min-height:20px;flex:none;accent-color:var(--accent)}
+.pick .r{color:var(--muted);font-size:11.5px}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
 .ph{position:relative;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--soft);touch-action:none;user-select:none;-webkit-user-select:none}
 .ph.drag{opacity:.55;border-color:var(--accent-dim)}
@@ -62,10 +87,13 @@ button:disabled{opacity:.5}
 .files{font-size:12.5px}
 .files div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
 .files div:last-child{border-bottom:0}
-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
-nav button{background:none;border:0;border-radius:0;min-height:var(--nav);padding:10px 4px;color:var(--muted);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:5px}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(var(--cols,4),1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto}
+nav button{background:none;border:0;border-radius:0;min-height:var(--nav);padding:10px 2px;color:var(--muted);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;line-height:1.15;text-align:center}
+nav.many button{font-size:10px;padding:10px 1px}
 nav button i{font-style:normal;font-size:17px;line-height:1}
+nav.many button i{font-size:15px}
 nav button.on{color:var(--accent)}
+nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px;font:700 10px var(--mono)}
 .hidden{display:none}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
 @keyframes s{to{transform:rotate(360deg)}}
@@ -76,12 +104,50 @@ nav button.on{color:var(--accent)}
     <b>Сюрвейер INSON</b>
     <span id="mode">подключаюсь…</span>
   </header>
+  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button class="ghost" id="outBtn">Выйти</button></div>
 
   <div class="banner" id="pdWarn">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
   <div class="banner hidden" id="authWarn"></div>
 
-  <!-- ---------- расчёт ---------- -->
-  <section id="tab-calc">
+  <!-- ---------- вход по логину и паролю (режим «браузер») ---------- -->
+  <div id="screen-login" class="hidden">
+    <div class="card">
+      <h2>Вход</h2>
+      <p class="sub">Telegram не открыт — входим по логину и паролю, как на рабочем компьютере.</p>
+      <label class="f" for="lgLogin">Логин</label>
+      <input id="lgLogin" type="text" autocomplete="username" autocapitalize="off" spellcheck="false">
+      <label class="f" for="lgPass">Пароль</label>
+      <input id="lgPass" type="password" autocomplete="current-password">
+      <div id="codeBox" class="hidden">
+        <label class="f" for="lgCode">Код из Telegram</label>
+        <input id="lgCode" type="text" inputmode="numeric" autocomplete="one-time-code">
+      </div>
+      <button class="go" id="lgBtn" style="margin-top:12px">Войти</button>
+      <div class="note" id="lgMsg" style="margin-top:8px"></div>
+    </div>
+    <div class="card">
+      <h2>Ещё нет доступа</h2>
+      <p class="sub">Заявку подают на странице входа сайта: там же указывают ID агента из ЕАИС. Доступ открывает администратор.</p>
+      <a href="/login" style="color:var(--accent)">Открыть страницу заявки</a>
+    </div>
+  </div>
+
+  <!-- ---------- ждём подтверждения администратора ---------- -->
+  <div id="screen-wait" class="hidden">
+    <div class="card">
+      <h2>Заявка ждёт подтверждения</h2>
+      <p class="sub" id="waitWhy"></p>
+      <div class="kv" id="waitKv"></div>
+      <p class="note" style="margin-top:12px">Администратор сверит вас с реестром агентов компании (Положение № 3845, п. 4). Пока этого нет, разделы приложения не открываются — так сведения о страхователях не попадают к непроверенному человеку (ЗРУ‑730, ст. 62).</p>
+      <button class="ghost" id="waitAgain" style="margin-top:12px">Проверить ещё раз</button>
+    </div>
+  </div>
+
+  <!-- ---------- приложение ---------- -->
+  <div id="screen-app" class="hidden">
+
+  <!-- расчёт -->
+  <section id="tab-calc" data-section="calc" class="hidden">
     <div class="card">
       <h2>Объект и договор</h2>
       <p class="sub">Коротко: что страхуем, на какую сумму и на какой срок.</p>
@@ -138,8 +204,18 @@ nav button.on{color:var(--accent)}
     <div id="result"></div>
   </section>
 
-  <!-- ---------- фото ---------- -->
-  <section id="tab-photo" class="hidden">
+  <!-- мои запросы -->
+  <section id="tab-my-requests" data-section="my-requests" class="hidden">
+    <div class="card">
+      <h2>Мои запросы</h2>
+      <p class="sub">Последние 50 запросов, поданных под вашим ID агента. Видно, кто согласовал и когда.</p>
+      <button class="ghost" id="myReload">Обновить список</button>
+    </div>
+    <div id="myList"></div>
+  </section>
+
+  <!-- фото и документы -->
+  <section id="tab-photos" data-section="photos" class="hidden">
     <div class="card">
       <h2>Фотографии объекта</h2>
       <p class="sub">Сначала посчитайте и сохраните запрос — фото прикрепляются к нему. Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
@@ -147,10 +223,6 @@ nav button.on{color:var(--accent)}
       <input type="file" id="phFile" accept="image/*" multiple capture="environment" style="margin-top:10px">
       <div class="photos" id="phList" style="margin-top:10px"></div>
     </div>
-  </section>
-
-  <!-- ---------- документы ---------- -->
-  <section id="tab-doc" class="hidden">
     <div class="card">
       <h2>Документы объекта</h2>
       <p class="sub">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
@@ -166,27 +238,80 @@ nav button.on{color:var(--accent)}
     </div>
   </section>
 
-  <!-- ---------- профиль ---------- -->
-  <section id="tab-me" class="hidden">
+  <!-- ждут меня -->
+  <section id="tab-inbox" data-section="inbox" class="hidden">
     <div class="card">
-      <h2>Профиль</h2>
-      <p class="sub">Кто вы для системы и в каком режиме она работает.</p>
-      <div class="kv" id="meKv"></div>
+      <h2>Ждут моего решения</h2>
+      <p class="sub">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p>
+      <button class="ghost" id="inboxReload">Обновить список</button>
+    </div>
+    <div id="inboxList"></div>
+  </section>
+
+  <!-- заявки на доступ -->
+  <section id="tab-applications" data-section="applications" class="hidden">
+    <div class="card">
+      <h2>Заявки на доступ</h2>
+      <p class="sub">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p>
+      <button class="ghost" id="appReload">Обновить список</button>
+    </div>
+    <div id="appList"></div>
+  </section>
+
+  <!-- пользователи -->
+  <section id="tab-users" data-section="users" class="hidden">
+    <div class="card">
+      <h2>Пользователи</h2>
+      <p class="sub">Блокировка закрывает доступ сразу и завершает все сессии человека.</p>
+      <button class="ghost" id="usrReload">Обновить список</button>
+    </div>
+    <div id="usrList"></div>
+  </section>
+
+  <!-- генеральные соглашения -->
+  <section id="tab-agreements" data-section="agreements" class="hidden">
+    <div class="card">
+      <h2>Новое генеральное соглашение</h2>
+      <p class="sub">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p>
+      <label class="f" for="agPartner">Партнёр</label>
+      <input id="agPartner" type="text" placeholder="например Asia Alliance Bank" autocomplete="off">
+      <label class="f" for="agProduct">Код продукта (можно оставить пустым)</label>
+      <input id="agProduct" type="text" placeholder="например 0126" autocomplete="off">
+      <label class="f" for="agStatus">Статус</label>
+      <select id="agStatus">
+        <option value="черновик">черновик</option>
+        <option value="действует">действует</option>
+        <option value="закрыто">закрыто</option>
+      </select>
+      <label class="f">Согласующие по умолчанию — от 2 до 3 человек</label>
+      <div class="pick" id="agPick"><div class="note" style="padding:10px 12px">загружаю…</div></div>
+      <label class="f" for="agTerms">Условия коротко</label>
+      <textarea id="agTerms" placeholder="что за соглашение и на что оно влияет"></textarea>
+      <button class="go" id="agSave" style="margin-top:12px">Сохранить соглашение</button>
+      <div class="note" id="agMsg" style="margin-top:8px"></div>
+    </div>
+    <div id="agList"></div>
+  </section>
+
+  <!-- настройки -->
+  <section id="tab-settings" data-section="settings" class="hidden">
+    <div class="card">
+      <h2>Бот Telegram</h2>
+      <p class="sub">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
+      <div class="kv" id="botKv"><span>Состояние</span><b>загружаю…</b></div>
+      <button class="ghost" id="botReload" style="margin-top:12px">Обновить</button>
     </div>
     <div class="card">
-      <h2>Последний запрос</h2>
-      <p class="sub">Номер нужен филиалу и андеррайтеру.</p>
-      <div class="kv" id="lastKv"><span>Запрос</span><b>не сохранён</b></div>
+      <h2>Перенос и копии</h2>
+      <p class="sub">Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.</p>
+      <a href="/admin/deploy" style="color:var(--accent)">Открыть «Перенос и копии»</a>
     </div>
   </section>
+
+  </div>
 </div>
 
-<nav>
-  <button data-tab="calc" class="on"><i>₌</i>Расчёт</button>
-  <button data-tab="photo"><i>▣</i>Фото</button>
-  <button data-tab="doc"><i>≣</i>Документы</button>
-  <button data-tab="me"><i>◍</i>Профиль</button>
-</nav>
+<nav id="nav" class="hidden"></nav>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -194,6 +319,12 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;
 const fmt = n => (n == null) ? "—" : Math.round(Number(n)).toLocaleString("ru-RU");
 const pct = n => (n == null) ? "—" : Number(n).toFixed(3).replace(".", ",") + "%";
 const num = s => Number(String(s == null ? "" : s).replace(/[^\d.-]/g, "")) || 0;
+const when = s => {
+  if (!s) return "";
+  const d = new Date(String(s).replace(" ", "T"));
+  return isNaN(d) ? String(s) : d.toLocaleString("ru-RU", {day: "2-digit", month: "2-digit", year: "2-digit",
+    hour: "2-digit", minute: "2-digit"});
+};
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
 /* ---------- Telegram: готовность, разворот, цвета поверх наших ---------- */
@@ -219,6 +350,8 @@ function why(status, j){
   const d = j && (j.detail || j.error);
   const ru = typeof d === "string" && /[А-Яа-я]/.test(d) ? d : null;
   if (ru) return ru;
+  if (status === 401) return "нужно войти заново";
+  if (status === 403) return "у вашей роли нет такого права";
   if (status === 404 || status === 405) return "сервер ещё не умеет этот запрос";
   if (status === 422) return "сервер не принял данные формы";
   if (status >= 500) return "ошибка на сервере, смотрите лог sandbox/server.log";
@@ -237,15 +370,62 @@ async function api(url, opts){
   }
 }
 
-/* ---------- вкладки ---------- */
-const TABS = ["calc", "photo", "doc", "me"];
-function openTab(name){
-  TABS.forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== name));
-  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
-  mainButton(name === "calc");
-  window.scrollTo(0, 0);
+/* ---------- кто вошёл ---------- */
+let ME = {mode: "", status: "", user: null, rights: [], nav: []};
+let BOT = null, EAIS = null;
+
+function banner(sel, kind, text){
+  const el = $(sel);
+  el.className = "banner " + (kind === "ok" ? "ok" : kind === "stop" ? "stop" : "");
+  el.textContent = text;
 }
-document.querySelectorAll("nav button").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+function screen(name){
+  ["login", "wait", "app"].forEach(s => $("#screen-" + s).classList.toggle("hidden", s !== name));
+  $("#nav").classList.toggle("hidden", name !== "app");
+}
+
+/* ---------- нижняя навигация: рисуется по ответу сервера ---------- */
+const NAV_ICON = {calc: "₌", "my-requests": "❑", photos: "▣", inbox: "◈", applications: "✎",
+  users: "◍", agreements: "§", settings: "⚙"};
+const NAV_SHORT = {"my-requests": "Мои запросы", agreements: "Соглашения", photos: "Фото"};
+const LOADERS = {"my-requests": loadMine, inbox: loadInbox, applications: loadApplications,
+  users: loadUsers, agreements: loadAgreementsTab, settings: loadBot};
+let TAB = null;
+
+function sectionKeys(){
+  return Array.prototype.slice.call(document.querySelectorAll("[data-section]")).map(s => s.dataset.section);
+}
+
+function paintNav(items){
+  const nav = $("#nav");
+  const list = (items || []).filter(it => document.querySelector('[data-section="' + it.key + '"]'));
+  if (!list.length) { nav.innerHTML = ""; return; }
+  nav.innerHTML = list.map(it =>
+    '<button data-tab="' + esc(it.key) + '"><i>' + esc(NAV_ICON[it.key] || "•") + "</i><span>"
+    + esc(NAV_SHORT[it.key] || it.title || it.key) + "</span></button>").join("");
+  nav.style.setProperty("--cols", list.length);
+  nav.classList.toggle("many", list.length > 5);
+  nav.querySelectorAll("button").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+  openTab(list.some(it => it.key === TAB) ? TAB : list[0].key);
+}
+
+function openTab(key){
+  TAB = key;
+  sectionKeys().forEach(k => {
+    document.querySelector('[data-section="' + k + '"]').classList.toggle("hidden", k !== key);
+  });
+  $("#nav").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tab === key));
+  mainButton(key === "calc");
+  window.scrollTo(0, 0);
+  if (LOADERS[key]) LOADERS[key]();
+}
+
+function navBadge(key, n){
+  const b = $("#nav").querySelector('[data-tab="' + key + '"] span');
+  if (!b) return;
+  const base = NAV_SHORT[key] || (ME.nav.filter(x => x.key === key)[0] || {}).title || key;
+  b.innerHTML = esc(base) + (n ? ' <em>' + n + "</em>" : "");
+}
 
 /* ---------- главная кнопка Telegram ---------- */
 function mainButton(show){
@@ -260,59 +440,126 @@ if (TG && TG.MainButton) {
   try {
     TG.MainButton.onClick(() => calculate());
     TG.MainButton.setText("Посчитать");
-    TG.MainButton.show();
     if (IN_TG) $("#calcBtn").classList.add("hidden");   // в Telegram считает нижняя кнопка клиента
   } catch (e) {}
 }
 
 /* ---------- вход ---------- */
-let AUTH = {mode: "браузер", status: "ок", user: null};
+async function boot(){
+  const st = await api("/tg/status");
+  if (st.ok) {
+    $("#mode").textContent = st.data.mode || "браузер";
+    if (st.data.pd_mode === "prod") $("#pdWarn").classList.add("hidden");
+  }
+  if (IN_TG) {
+    const a = await api("/tg/auth", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({initData: TG.initData})});
+    const s = a.ok && a.data ? a.data.status : "";
+    if (s === "нужна верификация") { showWait(a.data.reason); return; }
+    if (s === "ошибка") {
+      banner("#authWarn", "stop", "Вход через Telegram не выполнен: " + (a.data.reason || "причина не указана"));
+    }
+  }
+  await loadMe();
+}
 
-async function auth(){
-  const initData = TG && TG.initData ? TG.initData : "";
-  const r = await api("/tg/auth", {method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({initData: initData})});
+/* Статус не «активен»: показываем только этот экран и ничего больше не грузим. */
+function showWait(reason, extra){
+  $("#whoami").classList.add("hidden");
+  $("#authWarn").classList.add("hidden");
+  $("#waitWhy").textContent = reason || "Администратор ещё не подтвердил вашу учётную запись.";
+  $("#waitKv").innerHTML = "<span>Режим</span><b>" + esc(ME.mode || "браузер") + "</b>"
+    + "<span>Статус</span><b>" + esc(extra || ME.status || "ожидает подтверждения") + "</b>";
+  screen("wait");
+}
+
+async function loadMe(){
+  const r = await api("/tg/me");
   if (!r.ok) {
-    $("#mode").textContent = (TG && TG.initData ? "Telegram" : "браузер") + " · сервер не ответил";
-    banner("#authWarn", "warn", "Сервер не подтвердил вход: " + r.error + ". Расчёт можно делать, сохранить запрос — нет.");
-    paintMe();
+    $("#mode").textContent = "сервер не ответил";
+    banner("#authWarn", "stop", r.status === 404
+      ? "Сервер ещё не отдаёт разделы по ролям — его нужно перезапустить. Вход по логину и паролю уже работает."
+      : "Сервер не сказал, кто вы: " + r.error + ". Обновите страницу.");
+    screen("login");
     return;
   }
-  AUTH = r.data || AUTH;
-  const st = AUTH.status || "ок";
-  $("#mode").textContent = (AUTH.mode || "браузер") + " · " + st;
-  if (st === "нужна верификация") {
-    banner("#authWarn", "warn", "Ваш Telegram не привязан к учётной записи агента. Заявка подана, дождитесь подтверждения администратора — он сверит ваш ID агента. Пока расчёт доступен, сохранение запроса — нет.");
-  } else if (st === "ошибка") {
-    banner("#authWarn", "stop", "Вход не выполнен: " + (AUTH.reason || "причина не указана") + ". Откройте мини-апп заново из чата с ботом.");
-  } else if ((AUTH.mode || "") === "браузер") {
-    banner("#authWarn", "ok", "Открыто в обычном браузере, без Telegram. Работаем как на рабочем экране, вход по логину.");
-  } else {
-    $("#authWarn").classList.add("hidden");
-  }
-  if (AUTH.pd_mode === "prod") $("#pdWarn").classList.add("hidden");
-  paintMe();
-}
-function banner(sel, kind, text){
-  const el = $(sel);
-  el.className = "banner " + (kind === "ok" ? "ok" : kind === "stop" ? "stop" : "");
-  el.textContent = text;
-}
-function canSave(){ return (AUTH.status || "ок") === "ок"; }
+  ME = r.data || ME;
+  $("#mode").textContent = (ME.mode || "браузер") + " · " + (ME.status || "—");
+  const u = ME.user;
 
-function paintMe(){
-  const u = AUTH.user || {};
-  const name = u.name || u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
-  $("#meKv").innerHTML = "<span>Режим</span><b>" + esc(AUTH.mode || "—") + "</b>"
-    + "<span>Статус</span><b>" + esc(AUTH.status || "—") + "</b>"
-    + "<span>Кто вы</span><b>" + esc(name) + "</b>"
-    + "<span>ID агента</span><b>" + esc(u.eais_id || u.agent_id || "—") + "</b>"
-    + "<span>Данные клиентов</span><b>" + (AUTH.pd_mode === "prod" ? "разрешены" : "нельзя") + "</b>"
-    + (AUTH.reason ? "<span>Пояснение</span><b>" + esc(AUTH.reason) + "</b>" : "");
+  if (!u && (ME.status === "не вошёл" || !ME.status)) {
+    $("#authWarn").classList.add("hidden");
+    $("#whoami").classList.add("hidden");
+    screen("login");
+    $("#lgMsg").innerHTML = ME.mode === "telegram"
+      ? '<span class="note">Telegram не передал вход. Войдите по логину и паролю.</span>' : "";
+    return;
+  }
+  if (!u) {                                   // заявка подана, но ещё не подтверждена
+    showWait(ME.reason, ME.status);
+    return;
+  }
+
+  $("#authWarn").classList.add("hidden");
+  $("#whoami").classList.remove("hidden");
+  $("#whoText").innerHTML = "<b>" + esc(u.full_name || "—") + "</b> · " + esc(u.role || "—")
+    + (u.branch ? " · " + esc(u.branch) : "");
+  screen("app");
+  paintNav(ME.nav || []);
+  loadRefs();
+  api("/auth/me").then(m => { if (m.ok) EAIS = m.data.agent_eais_id || null; });
+  api("/tg/bot-status").then(b => { if (b.ok) BOT = b.data; });
+  if ((ME.nav || []).some(x => x.key === "inbox")) {
+    api("/tg/inbox").then(i => { if (i.ok) navBadge("inbox", i.data.count || 0); });
+  }
 }
+
+async function login(){
+  const lg = $("#lgLogin").value.trim(), pw = $("#lgPass").value, code = $("#lgCode").value.trim();
+  if (!lg || !pw) { $("#lgMsg").innerHTML = '<span class="err">Введите логин и пароль.</span>'; return; }
+  $("#lgBtn").disabled = true;
+  $("#lgMsg").innerHTML = '<span class="spin"></span> проверяю…';
+  let r;
+  if (!$("#codeBox").classList.contains("hidden") && code) {
+    r = await api("/auth/verify-code", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({login: lg, code: code})});
+  } else {
+    r = await api("/auth/login", {method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({login: lg, password: pw})});
+  }
+  $("#lgBtn").disabled = false;
+  if (!r.ok) {
+    // «заявка не подтверждена» — это не ошибка ввода, а отдельный экран ожидания
+    if (r.status === 403 && /подтвержден/i.test(r.error)) { showWait(r.error, "ожидает подтверждения"); return; }
+    $("#lgMsg").innerHTML = '<span class="err">' + esc(r.error) + "</span>";
+    return;
+  }
+  if (r.data && r.data.step === "code") {
+    $("#codeBox").classList.remove("hidden");
+    $("#lgBtn").textContent = "Подтвердить код";
+    $("#lgMsg").innerHTML = '<span class="warn">Код отправлен: ' + esc(r.data.delivery || "—")
+      + ". Он действует " + esc(r.data.valid_minutes || 5) + " минут."
+      + (r.data.dev_code ? " Код для проверки: " + esc(r.data.dev_code) : "") + "</span>";
+    return;
+  }
+  $("#lgMsg").innerHTML = '<span class="ok">Вошли.</span>';
+  $("#lgPass").value = "";
+  await loadMe();
+}
+$("#lgBtn").onclick = login;
+$("#lgPass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+$("#lgCode").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+$("#waitAgain").onclick = loadMe;
+$("#outBtn").onclick = async () => {
+  await api("/auth/logout", {method: "POST"});
+  ME = {mode: ME.mode, status: "не вошёл", user: null, rights: [], nav: []};
+  RID = null;
+  screen("login");
+  $("#whoami").classList.add("hidden");
+};
 
 /* ---------- справочники ---------- */
-let CLASSES = [], PRODUCTS = [], COEFS = [];
+let CLASSES = [], PRODUCTS = [], COEFS = [], REFS_DONE = false;
 
 function classesOf(p){
   if (Array.isArray(p.classes)) return p.classes;
@@ -321,8 +568,11 @@ function classesOf(p){
 }
 
 async function loadRefs(){
+  if (REFS_DONE) return;
+  REFS_DONE = true;
   const [c, p, k] = await Promise.all([api("/reference/classes"), api("/reference/products"), api("/reference/coefficients")]);
   if (!c.ok || !p.ok || !k.ok) {
+    REFS_DONE = false;
     $("#cls").innerHTML = "<option>справочники недоступны</option>";
     $("#factors").innerHTML = '<div class="note err">Справочники не загрузились: ' + esc((c.error || p.error || k.error)) + "</div>";
     return;
@@ -483,7 +733,9 @@ function paintResult(j, b){
     + '<label class="f" for="branch">Филиал</label><input id="branch" type="text" placeholder="например Чиланзарский" autocomplete="off">'
     + '<label class="f" for="holder">Страхователь</label><input id="holder" type="text" placeholder="название организации" autocomplete="off">'
     + '<button class="go" id="saveBtn" style="margin-top:12px">Сохранить запрос</button>'
-    + '<div class="note" id="saveMsg" style="margin-top:8px"></div></div>';
+    + '<div class="note" id="saveMsg" style="margin-top:8px"></div></div>'
+
+    + '<div id="approvalBox"></div>';
 
   $("#saveBtn").onclick = saveRequest;
   if (!canSave()) {
@@ -491,6 +743,7 @@ function paintResult(j, b){
     $("#saveMsg").innerHTML = '<span class="warn">Сохранение откроется после подтверждения администратором.</span>';
   }
 }
+function canSave(){ return !!(ME.user && ME.status === "активен"); }
 
 function excluded(j, b){
   const step = (j.explanation || []).filter(x => x.excluded && x.excluded.length)[0];
@@ -501,18 +754,333 @@ async function saveRequest(){
   const b = payload();
   b.branch = ($("#branch") && $("#branch").value.trim()) || null;
   b.policyholder = ($("#holder") && $("#holder").value.trim()) || null;
+  if (EAIS) b.agent_eais_id = EAIS;
   $("#saveMsg").innerHTML = '<span class="spin"></span> сохраняю…';
   const r = await api("/requests", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(b)});
   if (!r.ok) { $("#saveMsg").innerHTML = '<span class="err">Запрос не сохранился: ' + esc(r.error) + "</span>"; return; }
   RID = r.data.request_id;
-  $("#saveMsg").innerHTML = '<span class="ok">Сохранено. Запрос № ' + RID + " — теперь можно прикрепить фото и документы.</span>";
-  $("#lastKv").innerHTML = "<span>Запрос</span><b>№ " + RID + "</b><span>Вердикт</span><b>" + esc(r.data.verdict || "—") + "</b>"
-    + "<span>Премия</span><b>" + fmt(r.data.premium) + "</b>";
+  $("#saveMsg").innerHTML = '<span class="ok">Сохранено. Запрос № ' + RID + " — теперь можно прикрепить фото и документы.</span>"
+    + (EAIS ? "" : '<br><span class="warn">К вашей учётной записи не привязан ID агента, поэтому запрос не попадёт в раздел «Мои запросы».</span>');
   $("#phMsg").textContent = "запрос № " + RID;
   $("#docMsg").textContent = "запрос № " + RID;
   loadPhotos();
   loadDocs();
+  paintApprovalBox();
 }
+
+/* ---------- отправка на согласование (прямо из расчёта) ---------- */
+let COLLEAGUES = [], AGREEMENTS = [];
+
+async function loadPickLists(){
+  const [a, c] = await Promise.all([api("/general-agreements"), api("/auth/colleagues")]);
+  AGREEMENTS = a.ok ? (a.data || []) : [];
+  const mine = ME.user ? ME.user.id : null;
+  COLLEAGUES = (c.ok ? (c.data || []) : []).filter(x => x.role !== "агент" && x.id !== mine);
+  return {agrErr: a.ok ? "" : a.error, colErr: c.ok ? "" : c.error};
+}
+
+function pickHtml(id, checked){
+  if (!COLLEAGUES.length) return '<div class="note" style="padding:10px 12px">Работников компании в списке нет: согласующим может быть только штатный работник, агент — не может (Положение № 3845, п. 2).</div>';
+  const on = checked || [];
+  return COLLEAGUES.map(c =>
+    '<label><input type="checkbox" name="' + id + '" value="' + c.id + '"'
+    + (on.indexOf(c.id) >= 0 ? " checked" : "") + "><span>" + esc(c.full_name)
+    + '<br><span class="r">' + esc(c.role) + (c.branch ? " · " + esc(c.branch) : "") + "</span></span></label>").join("");
+}
+
+function picked(id){
+  return Array.prototype.slice.call(document.querySelectorAll('input[name="' + id + '"]:checked')).map(x => Number(x.value));
+}
+
+async function paintApprovalBox(){
+  const box = $("#approvalBox");
+  if (!box || !RID) return;
+  box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2><div class="note"><span class="spin"></span> загружаю списки…</div></div>';
+  const errs = await loadPickLists();
+  const agr = AGREEMENTS.filter(a => a.status !== "закрыто");
+  box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2>'
+    + '<p class="sub">Запрос № ' + RID + " рассматривают от 2 до 3 работников компании. Себя выбрать нельзя — решение по своему запросу не принимают.</p>"
+    + '<label class="f" for="agrSel">Генеральное соглашение</label>'
+    + '<select id="agrSel"><option value="">без соглашения — выбираю людей сам</option>'
+    + agr.map(a => '<option value="' + a.id + '">' + esc(a.partner) + (a.product_code ? " · продукт " + esc(a.product_code) : "")
+      + " · " + esc(a.status || "") + "</option>").join("") + "</select>"
+    + '<label class="f">Кто согласует</label>'
+    + '<div class="pick" id="revPick">' + pickHtml("rev", []) + "</div>"
+    + '<button class="go" id="sendRev" style="margin-top:12px">Отправить на согласование</button>'
+    + '<div class="note" id="revMsg" style="margin-top:8px">' + esc(errs.colErr ? "Список работников не загрузился: " + errs.colErr : "") + "</div>"
+    + "</div>";
+
+  $("#agrSel").onchange = () => {
+    const a = AGREEMENTS.filter(x => String(x.id) === $("#agrSel").value)[0];
+    const ids = a ? matchReviewers(a.default_reviewers || []) : [];
+    $("#revPick").innerHTML = pickHtml("rev", ids);
+    $("#revMsg").innerHTML = !a ? ""
+      : (ids.length ? '<span class="ok">Согласующие подставлены из соглашения «' + esc(a.partner) + "». Их можно изменить.</span>"
+        : '<span class="warn">В соглашении «' + esc(a.partner) + "» согласующие по умолчанию не заданы — выберите людей сами.</span>");
+  };
+  $("#sendRev").onclick = sendReviewers;
+}
+
+function matchReviewers(list){
+  const out = [];
+  (list || []).forEach(item => {
+    const s = String(item);
+    const c = COLLEAGUES.filter(x => String(x.id) === s || x.full_name === s || x.login === s)[0];
+    if (c && out.indexOf(c.id) < 0) out.push(c.id);
+  });
+  return out;
+}
+
+async function sendReviewers(){
+  const ids = picked("rev");
+  const agrId = $("#agrSel").value ? Number($("#agrSel").value) : null;
+  if (ids.length < 2 || ids.length > 3) {
+    $("#revMsg").innerHTML = '<span class="err">Выберите от 2 до 3 человек: сейчас отмечено ' + ids.length + ".</span>";
+    return;
+  }
+  $("#sendRev").disabled = true;
+  $("#revMsg").innerHTML = '<span class="spin"></span> отправляю…';
+  const r = await api("/requests/" + RID + "/reviewers", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({user_ids: ids, general_agreement_id: agrId})});
+  $("#sendRev").disabled = false;
+  if (!r.ok) { $("#revMsg").innerHTML = '<span class="err">Не отправлено: ' + esc(r.error) + "</span>"; return; }
+  const names = (r.data.reviewers || []).map(x => x.full_name).join(", ");
+  $("#revMsg").innerHTML = '<span class="ok">Отправлено: ' + esc(names) + ". "
+    + (BOT && BOT.connected ? "Уведомления ушли в Telegram."
+      : "Бот ещё не подключён, поэтому согласующие увидят запрос в приложении, в разделе «Ждут меня».") + "</span>";
+}
+
+/* ---------- мои запросы ---------- */
+const ST_CLASS = {"не требуется": "", "на согласовании": "wait", "согласован": "done", "отклонён": "no"};
+const DEC_CLASS = {"одобрил": "ok", "отклонил": "no", "вопрос": "q"};
+
+async function loadMine(){
+  $("#myList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
+  const r = await api("/tg/my-requests");
+  if (!r.ok) { $("#myList").innerHTML = '<div class="card"><div class="note err">Список не загрузился: ' + esc(r.error) + "</div></div>"; return; }
+  const items = r.data.items || [];
+  if (!items.length) {
+    $("#myList").innerHTML = '<div class="card"><div class="note">'
+      + esc(r.data.reason || "Запросов пока нет. Посчитайте и сохраните первый на вкладке «Расчёт».") + "</div></div>";
+    return;
+  }
+  $("#myList").innerHTML = items.map(mineCard).join("");
+}
+
+function mineCard(q){
+  const s = q.approval_status || "не требуется";
+  const revs = q.reviewers || [];
+  return '<div class="card"><h2>Запрос № ' + esc(q.external_no || q.id) + "</h2>"
+    + '<p class="sub">' + esc(q.object_type || "объект не указан")
+    + (q.product_code ? " · продукт " + esc(q.product_code) : "")
+    + (q.partner ? " · " + esc(q.partner) : "") + "</p>"
+    + '<div class="kv">'
+    + "<span>Страховая сумма</span><b>" + fmt(q.sum_insured) + "</b>"
+    + "<span>Премия</span><b>" + fmt(q.premium) + "</b>"
+    + "<span>Ставка</span><b>" + pct(q.rate_pct) + "</b>"
+    + "</div>"
+    + '<span class="st ' + (ST_CLASS[s] || "") + '">' + esc(s) + "</span>"
+    + (revs.length
+      ? '<div class="rev">' + revs.map(x =>
+          '<div><div class="who"><b>' + esc(x.full_name) + "</b><em class=\"" + (DEC_CLASS[x.status] || "") + '">'
+          + esc(x.status) + "</em></div>"
+          + '<div class="meta">' + esc(x.position || "должность не указана")
+          + (x.decided_at ? " · " + esc(when(x.decided_at)) : " · решения ещё нет") + "</div>"
+          + (x.comment ? '<div class="meta">« ' + esc(x.comment) + " »</div>" : "") + "</div>").join("") + "</div>"
+      : '<div class="note">Согласующие не назначены.</div>')
+    + "</div>";
+}
+$("#myReload").onclick = loadMine;
+
+/* ---------- ждут меня ---------- */
+async function loadInbox(){
+  $("#inboxList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
+  const r = await api("/tg/inbox");
+  if (!r.ok) { $("#inboxList").innerHTML = '<div class="card"><div class="note err">Список не загрузился: ' + esc(r.error) + "</div></div>"; return; }
+  const items = r.data.items || [];
+  navBadge("inbox", items.length);
+  if (!items.length) { $("#inboxList").innerHTML = '<div class="card"><div class="note">Решений от вас сейчас не ждут.</div></div>'; return; }
+  $("#inboxList").innerHTML = items.map(inboxCard).join("");
+  items.forEach(it => {
+    ["одобрил", "отклонил", "вопрос"].forEach(d => {
+      const b = document.querySelector('[data-dec="' + d + '"][data-rid="' + it.request_id + '"]');
+      if (b) b.onclick = () => decide(it.request_id, d);
+    });
+  });
+}
+
+function inboxCard(it){
+  return '<div class="card" id="inbox-' + it.request_id + '"><h2>Запрос № ' + esc(it.external_no || it.request_id) + "</h2>"
+    + '<p class="sub">' + esc(it.policyholder || "страхователь не указан")
+    + (it.product_code ? " · продукт " + esc(it.product_code) : "")
+    + (it.branch ? " · " + esc(it.branch) : "")
+    + (it.partner ? " · " + esc(it.partner) : "") + "</p>"
+    + '<div class="kv"><span>Вы в очереди</span><b>' + esc(it.order_no || "—") + "</b>"
+    + "<span>Назначено</span><b>" + esc(when(it.assigned_at) || "—") + "</b></div>"
+    + '<label class="f" for="cm-' + it.request_id + '">Комментарий — обязателен, если отклоняете или задаёте вопрос</label>'
+    + '<textarea id="cm-' + it.request_id + '" placeholder="что именно не так и что нужно исправить"></textarea>'
+    + '<div class="row" style="margin-top:10px">'
+    + '<button class="go" data-dec="одобрил" data-rid="' + it.request_id + '">Одобрить</button>'
+    + '<button class="no" data-dec="отклонил" data-rid="' + it.request_id + '">Отклонить</button>'
+    + '<button class="ghost" data-dec="вопрос" data-rid="' + it.request_id + '">Вопрос</button>'
+    + "</div>"
+    + '<div class="note" id="dm-' + it.request_id + '" style="margin-top:8px"></div></div>';
+}
+
+async function decide(rid, decision){
+  const cm = ($("#cm-" + rid) ? $("#cm-" + rid).value.trim() : "");
+  const msg = $("#dm-" + rid);
+  if (decision !== "одобрил" && !cm) {
+    msg.innerHTML = '<span class="err">Напишите в комментарии, что не так: агент должен понять, что исправить.</span>';
+    return;
+  }
+  msg.innerHTML = '<span class="spin"></span> записываю решение…';
+  const r = await api("/requests/" + rid + "/decide", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({decision: decision, comment: cm || null})});
+  if (!r.ok) { msg.innerHTML = '<span class="err">Решение не записано: ' + esc(r.error) + "</span>"; return; }
+  const card = $("#inbox-" + rid);
+  if (card) {
+    card.innerHTML = "<h2>Запрос № " + rid + "</h2><p class=\"sub\">Ваше решение записано: " + esc(decision) + ".</p>"
+      + '<span class="st ' + (ST_CLASS[r.data.approval_status] || "") + '">' + esc(r.data.approval_status) + "</span>"
+      + '<div class="rev">' + (r.data.reviewers || []).map(x =>
+        '<div><div class="who"><b>' + esc(x.full_name) + '</b><em class="' + (DEC_CLASS[x.status] || "") + '">'
+        + esc(x.status) + "</em></div><div class=\"meta\">" + esc(x.position || "")
+        + (x.decided_at ? " · " + esc(when(x.decided_at)) : "") + "</div></div>").join("") + "</div>";
+  }
+  const left = document.querySelectorAll("#inboxList .card textarea").length;
+  navBadge("inbox", left);
+}
+$("#inboxReload").onclick = loadInbox;
+
+/* ---------- заявки на доступ (админ) ---------- */
+async function loadApplications(){
+  $("#appList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
+  const r = await api("/auth/pending");
+  if (!r.ok) { $("#appList").innerHTML = '<div class="card"><div class="note err">Заявки не загрузились: ' + esc(r.error) + "</div></div>"; return; }
+  const items = r.data || [];
+  if (!items.length) { $("#appList").innerHTML = '<div class="card"><div class="note">Новых заявок нет.</div></div>'; return; }
+  $("#appList").innerHTML = items.map(u => {
+    const reg = u.registry;
+    const regText = !u.agent_eais_id ? "ID агента не указан"
+      : reg ? reg.name + " · " + reg.status : "в реестре компании не найден";
+    const regCls = !u.agent_eais_id ? "warn" : reg ? (reg.status === "активен" ? "ok" : "warn") : "err";
+    return '<div class="card" id="app-' + u.id + '"><h2>' + esc(u.full_name) + "</h2>"
+      + '<p class="sub">' + esc(u.login) + (u.phone ? " · " + esc(u.phone) : "") + "</p>"
+      + '<div class="kv">'
+      + "<span>Роль</span><b>" + esc(u.role) + "</b>"
+      + "<span>Филиал</span><b>" + esc(u.branch || "—") + "</b>"
+      + "<span>ID агента в ЕАИС</span><b>" + esc(u.agent_eais_id || "—") + "</b>"
+      + "<span>Заявка подана</span><b>" + esc(when(u.created_at) || "—") + "</b>"
+      + "</div>"
+      + '<p class="note ' + regCls + '" style="margin-top:10px">Сверка с реестром: ' + esc(regText) + "</p>"
+      + '<div class="row" style="margin-top:10px">'
+      + '<button class="go" data-app="' + u.id + '">Подтвердить</button>'
+      + '<button class="no" data-rej="' + u.id + '">Отклонить</button></div>'
+      + '<div class="note" id="am-' + u.id + '" style="margin-top:8px"></div></div>';
+  }).join("");
+  document.querySelectorAll("[data-app]").forEach(b => { b.onclick = () => appDecide(b.dataset.app, "approve"); });
+  document.querySelectorAll("[data-rej]").forEach(b => { b.onclick = () => appDecide(b.dataset.rej, "reject"); });
+}
+
+async function appDecide(uid, what){
+  const msg = $("#am-" + uid);
+  msg.innerHTML = '<span class="spin"></span> сохраняю…';
+  const r = await api("/auth/" + what + "/" + uid, {method: "POST"});
+  if (!r.ok) { msg.innerHTML = '<span class="err">Не получилось: ' + esc(r.error) + "</span>"; return; }
+  const card = $("#app-" + uid);
+  if (card) card.innerHTML = '<div class="note ok">' + (what === "approve" ? "Доступ открыт." : "Заявка отклонена, учётная запись удалена.") + "</div>";
+}
+$("#appReload").onclick = loadApplications;
+
+/* ---------- пользователи (админ) ---------- */
+async function loadUsers(){
+  $("#usrList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
+  const r = await api("/auth/users");
+  if (!r.ok) { $("#usrList").innerHTML = '<div class="card"><div class="note err">Список не загрузился: ' + esc(r.error) + "</div></div>"; return; }
+  const items = r.data || [];
+  $("#usrList").innerHTML = '<div class="card"><h2>Всего людей: ' + items.length + "</h2>"
+    + '<p class="sub">Заблокированные остаются в базе — так сохраняется история их решений.</p></div>'
+    + items.map(u => '<div class="card" id="usr-' + u.id + '"><h2>' + esc(u.full_name) + "</h2>"
+      + '<p class="sub">' + esc(u.login) + (u.telegram ? " · Telegram привязан" : "") + "</p>"
+      + '<div class="kv"><span>Роль</span><b>' + esc(u.role) + "</b>"
+      + "<span>Статус</span><b>" + esc(u.status) + "</b>"
+      + "<span>Филиал</span><b>" + esc(u.branch || "—") + "</b>"
+      + "<span>Последний вход</span><b>" + esc(when(u.last_login) || "—") + "</b></div>"
+      + (u.status === "активен" && !(ME.user && ME.user.id === u.id)
+        ? '<button class="no" data-block="' + u.id + '" style="margin-top:10px">Заблокировать</button>' : "")
+      + '<div class="note" id="um-' + u.id + '" style="margin-top:8px"></div></div>').join("");
+  document.querySelectorAll("[data-block]").forEach(b => { b.onclick = () => blockUser(b.dataset.block); });
+}
+
+async function blockUser(uid){
+  const msg = $("#um-" + uid);
+  msg.innerHTML = '<span class="spin"></span> закрываю доступ…';
+  const r = await api("/auth/block/" + uid + "?reason=" + encodeURIComponent("решение администратора в мини-аппе"),
+    {method: "POST"});
+  if (!r.ok) { msg.innerHTML = '<span class="err">Не получилось: ' + esc(r.error) + "</span>"; return; }
+  msg.innerHTML = '<span class="ok">Доступ закрыт, сессии завершены.</span>';
+  const b = document.querySelector('[data-block="' + uid + '"]');
+  if (b) b.remove();
+}
+$("#usrReload").onclick = loadUsers;
+
+/* ---------- генеральные соглашения (админ) ---------- */
+async function loadAgreementsTab(){
+  $("#agList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
+  await loadPickLists();
+  $("#agPick").innerHTML = pickHtml("agrev", []);
+  $("#agList").innerHTML = AGREEMENTS.length
+    ? AGREEMENTS.map(a => '<div class="card"><h2>' + esc(a.partner) + "</h2>"
+        + '<p class="sub">' + esc(a.status || "—") + (a.product_code ? " · продукт " + esc(a.product_code) : "") + "</p>"
+        + (a.terms ? '<p class="note">' + esc(a.terms) + "</p>" : "")
+        + '<div class="note" style="margin-top:8px">Согласующие по умолчанию: '
+        + esc(namesOf(a.default_reviewers || []) || "не заданы") + "</div></div>").join("")
+    : '<div class="card"><div class="note">Соглашений пока нет.</div></div>';
+}
+
+function namesOf(list){
+  return matchReviewers(list).map(id => (COLLEAGUES.filter(c => c.id === id)[0] || {}).full_name).filter(Boolean).join(", ");
+}
+
+$("#agSave").onclick = async () => {
+  const partner = $("#agPartner").value.trim();
+  if (!partner) { $("#agMsg").innerHTML = '<span class="err">Укажите партнёра — без него соглашение не опознать.</span>'; return; }
+  const ids = picked("agrev");
+  if (ids.length && (ids.length < 2 || ids.length > 3)) {
+    $("#agMsg").innerHTML = '<span class="err">Согласующих по умолчанию должно быть от 2 до 3 либо ни одного.</span>';
+    return;
+  }
+  $("#agSave").disabled = true;
+  $("#agMsg").innerHTML = '<span class="spin"></span> сохраняю…';
+  const r = await api("/general-agreements", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({partner: partner, product_code: $("#agProduct").value.trim() || null,
+      terms: $("#agTerms").value.trim() || null, default_reviewers: ids, status: $("#agStatus").value})});
+  $("#agSave").disabled = false;
+  if (!r.ok) { $("#agMsg").innerHTML = '<span class="err">Не сохранилось: ' + esc(r.error) + "</span>"; return; }
+  $("#agMsg").innerHTML = '<span class="ok">Сохранено. Агенты увидят это соглашение при отправке на согласование.</span>';
+  $("#agPartner").value = ""; $("#agProduct").value = ""; $("#agTerms").value = "";
+  loadAgreementsTab();
+};
+
+/* ---------- настройки: состояние бота ---------- */
+async function loadBot(){
+  $("#botKv").innerHTML = "<span>Состояние</span><b><span class=\"spin\"></span></b>";
+  const r = await api("/tg/bot-status");
+  if (!r.ok) { $("#botKv").innerHTML = '<span>Состояние</span><b>' + esc(r.error) + "</b>"; return; }
+  BOT = r.data;
+  const b = r.data;
+  $("#botKv").innerHTML = "<span>Бот подключён</span><b>" + (b.connected ? "да" : "нет") + "</b>"
+    + "<span>Токен</span><b>" + esc(b.token_mask || "не задан") + "</b>"
+    + "<span>Вебхук</span><b>" + (b.webhook_set ? "настроен" : "не настроен") + "</b>"
+    + "<span>Опрос обновлений</span><b>" + (b.polling ? (b.polling_running ? "идёт" : "включён, но не запущен") : "выключен") + "</b>"
+    + (b.polling_error ? "<span>Последняя ошибка опроса</span><b>" + esc(b.polling_error) + "</b>" : "")
+    + "<span>Сообщений в журнале</span><b>" + fmt(b.messages) + "</b>"
+    + "<span>Последнее сообщение</span><b>" + esc(when(b.last_message_at) || "—") + "</b>"
+    + "<span>Код первого администратора</span><b>" + (b.bootstrap_code_set ? "задан" : "не задан") + "</b>"
+    + "<span>Согласие, версия</span><b>" + esc(b.consent_version || "—") + "</b>"
+    + (b.reason ? "<span>Пояснение</span><b>" + esc(b.reason) + "</b>" : "");
+}
+$("#botReload").onclick = loadBot;
 
 /* ---------- фото ---------- */
 let PHOTOS = [];
@@ -644,6 +1212,5 @@ $("#docFile").onchange = async e => {
   el.addEventListener("blur", () => { const v = num(el.value); el.value = v ? v.toLocaleString("ru-RU") : ""; });
 });
 
-auth();
-loadRefs();
+boot();
 </script>

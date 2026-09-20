@@ -44,7 +44,11 @@ RETRIES = 1                       # одна повторная попытка
 MAX_PROMPT_CHARS = 12000          # длинные документы режем: и дешевле, и меньше риска
 
 SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY",
-                "TELEGRAM_BOT_TOKEN", "PD_MODE", "SERVER_URL")
+                "TELEGRAM_BOT_TOKEN", "PD_MODE", "SERVER_URL",
+                # бот Telegram (app/tgbot.py): секрет вебхука, код первого администратора,
+                # запасной режим опроса и версия текста согласия на обработку ПД
+                "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE", "ADMIN_BOOTSTRAP_USED",
+                "TG_POLLING", "CONSENT_VERSION")
 
 PROVIDERS = {
     "kimi":      {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k3",       "name": "Kimi (Moonshot)"},
@@ -54,7 +58,9 @@ PROVIDERS = {
 }
 
 DEFAULTS = {"LLM_PROVIDER": "none", "PD_MODE": "test", "SERVER_URL": "http://127.0.0.1:8000",
-            "LLM_BASE_URL": "", "LLM_MODEL": "", "LLM_API_KEY": "", "TELEGRAM_BOT_TOKEN": ""}
+            "LLM_BASE_URL": "", "LLM_MODEL": "", "LLM_API_KEY": "", "TELEGRAM_BOT_TOKEN": "",
+            "TG_WEBHOOK_SECRET": "", "ADMIN_BOOTSTRAP_CODE": "", "ADMIN_BOOTSTRAP_USED": "",
+            "TG_POLLING": "0", "CONSENT_VERSION": "черновик-1"}
 
 NOT_CONNECTED = "ИИ не подключён: не задан ключ API"
 

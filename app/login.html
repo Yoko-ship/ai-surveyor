@@ -14,7 +14,8 @@ body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)
 .logo b{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1}
 .logo .ins{color:var(--ins);text-shadow:0 0 18px rgba(29,44,143,.55)}.logo .on{color:var(--on)}
 .logo span{display:block;font:12px var(--mono);color:var(--muted);margin-top:6px}
-.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px}
+.tabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px}
+.tabs button[hidden]{display:none}
 .tabs button{font:600 13px var(--sans);color:var(--muted);background:transparent;border:0;border-radius:8px;padding:8px;cursor:pointer}
 .tabs button.on{color:var(--accent);background:var(--card);border:1px solid var(--accent-dim)}
 form{display:none;flex-direction:column;gap:10px}form.on{display:flex}
@@ -36,7 +37,8 @@ button.go:disabled{opacity:.6;cursor:wait}
 </style>
 <div class="card">
   <div class="logo"><b><span class="ins">INS</span><span class="on">ON</span></b><span>InsuranceON · сюрвейер</span></div>
-  <div class="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="reg" type="button">Подать заявку</button></div>
+  <div class="tabs" id="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="reg" type="button">Подать заявку</button><button data-tab="boot" type="button" id="tab-boot" hidden>Первый вход</button></div>
+  <div class="msg" id="m-boot-hint" hidden></div>
 
   <form id="login" class="on" autocomplete="on">
     <label>Логин<input name="login" autocomplete="username" required></label>
@@ -73,11 +75,25 @@ button.go:disabled{opacity:.6;cursor:wait}
     <button class="go" type="submit">Отправить заявку</button>
   </form>
 
+  <form id="boot">
+    <p class="hint">Сервер пуст: пользователей ещё нет. Первый администратор входит по коду
+      <code>ADMIN_BOOTSTRAP_CODE</code> — его задаёт тот, кто разворачивает систему,
+      или сервер печатает его в свой журнал при первом запуске. Код действует один раз.</p>
+    <label>Код первого администратора<input name="code" required autocomplete="off"></label>
+    <label>Фамилия, имя, отчество<input name="full_name" required minlength="3"></label>
+    <div class="row2">
+      <label>Логин<input name="login" required minlength="3" pattern="[A-Za-z0-9_.\-@]+" title="латинские буквы, цифры, точка, дефис, подчёркивание"></label>
+      <label>Пароль (от 8 знаков)<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+    </div>
+    <div class="msg" id="m-boot"></div>
+    <button class="go" type="submit">Создать администратора</button>
+  </form>
+
   <div class="foot">СО АО «INSON» · доступ только для сотрудников и агентов</div>
 </div>
 <script>
 (function(){
-  const $=s=>document.querySelector(s), forms={login:$("#login"),code:$("#code"),reg:$("#reg")};
+  const $=s=>document.querySelector(s), forms={login:$("#login"),code:$("#code"),reg:$("#reg"),boot:$("#boot")};
   let pendingLogin="";
   function show(name){ Object.values(forms).forEach(f=>f.classList.remove("on")); forms[name].classList.add("on");
     document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(name==="code"?"login":name))); }
@@ -108,6 +124,17 @@ button.go:disabled{opacity:.6;cursor:wait}
   forms.code.onsubmit=async e=>{ e.preventDefault(); busy(forms.code,true);
     try{ const j=await post("/auth/verify-code",{login:pendingLogin, code:data(forms.code).code}); msg("code"); done(j); }
     catch(err){ msg("code",err.message,"err"); } finally{ busy(forms.code,false); } };
+
+  forms.boot.onsubmit=async e=>{ e.preventDefault(); msg("boot"); busy(forms.boot,true);
+    try{ const j=await post("/auth/bootstrap",data(forms.boot));
+      msg("boot",(j.message||"Администратор создан")+" Войдите на вкладке «Войти».","ok"); forms.boot.reset(); }
+    catch(err){ msg("boot",err.message,"err"); } finally{ busy(forms.boot,false); } };
+
+  // Пустой сервер: показываем вкладку первого администратора и подсказку
+  fetch("/auth/bootstrap-needed").then(r=>r.json()).then(j=>{ if(!j.needed) return;
+    $("#tab-boot").hidden=false;
+    const h=$("#m-boot-hint"); h.hidden=false; h.className="msg warn";
+    h.textContent="Первый администратор входит по коду ADMIN_BOOTSTRAP_CODE — вкладка «Первый вход»."; }).catch(()=>{});
 
   forms.reg.onsubmit=async e=>{ e.preventDefault(); msg("reg"); busy(forms.reg,true);
     try{ const j=await post("/auth/register",data(forms.reg));

@@ -359,14 +359,30 @@ def _set_cookie(response: Response, token: str):
     response.set_cookie(COOKIE, token, max_age=SESSION_HOURS * 3600, httponly=True, samesite="lax", path="/")
 
 
+def bearer_token(request: Request) -> Optional[str]:
+    """Токен сессии из заголовка Authorization: Bearer … — для вызовов без браузера."""
+    h = request.headers.get("authorization") or ""
+    if h[:7].lower() == "bearer ":
+        return h[7:].strip() or None
+    return None
+
+
+def request_token(request: Request) -> Optional[str]:
+    """Токен сессии: cookie «sid» или Bearer. Один источник правды для auth, guard и tgbot."""
+    return request.cookies.get(COOKIE) or bearer_token(request)
+
+
 def current_user(request: Request, response: Response) -> dict:
-    """Depends: текущий пользователь по cookie «sid». 401, если сессии нет или она истекла."""
-    token = request.cookies.get(COOKIE)
-    with db.tx() as con:
-        u = session_user(con, token)
+    """Depends: текущий пользователь по cookie «sid» или Bearer. 401, если сессии нет или она истекла."""
+    u = request.scope.get("surveyor_user")     # единый вход (app/guard.py) уже проверил сессию
+    token = request_token(request)
+    if u is None:
+        with db.tx() as con:
+            u = session_user(con, token)
     if not u:
         raise HTTPException(401, "Нужно войти в систему")
-    _set_cookie(response, token)          # продлеваем cookie вместе с сессией
+    if request.cookies.get(COOKIE):
+        _set_cookie(response, token)          # продлеваем cookie вместе с сессией
     return u
 
 
@@ -453,7 +469,7 @@ def verify_code(body: CodeIn, request: Request, response: Response):
 @router.post("/auth/logout")
 def logout(request: Request, response: Response):
     with db.tx() as con:
-        logout_session(con, request.cookies.get(COOKIE))
+        logout_session(con, request_token(request))
     response.delete_cookie(COOKIE, path="/")
     return {"ok": True}
 

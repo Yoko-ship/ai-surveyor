@@ -11,12 +11,17 @@
 """
 import asyncio
 import json as _json
+import os
 import sys
 from datetime import date
 from pathlib import Path
 from urllib.parse import urlencode
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Тест ходит в приложение напрямую с адреса 127.0.0.1 — единый вход (app/guard.py)
+# пропускает локальные соединения только в режиме разработчика.
+os.environ.setdefault("SURVEYOR_DEV", "1")
 
 from app import db          # noqa: E402
 from app import lawwatch    # noqa: E402

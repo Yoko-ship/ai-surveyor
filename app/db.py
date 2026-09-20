@@ -46,6 +46,13 @@ ADDED_COLUMNS = {
     ],
     "users": [
         ("telegram_id", "TEXT"),               # вход из мини-приложения Telegram (app/telegram.py)
+        ("position", "TEXT"),                  # должность со слов человека (регистрация в боте, app/tgbot.py)
+    ],
+    "pd_consents": [
+        # обязательные поля из раздела 7 docs/Регистрация и роли.md
+        ("consent_text_hash", "TEXT"),                       # хэш показанного текста
+        ("scope", "TEXT NOT NULL DEFAULT 'основное'"),       # 'основное' | 'телефон'
+        ("revoked_at", "TEXT"),                              # отзыв — заполнением даты, строку не удаляем
     ],
     "rules": [
         # LAWWATCH-01 (app/lawwatch.py): изменился акт — правила, которые на него ссылаются,

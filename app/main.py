@@ -20,7 +20,13 @@
   GET  /llm/status, POST /llm/ping, GET /llm/calls — состояние и журнал обращений к ИИ
   GET  /deploy/status, /deploy/settings, /deploy/checklist, /deploy/schema-check, POST /deploy/backup
   POST /tg/auth                         — вход мини-приложения Telegram
+  POST /tg/webhook/{secret}             — обновления от бота Telegram (app/tgbot.py)
+  GET  /tg/me, /tg/inbox, /tg/my-requests, /tg/bot-status — данные для мини-приложения
   GET  /ui — экран агента, GET /admin — админка, GET /admin/deploy — запуск, GET /tg — мини-апп
+
+Доступ: всё, кроме белого списка (/health, /login, /auth/*, /tg…, /theme.js), требует сессии —
+единый вход app/guard.py. Разделы админа (/admin*, /deploy/*, /tasks*, /reports*, /audit) — только «админ».
+На своём компьютере guard отключает SURVEYOR_DEV=1 (run.bat), и только для адреса 127.0.0.1.
 """
 import json
 import shutil
@@ -110,6 +116,17 @@ def startup():
         lawwatch.start_scheduler()
     except Exception as e:
         print("расписание слежения за законодательством не запущено:", e)
+    try:                                   # бот Telegram: опрос getUpdates — только при TG_POLLING=1 и токене
+        from . import tgbot
+        if tgbot.start_polling():
+            print("бот Telegram: включён запасной режим опроса (TG_POLLING=1)")
+    except Exception as e:
+        print("опрос Telegram не запущен:", e)
+    try:                                   # пустой сервер: код первого администратора — в журнал
+        from . import guard
+        guard.ensure_bootstrap_code()
+    except Exception as e:
+        print("код первого администратора не выдан:", e)
 
 
 # ---------- модели входа ----------
@@ -719,12 +736,20 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("photos", "photos_router"), ("valuation", "valuation_router"),
                     ("docparse", "docparse_router"), ("statagency", "statagency_router"),
                     ("approvals", "approvals_router"), ("lawwatch", "lawwatch_router"),
-                    ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router")):
+                    ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router"),
+                    ("tgbot", "tgbot_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)
     except Exception as _e:  # модуль ещё не готов — сервер всё равно поднимается
         print(f"модуль {_mod} не подключён: {_e}")
+
+
+# Единый вход: всё, кроме белого списка, требует сессии (app/guard.py).
+# Подключается последним, чтобы закрыть и маршруты модулей выше.
+from . import guard  # noqa: E402
+
+guard.install(app)
 
 
 @app.get("/accumulation")

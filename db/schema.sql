@@ -394,6 +394,7 @@ CREATE TABLE IF NOT EXISTS users (
     salt          TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'ожидает подтверждения', -- | 'активен' | 'заблокирован'
     telegram_id   TEXT,                            -- если задан — при входе нужен код из Telegram
+    position      TEXT,                            -- должность со слов самого человека (регистрация в боте)
     created_at    TEXT NOT NULL,
     approved_by   TEXT,                            -- логин админа, подтвердившего заявку
     approved_at   TEXT,
@@ -733,3 +734,58 @@ CREATE TABLE IF NOT EXISTS law_events (
 CREATE INDEX IF NOT EXISTS ix_law_events_created ON law_events(created_at);
 CREATE INDEX IF NOT EXISTS ix_law_events_seen ON law_events(seen, id);
 CREATE INDEX IF NOT EXISTS ix_law_events_act ON law_events(act_code, id);
+
+-- ---------------------------------------------------------------------------
+-- Телеграм-бот (app/tgbot.py): приём обновлений, регистрация, согласование.
+-- ПЕРСОНАЛЬНЫХ ДАННЫХ В ЭТИХ ТАБЛИЦАХ НЕТ (правило проекта № 8):
+-- ни текстов сообщений, ни ФИО, ни телефонов — только идентификаторы и тип события.
+-- ---------------------------------------------------------------------------
+
+-- Журнал обмена с ботом: только «кто, куда, какого типа событие и получилось ли».
+CREATE TABLE IF NOT EXISTS tg_messages (
+    id          INTEGER PRIMARY KEY,
+    update_id   INTEGER,                      -- номер обновления Telegram (для входящих)
+    telegram_id TEXT,                         -- идентификатор чата/пользователя в Telegram
+    user_id     INTEGER,                      -- наш пользователь, если он уже известен
+    direction   TEXT NOT NULL,                -- 'in' | 'out'
+    kind        TEXT NOT NULL,                -- 'start' | 'команда' | 'callback' | 'уведомление' | 'отказ' | 'ошибка'
+    ok          INTEGER NOT NULL DEFAULT 1,
+    error       TEXT,                         -- техническая причина (без текста сообщения)
+    request_id  INTEGER,                      -- по какому запросу событие, если применимо
+    created_at  TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_tg_messages_created ON tg_messages(created_at);
+CREATE INDEX IF NOT EXISTS ix_tg_messages_tg ON tg_messages(telegram_id, id);
+
+-- Обработанные обновления: Telegram повторяет доставку, второй раз обрабатывать нельзя.
+CREATE TABLE IF NOT EXISTS tg_updates (
+    update_id   INTEGER PRIMARY KEY,
+    received_at TEXT NOT NULL
+);
+
+-- Состояние пошагового диалога регистрации. Хранится в базе, а не в памяти процесса:
+-- перезапуск сервера не теряет начатую заявку.
+CREATE TABLE IF NOT EXISTS tg_dialogs (
+    telegram_id TEXT PRIMARY KEY,
+    step        TEXT NOT NULL,                -- 'согласие' | 'фио' | 'филиал' | 'должность' | 'роль' | 'id агента' | 'вопрос'
+    draft       TEXT,                         -- JSON-черновик заявки; удаляется вместе со строкой после завершения
+    updated_at  TEXT NOT NULL
+);
+
+-- Согласия на обработку персональных данных: факт, версия текста, канал и дата.
+-- Самого текста согласия и данных человека здесь нет — только ссылка на версию.
+CREATE TABLE IF NOT EXISTS pd_consents (
+    id          INTEGER PRIMARY KEY,
+    user_id     INTEGER,                      -- заполняется, когда заявка создана
+    telegram_id TEXT NOT NULL,
+    version     TEXT NOT NULL,                -- consent_version у юриста: 'ПД-1', 'ПД-2', ...
+    channel     TEXT NOT NULL DEFAULT 'telegram',
+    created_at  TEXT NOT NULL,                -- given_at у юриста: момент согласия
+    -- раздел 7 docs/Регистрация и роли.md: доказательство, что текст не подменили задним числом
+    consent_text_hash TEXT,
+    scope       TEXT NOT NULL DEFAULT 'основное',   -- 'основное' | 'телефон' (телефон — отдельная строка)
+    revoked_at  TEXT                          -- отзыв согласия: строки не удаляем, ставим дату (ст. 17 и 21 ЗРУ-547)
+);
+
+CREATE INDEX IF NOT EXISTS ix_pd_consents_tg ON pd_consents(telegram_id, id);
