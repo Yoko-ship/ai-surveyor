@@ -244,6 +244,10 @@ def bootstrap_admin(con, data: BootstrapIn) -> dict:
 
     out = auth.register_user(con, auth.RegisterIn(full_name=data.full_name, login=data.login,
                                                   password=data.password, role=ADMIN))
+    # регистрация делает первого пользователя активным только на пустом сервере; здесь администратор
+    # создаётся по коду, поэтому активируем его явно — даже если демо- или обычные пользователи уже есть
+    con.execute("UPDATE users SET status=?, approved_by='bootstrap', approved_at=? WHERE id=?",
+                (auth.STATUS_ACTIVE, db.now(), out["id"]))
     _setting_set(con, "ADMIN_BOOTSTRAP_USED", digest)
     con.execute("DELETE FROM app_settings WHERE key='ADMIN_BOOTSTRAP_CODE'")
     db.audit(con, out["login"], "первый администратор по коду", f"user:{out['id']}",
