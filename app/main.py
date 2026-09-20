@@ -31,6 +31,7 @@
 import json
 import shutil
 import sys
+import os
 import threading
 import time
 from pathlib import Path
@@ -122,6 +123,11 @@ def startup():
             print("бот Telegram: включён запасной режим опроса (TG_POLLING=1)")
     except Exception as e:
         print("опрос Telegram не запущен:", e)
+    if os.environ.get("DEMO_SEED") == "1":  # демо-данные для показа: только тестовый сервер, только PD_MODE=test
+        import subprocess, sys as _sys
+        r = subprocess.run([_sys.executable, str(ROOT / "tools" / "demo_seed.py"), "--yes"],
+                           capture_output=True, text=True, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        print("демо-данные:", (r.stdout or r.stderr).strip()[-400:])
     try:                                   # пустой сервер: код первого администратора — в журнал
         from . import guard
         guard.ensure_bootstrap_code()
