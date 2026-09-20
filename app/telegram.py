@@ -186,8 +186,11 @@ def tg_auth(body: AuthIn, request: Request, response: Response):
                                          user_agent="telegram-mini-app")
             auth._set_cookie(response, tok)
             db.audit(con, out["row"]["login"], "вход через Telegram", "user:%s" % out["row"]["id"], None)
-    return {"mode": MODE_TG, "status": out["status"], "user": out.get("user"),
-            "pd_mode": pd_mode(), "reason": out.get("reason", "")}
+    res_out = {"mode": MODE_TG, "status": out["status"], "user": out.get("user"),
+               "pd_mode": pd_mode(), "reason": out.get("reason", "")}
+    if out["status"] == ST_OK:
+        res_out["token"] = tok        # встроенный браузер Telegram может не хранить cookie — токен идёт заголовком
+    return res_out
 
 
 @router.get("/tg/status")

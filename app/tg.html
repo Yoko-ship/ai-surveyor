@@ -360,6 +360,8 @@ function why(status, j){
 
 async function api(url, opts){
   try{
+    opts = opts || {};
+    if (TOKEN) opts.headers = Object.assign({}, opts.headers || {}, {Authorization: "Bearer " + TOKEN});
     const r = await fetch(url, opts);
     let j = null;
     try { j = await r.json(); } catch (e) { j = null; }
@@ -372,6 +374,11 @@ async function api(url, opts){
 
 /* ---------- кто вошёл ---------- */
 let ME = {mode: "", status: "", user: null, rights: [], nav: []};
+/* Токен сессии: встроенный браузер Telegram (особенно iOS) может не сохранять cookie,
+   поэтому после входа токен хранится здесь и уходит заголовком Authorization. */
+let TOKEN = null;
+try { TOKEN = sessionStorage.getItem("surveyor_token") || null; } catch (e) {}
+function setToken(t){ TOKEN = t || null; try { if (t) sessionStorage.setItem("surveyor_token", t); else sessionStorage.removeItem("surveyor_token"); } catch (e) {} }
 let BOT = null, EAIS = null;
 
 function banner(sel, kind, text){
@@ -455,6 +462,7 @@ async function boot(){
     const a = await api("/tg/auth", {method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({initData: TG.initData})});
     const s = a.ok && a.data ? a.data.status : "";
+    if (a.ok && a.data && a.data.token) setToken(a.data.token);
     if (s === "нужна верификация") { showWait(a.data.reason); return; }
     if (s === "ошибка") {
       banner("#authWarn", "stop", "Вход через Telegram не выполнен: " + (a.data.reason || "причина не указана"));
@@ -542,6 +550,7 @@ async function login(){
       + (r.data.dev_code ? " Код для проверки: " + esc(r.data.dev_code) : "") + "</span>";
     return;
   }
+  if (r.data && r.data.token) setToken(r.data.token);
   $("#lgMsg").innerHTML = '<span class="ok">Вошли.</span>';
   $("#lgPass").value = "";
   await loadMe();
@@ -551,7 +560,7 @@ $("#lgPass").addEventListener("keydown", e => { if (e.key === "Enter") login(); 
 $("#lgCode").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
 $("#waitAgain").onclick = loadMe;
 $("#outBtn").onclick = async () => {
-  await api("/auth/logout", {method: "POST"});
+  await api("/auth/logout", {method: "POST"}); setToken(null);
   ME = {mode: ME.mode, status: "не вошёл", user: null, rights: [], nav: []};
   RID = null;
   screen("login");
