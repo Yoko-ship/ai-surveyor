@@ -48,6 +48,7 @@ SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY",
                 # бот Telegram (app/tgbot.py): секрет вебхука, код первого администратора,
                 # запасной режим опроса и версия текста согласия на обработку ПД
                 "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE", "ADMIN_BOOTSTRAP_USED",
+                "TG_ADMIN_USERNAME",   # username Telegram первого администратора: входит админом без кода
                 "TG_POLLING", "CONSENT_VERSION")
 
 PROVIDERS = {

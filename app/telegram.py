@@ -112,6 +112,25 @@ def link_or_request(con, tg_user: dict) -> dict:
     if not tg_id.isdigit():
         return {"status": ST_ERR, "user": None, "reason": "Telegram не передал идентификатор пользователя"}
     found = db.rows(con, "SELECT * FROM users WHERE telegram_id=?", tg_id)
+    # Первый администратор — по username из настройки TG_ADMIN_USERNAME, пока на сервере нет ни одного
+    # администратора: заказчик входит сразу, без кода. Как только админ есть, правило не действует.
+    boot = (llm.get("TG_ADMIN_USERNAME") or "").strip().lstrip("@").lower()
+    uname = (tg_user.get("username") or "").strip().lower()
+    if boot and uname and uname == boot and not db.rows(con, "SELECT 1 FROM users WHERE role='админ'"):
+        ts = db.now()
+        if found:
+            con.execute("UPDATE users SET role='админ', status=?, approved_by='tg-bootstrap', approved_at=?"
+                        " WHERE id=?", (auth.STATUS_ACTIVE, ts, found[0]["id"]))
+        else:
+            pw_hash, salt = auth.hash_password(secrets.token_urlsafe(24))
+            con.execute("INSERT INTO users (login, full_name, phone, role, branch, agent_eais_id, password_hash,"
+                        " salt, status, telegram_id, created_at, approved_by, approved_at)"
+                        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        ("tg" + tg_id, _display_name(tg_user), "", "админ", "", None, pw_hash, salt,
+                         auth.STATUS_ACTIVE, tg_id, ts, "tg-bootstrap", ts))
+        found = db.rows(con, "SELECT * FROM users WHERE telegram_id=?", tg_id)
+        db.audit(con, found[0]["login"], "первый администратор по username Telegram",
+                 "user:%s" % found[0]["id"], {"telegram_id": tg_id})
     if found:
         u = found[0]
         if u["status"] == auth.STATUS_ACTIVE:
