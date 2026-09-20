@@ -12,10 +12,11 @@ COPY db db
 COPY docs docs
 COPY tools tools
 COPY data/inbox data/inbox
+COPY data/parsed data/parsed
 
 # База собирается при сборке образа: справочники нужны сразу.
 # На бесплатных тарифах диск не сохраняется между перезапусками — см. docs/Деплой — тестовый запуск.md
-RUN python tools/db_build.py
+RUN python tools/db_build.py && python tools/market_stats.py
 
 EXPOSE 8000
 

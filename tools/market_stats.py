@@ -309,8 +309,12 @@ def refresh():
         r = subprocess.run([py, str(ROOT / "tools" / script)], capture_output=True, text=True,
                            env={**__import__("os").environ, "PYTHONIOENCODING": "utf-8"})
         log.append(f"{script}: {(r.stdout or r.stderr).strip()[-300:]}")
+    PARSED.mkdir(parents=True, exist_ok=True)
     n, dates = build()
-    log.append(f"market_stats: строк в таблице {n}, даты {dates[0]}…{dates[-1]} ({len(dates)} срезов)")
+    if dates:
+        log.append(f"market_stats: строк в таблице {n}, даты {dates[0]}…{dates[-1]} ({len(dates)} срезов)")
+    else:
+        log.append("market_stats: разобранных отчётов нет — проверьте data/inbox и вывод inspect_excel.py выше")
     return log
 
 
