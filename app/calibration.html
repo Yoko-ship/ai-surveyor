@@ -1,0 +1,179 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Калибровка тарифов</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px}
+.live{font-size:11px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:999px;padding:2px 9px}
+.sub{color:var(--muted);font-size:12.5px;margin:4px 0 16px;font-family:var(--mono)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+input,select,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+input{min-width:0}input[type=date]{color-scheme:dark}
+button{cursor:pointer;font-weight:600}button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}button.bad{border-color:var(--stop);color:var(--stop)}
+button:disabled{opacity:.5;cursor:default}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.tile b{display:block;font:600 22px var(--mono)}.tile span{font-size:12px;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0;margin-top:12px}
+.card h2{font-size:13px;margin:0 0 2px}.card p{font-size:12px;color:var(--muted);margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+td.c{color:var(--muted);font-size:11.5px;max-width:420px}
+.up{color:var(--stop)}.down{color:var(--accent)}.same{color:var(--muted)}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 6px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.ok{color:var(--accent);border-color:var(--accent-dim)}.tag.no{color:var(--stop);border-color:var(--stop)}.tag.wait{color:var(--gold);border-color:var(--gold)}
+.note{font-size:11.5px;color:var(--muted);margin-top:12px}
+.warnbox{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:10px 14px;font-weight:600;margin:8px 0}
+.okbox{border:1px solid var(--accent-dim);color:var(--accent);border-radius:10px;padding:10px 14px;margin:8px 0}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.form label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+tr.run{cursor:pointer}tr.run:hover td{background:var(--soft)}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:16px}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a class="on" href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Калибровка тарифов <span class="live">только предложение</span></h1>
+  <div class="sub">burning cost (CII M97) × теория доверия Z = √(n / 1000) · рисковая надбавка по методике Росстрахнадзора · тариф меняется только после утверждения</div>
+
+  <div class="row">
+    <label class="note" style="margin:0">Период договоров</label>
+    <input type="date" id="from"> <span class="note" style="margin:0">—</span> <input type="date" id="to">
+    <select id="gamma"><option value="0.9">γ = 0,90</option><option value="0.95" selected>γ = 0,95</option><option value="0.98">γ = 0,98</option></select>
+    <button id="check">Проверить данные</button>
+    <button class="go" id="run">Рассчитать предложение</button>
+    <span class="note" id="msg" style="margin:0"></span>
+  </div>
+  <div class="tiles" id="tiles"></div>
+  <div id="verdict"></div>
+
+  <div class="card" id="propcard" style="display:none">
+    <h2>Предложение <span id="runlabel" class="tag wait"></span></h2>
+    <p>Текущее → наблюдаемое → предлагаемое. Базовые ставки — в % от страховой суммы в год, множители — безразмерные. Z — доверие к своей статистике.</p>
+    <div style="overflow-x:auto"><table id="props"></table></div>
+    <div class="row" style="margin-top:12px" id="actions">
+      <input id="who" placeholder="Кто утверждает (ФИО, должность)" style="min-width:260px">
+      <button class="go" id="approve">Утвердить</button>
+      <button class="bad" id="reject">Отклонить</button>
+      <input id="rnote" placeholder="Причина отклонения" style="min-width:220px">
+      <span class="note" id="amsg" style="margin:0"></span>
+    </div>
+    <details class="note" id="skipped" style="margin-top:10px"></details>
+  </div>
+
+  <div class="card">
+    <h2>Прошлые прогоны</h2>
+    <p>Щёлкните строку, чтобы открыть предложение.</p>
+    <div style="overflow-x:auto"><table id="runs"></table></div>
+  </div>
+
+  <div class="card">
+    <h2>Регистрация убытка</h2>
+    <p>Убыток привязывается к запросу (договору) по его номеру в системе; если договора в системе нет — укажите класс и тип объекта, тогда он учитывается по дате события.</p>
+    <div class="form" id="cf">
+      <label>Номер запроса (id)<input id="c_request_id" type="number" min="1"></label>
+      <label>Номер убытка в учётной системе<input id="c_external_no"></label>
+      <label>Класс<input id="c_class_code" placeholder="8"></label>
+      <label>Тип объекта<input id="c_object_type" placeholder="Склад"></label>
+      <label>Дата события<input id="c_event_date" type="date"></label>
+      <label>Дата заявления<input id="c_reported_date" type="date"></label>
+      <label>Дата выплаты<input id="c_paid_date" type="date"></label>
+      <label>Причина<input id="c_cause" placeholder="пожар"></label>
+      <label>Заявлено, сум<input id="c_claimed" type="number" step="1"></label>
+      <label>Выплачено, сум<input id="c_paid" type="number" step="1"></label>
+      <label>Статус<select id="c_status"><option>заявлен</option><option>оплачен</option><option>отказ</option></select></label>
+      <label>Источник<input id="c_source" value="ручной ввод"></label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="go" id="addclaim">Зарегистрировать</button><span class="note" id="cmsg" style="margin:0"></span></div>
+    <div style="overflow-x:auto;margin-top:10px"><table id="claims"></table></div>
+  </div>
+
+  <p class="note">Как считается: наблюдаемая нетто-ставка = выплаты / (страховая сумма × срок / 365) × 100 (burning cost, учебник CII M97). Новая ставка = Z × наблюдаемая + (1 − Z) × действующая, Z = √(n/1000), не выше 1 (теория доверия). Множитель по фактору — относительная убыточность варианта к базовому, смешанная с действующим множителем тем же способом. Рисковая надбавка Tр = 1,2 × Tо × α(γ) × √((1 − q)/(n·q)) — методика Росстрахнадзора; движок пока применяет фиксированные 12%, предложение показано для сравнения. Экспертные коэффициенты остаются с пометкой «не калиброван», пока их не утвердят по своей статистике.</p>
+</main></div>
+<script>
+const $=s=>document.querySelector(s);
+const f4=n=>n==null?"—":Number(n).toFixed(4).replace(".",","), f3=n=>n==null?"—":Number(n).toFixed(3).replace(".",","), fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU");
+let current=null;
+const today=new Date(), y=today.getFullYear();
+$("#from").value=`${y-3}-01-01`; $("#to").value=today.toISOString().slice(0,10);
+const period=()=>`period_from=${$("#from").value}&period_to=${$("#to").value}`;
+
+function tiles(s){
+  $("#tiles").innerHTML=[["Договоров в выборке",s.contracts],["Убытков",s.claims],["Групп класс × тип",s.groups??"—"],["Доверие Z по выборке",s.credibility!=null?f3(s.credibility):"—"],["Предложений",s.proposals??"—"]]
+    .map(([k,v])=>`<div class="tile"><b>${v}</b><span>${k}</span></div>`).join("");
+}
+function arrow(a,b){ if(a==null||b==null) return ""; const d=b-a; return d>1e-9?`<span class="up">▲</span>`:d<-1e-9?`<span class="down">▼</span>`:`<span class="same">=</span>`; }
+function show(run){
+  current=run; const P=run.proposals||run, s=P.summary, items=P.items||[];
+  tiles(s);
+  $("#verdict").innerHTML = s.enough ? `<div class="okbox">Данных достаточно: ${s.proposals} предложений по периоду ${s.period_from} — ${s.period_to}. ${s.note||""}</div>`
+                                    : `<div class="warnbox">${s.message||"Данных недостаточно"}</div>`;
+  $("#propcard").style.display="";
+  const st=run.status||"предложено";
+  $("#runlabel").textContent=`прогон № ${run.run_id||run.id} · ${st}${run.approved_by?" · "+run.approved_by:""}`;
+  $("#runlabel").className="tag "+(st==="утверждено"?"ok":st==="отклонено"?"no":"wait");
+  $("#actions").style.display = st==="предложено" && items.some(i=>i.apply) ? "" : "none";
+  $("#props").innerHTML = items.length ? `<thead><tr><th>Что</th><th>Текущее</th><th></th><th>Наблюдаемое</th><th>Предлагаемое</th><th>n</th><th>m</th><th>Z</th><th>Комментарий</th></tr></thead><tbody>`+
+    items.map(i=>`<tr style="${i.apply?"":"opacity:.6"}"><td>${i.kind==="base_rate"?"<b>Базовая ставка</b><br>":"Множитель<br>"}${i.scope}</td>
+      <td class="n">${f4(i.current)}</td><td class="n">${arrow(i.current,i.proposed)}</td><td class="n">${f4(i.observed)}</td><td class="n"><b>${f4(i.proposed)}</b>${i.risk_load_pct!=null?`<br><span class="note">надбавка ${f4(i.risk_load_pct)} п.п. (${Math.round(i.risk_load_share*100)}%)</span>`:""}</td>
+      <td class="n">${i.n}</td><td class="n">${i.m}</td><td class="n">${i.Z==null?"—":f3(i.Z)}</td><td class="c">${i.comment||""}</td></tr>`).join("")+"</tbody>"
+    : '<tbody><tr><td class="c">Предложений нет — ни одна группа не набрала порог данных.</td></tr></tbody>';
+  const sk=s.skipped||[];
+  $("#skipped").innerHTML = sk.length ? `<summary>Не вошло в предложение: ${sk.length}</summary>`+sk.map(x=>`<div>· ${x.scope} — ${x.why}</div>`).join("") : "";
+  $("#amsg").textContent="";
+}
+async function runs(){
+  const r=await (await fetch("/calibration/runs")).json();
+  $("#runs").innerHTML=`<thead><tr><th>№</th><th>Когда</th><th>Период</th><th>Договоров</th><th>Убытков</th><th>Z</th><th>Статус</th><th>Кто</th></tr></thead><tbody>`+
+    (r.length?r.map(x=>`<tr class="run" data-id="${x.id}"><td>${x.id}</td><td>${x.run_at.replace("T"," ")}</td><td>${x.period_from} — ${x.period_to}</td><td class="n">${x.contracts}</td><td class="n">${x.claims}</td><td class="n">${f3(x.credibility)}</td>
+      <td><span class="tag ${x.status==="утверждено"?"ok":x.status==="отклонено"?"no":"wait"}">${x.status}</span></td><td>${x.approved_by||""}${x.note?" · "+x.note:""}</td></tr>`).join("")
+     :'<tr><td class="c" colspan="8">Прогонов ещё не было.</td></tr>')+"</tbody>";
+  document.querySelectorAll("tr.run").forEach(tr=>tr.onclick=async()=>show(await (await fetch("/calibration/runs/"+tr.dataset.id)).json()));
+}
+async function claims(){
+  const r=await (await fetch("/claims?limit=50")).json();
+  $("#claims").innerHTML=`<thead><tr><th>№</th><th>Договор</th><th>Класс · объект</th><th>Событие</th><th>Причина</th><th>Заявлено</th><th>Выплачено</th><th>Статус</th></tr></thead><tbody>`+
+    (r.length?r.map(c=>`<tr><td>${c.id}</td><td>${c.request_id?"запрос "+c.request_id:"—"}${c.contract_no?" · "+c.contract_no:""}</td><td>${c.class_code||"—"} · ${c.object_type||"—"}</td><td>${c.event_date||"—"}</td><td>${c.cause||""}</td><td class="n">${fmt(c.claimed)}</td><td class="n">${fmt(c.paid)}</td><td><span class="tag ${c.status==="оплачен"?"ok":c.status==="отказ"?"no":"wait"}">${c.status}</span></td></tr>`).join("")
+     :'<tr><td class="c" colspan="8">Убытков пока не зарегистрировано. Выгрузки компании ожидаются от заказчика.</td></tr>')+"</tbody>";
+}
+$("#check").onclick=async()=>{ $("#msg").textContent="считаю…";
+  const d=await (await fetch("/calibration/exposure?"+period())).json();
+  tiles({contracts:d.contracts,claims:d.claims,groups:d.groups.length});
+  $("#verdict").innerHTML = d.enough ? `<div class="okbox">Данных достаточно хотя бы по одной группе — можно рассчитать предложение.</div>`
+    : `<div class="warnbox">Данных для калибровки пока недостаточно: договоров ${d.contracts}, убытков ${d.claims}. Нужно не меньше ${d.min_contracts} договоров и ${d.min_claims} убытков в группе.</div>`;
+  $("#msg").textContent=""; };
+$("#run").onclick=async()=>{ $("#msg").textContent="считаю…";
+  const r=await fetch("/calibration/run",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({period_from:$("#from").value,period_to:$("#to").value,gamma:parseFloat($("#gamma").value)})});
+  const j=await r.json(); if(!r.ok){$("#msg").textContent="Ошибка: "+(j.detail||r.status);return;}
+  $("#msg").textContent=""; show(j); runs(); };
+async function decide(kind){
+  const who=$("#who").value.trim(); if(!who){$("#amsg").textContent="Укажите, кто принимает решение.";return;}
+  const id=current.run_id||current.id;
+  const r=await fetch(`/calibration/runs/${id}/${kind}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({who,note:$("#rnote").value})});
+  const j=await r.json(); if(!r.ok){$("#amsg").textContent="Ошибка: "+(j.detail||r.status);return;}
+  $("#amsg").textContent = kind==="approve" ? `Утверждено: версия тарифа № ${j.tariff_version_id}, ставок ${j.base_rates}, множителей ${j.coefficients}` : "Отклонено";
+  show(await (await fetch("/calibration/runs/"+id)).json()); runs();
+}
+$("#approve").onclick=()=>decide("approve"); $("#reject").onclick=()=>decide("reject");
+$("#addclaim").onclick=async()=>{
+  const v=id=>{const x=$("#"+id).value; return x===""?null:x;}, num=id=>{const x=v(id); return x==null?null:Number(x);};
+  const body={request_id:num("c_request_id"),external_no:v("c_external_no"),class_code:v("c_class_code"),object_type:v("c_object_type"),event_date:v("c_event_date"),reported_date:v("c_reported_date"),paid_date:v("c_paid_date"),cause:v("c_cause"),claimed:num("c_claimed"),paid:num("c_paid"),status:$("#c_status").value,source:v("c_source")};
+  const r=await fetch("/claims",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); const j=await r.json();
+  $("#cmsg").textContent = r.ok ? `Убыток № ${j.id} записан` : "Ошибка: "+(j.detail||r.status); if(r.ok) claims(); };
+runs(); claims(); $("#check").click();
+</script>
+
+<script src="/theme.js"></script>

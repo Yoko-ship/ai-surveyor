@@ -1,0 +1,58 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ежедневный доклад</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0;display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px}
+h1{font-size:22px;font-weight:800;margin:0 0 4px;grid-column:1/-1}.sub{color:var(--muted);font-size:12.5px;margin:0 0 4px;grid-column:1/-1}
+.list{display:flex;flex-direction:column;gap:6px}
+.list button{text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
+.list button.on{border-color:var(--accent-dim);color:var(--accent)}
+.list button small{display:block;color:var(--muted);font:11px var(--mono)}
+button.go{font:inherit;font-weight:700;color:#0F1418;background:var(--accent-dim);border:0;border-radius:10px;padding:9px 12px;cursor:pointer}
+.doc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 26px;min-width:0}
+.doc h1{font-size:20px;margin:0 0 14px}.doc h2{font-size:14.5px;margin:18px 0 6px;color:var(--accent)}
+.doc ul{margin:0;padding-left:18px}.doc li{margin:3px 0}.doc strong{color:var(--gold)}
+.doc pre{white-space:pre-wrap;font:13px var(--mono)}
+@media (max-width:860px){main{grid-template-columns:1fr}}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a class="on" href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Ежедневный доклад</h1>
+  <p class="sub">Руководитель собирает его каждый день в 08:00 за прошедшие сутки: аналитика, портфель, рынок, самообучение, нормативы, работа команды и что нужно от вас.</p>
+  <div><button class="go" id="now" style="margin-bottom:10px;width:100%">Собрать доклад за сегодня</button><div class="list" id="list"></div></div>
+  <div class="doc" id="doc">Выберите дату слева.</div>
+</main></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function md(t){ // минимальный markdown: заголовки, списки, жирный
+  const lines=t.split("\n"), out=[]; let ul=false;
+  for(let l of lines){ if(/^\s*- /.test(l)){ if(!ul){out.push("<ul>");ul=true;} out.push("<li>"+inline(l.replace(/^\s*- /,""))+"</li>"); continue; }
+    if(ul){out.push("</ul>");ul=false;} if(l.startsWith("# ")) out.push("<h1>"+inline(l.slice(2))+"</h1>"); else if(l.startsWith("## ")) out.push("<h2>"+inline(l.slice(3))+"</h2>"); else if(l.trim()) out.push("<p>"+inline(l)+"</p>"); }
+  if(ul) out.push("</ul>"); return out.join("");
+  function inline(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>"); }
+}
+let cur=null;
+async function open(d){ cur=d; const t=await (await fetch("/reports/"+d+".md")).text(); $("#doc").innerHTML=md(t); document.querySelectorAll(".list button").forEach(b=>b.classList.toggle("on",b.dataset.d===d)); }
+async function load(){ const l=await (await fetch("/reports")).json();
+  $("#list").innerHTML=l.length?l.map(r=>`<button data-d="${r.report_date}">${r.report_date.split("-").reverse().join(".")}<small>собран ${esc(r.created_at).replace("T"," ")}</small></button>`).join(""):'<div style="color:var(--muted);font-size:12.5px">Докладов пока нет — нажмите «Собрать».</div>';
+  document.querySelectorAll(".list button").forEach(b=>b.onclick=()=>open(b.dataset.d));
+  if(l.length) open(cur&&l.some(r=>r.report_date===cur)?cur:l[0].report_date); }
+$("#now").onclick=async()=>{ await fetch("/reports/make",{method:"POST"}); load(); };
+load();
+</script>
+<script src="/theme.js"></script>

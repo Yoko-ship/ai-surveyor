@@ -1,0 +1,1105 @@
+"""
+Оценка стоимости объекта страхования: хранение справочников и сама методика.
+
+Хранение (каркас разработчика): нормы износа, настройки оценки, записи оценок и источников,
+подтверждение оценки андеррайтером.
+
+Методика (актуарий, METHOD_VERSION):
+  шаг 1 — рынок: объявления с площадок, медиана и квартили, скидка на торг;
+  шаг 2 — только авто, если рынка нет: письмо официальному дилеру (текст, без выдуманных цен);
+  шаг 3 — резерв: линейный износ от даты ввода в эксплуатацию, остаточный минимум, поправка по пробегу;
+  шаг 4 — сверка расчёта с ценой, заявленной агентом, по порогу расхождения;
+  шаг 5 — привязка к движку: страховая сумма сверяется с последней оценкой по объекту.
+
+Сбор объявлений — в app/valuation_sources.py (статистик). Здесь он только вызывается;
+если модуля нет, все источники честно получают статус «источник недоступен».
+
+Все проценты — экспертные до калибровки (calibrated = 0), как требует правило 7 проекта.
+Правовая рамка — docs/Оценка стоимости объекта.md: ГК ст. 932 (право страховщика на оценку),
+ст. 934 (стоимость — в месте нахождения в день заключения договора), ст. 935 (стоимость
+определяется соглашением сторон), ст. 936 (недострахование), ст. 938 (превышение).
+"""
+import json
+from datetime import date, datetime
+from typing import List, Optional
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+
+from . import db
+
+try:                                    # адаптеры площадок пишет статистик; их может ещё не быть
+    from . import valuation_sources as vs
+except ImportError:                     # pragma: no cover
+    vs = None
+
+router = APIRouter()
+
+# Версия методики. Меняется при любой правке формул: старая оценка должна воспроизводиться
+# теми же правилами, что были в день расчёта (правило проекта 9).
+METHOD_VERSION = "1.0"
+METHODS = ("объявления", "износ", "смешанный", "дилер")
+# Статусы источников: первые четыре — исторические названия каркаса, вторые — контракт адаптеров
+# (app/valuation_sources.py). Принимаем оба и приводим к одному виду при сохранении.
+SOURCE_STATUSES = ("ок", "нет данных", "источник недоступен", "запрещено robots.txt",
+                   "ok", "нет объявлений")
+STATUS_ALIAS = {"ok": "ок", "нет объявлений": "нет данных"}
+
+# Настройки, без которых модуль не считает. Значения ставятся в tools/db_build.py.
+SETTING_SPREAD = "spread_threshold_pct"        # порог расхождения заявленной и расчётной стоимости
+SETTING_MILEAGE = "annual_mileage_norm_km"     # нормативный годовой пробег для авто
+SETTING_MIN_ADS = "market_min_ads"             # сколько объявлений нужно, чтобы верить рынку
+SETTING_WINDOW = "market_window_months"        # окно свежести объявлений
+SETTING_BARGAIN = "bargain_discount_pct"       # скидка на торг: объявление — цена предложения
+SETTING_MILEAGE_SENS = "mileage_sensitivity"   # чувствительность стоимости к отклонению пробега
+SETTING_MILEAGE_LIMIT = "mileage_adj_limit_pct"  # предел поправки по пробегу вверх и вниз
+SETTING_FX_SOURCE = "fx_source"                # откуда берём курс доллара для цен в у.е.
+SETTING_FX_MANUAL = "fx_rate_manual"           # ручной курс заказчика (пусто — берём курс ЦБ РУз)
+
+# Значения по умолчанию — на случай, если настройки ещё нет в базе. Все экспертные (calibrated = 0).
+SETTING_DEFAULTS = {
+    SETTING_SPREAD: 15.0,
+    SETTING_MILEAGE: 20000.0,
+    SETTING_MIN_ADS: 5.0,
+    SETTING_WINDOW: 6.0,
+    SETTING_BARGAIN: 5.0,
+    SETTING_MILEAGE_SENS: 0.15,
+    SETTING_MILEAGE_LIMIT: 15.0,
+}
+
+# Курс валюты. Часть объявлений (avtoelon.uz и др.) публикуется в у.е. — без курса такие цены
+# выпадают из медианы и рыночная ветка не работает. Источник курса по умолчанию — официальный
+# открытый JSON ЦБ РУз на дату заключения договора; заказчик может поставить свой курс в
+# настройке fx_rate_manual. Выбор источника с заказчиком ещё не согласован — вопрос 33
+# в docs/Открытые вопросы.md открыт, поэтому в объяснении всегда стоит оговорка.
+FX_SOURCE_DEFAULT = "ЦБ РУз на дату заключения"
+FX_DISCLAIMER = ("источник курса подлежит подтверждению заказчиком "
+                 "(вопрос 33 в docs/Открытые вопросы.md пока открыт)")
+
+
+# ---------- нормы износа ----------
+
+class Norm(BaseModel):
+    code: str
+    name: str
+    rate_pct: float
+    residual_min_pct: Optional[float] = None
+    calibrated: int = 0
+    source: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.get("/valuation/norms")
+def get_norms():
+    with db.tx() as con:
+        return db.rows(con, "SELECT * FROM depreciation_norms ORDER BY code")
+
+
+@router.post("/valuation/norms")
+def save_norm(n: Norm, who: str = "админ"):
+    """Создать или изменить норму износа. Правка вручную снимает отметку калибровки."""
+    if not (0 <= n.rate_pct <= 100):
+        raise HTTPException(400, "Процент износа должен быть от 0 до 100")
+    if n.residual_min_pct is not None and not (0 <= n.residual_min_pct <= 100):
+        raise HTTPException(400, "Остаточный минимум должен быть от 0 до 100")
+    with db.tx() as con:
+        old = db.rows(con, "SELECT * FROM depreciation_norms WHERE code=?", n.code)
+        con.execute("""INSERT INTO depreciation_norms (code,name,rate_pct,residual_min_pct,calibrated,source,note)
+                       VALUES (?,?,?,?,?,?,?)
+                       ON CONFLICT(code) DO UPDATE SET name=excluded.name, rate_pct=excluded.rate_pct,
+                         residual_min_pct=excluded.residual_min_pct, calibrated=excluded.calibrated,
+                         source=excluded.source, note=excluded.note""",
+                    (n.code, n.name, n.rate_pct, n.residual_min_pct, int(n.calibrated), n.source, n.note))
+        db.audit(con, who, "изменена норма износа" if old else "добавлена норма износа",
+                 f"depreciation_norms:{n.code}",
+                 {"было": old[0]["rate_pct"] if old else None, "стало": n.rate_pct})
+    return {"ok": True, "code": n.code}
+
+
+@router.delete("/valuation/norms/{code}")
+def delete_norm(code: str, who: str = "админ"):
+    with db.tx() as con:
+        if not db.rows(con, "SELECT code FROM depreciation_norms WHERE code=?", code):
+            raise HTTPException(404, "Норма не найдена")
+        con.execute("DELETE FROM depreciation_norms WHERE code=?", (code,))
+        db.audit(con, who, "удалена норма износа", f"depreciation_norms:{code}")
+    return {"ok": True, "code": code}
+
+
+# ---------- настройки ----------
+
+class Setting(BaseModel):
+    key: str
+    value: str
+    name: Optional[str] = None
+    unit: Optional[str] = None
+    calibrated: int = 0
+    source: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.get("/valuation/settings")
+def get_settings():
+    with db.tx() as con:
+        return db.rows(con, "SELECT * FROM valuation_settings ORDER BY key")
+
+
+@router.post("/valuation/settings")
+def save_setting(s: Setting, who: str = "админ"):
+    with db.tx() as con:
+        old = db.rows(con, "SELECT * FROM valuation_settings WHERE key=?", s.key)
+        if not old and not s.name:
+            raise HTTPException(400, "Для новой настройки нужно название")
+        name = s.name or old[0]["name"]
+        con.execute("""INSERT INTO valuation_settings (key,value,name,unit,calibrated,source,note)
+                       VALUES (?,?,?,?,?,?,?)
+                       ON CONFLICT(key) DO UPDATE SET value=excluded.value, name=excluded.name,
+                         unit=excluded.unit, calibrated=excluded.calibrated,
+                         source=excluded.source, note=excluded.note""",
+                    (s.key, str(s.value), name, s.unit or (old[0]["unit"] if old else None),
+                     int(s.calibrated), s.source, s.note))
+        db.audit(con, who, "изменена настройка оценки", f"valuation_settings:{s.key}",
+                 {"было": old[0]["value"] if old else None, "стало": str(s.value)})
+    return {"ok": True, "key": s.key}
+
+
+def setting(con, key: str, default=None):
+    """Значение настройки строкой. Разбор типа — на стороне вызывающего."""
+    r = db.rows(con, "SELECT value FROM valuation_settings WHERE key=?", key)
+    return r[0]["value"] if r else default
+
+
+# ---------- оценки ----------
+
+class SourceIn(BaseModel):
+    source: str
+    status: str
+    url: Optional[str] = None
+    ads_count: Optional[int] = None
+    median: Optional[float] = None
+    q1: Optional[float] = None
+    q3: Optional[float] = None
+    samples: Optional[list] = None
+    fetched_at: Optional[str] = None
+
+
+class ValuationIn(BaseModel):
+    request_id: Optional[int] = None
+    object_type: Optional[str] = None
+    params: Optional[dict] = None
+    declared_value: Optional[float] = None
+    ai_value: Optional[float] = None
+    method: Optional[str] = None
+    method_version: Optional[str] = None
+    spread: Optional[dict] = None
+    explanation: Optional[dict] = None
+    sources: List[SourceIn] = []
+    created_by: Optional[str] = "api"
+
+
+@router.post("/valuations")
+def create_valuation(v: ValuationIn):
+    """Сохранить результат оценки. Считать модуль пока не умеет — цифры приходят извне."""
+    if v.method and v.method not in METHODS:
+        raise HTTPException(400, f"Метод должен быть одним из: {', '.join(METHODS)}")
+    for s in v.sources:
+        if s.status not in SOURCE_STATUSES:
+            raise HTTPException(400, f"Статус источника должен быть одним из: {', '.join(SOURCE_STATUSES)}")
+    js = lambda x: json.dumps(x, ensure_ascii=False) if x is not None else None
+    with db.tx() as con:
+        if v.request_id and not db.rows(con, "SELECT id FROM requests WHERE id=?", v.request_id):
+            raise HTTPException(404, "Запрос не найден")
+        cur = con.execute("""INSERT INTO valuations (created_at,created_by,request_id,object_type,params_json,
+                             declared_value,ai_value,method,method_version,spread_json,explanation)
+                             VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                          (db.now(), v.created_by, v.request_id, v.object_type, js(v.params),
+                           v.declared_value, v.ai_value, v.method, v.method_version or METHOD_VERSION,
+                           js(v.spread), js(v.explanation)))
+        vid = cur.lastrowid
+        for s in v.sources:
+            con.execute("""INSERT INTO valuation_sources (valuation_id,source,status,url,ads_count,median,q1,q3,
+                           samples_json,fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                        (vid, s.source, STATUS_ALIAS.get(s.status, s.status), s.url, s.ads_count,
+                         s.median, s.q1, s.q3,
+                         js(s.samples), s.fetched_at or db.now()))
+        db.audit(con, v.created_by or "api", "сохранена оценка стоимости", f"valuation:{vid}",
+                 {"request_id": v.request_id, "ai_value": v.ai_value, "declared": v.declared_value})
+    return {"ok": True, "id": vid}
+
+
+@router.get("/valuations")
+def list_valuations(request_id: int = None, limit: int = 50):
+    with db.tx() as con:
+        if request_id:
+            return db.rows(con, "SELECT * FROM valuations WHERE request_id=? ORDER BY id DESC LIMIT ?",
+                           request_id, limit)
+        return db.rows(con, "SELECT * FROM valuations ORDER BY id DESC LIMIT ?", limit)
+
+
+@router.get("/valuations/{vid}")
+def get_valuation(vid: int):
+    with db.tx() as con:
+        r = db.rows(con, "SELECT * FROM valuations WHERE id=?", vid)
+        if not r:
+            raise HTTPException(404, "Оценка не найдена")
+        v = r[0]
+        v["sources"] = db.rows(con, "SELECT * FROM valuation_sources WHERE valuation_id=? ORDER BY id", vid)
+    return v
+
+
+class Confirm(BaseModel):
+    who: str
+    value: Optional[float] = None       # андеррайтер может поставить свою цифру
+
+
+@router.post("/valuations/{vid}/confirm")
+def confirm_valuation(vid: int, c: Confirm):
+    with db.tx() as con:
+        if not db.rows(con, "SELECT id FROM valuations WHERE id=?", vid):
+            raise HTTPException(404, "Оценка не найдена")
+        if c.value is not None:
+            con.execute("UPDATE valuations SET ai_value=?, confirmed_by_underwriter=?, confirmed_at=? WHERE id=?",
+                        (c.value, c.who, db.now(), vid))
+        else:
+            con.execute("UPDATE valuations SET confirmed_by_underwriter=?, confirmed_at=? WHERE id=?",
+                        (c.who, db.now(), vid))
+        db.audit(con, c.who, "оценка подтверждена", f"valuation:{vid}", {"value": c.value})
+    return {"ok": True, "id": vid}
+
+
+# =========================================================================== #
+#                            М Е Т О Д И К А                                   #
+# =========================================================================== #
+#
+# Ни одно число в методике не взято из статистики компании: выгрузок по убыткам и продажам
+# ещё нет. Поэтому все настройки и остаточные минимумы помечены calibrated = 0 и попадают
+# в объяснение отдельной строкой «экспертно, не калибровано».
+
+
+# ---------- чтение справочников ----------
+
+def num_setting(con, key: str) -> dict:
+    """
+    Числовая настройка оценки: значение, откуда взято и калибровано ли.
+    Если настройки нет в базе — берём значение по умолчанию и честно это показываем.
+    """
+    r = db.rows(con, "SELECT * FROM valuation_settings WHERE key=?", key)
+    if r:
+        try:
+            return {"key": key, "value": float(str(r[0]["value"]).replace(",", ".")),
+                    "name": r[0]["name"], "unit": r[0]["unit"],
+                    "calibrated": int(r[0]["calibrated"] or 0), "from": "valuation_settings"}
+        except ValueError:
+            pass
+    return {"key": key, "value": float(SETTING_DEFAULTS.get(key, 0)), "name": key, "unit": None,
+            "calibrated": 0, "from": "значение по умолчанию в коде (настройки нет в базе)"}
+
+
+def norm_by_code(con, code: str) -> dict:
+    """Норма износа из таблицы depreciation_norms. В коде норм нет — только в базе."""
+    r = db.rows(con, "SELECT * FROM depreciation_norms WHERE code=?", code)
+    if not r:
+        raise HTTPException(404, f"Норма износа «{code}» не найдена в справочнике depreciation_norms")
+    return r[0]
+
+
+# ---------- служебное: даты, квантили ----------
+
+def to_date(value) -> Optional[date]:
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value.date()
+    if isinstance(value, date):
+        return value
+    s = str(value).strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise HTTPException(400, f"Дата «{value}» непонятна: нужен вид ГГГГ-ММ-ДД или ДД.ММ.ГГГГ")
+
+
+def years_between(start, end) -> float:
+    """
+    Дробное число лет по календарю: полные годы плюс доля года до даты договора.
+    2016-01-01 → 2026-01-01 даёт ровно 10.0 (а не 10,0014, как при делении дней на 365).
+    """
+    d1, d2 = to_date(start), to_date(end)
+    if d1 is None or d2 is None:
+        raise HTTPException(400, "Для расчёта износа нужны дата ввода в эксплуатацию и дата договора")
+    if d2 <= d1:
+        return 0.0
+    y = d2.year - d1.year
+
+    def anniv(n):
+        try:
+            return d1.replace(year=d1.year + n)
+        except ValueError:              # 29 февраля
+            return d1.replace(year=d1.year + n, day=28)
+    if anniv(y) > d2:
+        y -= 1
+    a, b = anniv(y), anniv(y + 1)
+    return y + (d2 - a).days / (b - a).days
+
+
+def quantiles(values: list) -> tuple:
+    """(q1, медиана, q3) линейной интерполяцией. Тот же способ, что у адаптеров площадок."""
+    xs = sorted(float(v) for v in values if v is not None)
+    if not xs:
+        return None, None, None
+
+    def q(p):
+        if len(xs) == 1:
+            return xs[0]
+        pos = p * (len(xs) - 1)
+        lo = int(pos)
+        hi = min(lo + 1, len(xs) - 1)
+        return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+    return q(0.25), q(0.5), q(0.75)
+
+
+def months_back(as_of: date, months: int) -> date:
+    """Дата на N месяцев раньше: начало окна свежести объявлений."""
+    y, m = as_of.year, as_of.month - int(months)
+    while m <= 0:
+        m += 12
+        y -= 1
+    leap = 29 if (y % 4 == 0 and (y % 100 != 0 or y % 400 == 0)) else 28
+    d = min(as_of.day, [31, leap, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][m - 1])
+    return date(y, m, d)
+
+
+def _src_dict(r) -> dict:
+    """Результат адаптера (dataclass или словарь) — к словарю."""
+    if hasattr(r, "to_dict"):
+        return r.to_dict()
+    return dict(r)
+
+
+# ---------- шаг 1: рынок ----------
+
+def market_aggregate(results: list, as_of, min_ads: float, bargain_pct: float,
+                     window_months: int = 6) -> dict:
+    """
+    Свод по объявлениям всех площадок.
+
+    Формула:
+        медиана и квартили Q1/Q3 — по объединённому списку цен в сумах;
+        рыночная стоимость = медиана × (1 − скидка на торг / 100);
+        вилка = [Q1 × (1 − торг), Q3 × (1 − торг)].
+
+    Скидка на торг нужна потому, что объявление — цена предложения, а не рыночная стоимость
+    (Закон об оценочной деятельности, ст. 7; docs/Оценка стоимости объекта.md).
+    Рынку верим только если объявлений с ценой не меньше min_ads.
+    """
+    as_of = to_date(as_of) or date.today()
+    edge = months_back(as_of, int(window_months))
+    prices, samples, srcs, notes = [], [], [], []
+    for r in results:
+        d = _src_dict(r)
+        status = d.get("status") or "источник недоступен"
+        status = STATUS_ALIAS.get(status, status)
+        srcs.append({"source": d.get("source"), "status": status,
+                     "reason": d.get("reason") or "", "url": d.get("url") or "",
+                     "ads_count": d.get("ads_count") or 0, "median": d.get("median"),
+                     "q1": d.get("q1"), "q3": d.get("q3"),
+                     "samples": [dict(x) if isinstance(x, dict) else _src_dict(x)
+                                 for x in (d.get("samples") or [])],
+                     "fetched_at": d.get("fetched_at")})
+        if status != "ок":
+            notes.append(f"{d.get('source')}: {status}"
+                         + (f" ({d.get('reason')})" if d.get("reason") else ""))
+            continue
+        prices += [float(p) for p in (d.get("prices") or []) if p]
+        for x in (d.get("samples") or []):
+            xd = dict(x) if isinstance(x, dict) else _src_dict(x)
+            pub = xd.get("published")
+            try:
+                stale = bool(pub) and to_date(pub) < edge
+            except HTTPException:
+                stale = False
+            if stale:
+                notes.append(f"{d.get('source')}: объявление от {pub} старше "
+                             f"{int(window_months)} мес. — в примеры не берём")
+                continue
+            xd["source"] = d.get("source")
+            samples.append(xd)
+
+    q1, med, q3 = quantiles(prices)
+    k = 1 - float(bargain_pct) / 100
+    enough = len(prices) >= int(min_ads)
+    out = {"ads_count": sum(s["ads_count"] for s in srcs), "prices_count": len(prices),
+           "q1": q1, "median": med, "q3": q3, "bargain_pct": bargain_pct,
+           "value": round(med * k, 2) if med is not None else None,
+           "spread": ({"min": round(q1 * k, 2), "median": round(med * k, 2), "max": round(q3 * k, 2)}
+                      if med is not None else None),
+           "samples": samples, "sources": srcs,
+           "enough": bool(enough and med is not None),
+           "window_months": int(window_months), "window_from": edge.isoformat(),
+           "as_of": as_of.isoformat(), "notes": notes}
+    if not prices:
+        out["reason"] = ("ни одна площадка не дала цен в сумах: "
+                         + ("; ".join(notes) if notes else "объявлений по объекту нет"))
+    elif not enough:
+        out["reason"] = (f"объявлений с ценой {len(prices)}, а для доверия рынку нужно "
+                         f"не меньше {int(min_ads)} (экспертный порог, calibrated = 0)")
+    return out
+
+
+def fx_rate(con, as_of) -> dict:
+    """
+    Курс доллара для перевода цен объявлений в сумы.
+
+    Порядок: ручной курс заказчика (настройка fx_rate_manual) → официальный курс ЦБ РУз
+    на дату заключения договора (открытый JSON cbu.uz, vs.cbu_usd_rate). Если курс получить
+    не удалось (нет сети, нет модуля адаптеров), возвращается rate = None: долларовые цены
+    в медиану не берутся, и это пишется в объяснении.
+
+    Источник курса с заказчиком ещё не согласован — в объяснении всегда стоит оговорка
+    FX_DISCLAIMER (вопрос 33 в docs/Открытые вопросы.md).
+    """
+    as_of = to_date(as_of) or date.today()
+    src_name = setting(con, SETTING_FX_SOURCE) or FX_SOURCE_DEFAULT
+    manual = setting(con, SETTING_FX_MANUAL)
+    out = {"rate": None, "as_of": as_of.isoformat(), "setting_source": src_name,
+           "manual": False, "calibrated": 0, "disclaimer": FX_DISCLAIMER, "reason": None}
+    if manual not in (None, ""):
+        try:
+            v = float(str(manual).replace(" ", "").replace(",", "."))
+        except ValueError:
+            v = 0.0
+        if v > 0:
+            out.update({"rate": v, "manual": True,
+                        "source": "ручной курс заказчика из настройки valuation_settings."
+                                  + SETTING_FX_MANUAL + " (источник: %s)" % src_name})
+            return out
+    if vs is None or not hasattr(vs, "cbu_usd_rate"):
+        out["reason"] = "модуль адаптеров app/valuation_sources.py недоступен"
+        out["source"] = src_name
+        return out
+    try:
+        r = vs.cbu_usd_rate(as_of)
+    except Exception as e:              # сеть не должна ронять оценку
+        r, out["reason"] = None, "сбой запроса курса (%s: %s)" % (type(e).__name__, e)
+    if r:
+        out.update({"rate": float(r),
+                    "source": "официальный курс ЦБ РУз, открытый JSON cbu.uz (%s)" % src_name})
+    else:
+        out["source"] = "официальный курс ЦБ РУз, открытый JSON cbu.uz (%s)" % src_name
+        out["reason"] = out["reason"] or "ЦБ РУз курс на эту дату не отдал (нет сети или нет данных)"
+    return out
+
+
+def fx_line(fx: dict) -> str:
+    """Строка объяснения о применённом курсе — обязательна в каждом расчёте по рынку."""
+    if not fx:
+        return ""
+    d = to_date(fx.get("as_of"))
+    when = d.strftime("%d.%m.%Y") if d else str(fx.get("as_of"))
+    if fx.get("rate"):
+        return ("Курс: 1 доллар = %s сум на %s, источник — %s; %s."
+                % (format(float(fx["rate"]), ",.2f").replace(",", " "), when,
+                   fx.get("source") or FX_SOURCE_DEFAULT, FX_DISCLAIMER))
+    return ("Курс получить не удалось (%s): цены объявлений в у.е. в медиану не берутся, "
+            "считаем только по ценам в сумах. Источник курса — %s; %s."
+            % (fx.get("reason") or "причина не указана",
+               fx.get("source") or FX_SOURCE_DEFAULT, FX_DISCLAIMER))
+
+
+def collect_market(object_type: str, params: dict, as_of, rate: float = None) -> list:
+    """
+    Опрос площадок. Нет модуля адаптеров или нет сети — источники со статусом, расчёт не падает.
+
+    rate — курс доллара (сумов за 1 доллар). Без него адаптеры не могут перевести цены в у.е.
+    в сумы: такие объявления выпадают из медианы и рыночная ветка не срабатывает вовсе.
+    """
+    as_of = to_date(as_of) or date.today()
+    if vs is None:
+        return [{"source": "площадки объявлений", "status": "источник недоступен",
+                 "reason": "модуль адаптеров app/valuation_sources.py недоступен"}]
+    try:
+        return vs.fetch_all(object_type, params or {}, as_of, rate)
+    except TypeError:                   # старый адаптер без параметра курса
+        return vs.fetch_all(object_type, params or {}, as_of)
+    except Exception as e:              # сеть не должна ронять оценку
+        return [{"source": "площадки объявлений", "status": "источник недоступен",
+                 "reason": f"сбой опроса площадок ({type(e).__name__}: {e})"}]
+
+
+def stat_agency_sources(con, object_type: str, params: dict) -> list:
+    """
+    Агентство статистики как источник по недвижимости.
+
+    Площадки недвижимости закрыты (olx — 403, uybor и joymee рисуются в браузере), а цены
+    квадратного метра орган статистики не публикует — у него есть только индекс цен на жильё
+    по регионам. Поэтому источник идёт со статусом «Агентство статистики»: ни одной цены
+    в медиану он не даёт, его роль — привести УЖЕ известную цену (отчёт оценщика, прошлый
+    договор) к кварталу договора. Метод приведения с заказчиком не утверждён (вопрос 50).
+    """
+    if object_type != "недвижимость":
+        return []
+    try:
+        from . import statagency
+        return [statagency.valuation_source(con, params)]
+    except Exception as e:                  # модуль или база недоступны — расчёт не падает
+        return [{"source": "stat.uz — индекс цен на жильё", "status": "источник недоступен",
+                 "reason": "модуль app/statagency.py недоступен (%s: %s)" % (type(e).__name__, e),
+                 "url": "https://stat.uz/ru/ofitsialnaya-statistika/prices-and-indexes"}]
+
+
+# ---------- шаг 2: письмо дилеру (только авто) ----------
+
+DEALER_UNKNOWN = "уточнить у заказчика"
+
+
+def find_dealer(brand: str) -> Optional[dict]:
+    """
+    Дилера берём только из справочника статистика (vs.dealers → data/dealers_uz.json).
+    Чего в справочнике нет — то остаётся «уточнить у заказчика»: адреса не придумываем.
+    """
+    if vs is None or not brand or not hasattr(vs, "dealers"):
+        return None
+    try:
+        rows = vs.dealers(str(brand).strip())
+    except Exception:                   # справочник не должен ронять расчёт
+        return None
+    if not rows:
+        return None
+    r = rows[0]
+    keep = lambda v: v if v and str(v).strip() and str(v).strip() != DEALER_UNKNOWN else None
+    return {"name": keep(r.get("официальный_представитель")) or keep(r.get("марка")),
+            "email": keep(r.get("email")),
+            "phone": keep(r.get("телефон")),
+            "site": keep(r.get("сайт")),
+            "form": keep(r.get("форма_обратной_связи")),
+            "checked": r.get("проверено"),
+            "brand": r.get("марка")}
+
+
+def dealer_letter(params: dict, as_of=None) -> dict:
+    """
+    Текст запроса официальному дилеру. Цен дилера система не придумывает:
+    письмо уходит человеку, ответ возвращается в оценку руками.
+    """
+    p = params or {}
+    as_of = to_date(as_of) or date.today()
+    brand = p.get("brand") or p.get("марка") or DEALER_UNKNOWN
+    model = p.get("model") or p.get("модель") or DEALER_UNKNOWN
+    year = p.get("year") or p.get("год") or DEALER_UNKNOWN
+    vin = p.get("vin") or ""
+    trim = p.get("trim") or p.get("комплектация") or DEALER_UNKNOWN
+    mileage = p.get("mileage_km") or p.get("пробег")
+    dealer = find_dealer(brand)
+    to = (dealer or {}).get("name") or DEALER_UNKNOWN
+    email = ((dealer or {}).get("email") or (dealer or {}).get("form")
+             or (dealer or {}).get("site") or DEALER_UNKNOWN)
+    phone = (dealer or {}).get("phone")
+    text = (
+        "Кому: %s\n"
+        "Адрес: %s\n"
+        "Тема: запрос стоимости автомобиля %s %s для целей страхования\n\n"
+        "Уважаемые коллеги!\n\n"
+        "Страховая организация АО «INSON» принимает автомобиль на страхование и определяет его "
+        "страховую стоимость на дату %s.\n\n"
+        "Сведения об автомобиле:\n"
+        "  марка: %s\n"
+        "  модель: %s\n"
+        "  год выпуска: %s\n"
+        "  комплектация: %s\n"
+        "  VIN: %s\n"
+        "%s"
+        "\nПросим сообщить:\n"
+        "  1) текущую цену нового автомобиля этой модели и комплектации (или ближайшего аналога, "
+        "если модель снята с производства);\n"
+        "  2) рекомендованную цену такого автомобиля, бывшего в эксплуатации, с указанным годом "
+        "выпуска и пробегом;\n"
+        "  3) дату, на которую действительны указанные цены.\n\n"
+        "Ответ просим дать письменно: он будет приложен к расчёту страховой стоимости.\n\n"
+        "С уважением,\nандеррайтинг АО «INSON»"
+    ) % (to, email, brand, model, as_of.strftime("%d.%m.%Y"), brand, model, year, trim,
+         vin or "не указан",
+         ("  пробег: %s км\n" % mileage) if mileage else "")
+    if phone:
+        text += "\nТелефон представителя по справочнику: %s" % phone
+    if dealer and not (dealer.get("email")):
+        note = ("Адрес электронной почты представителя в справочнике не подтверждён — "
+                "указана форма обратной связи или сайт; почту уточняет заказчик.")
+    elif dealer:
+        note = ""
+    else:
+        note = ("Дилер по марке в справочнике не найден: адресата заполняет сотрудник, "
+                "адрес система не придумывает.")
+    return {"to": to, "email": email, "phone": phone, "site": (dealer or {}).get("site"),
+            "checked": (dealer or {}).get("checked"),
+            "dealer_found": bool(dealer), "as_of": as_of.isoformat(),
+            "text": text, "note": note}
+
+
+# ---------- шаг 3: износ ----------
+
+def mileage_factor(fact_km: Optional[float], years: float, norm_km: float,
+                   sensitivity: float, limit_pct: float) -> dict:
+    """
+    Поправка по пробегу для авто (экспертная шкала, calibrated = 0).
+
+        ожидаемый пробег = нормативный за год × число лет
+        отклонение = (фактический − ожидаемый) / ожидаемый
+        коэффициент = 1 − чувствительность × отклонение, но не выходя за ±предел
+
+    Чувствительность 0,15 и предел 15% подобраны так, чтобы двойной пробег против норматива
+    (отклонение +100%) давал ровно −15% стоимости, а нулевой пробег — +15%. Дальше коэффициент
+    не двигается: пробег — не единственный признак состояния, и заменять им осмотр нельзя.
+    """
+    if fact_km is None or years <= 0 or norm_km <= 0:
+        return {"k": 1.0, "expected_km": None, "deviation_pct": None, "capped": False,
+                "reason": "пробег не указан или неприменим — поправка не применяется"}
+    expected = norm_km * years
+    dev = (float(fact_km) - expected) / expected
+    lo, hi = 1 - limit_pct / 100, 1 + limit_pct / 100
+    raw = 1 - sensitivity * dev
+    k = min(hi, max(lo, raw))
+    return {"k": round(k, 4), "expected_km": round(expected), "deviation_pct": round(dev * 100, 1),
+            "capped": abs(raw - k) > 1e-9, "limit_pct": limit_pct, "sensitivity": sensitivity,
+            "reason": ("пробег %s км против норматива %s км (%+.1f%%)"
+                       % (format(float(fact_km), ",.0f").replace(",", " "),
+                          format(expected, ",.0f").replace(",", " "), dev * 100))}
+
+
+def depreciated_value(initial: float, rate_pct: float, years: float,
+                      residual_min_pct: Optional[float], mileage_k: float = 1.0) -> dict:
+    """
+    Линейный износ с момента, когда объект стал доступен к использованию.
+
+        износ = норма × число лет (не больше 100%)
+        стоимость = первоначальная × (1 − износ) × коэффициент пробега
+        но не ниже: первоначальная × остаточный минимум
+
+    Остаточный минимум — экспертная доля (calibrated = 0): полностью самортизированный объект
+    всё равно чего-то стоит, а страховать имущество по нулевой стоимости нельзя.
+    """
+    if initial is None or initial <= 0:
+        raise HTTPException(400, "Для расчёта износа нужна первоначальная стоимость больше нуля")
+    wear = min(1.0, max(0.0, rate_pct / 100 * max(0.0, years)))
+    linear = initial * (1 - wear)
+    adjusted = linear * (mileage_k or 1.0)
+    floor = initial * (residual_min_pct or 0) / 100
+    value = max(adjusted, floor)
+    return {"initial": initial, "rate_pct": rate_pct, "years": round(years, 3),
+            "wear_pct": round(wear * 100, 2), "linear": round(linear, 2),
+            "mileage_k": mileage_k or 1.0, "adjusted": round(adjusted, 2),
+            "residual_min_pct": residual_min_pct, "floor": round(floor, 2),
+            "floor_applied": value > adjusted + 1e-9, "value": round(value, 2)}
+
+
+# ---------- шаг 4: сверка с ценой агента ----------
+
+def _sum(x) -> str:
+    return format(float(x), ",.0f").replace(",", " ")
+
+
+def compare_declared(ai_value: Optional[float], declared: Optional[float],
+                     threshold_pct: float) -> dict:
+    """
+    Расхождение = |оценка ИИ − заявленная| / заявленная × 100.
+    Выше порога — выдаём уточнённую стоимость с объяснением; иначе принимаем цену агента.
+    """
+    if declared is None or declared <= 0:
+        return {"declared": declared, "ai_value": ai_value, "diff_pct": None,
+                "accepted": "оценка ИИ", "value": ai_value,
+                "text": "Агент стоимость не заявил — в договор идёт расчётная стоимость."}
+    if ai_value is None:
+        return {"declared": declared, "ai_value": None, "diff_pct": None,
+                "accepted": "цена агента", "value": declared,
+                "text": "Рассчитать стоимость не удалось; принята цена агента. "
+                        "Нужны подтверждающие документы или осмотр (ГК ст. 932, 935)."}
+    diff = abs(ai_value - declared) / declared * 100
+    if diff > threshold_pct:
+        return {"declared": declared, "ai_value": ai_value, "diff_pct": round(diff, 1),
+                "threshold_pct": threshold_pct, "accepted": "оценка ИИ", "value": ai_value,
+                "text": ("Заявленная стоимость %s сум расходится с расчётом %s сум на %.1f%% — "
+                         "это больше порога %g%%. В расчёт идёт уточнённая стоимость %s сум; "
+                         "окончательную страховую стоимость стороны согласуют при заключении "
+                         "договора (ГК ст. 935)."
+                         % (_sum(declared), _sum(ai_value), diff, threshold_pct, _sum(ai_value)))}
+    return {"declared": declared, "ai_value": ai_value, "diff_pct": round(diff, 1),
+            "threshold_pct": threshold_pct, "accepted": "цена агента", "value": declared,
+            "text": ("Заявленная стоимость %s сум отличается от расчёта %s сум на %.1f%% — "
+                     "это в пределах порога %g%%. Принята цена агента."
+                     % (_sum(declared), _sum(ai_value), diff, threshold_pct))}
+
+
+def depreciation_vs_market_warning(market: Optional[dict], dep_value: Optional[float],
+                                   threshold_pct: float) -> Optional[dict]:
+    """
+    Проверка честности метода «износ»: объявлений нашлось меньше порога market_min_ads,
+    рынок формально отвергнут — но цены-то есть. Если расчёт по износу ниже медианы этих
+    объявлений (с учётом скидки на торг) больше чем на порог расхождения, агенту и
+    андеррайтеру выдаётся предупреждение, а не молчаливое занижение стоимости.
+
+    Занижать страховую стоимость опасно: страховая сумма окажется ниже действительной
+    стоимости, и выплата пойдёт пропорционально (ГК ст. 936).
+    """
+    if not market or dep_value is None or dep_value <= 0:
+        return None
+    if market.get("enough"):
+        return None
+    med = market.get("median")
+    n = int(market.get("prices_count") or 0)
+    if not med or n <= 0:
+        return None
+    k = 1 - float(market.get("bargain_pct") or 0) / 100
+    market_value = med * k
+    if market_value <= dep_value:
+        return None
+    diff = (market_value - dep_value) / market_value * 100
+    if diff <= float(threshold_pct):
+        return None
+    return {"market_value": round(market_value, 2), "dep_value": dep_value,
+            "prices_count": n, "diff_pct": round(diff, 1),
+            "text": ("по объявлениям объект стоит примерно %s сум (объявлений с ценой найдено %d — "
+                     "меньше порога доверия рынку), расчёт по износу даёт %s сум, это на %.1f%% "
+                     "ниже — цифра требует проверки андеррайтером. Занижение стоимости ведёт "
+                     "к недострахованию и пропорциональной выплате (ГК ст. 936)."
+                     % (_sum(market_value), n, _sum(dep_value), diff))}
+
+
+# ---------- сборка методики ----------
+
+LEGAL = [
+    "Страховая стоимость — действительная стоимость имущества в месте его нахождения "
+    "в день заключения договора (ГК ст. 934).",
+    "Окончательную страховую стоимость определяют стороны договора; расчёт системы — "
+    "предварительная оценка страховщика (ГК ст. 935, право на оценку — ст. 932).",
+    "Страховая сумма выше страховой стоимости — договор недействителен в части превышения, "
+    "излишняя премия не возвращается (ГК ст. 938).",
+    "Страховая сумма ниже страховой стоимости — выплата пропорционально отношению суммы "
+    "к стоимости (ГК ст. 936); клиента предупредить до подписания (ЗРУ-730 ст. 63).",
+    "Цена объявления — цена предложения, а не рыночная стоимость (Закон об оценочной "
+    "деятельности, ст. 7): применяется скидка на торг.",
+    "Порядок определения страховой суммы и износа должен быть в правилах страхования "
+    "(ЗРУ-730 ст. 30). Правил страхования в библиотеке пока нет — вопрос заказчику.",
+]
+
+CALIBRATION_PLAN = (
+    "Самообучение: подтверждённые андеррайтером оценки (valuations.confirmed_by_underwriter) "
+    "копятся по типам объектов. Когда наберётся не меньше 30 подтверждений по группе, "
+    "считается отношение подтверждённой цены к расчётной: медиана этого отношения станет "
+    "поправочным множителем группы, а разброс (Q1–Q3) — шириной вилки. Тем же способом "
+    "уточняются остаточные минимумы, скидка на торг и шкала пробега; после этого у настроек "
+    "ставится calibrated = 1. Саму калибровку считает отдельный модуль (app/calibration.py), "
+    "здесь только накапливаются данные."
+)
+
+
+def settings_block(con) -> dict:
+    """Все настройки методики одним куском — чтобы объяснение показывало, откуда каждая цифра."""
+    keys = [SETTING_SPREAD, SETTING_MILEAGE, SETTING_MIN_ADS, SETTING_WINDOW,
+            SETTING_BARGAIN, SETTING_MILEAGE_SENS, SETTING_MILEAGE_LIMIT]
+    return {k: num_setting(con, k) for k in keys}
+
+
+def estimate_value(con, *, object_type: str, params: dict = None, as_of=None,
+                   declared_value: float = None, norm_code: str = None,
+                   initial_value: float = None, commissioned_at=None,
+                   mileage_km: float = None, use_market: bool = True,
+                   sources: list = None) -> dict:
+    """
+    Полная оценка: рынок → (для авто) письмо дилеру → износ → сверка с ценой агента.
+    Возвращает словарь, готовый к сохранению в valuations (шаг сохранения — отдельно).
+    """
+    params = dict(params or {})
+    as_of = to_date(as_of) or date.today()
+    if mileage_km is None:
+        mileage_km = params.get("mileage_km") or params.get("пробег")
+    st = settings_block(con)
+    lines = []
+    expert = []
+
+    def mark(s: dict):
+        if not s["calibrated"]:
+            tag = "%s = %g%s" % (s["name"], s["value"], (" " + s["unit"]) if s["unit"] else "")
+            if tag not in expert:
+                expert.append(tag)
+
+    for s in st.values():
+        mark(s)
+
+    # ---- шаг 1: рынок
+    market = None
+    fx = None
+    if use_market:
+        if sources is not None:
+            res = sources                       # повтор расчёта на готовых результатах: курс уже учтён
+        else:
+            fx = fx_rate(con, as_of)
+            res = collect_market(object_type, params, as_of, fx.get("rate"))
+            res = list(res) + stat_agency_sources(con, object_type, params)
+        market = market_aggregate(res, as_of, st[SETTING_MIN_ADS]["value"],
+                                  st[SETTING_BARGAIN]["value"], int(st[SETTING_WINDOW]["value"]))
+        if fx is not None:
+            market["fx"] = fx
+        if market["enough"]:
+            lines.append("Шаг 1. Рынок: %d объявлений с ценой за последние %d мес. "
+                         "(с %s по %s)." % (market["prices_count"], market["window_months"],
+                                            market["window_from"], market["as_of"]))
+            lines.append("  медиана %s сум, Q1 %s сум, Q3 %s сум."
+                         % (_sum(market["median"]), _sum(market["q1"]), _sum(market["q3"])))
+            lines.append("  скидка на торг %g%% (экспертно, calibrated = 0): %s × %.2f = %s сум."
+                         % (market["bargain_pct"], _sum(market["median"]),
+                            1 - market["bargain_pct"] / 100, _sum(market["value"])))
+            lines.append("  вилка: от %s до %s сум."
+                         % (_sum(market["spread"]["min"]), _sum(market["spread"]["max"])))
+        else:
+            lines.append("Шаг 1. Рынок не использован: %s." % market.get("reason", "нет данных"))
+            for n in market["notes"][:6]:
+                lines.append("  " + n)
+        if fx is not None:
+            lines.append("  " + fx_line(fx))
+        else:
+            lines.append("  Курс: расчёт повторён на готовых результатах площадок — "
+                         "цены уже приведены к сумам тем курсом, который применялся при опросе; "
+                         + FX_DISCLAIMER + ".")
+    else:
+        lines.append("Шаг 1. Опрос площадок не запрашивался.")
+
+    # ---- шаг 2: письмо дилеру (только авто и только если рынка нет)
+    letter = None
+    if (market is None or not market["enough"]) and object_type == "авто":
+        letter = dealer_letter(params, as_of)
+        lines.append("Шаг 2. Рынка нет — подготовлен запрос официальному дилеру: адресат «%s». %s"
+                     % (letter["to"], letter["note"] or
+                        "Ответ дилера вносится в оценку вручную, цены система не придумывает."))
+
+    # ---- шаг 3: износ
+    dep = None
+    mil = None
+    if market is None or not market["enough"]:
+        if norm_code and initial_value and commissioned_at:
+            norm = norm_by_code(con, norm_code)
+            years = years_between(commissioned_at, as_of)
+            if object_type == "авто" and mileage_km is not None:
+                mil = mileage_factor(float(mileage_km), years, st[SETTING_MILEAGE]["value"],
+                                     st[SETTING_MILEAGE_SENS]["value"],
+                                     st[SETTING_MILEAGE_LIMIT]["value"])
+            else:
+                mil = mileage_factor(None, years, st[SETTING_MILEAGE]["value"],
+                                     st[SETTING_MILEAGE_SENS]["value"],
+                                     st[SETTING_MILEAGE_LIMIT]["value"])
+            dep = depreciated_value(float(initial_value), float(norm["rate_pct"]), years,
+                                    norm["residual_min_pct"], mil["k"])
+            dep["norm"] = {"code": norm["code"], "name": norm["name"],
+                           "rate_pct": norm["rate_pct"], "residual_min_pct": norm["residual_min_pct"],
+                           "calibrated": norm["calibrated"], "source": norm["source"]}
+            dep["mileage"] = mil
+            lines.append("Шаг 3. Износ по норме «%s» (%s), %g%% в год — из справочника "
+                         "depreciation_norms." % (norm["name"], norm["code"], norm["rate_pct"]))
+            lines.append("  срок с %s по %s = %.2f года; износ %g%% × %.2f = %.2f%%."
+                         % (to_date(commissioned_at).isoformat(), as_of.isoformat(),
+                            dep["years"], norm["rate_pct"], dep["years"], dep["wear_pct"]))
+            lines.append("  %s сум × (1 − %.4f) = %s сум."
+                         % (_sum(dep["initial"]), dep["wear_pct"] / 100, _sum(dep["linear"])))
+            if mil["k"] != 1.0:
+                lines.append("  поправка по пробегу: %s → коэффициент %.4f; %s × %.4f = %s сум."
+                             % (mil["reason"], mil["k"], _sum(dep["linear"]), mil["k"],
+                                _sum(dep["adjusted"])))
+                if mil.get("capped"):
+                    lines.append("  поправка упёрлась в предел ±%g%% (экспертно, calibrated = 0)."
+                                 % mil["limit_pct"])
+            else:
+                lines.append("  поправка по пробегу не применялась: %s." % mil["reason"])
+            lines.append("  остаточный минимум %g%% от первоначальной = %s сум (экспертно, "
+                         "calibrated = %d)." % (norm["residual_min_pct"] or 0, _sum(dep["floor"]),
+                                                norm["calibrated"]))
+            if dep["floor_applied"]:
+                lines.append("  расчёт дал %s сум — ниже минимума, принят минимум %s сум."
+                             % (_sum(dep["adjusted"]), _sum(dep["value"])))
+            else:
+                lines.append("  итог износа: %s сум." % _sum(dep["value"]))
+            if not norm["calibrated"]:
+                expert.append("остаточный минимум по норме «%s» = %g%%"
+                              % (norm["code"], norm["residual_min_pct"] or 0))
+        else:
+            lines.append("Шаг 3. Износ не посчитан: нужны норма износа, первоначальная стоимость "
+                         "и дата ввода в эксплуатацию.")
+
+    # ---- какой метод победил
+    warnings = []
+    if market is not None and market["enough"]:
+        method, value, spread = "объявления", market["value"], market["spread"]
+    elif dep is not None:
+        method, value = "износ", dep["value"]
+        spread = {"min": round(value * 0.9, 2), "median": value, "max": round(value * 1.1, 2)}
+        lines.append("  вилка по износу — ±10%% от расчёта (экспертно, calibrated = 0): "
+                     "от %s до %s сум." % (_sum(spread["min"]), _sum(spread["max"])))
+        expert.append("вилка по методу износа ±10%")
+        # Объявлений нашлось меньше порога, поэтому рынок формально отвергнут. Но если найденные
+        # цены сильно выше расчёта по износу, молчать нельзя: занижение страховой стоимости
+        # ведёт к недострахованию и пропорциональной выплате (ГК ст. 936).
+        w = depreciation_vs_market_warning(market, value, st[SETTING_SPREAD]["value"])
+        if w:
+            warnings.append(w["text"])
+            lines.append("  ВНИМАНИЕ. " + w["text"])
+    else:
+        method, value, spread = None, None, None
+        lines.append("Оценку получить не удалось: ни рынка, ни данных для износа. "
+                     "Стоимость принимается со слов клиента — нужен осмотр или документы "
+                     "(ГК ст. 932, 935).")
+
+    # ---- шаг 4: сверка с ценой агента
+    cmp = compare_declared(value, declared_value, st[SETTING_SPREAD]["value"])
+    lines.append("Шаг 4. " + cmp["text"])
+
+    return {
+        "object_type": object_type, "params": params, "as_of": as_of.isoformat(),
+        "method": method, "method_version": METHOD_VERSION,
+        "ai_value": value, "declared_value": declared_value,
+        "final_value": cmp["value"], "accepted": cmp["accepted"],
+        "spread": spread,
+        "explanation": {
+            "method_version": METHOD_VERSION,
+            "lines": lines,
+            "market": market,
+            "dealer_letter": letter,
+            "depreciation": dep,
+            "spread_check": cmp,
+            "warnings": warnings,
+            "fx": fx,
+            "settings": st,
+            "expert_values": expert,
+            "calibrated": 0,
+            "legal": LEGAL,
+            "calibration_plan": CALIBRATION_PLAN,
+            "status_note": ("Предварительная оценка страховщика; окончательная страховая "
+                            "стоимость определяется соглашением сторон на день заключения "
+                            "договора (ГК ст. 934, 935)."),
+        },
+        "sources": (market or {}).get("sources") or [],
+    }
+
+
+# ---------- история оценок по объекту ----------
+
+def object_key(object_type: str, params: dict) -> str:
+    """
+    Ключ объекта для истории оценок. Персональных данных в ключе нет: только характеристики
+    (ЗРУ-547 ст. 19 — объём данных должен соответствовать цели).
+    """
+    p = params or {}
+    parts = [str(object_type or "")]
+    for f in ("brand", "model", "year", "vin", "region", "address_hash", "area_m2", "reg_no_hash"):
+        if p.get(f):
+            parts.append("%s=%s" % (f, p[f]))
+    return "|".join(parts).lower()
+
+
+def latest_valuation(con, key: str = None, request_id: int = None) -> Optional[dict]:
+    """Последняя оценка по объекту: сначала по ключу объекта, иначе по запросу."""
+    if request_id:
+        r = db.rows(con, "SELECT * FROM valuations WHERE request_id=? ORDER BY id DESC LIMIT 1",
+                    request_id)
+        if r:
+            return r[0]
+    if not key:
+        return None
+    for v in db.rows(con, "SELECT * FROM valuations ORDER BY id DESC LIMIT 300"):
+        try:
+            p = json.loads(v["params_json"] or "{}")
+        except ValueError:
+            continue
+        if p.get("object_key") == key:
+            return v
+    return None
+
+
+def valuation_for_engine(con, key: str = None, request_id: int = None) -> Optional[dict]:
+    """Короткая карточка последней оценки — то, что движок кладёт в Input.valuation."""
+    v = latest_valuation(con, key, request_id)
+    if not v:
+        return None
+    try:
+        p = json.loads(v["params_json"] or "{}")
+    except ValueError:
+        p = {}
+    return {"id": v["id"], "value": v["ai_value"], "method": v["method"],
+            "method_version": v["method_version"], "as_of": p.get("as_of") or v["created_at"],
+            "confirmed_by": v["confirmed_by_underwriter"], "region": p.get("region")}
+
+
+# ---------- эндпоинт расчёта ----------
+
+class EstimateIn(BaseModel):
+    object_type: str = "авто"
+    params: dict = {}
+    as_of: Optional[str] = None                # дата заключения договора
+    declared_value: Optional[float] = None     # что заявил агент
+    norm_code: Optional[str] = None            # код нормы износа из depreciation_norms
+    initial_value: Optional[float] = None      # первоначальная стоимость
+    commissioned_at: Optional[str] = None      # когда объект стал доступен к использованию
+    mileage_km: Optional[float] = None
+    use_market: bool = True
+    sources: Optional[list] = None             # готовые результаты адаптеров (повтор без сети)
+    request_id: Optional[int] = None
+    save: bool = True
+    created_by: Optional[str] = "api"
+
+
+@router.post("/valuations/estimate")
+def estimate(body: EstimateIn):
+    """
+    Оценка стоимости объекта по методике METHOD_VERSION.
+    Считает, объясняет построчно и (по умолчанию) сохраняет результат в историю оценок.
+    """
+    with db.tx() as con:
+        out = estimate_value(con, object_type=body.object_type, params=body.params,
+                             as_of=body.as_of, declared_value=body.declared_value,
+                             norm_code=body.norm_code, initial_value=body.initial_value,
+                             commissioned_at=body.commissioned_at, mileage_km=body.mileage_km,
+                             use_market=body.use_market, sources=body.sources)
+        if body.save:
+            params = dict(out["params"])
+            params["object_key"] = object_key(body.object_type, body.params)
+            params["as_of"] = out["as_of"]
+            for f in ("norm_code", "initial_value", "commissioned_at", "mileage_km"):
+                v = getattr(body, f)
+                if v is not None:
+                    params[f] = v
+            cur = con.execute(
+                """INSERT INTO valuations (created_at,created_by,request_id,object_type,params_json,
+                   declared_value,ai_value,method,method_version,spread_json,explanation)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (db.now(), body.created_by, body.request_id, body.object_type,
+                 json.dumps(params, ensure_ascii=False), body.declared_value, out["ai_value"],
+                 out["method"], METHOD_VERSION,
+                 json.dumps(out["spread"], ensure_ascii=False) if out["spread"] else None,
+                 json.dumps(out["explanation"], ensure_ascii=False)))
+            vid = cur.lastrowid
+            for s in out["sources"]:
+                con.execute(
+                    """INSERT INTO valuation_sources (valuation_id,source,status,url,ads_count,
+                       median,q1,q3,samples_json,fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (vid, s.get("source"), s.get("status"), s.get("url"), s.get("ads_count"),
+                     s.get("median"), s.get("q1"), s.get("q3"),
+                     json.dumps(s.get("samples") or [], ensure_ascii=False),
+                     s.get("fetched_at") or db.now()))
+            db.audit(con, body.created_by or "api", "рассчитана оценка стоимости",
+                     f"valuation:{vid}", {"method": out["method"], "value": out["ai_value"],
+                                          "declared": body.declared_value})
+            out["id"] = vid
+            out["object_key"] = params["object_key"]
+    return out
+
+
+@router.get("/valuations/object/latest")
+def latest_by_object(object_type: str, brand: str = None, model: str = None, year: int = None,
+                     vin: str = None, region: str = None):
+    """Последняя оценка по объекту — для движка и для экрана агента."""
+    key = object_key(object_type, {"brand": brand, "model": model, "year": year,
+                                   "vin": vin, "region": region})
+    with db.tx() as con:
+        v = valuation_for_engine(con, key=key)
+    if not v:
+        raise HTTPException(404, "Оценок по этому объекту ещё нет")
+    v["object_key"] = key
+    return v

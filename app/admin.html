@@ -1,0 +1,198 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админка сюрвейера</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#F2F5F7;--card:#fff;--ink:#101C26;--muted:#5C6C78;--line:#DDE4E9;--soft:#EDF1F4;--accent:#12557E;--ok:#17734F;--warn:#9A6209;--stop:#B23A2F;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root{--paper:#0E1519;--card:#151E24;--ink:#E6ECF0;--muted:#94A5B0;--line:#26323A;--soft:#1B252C;--accent:#6FB6E4;--ok:#5CC298;--warn:#E0A83F;--stop:#EE8272}}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}
+.wrap{max-width:1240px;margin:0 auto;padding:22px 20px 48px}
+header{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:baseline;justify-content:space-between;margin-bottom:16px}
+h1{font-size:23px;font-weight:800;margin:0}nav a{color:var(--muted);margin-left:14px;text-decoration:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.tile b{display:block;font:600 26px var(--mono)}.tile span{font-size:12.5px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.card h2{font-size:16px;margin:0 0 10px}.card p{color:var(--muted);font-size:13px;margin:0 0 12px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}td.n{font-family:var(--mono);text-align:right}
+.v{display:inline-block;font-size:11.5px;font-weight:700;border-radius:5px;padding:1px 7px}
+.v.ок{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.v.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.v.stop{background:color-mix(in srgb,var(--stop) 14%,transparent);color:var(--stop)}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:9px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input,select{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+button{font:inherit;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+@media (prefers-color-scheme:dark){button{color:#0E1519}}
+.msg{font-size:12.5px;color:var(--muted);margin-top:8px;min-height:1em}
+.wide{grid-column:1/-1}.scroll{overflow-x:auto}
+</style>
+<div class="wrap">
+<header><h1>Админка сюрвейера</h1><nav><a href="/ui">Экран агента</a><a href="/docs">API</a></nav></header>
+<div class="tiles" id="tiles"></div>
+<div class="grid">
+  <section class="card wide"><h2>Последние запросы</h2><div class="scroll"><table id="reqs"><thead><tr><th>№</th><th>Филиал</th><th>Продукт</th><th>Страхователь</th><th>Ставка</th><th>Техн.</th><th>Мин.</th><th>Премия</th><th>Вердикт</th><th>Статус</th></tr></thead><tbody></tbody></table></div></section>
+
+  <section class="card"><h2>Собственные средства и резервы</h2><p>Нужны для лимита 20% на один риск (Положение 1806, п. 15). Пока не введены — лимит не проверяется.</p>
+    <form id="fin"><label>Дата отчёта<input name="report_date" type="date" required></label><label>Собственные средства, сум<input name="own_funds" type="number" required></label><label>Страховые резервы, сум<input name="reserves" type="number" required></label><label>Источник<input name="source" placeholder="баланс ф.1, отчёт о резервах"></label><button>Сохранить</button></form><div class="msg"></div></section>
+
+  <section class="card"><h2>Версия тарифов</h2><p>Своя версия компании или минимальные ставки регулятора. Старые расчёты остаются на своей версии.</p>
+    <form id="ver"><label>Уровень<select name="level"><option>компания</option><option>регулятор</option></select></label><label>Название<input name="name" required placeholder="Тарифная политика 2027"></label><label>Документ<input name="document_ref" placeholder="приказ №, дата"></label><label>Действует с<input name="effective_from" type="date" required></label><button>Создать</button></form><div class="msg"></div></section>
+
+  <section class="card"><h2>Минимальная ставка</h2><p>Нижний порог по продукту. Тип клиента — если ставки разные для физ. и юр. лиц.</p>
+    <form id="mr"><label>ID версии<input name="tariff_version_id" type="number" required></label><label>Код продукта<input name="product_code" required placeholder="0807"></label><label>Тип клиента<select name="payer_type"><option value="">все</option><option>юр</option><option>физ</option></select></label><label>Ставка, %<input name="min_rate_pct" type="number" step="0.001" required></label><button>Добавить</button></form><div class="msg"></div></section>
+
+  <section class="card"><h2>Коэффициент</h2><p>Фактор → вариант → множитель. Калиброванный — значит посчитан по статистике компании.</p>
+    <form id="coef"><label>Код фактора<input name="factor_code" required placeholder="protection"></label><label>Название фактора<input name="factor_name" required></label><label>Код варианта<input name="option_code" required></label><label>Название варианта<input name="option_name" required></label><label>Множитель<input name="multiplier" type="number" step="0.01" required></label><label>Калиброван<select name="calibrated"><option value="0">нет</option><option value="1">да</option></select></label><label>Источник<input name="source"></label><button>Сохранить</button></form><div class="msg"></div></section>
+
+  <section class="card"><h2>Новый продукт</h2><p>Создаётся в тестовом статусе. Классы — через запятую, например 8,13.</p>
+    <form id="prod"><label>Код<input name="code" required placeholder="0836"></label><label>Название<input name="name" required></label><label>Классы<input name="classes" required placeholder="8"></label><label>Текст тарифа<input name="rate_text" placeholder="0,05%"></label><label>Мин. ставка, %<input name="min_rate_pct" type="number" step="0.001"></label><label>ID версии<input name="tariff_version_id" type="number"></label><button>Создать</button></form><div class="msg"></div></section>
+
+  <section class="card wide" id="valuation-norms"><h2>Оценка стоимости: нормы износа и настройки</h2>
+    <p>Процент износа за год и остаточный минимум — доля от новой цены, ниже которой стоимость не опускается. Экспертные значения помечены «экспертное».</p>
+    <div class="scroll"><table id="norms"><thead><tr><th>Код</th><th>Название</th><th>Износ, %/год</th><th>Остаток, %</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="msg" id="normsMsg"></div>
+    <h3 style="font-size:13px;margin:16px 0 6px;color:var(--muted)">Добавить или изменить норму</h3>
+    <form id="norm"><label>Код<input name="code" required placeholder="buildings"></label><label>Название<input name="name" required></label><label>Износ, %/год<input name="rate_pct" type="number" step="0.1" required></label><label>Остаточный минимум, %<input name="residual_min_pct" type="number" step="0.1"></label><label>Калиброван<select name="calibrated"><option value="0">нет (экспертное)</option><option value="1">да</option></select></label><label>Источник<input name="source"></label><button>Сохранить</button></form><div class="msg"></div>
+    <h3 style="font-size:13px;margin:16px 0 6px;color:var(--muted)">Настройки оценки</h3>
+    <div class="scroll"><table id="vsettings"><thead><tr><th>Ключ</th><th>Название</th><th>Значение</th><th>Ед.</th><th>Статус</th><th></th></tr></thead><tbody></tbody></table></div><div class="msg" id="vsMsg"></div>
+  </section>
+
+  <section class="card wide" id="ai"><h2>Искусственный интеллект</h2>
+    <p>ИИ помогает объяснить расчёт клиенту и дочитать поля документов, которые не нашлись правилами.
+       Без ключа система работает полностью — просто без этих подсказок.
+       Персональные данные (ФИО, ПИНФЛ, паспорт, телефон) заменяются на метки до отправки.</p>
+    <div class="grid" id="aiInfo"></div>
+    <div style="margin:10px 0"><button type="button" id="aiPing">Проверить связь</button>
+      <a href="/admin/deploy" style="margin-left:12px;color:var(--accent)">Настройки и запуск →</a></div>
+    <div class="msg" id="aiMsg"></div>
+    <h3 style="font-size:13px;margin:16px 0 6px;color:var(--muted)">Последние обращения к ИИ</h3>
+    <div class="scroll"><table id="aiCalls"><thead><tr><th>Когда</th><th>Зачем</th><th>Модель</th><th>Токенов</th><th>мс</th><th>Итог</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card wide" id="lawwatch"><h2>Законодательство: правила, требующие пересмотра</h2>
+    <p>Правило LAWWATCH-01: если изменился акт, на который ссылается проверка, робот-юрист помечает её
+       «требует пересмотра». Расчёты при этом не блокируются — правило продолжает работать по старой
+       формулировке, чтобы прошлые расчёты воспроизводились. Пометку снимает человек, написав одной
+       строкой, почему изменение нас не касается или что уже поправлено.
+       Полный журнал событий — <a href="/law-feed" style="color:var(--accent)">Законодательство</a>.</p>
+    <div class="scroll"><table id="lwRules"><thead><tr><th>Правило</th><th>Название</th><th>Важность</th><th>Норма</th><th>Почему помечено</th><th>С какого дня</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="msg" id="lwMsg"></div>
+    <h3 style="font-size:13px;margin:16px 0 6px;color:var(--muted)">Последние события</h3>
+    <div class="scroll"><table id="lwEvents"><thead><tr><th>Когда</th><th>Вид</th><th>Что</th><th>Источник</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="card wide"><h2>Аналитика</h2><div class="grid" id="an"></div></section>
+  <section class="card wide"><h2>Журнал действий</h2><div class="scroll"><table id="audit"><thead><tr><th>Когда</th><th>Кто</th><th>Действие</th><th>Объект</th><th>Детали</th></tr></thead><tbody></tbody></table></div></section>
+</div></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU"), pc=n=>n==null?"—":Number(n).toFixed(3).replace(".",",")+"%";
+const vcls=v=>v==="ок"?"ок":v==="на утверждение"?"warn":"stop";
+async function load(){
+  const a=await (await fetch("/analytics/summary")).json();
+  const bv=Object.fromEntries(a.by_verdict.map(x=>[x.verdict,x.n]));
+  $("#tiles").innerHTML=[["Запросов",a.requests],["Без замечаний",bv["ок"]||0],["На утверждение",bv["на утверждение"]||0],["Отклонено",bv["отклонено"]||0],["Ручных ставок",a.manual_rates],["Ниже технической",a.below_technical]]
+    .map(([k,v])=>`<div class="tile"><b>${v}</b><span>${k}</span></div>`).join("");
+  const r=await (await fetch("/requests?limit=30")).json();
+  $("#reqs tbody").innerHTML=r.map(x=>`<tr><td>${x.id}</td><td>${esc(x.branch)}</td><td>${esc(x.product_code)}</td><td>${esc(x.policyholder)}</td><td class="n">${pc(x.applied_rate_pct)}</td><td class="n">${pc(x.gross_rate_pct)}</td><td class="n">${pc(x.min_rate_pct)}</td><td class="n">${fmt(x.premium)}</td><td><span class="v ${vcls(x.verdict)}">${esc(x.verdict)}</span></td><td>${esc(x.status)} · <a href="/requests/${x.id}/proposal.pdf" target="_blank" style="color:var(--accent)">PDF</a></td></tr>`).join("")||"<tr><td colspan=10>Запросов пока нет</td></tr>";
+  const tbl=(title,rows,cols)=>`<div><h3 style="font-size:13px;margin:0 0 6px;color:var(--muted)">${title}</h3><table><thead><tr>${cols.map(c=>`<th>${c[0]}</th>`).join("")}</tr></thead><tbody>${rows.map(x=>`<tr>${cols.map(c=>`<td class="${c[2]||""}">${c[1](x)}</td>`).join("")}</tr>`).join("")||"<tr><td>—</td></tr>"}</tbody></table></div>`;
+  $("#an").innerHTML=tbl("По продуктам",a.by_product,[["Продукт",x=>esc(x.product_code)],["Запросов",x=>x.n,"n"],["Средняя ставка",x=>pc(x.avg_rate),"n"],["Премия",x=>fmt(x.premium),"n"]])
+    +tbl("По филиалам",a.by_branch,[["Филиал",x=>esc(x.branch)],["Запросов",x=>x.n,"n"],["Ниже технической",x=>x.below_tech,"n"]])
+    +tbl("Частые нарушения",a.top_violations,[["Правило",x=>esc(x.rule_code)],["Раз",x=>x.n,"n"]]);
+  await loadValuation();
+  const au=await (await fetch("/audit?limit=25")).json();
+  $("#audit tbody").innerHTML=au.map(x=>`<tr><td>${esc(x.ts).replace("T"," ")}</td><td>${esc(x.who)}</td><td>${esc(x.action)}</td><td>${esc(x.entity)}</td><td style="font-family:var(--mono);font-size:12px">${esc((x.detail||"").slice(0,90))}</td></tr>`).join("");
+}
+const cal=c=>Number(c)?'<span class="v ок">калиброван</span>':'<span class="v warn">экспертное</span>';
+async function loadValuation(){
+  const n=await (await fetch("/valuation/norms")).json();
+  $("#norms tbody").innerHTML=n.map(x=>`<tr><td>${esc(x.code)}</td><td>${esc(x.name)}</td>`
+    +`<td class="n"><input data-code="${esc(x.code)}" data-f="rate_pct" type="number" step="0.1" value="${x.rate_pct}" style="max-width:90px"></td>`
+    +`<td class="n"><input data-code="${esc(x.code)}" data-f="residual_min_pct" type="number" step="0.1" value="${x.residual_min_pct??""}" style="max-width:90px"></td>`
+    +`<td>${cal(x.calibrated)}</td><td><button data-save="${esc(x.code)}" style="padding:5px 10px">Сохранить</button></td></tr>`).join("")||"<tr><td colspan=6>Норм пока нет</td></tr>";
+  $("#norms").onclick=async e=>{
+    const code=e.target.dataset?.save; if(!code) return;
+    const row=n.find(x=>x.code===code), get=f=>$(`#norms input[data-code="${code}"][data-f="${f}"]`).value;
+    const d={...row, rate_pct:Number(get("rate_pct")), residual_min_pct:get("residual_min_pct")===""?null:Number(get("residual_min_pct"))};
+    const r=await fetch("/valuation/norms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+    const j=await r.json(); $("#normsMsg").textContent=r.ok?"Сохранено: "+code:"Ошибка: "+JSON.stringify(j.detail); if(r.ok) loadValuation();
+  };
+  const s=await (await fetch("/valuation/settings")).json();
+  $("#vsettings tbody").innerHTML=s.map(x=>`<tr><td style="font-family:var(--mono);font-size:12px">${esc(x.key)}</td><td>${esc(x.name)}</td>`
+    +`<td class="n"><input data-key="${esc(x.key)}" value="${esc(x.value)}" style="max-width:110px"></td><td>${esc(x.unit)}</td>`
+    +`<td>${cal(x.calibrated)}</td><td><button data-skey="${esc(x.key)}" style="padding:5px 10px">Сохранить</button></td></tr>`).join("")||"<tr><td colspan=6>Настроек пока нет</td></tr>";
+  $("#vsettings").onclick=async e=>{
+    const key=e.target.dataset?.skey; if(!key) return;
+    const row=s.find(x=>x.key===key);
+    const d={...row, value:$(`#vsettings input[data-key="${key}"]`).value};
+    const r=await fetch("/valuation/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+    const j=await r.json(); $("#vsMsg").textContent=r.ok?"Сохранено: "+key:"Ошибка: "+JSON.stringify(j.detail); if(r.ok) loadValuation();
+  };
+}
+async function post(url,method,form){
+  const d={}; new FormData(form).forEach((v,k)=>{ if(v!=="") d[k]=isNaN(v)||k.endsWith("code")||k==="name"||k==="classes"?v:Number(v); });
+  if(d.classes) d.classes=String(d.classes).split(",").map(s=>s.trim());
+  const r=await fetch(url,{method,headers:{"Content-Type":"application/json"},body:JSON.stringify(d)});
+  const j=await r.json(); form.nextElementSibling.textContent=r.ok?"Сохранено. "+(j.id?"ID версии: "+j.id:j.status||""):"Ошибка: "+JSON.stringify(j.detail);
+  if(r.ok){form.reset();load();}
+}
+$("#fin").onsubmit=e=>{e.preventDefault();post("/admin/financials","PUT",e.target)};
+$("#ver").onsubmit=e=>{e.preventDefault();post("/admin/tariff-versions","POST",e.target)};
+$("#mr").onsubmit=e=>{e.preventDefault();post("/admin/min-rates","POST",e.target)};
+$("#coef").onsubmit=e=>{e.preventDefault();post("/admin/coefficients","POST",e.target)};
+$("#prod").onsubmit=e=>{e.preventDefault();post("/admin/products","POST",e.target)};
+$("#norm").onsubmit=e=>{e.preventDefault();post("/valuation/norms","POST",e.target)};
+async function loadAI(){
+  try{
+    const s=await (await fetch("/llm/status")).json();
+    $("#aiInfo").innerHTML=[["Провайдер",s.provider_name||s.provider],["Модель",s.model||"—"],
+      ["Ключ",s.key_mask||"не задан"],["Состояние",s.connected?"подключён":"не подключён"],
+      ["Режим данных",s.pd_mode]].map(([k,v])=>`<div><h3 style="font-size:13px;margin:0 0 4px;color:var(--muted)">${k}</h3><b>${esc(v)}</b></div>`).join("");
+    $("#aiMsg").textContent=s.reason||"";
+    const c=await (await fetch("/llm/calls?limit=10")).json();
+    $("#aiCalls tbody").innerHTML=c.map(x=>`<tr><td>${esc(x.ts)}</td><td>${esc(x.purpose)}</td><td>${esc(x.model)}</td><td class="n">${x.total_tokens??"—"}</td><td class="n">${x.ms??"—"}</td><td>${x.ok?"успех":esc(x.error||"ошибка")}</td></tr>`).join("")||"<tr><td colspan=6>Обращений пока не было</td></tr>";
+  }catch(e){ $("#aiMsg").textContent="Блок ИИ недоступен: "+e; }
+}
+$("#aiPing").onclick=async()=>{
+  $("#aiMsg").textContent="Проверяем…";
+  const r=await (await fetch("/llm/ping",{method:"POST"})).json();
+  $("#aiMsg").textContent=(r.ok?"Связь есть: ":"Не получилось: ")+(r.reason||"");
+  loadAI();
+};
+async function loadLawwatch(){
+  try{
+    const d=await (await fetch("/law-events?limit=12")).json();
+    $("#lwRules tbody").innerHTML=(d.rules_to_review||[]).map(r=>
+      `<tr><td style="font-family:var(--mono);font-size:12px">${esc(r.code)}</td><td>${esc(r.name)}</td>`
+      +`<td>${esc(r.severity)}</td><td>${esc(r.legal_ref||"—")}</td><td>${esc(r.review_reason||"—")}</td>`
+      +`<td>${esc((r.review_since||"").slice(0,10))}</td>`
+      +`<td><button data-ok="${esc(r.code)}" style="padding:5px 10px">Снять пометку</button></td></tr>`).join("")
+      ||"<tr><td colspan=7>Правил, требующих пересмотра, нет</td></tr>";
+    $("#lwRules").onclick=async e=>{
+      const code=e.target.dataset?.ok; if(!code) return;
+      const note=prompt("Одной строкой: почему изменение не касается правила "+code+" или что уже поправлено?");
+      if(!note) return;
+      const r=await fetch("/rules/"+encodeURIComponent(code)+"/review-ok",
+        {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({who:"admin",note})});
+      const j=await r.json();
+      $("#lwMsg").textContent=r.ok?"Пометка снята: "+code:"Ошибка: "+JSON.stringify(j.detail);
+      if(r.ok) loadLawwatch();
+    };
+    $("#lwEvents tbody").innerHTML=(d.items||[]).map(x=>
+      `<tr><td>${esc((x.created_at||"").replace("T"," ").slice(0,16))}</td><td>${esc(x.kind)}</td>`
+      +`<td>${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--accent)">${esc(x.title)}</a>`:esc(x.title)}`
+      +`<div style="color:var(--muted);font-size:12px">${esc(x.summary||"")}</div></td><td>${esc(x.source)}</td></tr>`).join("")
+      ||"<tr><td colspan=4>Событий пока нет</td></tr>";
+  }catch(e){ $("#lwMsg").textContent="Блок законодательства недоступен: "+e; }
+}
+loadLawwatch();
+loadAI();
+load();
+</script>
+
+<script src="/theme.js"></script>

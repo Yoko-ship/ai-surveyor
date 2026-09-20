@@ -1,0 +1,208 @@
+[
+ {
+  "metadata": [
+   {
+    "name_uz": "Birinchi chop etilgan sana",
+    "name_ru": "Дата первой публикации",
+    "name_en": "Date of first publication",
+    "name_uzc": "Биринчи чоп этилган сана",
+    "value_uz": "2022-06-09",
+    "value_ru": "2022-06-09",
+    "value_en": "2022-06-09",
+    "value_uzc": "2022-06-09"
+   },
+   {
+    "name_uz": "So'nggi o'zgartirilgan sana",
+    "name_ru": "Дата последнего изменения",
+    "name_en": "Last modified date",
+    "name_uzc": "Сўнгги ўзгартирилган сана",
+    "value_uz": "2026-04-22",
+    "value_ru": "2026-04-22",
+    "value_en": "2026-04-22",
+    "value_uzc": "2026-04-22"
+   },
+   {
+    "name_uz": "Ma'lumotlar to'plami identifikatsiya raqami (kodi)",
+    "name_ru": "Идентификационный номер индикатора (код)",
+    "name_en": "Indicator identification number (code)",
+    "name_uzc": "Маълумотлар тўплами идентификация рақами (коди)",
+    "value_uz": "2.01.02.0001",
+    "value_ru": "2.01.02.0001",
+    "value_en": "2.01.02.0001",
+    "value_uzc": "2.01.02.0001"
+   },
+   {
+    "name_uz": "Ma'lumotlar to'plami nomi",
+    "name_ru": "Имя индикатора",
+    "name_en": "Indicator name",
+    "name_uzc": "Маълумотлар тўплами номи",
+    "value_uz": "Doimiy aholi soni  (jami)",
+    "value_ru": "Численность постоянного населения (всего)",
+    "value_en": "Permanent population-Total",
+    "value_uzc": "Доимий аҳоли сони  (жами)"
+   },
+   {
+    "name_uz": "Davriyligi",
+    "name_ru": "Периодичность",
+    "name_en": "Periodicity",
+    "name_uzc": "Даврийлиги",
+    "value_uz": "yil boshiga",
+    "value_ru": "на начало года",
+    "value_en": "Per year",
+    "value_uzc": "йил бошига"
+   },
+   {
+    "name_uz": "O‘lchov birligi",
+    "name_ru": "Единица измерения",
+    "name_en": "Unit of measurement",
+    "name_uzc": "Ўлчов бирлиги",
+    "value_uz": "ming kishi",
+    "value_ru": "тысяч человек",
+    "value_en": "thousand people",
+    "value_uzc": "минг киши"
+   },
+   {
+    "name_uz": "Klassifikatorlar",
+    "name_ru": "Классификаторы",
+    "name_en": "Classifiers",
+    "name_uzc": "Классификаторлар",
+    "value_uz": "O`zbekiston Respublikasi ma`muriy-hududiy tuzilmalarini (ob`ektlarini) belgilash tizimi idoraviy tasniflagichi (MHOBT)",
+    "value_ru": "Ведомственный классификатор «Система обозначения административно-территориальных образований (объектов) Республики Узбекистан» (СОАТО)",
+    "value_en": "Departmental classifier of the system of designation of administrative-territorial structures( objects)of the Republic of Uzbekistan",
+    "value_uzc": "Ўзбекистон Республикаси маъмурий-ҳудудий тузилмаларини (объектларини) белгилаш тизими идоравий таснифлагичи (МҲОБТ)"
+   },
+   {
+    "name_uz": "Rasmiy statistika tayyorlovchi",
+    "name_ru": "Составитель официальной статистики",
+    "name_en": "Official statistics preparer",
+    "name_uzc": "Расмий статистика тайёрловчи",
+    "value_uz": "O‘zbekiston Respublikasi Milliy statistika qo‘mitasi",
+    "value_ru": "Национальный комитет Республики Узбекистан по статистике",
+    "value_en": "National Statistics Committee of the Republic of Uzbekistan",
+    "value_uzc": "Ўзбекистон Республикаси Миллий статистика қўмитаси"
+   },
+   {
+    "name_uz": "Birlamchi ma'lumot manbasi",
+    "name_ru": "Первичный источник информации",
+    "name_en": "Primary source of information",
+    "name_uzc": "Бирламчи маълумот манбаси",
+    "value_uz": "O'zbekiston Respublikasi Adliya vazirligi,  Ichki ishlar vazirligi",
+    "value_ru": "Министерство юстиции, Министерство внутренних дел Республики Узбекистан",
+    "value_en": "Ministry of Justice, Ministry of internal affairs of the Republic of Uzbekistan",
+    "value_uzc": "Ўзбекистон Республикаси Адлия вазирлиги,  Ички ишлар вазирлиги"
+   },
+   {
+    "name_uz": "Hisoblash metodikasi",
+    "name_ru": "Методы расчета",
+    "name_en": "Calculation methodology",
+    "name_uzc": "Ҳисоблаш методикаси",
+    "value_uz": "Doimiy aholi – ro‘yxatdan o‘tkazilayotgan vaqtda muayyan aholi punkti yoki hududda doimiy istiqomat qilayotgan aholidan iborat bo‘lib, bunga ushbu hududda doimiy ro‘yxatda turgan, lekin vaqtincha yashamaydigan aholi ham kiritiladi.  Doimiy aholi sonini baholash – oxirgi aholini ro‘yxatga olish ma’lumotlari asosida hisoblanib, unga har yili tug‘ilganlar va muayyan hududga ko‘chib kelganlar soni qo‘shilib, o‘lganlar va muayyan hududdan ko‘chib ketganlar soni ayriladi. Batafsil: https://lib.stat.uz/uz/features/demografiya-va-mehnat/853-asosiy-demografik-ko-rsatkichlarni-shakllantirish-bo-yicha-uslubiy-nizom-2",
+    "value_ru": "Постоянное население - состоит из населения, постоянно проживающего в определенном населенном пункте или территории на момент регистрации, в том числе населения, постоянно зарегистрированного на этой территории, но не проживающего временно. Оценка численности постоянного населения - рассчитывается на основе последней переписи населения, прибавляя к ней количество людей, родившихся и иммигрировавших в определенный район каждый год, и вычитая количество умерших и людей, переехавших из определенного района. Подробнее: https://lib.stat.uz/uz/features/demografiya-va-mehnat/853-asosiy-demografik-ko-rsatkichlarni-shakllantirish-bo-yicha-uslubiy-nizom-2",
+    "value_en": "Permanent population - consists of the population permanently residing in a certain locality or territory at the time of registration, including the population permanently registered in this territory but not temporarily residing. Estimate of the size of the permanent population - is calculated on the basis of the last population census, adding to it the number of people born and immigrating to a certain area each year, and subtracting the number of deaths and people who moved from a certain area. Detail: https://lib.stat.uz/uz/features/demografiya-va-mehnat/853-asosiy-demografik-ko-rsatkichlarni-shakllantirish-bo-yicha-uslubiy-nizom-2",
+    "value_uzc": "Доимий аҳоли – рўйхатдан ўтказилаётган вақтда муайян аҳоли пункти ёки ҳудудда доимий истиқомат қилаётган аҳолидан иборат бўлиб, бунга ушбу ҳудудда доимий рўйхатда турган, лекин вақтинча яшамайдиган аҳоли ҳам киритилади.  Доимий аҳоли сонини баҳолаш – охирги аҳолини рўйхатга олиш маълумотлари асосида ҳисобланиб, унга ҳар йили туғилганлар ва муайян ҳудудга кўчиб келганлар сони қўшилиб, ўлганлар ва муайян ҳудуддан кўчиб кетганлар сони айрилади. Батафсил: https://lib.stat.uz/uz/features/demografiya-va-mehnat/853-asosiy-demografik-ko-rsatkichlarni-shakllantirish-bo-yicha-uslubiy-nizom-2"
+   },
+   {
+    "name_uz": "Mas'ul boshqarma nomi",
+    "name_ru": "Ответственное управление",
+    "name_en": "Name of department",
+    "name_uzc": "Масъул бошқарма номи",
+    "value_uz": "Demografiya, mehnat va gender statistikasi boshqarmasi",
+    "value_ru": "Управление статистики демографии, труда и гендера",
+    "value_en": "Department of Demography, Labor and Gender Statistics",
+    "value_uzc": "Демография, меҳнат ва гендер статистикаси бошқармаси"
+   },
+   {
+    "name_uz": "Mas'ul hodim FIO",
+    "name_ru": "Oтветственный сотрудник ФИО",
+    "name_en": "Responsible officer name",
+    "name_uzc": "Масъул ҳодим ФИО",
+    "value_uz": "Adizov Azizjon Rajab o'g'li",
+    "value_ru": "Адизов Азизжон Ражаб угли",
+    "value_en": "Adizov Azizjon Rajab ugli",
+    "value_uzc": "Адизов Азизжон Ражаб ўғли"
+   },
+   {
+    "name_uz": "Telefon raqami :",
+    "name_ru": "Номер телефона :",
+    "name_en": "Phone number :",
+    "name_uzc": "Телефон рақами :",
+    "value_uz": "+99871 202 80 67",
+    "value_ru": "+99871 202 80 67",
+    "value_en": "+99871 202 80 67",
+    "value_uzc": "+99871 202 80 67"
+   },
+   {
+    "name_uz": "Elektron pochta",
+    "name_ru": "Электронная почта",
+    "name_en": "Email",
+    "name_uzc": "Электрон почта",
+    "value_uz": "z.yuldoshev@stat.uz",
+    "value_ru": "z.yuldoshev@stat.uz",
+    "value_en": "z.yuldoshev@stat.uz",
+    "value_uzc": "z.yuldoshev@stat.uz"
+   },
+   {
+    "name_uz": "Izoh",
+    "name_ru": "Примечание",
+    "name_en": "Note",
+    "name_uzc": "Изоҳ",
+    "value_uz": "Bo‘zatov tumani 2020 yil tashkil topgan; Taxiatosh shahri 2013 yopilib 2018 yilda Taxiatosh tumani boʼlib tashkil topgan; Shahrisabz shahri 2018 yil tashkil topgan; G‘ozg‘on shahri 2020 yil tashkil topgan; Bandixon tumani 2020 yil tashkil topgan; Nurafshon shahri 2018 yil tashkil topgan; Ohangaron shahri 2018 yil tashkil topgan; Yangiyo'l shahri 2018 yil tashkil topgan; Toshkent tumani 2018 yil tashkil topgan; Xiva shahri 2018 yil tashkil topgan; Tuproqqal’a tumani 2021 yil tashkil topgan; Yangihayot tumani 2021 yil tashkil topgan; Ko'kdala tumani 2022 yil tashkil topgan.",
+    "value_ru": "Бузатовский район образован в 2020 году; город Тахиаташ быль исключен в 2013 году и образован в 2018 году как Тахиаташский район; город Шахрисабз был основан в 2018 году; город Газган основан в 2020 году; Бандиханский район образован в 2020 году; город Нурафшан быль основан в 2018 году; город Ахангаран быль основан в 2018 году; город Янгиюль быль основан в 2018 году; Ташкентский район образован в 2018 году; город Хива быль основан в 2018 году; Тупроккалинский район образован в 2021 году; Янгихаетский район образован в 2021 году; Кокдалинский район образован в 2022 году.",
+    "value_en": "Bozatov district was established in 2020; The city of Takhiatash was closed in 2013 and formed in 2018 as Takhiatash district; The city of Shahrisabz was founded in 2018; The city of Gazgan was founded in 2020; Bandikhan district was formed in 2020; The city of Nurafshan was founded in 2018; The city of Ahangaron was founded in 2018; Yangiyul city was founded in 2018; Tashkent district was established in 2018; The city of Khiva was founded in 2018; Tuproqqala district was established in 2021; Yangihayot district was formed in 2021; Kokdala district was formed in 2022.",
+    "value_uzc": "Бўзатов тумани 2020 йил ташкил топган; Тахиатош шаҳри 2013 ёпилиб 2018 йилда Тахиатош тумани бўлиб ташкил топган; Шаҳрисабз шаҳри 2018 йил ташкил топган; Ғозғон шаҳри 2020 йил ташкил топган; Бандихон тумани 2020 йил ташкил топган; Нурафшон шаҳри 2018 йил ташкил топган; Оҳангарон шаҳри 2018 йил ташкил топган; Янгийўл шаҳри 2018 йил ташкил топган; Тошкент тумани 2018 йил ташкил топган; Хива шаҳри 2018 йил ташкил топган; Тупроққалъа тумани 2021 йил ташкил топган; Янгиҳаёт тумани 2021 йил ташкил топган; Кўкдала тумани 2022 йил ташкил топган."
+   }
+  ],
+  "data": [
+   {
+    "Code": "1700",
+    "Klassifikator": "O‘zbekiston Respublikasi",
+    "Klassifikator_ru": "Республика Узбекистан",
+    "Klassifikator_en": "Republic of Uzbekistan",
+    "Klassifikator_uzc": "Ўзбекистон Республикаси",
+    "2024": 36799.8,
+    "2025": 37543.2,
+    "2026": 38236.7
+   },
+   {
+    "Code": "1735",
+    "Klassifikator": "Qoraqalpog‘iston Respublikasi",
+    "Klassifikator_ru": "Республика Каракалпакстан",
+    "Klassifikator_en": "Republic of Karakalpakstan",
+    "Klassifikator_uzc": "Қорақалпоғистон Республикаси",
+    "2024": 2002.7,
+    "2025": 2029.7,
+    "2026": 2053.2
+   },
+   {
+    "Code": "1703",
+    "Klassifikator": "Andijon viloyati",
+    "Klassifikator_ru": "Андижанская область",
+    "Klassifikator_en": "Andijan region",
+    "Klassifikator_uzc": "Aндижон вилояти",
+    "2024": 3394.4,
+    "2025": 3461.0,
+    "2026": 3521.8
+   },
+   {
+    "Code": "1706",
+    "Klassifikator": "Buxoro viloyati",
+    "Klassifikator_ru": "Бухарская область",
+    "Klassifikator_en": "Bukhara region",
+    "Klassifikator_uzc": "Бухоро вилояти",
+    "2024": 2044.0,
+    "2025": 2077.0,
+    "2026": 2107.0
+   },
+   {
+    "Code": "1735401",
+    "Klassifikator": "Nukus shahri",
+    "Klassifikator_ru": "Город Нукус",
+    "Klassifikator_en": "Nukus city",
+    "Klassifikator_uzc": "Нукус шаҳри",
+    "2024": 339.2,
+    "2025": 344.7,
+    "2026": 349.4
+   }
+  ]
+ }
+]

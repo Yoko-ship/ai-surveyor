@@ -1,0 +1,649 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сюрвейер INSON</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --nav:72px}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden}
+.wrap{max-width:520px;margin:0 auto;padding:14px 16px calc(var(--nav) + 24px)}
+header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:10px}
+header b{font-size:17px;font-weight:800}
+header span{font-size:11.5px;color:var(--muted)}
+.banner{border:1px solid var(--warn);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--warn);margin-bottom:12px}
+.banner.stop{border-color:var(--stop);color:var(--stop)}
+.banner.ok{border-color:var(--accent-dim);color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px;margin-bottom:12px}
+.card h2{margin:0 0 2px;font-size:13px}
+.card p.sub{margin:0 0 10px;font-size:12px;color:var(--muted)}
+label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
+label.f:first-child{margin-top:0}
+input,select,textarea,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:11px 12px;min-height:46px;width:100%;min-width:0}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 21px,calc(100% - 13px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px}
+button{cursor:pointer;font-weight:700}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+button.ghost{background:transparent}
+button:disabled{opacity:.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two>div{min-width:0}
+.note{font-size:12px;color:var(--muted)}
+.err{color:var(--stop)}.ok{color:var(--accent)}.warn{color:var(--warn)}
+.big{font:700 30px/1.1 var(--mono);margin:2px 0}
+.kv{display:grid;grid-template-columns:1fr auto;gap:7px 12px;font-size:13px}
+.kv span{color:var(--muted)}
+.kv b{font-family:var(--mono);font-weight:600;text-align:right}
+.chain{font-size:12.5px}
+.chain div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+.chain div:last-child{border-bottom:0}
+.chain b{font-family:var(--mono);font-weight:600;white-space:nowrap}
+.check{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.check:last-child{border-bottom:0}
+.check i{font-style:normal;flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px}
+.check.ok i{background:var(--accent)}.check.warn i{background:var(--warn)}.check.stop i{background:var(--stop)}
+.check b{display:block;font-weight:700}
+.check span{color:var(--muted)}
+.verdict{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);border-radius:6px;padding:3px 9px;color:var(--muted)}
+.verdict.ok{color:var(--accent);border-color:var(--accent-dim)}
+.verdict.warn{color:var(--warn);border-color:var(--warn)}
+.verdict.stop{color:var(--stop);border-color:var(--stop)}
+.tip{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:8px;font-size:12.5px}
+.tip b{display:block}
+.tip span{color:var(--accent);font-family:var(--mono)}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+.ph{position:relative;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--soft);touch-action:none;user-select:none;-webkit-user-select:none}
+.ph.drag{opacity:.55;border-color:var(--accent-dim)}
+.ph img{display:block;width:100%;height:96px;object-fit:cover;pointer-events:none}
+.ph .no{position:absolute;left:6px;top:6px;font:700 11px var(--mono);background:rgba(0,0,0,.6);border-radius:6px;padding:1px 6px}
+.ph .del{position:absolute;right:4px;bottom:4px;width:34px;height:34px;min-height:34px;padding:0;border-radius:9px;background:rgba(0,0,0,.6);border-color:transparent;line-height:1}
+.files{font-size:12.5px}
+.files div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.files div:last-child{border-bottom:0}
+nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav button{background:none;border:0;border-radius:0;min-height:var(--nav);padding:10px 4px;color:var(--muted);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:5px}
+nav button i{font-style:normal;font-size:17px;line-height:1}
+nav button.on{color:var(--accent)}
+.hidden{display:none}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+
+<div class="wrap">
+  <header>
+    <b>Сюрвейер INSON</b>
+    <span id="mode">подключаюсь…</span>
+  </header>
+
+  <div class="banner" id="pdWarn">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
+  <div class="banner hidden" id="authWarn"></div>
+
+  <!-- ---------- расчёт ---------- -->
+  <section id="tab-calc">
+    <div class="card">
+      <h2>Объект и договор</h2>
+      <p class="sub">Коротко: что страхуем, на какую сумму и на какой срок.</p>
+      <label class="f" for="cls">Класс страхования</label>
+      <select id="cls"><option>загружаю…</option></select>
+      <label class="f" for="prod">Продукт</label>
+      <select id="prod"><option>сначала выберите класс</option></select>
+      <label class="f" for="otype">Тип объекта</label>
+      <input id="otype" type="text" value="Склад" autocomplete="off">
+      <div class="two">
+        <div>
+          <label class="f" for="sum">Страховая сумма, сум</label>
+          <input id="sum" type="text" inputmode="numeric" value="800 000 000">
+        </div>
+        <div>
+          <label class="f" for="val">Стоимость объекта, сум</label>
+          <input id="val" type="text" inputmode="numeric" value="1 000 000 000">
+        </div>
+      </div>
+      <div class="two">
+        <div>
+          <label class="f" for="term">Срок, дней</label>
+          <input id="term" type="text" inputmode="numeric" value="365">
+        </div>
+        <div>
+          <label class="f" for="fr">Франшиза</label>
+          <select id="fr"><option value="">не применяется</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="factorsCard">
+      <h2>Факторы риска</h2>
+      <p class="sub">Набор зависит от класса. Пустое поле — фактор не учитывается.</p>
+      <div id="factors"><div class="note">загружаю…</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Раскрытие клиенту</h2>
+      <p class="sub">Статья 63 Закона о страховой деятельности.</p>
+      <label class="f" style="display:flex;gap:10px;align-items:center;margin:0">
+        <input type="checkbox" id="disclosure" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
+        <span style="color:var(--ink)">Клиенту всё рассказал</span>
+      </label>
+      <label class="f" style="display:flex;gap:10px;align-items:center;margin-top:12px">
+        <input type="checkbox" id="paid" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
+        <span style="color:var(--ink)">Премия поступила</span>
+      </label>
+    </div>
+
+    <button class="go" id="calcBtn">Посчитать</button>
+    <div class="note" id="calcMsg" style="margin-top:8px"></div>
+
+    <div id="result"></div>
+  </section>
+
+  <!-- ---------- фото ---------- -->
+  <section id="tab-photo" class="hidden">
+    <div class="card">
+      <h2>Фотографии объекта</h2>
+      <p class="sub">Сначала посчитайте и сохраните запрос — фото прикрепляются к нему. Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
+      <div class="note" id="phMsg">запрос ещё не сохранён</div>
+      <input type="file" id="phFile" accept="image/*" multiple capture="environment" style="margin-top:10px">
+      <div class="photos" id="phList" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- ---------- документы ---------- -->
+  <section id="tab-doc" class="hidden">
+    <div class="card">
+      <h2>Документы объекта</h2>
+      <p class="sub">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
+      <label class="f" for="docKind">Что за документ</label>
+      <select id="docKind">
+        <option value="техпаспорт">Технический паспорт</option>
+        <option value="кадастр">Кадастровые документы</option>
+      </select>
+      <label class="f" for="docFile">Файл — PDF или фотография</label>
+      <input type="file" id="docFile" accept="image/*,application/pdf">
+      <div class="note" id="docMsg" style="margin-top:10px">запрос ещё не сохранён</div>
+      <div class="files" id="docList" style="margin-top:10px"></div>
+    </div>
+  </section>
+
+  <!-- ---------- профиль ---------- -->
+  <section id="tab-me" class="hidden">
+    <div class="card">
+      <h2>Профиль</h2>
+      <p class="sub">Кто вы для системы и в каком режиме она работает.</p>
+      <div class="kv" id="meKv"></div>
+    </div>
+    <div class="card">
+      <h2>Последний запрос</h2>
+      <p class="sub">Номер нужен филиалу и андеррайтеру.</p>
+      <div class="kv" id="lastKv"><span>Запрос</span><b>не сохранён</b></div>
+    </div>
+  </section>
+</div>
+
+<nav>
+  <button data-tab="calc" class="on"><i>₌</i>Расчёт</button>
+  <button data-tab="photo"><i>▣</i>Фото</button>
+  <button data-tab="doc"><i>≣</i>Документы</button>
+  <button data-tab="me"><i>◍</i>Профиль</button>
+</nav>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => (n == null) ? "—" : Math.round(Number(n)).toLocaleString("ru-RU");
+const pct = n => (n == null) ? "—" : Number(n).toFixed(3).replace(".", ",") + "%";
+const num = s => Number(String(s == null ? "" : s).replace(/[^\d.-]/g, "")) || 0;
+const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+/* ---------- Telegram: готовность, разворот, цвета поверх наших ---------- */
+function applyTheme(){
+  if (!TG) return;
+  const p = TG.themeParams || {};
+  const map = {bg_color: "--paper", secondary_bg_color: "--card", text_color: "--ink",
+    hint_color: "--muted", section_separator_color: "--line", button_color: "--accent"};
+  const root = document.documentElement;
+  for (const k in map) if (p[k]) root.style.setProperty(map[k], p[k]);
+  if (p.secondary_bg_color && !p.section_separator_color) root.style.setProperty("--soft", p.secondary_bg_color);
+}
+if (TG) {
+  try {
+    TG.ready();
+    TG.expand();
+    applyTheme();
+    TG.onEvent("themeChanged", applyTheme);
+  } catch (e) { /* старая версия клиента — работаем на наших цветах */ }
+}
+
+function why(status, j){
+  const d = j && (j.detail || j.error);
+  const ru = typeof d === "string" && /[А-Яа-я]/.test(d) ? d : null;
+  if (ru) return ru;
+  if (status === 404 || status === 405) return "сервер ещё не умеет этот запрос";
+  if (status === 422) return "сервер не принял данные формы";
+  if (status >= 500) return "ошибка на сервере, смотрите лог sandbox/server.log";
+  return "сервер ответил " + status;
+}
+
+async function api(url, opts){
+  try{
+    const r = await fetch(url, opts);
+    let j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    if (!r.ok) return {ok: false, status: r.status, error: why(r.status, j), data: j};
+    return {ok: true, data: j};
+  } catch (e) {
+    return {ok: false, error: "сервер не отвечает"};
+  }
+}
+
+/* ---------- вкладки ---------- */
+const TABS = ["calc", "photo", "doc", "me"];
+function openTab(name){
+  TABS.forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== name));
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.tab === name));
+  mainButton(name === "calc");
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("nav button").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+
+/* ---------- главная кнопка Telegram ---------- */
+function mainButton(show){
+  if (!TG || !TG.MainButton) return;
+  try {
+    TG.MainButton.setText("Посчитать");
+    if (show) TG.MainButton.show(); else TG.MainButton.hide();
+  } catch (e) {}
+}
+const IN_TG = !!(TG && TG.initData);
+if (TG && TG.MainButton) {
+  try {
+    TG.MainButton.onClick(() => calculate());
+    TG.MainButton.setText("Посчитать");
+    TG.MainButton.show();
+    if (IN_TG) $("#calcBtn").classList.add("hidden");   // в Telegram считает нижняя кнопка клиента
+  } catch (e) {}
+}
+
+/* ---------- вход ---------- */
+let AUTH = {mode: "браузер", status: "ок", user: null};
+
+async function auth(){
+  const initData = TG && TG.initData ? TG.initData : "";
+  const r = await api("/tg/auth", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({initData: initData})});
+  if (!r.ok) {
+    $("#mode").textContent = (TG && TG.initData ? "Telegram" : "браузер") + " · сервер не ответил";
+    banner("#authWarn", "warn", "Сервер не подтвердил вход: " + r.error + ". Расчёт можно делать, сохранить запрос — нет.");
+    paintMe();
+    return;
+  }
+  AUTH = r.data || AUTH;
+  const st = AUTH.status || "ок";
+  $("#mode").textContent = (AUTH.mode || "браузер") + " · " + st;
+  if (st === "нужна верификация") {
+    banner("#authWarn", "warn", "Ваш Telegram не привязан к учётной записи агента. Заявка подана, дождитесь подтверждения администратора — он сверит ваш ID агента. Пока расчёт доступен, сохранение запроса — нет.");
+  } else if (st === "ошибка") {
+    banner("#authWarn", "stop", "Вход не выполнен: " + (AUTH.reason || "причина не указана") + ". Откройте мини-апп заново из чата с ботом.");
+  } else if ((AUTH.mode || "") === "браузер") {
+    banner("#authWarn", "ok", "Открыто в обычном браузере, без Telegram. Работаем как на рабочем экране, вход по логину.");
+  } else {
+    $("#authWarn").classList.add("hidden");
+  }
+  if (AUTH.pd_mode === "prod") $("#pdWarn").classList.add("hidden");
+  paintMe();
+}
+function banner(sel, kind, text){
+  const el = $(sel);
+  el.className = "banner " + (kind === "ok" ? "ok" : kind === "stop" ? "stop" : "");
+  el.textContent = text;
+}
+function canSave(){ return (AUTH.status || "ок") === "ок"; }
+
+function paintMe(){
+  const u = AUTH.user || {};
+  const name = u.name || u.full_name || [u.first_name, u.last_name].filter(Boolean).join(" ") || "—";
+  $("#meKv").innerHTML = "<span>Режим</span><b>" + esc(AUTH.mode || "—") + "</b>"
+    + "<span>Статус</span><b>" + esc(AUTH.status || "—") + "</b>"
+    + "<span>Кто вы</span><b>" + esc(name) + "</b>"
+    + "<span>ID агента</span><b>" + esc(u.eais_id || u.agent_id || "—") + "</b>"
+    + "<span>Данные клиентов</span><b>" + (AUTH.pd_mode === "prod" ? "разрешены" : "нельзя") + "</b>"
+    + (AUTH.reason ? "<span>Пояснение</span><b>" + esc(AUTH.reason) + "</b>" : "");
+}
+
+/* ---------- справочники ---------- */
+let CLASSES = [], PRODUCTS = [], COEFS = [];
+
+function classesOf(p){
+  if (Array.isArray(p.classes)) return p.classes;
+  if (typeof p.classes === "string" && p.classes) return p.classes.split(",");
+  return [];
+}
+
+async function loadRefs(){
+  const [c, p, k] = await Promise.all([api("/reference/classes"), api("/reference/products"), api("/reference/coefficients")]);
+  if (!c.ok || !p.ok || !k.ok) {
+    $("#cls").innerHTML = "<option>справочники недоступны</option>";
+    $("#factors").innerHTML = '<div class="note err">Справочники не загрузились: ' + esc((c.error || p.error || k.error)) + "</div>";
+    return;
+  }
+  CLASSES = c.data || []; PRODUCTS = p.data || []; COEFS = k.data || [];
+  $("#cls").innerHTML = CLASSES.map(x => '<option value="' + esc(x.code) + '">' + esc(x.code + " · " + x.name) + "</option>").join("");
+  const has8 = CLASSES.some(x => x.code === "8");
+  $("#cls").value = has8 ? "8" : (CLASSES[0] ? CLASSES[0].code : "");
+  onClass();
+}
+
+function onClass(){
+  const cls = $("#cls").value;
+  const list = PRODUCTS.filter(p => classesOf(p).indexOf(cls) >= 0);
+  $("#prod").innerHTML = list.length
+    ? list.map(p => '<option value="' + esc(p.code) + '">' + esc(p.code + " · " + p.name) + "</option>").join("")
+    : '<option value="">в этом классе продуктов нет</option>';
+  paintFactors(cls);
+}
+
+function optionsFor(cls, factor){
+  return COEFS.filter(x => x.class_code === cls && x.factor_code === factor);
+}
+
+function paintFactors(cls){
+  const rows = COEFS.filter(x => x.class_code === cls);
+  const codes = [];
+  rows.forEach(r => { if (codes.indexOf(r.factor_code) < 0 && r.factor_code !== "franchise") codes.push(r.factor_code); });
+
+  const fr = optionsFor(cls, "franchise");
+  $("#fr").innerHTML = '<option value="">не применяется</option>'
+    + fr.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name) + "</option>").join("");
+
+  if (!codes.length) {
+    $("#factors").innerHTML = '<div class="note">Для этого класса факторов в справочнике нет — ставка считается по базовой.</div>';
+    return;
+  }
+  let uncal = false;
+  $("#factors").innerHTML = codes.map(code => {
+    const opts = optionsFor(cls, code);
+    if (opts.some(o => !o.calibrated)) uncal = true;
+    return '<label class="f" for="f_' + esc(code) + '">' + esc(opts[0].factor_name) + "</label>"
+      + '<select id="f_' + esc(code) + '" data-factor="' + esc(code) + '">'
+      + '<option value="">не учитывать</option>'
+      + opts.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name)
+        + " · ×" + String(o.multiplier).replace(".", ",") + (o.calibrated ? "" : " (не калибровано)") + "</option>").join("")
+      + "</select>";
+  }).join("")
+    + (uncal ? '<div class="note warn" style="margin-top:10px">Коэффициенты помечены «не калибровано»: это экспертные значения, компания их ещё не подтвердила своей статистикой убытков.</div>' : "");
+
+  // разумные значения по умолчанию: первый вариант каждого фактора
+  $("#factors").querySelectorAll("select").forEach(sel => { if (sel.options.length > 1) sel.selectedIndex = 1; });
+}
+
+$("#cls").onchange = onClass;
+
+/* ---------- расчёт ---------- */
+let LAST = null, RID = null;
+
+function factorsPayload(){
+  const f = {};
+  $("#factors").querySelectorAll("select").forEach(sel => { if (sel.value) f[sel.dataset.factor] = sel.value; });
+  if ($("#fr").value) f.franchise = $("#fr").value;
+  return f;
+}
+
+function payload(){
+  return {
+    product_code: $("#prod").value,
+    class_code: $("#cls").value,
+    object_type: $("#otype").value.trim() || "Склад",
+    value_amount: num($("#val").value),
+    sum_insured: num($("#sum").value),
+    term_days: num($("#term").value) || 365,
+    factors: factorsPayload(),
+    premium_paid: $("#paid").checked,
+    disclosure_done: $("#disclosure").checked
+  };
+}
+
+function progress(on){
+  if (TG && TG.MainButton) { try { on ? TG.MainButton.showProgress(true) : TG.MainButton.hideProgress(); } catch (e) {} }
+  $("#calcBtn").disabled = on;
+  $("#calcMsg").innerHTML = on ? '<span class="spin"></span> считаю…' : "";
+}
+
+async function calculate(){
+  const b = payload();
+  if (!b.product_code) { $("#calcMsg").innerHTML = '<span class="err">Выберите продукт — без него движок не знает минимальный тариф.</span>'; return; }
+  if (b.sum_insured <= 0 || b.value_amount <= 0) { $("#calcMsg").innerHTML = '<span class="err">Страховая сумма и стоимость объекта должны быть больше нуля.</span>'; return; }
+  progress(true);
+  const r = await api("/calculate", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(b)});
+  progress(false);
+  if (!r.ok) { $("#result").innerHTML = ""; $("#calcMsg").innerHTML = '<span class="err">Расчёт не выполнен: ' + esc(r.error) + "</span>"; return; }
+  LAST = r.data;
+  paintResult(r.data, b);
+  if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
+}
+$("#calcBtn").onclick = calculate;
+
+const VCLASS = {"ок": "ok", "на утверждение": "warn", "отклонено": "stop"};
+
+function chainRow(x){
+  let v = "";
+  if (x.value_pct != null) v = pct(x.value_pct);
+  else if (x.mult != null) v = "×" + String(x.mult).replace(".", ",");
+  else if (x.add_pct != null) v = "+" + pct(x.add_pct);
+  else if (x.divide_by != null) v = "÷" + String(x.divide_by).replace(".", ",");
+  return "<div><span>" + esc(x.name) + "</span><b>" + v + "</b></div>";
+}
+
+function paintResult(j, b){
+  const r = j.rates || {};
+  const v = VCLASS[j.verdict] || "";
+  const perils = j.perils_included || [];
+  const share = b.value_amount ? Math.round(b.sum_insured / b.value_amount * 100) : 100;
+  const tips = (j.recommendations || []).slice(0, 4);
+
+  $("#result").innerHTML =
+    '<div class="card">'
+    + '<h2>Ставка и премия</h2>'
+    + '<p class="sub">Ставка годовая, премия — за ' + esc(b.term_days) + " дней.</p>"
+    + '<div class="big">' + pct(r.applied_pct) + "</div>"
+    + '<div class="big" style="font-size:22px">' + fmt(j.premium) + " сум</div>"
+    + '<div style="margin:8px 0 12px"><span class="verdict ' + v + '">' + esc(j.verdict || "—") + "</span></div>"
+    + '<div class="kv">'
+    + "<span>Нетто-ставка</span><b>" + pct(r.net_pct) + "</b>"
+    + "<span>Рисковая надбавка</span><b>" + pct(r.risk_load_pct) + "</b>"
+    + "<span>Катастрофическая надбавка</span><b>" + pct(r.cat_load_pct) + "</b>"
+    + "<span>Техническая ставка</span><b>" + pct(r.technical_pct) + "</b>"
+    + "<span>Минимум по продукту</span><b>" + pct(r.min_pct) + "</b>"
+    + (j.market && j.market.rate_pct ? "<span>Рынок, " + esc(j.market.label || "НАПП") + "</span><b>" + pct(j.market.rate_pct) + "</b>" : "")
+    + "</div></div>"
+
+    + '<div class="card"><h2>Из чего сложилась ставка</h2><p class="sub">Каждый шаг движка по порядку.</p>'
+    + '<div class="chain">' + (j.explanation || []).map(chainRow).join("") + "</div></div>"
+
+    + '<div class="card"><h2>Проверки</h2><p class="sub">Каждая ссылается на норму.</p>'
+    + (j.checks || []).map(c => '<div class="check ' + (c.status === "ok" ? "ok" : c.status === "stop" ? "stop" : "warn") + '"><i></i><div><b>'
+      + esc(c.title) + "</b><span>" + esc(c.detail) + "</span></div></div>").join("")
+    + "</div>"
+
+    + (tips.length ? '<div class="card"><h2>Как удешевить</h2><p class="sub">Что можно изменить в договоре и на сколько это меняет премию.</p>'
+      + tips.map(t => '<div class="tip"><b>' + esc(t.text) + "</b><span>" + (t.premium_delta > 0 ? "+" : "") + fmt(t.premium_delta) + " сум</span></div>").join("")
+      + "</div>" : "")
+
+    + '<div class="card"><h2>Что сказать клиенту</h2><p class="sub">Обязательное раскрытие по статье 63 Закона о страховой деятельности.</p>'
+    + '<div class="kv">'
+    + "<span>Цена</span><b>" + fmt(j.premium) + " сум за " + esc(b.term_days) + " дн.</b>"
+    + "<span>Покрываемые риски</span><b>" + (perils.length ? perils.length + " по классу " + esc(b.class_code) : "по правилам продукта") + "</b>"
+    + "<span>Исключённые риски</span><b>" + esc(excluded(j, b).join(", ") || "нет") + "</b>"
+    + "<span>При недостраховании</span><b>" + (share < 100 ? "выплата " + share + "% убытка (ст. 936 ГК)" : "выплата полная") + "</b>"
+    + "<span>Возврат премии</span><b>при досрочном расторжении — за неистёкший срок</b>"
+    + "<span>Претензии</span><b>письменно, ответ в срок по правилам страхования</b>"
+    + "</div></div>"
+
+    + '<div class="card"><h2>Сохранить запрос</h2><p class="sub">После сохранения появится номер, к нему прикрепляются фото и документы.</p>'
+    + '<label class="f" for="branch">Филиал</label><input id="branch" type="text" placeholder="например Чиланзарский" autocomplete="off">'
+    + '<label class="f" for="holder">Страхователь</label><input id="holder" type="text" placeholder="название организации" autocomplete="off">'
+    + '<button class="go" id="saveBtn" style="margin-top:12px">Сохранить запрос</button>'
+    + '<div class="note" id="saveMsg" style="margin-top:8px"></div></div>';
+
+  $("#saveBtn").onclick = saveRequest;
+  if (!canSave()) {
+    $("#saveBtn").disabled = true;
+    $("#saveMsg").innerHTML = '<span class="warn">Сохранение откроется после подтверждения администратором.</span>';
+  }
+}
+
+function excluded(j, b){
+  const step = (j.explanation || []).filter(x => x.excluded && x.excluded.length)[0];
+  return step ? step.excluded : [];
+}
+
+async function saveRequest(){
+  const b = payload();
+  b.branch = ($("#branch") && $("#branch").value.trim()) || null;
+  b.policyholder = ($("#holder") && $("#holder").value.trim()) || null;
+  $("#saveMsg").innerHTML = '<span class="spin"></span> сохраняю…';
+  const r = await api("/requests", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(b)});
+  if (!r.ok) { $("#saveMsg").innerHTML = '<span class="err">Запрос не сохранился: ' + esc(r.error) + "</span>"; return; }
+  RID = r.data.request_id;
+  $("#saveMsg").innerHTML = '<span class="ok">Сохранено. Запрос № ' + RID + " — теперь можно прикрепить фото и документы.</span>";
+  $("#lastKv").innerHTML = "<span>Запрос</span><b>№ " + RID + "</b><span>Вердикт</span><b>" + esc(r.data.verdict || "—") + "</b>"
+    + "<span>Премия</span><b>" + fmt(r.data.premium) + "</b>";
+  $("#phMsg").textContent = "запрос № " + RID;
+  $("#docMsg").textContent = "запрос № " + RID;
+  loadPhotos();
+  loadDocs();
+}
+
+/* ---------- фото ---------- */
+let PHOTOS = [];
+
+async function loadPhotos(){
+  if (!RID) return;
+  const r = await api("/requests/" + RID + "/photos");
+  if (!r.ok) { $("#phMsg").innerHTML = '<span class="err">Список фото недоступен: ' + esc(r.error) + "</span>"; return; }
+  PHOTOS = r.data || [];
+  paintPhotos();
+}
+
+function paintPhotos(){
+  $("#phList").innerHTML = PHOTOS.map((p, i) =>
+    '<div class="ph" data-id="' + p.id + '"><img src="/photos/' + p.id + '" alt="фото объекта">'
+    + '<span class="no">' + (i + 1) + "</span>"
+    + '<button class="del" data-del="' + p.id + '">×</button></div>').join("");
+  $("#phList").querySelectorAll("[data-del]").forEach(b => { b.onclick = e => { e.stopPropagation(); delPhoto(b.dataset.del); }; });
+  bindDrag();
+}
+
+async function delPhoto(id){
+  const r = await api("/photos/" + id, {method: "DELETE"});
+  if (!r.ok) { $("#phMsg").innerHTML = '<span class="err">Фото не удалилось: ' + esc(r.error) + "</span>"; return; }
+  loadPhotos();
+}
+
+$("#phFile").onchange = async e => {
+  const files = e.target.files;
+  if (!files || !files.length) return;
+  if (!RID) { $("#phMsg").innerHTML = '<span class="err">Сначала сохраните запрос на вкладке «Расчёт».</span>'; return; }
+  const fd = new FormData();
+  for (let i = 0; i < files.length; i++) fd.append("files", files[i]);
+  $("#phMsg").innerHTML = '<span class="spin"></span> загружаю…';
+  const r = await api("/requests/" + RID + "/photos", {method: "POST", body: fd});
+  e.target.value = "";
+  if (!r.ok) { $("#phMsg").innerHTML = '<span class="err">Фото не загрузились: ' + esc(r.error) + "</span>"; return; }
+  $("#phMsg").innerHTML = '<span class="ok">загружено: ' + ((r.data.saved || []).length) + "</span>";
+  loadPhotos();
+};
+
+/* перетаскивание пальцем и мышью: порядок показа фото */
+function bindDrag(){
+  const list = $("#phList");
+  let drag = null;
+
+  const at = (x, y) => {
+    const el = document.elementFromPoint(x, y);
+    return el ? el.closest(".ph") : null;
+  };
+  const start = (tile, x, y) => {
+    drag = tile;
+    tile.classList.add("drag");
+  };
+  const move = (x, y) => {
+    if (!drag) return;
+    const over = at(x, y);
+    if (!over || over === drag) return;
+    const tiles = Array.prototype.slice.call(list.children);
+    if (tiles.indexOf(over) < tiles.indexOf(drag)) list.insertBefore(drag, over);
+    else list.insertBefore(drag, over.nextSibling);
+  };
+  const end = () => {
+    if (!drag) return;
+    drag.classList.remove("drag");
+    drag = null;
+    const ids = Array.prototype.slice.call(list.children).map(el => Number(el.dataset.id));
+    PHOTOS.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    Array.prototype.slice.call(list.children).forEach((el, i) => { el.querySelector(".no").textContent = i + 1; });
+    $("#phMsg").innerHTML = '<span class="note">порядок изменён — он виден только на этом экране, сервер порядок пока не хранит</span>';
+  };
+
+  list.querySelectorAll(".ph").forEach(tile => {
+    tile.addEventListener("touchstart", e => {
+      if (e.target.closest(".del")) return;
+      const t = e.touches[0];
+      start(tile, t.clientX, t.clientY);
+    }, {passive: true});
+    tile.addEventListener("touchmove", e => {
+      if (!drag) return;
+      e.preventDefault();                      // палец двигает плитку, а не страницу
+      const t = e.touches[0];
+      move(t.clientX, t.clientY);
+    }, {passive: false});
+    tile.addEventListener("touchend", end);
+    tile.addEventListener("touchcancel", end);
+    tile.addEventListener("mousedown", e => {
+      if (e.target.closest(".del")) return;
+      e.preventDefault();
+      start(tile, e.clientX, e.clientY);
+    });
+  });
+  document.addEventListener("mousemove", e => { if (drag) move(e.clientX, e.clientY); });
+  document.addEventListener("mouseup", end);
+}
+
+/* ---------- документы ---------- */
+async function loadDocs(){
+  if (!RID) return;
+  const r = await api("/requests/" + RID + "/documents/files");
+  if (!r.ok) { $("#docList").innerHTML = '<div class="note">список документов недоступен</div>'; return; }
+  const rows = r.data || [];
+  $("#docList").innerHTML = rows.length
+    ? rows.map(d => "<div><span>" + esc(d.doc_kind || "документ") + " · " + esc(d.filename || "") + "</span><b>"
+      + esc(d.parse_status || "") + "</b></div>").join("")
+    : '<div class="note">пока ничего не загружено</div>';
+}
+
+$("#docFile").onchange = async e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (!RID) { $("#docMsg").innerHTML = '<span class="err">Сначала сохраните запрос на вкладке «Расчёт».</span>'; return; }
+  const fd = new FormData();
+  fd.append("files", f);
+  $("#docMsg").innerHTML = '<span class="spin"></span> загружаю и читаю документ…';
+  const r = await api("/requests/" + RID + "/documents/upload?doc_kind=" + encodeURIComponent($("#docKind").value), {method: "POST", body: fd});
+  e.target.value = "";
+  if (!r.ok) { $("#docMsg").innerHTML = '<span class="err">Документ не загрузился: ' + esc(r.error) + "</span>"; return; }
+  const saved = (r.data.saved || [])[0] || {};
+  const parsed = saved["разбор"] || {};
+  const found = parsed.fields ? parsed.fields.filter(x => x.value != null).length : null;
+  $("#docMsg").innerHTML = '<span class="ok">загружено</span>' + (found != null ? ' <span class="note">· прочитано полей: ' + found + "</span>" : "");
+  loadDocs();
+};
+
+/* ---------- поля с суммами: пробелы между тысячами, курсор не теряем ---------- */
+["sum", "val"].forEach(id => {
+  const el = $("#" + id);
+  el.addEventListener("blur", () => { const v = num(el.value); el.value = v ? v.toLocaleString("ru-RU") : ""; });
+});
+
+auth();
+loadRefs();
+</script>

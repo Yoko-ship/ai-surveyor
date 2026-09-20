@@ -1,0 +1,211 @@
+<title>Движок сюрвейера</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#F2F5F7; --card:#FFFFFF; --ink:#101C26; --muted:#5C6C78; --line:#DDE4E9; --soft:#EDF1F4;
+  --accent:#12557E; --accent-2:#5E93B8; --accent-soft:#E3EEF6; --ok:#17734F; --warn:#9A6209; --stop:#B23A2F;
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:"Spline Sans Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --paper:#0E1519; --card:#151E24; --ink:#E6ECF0; --muted:#94A5B0; --line:#26323A; --soft:#1B252C;
+  --accent:#6FB6E4; --accent-2:#3E7CA6; --accent-soft:#17303F; --ok:#5CC298; --warn:#E0A83F; --stop:#EE8272}}
+:root[data-theme="dark"]{
+  --paper:#0E1519; --card:#151E24; --ink:#E6ECF0; --muted:#94A5B0; --line:#26323A; --soft:#1B252C;
+  --accent:#6FB6E4; --accent-2:#3E7CA6; --accent-soft:#17303F; --ok:#5CC298; --warn:#E0A83F; --stop:#EE8272}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans)}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:24px 48px}
+h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 4px}
+.lede{color:var(--muted);margin:0 0 18px;max-width:64ch}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:2}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+label.f span{font-weight:600}
+input,select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 9px;width:100%}
+input[type=number]{font-family:var(--mono)}
+label.t{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;align-self:end;padding:8px 0}
+label.t input{width:auto;accent-color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.flow{display:flex;flex-direction:column;margin-top:22px}
+.step{display:grid;grid-template-columns:52px 1fr;gap:16px}
+.num{display:flex;flex-direction:column;align-items:center}
+.num b{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--paper);display:grid;place-items:center;font:700 15px var(--mono);flex:none}
+.num i{flex:1;width:2px;background:var(--line);margin:6px 0}
+.step:last-child .num i{display:none}
+.body{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:18px}
+.body h2{font-size:17px;margin:0 0 2px}
+.body .sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--soft);border-radius:999px;padding:4px 11px;font-size:13px}
+.chip b{font-family:var(--mono);font-weight:600}
+svg{display:block;width:100%;height:auto;max-width:100%}
+.svgtext{font:12px var(--sans);fill:var(--muted)}
+.svgval{font:600 12px var(--mono);fill:var(--ink)}
+.hero{font:600 34px var(--mono);letter-spacing:-.02em}
+.hero small{font-size:15px;color:var(--muted);font-weight:400}
+.formula{font:13px var(--mono);color:var(--muted);margin-top:4px}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.chk:last-child{border-bottom:0}
+.chk .dot{width:9px;height:9px;border-radius:50%;margin-top:6px;flex:none}
+.chk.ok .dot{background:var(--ok)} .chk.warn .dot{background:var(--warn)} .chk.stop .dot{background:var(--stop)}
+.chk .t{font-weight:600} .chk .d{color:var(--muted);font-size:12.5px}
+.chk .law{font-size:11px;color:var(--muted);font-family:var(--mono);margin-left:auto;white-space:nowrap;padding-top:3px}
+.verdict{display:inline-block;margin-top:10px;font-weight:700;padding:6px 12px;border-radius:8px}
+.verdict.ok{background:color-mix(in srgb,var(--ok) 13%,transparent);color:var(--ok)}
+.verdict.warn{background:color-mix(in srgb,var(--warn) 15%,transparent);color:var(--warn)}
+.verdict.stop{background:color-mix(in srgb,var(--stop) 13%,transparent);color:var(--stop)}
+.scale{position:relative;height:10px;border-radius:5px;background:var(--soft);margin:26px 0 30px}
+.scale .m{position:absolute;top:-22px;transform:translateX(-50%);font:600 11px var(--mono);white-space:nowrap}
+.scale .m::after{content:"";position:absolute;left:50%;top:20px;width:2px;height:16px;background:currentColor}
+.scale .fill{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:5px}
+.dbflow{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.tbl{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;background:var(--soft)}
+.tbl b{display:block;font:600 12px var(--mono)}
+.arrow{color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border-radius:5px;padding:2px 7px}
+.tip{display:grid;grid-template-columns:1fr 3fr auto;gap:10px;align-items:center;padding:6px 0;font-size:13.5px}
+.tip .bar{height:10px;border-radius:4px;background:var(--soft);position:relative}
+.tip .bar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:4px}
+.tip .v{font:600 13px var(--mono);color:var(--ok);white-space:nowrap}
+</style>
+
+<div class="wrap">
+  <h1>Как работает движок</h1>
+  <p class="lede">Один запрос проходит восемь шагов. Меняйте условия сверху — каждый шаг пересчитывается, и видно, где именно рождается цена.</p>
+
+  <div class="controls">
+    <label class="f"><span>Страховая стоимость, сум</span><input type="number" data-k="value" value="4200000000" step="100000000"></label>
+    <label class="f"><span>Страховая сумма, сум</span><input type="number" data-k="sum" value="4200000000" step="100000000"></label>
+    <label class="f"><span>Защита</span><select data-k="protection"></select></label>
+    <label class="f"><span>Сейсмозона</span><select data-k="seismic"></select></label>
+    <label class="f"><span>Франшиза</span><select data-k="franchise"></select></label>
+    <label class="t"><input type="checkbox" data-k="quake" checked>Землетрясение включено</label>
+    <label class="t"><input type="checkbox" data-k="docs">Документы собраны</label>
+    <label class="t"><input type="checkbox" data-k="paid">Премия оплачена</label>
+  </div>
+
+  <div class="flow" id="flow"></div>
+  <p class="note"><span class="pill">до калибровки</span> Базовая ставка, множители, рисковая надбавка 12% и катастрофическая 5% — экспертные значения. После загрузки статистики компании они заменяются расчётными; шаги 4–8 не меняются.</p>
+</div>
+
+<script>
+const D = __DATA__;
+const LOAD = D.load.reduce((s,l)=>s+l.share,0), RISK = 0.12, CAT = 0.05;
+const esc = s => String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => Math.round(n).toLocaleString("ru-RU");
+const pc = n => n.toFixed(4).replace(".",",")+"%";
+const byF = f => D.coefficients.filter(c=>c.factor_code===f);
+const S = {value:4.2e9, sum:4.2e9, protection:"alarm", seismic:"z8", franchise:"f0", quake:true, docs:false, paid:false,
+           fixed:{construction:"mixed", activity:"warehouse", wear:"mid", loss_history:"clean"}};
+const MIN = D.products.find(p=>p.code==="0807").min_rate_pct;
+const LIMIT = 0.2*(180e9+240e9);
+
+function calc(st){
+  const base = D.base_rates.find(b=>b.class_code==="8"&&b.object_type==="Склад").net_rate_pct;
+  const perils = D.perils.filter(p=>p.class_code==="8");
+  const included = perils.filter(p=>p.code!=="nuclear"&&(st.quake||p.code!=="earthquake"));
+  const share = included.reduce((s,p)=>s+p.base_share,0)/perils.reduce((s,p)=>s+p.base_share,0);
+  const steps = [{name:"Базовая ставка · склад", v:base}];
+  let net = base*share; steps.push({name:"Набор рисков", mult:share, v:net});
+  const f = {...st.fixed, protection:st.protection, seismic:st.seismic, franchise:st.franchise};
+  for (const k of ["construction","activity","protection","seismic","wear","loss_history","franchise"]){
+    const o = byF(k).find(c=>c.option_code===f[k]); if(!o) continue;
+    const m = (k==="seismic"&&!st.quake) ? 1 : o.multiplier;
+    net *= m; steps.push({name:o.factor_name+" · "+o.option_name, mult:m, v:net, muted:m===1});
+  }
+  const risk = net*RISK, cat = st.quake ? net*CAT : 0, gross = (net+risk+cat)/(1-LOAD);
+  const applied = Math.max(gross, MIN), premium = applied/100*st.sum;
+  return {base, share, steps, net, risk, cat, gross, applied, premium, excluded: perils.filter(p=>!included.includes(p)).map(p=>p.name)};
+}
+function checks(st, r){
+  const c = [];
+  if (st.sum>st.value) c.push(["stop","Страховая сумма выше стоимости",`превышение ${fmt(st.sum-st.value)} сум — договор ничтожен в этой части`,"ГК 938"]);
+  else if (st.sum<st.value) c.push(["warn","Неполное страхование",`выплата ${Math.round(st.sum/st.value*100)}% — пропорционально`,"ГК 936"]);
+  else c.push(["ok","Сумма равна стоимости","выплата будет полной","ГК 936"]);
+  c.push(r.applied>=MIN-1e-9 ? ["ok","Минимальный тариф соблюдён",`минимум 0807 — ${pc(MIN)}`,"ТП 54-П"] : ["stop","Ниже минимума","","ТП 54-П"]);
+  c.push(["ok","Ставка покрывает ожидаемые убытки",`техническая ${pc(r.gross)}`,"—"]);
+  c.push(st.sum<=LIMIT ? ["ok","Лимит на один риск соблюдён",`предел ${fmt(LIMIT)} сум`,"1806 п.15"] : ["stop","Превышен лимит 20% на один риск",`предел ${fmt(LIMIT)} сум — нужно перестрахование`,"1806 п.15"]);
+  c.push(st.docs ? ["ok","Документы собраны","расчёт можно передавать в договор","чек-лист"] : ["warn","Не хватает документов: 7","расчёт предварительный","чек-лист"]);
+  if (st.franchise==="f0") c.push(["warn","Франшиза не установлена","мелкие убытки целиком на компании","—"]);
+  if (st.quake && st.seismic!=="z7") c.push(["warn","Катастрофический риск в сейсмозоне","накопление по зоне — контроль лимита","1882 п.28"]);
+  if (!st.paid) c.push(["warn","Премия не поступила","полис без оплаты обязывает страховщика полностью","ст. 33¹"]);
+  return c;
+}
+function tips(st, r){
+  const out = [], base = r.premium;
+  const t = (patch, text) => { const alt = {...st, ...patch}; const a = calc(alt); const save = base - a.premium; if (save>1) out.push({text, save}); };
+  if (st.franchise!=="f2") t({franchise:"f1"},"Франшиза 1% страховой суммы");
+  if (st.protection!=="sprinkler") t({protection: st.protection==="alarm"?"alarm_guard":"sprinkler"}, st.protection==="alarm"?"Договор с охраной":"Спринклерная система");
+  if (st.quake) t({quake:false},"Исключить землетрясение");
+  if (st.sum>st.value) t({sum:st.value},"Снизить сумму до стоимости");
+  return out.sort((a,b)=>b.save-a.save);
+}
+
+/* водопад ставки: одна серия, акцентный цвет; точки применения ×1,00 приглушены */
+function waterfall(steps){
+  const W=900, H=48+steps.length*30, L=300, R=70, max=Math.max(...steps.map(s=>s.v))*1.15;
+  const x = v => L + v/max*(W-L-R);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Как складывается нетто-ставка">`;
+  [0.1,0.2,0.3].filter(v=>v<max).forEach(v=>{ g += `<line x1="${x(v)}" x2="${x(v)}" y1="8" y2="${H-24}" stroke="var(--line)"/><text class="svgtext" x="${x(v)}" y="${H-8}" text-anchor="middle">${String(v).replace(".",",")}%</text>`; });
+  steps.forEach((s,i)=>{
+    const y = 14+i*30, prev = i? steps[i-1].v : 0;
+    const x0 = i? x(Math.min(prev,s.v)) : x(0), x1 = i? x(Math.max(prev,s.v)) : x(s.v);
+    const col = i===0 ? "var(--accent)" : s.muted ? "var(--line)" : (s.v>prev ? "var(--stop)" : "var(--ok)");
+    g += `<text class="svgtext" x="${L-10}" y="${y+13}" text-anchor="end">${esc(s.name.length>40?s.name.slice(0,38)+"…":s.name)}</text>`;
+    g += `<rect x="${x(0)}" y="${y+4}" width="${x(s.v)-x(0)}" height="12" rx="3" fill="var(--accent-soft)"/>`;
+    g += `<rect x="${x0}" y="${y+2}" width="${Math.max(2,x1-x0)}" height="16" rx="3" fill="${col}"><title>${esc(s.name)}: ${pc(s.v)}</title></rect>`;
+    g += `<text class="svgval" x="${x1+8}" y="${y+14}">${i? "×"+s.mult.toFixed(2)+" → ":""}${pc(s.v)}</text>`;
+  });
+  return g+"</svg>";
+}
+function stacked(r){
+  const total = r.gross, W=900, H=64, x = v => v/total*(W-2);
+  const seg = [["нетто",r.net,"var(--accent)"],["риск 12%",r.risk,"var(--accent-2)"],["кат.",r.cat,"var(--warn)"],["нагрузка 30%",r.gross-r.net-r.risk-r.cat,"var(--muted)"]].filter(s=>s[1]>0);
+  let g = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Состав брутто-ставки">`, cx=0;
+  seg.forEach(([n,v,c],i)=>{ const w = x(v); g += `<rect x="${cx+(i?2:0)}" y="10" width="${Math.max(1,w-(i?2:0))}" height="20" rx="3" fill="${c}"><title>${n}: ${pc(v)}</title></rect>`;
+    if (w>60) g += `<text class="svgtext" x="${cx+w/2}" y="52" text-anchor="middle">${n} ${pc(v)}</text>`; cx += w; });
+  return g+"</svg>";
+}
+
+function render(){
+  const r = calc(S), ch = checks(S,r), tp = tips(S,r);
+  const worst = ch.some(c=>c[0]==="stop")?"stop":ch.some(c=>c[0]==="warn")?"warn":"ok";
+  const maxSave = Math.max(...tp.map(t=>t.save),1);
+  const step = (n,title,sub,body) => `<div class="step"><div class="num"><b>${n}</b><i></i></div><div class="body"><h2>${title}</h2><p class="sub">${sub}</p>${body}</div></div>`;
+  document.getElementById("flow").innerHTML =
+    step(1,"Вход","Что агент ввёл или прислала учётная система.",
+      `<div class="chips"><span class="chip">продукт <b>0807</b></span><span class="chip">класс <b>8</b></span><span class="chip">склад, Ташкент</span>
+       <span class="chip">стоимость <b>${fmt(S.value)}</b></span><span class="chip">сумма <b>${fmt(S.sum)}</b></span><span class="chip">срок <b>365</b> дн.</span>
+       <span class="chip">рисков включено <b>${13-r.excluded.length}</b> из 13</span></div>`)
+  + step(2,"Нетто-ставка","Сколько нужно на выплаты. Каждая характеристика объекта умножает базу; ×1,00 — обычный вариант, он ничего не меняет.",
+      waterfall(r.steps) + (r.excluded.length?`<div class="note">исключены: ${esc(r.excluded.join(", "))}</div>`:""))
+  + step(3,"Надбавки и нагрузка","К нетто добавляется запас на плохой год и на катастрофу, затем всё делится на 0,70 — чтобы 30% осталось на расходы, комиссию и прибыль.",
+      stacked(r) + `<div class="formula">(${pc(r.net)} + ${pc(r.risk)} + ${pc(r.cat)}) ÷ ${(1-LOAD).toFixed(2)} = <b>${pc(r.gross)}</b> техническая</div>`)
+  + step(4,"Сравнение с минимумом","Ниже минимума тарифной политики движок не опустится, даже если расчёт даёт меньше.",
+      (()=>{ const max = Math.max(r.gross,MIN)*1.5; const p = v => Math.min(100,v/max*100);
+        return `<div class="scale"><div class="fill" style="width:${p(r.applied)}%"></div>
+          <span class="m" style="left:${p(MIN)}%;color:var(--muted)">мин ${pc(MIN)}</span>
+          <span class="m" style="left:${p(r.gross)}%;color:var(--accent)">тех ${pc(r.gross)}</span></div>
+          <div class="formula">применяется <b>${pc(r.applied)}</b> — ${r.applied>r.gross+1e-9?"поднято до минимума":"техническая выше минимума"}</div>`; })())
+  + step(5,"Премия","Ставка умножается на страховую сумму и долю года.",
+      `<div class="hero">${fmt(r.premium)} <small>сум</small></div><div class="formula">${pc(r.applied)} × ${fmt(S.sum)} × 365/365</div>`)
+  + step(6,"Проверки","Каждая — со ссылкой на норму. Красная останавливает, жёлтая отправляет андеррайтеру.",
+      ch.map(c=>`<div class="chk ${c[0]}"><i class="dot"></i><div><div class="t">${esc(c[1])}</div><div class="d">${esc(c[2])}</div></div><span class="law">${esc(c[3])}</span></div>`).join("")
+      + `<div class="verdict ${worst}">${worst==="stop"?"Отклонено":worst==="warn"?"На утверждение":"Можно оформлять"}</div>`)
+  + step(7,"Как удешевить","Движок меняет одно условие, пересчитывает всё заново и показывает разницу.",
+      tp.length ? tp.map(t=>`<div class="tip"><span>${esc(t.text)}</span><div class="bar"><i style="width:${t.save/maxSave*100}%"></i></div><span class="v">−${fmt(t.save)} сум</span></div>`).join("") : `<div class="note">дешевле без потери защиты уже не сделать</div>`)
+  + step(8,"Запись в базу","Всё сохраняется цепочкой, с версией тарифа и полным объяснением — расчёт можно воспроизвести через год.",
+      `<div class="dbflow">${["requests","objects","object_perils","calculations","check_results","recommendations","audit"].map((t,i)=>
+        `${i?'<span class="arrow">→</span>':""}<span class="tbl"><b>${t}</b>${["запрос","объект","включённые риски","расчёт + объяснение","результаты проверок","что удешевит","кто и когда"][i]}</span>`).join("")}</div>`);
+}
+document.querySelectorAll("select[data-k]").forEach(sel=>{
+  const f = byF(sel.dataset.k); sel.innerHTML = f.map(c=>`<option value="${c.option_code}"${c.option_code===S[sel.dataset.k]?" selected":""}>${esc(c.option_name)}</option>`).join("");
+});
+document.addEventListener("input", e=>{ const k=e.target.dataset.k; if(!k) return;
+  S[k] = e.target.type==="checkbox" ? e.target.checked : e.target.type==="number" ? Number(e.target.value) : e.target.value; render(); });
+render();
+</script>

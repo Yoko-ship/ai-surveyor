@@ -1,0 +1,35 @@
+# Render: сервис поднимается из этого файла (Blueprint).
+# Порт Render передаёт в переменной PORT — команда запуска её использует.
+services:
+  - type: web
+    name: inson-surveyor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHONIOENCODING
+        value: utf-8
+      # Значения ключей задаются в панели Render (Environment), в репозиторий их не кладём
+      - key: LLM_PROVIDER
+        value: none
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: PD_MODE
+        value: test
+      - key: SERVER_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+    # ВНИМАНИЕ: на бесплатном тарифе диск не сохраняется между перезапусками.
+    # Для постоянного хранения включите платный disk или переходите на PostgreSQL.
+    # disk:
+    #   name: surveyor-data
+    #   mountPath: /srv/data
+    #   sizeGB: 1

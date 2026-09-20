@@ -1,0 +1,74 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ёмкость и удержание</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}.sub{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.tile b{display:block;font:600 21px var(--mono)}.tile span{font-size:12px;color:var(--muted)}
+.tile.tmp{border-color:var(--warn)}.tile.tmp span::after{content:" · временно";color:var(--warn)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card h2{font-size:13px;margin:0 0 2px}.card p{font-size:12px;color:var(--muted);margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.bar{height:8px;border-radius:4px;background:var(--soft);position:relative;min-width:80px}.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:4px}
+.warn{color:var(--warn)}.stop{color:var(--stop)}.ok{color:var(--accent)}
+.req{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px}.req b{font-weight:700;color:var(--gold)}.req small{color:var(--muted);display:block}
+.norm{font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.wide{grid-column:1/-1}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a class="on" href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Ёмкость и собственное удержание</h1>
+  <p class="sub">Сколько компания может брать на себя — по Положениям 1806 и 1882. Что не введено, система запрашивает.</p>
+  <div class="tiles" id="tiles"></div>
+  <div class="grid">
+    <div class="card" id="reqCard"><h2>Нужны данные</h2><p>Это отчётность, которую компания сдаёт в НАПП ежеквартально.</p><div class="req" id="req"></div></div>
+    <div class="card"><h2>Предупреждения по нормативам</h2><p>Пусто — значит нарушений по введённым данным нет.</p><div id="warns"></div></div>
+    <div class="card wide"><h2>Собственное удержание по классам</h2><p>Таблица линий: чистая премия с удержания одинакова, поэтому чем опаснее класс — тем меньше оставляем. Потолок — лимит 20% на один риск.</p><table id="ret"></table></div>
+    <div class="card"><h2>Резервы по учётным группам</h2><p>РНП, РЗУ, РПНУ, стабилизационные — как в отчёте.</p><table id="res"></table></div>
+    <div class="card"><h2>Выделенные активы</h2><p>Норма: 100–105% от резервов, ликвидных не менее 70%.</p><table id="ast"></table></div>
+    <div class="card wide"><h2>Накопление по регионам и сейсмозонам</h2><p>Сумма страховых сумм сохранённых запросов против лимита на один риск. Землетрясение бьёт по всей зоне сразу, поэтому смотрим на сумму, а не на отдельный договор.</p><table id="acc"></table></div>
+    <div class="card wide"><h2>Маржа платёжеспособности</h2><p>Фактическая маржа к нормативу; ниже 1 — нарушение, ниже 0,5 — приостановка лицензии.</p><div id="margin"></div></div>
+  </div>
+</main></div>
+<script>
+const $=s=>document.querySelector(s), fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU"), pct=n=>n==null?"—":(n*100).toFixed(1).replace(".",",")+"%";
+async function load(){
+  const c=await (await fetch("/capacity")).json();
+  const tmp=c.temporary.length?" tmp":"";
+  $("#tiles").innerHTML=[["Собственные средства",fmt(c.own_funds),tmp],["Страховые резервы",fmt(c.reserves),tmp],["Лимит на один риск (20%)",fmt(c.limit_per_risk),tmp],["Лимит на 5 крупнейших (200%)",fmt(c.limit_top5),tmp],
+    ["Запас маржи",c.margin?fmt(c.margin.headroom):"нет данных",c.margin?"":""]].map(([k,v,t])=>`<div class="tile${t}"><b>${v}</b><span>${k}</span></div>`).join("");
+  $("#req").innerHTML=c.data_request.length?c.data_request.map(r=>`<b>→</b><div>${r.what}<small>${r.fields}</small></div>`).join(""):"<div class='ok'>Все данные введены.</div>";
+  if(!c.data_request.length) $("#reqCard").style.display="none";
+  $("#warns").innerHTML=c.warnings.length?c.warnings.map(w=>`<div class="stop">• ${w}</div>`).join(""):"<div class='ok'>Нарушений нет</div>"+(c.temporary.length?`<div class="warn" style="margin-top:6px">• ${c.temporary.join("<br>• ")}</div>`:"");
+  $("#ret").innerHTML=c.retention.length?`<thead><tr><th>Класс</th><th>Нетто-ставка</th><th>Удержание</th><th>Доля лимита</th><th>База</th></tr></thead><tbody>`+c.retention.map(r=>`<tr><td>${r.class_code} · ${r.class_name}</td><td class="n">${r.net_rate_pct.toFixed(3).replace(".",",")}%</td><td class="n">${fmt(r.retention)}</td><td><div class="bar"><i style="width:${r.share_of_limit*100}%"></i></div></td><td class="norm">${r.basis}</td></tr>`).join("")+"</tbody>":"<tr><td>нет лимита — введите собственные средства и резервы</td></tr>";
+  $("#res").innerHTML=c.reserves_by_scope.length?`<thead><tr><th>Уровень</th><th>РНП</th><th>РЗУ</th><th>РПНУ</th><th>Стаб.</th></tr></thead><tbody>`+c.reserves_by_scope.map(r=>`<tr><td>${r.scope_type} ${r.scope_code}</td><td class="n">${fmt(r.rnp)}</td><td class="n">${fmt(r.rzu)}</td><td class="n">${fmt(r.rpnu)}</td><td class="n">${fmt(r.stab)}</td></tr>`).join("")+"</tbody>":"<tr><td class='warn'>отчёт о резервах не загружен</td></tr>";
+  if(c.assets){ const a=c.assets; $("#ast").innerHTML=`<thead><tr><th>Категория</th><th>Сумма</th><th>Ликвидные</th></tr></thead><tbody>`+a.by_category.map(x=>`<tr><td>${x.category}</td><td class="n">${fmt(x.amount)}</td><td>${x.is_liquid?"да":"нет"}</td></tr>`).join("")+`<tr><td><b>Покрытие резервов</b></td><td class="n ${a.coverage>=1&&a.coverage<=1.05?"ok":"stop"}">${pct(a.coverage)}</td><td class="norm">норма 100–105%</td></tr><tr><td><b>Доля ликвидных</b></td><td class="n ${a.liquid_share>=.7?"ok":"stop"}">${pct(a.liquid_share)}</td><td class="norm">норма ≥ 70%</td></tr><tr><td><b>Нагрузка убытков на активы</b></td><td class="n">${pct(a.claims_load)}</td><td class="norm">(РЗУ + РПНУ) / активы</td></tr></tbody>`; }
+  else $("#ast").innerHTML="<tr><td class='warn'>отчёт о выделенных активах не загружен</td></tr>";
+  if(c.margin){ const m=c.margin; $("#margin").innerHTML=`<table><tr><td>Фактическая маржа</td><td class="n">${fmt(m.actual)}</td></tr><tr><td>Норматив (наибольшее из трёх)</td><td class="n">${fmt(m.normative)}</td></tr><tr><td class="norm">— по премиям: 20% × премии 12 мес. × коэфф. ${m.coefficient.toFixed(2)}</td><td class="n">${fmt(m.by_premiums)}</td></tr><tr><td class="norm">— по выплатам: 10% × (выплаты 36 мес. + РЗУ) × коэфф.</td><td class="n">${fmt(m.by_claims)}</td></tr><tr><td><b>Отношение</b></td><td class="n ${m.ratio>=1?"ok":"stop"}">${m.ratio?m.ratio.toFixed(2):"—"}</td></tr></table>`; }
+  else $("#margin").innerHTML="<div class='warn'>нет расчёта маржи — загрузите приложение № 1 к Положению 1806</div>";
+  const a=await (await fetch("/accumulation")).json();
+  $("#acc").innerHTML=a.by_region.length?`<thead><tr><th>Регион</th><th>Зона, баллов</th><th>Договоров</th><th>Сумма</th><th>Крупнейший</th><th>Доля лимита</th><th></th></tr></thead><tbody>`+a.by_region.map(r=>`<tr><td>${r.region}</td><td class="n">${r.zone||"—"}</td><td class="n">${r.n}</td><td class="n">${fmt(r.total)}</td><td class="n">${fmt(r.largest)}</td><td><div class="bar"><i style="width:${Math.min(100,(r.share_of_limit||0)*100)}%;background:${r.flag==="ок"?"var(--accent)":r.flag==="внимание"?"var(--warn)":"var(--stop)"}"></i></div></td><td class="${r.flag==="ок"?"ok":r.flag==="внимание"?"warn":"stop"}">${r.flag}</td></tr>`).join("")+"</tbody>":"<tr><td class='warn'>сохранённых запросов пока нет</td></tr>";
+}
+load();
+</script>
+
+<script src="/theme.js"></script>

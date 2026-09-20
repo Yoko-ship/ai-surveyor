@@ -1,0 +1,1578 @@
+<title>Сюрвейер INSON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Spline+Sans+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --paper:#F2F5F7; --card:#FFFFFF; --ink:#101C26; --muted:#5C6C78; --line:#DDE4E9; --soft:#EDF1F4;
+  --accent:#12557E; --accent-soft:#E3EEF6; --ok:#17734F; --warn:#9A6209; --stop:#B23A2F;
+  --on-accent:#FFFFFF; --on-accent-soft:rgba(255,255,255,.22);
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:"Spline Sans Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0E1519; --card:#151E24; --ink:#E6ECF0; --muted:#94A5B0; --line:#26323A; --soft:#1B252C;
+    --accent:#6FB6E4; --accent-soft:#17303F; --ok:#5CC298; --warn:#E0A83F; --stop:#EE8272;
+    --on-accent:#0B1418; --on-accent-soft:rgba(11,20,24,.16);
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0E1519; --card:#151E24; --ink:#E6ECF0; --muted:#94A5B0; --line:#26323A; --soft:#1B252C;
+  --accent:#6FB6E4; --accent-soft:#17303F; --ok:#5CC298; --warn:#E0A83F; --stop:#EE8272;  --on-accent:#0B1418; --on-accent-soft:rgba(11,20,24,.16);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:22px 40px}
+header{margin-bottom:16px}
+h1{font-size:23px;font-weight:800;letter-spacing:-.02em;margin:0}
+header p{margin:4px 0 0;color:var(--muted);font-size:13.5px;max-width:62ch}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:18px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
+.card + .card{margin-top:14px}
+.card h2{font-size:17px;font-weight:700;margin:0 0 3px}
+.card .sub{color:var(--muted);font-size:13px;margin:0 0 16px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:13px}
+label.f,.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted)}
+label.f > span{font-weight:600}
+label.f em{font-style:normal;font-size:12px;color:var(--muted);font-weight:400}
+input,select{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:11px 12px;width:100%;font-size:15px}
+input[type="number"]{font-family:var(--mono);font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.hint{font-size:12px;color:var(--muted)}
+
+/* выбор продукта */
+.prod{display:flex;gap:14px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+      border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--soft)}
+.prod .nm{font-size:17px;font-weight:700;line-height:1.3}
+.prod .code{font-family:var(--mono);color:var(--muted);font-size:13px}
+.prod .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.prod button{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.tag{font-size:12px;font-weight:600;border:1px solid var(--line);border-radius:6px;padding:2px 8px;color:var(--muted);background:var(--card)}
+.tag.rate{color:var(--ink);font-family:var(--mono)}
+.tag.mode{color:var(--warn);border-color:var(--warn)}
+.picker{margin-top:14px}
+.plist{max-height:330px;overflow:auto;border:1px solid var(--line);border-radius:11px;margin-top:10px}
+.plist h4{position:sticky;top:0;margin:0;padding:8px 12px;font-size:12px;font-weight:700;letter-spacing:.04em;
+          text-transform:uppercase;color:var(--muted);background:var(--soft);border-bottom:1px solid var(--line)}
+.plist button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;background:transparent;border:0;
+              border-bottom:1px solid var(--line);padding:10px 12px;cursor:pointer;font-size:14px}
+.plist button:hover{background:var(--accent-soft)}
+.plist button.on{background:var(--accent-soft);font-weight:700}
+.plist button i{font-family:var(--mono);font-style:normal;color:var(--muted);font-size:12.5px;flex:none;width:44px}
+.plist button span{flex:1}
+.plist button u{text-decoration:none;font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.empty{padding:16px 12px;color:var(--muted);font-size:13.5px}
+
+.perils{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:8px}
+.peril{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:9px 11px;cursor:pointer;background:var(--card)}
+.peril:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.peril input{width:auto;margin:0;accent-color:var(--accent)}
+.peril .nm{flex:1;font-size:13.5px;font-weight:500}
+.peril .pc{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.cat{font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--warn);border:1px solid var(--warn);border-radius:4px;padding:0 4px}
+
+details.card > summary{cursor:pointer;font-size:17px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:12px;align-items:center}
+details.card > summary::-webkit-details-marker{display:none}
+details.card > summary .cnt{font-size:13px;font-weight:600;color:var(--muted)}
+details.card[open] > summary{margin-bottom:14px}
+.docs{display:flex;flex-direction:column;gap:2px}
+.doc{display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid var(--line);font-size:14px}
+.doc:last-child{border-bottom:0}
+.doc input{width:auto;accent-color:var(--accent)}
+.doc .lbl{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.doc .lbl.req{color:var(--stop)}
+
+/* Панель расчёта */
+.summary{position:sticky;top:calc(env(safe-area-inset-top,0px) + 14px);background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sum-top{padding:20px;border-bottom:1px solid var(--line)}
+.premium{font-family:var(--mono);font-size:33px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.premium small{font-size:15px;color:var(--muted);font-weight:400}
+.rateline{display:flex;align-items:baseline;gap:8px;margin-top:6px;font-size:13.5px;color:var(--muted)}
+.rateline b{font-family:var(--mono);color:var(--ink);font-size:16px}
+.scale{margin-top:14px}
+.scale .bar{position:relative;height:8px;border-radius:5px;background:var(--soft);overflow:hidden}
+.scale .fill{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:5px}
+.scale .marks{display:flex;justify-content:space-between;margin-top:5px;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+.sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.sec h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.wf{display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+.wf div{display:flex;justify-content:space-between;gap:10px}
+.wf .v{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wf .up{color:var(--stop)} .wf .down{color:var(--ok)}
+.wf .total{border-top:1px solid var(--line);padding-top:6px;font-weight:700}
+.chk{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;padding:7px 0;border-bottom:1px solid var(--line)}
+.chk:last-child{border-bottom:0}
+.chk .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none}
+.chk.stop .dot{background:var(--stop)} .chk.warn .dot{background:var(--warn)} .chk.ok .dot{background:var(--ok)}
+.chk .t{font-weight:600} .chk .d{color:var(--muted);font-size:12.5px}
+.tip{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.tip:last-child{border-bottom:0}
+.tip button{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:4px 9px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.tip .save{font-family:var(--mono);color:var(--ok);font-weight:600}
+.measure{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;padding:9px 0;border-bottom:1px solid var(--line)}
+.measure:last-child{border-bottom:0}
+.measure b{font-weight:600}
+.measure small{grid-column:1/-1;color:var(--muted)}
+.measure .lbl{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;white-space:nowrap;align-self:start;border-radius:4px;padding:1px 6px;border:1px solid var(--line);color:var(--muted)}
+.measure .lbl.must{color:var(--stop);border-color:var(--stop)}
+.verdict{display:flex;align-items:center;gap:9px;padding:13px 20px;font-weight:700;font-size:14px}
+.verdict.ok{background:color-mix(in srgb,var(--ok) 12%,transparent);color:var(--ok)}
+.verdict.warn{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn)}
+.verdict.stop{background:color-mix(in srgb,var(--stop) 13%,transparent);color:var(--stop)}
+.actions{display:flex;gap:9px;padding:14px 20px}
+.actions button{flex:1;border-radius:10px;padding:10px;font-weight:600;cursor:pointer;border:1px solid var(--line);background:var(--card)}
+.actions .primary{background:var(--accent);border-color:var(--accent);color:#FFFFFF}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .actions .primary{color:#0E1519}}
+:root[data-theme="dark"] .actions .primary{color:#0E1519}
+/* фото и ручной ввод */
+.photozone{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.upload{display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);border-radius:10px;padding:9px 13px;cursor:pointer;font-size:14px;font-weight:600;background:var(--soft)}
+.upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+#photoRun{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:9px 15px;font-weight:600;cursor:pointer}
+#photoRun:disabled{opacity:.45;cursor:not-allowed}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) #photoRun{color:#0E1519}}
+:root[data-theme="dark"] #photoRun{color:#0E1519}
+.thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.thumbs figure{margin:0;width:118px}
+.thumbs img{width:118px;height:84px;object-fit:cover;border-radius:9px;border:1px solid var(--line);display:block}
+.thumbs figcaption{font-size:11px;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumbs figure{position:relative}
+.thumbs .del{position:absolute;top:4px;right:4px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+             border-radius:7px;padding:1px 7px;font-size:12px;line-height:1.5;cursor:pointer;opacity:.9}
+.thumbs .del:hover{border-color:var(--stop);color:var(--stop)}
+.note{border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:9px;background:var(--soft);
+      padding:10px 12px;font-size:13px;color:var(--muted);margin-top:12px}
+.note b{color:var(--ink)}
+.note.bad{border-left-color:var(--stop)}
+.note.good{border-left-color:var(--ok)}
+.act{border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer}
+.act:disabled{opacity:.45;cursor:not-allowed}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .act{color:#0E1519}}
+:root[data-theme="dark"] .act{color:#0E1519}
+.ghost{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 14px;font-weight:600;cursor:pointer}
+.srcs{margin:0;padding:0;list-style:none;font-size:13.5px}
+.srcs li{display:flex;gap:9px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}
+.srcs li:last-child{border-bottom:0}
+.srcs .dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:none;background:var(--muted)}
+.srcs li.ok .dot{background:var(--ok)} .srcs li.bad .dot{background:var(--stop)}
+.srcs .nm{font-weight:600}
+.srcs .why{color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
+.ads{margin:0;padding:0;list-style:none;font-size:13.5px}
+.ads li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.ads li:last-child{border-bottom:0}
+.ads a{color:var(--accent)}
+.ads .p{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.steps{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+       background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;color:var(--ink)}
+.letter{white-space:pre-wrap;font-size:13px;line-height:1.55;background:var(--soft);border:1px solid var(--line);
+        border-radius:10px;padding:12px;margin:10px 0 0;max-height:260px;overflow:auto}
+/* плашка источника: чей текст перед нами и куда идти за оригиналом */
+.srcbar{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:14px;
+        background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.srcbar p{margin:0;font-size:12px;line-height:1.5;color:var(--muted);max-width:66ch;flex:1 1 300px}
+.srcbar p b{color:var(--ink);font-weight:600}
+.srcbar .go{display:flex;gap:8px;flex-wrap:wrap;flex:0 0 auto}
+.srcbar .go a{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:var(--on-accent);
+        border-radius:999px;padding:8px 10px 8px 14px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.srcbar .go a:hover{filter:brightness(1.08)}
+.srcbar .go .dom{background:var(--on-accent-soft);border-radius:999px;padding:2px 9px;
+        font-family:var(--mono);font-size:12px;font-weight:500}
+@media (max-width:620px){
+  .srcbar{flex-direction:column;align-items:stretch}
+  .srcbar .go{flex-direction:column}
+  .srcbar .go a{justify-content:space-between}
+}
+.big{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.src{display:none;margin-left:7px;font-size:11px;font-weight:600;color:var(--accent);opacity:.85;vertical-align:middle}
+.src::before{content:"· "}
+.src.on{display:inline-block}
+.docpanel{margin-top:14px;border:1px solid var(--line);border-radius:10px;background:var(--soft);padding:12px 13px}
+.docpanel h3{font-size:11px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:12px 0 8px}
+.docpanel h3:first-child{margin-top:0}
+.docpanel .kvs{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin:0}
+.docpanel .kvs dt{color:var(--muted)}
+.docpanel .kvs dd{margin:0;overflow-wrap:anywhere}
+.applied{margin-top:14px;border-top:1px solid var(--line)}
+.applied .tip .save{color:var(--accent)}
+.switch{display:inline-flex;align-items:center;gap:9px;font-weight:600;cursor:pointer}
+.switch input{width:auto;accent-color:var(--accent)}
+.foot{margin-top:16px;font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border-radius:5px;padding:2px 7px}
+@media (max-width:560px){
+  .wrap{padding-inline:14px}
+  .card{padding:16px}
+  .row{grid-template-columns:1fr}
+  .premium{font-size:28px}
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Новый расчёт</h1>
+    <p>Выберите продукт и заполните поля. Ставка и премия справа пересчитываются сразу — кнопку «посчитать» нажимать не нужно.</p>
+  </header>
+
+  <div class="grid">
+    <main id="panes"></main>
+
+    <aside class="summary" aria-live="polite">
+      <div class="sum-top">
+        <div class="premium" id="premium">—</div>
+        <div class="rateline">ставка <b id="rate">—</b> <span id="rateNote"></span></div>
+        <div class="scale">
+          <div class="bar"><div class="fill" id="fill" style="width:0"></div></div>
+          <div class="marks"><span id="mMin">мин —</span><span id="mTech">тех —</span><span id="mMax">макс —</span></div>
+        </div>
+        <div id="market" class="hint" style="margin-top:8px"></div>
+      </div>
+      <div class="verdict" id="verdict"></div>
+      <div class="sec"><h3>Из чего сложилась ставка</h3><div class="wf" id="wf"></div></div>
+      <div class="sec"><h3>Проверки</h3><div id="checks"></div></div>
+      <div class="sec"><h3>Как удешевить</h3><div id="tips"></div></div>
+      <div class="sec" id="msec" hidden><h3>Что предписать страхователю</h3><div id="measures"></div></div>
+      <div class="actions">
+        <button type="button" id="toUnderwriter">Андеррайтеру</button>
+        <button type="button" class="primary" id="toContract">В договор</button>
+      </div>
+    </aside>
+  </div>
+  <p class="foot" id="foot"></p>
+</div>
+
+<script>
+const D = __DATA__;
+const fmt = n => Math.round(n).toLocaleString("ru-RU");
+const pc = n => Number(n).toFixed(3).replace(".", ",") + "%";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+const CLASS = Object.fromEntries(D.classes.map(c => [c.code, c]));
+const PROD = Object.fromEntries(D.products.map(p => [p.code, p]));
+const LOAD = D.load.reduce((s, l) => s + l.share, 0);   // РВД + комиссия + прибыль
+const RISK_LOAD = 0.12;                                  // рисковая надбавка, как в движке
+const CAT_PERILS = ["earthquake", "mudflow", "landslide"];
+const CREDIT_CLASSES = ["14", "13з"];                    // страхование кредита: правила регулятора
+const NEG_MODE = {"по согласованию":"ставка по согласованию с ЦО", "программа":"ставка по программе",
+                  "генеральный договор":"ставка по генеральному договору"};
+const REASONS = ["Конкурентное предложение", "Решение центрального офиса", "Требование банка",
+                 "Пролонгация на прежних условиях", "Иная причина"];
+
+const classTitle = c => "Класс " + c + " — " + (CLASS[c]?.name || "без названия");
+const firstClass = p => (p.classes && p.classes[0]) || "8";
+const factorsOf = cls => D.class_factors[cls] || [];
+const optionsOf = (cls, f) => D.coefficients.filter(c => c.class_code === cls && c.factor_code === f);
+const perilsOf = cls => D.perils.filter(p => p.class_code === cls);
+const objectTypesOf = cls => D.base_rates.filter(b => b.class_code === cls).map(b => b.object_type);
+const docsOf = cls => D.checklists.filter(c => c.scope_type === "всегда" || c.scope_code === cls);
+
+// минимальный тариф: по типу клиента, иначе общий, иначе наибольший — как _pick в движке
+function pickMin(rates, payer){
+  if (!rates) return null;
+  const keys = Object.keys(rates);
+  if (!keys.length) return null;
+  if (rates[payer] != null) return rates[payer];
+  if (rates.any != null) return rates.any;
+  return Math.max(...keys.map(k => rates[k]));
+}
+function minOf(code, payer){
+  const p = PROD[code] || {};
+  if (NEG_MODE[p.pricing_mode]) return {floor:null, source:null};
+  const company = pickMin(p.min?.company, payer), regulator = pickMin(p.min?.regulator, payer);
+  const vals = [company, regulator].filter(v => v != null);
+  if (!vals.length) return {floor:null, source:null};
+  const floor = Math.max(...vals);
+  return {floor, source: regulator != null && floor === regulator ? "регулятор" : "компания"};
+}
+// зависит ли минимум продукта от того, юрлицо клиент или гражданин
+const payerMatters = code => {
+  const m = PROD[code]?.min || {};
+  return ["company","regulator"].some(s => m[s] && ("юр" in m[s] || "физ" in m[s]));
+};
+const shortMin = code => {
+  const p = PROD[code] || {};
+  if (NEG_MODE[p.pricing_mode]) return NEG_MODE[p.pricing_mode];
+  const legal = minOf(code, "юр").floor, person = minOf(code, "физ").floor;
+  // обязательные виды: тариф установлен постановлением, в базе его нет
+  if (legal == null && p.pricing_mode === "нормативный акт") return "ставка по нормативному акту";
+  if (legal == null) return "минимум не задан";
+  return payerMatters(code) ? `мин ${pc(person)} физ · ${pc(legal)} юр` : "мин " + pc(legal);
+};
+
+/* ---------- состояние ---------- */
+function defaultFactors(cls){
+  const out = {};
+  for (const f of factorsOf(cls)){
+    const opts = optionsOf(cls, f);
+    if (!opts.length) continue;
+    // по умолчанию — вариант, ближайший к единице: обычный объект без скидок и надбавок
+    out[f] = opts.reduce((a, b) => Math.abs(b.multiplier - 1) < Math.abs(a.multiplier - 1) ? b : a).option_code;
+  }
+  return out;
+}
+function defaultPerils(cls){
+  return new Set(perilsOf(cls).filter(p => p.code !== "nuclear").map(p => p.code));
+}
+const S = {
+  product: "0807", class_code: "8", objectType: "Склад", region: "г. Ташкент",
+  value: 4200000000, sum: 4200000000, term: 365, payer: "юр",
+  factors: defaultFactors("8"), perils: defaultPerils("8"),
+  docs: new Set(["Заявление-анкета на страхование", "Свидетельство о регистрации или паспорт страхователя",
+                 "Документ о праве на объект", "Документ о страховой стоимости"]),
+  credit: {loan: 1000000000, collateral: 600000000, bank: true},
+  premiumPaid: false, disclosure: false,
+  manual: {on:false, rate:null, reason:"", comment:""},
+  photos: [], photoNote: "", photoApplied: [],
+  requestId: null, serverPhotos: [], photoError: "",
+  val: {kind:"авто", declared:null, as_of:new Date().toISOString().slice(0,10),
+        brand:"", model:"", year:"", vin:"", mileage_km:"", region:"", city:"", district:"",
+        address:"", object_kind:"", area_m2:"", rooms:"", norm_code:"", initial_value:"", commissioned_at:"",
+        busy:false, error:"", result:null, valuation_id:null, object_key:null},
+  // документ объекта: техпаспорт или кадастр. fromDoc — какие поля пришли из документа
+  doc: {kind:null, parsed:null, note:"", error:"", busy:false, file:null, recogBusy:false},
+  fromDoc: {},
+  norms: null, normsError: "",
+  // согласование: кто рассмотрит запрос (2–3 человека) и по какому генеральному соглашению он идёт
+  rev: {users: [], agreements: [], me: null, agreement: "", picked: [], note: "", error: "", loaded: false},
+  pick: false, query: "", last: null, source: "server"
+};
+
+function selectProduct(code){
+  const p = PROD[code]; if (!p) return;
+  const cls = firstClass(p);
+  S.product = code; S.class_code = cls; S.pick = false;
+  S.factors = defaultFactors(cls);
+  S.perils = defaultPerils(cls);
+  const types = objectTypesOf(cls);
+  S.objectType = types[0] || "Объект";
+  if (CREDIT_CLASSES.includes(cls)){
+    S.credit.loan = S.value;
+    S.credit.collateral = Math.round(S.value * 0.6);
+    S.sum = Math.min(S.credit.loan - S.credit.collateral, 0.5 * S.credit.loan);
+  }
+  S.docs = new Set([...S.docs].filter(d => docsOf(cls).some(c => c.doc_name === d)));
+  paintForm(); schedule(0);
+}
+
+/* ---------- запасной расчёт в браузере (когда сервер недоступен) ---------- */
+function localCalc(){
+  const cls = S.class_code;
+  const rates = D.base_rates.filter(b => b.class_code === cls);
+  const base = (rates.find(b => b.object_type === S.objectType)?.net_rate_pct)
+            ?? (rates.length ? rates.reduce((s,b) => s + b.net_rate_pct, 0) / rates.length : 0.2);
+  const chain = [{name: "Базовая нетто-ставка · " + S.objectType, value_pct: base}];
+  const all = perilsOf(cls);
+  let share = 1;
+  if (all.length){
+    const tot = all.reduce((s,p) => s + p.base_share, 0) || 1;
+    share = all.filter(p => S.perils.has(p.code)).reduce((s,p) => s + p.base_share, 0) / tot;
+    chain.push({name:"Набор рисков", mult: share, excluded: all.filter(p => !S.perils.has(p.code)).map(p => p.name)});
+  }
+  let net = base * Math.max(share, 0.001);
+  for (const f of factorsOf(cls)){
+    const opt = optionsOf(cls, f).find(c => c.option_code === S.factors[f]);
+    if (!opt) continue;
+    const applies = f !== "seismic" || S.perils.has("earthquake");
+    const m = applies ? opt.multiplier : 1;
+    net *= m;
+    chain.push({name: opt.factor_name + " · " + opt.option_name, mult: m, applies});
+  }
+  const risk = net * RISK_LOAD;
+  const cat = CAT_PERILS.some(c => S.perils.has(c)) ? net * 0.05 : 0;
+  const gross = (net + risk + cat) / (1 - LOAD);
+  chain.push({name:`Рисковая надбавка ${Math.round(RISK_LOAD*100)}%`, add_pct: risk});
+  if (cat) chain.push({name:"Катастрофическая надбавка", add_pct: cat});
+  chain.push({name:`Нагрузка ${Math.round(LOAD*100)}%`, divide_by: 1 - LOAD});
+
+  const mr = minOf(S.product, S.payer);
+  const auto = Math.max(gross, mr.floor || 0);
+  const manual = S.manual.on && S.manual.rate > 0;
+  const applied = manual ? S.manual.rate : auto;
+  const premium = applied / 100 * S.sum * S.term / 365;
+  const checks = [];
+  const add = (rule, status, title, detail) => checks.push({rule, status, title, detail});
+  if (manual) add("manual_rate", S.manual.reason ? "warn" : "stop",
+    S.manual.reason ? "Ставка введена вручную" : "Ручная ставка без причины",
+    S.manual.reason ? `Расчёт даёт ${pc(auto)}, поставлено ${pc(applied)}. Причина: ${S.manual.reason}.`
+                    : "Укажите причину отступления от расчёта.");
+  if (!CREDIT_CLASSES.includes(cls)){
+    if (S.sum > S.value) add("sum_over_value","stop","Страховая сумма выше страховой стоимости",
+      `Превышение ${fmt(S.sum - S.value)} сум. По ст. 938 ГК договор в этой части ничтожен.`);
+    else if (S.sum < S.value) add("underinsurance","warn","Неполное страхование",
+      `Сумма ${Math.round(S.sum/S.value*100)}% стоимости. По ст. 936 ГК выплата уменьшится в той же доле.`);
+    else add("sum_ok","ok","Страховая сумма равна стоимости","Выплата будет полной.");
+  } else {
+    const cap = Math.min(Math.max(S.credit.loan - S.credit.collateral, 0), 0.5 * S.credit.loan);
+    if (S.sum > cap) add("credit_uncovered","stop","Страховая сумма выше допустимой по кредиту",
+      `Допустимо не более ${fmt(cap)} сум: необеспеченная часть и не выше 50% суммы кредита.`);
+    else add("credit_uncovered","ok","Страховая сумма в пределах необеспеченной части", `Допустимо до ${fmt(cap)} сум.`);
+    if (!S.credit.bank) add("credit_payer","stop","Страхователь или плательщик — не банк",
+      "Страхователем выступает банк-кредитор, премия принимается только от банка.");
+  }
+  const mode = PROD[S.product]?.pricing_mode;
+  if (NEG_MODE[mode]) add("pricing_mode","ok", NEG_MODE[mode][0].toUpperCase() + NEG_MODE[mode].slice(1),
+    `Минимального тарифа по продукту нет. Техническая ставка ${pc(gross)} — ориентир.`);
+  if (mr.floor != null) add("min_rate", applied + 1e-9 >= mr.floor ? "ok" : "stop",
+    applied + 1e-9 >= mr.floor ? "Минимальный тариф соблюдён" : "Ставка ниже минимальной",
+    `Минимум по продукту ${S.product} — ${pc(mr.floor)} (${mr.source}).`);
+  add("below_technical", applied + 1e-9 >= gross ? "ok" : "warn",
+    applied + 1e-9 >= gross ? "Ставка покрывает ожидаемые убытки" : "Ставка ниже технической",
+    applied + 1e-9 >= gross ? `Техническая ставка ${pc(gross)}.` : `Не хватает ${pc(gross - applied)} — договор убыточен.`);
+  const fin = D.financials;
+  if (fin){
+    const limit = 0.2 * (fin.own_funds + fin.reserves);
+    add("risk_limit_20", S.sum <= limit ? "ok" : "stop",
+      S.sum <= limit ? "Лимит на один риск соблюдён" : "Превышен лимит 20% на один риск",
+      `Предел ${fmt(limit)} сум по данным на ${fin.report_date} (Положение 1806, п. 15).`);
+  }
+  const miss = docsOf(cls).filter(c => c.required && !S.docs.has(c.doc_name)).map(c => c.doc_name);
+  if (miss.length) add("docs_missing","warn",`Не хватает документов: ${miss.length}`, miss.join("; "));
+  else add("docs_ok","ok","Обязательные документы собраны","Расчёт можно передавать в договор.");
+  if (factorsOf(cls).includes("franchise") && S.factors.franchise === "f0")
+    add("no_franchise","warn","Франшиза не установлена","Мелкие убытки ложатся на компанию целиком.");
+  if (!S.premiumPaid) add("premium_unpaid","warn","Премия не поступила",
+    "По ст. 33¹ полис без уплаты премии обязывает страховщика полностью.");
+  if (!S.disclosure) add("disclosure","warn","Клиенту не раскрыта информация",
+    "Ст. 63: цена, покрытые и исключённые риски, возврат премии, порядок претензий.");
+  const worst = checks.some(c=>c.status==="stop") ? "stop" : checks.some(c=>c.status==="warn") ? "warn" : "ok";
+  return {rates:{net_pct:net, risk_load_pct:risk, cat_load_pct:cat, technical_pct:gross,
+                 min_pct:mr.floor, min_source:mr.source, auto_pct:auto, applied_pct:applied, manual},
+          premium, explanation:chain, checks, verdict:{ok:"ок",warn:"на утверждение",stop:"отклонено"}[worst],
+          perils_included:[...S.perils], recommendations:[], preventive_measures:[], market:null};
+}
+
+/* ---------- запрос к серверу: тот же движок, что и в договоре ---------- */
+function requestBody(){
+  const cls = S.class_code;
+  return {product_code: S.product, class_code: cls, object_type: S.objectType,
+    value_amount: Math.max(S.value, 1), sum_insured: Math.max(S.sum, 1), term_days: Math.max(S.term, 1),
+    factors: {...S.factors}, perils_included: perilsOf(cls).length ? [...S.perils] : null,
+    docs_received: [...S.docs], payer_type: S.payer,
+    applied_rate_pct: S.manual.on && S.manual.rate > 0 ? S.manual.rate : null,
+    manual_reason: S.manual.reason, premium_paid: S.premiumPaid, disclosure_done: S.disclosure,
+    valuation_id: S.val.valuation_id, object_key: S.val.object_key,
+    credit: CREDIT_CLASSES.includes(cls)
+      ? {loan_amount: Math.max(S.credit.loan, 1), collateral_value: S.credit.collateral,
+         policyholder_is_bank: S.credit.bank, payer_is_bank: S.credit.bank} : null};
+}
+let timer = null, seq = 0;
+function schedule(ms = 220){ clearTimeout(timer); timer = setTimeout(calc, ms); }
+async function calc(){
+  const n = ++seq;
+  try {
+    const r = await fetch("/calculate", {method:"POST", headers:{"Content-Type":"application/json"},
+                                         body: JSON.stringify(requestBody())});
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    if (n !== seq) return;
+    S.source = "server"; S.last = j; paintSummary(j); paintResultCard(j);
+  } catch (e) {
+    if (n !== seq) return;
+    S.source = "local";
+    const j = localCalc(); S.last = j; paintSummary(j); paintResultCard(j);
+  }
+}
+
+/* ---------- форма ---------- */
+function cardProduct(){
+  const p = PROD[S.product];
+  const parts = p.classes.map(classTitle).join(" + ");
+  const comm = p.commission_pct != null ? `комиссия до ${String(p.commission_pct).replace(".", ",")}%`
+                                        : (p.commission_text || "комиссия не задана");
+  const list = () => {
+    const q = S.query.trim().toLowerCase();
+    const found = D.products.filter(x => !q || x.code.includes(q) || x.name.toLowerCase().includes(q));
+    if (!found.length) return `<div class="empty">Ничего не нашлось. Попробуйте часть названия или код продукта.</div>`;
+    const byClass = {};
+    for (const x of found) (byClass[firstClass(x)] ||= []).push(x);
+    const order = Object.keys(byClass).sort((a,b) => (parseInt(a)-parseInt(b)) || a.localeCompare(b));
+    return order.map(c => `<h4>${esc(classTitle(c))} · ${byClass[c].length}</h4>` + byClass[c].map(x =>
+      `<button type="button" data-prod="${x.code}"${x.code===S.product?' class="on"':""}>
+         <i>${x.code}</i><span>${esc(x.name)}</span><u>${esc(shortMin(x.code))}</u></button>`).join("")).join("");
+  };
+  return `<section class="card">
+    <h2>Продукт</h2>
+    <p class="sub">В справочнике ${D.products.length} действующих продуктов по ${Object.keys(D.class_factors).length} классам.</p>
+    <div class="prod">
+      <div>
+        <div class="code">${esc(p.code)}</div>
+        <div class="nm">${esc(p.name)}</div>
+        <div class="meta">
+          <span class="tag">${esc(parts)}</span>
+          <span class="tag rate">${esc(shortMin(p.code))}</span>
+          <span class="tag">${esc(comm)}</span>
+          ${NEG_MODE[p.pricing_mode] || p.pricing_mode === "нормативный акт"
+            ? `<span class="tag mode">${esc(p.pricing_mode)}</span>` : ""}
+          ${p.is_general ? `<span class="tag">генеральный договор</span>` : ""}
+        </div>
+        ${p.rate_text ? `<p class="hint" style="margin:8px 0 0">Тариф по политике: ${esc(p.rate_text)}</p>` : ""}
+      </div>
+      <button type="button" id="pickToggle">${S.pick ? "Свернуть список" : "Сменить продукт"}</button>
+    </div>
+    ${S.pick ? `<div class="picker">
+      <label class="f"><span>Поиск по названию или коду</span>
+        <input id="pquery" value="${esc(S.query)}" placeholder="например: кредит, груз, 0807" autocomplete="off"></label>
+      <div class="plist" id="plist">${list()}</div>
+    </div>` : ""}
+    ${p.classes.length > 1 ? `<p class="hint" style="margin:10px 0 0">Продукт из нескольких частей: считаем
+      ${esc(classTitle(p.classes[0]))}, остальные части — отдельный расчёт (Положение 1882, п. 11).</p>` : ""}
+  </section>`;
+}
+
+function cardObject(){
+  const cls = S.class_code;
+  const types = [...new Set(objectTypesOf(cls))];
+  const credit = CREDIT_CLASSES.includes(cls);
+  const opt = (arr, cur) => arr.map(x => `<option value="${esc(x)}"${x===cur?" selected":""}>${esc(x)}</option>`).join("");
+  return `<section class="card">
+    <h2>Объект и деньги</h2>
+    <p class="sub">${esc(classTitle(cls))}. Ставка справа меняется с каждым вводом.</p>
+    <div class="row">
+      ${types.length ? `<label class="f"><span>Что страхуем</span>
+        <select data-k="objectType">${opt(types, S.objectType)}</select>
+        <em>от этого зависит базовая ставка класса</em></label>`
+      : `<label class="f"><span>Что страхуем</span><input data-k="objectType" value="${esc(S.objectType)}">
+        <em>для этого класса своей базовой ставки нет — движок возьмёт среднюю</em></label>`}
+      <label class="f"><span>Регион</span><input data-k="region" value="${esc(S.region)}"></label>
+      ${payerMatters(S.product) ? `<label class="f"><span>Тип клиента</span>
+        <select data-k="payer">
+          <option value="юр"${S.payer==="юр"?" selected":""}>Юридическое лицо</option>
+          <option value="физ"${S.payer==="физ"?" selected":""}>Физическое лицо</option>
+        </select><em>по этому продукту минимальный тариф разный</em></label>` : ""}
+      <label class="f"><span>Страховая стоимость, сум</span>
+        <input type="number" data-k="value" value="${S.value}" step="1000000"><em id="valueHint"></em></label>
+      <label class="f"><span>Страховая сумма, сум</span>
+        <input type="number" data-k="sum" value="${S.sum}" step="1000000">
+        <em id="sumHint"></em>
+        <em>${credit ? "не больше необеспеченной части и половины кредита" : "равна стоимости — выплата будет полной"}</em></label>
+      <label class="f"><span>Срок, дней</span><input type="number" data-k="term" value="${S.term}" min="1" max="1825"></label>
+    </div>
+    ${credit ? `<div class="row" style="margin-top:14px">
+      <label class="f"><span>Сумма кредита, сум</span>
+        <input type="number" data-k="credit.loan" value="${S.credit.loan}" step="1000000"></label>
+      <label class="f"><span>Стоимость обеспечения, сум</span>
+        <input type="number" data-k="credit.collateral" value="${S.credit.collateral}" step="1000000">
+        <em>залог, поручительство, гарантия</em></label>
+      <div class="f" style="justify-content:flex-end">
+        <label class="switch"><input type="checkbox" data-k="credit.bank"${S.credit.bank?" checked":""}>
+          <span>Страхователь и плательщик — банк-кредитор</span></label>
+        <em>иначе договор не соответствует требованию регулятора</em></div>
+    </div>` : ""}
+  </section>`;
+}
+
+function cardFactors(){
+  const cls = S.class_code;
+  const fs = factorsOf(cls);
+  if (!fs.length) return `<section class="card"><h2>Факторы риска</h2>
+    <p class="sub">Для этого класса коэффициентов в справочнике пока нет — ставка считается по базовой.</p></section>`;
+  return `<section class="card">
+    <h2>Факторы риска</h2>
+    <p class="sub">Набор вопросов свой у каждого класса. Здесь — ${fs.length} ${fs.length===1?"фактор":fs.length<5?"фактора":"факторов"} класса ${esc(cls)}.</p>
+    <div class="row">${fs.map(f => {
+      const opts = optionsOf(cls, f);
+      if (!opts.length) return "";
+      return `<label class="f"><span>${esc(opts[0].factor_name)}</span>
+        <select data-factor="${esc(f)}">${opts.map(c =>
+          `<option value="${esc(c.option_code)}"${c.option_code===S.factors[f]?" selected":""}>${esc(c.option_name)}</option>`).join("")}</select></label>`;
+    }).join("")}</div>
+  </section>`;
+}
+
+function cardPerils(){
+  const cls = S.class_code;
+  const list = perilsOf(cls);
+  if (!list.length) return `<section class="card">
+    <h2>Покрытие</h2>
+    <p class="sub" style="margin:0">Покрытие целиком по правилам продукта: отдельных рисков, которые можно выключить,
+    у класса ${esc(cls)} в справочнике нет.</p></section>`;
+  return `<section class="card">
+    <h2>Риски</h2>
+    <p class="sub">Процент — вклад риска в нетто-ставку. Выключение удешевляет полис и сужает защиту.</p>
+    <div class="perils">${list.map(p => `
+      <label class="peril"><input type="checkbox" data-peril="${p.code}"${S.perils.has(p.code)?" checked":""}>
+        <span class="nm">${esc(p.name)}</span>
+        ${p.is_catastrophic?'<span class="cat">кат</span>':""}
+        <span class="pc">${Math.round(p.base_share*100)}%</span></label>`).join("")}</div>
+  </section>`;
+}
+
+/* ---------- фотографии объекта ---------- */
+const kb = n => n >= 1048576 ? (n/1048576).toFixed(1).replace(".", ",") + " МБ"
+                             : Math.max(1, Math.round(n/1024)) + " КБ";
+
+function cardPhoto(){
+  const hasId = !!S.requestId;
+  const shots = S.serverPhotos;
+  return `<section class="card" id="photoCard">
+    <h2>Фотографии объекта</h2>
+    <p class="sub">Снимки хранятся на сервере вместе с запросом: их увидит андеррайтер и проверяющий.
+      Принимаются JPEG, PNG и WebP, не больше 10 МБ каждый.</p>
+    <div class="photozone">
+      <label class="upload"><input type="file" id="photoInput" accept="image/jpeg,image/png,image/webp" multiple${hasId?"":" disabled"}>
+        <span>Выбрать фотографии</span></label>
+      ${SAMPLE ? `<button type="button" id="photoRun"${S.photos.length ? "" : " disabled"}>Определить по фото</button>` : ""}
+      <span class="hint" id="photoStatus">${esc(S.photoNote)}</span>
+    </div>
+    ${hasId ? "" : `<div class="note">Пока запрос не сохранён, фотографии загружать некуда.
+      Нажмите справа <b>«В договор»</b> — расчёт сохранится и получит номер, после этого кнопка заработает
+      и снимки прикрепятся к этому запросу.</div>`}
+    ${S.photoError ? `<div class="note bad">${esc(S.photoError)}</div>` : ""}
+    ${shots.length ? `<div class="thumbs">${shots.map(p =>
+      `<figure><img src="/photos/${p.id}" alt="фотография объекта">
+        <button type="button" class="del" data-delphoto="${p.id}" title="Удалить фотографию">удалить</button>
+        <figcaption title="${esc(p.filename || "")}">${esc(p.filename || ("фото " + p.id))}</figcaption>
+        <figcaption>${kb(p.size_bytes)} · ${esc(String(p.uploaded_at || "").slice(0,16).replace("T", " "))}</figcaption></figure>`).join("")}</div>`
+      : (hasId ? `<p class="hint" style="margin:12px 0 0">Фотографий у запроса № ${S.requestId} пока нет.</p>` : "")}
+    ${SAMPLE
+      ? `<p class="hint" style="margin:12px 0 0">Распознавание разбирает выбранные снимки и подставляет конструкцию,
+         деятельность, защиту и износ. Подставленное проверьте: это подсказка, а не осмотр.</p>`
+      : `<div class="note">Распознавание объекта по фотографии в этом окне <b>не работает</b>: оно доступно только
+         в опубликованном экране (артефакт с разрешением на обращение к Claude). Здесь фотографии просто
+         загружаются на сервер, а поля формы заполняет агент.</div>`}
+    ${S.photoApplied.length ? `<div class="applied">${S.photoApplied.map(a =>
+      `<div class="tip"><span>${esc(a.label)}</span><span class="save">${esc(a.value)}</span></div>`).join("")}</div>` : ""}
+  </section>`;
+}
+
+function repaintPhotos(){
+  const box = document.getElementById("photoCard");
+  if (!box) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = cardPhoto();
+  box.replaceWith(tmp.firstElementChild);
+}
+
+async function loadPhotos(){
+  if (!S.requestId) return;
+  try {
+    const r = await fetch("/requests/" + S.requestId + "/photos");
+    if (!r.ok) throw new Error(r.status);
+    S.serverPhotos = await r.json();
+    S.photoError = "";
+  } catch (e) {
+    S.serverPhotos = [];
+    S.photoError = "Список фотографий получить не удалось: сервер не ответил. Попробуйте ещё раз.";
+  }
+  repaintPhotos();
+}
+
+async function uploadPhotos(files){
+  if (!S.requestId || !files.length) return;
+  S.photoNote = `Отправляю на сервер: ${files.length}…`; S.photoError = ""; repaintPhotos();
+  const fd = new FormData();
+  for (const f of files) fd.append("files", f, f.name);
+  try {
+    const r = await fetch(`/requests/${S.requestId}/photos?who=${encodeURIComponent("экран агента")}`,
+                          {method:"POST", body: fd});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok){
+      S.photoNote = "";
+      S.photoError = "Сервер не принял файлы: " + (j.detail || ("ошибка " + r.status))
+        + ". Принимаются JPEG, PNG и WebP до 10 МБ.";
+    } else {
+      S.photoNote = `Загружено: ${(j.saved || []).length}`;
+    }
+  } catch (e) {
+    S.photoNote = "";
+    S.photoError = "Сервер не ответил, файлы не загружены. Проверьте связь и повторите.";
+  }
+  await loadPhotos();
+}
+
+async function deletePhoto(id){
+  try {
+    const r = await fetch(`/photos/${id}?who=${encodeURIComponent("экран агента")}`, {method:"DELETE"});
+    if (!r.ok) throw new Error(r.status);
+    S.photoError = "";
+  } catch (e) { S.photoError = "Удалить не получилось: сервер не ответил."; }
+  await loadPhotos();
+}
+
+/* ---------- стоимость объекта ---------- */
+// что можно спросить у сервера: тип объекта для методики и параметры площадок
+const VAL_KINDS = {
+  "авто":         {object_type:"авто",         params:{}},
+  "жильё":        {object_type:"недвижимость", params:{"тип":"жилое"}},
+  "нежилое":      {object_type:"недвижимость", params:{"тип":"нежилое"}},
+  "оборудование": {object_type:"оборудование", params:{}},
+  "прочее":       {object_type:"прочее",       params:{}}
+};
+const isCar = () => S.val.kind === "авто";
+const isRealty = () => ["жильё","нежилое"].includes(S.val.kind);
+
+function cardValue(){
+  const v = S.val;
+  const fld = (k, title, hint, type) => `<label class="f"><span>${title}${srcTag(k)}</span>
+    <input data-v="${k}"${type ? ` type="${type}"` : ""} value="${esc(v[k] ?? "")}">
+    ${hint ? `<em>${hint}</em>` : ""}</label>`;
+  const normOpts = (S.norms || []).map(n =>
+    `<option value="${esc(n.code)}"${n.code===v.norm_code?" selected":""}>${esc(n.name)} — ${String(n.rate_pct).replace(".", ",")}% в год</option>`).join("");
+  return `<section class="card" id="valueCard">
+    <h2>Стоимость объекта</h2>
+    <p class="sub">Сколько объект стоит на самом деле. Считает сервер по методике оценки: сначала объявления
+      на площадках, если их нет — износ. Браузер ничего не досчитывает.</p>
+    <div class="row">
+      <label class="f"><span>Что оцениваем</span>
+        <select id="valKind">${Object.keys(VAL_KINDS).map(k =>
+          `<option${k===v.kind?" selected":""}>${k}</option>`).join("")}</select>
+        <em>от этого зависит, какие площадки опрашивать</em></label>
+      <label class="f"><span>Цена, заявленная агентом, сум</span>
+        <input type="number" data-v="declared" value="${v.declared ?? ""}" step="1000000" placeholder="например 150000000">
+        <em>с ней сервер сверит свой расчёт</em></label>
+      <label class="f"><span>Дата заключения договора</span>
+        <input type="date" data-v="as_of" value="${esc(v.as_of)}">
+        <em>стоимость берётся на этот день (ГК ст. 934)</em></label>
+    </div>
+    ${docBlock()}
+    ${isCar() ? `<div class="row" style="margin-top:13px">
+      ${fld("brand", "Марка", "латиницей, как на площадке: Chevrolet")}
+      ${fld("model", "Модель", "Cobalt")}
+      ${fld("year", "Год выпуска", "", "number")}
+      ${fld("vin", "VIN", "идентификационный номер из техпаспорта")}
+      ${fld("mileage_km", "Пробег, км", "в техпаспорте пробега нет — укажите вручную по одометру; от него зависит поправка", "number")}
+      ${fld("region", "Регион", "Ташкент, Самарканд, Бухара…")}
+    </div>` : ""}
+    ${isRealty() ? `<div class="row" style="margin-top:13px">
+      ${fld("address", "Адрес объекта", "местонахождение из кадастра; площадки ищут по городу и району")}
+      ${fld("city", "Город")}
+      ${fld("district", "Район")}
+      ${fld("region", "Регион", "Ташкент, Самарканд, Бухара…")}
+      ${fld("area_m2", "Площадь, кв. м", "", "number")}
+      ${fld("rooms", "Комнат", missingHint("rooms"), "number")}
+      ${fld("object_kind", "Вид объекта", "по кадастру: жилое помещение, нежилое здание…")}
+    </div>` : ""}
+    <div class="row" style="margin-top:13px">
+      <label class="f"><span>Норма износа</span>
+        <select data-v="norm_code">
+          <option value="">— не выбрана —</option>${normOpts}
+        </select>
+        <em>${S.norms === null ? "список норм сервер ещё не отдал"
+             : S.normsError ? esc(S.normsError) : "справочник depreciation_norms, нормы экспертные"}</em></label>
+      ${fld("initial_value", "Первоначальная стоимость, сум", "сколько объект стоил новым", "number")}
+      <label class="f"><span>Введён в эксплуатацию</span>
+        <input type="date" data-v="commissioned_at" value="${esc(v.commissioned_at)}">
+        <em>${missingHint("build_year") || "с этой даты считается износ"}</em></label>
+    </div>
+    <p class="hint" style="margin:10px 0 0">Три поля выше нужны только на случай, когда объявлений на площадках нет:
+      тогда сервер считает стоимость по износу и покажет расчёт построчно.</p>
+    <div class="photozone" style="margin-top:14px">
+      <button type="button" class="act" id="valRun"${v.busy?" disabled":""}>${v.busy?"Считаю…":"Проверить стоимость"}</button>
+      <span class="hint">${v.busy ? "Сервер опрашивает площадки, это занимает несколько секунд." : ""}</span>
+    </div>
+    ${v.error ? `<div class="note bad">${esc(v.error)}</div>` : ""}
+    <div id="valResult">${v.result ? valResultHtml(v.result) : ""}</div>
+  </section>`;
+}
+
+function repaintValue(){
+  const box = document.getElementById("valueCard");
+  if (!box) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = cardValue();
+  box.replaceWith(tmp.firstElementChild);
+}
+// результат перерисовываем отдельно — поля ввода и курсор не трогаем
+function repaintValResult(){
+  const box = document.getElementById("valResult");
+  if (box) box.innerHTML = S.val.result ? valResultHtml(S.val.result) : "";
+  const b = document.getElementById("valRun");
+  if (b){ b.disabled = S.val.busy; b.textContent = S.val.busy ? "Считаю…" : "Проверить стоимость"; }
+}
+
+// плашка источника: слева — чьими словами это написано, справа — путь к оригиналу
+function srcBar(text, links, lead){
+  const go = (links || []).filter(l => l && l.url).map(l =>
+    `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}<span class="dom">${esc(l.domain)}</span></a>`).join("");
+  return `<div class="srcbar"><p>${lead ? `<b>${esc(lead)}</b> ` : ""}${esc(text)}</p>`
+       + (go ? `<div class="go">${go}</div>` : "") + `</div>`;
+}
+function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./, ""); } catch(_) { return ""; } }
+
+function valResultHtml(j){
+  const e = j.explanation || {};
+  const m = e.market || null;
+  const kv = (k, val) => `<div><span>${k}</span><span class="v">${val}</span></div>`;
+  const sum = x => x == null ? "—" : fmt(x) + " сум";
+  const cmp = e.spread_check || {};
+  const accepted = j.accepted === "цена агента" ? "Цена агента принята" : "Уточнённая стоимость";
+  let h = `<h2 style="margin-top:22px">${accepted}: <span class="big">${sum(j.final_value)}</span></h2>
+    <p class="sub">Метод: ${esc(j.method || "получить оценку не удалось")} · методика версии ${esc(j.method_version || "")}
+      · на ${esc(j.as_of || "")}${j.id ? " · оценка № " + j.id : ""}</p>
+    <div class="note ${j.accepted === "цена агента" ? "good" : ""}">${esc(cmp.text || "")}</div>`;
+
+  if (j.spread) h += `<div class="wf" style="margin-top:14px">
+      ${kv("Нижняя граница", sum(j.spread.min))}
+      ${kv("Середина", sum(j.spread.median))}
+      ${kv("Верхняя граница", sum(j.spread.max))}
+      ${kv("Расчёт сервера", sum(j.ai_value))}
+      ${kv("Заявлено агентом", sum(j.declared_value))}
+      ${cmp.diff_pct != null ? kv("Расхождение", String(cmp.diff_pct).replace(".", ",") + "% при пороге "
+          + String(cmp.threshold_pct ?? "").replace(".", ",") + "%") : ""}
+    </div>`;
+
+  if (m){
+    h += `<h2 style="margin-top:22px">Рынок</h2>
+      <p class="sub">${m.enough
+        ? `Объявлений с ценой: ${m.prices_count} (всего найдено ${m.ads_count}), окно ${m.window_months} мес.
+           с ${esc(m.window_from)} по ${esc(m.as_of)}.`
+        : `Рынок не использован: ${esc(m.reason || "нет данных")}`}</p>`;
+    if (m.median != null) h += `<div class="wf">
+        ${kv("Медиана объявлений", sum(m.median))}
+        ${kv("Q1 — Q3", sum(m.q1) + " — " + sum(m.q3))}
+        ${kv("Скидка на торг", String(m.bargain_pct).replace(".", ",") + "%")}
+        ${kv("Рыночная стоимость", sum(m.value))}
+      </div>`;
+    h += `<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px">Источники</h3>
+      <ul class="srcs">${(j.sources || []).map(s => `<li class="${s.status === "ок" ? "ok" : "bad"}">
+        <i class="dot"></i><div><div class="nm">${esc(s.source)}: ${esc(s.status)}${
+          s.ads_count ? ` · объявлений ${s.ads_count}` : ""}</div>
+        ${s.reason ? `<div class="why">${esc(s.reason)}</div>` : ""}
+        ${s.url ? `<div class="why"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.url)}</a></div>` : ""}
+        </div></li>`).join("") || `<li><i class="dot"></i><div class="nm">Площадки по этому типу объекта не опрашиваются.</div></li>`}</ul>`;
+    if ((m.samples || []).length) h += `<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:18px 0 8px">${
+      m.enough ? "Объявления в расчёте" : "Объявления нашлись, но в расчёт не пошли"}</h3>
+      <ul class="ads">${m.samples.map(s => `<li>
+        <span>${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.title || s.url)}</a>`
+                       : esc(s.title || "объявление без ссылки")}
+          <span class="why"> · ${esc(s.source || "")} · ${s.published ? "обновлено " + esc(s.published) : "даты нет"}</span></span>
+        <span class="p">${s.price_uzs != null ? fmt(s.price_uzs) + " сум"
+                        : (s.price != null ? fmt(s.price) + " " + esc(s.currency || "") : "цены нет")}</span></li>`).join("")}</ul>`;
+    // то, что уже сказано в причине, второй раз не повторяем
+    const notes = (m.notes || []).filter(n => !String(m.reason || "").includes(n));
+    if (notes.length) h += `<div class="note">${notes.map(esc).join("<br>")}</div>`;
+    const all = (j.sources || []).filter(s => s.url);
+    const live = all.filter(s => s.status === "ок");
+    h += srcBar("Оценка подготовлена системой по объявлениям площадки: это не текст площадки."
+      + " Оригиналы объявлений и фотографии — на сайте источника.",
+      (live.length ? live : all).map(s => ({url: s.url, label: "Читать в источнике",
+        domain: /\./.test(s.source || "") ? s.source : (hostOf(s.url) || s.source || "источник")})),
+      m.enough ? "" : "Рынок не использован: " + (m.reason || "источники не ответили") + ".");
+  }
+
+  if (e.depreciation){
+    const d = e.depreciation;
+    h += `<h2 style="margin-top:22px">Расчёт по износу</h2>
+      <p class="sub">Норма «${esc(d.norm?.name || "")}» (${esc(d.norm?.code || "")}), ${String(d.rate_pct).replace(".", ",")}% в год.</p>
+      <div class="wf">
+        ${kv("Первоначальная стоимость", sum(d.initial))}
+        ${kv("Срок эксплуатации", String(d.years).replace(".", ",") + " года")}
+        ${kv("Износ", String(d.wear_pct).replace(".", ",") + "%")}
+        ${kv("После износа", sum(d.linear))}
+        ${kv("Поправка по пробегу", "×" + String(d.mileage_k).replace(".", ","))}
+        ${kv("Остаточный минимум", sum(d.floor))}
+        ${kv("Итог", sum(d.value))}
+      </div>`
+      + srcBar("Расчёт подготовлен системой по нормам амортизации компании (линейный метод):"
+        + " это не документ компании. Нормы и остаточные минимумы — в справочнике.",
+        [{url: "/admin#valuation-norms", label: "Открыть нормы", domain: "справочник INSON"}]);
+  }
+
+  if (e.dealer_letter){
+    h += `<h2 style="margin-top:22px">Запрос официальному дилеру</h2>
+      <p class="sub">Объявлений нет — цену у дилера спрашивает человек. Скопируйте текст и отправьте письмом;
+        ответ дилера внесите в оценку руками. ${esc(e.dealer_letter.note || "")}</p>
+      <button type="button" class="ghost" id="copyLetter">Скопировать текст письма</button>
+      <span class="hint" id="copyNote"></span>
+      <pre class="letter" id="letterText">${esc(e.dealer_letter.text)}</pre>`;
+  }
+
+  if ((e.lines || []).length) h += `<h2 style="margin-top:22px">Как сервер это посчитал</h2>
+    <pre class="steps">${e.lines.map(esc).join("\n")}</pre>`;
+
+  if ((e.expert_values || []).length) h += `<div class="note"><span class="pill">не откалибровано</span>
+    Экспертные значения в этом расчёте: ${e.expert_values.map(esc).join("; ")}. Они уточнятся после загрузки
+    статистики компании.</div>`;
+
+  if ((e.legal || []).length) h += `<details style="margin-top:14px"><summary class="hint" style="cursor:pointer">На чём это основано</summary>
+    <ul class="hint" style="margin:8px 0 0;padding-left:18px">${e.legal.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    <p class="hint">${esc(e.status_note || "")}</p></details>`;
+
+  h += `<p class="hint" style="margin-top:12px">Страховую стоимость в форме выше система сама не меняет:
+    решение остаётся за агентом и андеррайтером (ГК ст. 935).</p>`;
+  return h;
+}
+
+async function loadNorms(){
+  try {
+    const r = await fetch("/valuation/norms");
+    if (!r.ok) throw new Error(r.status);
+    S.norms = await r.json(); S.normsError = "";
+  } catch (e) {
+    S.norms = []; S.normsError = "справочник норм сервер не отдал";
+  }
+  repaintValue();
+}
+
+function valBody(){
+  const v = S.val, k = VAL_KINDS[v.kind];
+  const num = x => { const n = Number(String(x).replace(",", ".")); return x === "" || x == null || isNaN(n) ? null : n; };
+  const params = {...k.params};
+  if (isCar()){
+    if (v.brand) params.brand = v.brand.trim();
+    if (v.model) params.model = v.model.trim();
+    if (num(v.year)) params.year = num(v.year);
+    if (v.region) params.region = v.region.trim();
+    if (num(v.mileage_km)) params.mileage_km = num(v.mileage_km);
+  }
+  if (isRealty()){
+    if (v.city){ params.city = v.city.trim(); params.region = v.city.trim(); }
+    if (v.region) params.region = v.region.trim();
+    if (v.district) params.district = v.district.trim();
+    if (num(v.area_m2)) params.area_m2 = num(v.area_m2);
+    if (num(v.rooms)) params.rooms = num(v.rooms);
+  }
+  return {object_type: k.object_type, params,
+          as_of: v.as_of || null,
+          declared_value: num(v.declared),
+          norm_code: v.norm_code || null,
+          initial_value: num(v.initial_value),
+          commissioned_at: v.commissioned_at || null,
+          mileage_km: num(v.mileage_km),
+          request_id: S.requestId, save: true, created_by: "экран агента"};
+}
+
+async function runValuation(){
+  S.val.busy = true; S.val.error = ""; repaintValResult();
+  try {
+    const r = await fetch("/valuations/estimate", {method:"POST", headers:{"Content-Type":"application/json"},
+                                                   body: JSON.stringify(valBody())});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok){
+      S.val.result = null;
+      S.val.error = r.status === 404
+        ? "Сервер не знает про расчёт стоимости: открыт старый экран или сервер работает на старой версии. Перезапустите сервер."
+        : "Сервер не посчитал: " + (j.detail || ("ошибка " + r.status));
+    } else {
+      S.val.result = j;
+      // запомнили оценку: движок сверит с ней страховую сумму (ГК ст. 934, 936, 938)
+      S.val.valuation_id = j.id ?? null;
+      S.val.object_key = j.object_key ?? null;
+    }
+  } catch (e) {
+    S.val.result = null;
+    S.val.error = "Сервер не ответил. Стоимость считает сервер, в браузере расчёта нет — повторите позже.";
+  }
+  S.val.busy = false; repaintValResult();
+  if (S.val.valuation_id || S.val.object_key) schedule(0);   // проверки пересчитать с оценкой
+}
+
+/* ---------- документ объекта: техпаспорт и кадастр ---------- */
+// Какие поля разбора сервер отдаёт «для оценки» и в какое поле формы они ложатся.
+// Имена слева — ключи ответа сервера (app/docparse.py, «для_оценки»), не выдуманные.
+const DOC_MAP = {
+  "техпаспорт": {"марка":"brand", "модель":"model", "год":"year", "регион":"region", "vin":"vin"},
+  "кадастр":    {"адрес":"address", "площадь":"area_m2", "комнаты":"rooms", "тип":"object_kind",
+                 "регион":"region"}
+};
+// ключи полей разбора, которые уже попали в форму: остальное показываем списком «ещё в документе»
+const DOC_SHOWN = {
+  "техпаспорт": ["brand", "model", "year", "region", "vin"],
+  "кадастр":    ["address", "area_m2", "rooms", "object_kind", "region"]
+};
+const docKind = () => isCar() ? "техпаспорт" : (isRealty() ? "кадастр" : null);
+const cap = t => t ? t[0].toUpperCase() + t.slice(1) : "";
+
+function srcTag(k){
+  const from = S.fromDoc[k];
+  return `<b class="src${from ? " on" : ""}" id="src-${k}">${from === "распознавание" ? "распознано" : "из документа"}</b>`;
+}
+// поле, которого в документе нет: говорим об этом, когда документ разобран, а сервер поля не вернул
+function missingHint(key){
+  const p = S.doc.parsed;
+  if (!p || S.doc.kind !== "кадастр" || !isRealty()) return "";
+  const fv = p["для_оценки"] || {};
+  if (key === "rooms" && !fv["комнаты"])
+    return "в кадастре числа комнат нет — возьмите из плана-экспликации или замера";
+  if (key === "build_year" && !fv["год"])
+    return "в кадастре года постройки нет — нужна справка балансодержателя; с этой даты считается износ";
+  return "";
+}
+
+function docBlock(){
+  const kind = docKind();
+  if (!kind) return "";
+  const d = S.doc, hasId = !!S.requestId;
+  let h = `<div class="photozone" style="margin-top:14px">
+    <label class="upload"><input type="file" id="docInput" accept="application/pdf,image/jpeg,image/png,image/webp"${hasId && !d.busy ? "" : " disabled"}>
+      <span>${kind === "техпаспорт" ? "Загрузить техпаспорт" : "Загрузить кадастр"}</span></label>
+    <span class="hint">${d.busy ? "Отправляю документ на сервер…" : esc(d.note)}</span></div>
+  <p class="hint" style="margin:8px 0 0">PDF или фотография, до 10 МБ. Сервер прочитает документ и подставит
+    характеристики объекта в поля ниже. ФИО, паспорт, ПИНФЛ и адрес владельца из документа не берутся
+    и в базу не попадают (ЗРУ-547, ст. 4 и 10).</p>`;
+  if (!hasId) h += `<div class="note">Пока запрос не сохранён, документ загружать некуда. Нажмите справа
+    <b>«В договор»</b> — расчёт получит номер, и кнопка заработает.</div>`;
+  if (d.error) h += `<div class="note bad">${esc(d.error)}</div>`;
+  if (d.parsed) h += docPanel(d.parsed);
+  return h;
+}
+
+function docPanel(p){
+  const kind = S.doc.kind || p["вид_документа"] || "документ";
+  const st = p["статус"] || "";
+  const ok = st === "разобран" || st === "частично";
+  const head = ok ? `${cap(kind)} разобран: нашли ${p["найдено_полей"]} из ${p["всего_полей"]} полей.`
+                  : `${cap(kind)}: ${st}.`;
+  let h = `<div class="docpanel"><h3>Что сервер прочитал в документе</h3>
+    <p style="margin:0 0 8px;font-size:13.5px"><b>${esc(head)}</b>${p["из_кэша"] ? " Разбор взят из базы: этот файл уже разбирали." : ""}</p>`;
+  if (p["примечание"]) h += `<div class="note${ok ? "" : " bad"}" style="margin-top:0">${esc(p["примечание"])}</div>`;
+  if (st === "нужно распознавание"){
+    h += SAMPLE
+      ? `<div class="photozone" style="margin-top:10px">
+          <button type="button" class="act" id="docRecog"${S.doc.recogBusy ? " disabled" : ""}>${S.doc.recogBusy ? "Распознаю…" : "Распознать документ"}</button>
+          <span class="hint">Распознаёт Claude — только в этом опубликованном экране. Проверьте каждое значение.</span></div>`
+      : `<div class="note">Распознавания текста в этом окне <b>нет</b>: оно работает только в опубликованном
+          экране (артефакт с разрешением на обращение к Claude). Здесь заполните поля ниже руками —
+          система ничего не угадывает.</div>`;
+  }
+  const done = Object.keys(p["для_оценки"] || {});
+  if (done.length) h += `<p style="margin:8px 0 0;font-size:13px">Подставлено в форму: <b>${done.map(esc).join(", ")}</b>.
+    Если в документе опечатка — поправьте поле руками, пометка «из документа» снимется.</p>`;
+  const rest = (p["поля"] || []).filter(f => f["значение"] && !(DOC_SHOWN[kind] || []).includes(f["поле"]));
+  if (rest.length) h += `<h3>Ещё в документе</h3><dl class="kvs">` + rest.map(f =>
+    `<dt>${esc(f["название"])}</dt><dd>${esc(String(f["значение"]))}</dd>`).join("") + `</dl>`;
+  const w = p["предупреждения"] || [];
+  if (w.length) h += `<h3>На что смотреть</h3>` + w.map(x => {
+    const lvl = x["уровень"] === "стоп" ? "stop" : (x["уровень"] === "предупреждение" ? "warn" : "ok");
+    return `<div class="chk ${lvl}"><span class="dot"></span><span><span class="t">${esc(x["текст"])}</span><br>
+      <span class="d">${esc(x["код"] || "")}${x["норма"] ? " · " + esc(x["норма"]) : ""}</span></span></div>`;
+  }).join("");
+  const cl = p["чек_лист"];
+  if (cl) h += cl["отмечен"]
+    ? `<div class="note good">Пункт чек-листа «${esc(cl["пункт"])}» отмечен полученным.</div>`
+    : `<div class="note">Пункт чек-листа не отмечен: ${esc(cl["причина"] || "сервер не сказал почему")}</div>`;
+  if (p["сверено_с_бланком"] === false) h += `<p class="hint" style="margin:10px 0 0">Подписи граф собраны по
+    нормативным актам, с образцом бланка не сверены. Если поле подставилось не тем — исправьте руками и скажите нам.</p>`;
+  if (p["персональные_данные"]) h += `<p class="hint" style="margin:6px 0 0">${esc(p["персональные_данные"])}</p>`;
+  return h + `</div>`;
+}
+
+function applyParsed(p, kind){
+  S.doc.parsed = p; S.doc.kind = kind;
+  if (!p){ S.doc.note = "Документ загружен, сервер его не разбирал."; return; }
+  const fv = p["для_оценки"] || {}, map = DOC_MAP[kind] || {};
+  let n = 0;
+  for (const ru of Object.keys(map)){
+    const val = fv[ru];
+    if (val == null || val === "") continue;
+    S.val[map[ru]] = String(val);
+    S.fromDoc[map[ru]] = "документ";
+    n++;
+  }
+  S.doc.note = n ? `Из документа подставлено полей: ${n}` : "Из документа в форму ничего не подставилось";
+  const cl = p["чек_лист"];
+  if (cl && cl["отмечен"] && cl["пункт"]) S.docs.add(cl["пункт"]);   // отметку ставит сервер, экран её показывает
+}
+
+async function uploadDoc(file){
+  const kind = docKind();
+  if (!kind || !S.requestId || !file) return;
+  S.doc.busy = true; S.doc.error = ""; S.doc.note = ""; S.doc.file = file; repaintValue();
+  const fd = new FormData(); fd.append("files", file, file.name);
+  const url = `/requests/${S.requestId}/documents/upload?doc_kind=${encodeURIComponent(kind)}`
+            + `&who=${encodeURIComponent("экран агента")}`;
+  try {
+    const r = await fetch(url, {method:"POST", body: fd});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok){
+      S.doc.parsed = null;
+      S.doc.error = r.status === 404
+        ? "Сервер не знает про загрузку документов: открыт старый экран или сервер работает на старой версии. Перезапустите сервер."
+        : "Сервер не принял документ: " + (j.detail || ("ошибка " + r.status))
+          + ". Принимаются PDF, JPEG, PNG и WebP до 10 МБ.";
+    } else {
+      applyParsed((j.saved || [])[0]?.["разбор"] || null, kind);
+    }
+  } catch (e) {
+    S.doc.parsed = null;
+    S.doc.error = "Сервер не ответил, документ не загружен. Проверьте связь и повторите.";
+  }
+  S.doc.busy = false;
+  paintForm(); schedule(0);       // поля и отметка в чек-листе обновились, проверки пересчитываем
+}
+
+// Распознавание скана. Работает только в опубликованном экране: там есть разрешение на обращение к Claude.
+async function recognizeDoc(){
+  const kind = S.doc.kind, f = S.doc.file;
+  if (!SAMPLE || !kind || !f) return;
+  if (f.type === "application/pdf"){
+    S.doc.error = "Распознать можно фотографию или снимок экрана документа. PDF без текстового слоя здесь не читается — заполните поля руками.";
+    repaintValue(); return;
+  }
+  S.doc.recogBusy = true; S.doc.error = ""; repaintValue();
+  const keys = Object.keys(DOC_MAP[kind]);
+  const prompt =
+`Ты помогаешь страховому сюрвейеру прочитать документ на объект страхования (${kind}, Узбекистан).
+Верни ТОЛЬКО JSON с ключами: ${keys.map(k => '"' + k + '"').join(", ")}.
+Бери значения строго из документа. Чего в документе не видно — ставь null, не угадывай.
+${kind === "техпаспорт"
+  ? 'Пробег не бери: в техпаспорте его нет. "год" — год выпуска четырьмя цифрами, "регион" — область или город Ташкент.'
+  : '"площадь" — в кв. м числом, "комнаты" — числом, "тип" — вид объекта недвижимости, "адрес" — местонахождение объекта.'}
+Персональные данные не извлекай и не пиши в ответ: ФИО, ПИНФЛ, паспорт, ИНН, адрес и подпись владельца (ЗРУ-547, ст. 4 и 10).`;
+  try {
+    const res = await SAMPLE.json(prompt, {images: [f], modelTier: "default"});
+    const map = DOC_MAP[kind]; let n = 0;
+    for (const ru of keys){
+      const val = res?.[ru];
+      if (val == null || val === "") continue;
+      S.val[map[ru]] = String(val); S.fromDoc[map[ru]] = "распознавание"; n++;
+    }
+    S.doc.note = n ? `Распознано полей: ${n}. Проверьте каждое: это чтение снимка, а не документ.`
+                   : "По этому снимку прочитать ничего не удалось — заполните поля руками.";
+  } catch (e) {
+    S.doc.error = {not_granted:"Доступ к Claude не разрешён — заполните поля руками.",
+      images_unavailable:"В этом окне файл недоступен.",
+      image_rejected:"Файл не подошёл: нужен jpg или png поменьше.",
+      rate_limited:"Слишком много запросов подряд, попробуйте через минуту.",
+      invalid_json:"Ответ не удалось разобрать, попробуйте снимок почётче."}[e?.code]
+      || "Распознать не получилось, заполните поля руками.";
+  }
+  S.doc.recogBusy = false; repaintValue();
+}
+
+function cardDocs(){
+  const cls = S.class_code, list = docsOf(cls);
+  const need = list.filter(c => c.required).length;
+  const have = list.filter(c => S.docs.has(c.doc_name)).length;
+  return `<details class="card" id="docsBox"${S.docsOpen?" open":""}>
+    <summary>Документы <span class="cnt">${have} из ${list.length}, обязательных ${need}</span></summary>
+    <div class="docs">${list.map(c => `
+      <label class="doc"><input type="checkbox" data-doc="${esc(c.doc_name)}"${S.docs.has(c.doc_name)?" checked":""}>
+        <span style="flex:1">${esc(c.doc_name)}${c.condition?` <span class="hint">— ${esc(c.condition)}</span>`:""}</span>
+        <span class="lbl ${c.required?"req":""}">${c.required?"обязателен":"по условию"}</span></label>`).join("")}</div>
+  </details>`;
+}
+
+function cardManual(){
+  const m = S.manual;
+  return `<details class="card" id="manualBox"${m.on?" open":""}>
+    <summary>Ставка вручную <span class="cnt">${m.on ? "включена" : "выключена"}</span></summary>
+    <p class="sub">Когда решение принимает не расчёт, а конкурент, банк или центральный офис. Система запомнит, кто и почему отступил.</p>
+    <label class="switch"><input type="checkbox" id="manualOn"${m.on?" checked":""}><span>Поставить ставку вручную</span></label>
+    ${m.on ? `<div class="row" style="margin-top:14px">
+      <label class="f"><span>Ставка, %</span>
+        <input type="number" id="manualRate" step="0.001" min="0" value="${m.rate ?? ""}" placeholder="например 0,180"></label>
+      <label class="f"><span>Причина</span><select id="manualReason">
+        <option value="">— выберите —</option>
+        ${REASONS.map(r => `<option${r===m.reason?" selected":""}>${esc(r)}</option>`).join("")}
+      </select></label>
+      <label class="f"><span>Комментарий</span>
+        <input id="manualComment" value="${esc(m.comment)}" placeholder="кратко для андеррайтера"></label>
+    </div>` : ""}
+  </details>`;
+}
+
+// итог и раскрытие по ст. 63 — перерисовывается отдельно, чтобы не трогать поля ввода
+function cardResult(){ return `<section class="card" id="resultCard"></section>`; }
+function paintResultCard(j){
+  const box = document.getElementById("resultCard"); if (!box || !j) return;
+  const p = PROD[S.product], cls = S.class_code;
+  const kv = (k,v) => `<div><span>${k}</span><span class="v">${v}</span></div>`;
+  const all = perilsOf(cls);
+  const off = all.filter(x => !S.perils.has(x.code)).map(x => x.name);
+  const fr = optionsOf(cls, "franchise").find(c => c.option_code === S.factors.franchise);
+  const applied = j.rates.applied_pct;
+  box.innerHTML = `<h2>Итог расчёта</h2>
+    <p class="sub">Этот блок уходит в договор. Проверьте перед тем, как нажать «В договор».</p>
+    <div class="wf">
+      ${kv("Продукт", esc(p.code + " · " + p.name))}
+      ${kv("Класс", esc(classTitle(cls)))}
+      ${kv("Страховая стоимость", fmt(S.value) + " сум")}
+      ${kv("Страховая сумма", fmt(S.sum) + " сум")}
+      ${fr ? kv("Франшиза", esc(fr.option_name)) : ""}
+      ${kv("Ставка", pc(applied))}
+      ${kv("Премия", fmt(j.premium) + " сум")}
+      ${kv("Срок", S.term + " дней")}
+      ${all.length ? kv("Включено рисков", S.perils.size + " из " + all.length) : kv("Покрытие", "целиком по правилам")}
+    </div>
+    <h2 style="margin-top:22px">Что сказать клиенту</h2>
+    <p class="sub">Обязательное раскрытие по статье 63 Закона о страховой деятельности.</p>
+    <div class="wf">
+      ${kv("Цена", fmt(j.premium) + " сум за " + S.term + " дней")}
+      ${kv("Покрываемые риски", all.length ? (S.perils.size + " из перечня класса " + cls) : "целиком по правилам продукта")}
+      ${kv("Исключённые риски", esc(off.join(", ") || "нет"))}
+      ${kv("Выплата при недостраховании", S.sum < S.value ? "пропорционально: " + Math.round(S.sum/S.value*100) + "%" : "полная")}
+      ${kv("Возврат премии", "при досрочном расторжении — за неистёкший срок")}
+      ${kv("Претензии", "принимаются письменно, ответ в срок по правилам страхования")}
+    </div>
+    <label class="switch" style="margin-top:14px"><input type="checkbox" data-k="disclosure"${S.disclosure?" checked":""}>
+      <span>Клиенту всё рассказал</span></label>
+    <label class="switch" style="margin-top:10px"><input type="checkbox" data-k="premiumPaid"${S.premiumPaid?" checked":""}>
+      <span>Премия поступила</span></label>`;
+}
+
+/* ---------- кто согласует запрос ----------
+   Запрос по генеральному соглашению рассматривает не один человек, а 2–3: их выбирает агент.
+   Ограничения на состав (юрист): страховой агент согласующим быть не может (Положение 3845, п. 2);
+   согласующий — только работник компании (тайна страхования, ЗРУ-730, ст. 62);
+   инициатор сам себя не согласует (внутреннее правило). */
+function revBlocked(u){
+  if (u.role === "агент") return "агент не согласует — он посредник (Положение 3845, п. 2)";
+  if (S.rev.me && u.id === S.rev.me.id) return "это вы — инициатор сам себя не согласует";
+  return null;
+}
+
+function cardReviewers(){ return `<section class="card" id="revCard"></section>`; }
+
+function paintReviewers(){
+  const box = document.getElementById("revCard"); if (!box) return;
+  const R = S.rev;
+  const a = R.agreements.find(x => String(x.id) === String(R.agreement));
+  const opts = R.agreements.map(x => `<option value="${x.id}"${String(x.id) === String(R.agreement) ? " selected" : ""}>`
+    + `${esc(x.partner)}${x.product_code ? " · " + esc(x.product_code) : ""} — ${esc(x.status)}</option>`).join("");
+  const people = R.users.map(u => {
+    const why = revBlocked(u), on = R.picked.includes(u.id);
+    const full = !on && R.picked.length >= 3;
+    return `<label class="switch"${why ? ' style="opacity:.5"' : ""}>
+      <input type="checkbox" data-rev="${u.id}"${on ? " checked" : ""}${why || full ? " disabled" : ""}>
+      <span>${esc(u.full_name)} — ${esc(u.role || "без роли")}${u.branch ? ", " + esc(u.branch) : ""}
+        ${why ? `<em style="color:var(--warn)"> · ${esc(why)}</em>` : ""}</span></label>`;
+  }).join("");
+
+  box.innerHTML = `<h2>Кто согласует запрос</h2>
+    <p class="sub">Запрос уходит сразу 2–3 людям. Решение каждого видно в разделе «Согласования».</p>
+    <div class="row">
+      <label class="f"><span>Генеральное соглашение</span>
+        <select id="revAgreement"><option value="">нет, обычный запрос</option>${opts}</select>
+        <em>если запрос идёт по соглашению с банком, состав подставится из него</em></label>
+    </div>
+    ${a ? `<p class="hint" style="margin-top:10px">Условия соглашения: ${a.terms ? esc(a.terms)
+        : "<b>не предоставлены</b> — запрошены у заказчика, ставку и состав проверяйте вручную"}.
+        Состав по умолчанию: ${a.default_reviewers && a.default_reviewers.length
+        ? esc(String(a.default_reviewers.length)) + " чел." : "<b>не задан</b> — выберите людей сами"}.</p>` : ""}
+    ${R.users.length ? `<div style="margin-top:12px;display:grid;gap:7px">${people}</div>`
+      : `<p class="hint" style="margin-top:10px;color:var(--stop)">${esc(R.error
+          || "В базе нет действующих работников — согласующих выбрать не из кого. Зарегистрируйте сотрудников на странице входа.")}</p>`}
+    <p class="hint" style="margin-top:10px">Выбрано ${R.picked.length} из 2–3.
+      ${R.picked.length < 2 ? "Добавьте ещё — меньше двух запрос не отправить." : ""}
+      ${R.picked.length >= 3 ? "Больше трёх нельзя — снимите отметку, чтобы поменять человека." : ""}</p>
+    ${R.note ? `<p class="hint" style="margin-top:6px"><b>${esc(R.note)}</b></p>` : ""}`;
+}
+
+async function loadReviewers(){
+  const R = S.rev;
+  if (R.loaded) return;
+  R.loaded = true;
+  try { R.users = await (await fetch("/auth/colleagues")).json(); }
+  catch (e){ R.users = []; R.error = "Список работников не загрузился — сервер не ответил."; }
+  try { R.agreements = await (await fetch("/general-agreements")).json(); } catch (e){ R.agreements = []; }
+  try { R.me = await (await fetch("/auth/me")).json(); } catch (e){ R.me = null; }
+  if (!Array.isArray(R.users)) R.users = [];
+  if (!Array.isArray(R.agreements)) R.agreements = [];
+  paintReviewers();
+}
+
+// состав по умолчанию из соглашения: там либо user_id, либо ФИО — сопоставляем со справочником
+function applyAgreement(id){
+  const R = S.rev;
+  R.agreement = id;
+  R.note = "";
+  const a = R.agreements.find(x => String(x.id) === String(id));
+  if (!a) { paintReviewers(); return; }
+  const want = (a.default_reviewers || []).map(v => R.users.find(u => u.id === v || u.login === v || u.full_name === v))
+                                          .filter(u => u && !revBlocked(u));
+  if (want.length){
+    R.picked = want.slice(0, 3).map(u => u.id);
+    R.note = "Состав подставлен из соглашения — его можно изменить.";
+  } else if ((a.default_reviewers || []).length){
+    R.note = "Состав из соглашения не подставился: этих людей нет в справочнике работников.";
+  }
+  paintReviewers();
+}
+
+// отправка состава на сервер после сохранения запроса
+async function sendReviewers(rid){
+  const R = S.rev;
+  if (R.picked.length < 2) return "состав согласующих не отправлен — выбрано меньше двух человек";
+  try {
+    const r = await fetch(`/requests/${rid}/reviewers`, {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({user_ids: R.picked, who: R.me ? R.me.login : "экран агента",
+                            general_agreement_id: R.agreement ? Number(R.agreement) : null})});
+    const j = await r.json();
+    return r.ok ? `на согласование: ${R.picked.length} чел.` : "состав не назначен: " + (j.detail || r.status);
+  } catch (e){ return "состав не назначен — сервер не ответил"; }
+}
+
+function paintForm(){
+  document.getElementById("panes").innerHTML =
+    cardProduct() + cardObject() + cardFactors() + cardPerils() + cardValue() + cardPhoto() + cardDocs()
+    + cardResult() + cardReviewers() + cardManual();
+  paintReviewers();
+  if (S.last) paintResultCard(S.last);
+  const fin = D.financials;
+  document.getElementById("foot").innerHTML =
+    `<span class="pill">данные не откалиброваны</span> Базовые ставки (${D.base_rates.length} строк) и коэффициенты `
+    + `(${D.coefficients.length} строк) — экспертные, до загрузки статистики компании. `
+    + (fin ? `Лимит на один риск считается от 20% собственных средств (${fmt(fin.own_funds)} сум) и резервов `
+           + `(${fmt(fin.reserves)} сум) на ${fin.report_date} — ${esc(fin.source || "данные временные")}.` : "");
+}
+
+/* ---------- панель расчёта ---------- */
+function paintSummary(j){
+  const r = j.rates;
+  const applied = r.applied_pct, tech = r.technical_pct, floor = r.min_pct ?? 0;
+  document.getElementById("premium").innerHTML = fmt(j.premium) + ' <small>сум</small>';
+  document.getElementById("rate").textContent = pc(applied);
+  document.getElementById("rateNote").textContent = r.manual ? "введена вручную"
+    : applied > tech + 1e-9 ? "поднята до минимального тарифа" : "техническая";
+  const max = Math.max(tech, floor) * 1.6 || 1;
+  document.getElementById("fill").style.width = Math.min(100, applied / max * 100) + "%";
+  document.getElementById("mMin").textContent = r.min_pct == null ? "минимума нет" : "мин " + pc(floor);
+  document.getElementById("mTech").textContent = "тех " + pc(tech);
+  document.getElementById("mMax").textContent = "макс " + pc(max);
+
+  const mk = document.getElementById("market");
+  if (j.market){
+    const d = j.market.deviation_pct;
+    mk.innerHTML = `Рынок: <b style="font-family:var(--mono);color:var(--ink)">${pc(j.market.rate_pct)}</b> `
+      + `(${esc(j.market.label)}) — вы <b style="color:${d>=0?"var(--ok)":"var(--stop)"}">${d>=0?"дороже":"дешевле"} `
+      + `на ${Math.abs(d).toFixed(0)}%</b>, убыточность рынка ${j.market.loss_ratio.toFixed(1).replace(".", ",")}%`;
+  } else mk.textContent = "Рыночной ставки по этому классу в отчётах НАПП нет.";
+
+  const worst = j.checks.some(c=>c.status==="stop") ? "stop" : j.checks.some(c=>c.status==="warn") ? "warn" : "ok";
+  const v = document.getElementById("verdict");
+  v.className = "verdict " + worst;
+  v.textContent = worst === "stop" ? "Нельзя оформлять: есть нарушения"
+                : worst === "warn" ? "Можно оформить, но нужно решение андеррайтера"
+                : "Проверки пройдены — можно оформлять";
+
+  document.getElementById("wf").innerHTML = j.explanation.map(c => {
+    if (c.value_pct != null) return `<div><span>${esc(c.name)}</span><span class="v">${pc(c.value_pct)}</span></div>`;
+    if (c.add_pct != null) return `<div><span>${esc(c.name)}</span><span class="v up">+${pc(c.add_pct)}</span></div>`;
+    if (c.divide_by != null) return `<div><span>${esc(c.name)}</span><span class="v up">делим на ${Number(c.divide_by).toFixed(2).replace(".", ",")}</span></div>`;
+    const m = c.mult;
+    return `<div${c.applies === false ? ' style="opacity:.45"' : ""}><span>${esc(c.name)}</span>`
+         + `<span class="v ${m>1?"up":m<1?"down":""}">×${Number(m).toFixed(2)}</span></div>`;
+  }).join("")
+  + `<div class="total"><span>${r.manual ? "Расчётная ставка" : "Ставка"}</span><span class="v">${pc(r.auto_pct)}</span></div>`
+  + (r.manual ? `<div class="total"><span>Поставлено вручную</span>`
+      + `<span class="v ${applied < r.auto_pct ? "down" : "up"}">${pc(applied)}</span></div>` : "");
+
+  document.getElementById("checks").innerHTML = j.checks.map(c =>
+    `<div class="chk ${c.status}"><i class="dot"></i><div><div class="t">${esc(c.title)}</div>`
+    + `<div class="d">${esc(c.detail)}</div></div></div>`).join("");
+
+  const tips = j.recommendations || [];
+  window.__tips = tips;
+  document.getElementById("tips").innerHTML = tips.length
+    ? tips.map((t,i) => `<div class="tip"><span>${esc(t.text)}</span>`
+        + `<span class="save">${fmt(t.premium_delta)}</span>`
+        + `<button type="button" data-tip="${i}">применить</button></div>`).join("")
+    : `<p class="hint" style="margin:0">${S.source === "local"
+        ? "Сервер недоступен: подсказки считает движок, откройте экран через приложение."
+        : "Дешевле уже не сделать без потери защиты."}</p>`;
+
+  const ms = j.preventive_measures || [];
+  document.getElementById("msec").hidden = !ms.length;
+  document.getElementById("measures").innerHTML = ms.map(m =>
+    `<div class="measure"><b>${esc(m.measure)}</b>`
+    + `<span class="lbl ${m.mandatory?"must":""}">${m.mandatory ? "условие договора · " + m.deadline_days + " дн." : "рекомендация"}</span>`
+    + `<small>${esc(m.why)}${m.premium_delta != null ? " · " + fmt(m.premium_delta) + " сум к премии" : ""}</small></div>`).join("");
+
+  const vh = document.getElementById("valueHint"), sh = document.getElementById("sumHint");
+  if (vh) vh.textContent = fmt(S.value) + " сум";
+  if (sh) sh.textContent = fmt(S.sum) + " сум";
+  const note = document.getElementById("rateNote");
+  if (S.source === "local") note.textContent += " · расчёт в браузере, сервер не ответил";
+}
+
+/* ---------- распознавание по фотографии ---------- */
+let SAMPLE = null, IMG_LIMITS = null;
+window.claude?.use?.("sample")?.then?.(async s => {
+  SAMPLE = s;
+  if (s) IMG_LIMITS = (await s.limits().catch(() => null))?.images ?? null;
+  paintForm();
+}).catch(() => {});
+
+function optionsText(f){ return optionsOf(S.class_code, f).map(c => `${c.option_code} — ${c.option_name}`).join("; "); }
+
+async function analyzePhotos(){
+  if (!SAMPLE || !IMG_LIMITS || !S.photos.length) return;
+  S.photoNote = "Смотрю фотографии…"; paintForm();
+  const types = [...new Set(objectTypesOf(S.class_code))];
+  const prompt =
+`Ты помогаешь страховому сюрвейеру осмотреть объект по фотографиям.
+Определи по снимкам характеристики объекта и верни ТОЛЬКО JSON вида
+{"objectType":"…","construction":"…","activity":"…","protection":"…","wear":"…","observations":["…"],"confidence":"высокая|средняя|низкая"}
+
+Допустимые значения:
+objectType: ${types.join("; ")}
+construction: ${optionsText("construction")}
+activity: ${optionsText("activity")}
+protection: ${optionsText("protection")}
+wear: ${optionsText("wear")}
+
+Значения полей construction, activity, protection, wear — только коды из списков выше.
+observations — до пяти коротких наблюдений на русском о состоянии, видимых факторах риска
+(состояние кровли и проводки, горючие материалы, захламлённость, отсутствие огнетушителей,
+трещины, соседняя застройка). Если чего-то не видно на фото — не выдумывай, пиши, что не видно.`;
+  try {
+    const res = await SAMPLE.json(prompt, {images: S.photos.slice(0, IMG_LIMITS.maxCount), modelTier: "default"});
+    const applied = [];
+    const setIf = (key, label) => {
+      const val = res?.[key]; if (!val) return;
+      if (key === "objectType"){
+        if (!types.includes(val)) return;
+        S.objectType = val; applied.push({label, value: val}); return;
+      }
+      const opt = optionsOf(S.class_code, key).find(c => c.option_code === val);
+      if (!opt) return;
+      S.factors[key] = val; applied.push({label, value: opt.option_name});
+    };
+    setIf("objectType", "Тип объекта"); setIf("construction", "Конструкция");
+    setIf("activity", "Деятельность"); setIf("protection", "Защита"); setIf("wear", "Износ");
+    (res?.observations || []).slice(0, 5).forEach(o => applied.push({label: String(o), value: "наблюдение"}));
+    S.photoApplied = applied;
+    S.photoNote = applied.length
+      ? `Готово. Уверенность: ${String(res?.confidence || "не указана")}. Проверьте подставленные значения.`
+      : "По этим снимкам определить не удалось — заполните поля руками.";
+  } catch (e) {
+    S.photoNote = {not_granted:"Доступ к Claude не разрешён — заполните поля руками.",
+      images_unavailable:"В этом окне фотографии недоступны.",
+      image_rejected:"Файл не подошёл: нужен jpg или png поменьше.",
+      rate_limited:"Слишком много запросов подряд, попробуйте через минуту.",
+      invalid_json:"Ответ не удалось разобрать, попробуйте другие снимки."}[e?.code]
+      || "Не получилось распознать, заполните поля руками.";
+  }
+  paintForm(); schedule(0);
+}
+
+/* ---------- события ---------- */
+// агент поправил поле руками — значение больше не «из документа»
+function dropDocMark(key){
+  if (!S.fromDoc[key]) return;
+  delete S.fromDoc[key];
+  const el = document.getElementById("src-" + key);
+  if (el) el.classList.remove("on");
+}
+function setPath(k, val){
+  if (k.includes(".")){ const [a,b] = k.split("."); S[a][b] = val; }
+  else S[k] = val;
+}
+document.addEventListener("input", e => {
+  const t = e.target;
+  if (t.id === "pquery"){ S.query = t.value;
+    // перерисовываем только список, поле поиска не трогаем — курсор остаётся на месте
+    const box = document.getElementById("plist");
+    const tmp = document.createElement("div"); tmp.innerHTML = cardProduct();
+    box.innerHTML = tmp.querySelector("#plist").innerHTML;
+    return;
+  }
+  if (t.id === "manualRate"){ S.manual.rate = Number(String(t.value).replace(",", ".")); schedule(); return; }
+  if (t.id === "manualComment"){ S.manual.comment = t.value; return; }
+  // поля оценки стоимости: запоминаем, но форму не перерисовываем — курсор остаётся в поле
+  if (t.dataset.v){ S.val[t.dataset.v] = t.value; dropDocMark(t.dataset.v); return; }
+  const k = t.dataset.k;
+  if (k && t.type !== "checkbox"){
+    setPath(k, t.type === "number" ? Number(t.value) : t.value);
+    schedule();   // перерисовываем только панель расчёта, поле ввода остаётся как есть
+  }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset.factor){ S.factors[t.dataset.factor] = t.value; schedule(0); return; }
+  if (t.dataset.peril){ t.checked ? S.perils.add(t.dataset.peril) : S.perils.delete(t.dataset.peril); schedule(0); return; }
+  if (t.dataset.doc){ t.checked ? S.docs.add(t.dataset.doc) : S.docs.delete(t.dataset.doc); schedule(0); return; }
+  if (t.type === "checkbox" && t.dataset.k){ setPath(t.dataset.k, t.checked); schedule(0); return; }
+  if (t.dataset.k === "payer" || t.dataset.k === "objectType"){ schedule(0); return; }
+  if (t.dataset.rev){
+    const id = Number(t.dataset.rev);
+    if (t.checked){ if (S.rev.picked.length < 3 && !S.rev.picked.includes(id)) S.rev.picked.push(id); }
+    else S.rev.picked = S.rev.picked.filter(x => x !== id);
+    S.rev.note = "";
+    paintReviewers();       // перерисовываем только этот блок, форму не трогаем
+    return;
+  }
+  if (t.id === "revAgreement"){ applyAgreement(t.value); return; }
+  if (t.id === "manualOn"){ S.manual.on = t.checked; paintForm(); schedule(0); return; }
+  if (t.id === "manualReason"){ S.manual.reason = t.value; schedule(0); return; }
+  if (t.dataset.v){ S.val[t.dataset.v] = t.value; dropDocMark(t.dataset.v); return; }
+  if (t.id === "valKind"){
+    S.val.kind = t.value; S.val.result = null; S.val.error = "";
+    // сменили вид объекта — разбор прежнего документа к нему уже не относится
+    if (S.doc.kind && S.doc.kind !== docKind()){
+      S.doc = {kind:null, parsed:null, note:"", error:"", busy:false, file:null, recogBusy:false};
+      S.fromDoc = {};
+    }
+    repaintValue(); return;
+  }
+  if (t.id === "docInput"){ uploadDoc(t.files[0]); return; }
+  if (t.id === "photoInput"){
+    const files = [...t.files];
+    S.photos = files.slice(0, IMG_LIMITS?.maxCount ?? 4);   // для распознавания в опубликованном экране
+    S.photoApplied = [];
+    uploadPhotos(files);
+  }
+});
+document.addEventListener("toggle", e => {
+  if (e.target.id === "docsBox") S.docsOpen = e.target.open;
+}, true);
+document.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.prod){ selectProduct(b.dataset.prod); return; }
+  if (b.id === "pickToggle"){ S.pick = !S.pick; paintForm();
+    if (S.pick) document.getElementById("pquery")?.focus(); return; }
+  if (b.id === "photoRun"){ analyzePhotos(); return; }
+  if (b.dataset.delphoto){ deletePhoto(+b.dataset.delphoto); return; }
+  if (b.id === "valRun"){ runValuation(); return; }
+  if (b.id === "docRecog"){ recognizeDoc(); return; }
+  if (b.id === "copyLetter"){
+    const text = document.getElementById("letterText")?.textContent || "";
+    const note = document.getElementById("copyNote");
+    navigator.clipboard.writeText(text)
+      .then(() => { if (note) note.textContent = "Текст письма скопирован."; })
+      .catch(() => { if (note) note.textContent = "Скопировать не вышло — выделите текст и скопируйте вручную."; });
+    return;
+  }
+  if (b.dataset.tip){
+    const t = window.__tips[+b.dataset.tip]; if (!t?.patch) return;
+    if (t.patch.factors) Object.assign(S.factors, t.patch.factors);
+    if (t.patch.remove_peril) S.perils.delete(t.patch.remove_peril);
+    if (t.patch.sum_insured) S.sum = t.patch.sum_insured;
+    paintForm(); schedule(0); return;
+  }
+  if (b.id === "toUnderwriter"){
+    b.textContent = "Отправлено андеррайтеру";
+    setTimeout(() => { b.textContent = "Андеррайтеру"; }, 2200);
+  }
+});
+
+/* Сохранение расчёта на сервере. Обработчик ставится в фазе перехвата раньше моста из app/main.py,
+   потому что мост отправляет жёстко класс 8 и факторы класса 8, а здесь класс берётся у продукта. */
+document.getElementById("toContract").addEventListener("click", async e => {
+  e.stopImmediatePropagation();
+  const b = e.currentTarget;
+  const body = {...requestBody(), region: S.region, branch: "экран агента"};
+  b.textContent = "Сохраняю…";
+  try {
+    const r = await fetch("/requests", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+    const j = await r.json();
+    b.textContent = r.ok ? "Сохранено, запрос № " + j.request_id : "Не сохранилось: " + (j.detail || r.status);
+    if (r.ok){
+      S.requestId = j.request_id;     // теперь фотографии есть куда прикреплять
+      loadPhotos();
+      // состав согласующих отправляем отдельно: запрос уже сохранён, даже если состав не приняли
+      const revNote = await sendReviewers(j.request_id);
+      S.rev.note = revNote;
+      paintReviewers();
+      let a = document.getElementById("pdfLink");
+      if (!a){ a = document.createElement("a"); a.id = "pdfLink"; a.target = "_blank";
+        a.style.cssText = "display:block;text-align:center;padding:0 20px 14px;font-weight:600;color:var(--accent)";
+        document.querySelector(".summary .actions").after(a); }
+      a.href = "/requests/" + j.request_id + "/proposal.pdf";
+      a.textContent = "Скачать предложение клиенту (PDF) →";
+    }
+  } catch (err){ b.textContent = "Сервер не ответил — расчёт не сохранён"; }
+  setTimeout(() => { b.textContent = "В договор"; }, 4000);
+}, true);
+
+paintForm();
+calc();
+loadNorms();
+loadReviewers();
+// номер запроса можно передать в адресе: /ui?request=41 — тогда фотографии видны сразу
+const rq = Number(new URLSearchParams(location.search).get("request"));
+if (rq){ S.requestId = rq; repaintPhotos(); loadPhotos(); }
+</script>

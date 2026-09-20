@@ -1,0 +1,303 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Законодательство — сюрвейер INSON</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2BC46E;--accent-dim:#1E8F52;
+  --gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 48px;min-width:0;max-width:1080px}
+h1{font-size:22px;font-weight:800;margin:0}
+.sub{color:var(--muted);font-size:12.5px;margin:5px 0 16px;max-width:760px}
+h2{font-size:13px;margin:0 0 2px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+a{color:var(--ink)}
+
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 14px}
+.tile b{display:block;font:600 17px/1.3 var(--mono);margin-top:2px}
+.tile span{font-size:11px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.tile.alarm b{color:var(--warn)}
+
+.review{border:1px solid var(--warn);border-radius:12px;padding:14px 16px;margin:0 0 16px;background:color-mix(in srgb,var(--warn) 7%,transparent)}
+.review h2{color:var(--warn)}
+.review p{margin:6px 0 10px;font-size:12.5px;color:var(--ink);max-width:720px}
+.review ul{margin:0;padding-left:18px;font-size:12.5px}
+.review li{margin-bottom:5px}
+.review li b{font-family:var(--mono);font-weight:600}
+.review li span{color:var(--muted)}
+
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 6px}
+select,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+button{cursor:pointer;font-weight:600}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+button:disabled{opacity:.5;cursor:default}
+.hint{font-size:11.5px;color:var(--muted);margin:0 0 14px;max-width:720px}
+.msg{font-size:12px;color:var(--gold)}
+
+.feed{display:flex;flex-direction:column;gap:10px}
+.ev{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;padding:12px 15px}
+.ev.k-редакция{border-left-color:var(--warn)}
+.ev.k-документ{border-left-color:var(--accent-dim)}
+.ev.k-новость{border-left-color:var(--line)}
+.ev .top{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11.5px;color:var(--muted);margin-bottom:6px}
+.ev .when{font-family:var(--mono)}
+.ev .title{font-size:14px;font-weight:700;line-height:1.4;margin:0 0 4px}
+.ev .title a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--accent-dim)}
+.ev .title a:hover{color:var(--accent)}
+.ev .noturl{font-size:11.5px;color:var(--muted)}
+.ev .said{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.ev .said .mark{display:inline-block;font-size:11.5px;font-weight:700;color:var(--gold);border:1px solid var(--gold);border-radius:6px;padding:2px 8px;margin-bottom:6px}
+.ev .said p{margin:0;font-size:12.5px;color:var(--muted);white-space:pre-line}
+.ev .note{margin-top:6px;font-size:11.5px;color:var(--muted);font-family:var(--mono)}
+
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 7px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.tag.src-lex{color:var(--accent);border-color:var(--accent-dim)}
+.tag.src-napp{color:var(--gold);border-color:var(--gold)}
+.tag.warn{color:var(--warn);border-color:var(--warn)}
+.tag.stop{color:var(--stop);border-color:var(--stop)}
+.tag.new{color:var(--ink);border-color:var(--edge,#4A5057)}
+
+.empty{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;color:var(--muted);font-size:13px}
+
+section.block{margin-top:26px}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+td.m{font-family:var(--mono);white-space:nowrap;color:var(--muted)}
+td.name{max-width:430px}
+td.name a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+td.name a:hover{border-bottom-color:var(--accent-dim)}
+td.name .why{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.foot{margin-top:22px;font-size:11.5px;color:var(--muted);max-width:760px}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:16px}}
+</style>
+
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a>
+  <a href="/approvals">Согласования</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a>
+  <a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a>
+  <a href="/graph">Паутина знаний</a><a class="on" href="/law-feed">Законодательство</a><a href="/office">Офис агентов</a>
+  <a href="/admin/deploy">Запуск и обслуживание</a><a href="/docs">API</a>
+</aside>
+
+<main>
+  <h1>Законодательство</h1>
+  <p class="sub">Раз в сутки робот открывает страницы отслеживаемых актов на lex.uz, ленту новых документов и новости НАПП.
+    Он только приносит событие. Что менять в расчёте, решает юрист.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div id="review"></div>
+
+  <div class="bar">
+    <select id="kind"><option value="">Все виды событий</option></select>
+    <select id="src">
+      <option value="">Оба источника</option>
+      <option value="lex.uz">lex.uz</option>
+      <option value="napp.uz">napp.uz</option>
+    </select>
+    <button class="go" id="check">Проверить сейчас</button>
+    <span class="msg" id="msg"></span>
+  </div>
+  <p class="hint">Проверка идёт несколько минут: между обращениями к сайтам робот держит паузу 3 секунды, а страница кодекса
+    весит больше двух мегабайт. Страницу можно не закрывать — результат появится в ленте сам.</p>
+
+  <div class="feed" id="feed"><div class="empty">Загружаю ленту…</div></div>
+
+  <section class="block">
+    <h2>Что отслеживаем</h2>
+    <p class="hint" style="margin:4px 0 0">Реестр актов: по каждому робот хранит отпечаток текста и дату редакции.
+      Где адреса на lex.uz нет, робот не работает — это видно в столбце «Состояние».</p>
+    <div id="acts"><div class="empty" style="margin-top:8px">Загружаю реестр…</div></div>
+  </section>
+
+  <p class="foot">Источник нормы — всегда оригинал на lex.uz. Краткое изложение в ленте составила система: оно нужно,
+    чтобы понять, стоит ли открывать документ, и юридической силы не имеет.</p>
+</main>
+</div>
+
+<script>
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const el = id => document.getElementById(id);
+const DISCLAIMER = "Это изложение системы, оригинал по ссылке.";
+
+function when(s){ return String(s || "").replace("T", " ").slice(0, 16) || "—"; }
+function kindClass(k){
+  if (k === "новая редакция") return "k-редакция";
+  if (k === "новый документ") return "k-документ";
+  return "k-новость";
+}
+function srcTag(s){
+  const cls = s === "lex.uz" ? "src-lex" : s === "napp.uz" ? "src-napp" : "";
+  return `<span class="tag ${cls}">${esc(s || "источник не указан")}</span>`;
+}
+// Изложение приходит с плашкой в первой строке — показываем плашку отдельно, крупно.
+function summary(text){
+  let t = String(text || "").trim();
+  if (t.startsWith(DISCLAIMER)) t = t.slice(DISCLAIMER.length).trim();
+  if (!t) return "";
+  return `<div class="said"><span class="mark">${esc(DISCLAIMER)}</span><p>${esc(t)}</p></div>`;
+}
+
+let EVENTS = [], STATUS = {};
+
+function renderTiles(){
+  const acts = STATUS.acts || {};
+  const t = [
+    ["Последняя проверка", when(STATUS.last) , false],
+    ["Расписание", STATUS.schedule || "—", false],
+    ["Событий не разобрано", String(STATUS.unseen ?? "—"), (STATUS.unseen || 0) > 0],
+    ["Актов изменилось", String(STATUS.changed ?? "—"), (STATUS.changed || 0) > 0],
+    ["Актов под наблюдением", String(acts.total ?? "—"), false],
+  ];
+  el("tiles").innerHTML = t.map(([k, v, alarm]) =>
+    `<div class="tile${alarm ? " alarm" : ""}"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join("");
+}
+
+function renderReview(list){
+  if (!list || !list.length){ el("review").innerHTML = ""; return; }
+  el("review").innerHTML = `<div class="review">
+    <h2>Правила движка требуют пересмотра</h2>
+    <p>Акты, от которых зависят эти правила, изменились. Расчёты не остановлены — продажа идёт,
+      но ставка может опираться на старую норму. Юрист сверяет правило с новой редакцией и снимает пометку
+      (POST /rules/{код}/review-ok с объяснением).</p>
+    <ul>${list.map(r => `<li><b>${esc(r.code)}</b> — ${esc(r.name || "")}
+      ${r.legal_ref ? `<span> · ${esc(r.legal_ref)}</span>` : ""}
+      ${r.review_reason ? `<br><span>${esc(r.review_reason)}</span>` : ""}
+      ${r.review_since ? `<br><span>помечено ${esc(when(r.review_since))}</span>` : ""}</li>`).join("")}</ul>
+  </div>`;
+}
+
+function renderFeed(){
+  const src = el("src").value;
+  const items = EVENTS.filter(x => !src || x.source === src);
+  if (!items.length){
+    const last = STATUS.last ? `Последняя проверка — ${when(STATUS.last)}.` : "Робот ещё ни разу не проверял источники.";
+    const why = (el("kind").value || src) ? " По выбранным фильтрам ничего нет — снимите фильтры." : "";
+    el("feed").innerHTML = `<div class="empty">Событий пока нет. ${esc(last)}${esc(why)}</div>`;
+    return;
+  }
+  el("feed").innerHTML = items.map(x => `
+    <article class="ev ${kindClass(x.kind)}">
+      <div class="top">
+        <span class="when">${esc(when(x.created_at))}</span>
+        <span class="tag">${esc(x.kind)}</span>
+        ${srcTag(x.source)}
+        ${x.published_at ? `<span>опубликовано ${esc(x.published_at)}</span>` : ""}
+        ${x.act_code ? `<span>акт ${esc(x.act_code)}</span>` : ""}
+        ${x.seen ? "" : `<span class="tag warn">юрист не разбирал</span>`}
+      </div>
+      <p class="title">${x.url
+        ? `<a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.title)}</a>`
+        : esc(x.title)}</p>
+      ${x.url ? `<span class="noturl">Оригинал: <a href="${esc(x.url)}" target="_blank" rel="noopener">${esc(x.url)}</a></span>`
+              : `<span class="noturl">Ссылки на оригинал робот не получил.</span>`}
+      ${summary(x.summary)}
+      ${x.note ? `<div class="note">${esc(x.note)}</div>` : ""}
+    </article>`).join("");
+}
+
+function actStatusTag(s){
+  if (s === "изменился") return `<span class="tag warn">${esc(s)}</span>`;
+  if (s === "адрес не найден") return `<span class="tag stop">${esc(s)}</span>`;
+  if (s === "источник недоступен") return `<span class="tag stop">${esc(s)}</span>`;
+  return `<span class="tag">${esc(s || "—")}</span>`;
+}
+
+function renderActs(items){
+  if (!items.length){ el("acts").innerHTML = `<div class="empty" style="margin-top:8px">Реестр актов пуст.</div>`; return; }
+  el("acts").innerHTML = `<table>
+    <thead><tr><th>Акт</th><th>Вид</th><th>Важность</th><th>Редакция</th><th>Проверяли</th><th>Менялся</th><th>Состояние</th></tr></thead>
+    <tbody>${items.map(a => `<tr>
+      <td class="name">${a.lex_url
+        ? `<a href="${esc(a.lex_url)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
+        : esc(a.title)}
+        ${a.lex_url ? "" : (a.status === "следит юрист"
+          ? `<span class="why">Внутренний акт: на lex.uz его нет, изменения приносит юрист.</span>`
+          : `<span class="why">Адрес на lex.uz не установлен — робот эту страницу не смотрит, следить нужно вручную.</span>`)}
+        ${a.why ? `<span class="why">${esc(a.why)}</span>` : ""}</td>
+      <td>${esc(a.kind || "—")}</td>
+      <td>${esc(a.priority || "—")}</td>
+      <td class="m">${esc(a.redaction || "—")}</td>
+      <td class="m">${esc(when(a.last_checked_at))}</td>
+      <td class="m">${esc(a.last_changed_at ? when(a.last_changed_at) : "не менялся")}</td>
+      <td>${actStatusTag(a.status)}</td>
+    </tr>`).join("")}</tbody></table>`;
+}
+
+async function loadEvents(){
+  const kind = el("kind").value;
+  const r = await fetch("/law-events?limit=200" + (kind ? "&kind=" + encodeURIComponent(kind) : ""));
+  if (!r.ok) throw new Error("law-events " + r.status);
+  const d = await r.json();
+  EVENTS = d.items || [];
+  STATUS.unseen = d.unseen;
+  if (!el("kind").dataset.filled){
+    el("kind").insertAdjacentHTML("beforeend",
+      (d.kinds || []).map(k => `<option value="${esc(k)}">${esc(k)}</option>`).join(""));
+    el("kind").dataset.filled = "1";
+  }
+  renderReview(d.rules_to_review || []);
+  renderFeed();
+  renderTiles();
+}
+
+async function loadActs(){
+  const r = await fetch("/watched-acts");
+  if (!r.ok) throw new Error("watched-acts " + r.status);
+  const d = await r.json();
+  const st = d.status || {};
+  STATUS.last = st.last; STATUS.schedule = st.schedule; STATUS.changed = st.changed_acts;
+  if (STATUS.unseen === undefined) STATUS.unseen = st.unseen_events;
+  STATUS.acts = {total: d.count};
+  STATUS.running = st.running;
+  renderActs(d.items || []);
+  renderTiles();
+  if (st.error) el("msg").textContent = "Прошлая проверка закончилась ошибкой: " + st.error;
+}
+
+function fail(where, e){
+  el(where).innerHTML = `<div class="empty">Данные не пришли: ${esc(e.message || e)}.
+    Проверьте, что сервер запущен, и обновите страницу.</div>`;
+}
+
+el("kind").onchange = () => loadEvents().catch(e => fail("feed", e));
+el("src").onchange = renderFeed;
+
+el("check").onclick = async () => {
+  const b = el("check");
+  b.disabled = true;
+  el("msg").textContent = "Робот обходит сайты. Это несколько минут — пауза 3 секунды между обращениями.";
+  try{
+    const r = await fetch("/lawwatch/check", {method: "POST"});
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || ("ответ сервера " + r.status));
+    if (d["пропущено"]){
+      el("msg").textContent = "Проверка уже идёт — дождитесь её конца и обновите страницу.";
+    } else {
+      const ch = d["изменилось"] || 0, down = d["недоступно источников"] || 0, n = d["проверено актов"] || 0;
+      el("msg").textContent = `Проверка закончена: актов просмотрено ${n}, изменилось ${ch}`
+        + (down ? `, источников не ответило ${down}` : "") + ".";
+    }
+    await loadActs(); await loadEvents();
+  }catch(e){
+    el("msg").textContent = "Проверка не прошла: " + (e.message || e) + ". Повторите позже или посмотрите журнал сервера.";
+  }finally{ b.disabled = false; }
+};
+
+loadActs().catch(e => fail("acts", e));
+loadEvents().catch(e => fail("feed", e));
+</script>
+<script src="/theme.js"></script>

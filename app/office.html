@@ -1,0 +1,844 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Офис агентов</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+:root[data-theme="light"]{--paper:#F5F7F9;--card:#fff;--ink:#101C26;--muted:#5C6C78;--line:#DDE4E9;--soft:#EDF1F4;--accent:#1E9E56;--accent-dim:#167A43;--gold:#B8860B;--stop:#C4453C}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.live{font-size:11px;font-weight:700;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 9px}
+.live.on{color:var(--accent);border-color:var(--accent-dim)}
+.sub{color:var(--muted);font-size:12.5px;margin:4px 0 14px;max-width:80ch}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:0 0 10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.scene{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;overflow:hidden}
+.stage{position:relative;width:100%;aspect-ratio:1024/640}
+canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:4px}
+.layer{position:absolute;inset:0;pointer-events:none;font-family:var(--sans)}
+
+/* доска задач заказчика — HTML поверх канваса, чтобы текст читался */
+#board{position:absolute;left:28.1%;top:2.2%;width:43.8%;height:28.5%;background:#F7F8F5;color:#141A20;
+  border:2px solid #2A3138;box-shadow:0 3px 0 rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;pointer-events:auto}
+#board .bh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 20px 3px;border-bottom:2px solid #C9D2D8}
+#board .bh b{font:800 clamp(9px,1.35vw,13px)/1.2 var(--sans);letter-spacing:.01em}
+#board .bh span{font:600 clamp(7px,1vw,10px)/1.2 var(--sans);color:#5C6C78}
+#board .bl{flex:1;overflow:hidden;padding:2px 8px 4px}
+#board .row{border-bottom:1px dashed #D5DCE1;padding:2px 0}
+#board .row:last-child{border-bottom:0}
+#board .row .t{font:700 clamp(7.5px,1.05vw,11px)/1.25 var(--sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#board .row .m{font:600 clamp(6.5px,.92vw,9.5px)/1.25 var(--sans);color:#57646E;display:flex;gap:6px;flex-wrap:nowrap;overflow:hidden;white-space:nowrap}
+#board .row .m u{text-decoration:none;color:#1E7A50}
+#board .row .m s{text-decoration:none;color:#A8611E}
+#board .more{font:600 clamp(6.5px,.92vw,9.5px)/1.3 var(--sans);color:#7A8590;padding:2px 0 0}
+#board .bf{flex:0 0 auto;font:600 clamp(6.5px,.92vw,9.5px)/1.3 var(--sans);color:#7A8590;padding:1px 8px 3px;border-top:1px dashed #D5DCE1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#board .bf:empty{display:none}
+#board .pin{position:absolute;width:6px;height:6px;border-radius:50%;background:#C6553F;box-shadow:0 1px 0 #7E2A26}
+#ask{position:absolute;left:50%;top:33.5%;transform:translateX(-50%);max-width:40%;background:#F4E7C6;color:#3A2C10;border:2px solid #2A3138;
+  box-shadow:0 2px 0 rgba(0,0,0,.35);padding:3px 7px;font:700 clamp(7px,.95vw,10.5px)/1.25 var(--sans);display:none}
+#ask.on{display:block}
+
+/* цифровые часы под настенными */
+#dig{position:absolute;left:12.5%;top:17.2%;transform:translateX(-50%);text-align:center;background:#1B2129;border:2px solid #0D1116;
+  box-shadow:0 2px 0 #0D1116;padding:1px 6px;color:#EAF0F4}
+#dig b{display:block;font:700 clamp(8px,1.15vw,12px)/1.2 var(--mono);letter-spacing:.04em}
+#dig span{display:block;font:600 clamp(6px,.8vw,8.5px)/1.2 var(--sans);color:#93A3AF}
+
+.plate{position:absolute;transform:translate(-50%,-100%);background:#1B2129;color:#EAF0F4;border:2px solid #0D1116;box-shadow:0 2px 0 #0D1116;padding:1px 6px;white-space:nowrap;line-height:1.15;text-align:center}
+.plate b{display:block;font:700 clamp(7px,.92vw,10.5px) var(--sans)}
+.plate i{display:block;height:3px;margin:1px -6px -1px}
+.bub{position:absolute;transform:translate(-50%,-100%);width:max-content;max-width:150px;background:#F7F4EA;color:#1A2027;border:2px solid #0D1116;box-shadow:0 2px 0 #0D1116;padding:3px 6px;
+  font:600 clamp(7px,.92vw,10.5px)/1.25 var(--sans);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;transition:opacity .25s;z-index:3}
+.bub.off{opacity:0}
+.bub:after{content:"";position:absolute;left:50%;bottom:-6px;margin-left:-3px;width:6px;height:5px;background:#F7F4EA;border-left:2px solid #0D1116;border-right:2px solid #0D1116}
+
+/* полки: наведение показывает, что на них стоит */
+.hot{position:absolute;pointer-events:auto;cursor:help}
+.hot:hover{background:rgba(255,255,255,.10);outline:2px solid rgba(255,255,255,.35)}
+#tip{position:absolute;display:none;z-index:6;max-width:260px;background:var(--card);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;box-shadow:0 8px 24px rgba(0,0,0,.45);font:12px/1.4 var(--sans)}
+#tip b{display:block;font-size:12px;margin-bottom:3px}
+#tip ul{margin:0;padding-left:14px}#tip li{margin:1px 0;color:var(--muted);font-size:11.5px}
+
+.side{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.card h2{font-size:13px;margin:0 0 8px}
+.new{display:flex;gap:6px}
+input,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:7px 10px}
+input{flex:1;min-width:0;font-size:13px}
+button{cursor:pointer;font-weight:600;white-space:nowrap}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+.msg{font-size:11.5px;color:var(--muted);margin:6px 0 0;min-height:16px}
+.task{border-top:1px solid var(--line);padding:8px 0 4px;font-size:12.5px}
+.task:first-of-type{border-top:0}
+.task b{font-weight:700}
+.task .sub2{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:11.5px;padding:2px 0 2px 10px}
+.st{font:600 10.5px var(--mono);white-space:nowrap}
+.st.work{color:var(--accent)}.st.new{color:var(--gold)}.st.ask{color:var(--stop)}.st.done{color:var(--muted)}
+.empty{color:var(--muted);font-size:12px}
+table{width:100%;table-layout:fixed;border-collapse:collapse;font-size:12.5px}td{padding:5px 6px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+td.ts{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap;width:78px}td.who{font-weight:600;width:84px}.ent{display:block;color:var(--muted);font-family:var(--mono);font-size:10.5px}
+tr:last-child td{border-bottom:0}
+@media (max-width:1080px){.wrap{grid-template-columns:1fr}}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:14px}.plate{display:none}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/law-feed">Законодательство</a><a class="on" href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Офис агентов <span class="live" id="live">обновляется каждые 10 секунд</span></h1>
+  <p class="sub">Семь агентов в одной комнате. Часы на стене идут по Ташкенту, на доске — ваши задачи: кто делал, когда сделал и сколько времени ушло.
+     Кто работает — сидит за столом и печатает; кто передаёт работу — подходит к коллеге; юрист за актом идёт к полке. Наведите курсор на полку — увидите, что на ней стоит.</p>
+  <div class="legend"><span><i style="background:#33D08C"></i>работает</span><span><i style="background:#9CC6E8"></i>сделал</span><span><i style="background:#8E9BA6"></i>ожидает задачи</span></div>
+  <div class="wrap">
+    <div class="scene">
+      <div class="stage">
+        <canvas id="cv" width="1024" height="640" aria-label="Офис: семь рабочих мест, часы, доска задач и книжные полки"></canvas>
+        <div class="layer" id="layer">
+          <div id="dig"><b>--:--</b><span>&nbsp;</span></div>
+          <div id="board">
+            <div class="bh"><b>Задачи заказчика</b><span id="bcnt">…</span></div>
+            <div class="bl" id="blist"></div>
+            <div class="bf" id="bmore"></div>
+            <div class="pin" style="left:6px;top:6px"></div><div class="pin" style="right:6px;top:6px"></div>
+          </div>
+          <div id="ask"></div>
+        </div>
+        <div id="tip"></div>
+      </div>
+    </div>
+    <div class="side">
+      <div class="card">
+        <h2>Поставить задачу</h2>
+        <div class="new"><input id="ti" placeholder="Например: пересчитать ставку по складам" maxlength="200"><button class="go" id="add">Отдать в работу</button></div>
+        <p class="msg" id="msg">Руководитель сам разберёт задачу на подзадачи и раздаст их агентам.</p>
+      </div>
+      <div class="card"><h2>Задачи в работе</h2><div id="tasks"><p class="empty">загрузка…</p></div></div>
+      <div class="card"><h2>Журнал офиса</h2><table id="journal"><tr><td class="ts">загрузка…</td></tr></table></div>
+    </div>
+  </div>
+</main></div>
+<script>
+"use strict";
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cut=(s,n)=>{s=String(s??"");return s.length>n?s.slice(0,n-1)+"…":s;};
+
+/* ---------- время: Ташкент, UTC+5 ---------- */
+const TK=5*3600*1000;
+const tkNow=()=>new Date(Date.now()+TK);                 // читаем через getUTC* — это ташкентские значения
+const naive=s=>s?new Date(String(s).replace(" ","T")+"Z"):null;   // метки сервера — ташкентское настенное время
+const p2=n=>String(n).padStart(2,"0");
+const hhmm=d=>d?p2(d.getUTCHours())+":"+p2(d.getUTCMinutes()):"";
+const MON=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+const DOW=["воскресенье","понедельник","вторник","среда","четверг","пятница","суббота"];
+const mins=ms=>Math.max(0,Math.round(ms/60000));
+const spent=m=>m>=90?Math.floor(m/60)+" ч "+(m%60)+" мин":m+" мин";
+const fmt=ts=>{const d=naive(ts);return d?p2(d.getUTCDate())+"."+p2(d.getUTCMonth()+1)+" "+hhmm(d):"";};
+
+/* ---------- геометрия сцены ---------- */
+const T=16, COLS=32, ROWS=20, W=COLS*T, H=ROWS*T, SC=2, WALL=7;   // 512x320 -> 1024x640
+const cv=document.getElementById("cv"), ctx=cv.getContext("2d");
+ctx.imageSmoothingEnabled=false;
+const bg=document.createElement("canvas"); bg.width=W; bg.height=H;
+const bx=bg.getContext("2d");
+const blocked=new Uint8Array(COLS*ROWS);
+const block=(c,r)=>{if(c>=0&&c<COLS&&r>=0&&r<ROWS)blocked[r*COLS+c]=1};
+const free=(c,r)=>c>=0&&c<COLS&&r>=WALL&&r<ROWS&&!blocked[r*COLS+c];
+const px=(g,x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))};
+const shade=(hex,d)=>{const n=parseInt(hex.slice(1),16);const f=v=>Math.max(0,Math.min(255,v+d)).toString(16).padStart(2,"0");
+  return "#"+f(n>>16)+f((n>>8)&255)+f(n&255);};
+
+const C={
+  wall:"#DED0B6", wallSeam:"#D3C3A5", dado:"#A98A61", skirt:"#6E5334",
+  floorA:"#C59A64", floorB:"#BB8E58", plank:"#A87B49", plankLt:"#D2AB79",
+  rug:"#2F4E85", rugDk:"#2A4474", rugLt:"#3E5F99", rugEdge:"#1F3358",
+  top:"#C9A97C", topLt:"#DCC199", topDk:"#9C7E55", metal:"#39424B", metalLt:"#525D68",
+  bez:"#1B2127", scrOff:"#121A21", scrCalm:"#9EC4E3", scrOn:"#2F6F5C", scrTxt:"#6DE3B4",
+  chair:"#39434D", chairLt:"#4C5865", wood:"#7C5533", woodLt:"#95693F", woodDk:"#5B3C22",
+  ink:"#11161B", paper:"#F4F1E6", glass:"#9FD5E8"
+};
+
+/* столы: 5 клеток, стул под столом (c+2, r+1) */
+const DESKS=[
+  {code:"lead",    name:"Руководитель", c:1,  r:11},
+  {code:"law",     name:"Юрист",        c:8,  r:11},
+  {code:"data",    name:"Статистик",    c:16, r:11},
+  {code:"actuary", name:"Актуарий",     c:23, r:11},
+  {code:"backend", name:"Разработчик",  c:4,  r:16},
+  {code:"ui",      name:"Дизайнер",     c:12, r:16},
+  {code:"reviewer",name:"Контролёр",    c:20, r:16}
+];
+const TAG={lead:"#E2B44D",law:"#8EA9FF",data:"#2ED3A2",actuary:"#F2A541",backend:"#B8C94F",ui:"#C597F0",reviewer:"#EE8272"};
+const SEAT={}; DESKS.forEach(d=>SEAT[d.code]={c:d.c+2,r:d.r+1});
+const NAME={}; DESKS.forEach(d=>NAME[d.code]=d.name);
+
+/* внешность: каждый узнаётся по силуэту, а не по цвету пятна */
+const LOOK={
+  lead:    {skin:"#EFCDA8",hair:"#2E2119",style:"short", cloth:"#2C3A58",cloth2:"#1E2941",shirt:"#EEF2F6",tie:"#C8A23C",jacket:1,pants:"#22293A",prop:null},
+  law:     {skin:"#F0D3B0",hair:"#3E2C1F",style:"side",  cloth:"#4A5A93",cloth2:"#39477A",shirt:"#E8EDF8",tie:"#8EA9FF",jacket:1,pants:"#2B3350",prop:"folder"},
+  data:    {skin:"#E9C79F",hair:"#241C18",style:"short", cloth:"#2C7E66",cloth2:"#216354",shirt:null,tie:null,jacket:0,pants:"#2A3138",glasses:1,prop:null},
+  actuary: {skin:"#F2D4AE",hair:"#6A4728",style:"bald",  cloth:"#A9702C",cloth2:"#875722",shirt:"#F1EAD8",tie:"#7C5533",jacket:0,pants:"#3A3026",prop:"mug"},
+  backend: {skin:"#E7C39B",hair:"#2B2A26",style:"hood",  cloth:"#6F7A34",cloth2:"#59632A",shirt:null,tie:null,jacket:0,pants:"#2F343A",phones:1,prop:null},
+  ui:      {skin:"#F3D6B5",hair:"#5E3A63",style:"tail",  cloth:"#8C5FB2",cloth2:"#6F4A90",shirt:null,tie:null,jacket:0,pants:"#33303C",prop:"tablet"},
+  reviewer:{skin:"#EACCA6",hair:"#7C736A",style:"short", cloth:"#9E4A40",cloth2:"#803A32",shirt:"#F0EDE6",tie:null,jacket:0,pants:"#33302E",glasses:1,prop:"clip"}
+};
+
+/* полки у стены: четыре стеллажа по 4 клетки */
+const CASES=[{c:1,groups:["Законы"]},{c:5,groups:["Акты НАПП"]},{c:23,groups:["Компания","Статистика"]},{c:27,groups:["Методология","Заметки"]}];
+const SHELF_STAND={"Законы":{c:2,r:9},"Акты НАПП":{c:6,r:9},"Компания":{c:24,r:9},"Статистика":{c:25,r:9},"Методология":{c:28,r:9},"Заметки":{c:29,r:9}};
+const MEET={c:15,r:7};                   // круглый столик для разговоров
+const BOARD_SPOT={c:16,r:9};             // место под доской
+
+/* ---------- фон ---------- */
+function drawWall(){
+  px(bx,0,0,W,WALL*T,C.wall);
+  for(let x=0;x<W;x+=32)px(bx,x,0,1,WALL*T-12,C.wallSeam);
+  px(bx,0,96,W,2,shade(C.wall,-22));
+  px(bx,0,98,W,8,C.dado);
+  for(let x=0;x<W;x+=6)px(bx,x,98,1,8,shade(C.dado,-18));
+  px(bx,0,106,W,6,C.skirt);
+  px(bx,0,112,W,2,shade(C.skirt,-18));
+}
+function drawFloor(){
+  for(let r=WALL;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const x=c*T,y=r*T;
+    px(bx,x,y,T,T,(r%2)?C.floorA:C.floorB);
+    px(bx,x,y,T,1,C.plankLt);
+    px(bx,x,y+T-1,T,1,C.plank);
+    const off=(r%2)?0:8;
+    px(bx,x+off,y,1,T,C.plank);
+  }
+  // ковёр в проходе между рядами столов
+  const r0=13,r1=15,c0=2,c1=29;
+  for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+    const x=c*T,y=r*T;
+    px(bx,x,y,T,T,(c+r)%2?C.rug:C.rugDk);
+    px(bx,x+4,y+6,2,2,C.rugLt); px(bx,x+11,y+12,2,2,C.rugLt);
+    if(c===c0)px(bx,x,y,2,T,C.rugEdge); if(c===c1)px(bx,x+T-2,y,2,T,C.rugEdge);
+    if(r===r0)px(bx,x,y,T,2,C.rugEdge); if(r===r1)px(bx,x,y+T-2,T,2,C.rugEdge);
+  }
+}
+function drawWindow(){
+  const x=392,y=8,w=108,h=48;
+  px(bx,x-3,y-3,w+6,h+6,"#6D5638"); px(bx,x-1,y-1,w+2,h+2,"#8A6C46");
+  px(bx,x,y,w,h,"#7EC8E8");
+  px(bx,x,y,w,18,"#A9DCF0");
+  px(bx,x+80,y+7,10,10,"#FBE9A8");                       // солнце
+  for(let i=0;i<7;i++){                                   // силуэт города
+    const bw=8+((i*5)%9), bh=10+((i*7)%16);
+    px(bx,x+4+i*15,y+h-bh,bw,bh,"#5E86A8");
+    for(let j=2;j<bh-2;j+=4)for(let k=1;k<bw-1;k+=3)px(bx,x+5+i*15+k,y+h-bh+j,1,2,"#8FB6D2");
+  }
+  px(bx,x+w/2-1,y,2,h,"#8A6C46"); px(bx,x,y+h/2-1,w,2,"#8A6C46");
+}
+function bookcase(cs){
+  const x=cs.c*T, y=80, w=4*T, h=64;
+  px(bx,x,y,w,h,C.wood);
+  px(bx,x,y,w,4,C.woodLt); px(bx,x,y+h-5,w,5,C.woodDk);
+  px(bx,x,y,3,h,C.woodDk); px(bx,x+w-3,y,3,h,C.woodDk);
+  cs.rows=[];
+  for(let s=0;s<3;s++){
+    const sy=y+6+s*19;
+    px(bx,x+3,sy+16,w-6,3,C.woodDk);
+    cs.rows.push({x:x+4,y:sy,w:w-8,h:16});
+  }
+  for(let i=0;i<4;i++){block(cs.c+i,7);block(cs.c+i,8);}
+}
+function drawSpines(){                                   // корешки: рисуем по данным /office/shelves
+  const pal=["#C6553F","#3F7FC6","#D8B341","#4FA86A","#9E5FB4","#DE8A4A","#5C8FA8","#B4423F"];
+  for(const cs of CASES){
+    // делим полки стеллажа между группами: одна группа — три полки, две группы — 2 и 1
+    const plan = cs.groups.length===1 ? [cs.groups[0],cs.groups[0],cs.groups[0]] : [cs.groups[0],cs.groups[0],cs.groups[1]];
+    const used={};
+    cs.rows.forEach((row,i)=>{
+      const g=plan[i], all=(SHELVES[g]||[]);
+      const same=plan.filter(x=>x===g).length, idx=(used[g]=(used[g]||0)+1)-1;
+      const from=Math.floor(all.length*idx/same), to=Math.floor(all.length*(idx+1)/same);
+      const part=all.slice(from,to);
+      let bxp=row.x, n=0;
+      while(bxp<row.x+row.w-3&&n<part.length){
+        const bw=3+(n%3), bh=row.h-((n%2)?2:0);
+        px(bx,bxp,row.y+(row.h-bh),bw,bh,pal[(n+i*3)%pal.length]);
+        px(bx,bxp,row.y+(row.h-bh)+2,bw,1,"#F0E7D6");
+        px(bx,bxp,row.y+row.h-3,bw,1,shade(pal[(n+i*3)%pal.length],-30));
+        bxp+=bw+1; n++;
+      }
+      if(n===0)px(bx,row.x,row.y+row.h-3,row.w,2,shade(C.wood,-12));
+    });
+  }
+}
+function meetTable(){
+  const x=MEET.c*T+4,y=MEET.r*T+10;
+  px(bx,x+6,y+10,10,10,C.metal); px(bx,x+2,y+18,18,3,C.metal);
+  px(bx,x,y,22,14,"#D8C6A6"); px(bx,x,y,22,3,"#EFE2C6"); px(bx,x,y+12,22,2,"#B39C77");
+  px(bx,x+4,y+4,6,4,C.paper); px(bx,x+13,y+5,5,5,"#5FA89A");
+  block(MEET.c,MEET.r);block(MEET.c+1,MEET.r);block(MEET.c,MEET.r+1);block(MEET.c+1,MEET.r+1);
+}
+function plant(c,r){
+  const x=c*T+2,y=r*T-4;
+  px(bx,x+4,y+12,4,6,"#3F7A46");
+  px(bx,x+3,y,6,5,"#4FA860"); px(bx,x,y+4,12,6,"#3D8E4E"); px(bx,x+4,y+9,4,4,"#2F6B3C");
+  px(bx,x+1,y+16,10,8,"#A85C38"); px(bx,x+1,y+16,10,2,"#C4764B");
+  block(c,r);
+}
+function cooler(c,r){
+  const x=c*T+3,y=r*T-6;
+  px(bx,x,y,11,12,"#8FD0E8"); px(bx,x+1,y+1,9,10,"#BEE8F5");
+  px(bx,x-1,y+12,13,16,"#DCE3E8"); px(bx,x+3,y+17,5,4,C.metal); px(bx,x,y+26,13,2,"#AEB8C0");
+  block(c,r);
+}
+function coffee(c,r){
+  const x=c*T+2,y=r*T-8;
+  px(bx,x,y,13,26,"#2E343A"); px(bx,x,y,13,3,"#454D55");
+  px(bx,x+2,y+4,9,7,"#141A20"); px(bx,x+3,y+5,4,2,"#6DE3B4");
+  px(bx,x+3,y+14,7,6,"#8A939B"); px(bx,x+4,y+15,5,4,"#3A2A1E");
+  block(c,r);
+}
+/* современный стол: тонкая столешница, монитор на подставке, клавиатура, мышь */
+function desk(d){
+  const x=d.c*T, y=d.r*T, w=5*T;
+  const mx=x+w/2-19, my=y-30;
+  px(bx,mx+15,my+22,8,6,C.metal); px(bx,mx+10,my+27,18,3,C.metalLt);   // подставка
+  px(bx,mx,my,38,23,C.bez); px(bx,mx+1,my+1,36,19,"#0C1117");          // корпус и рамка
+  px(bx,mx+8,my+20,22,2,"#1B7A5E");                                     // светящаяся полоска
+  px(bx,x,y-6,w,9,C.top); px(bx,x,y-6,w,2,C.topLt); px(bx,x,y+1,w,2,C.topDk);
+  px(bx,x+3,y+3,3,12,C.metal); px(bx,x+w-6,y+3,3,12,C.metal);           // тонкие ножки
+  px(bx,x+3,y+14,w-6,2,shade(C.metal,-10));
+  px(bx,x+w/2-16,y-4,30,6,"#30383F"); px(bx,x+w/2-15,y-3,28,1,"#4B545D"); // клавиатура
+  for(let i=0;i<9;i++)px(bx,x+w/2-14+i*3,y-2,2,1,"#5D6771");
+  px(bx,x+w/2+18,y-4,5,6,"#30383F"); px(bx,x+w/2+19,y-3,3,2,"#5D6771");   // мышь
+  px(bx,x+6,y-5,6,7,C.paper); px(bx,x+7,y-3,4,1,"#AFBAC2");               // бумаги
+  px(bx,x+w-16,y-5,5,6,"#E7EEF2"); px(bx,x+w-12,y-3,2,2,"#E7EEF2");       // кружка
+  for(let i=0;i<5;i++)block(d.c+i,d.r);
+  d.screen={x:mx+2,y:my+2,w:34,h:17};
+  d.deskY=y;
+}
+function buildBackground(){
+  bx.clearRect(0,0,W,H);
+  drawWall(); drawFloor(); drawWindow();
+  CASES.forEach(bookcase);
+  meetTable();
+  cooler(21,8); coffee(10,8);
+  plant(0,19); plant(31,19); plant(31,12); plant(0,12);
+  DESKS.forEach(desk);
+}
+
+/* ---------- персонажи ---------- */
+const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function head(g,x,y,L,dir,blink,talk){
+  // y — верх головы, голова 12x12
+  px(g,x-6,y,12,12,L.skin);
+  px(g,x-6,y+11,12,1,shade(L.skin,-26));
+  const hair=L.hair;
+  if(L.style==="hood"){
+    px(g,x-7,y-2,14,9,L.cloth2); px(g,x-7,y+5,2,6,L.cloth2); px(g,x+5,y+5,2,6,L.cloth2);
+  }else{
+    px(g,x-6,y-2,12,6,hair);
+    if(L.style!=="bald")px(g,x-7,y+1,1,5,hair),px(g,x+6,y+1,1,5,hair);
+    if(L.style==="bald"){px(g,x-6,y-2,12,3,hair);px(g,x-7,y+1,1,2,hair);px(g,x+6,y+1,1,2,hair);}
+    if(L.style==="side")px(g,x-6,y+2,4,3,hair);
+    if(L.style==="tail"){px(g,x-8,y+2,2,10,hair);px(g,x+6,y+2,2,10,hair);px(g,x-2,y+11,5,4,hair);}
+  }
+  if(L.phones){px(g,x-8,y+2,2,6,"#2A3138");px(g,x+6,y+2,2,6,"#2A3138");px(g,x-7,y-3,14,2,"#2A3138");}
+  if(dir==="up")return;
+  const s=dir==="left"?-2:dir==="right"?2:0;
+  if(blink){px(g,x-4+s,y+6,3,1,shade(L.skin,-40)); px(g,x+2+s,y+6,3,1,shade(L.skin,-40));}
+  else{
+    if(dir!=="right")px(g,x-4+s,y+5,2,2,C.ink);
+    if(dir!=="left") px(g,x+2+s,y+5,2,2,C.ink);
+  }
+  if(L.glasses){
+    px(g,x-5+s,y+4,4,4,"#DCE6EC"); px(g,x+1+s,y+4,4,4,"#DCE6EC");
+    px(g,x-5+s,y+4,4,1,"#2A3138"); px(g,x+1+s,y+4,4,1,"#2A3138"); px(g,x-1+s,y+5,2,1,"#2A3138");
+    if(!blink){px(g,x-4+s,y+5,2,2,C.ink); px(g,x+2+s,y+5,2,2,C.ink);}
+  }
+  px(g,x-1+s,y+9,talk?3:2,talk?2:1,talk?"#8A4A46":shade(L.skin,-40));
+}
+function torsoStand(g,x,y,L,dir,sw){
+  // y — верх корпуса, 15 высоты
+  px(g,x-8,y,16,15,L.cloth);
+  px(g,x-8,y,16,2,shade(L.cloth,18));
+  if(L.jacket){
+    px(g,x-3,y,6,12,L.shirt||"#EEF2F6");
+    px(g,x-8,y,5,13,L.cloth2); px(g,x+3,y,5,13,L.cloth2);
+    if(L.tie&&dir==="down"){px(g,x-1,y+1,2,9,L.tie);px(g,x-2,y+9,4,3,L.tie);}
+  }else if(L.shirt){
+    px(g,x-3,y,6,10,L.shirt);
+  }
+  px(g,x-11,y+1+(sw>0?1:0),3,10,L.cloth2);
+  px(g,x+8,y+1+(sw<0?1:0),3,10,L.cloth2);
+  px(g,x-11,y+11+(sw>0?1:0),3,3,L.skin);
+  px(g,x+8,y+11+(sw<0?1:0),3,3,L.skin);
+}
+function propStand(g,x,y,L,dir){
+  if(L.prop==="folder"){px(g,x+8,y+7,7,10,"#C6553F");px(g,x+8,y+9,7,1,"#EBD3C4");px(g,x+8,y+7,2,10,"#8F3A2C");}
+  if(L.prop==="mug"){px(g,x-15,y+9,5,6,"#E7EEF2");px(g,x-16,y+10,1,3,"#E7EEF2");px(g,x-15,y+9,5,2,"#C7D3DA");}
+  if(L.prop==="tablet"){px(g,x+8,y+6,8,11,"#2A3138");px(g,x+9,y+7,6,9,"#5FA8C8");}
+  if(L.prop==="clip"){px(g,x+8,y+6,8,11,"#C9B48A");px(g,x+9,y+8,6,1,"#6E6252");px(g,x+9,y+11,6,1,"#6E6252");px(g,x+10,y+5,4,2,"#8A939B");}
+}
+function drawStand(g,p){
+  const L=LOOK[p.code], x=Math.round(p.x), y=Math.round(p.y);   // y — пол под ногами
+  const moving=p.path.length>0;
+  const sw=moving?[0,1,0,-1][p.frame]:0;
+  const bob=moving&&(p.frame%2===1)?-1:0;
+  const legY=y-15, hip=y-15;
+  const lo=moving?[0,-2,0,2][p.frame]:0;
+  px(g,x-6,legY+(lo>0?1:0),5,15-(lo>0?1:0),L.pants);
+  px(g,x+1,legY+(lo<0?1:0),5,15-(lo<0?1:0),L.pants);
+  px(g,x-6,y-3,5,3,shade(L.pants,-26)); px(g,x+1,y-3,5,3,shade(L.pants,-26));
+  torsoStand(g,x,hip-15+bob,L,p.dir,sw);
+  propStand(g,x,hip-15+bob,L,p.dir);
+  head(g,x,y-43+bob,L,p.dir,p.blink,p.talk);
+}
+function drawSit(g,p){
+  const L=LOOK[p.code], x=Math.round(p.x), y=Math.round(p.y);
+  const type=p.state==="работает";
+  const t1=type?(((p.anim*9)|0)%2?1:0):0, t2=type?(((p.anim*9)|0)%2?0:1):0;
+  px(g,x-8,y-18,16,13,L.cloth);                    // спина
+  px(g,x-8,y-18,16,2,shade(L.cloth,18));
+  if(L.jacket){px(g,x-8,y-18,4,12,L.cloth2);px(g,x+4,y-18,4,12,L.cloth2);px(g,x-1,y-18,2,12,shade(L.cloth,-14));}
+  px(g,x-11,y-17,3,9,L.cloth2); px(g,x+8,y-17,3,9,L.cloth2);          // плечи-руки
+  px(g,x-12,y-24+t1,3,8,L.cloth2); px(g,x+9,y-24+t2,3,8,L.cloth2);    // предплечья к столу
+  px(g,x-12,y-27+t1,3,3,L.skin);   px(g,x+9,y-27+t2,3,3,L.skin);      // кисти на клавиатуре
+  head(g,x,y-30,L,p.dir,p.blink,p.talk);
+}
+function chairBase(g,x,y){
+  px(g,x-2,y-6,4,7,C.metal);
+  px(g,x-10,y,20,3,C.metal); px(g,x-11,y+2,4,2,C.metalLt); px(g,x+7,y+2,4,2,C.metalLt);
+}
+function chairFront(g,x,y){                         // спинка перед сидящим
+  px(g,x-9,y-14,18,13,C.chair); px(g,x-9,y-14,18,2,C.chairLt);
+  px(g,x-11,y-12,2,8,C.chair); px(g,x+9,y-12,2,8,C.chair);
+}
+function chairEmpty(g,x,y){
+  chairBase(g,x,y);
+  px(g,x-9,y-30,18,29,C.chair); px(g,x-9,y-30,18,3,C.chairLt);
+  px(g,x-7,y-27,14,10,shade(C.chair,10));
+  px(g,x-11,y-12,2,8,C.chair); px(g,x+9,y-12,2,8,C.chair);
+}
+
+/* ---------- люди и маршруты ---------- */
+const people={};
+DESKS.forEach(d=>{
+  const s=SEAT[d.code];
+  people[d.code]={code:d.code,name:d.name,desk:d,c:s.c,r:s.r,x:s.c*T+8,y:s.r*T+14,dir:"up",
+    sitting:true,path:[],acts:[],busy:false,bubble:"",talk:0,blink:false,blinkT:1+Math.random()*4,
+    frame:0,step:0,anim:0,wait:1+Math.random()*4,state:"ожидает задачи",want:"sit"};
+});
+function bfs(from,to){
+  if(!free(to.c,to.r))return null;
+  const q=[from.r*COLS+from.c], prev=new Int32Array(COLS*ROWS).fill(-1);
+  prev[q[0]]=q[0]; const goal=to.r*COLS+to.c;
+  for(let i=0;i<q.length;i++){
+    const cur=q[i]; if(cur===goal)break;
+    const c=cur%COLS, r=(cur/COLS)|0;
+    for(const [dc,dr] of [[1,0],[-1,0],[0,1],[0,-1]]){
+      const nc=c+dc,nr=r+dr;
+      if(nc<0||nc>=COLS)continue;
+      const ni=nr*COLS+nc;
+      if(!free(nc,nr)||prev[ni]!==-1)continue;
+      prev[ni]=cur; q.push(ni);
+    }
+  }
+  if(prev[goal]===-1)return null;
+  const out=[]; let cur=goal;
+  while(cur!==prev[cur]){out.unshift({c:cur%COLS,r:(cur/COLS)|0}); cur=prev[cur];}
+  return out;
+}
+const nearest=(from,cands)=>{for(const t of cands){if(free(t.c,t.r)){const p=bfs(from,t);if(p)return {t,p};}}return null;};
+function goTo(p,cell){
+  const alt=[cell,{c:cell.c+1,r:cell.r},{c:cell.c-1,r:cell.r},{c:cell.c,r:cell.r+1},{c:cell.c,r:cell.r-1}];
+  const res=nearest({c:p.c,r:p.r},alt);
+  if(!res){p.c=cell.c;p.r=cell.r;p.x=cell.c*T+8;p.y=cell.r*T+14;return false;}
+  p.path=res.p; p.sitting=false; return true;
+}
+function say(p,text,ms){p.acts.unshift({t:"say",text,ms:ms||2200});}
+function deskFront(code){const s=SEAT[code];return {c:s.c+2,r:s.r+1};}
+
+function step(p,dt){
+  p.anim+=dt;
+  p.blinkT-=dt;
+  if(p.blinkT<=0){p.blink=p.blinkT>-0.14; if(p.blinkT<-0.14){p.blink=false;p.blinkT=2+Math.random()*5;}}
+  if(p.talk>0){p.talk-=dt; if(p.talk<0)p.talk=0;}
+  if(p.path.length){
+    const nx=p.path[0].c*T+8, ny=p.path[0].r*T+14, sp=34*dt;
+    const dx=nx-p.x, dy=ny-p.y, dist=Math.hypot(dx,dy);
+    if(dist<=sp){p.x=nx;p.y=ny;p.c=p.path[0].c;p.r=p.path[0].r;p.path.shift();}
+    else{p.x+=dx/dist*sp;p.y+=dy/dist*sp;p.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up");}
+    p.step+=sp; p.frame=((p.step/5)|0)%4;
+    return;
+  }
+  if(p.acts.length){
+    const a=p.acts[0];
+    if(a.t==="go"){ if(!goTo(p,a.cell)){} p.acts.shift(); return; }
+    if(a.t==="say"){
+      if(a.ms>0){ if(!a.started){a.started=1;p.bubble=a.text;p.sitting=a.sit??p.sitting;} a.ms-=dt*1000; p.talk=.4; return; }
+      p.bubble=""; p.acts.shift(); return;
+    }
+    if(a.t==="sit"){ const s=SEAT[p.code];
+      if(p.c===s.c&&p.r===s.r){p.sitting=true;p.dir="up";p.acts.shift();}
+      else goTo(p,s);
+      return; }
+    if(a.t==="face"){p.dir=a.dir;p.acts.shift();return;}
+    if(a.t==="wait"){a.ms-=dt*1000; if(a.ms<=0)p.acts.shift(); return;}
+    p.acts.shift(); return;
+  }
+  if(p.busy){p.busy=false; p.bubble="";}
+  // свободное поведение
+  const s=SEAT[p.code];
+  if(p.want==="sit"||reduce){
+    if(p.c===s.c&&p.r===s.r){p.sitting=true;p.dir="up";}
+    else goTo(p,s);
+    return;
+  }
+  p.sitting=(p.c===s.c&&p.r===s.r)&&p.idleSit;
+  p.wait-=dt;
+  if(p.wait<=0){
+    p.wait=3+Math.random()*7;
+    p.idleSit=false;
+    const spots=[{c:10,r:9},{c:21,r:9},MEET_SIDE(),{c:2,r:9},{c:28,r:9},{c:6,r:14},{c:26,r:14},{c:14,r:18},s];
+    const t=spots[(Math.random()*spots.length)|0];
+    if(t.c===s.c&&t.r===s.r)p.idleSit=true;
+    goTo(p,t);
+  }
+}
+const MEET_SIDE=()=>[{c:14,r:8},{c:17,r:8},{c:15,r:9},{c:16,r:9}][(Math.random()*4)|0];
+
+/* ---------- сценки по журналу ---------- */
+let scenes=[], current=null, sceneGap=0, lastAudit=0, boardAskT=0;
+function short(s){return cut(String(s||"").replace(/\s+/g," "),54);}
+function pushScene(sc){ if(scenes.length<7) scenes.push(sc); }
+function startScene(sc){
+  current={codes:sc.codes};
+  for(const c of sc.codes){const p=people[c]; if(!p)continue; p.acts=[]; p.path=[]; p.busy=true;}
+  sc.build();
+}
+function sceneDone(){
+  if(!current)return true;
+  return current.codes.every(c=>{const p=people[c];return p&&!p.acts.length&&!p.path.length;});
+}
+function director(dt){
+  if(current){ if(sceneDone()){ current=null; sceneGap=1.2; } else return; }
+  if(sceneGap>0){sceneGap-=dt; return;}
+  if(scenes.length){ startScene(scenes.shift()); return; }
+  // тишина: иногда двое сходятся поговорить
+  if(reduce)return;
+  if(Math.random()<dt*0.08){
+    const idle=Object.values(people).filter(p=>p.want!=="sit"&&!p.busy&&!p.acts.length);
+    if(idle.length>=2){
+      const a=idle[(Math.random()*idle.length)|0];
+      let b=idle[(Math.random()*idle.length)|0]; if(b===a)return;
+      const A=MEET_SIDE(), B={c:A.c+1,r:A.r};
+      pushScene({codes:[a.code,b.code],build(){
+        a.acts=[{t:"go",cell:A},{t:"say",text:"…",ms:1600},{t:"say",text:"свериться по цифрам?",ms:1800}];
+        b.acts=[{t:"go",cell:B},{t:"wait",ms:900},{t:"say",text:"да, смотрю",ms:2000}];
+      }});
+    }
+  }
+}
+function shelfFor(entity,who){
+  const e=String(entity||"");
+  if(/lex\.uz|ПКМ|Положени|Закон|ЗРУ/i.test(e))return SHELF_STAND["Законы"];
+  if(/НАПП|отчёт|статист/i.test(e))return SHELF_STAND["Статистика"];
+  if(who==="law")return SHELF_STAND["Акты НАПП"];
+  return SHELF_STAND["Методология"];
+}
+function codeOf(who){ return people[who]?who:(who==="агент-статистик"?"data":(who==="admin"||who==="api"?null:null)); }
+function sceneFromAudit(ev){
+  const who=codeOf(ev.who), act=String(ev.action||"");
+  let det={}; try{det=ev.detail?JSON.parse(ev.detail):{};}catch(e){det={};}
+  if(act==="задача распределена"){
+    const title=short(det.title), targets=(det.assignees||[]).filter(a=>people[a]).slice(0,2);
+    if(!targets.length)return null;
+    const lead=people.lead;
+    return {codes:["lead",...targets],build(){
+      lead.acts=[];
+      targets.forEach((tc,i)=>{
+        const t=people[tc];
+        lead.acts.push({t:"go",cell:deskFront(tc)},{t:"say",text:"поручил: "+title,ms:2400});
+        t.acts=(t.acts||[]).concat([{t:"wait",ms:1200+i*2600},{t:"say",text:"принял",ms:1500},{t:"sit"}]);
+      });
+      lead.acts.push({t:"sit"});
+    }};
+  }
+  if(act==="задача сделана"&&who){
+    const p=people[who], rev=people.reviewer;
+    if(who==="reviewer")return {codes:["reviewer"],build(){rev.acts=[{t:"sit"},{t:"say",text:"проверил: "+short(det.result),ms:2600}];}};
+    return {codes:[who,"reviewer"],build(){
+      p.acts=[{t:"go",cell:deskFront("reviewer")},{t:"say",text:"передал на проверку: "+short(det.result),ms:2600},{t:"sit"}];
+      rev.acts=[{t:"sit"},{t:"wait",ms:2400},{t:"say",text:"проверяю",ms:1800}];
+    }};
+  }
+  if(act==="взял задачу"&&who){
+    const p=people[who];
+    return {codes:[who],build(){p.acts=[{t:"sit"},{t:"say",text:"берусь: "+(ev.entity||""),ms:1800}];}};
+  }
+  if(act==="вопрос заказчику"&&who){
+    const p=people[who], q=short(det.question||"вопрос заказчику");
+    return {codes:[who],build(){
+      p.acts=[{t:"go",cell:BOARD_SPOT},{t:"face",dir:"up"},{t:"say",text:"вопрос заказчику",ms:3200},{t:"sit"}];
+      document.getElementById("ask").textContent="Вопрос заказчику: "+q;
+      document.getElementById("ask").classList.add("on"); boardAskT=9;
+    }};
+  }
+  if(/lex\.uz|акт|документ|тема|знани/i.test(act)&&who){
+    const p=people[who], sp=shelfFor(ev.entity,who);
+    return {codes:[who],build(){
+      p.acts=[{t:"go",cell:sp},{t:"face",dir:"up"},{t:"say",text:cut(act+": "+(ev.entity||""),70),ms:3000},{t:"sit"}];
+    }};
+  }
+  if(who){
+    const p=people[who];
+    return {codes:[who],build(){p.acts=[{t:"sit"},{t:"say",text:cut(act+(ev.entity?": "+ev.entity:""),70),ms:2400}];}};
+  }
+  return null;
+}
+
+/* ---------- часы и экраны ---------- */
+function drawClock(g){
+  const cx=64, cy=30, r=24, d=tkNow();
+  g.fillStyle="#3E2F22"; g.beginPath(); g.arc(cx,cy,r,0,7); g.fill();
+  g.fillStyle="#F4F1E6"; g.beginPath(); g.arc(cx,cy,r-3,0,7); g.fill();
+  g.fillStyle="#C9D2D8"; g.beginPath(); g.arc(cx,cy,r-5,0,7); g.fill();
+  g.fillStyle="#F7F5EC"; g.beginPath(); g.arc(cx,cy,r-6,0,7); g.fill();
+  for(let i=0;i<12;i++){
+    const a=i*Math.PI/6, L=(i%3===0)?5:3;
+    g.strokeStyle="#2A3138"; g.lineWidth=(i%3===0)?2:1;
+    g.beginPath(); g.moveTo(cx+Math.sin(a)*(r-7),cy-Math.cos(a)*(r-7));
+    g.lineTo(cx+Math.sin(a)*(r-7-L),cy-Math.cos(a)*(r-7-L)); g.stroke();
+  }
+  const hh=d.getUTCHours()%12, mm=d.getUTCMinutes(), ss=d.getUTCSeconds();
+  const hand=(ang,len,wid,col)=>{g.strokeStyle=col;g.lineWidth=wid;g.lineCap="round";
+    g.beginPath();g.moveTo(cx,cy);g.lineTo(cx+Math.sin(ang)*len,cy-Math.cos(ang)*len);g.stroke();};
+  hand((hh+mm/60)*Math.PI/6,r-14,3,"#1B2127");
+  hand((mm+ss/60)*Math.PI/30,r-8,2,"#1B2127");
+  hand(ss*Math.PI/30,r-7,1,"#C6553F");
+  g.fillStyle="#1B2127"; g.beginPath(); g.arc(cx,cy,2,0,7); g.fill();
+}
+function drawScreens(g,t){
+  for(const d of DESKS){
+    const p=people[d.code], s=d.screen, on=p.sitting&&p.state==="работает";
+    if(on){
+      g.fillStyle=C.scrOn; g.fillRect(s.x,s.y,s.w,s.h);
+      g.fillStyle="#0F2A24"; g.fillRect(s.x,s.y,s.w,3);
+      for(let i=0;i<4;i++){
+        const w=[22,28,15,24][i], vis=((t*2.2+i*.7)%3)<2.4;
+        if(vis){g.fillStyle=C.scrTxt; g.fillRect(s.x+3,s.y+4+i*3,Math.round(w*(.6+.4*Math.abs(Math.sin(t+i)))),1);}
+      }
+      if(((t*2)|0)%2){g.fillStyle=C.scrTxt; g.fillRect(s.x+3,s.y+s.h-4,2,2);}
+      g.fillStyle="rgba(47,111,92,.22)"; g.fillRect(s.x-4,s.y-4,s.w+8,s.h+8);
+      g.fillStyle="#2ED3A2"; g.fillRect(s.x+6,s.y+s.h+2,22,2);
+    }else if(p.sitting&&p.state==="сделал"){
+      g.fillStyle=C.scrCalm; g.fillRect(s.x,s.y,s.w,s.h);
+      g.fillStyle="#5E88AC"; g.fillRect(s.x+3,s.y+4,20,1); g.fillRect(s.x+3,s.y+8,26,1); g.fillRect(s.x+3,s.y+12,14,1);
+      g.fillStyle="#7FA8C8"; g.fillRect(s.x+6,s.y+s.h+2,22,2);
+    }else{
+      g.fillStyle=C.scrOff; g.fillRect(s.x,s.y,s.w,s.h);
+      g.fillStyle="#1B2127"; g.fillRect(s.x+6,s.y+s.h+2,22,2);
+    }
+  }
+}
+
+/* ---------- кадр ---------- */
+let last=performance.now(), tsec=0;
+function frame(now){
+  const dt=Math.min(.05,(now-last)/1000); last=now; tsec+=dt;
+  if(boardAskT>0){boardAskT-=dt; if(boardAskT<=0)document.getElementById("ask").classList.remove("on");}
+  ctx.imageSmoothingEnabled=false;
+  ctx.setTransform(SC,0,0,SC,0,0);
+  ctx.drawImage(bg,0,0);
+  drawClock(ctx);
+  drawScreens(ctx,tsec);
+  const list=Object.values(people);
+  if(!reduce){ director(dt); for(const p of list) step(p,dt); }
+  const draws=[];
+  for(const d of DESKS){
+    const s=SEAT[d.code], p=people[d.code], sy=s.r*T+14;
+    if(!(p.sitting&&p.c===s.c&&p.r===s.r)) draws.push({y:sy+1,f:g=>chairEmpty(g,s.c*T+8,sy)});
+  }
+  for(const p of list){
+    const seated=p.sitting&&p.c===SEAT[p.code].c&&p.r===SEAT[p.code].r;
+    draws.push({y:p.y,f:g=>{
+      if(seated){chairBase(g,p.x,p.y);drawSit(g,p);chairFront(g,p.x,p.y);}
+      else drawStand(g,p);
+    }});
+  }
+  draws.sort((a,b)=>a.y-b.y).forEach(o=>o.f(ctx));
+  ctx.setTransform(1,0,0,1,0,0);
+  placeOverlay();
+  if(!reduce)requestAnimationFrame(frame);
+}
+
+/* ---------- таблички, пузыри, полки ---------- */
+const layer=document.getElementById("layer"), bubs={};
+for(const d of DESKS){
+  const pl=document.createElement("div"); pl.className="plate";
+  pl.innerHTML=`<b>${esc(d.name)}</b><i style="background:${TAG[d.code]}"></i>`;
+  pl.style.left=((d.c+2.5)*T/W*100)+"%";
+  pl.style.top=((d.r*T-36)/H*100)+"%";
+  layer.appendChild(pl);
+  const b=document.createElement("div"); b.className="bub off"; layer.appendChild(b); bubs[d.code]=b;
+}
+function placeOverlay(){
+  for(const code in people){
+    const p=people[code], b=bubs[code];
+    b.style.left=(p.x/W*100)+"%";
+    b.style.top=((p.y-(p.sitting?34:47))/H*100)+"%";
+    const text=p.bubble||p.idleText||"";
+    if(text){ if(b.textContent!==text)b.textContent=text; b.classList.remove("off"); }
+    else b.classList.add("off");
+  }
+}
+const tip=document.getElementById("tip");
+let SHELVES={};
+function makeHotspots(){
+  for(const cs of CASES){
+    const el=document.createElement("div"); el.className="hot";
+    el.style.left=(cs.c*T/W*100)+"%"; el.style.top=(80/H*100)+"%";
+    el.style.width=(4*T/W*100)+"%"; el.style.height=(64/H*100)+"%";
+    el.addEventListener("mousemove",e=>{
+      const parts=cs.groups.map(g=>{
+        const l=SHELVES[g]||[];
+        return `<b>${esc(g)} — ${l.length}</b><ul>${l.slice(0,8).map(n=>`<li>${esc(cut(n,64))}</li>`).join("")}${l.length>8?`<li>и ещё ${l.length-8}</li>`:""}</ul>`;
+      }).join("");
+      tip.innerHTML=parts||"<b>полка пуста</b>";
+      tip.style.display="block";
+      const st=el.parentElement.getBoundingClientRect();
+      tip.style.left=Math.min(st.width-270,Math.max(0,e.clientX-st.left-120))+"px";
+      tip.style.top=(e.clientY-st.top+16)+"px";
+    });
+    el.addEventListener("mouseleave",()=>{tip.style.display="none";});
+    layer.appendChild(el);
+  }
+}
+
+/* ---------- данные ---------- */
+let myTask={};
+function applyStatus(d){
+  for(const a of d.agents){
+    const p=people[a.code]; if(!p)continue;
+    p.state=a.state;
+    p.want=(a.state!=="ожидает задачи"||myTask[a.code])?"sit":"walk";
+    p.idleText=(!p.busy&&myTask[a.code])?cut(myTask[a.code],44):"";
+  }
+  // юрист берёт акт с полки: над ним видно, сколько событий по законам ждут разбора
+  const lw=d.lawwatch||{};
+  if(people.law&&!people.law.busy){
+    if(lw.running) people.law.idleText="проверяю акты на lex.uz";
+    else if(lw.unseen_events) people.law.idleText="событий по законам: "+lw.unseen_events;
+  }
+  const live=document.getElementById("live");
+  const run=!!(d.refresh&&d.refresh.running);
+  live.textContent=lw.running?"юрист проверяет акты на lex.uz":(run?"статистик обновляет отчёты НАПП":"обновляется каждые 10 секунд");
+  live.classList.toggle("on",run||!!lw.running);
+}
+const SCLS={"в работе":"work","новая":"new","ждёт заказчика":"ask","сделана":"done"};
+function plural(n,a1,a2,a5){const n1=n%10,n2=n%100;if(n1===1&&n2!==11)return a1;if(n1>=2&&n1<=4&&(n2<10||n2>=20))return a2;return a5;}
+function drawBoard(rows){
+  const mine=rows.filter(r=>!r.parent_id&&(r.author==="заказчик"));
+  mine.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  const box=document.getElementById("blist"), cnt=document.getElementById("bcnt"), more=document.getElementById("bmore");
+  const top=mine.slice(0,5);
+  cnt.textContent=mine.length?`всего ${mine.length}`:"пока пусто";
+  more.textContent=mine.length>5?`и ещё ${mine.length-5} ${plural(mine.length-5,"задача","задачи","задач")} в журнале`:"";
+  if(!top.length){box.innerHTML='<div class="more">Задач от заказчика ещё нет. Поставьте первую справа.</div>';return;}
+  const now=tkNow().getTime();
+  box.innerHTML=top.map(p=>{
+    const kids=rows.filter(r=>r.parent_id===p.id);
+    const who=[...new Set(kids.map(k=>NAME[k.assignee]||k.assignee))].slice(0,3).join(", ")||(NAME[p.assignee]||p.assignee||"—");
+    const st=naive(p.created_at), dn=naive(p.done_at);
+    const done=dn?`<u>сделано в ${hhmm(dn)}</u>`:`<s>${p.status}</s>`;
+    const el=dn&&st?mins(dn-st):(st?mins(now-st):0);
+    const time=dn?`потрачено ${spent(el)}`:`идёт ${spent(el)}`;
+    const detail=kids.map(k=>{
+      const ks=naive(k.started_at)||naive(k.created_at), kd=naive(k.done_at);
+      return (NAME[k.assignee]||k.assignee)+": "+(kd?`сделал в ${hhmm(kd)}, ${spent(ks?mins(kd-ks):0)}`:k.status);
+    }).join("\n");
+    return `<div class="row" title="${esc(detail)}"><div class="t">${esc(p.title)}</div>
+      <div class="m"><span>${esc(who)}</span>${done}<span>${esc(time)}</span></div></div>`;
+  }).join("");
+}
+async function loadTasks(){
+  const rows=await (await fetch("/tasks?limit=200")).json();
+  drawBoard(rows);
+  const live=rows.filter(r=>r.status==="новая"||r.status==="в работе"||r.status==="ждёт заказчика");
+  myTask={};
+  for(const r of live) if(r.parent_id&&!myTask[r.assignee]) myTask[r.assignee]=r.title;
+  const parents=live.filter(r=>!r.parent_id);
+  const box=document.getElementById("tasks");
+  if(!live.length){box.innerHTML='<p class="empty">Сейчас задач нет — агенты ходят по офису. Поставьте задачу выше.</p>';return;}
+  const kids=p=>live.filter(r=>r.parent_id===p.id);
+  box.innerHTML=(parents.length?parents:live).map(p=>`<div class="task"><b>${esc(p.title)}</b>
+    <div class="sub2"><span>поставил: ${esc(p.author)}</span><span class="st ${SCLS[p.status]||""}">${esc(p.status)}</span></div>
+    ${kids(p).map(k=>`<div class="sub2"><span>${esc(NAME[k.assignee]||k.assignee)}: ${esc(cut(k.title,48))}</span><span class="st ${SCLS[k.status]||""}">${esc(k.status)}</span></div>`).join("")}</div>`).join("");
+}
+async function loadStatus(){ applyStatus(await (await fetch("/agents/status")).json()); }
+async function loadJournal(){
+  const rows=await (await fetch("/audit?limit=40")).json();
+  document.getElementById("journal").innerHTML=rows.length
+    ?rows.slice(0,12).map(r=>`<tr><td class="ts">${esc(fmt(r.ts))}</td><td class="who">${esc(NAME[r.who]||r.who)}</td><td>${esc(r.action)}${r.entity?`<i class="ent">${esc(r.entity)}</i>`:""}</td></tr>`).join("")
+    :`<tr><td class="ts">журнал пока пуст</td></tr>`;
+  // новые события журнала превращаем в сценки
+  const fresh=rows.filter(r=>r.id>lastAudit).sort((a,b)=>a.id-b.id);
+  if(lastAudit===0) fresh.splice(0,Math.max(0,fresh.length-3));
+  for(const ev of fresh){ const sc=sceneFromAudit(ev); if(sc)pushScene(sc); }
+  if(rows.length)lastAudit=Math.max(lastAudit,...rows.map(r=>r.id));
+}
+async function loadShelves(){
+  try{
+    const rows=await (await fetch("/office/shelves")).json();
+    SHELVES={};
+    for(const r of rows){(SHELVES[r.group]=SHELVES[r.group]||[]).push(r.name);}
+  }catch(e){ SHELVES={}; }
+  drawSpines();
+}
+function tickClock(){
+  const d=tkNow();
+  document.querySelector("#dig b").textContent=hhmm(d)+":"+p2(d.getUTCSeconds());
+  document.querySelector("#dig span").textContent=DOW[d.getUTCDay()]+", "+d.getUTCDate()+" "+MON[d.getUTCMonth()];
+  if(reduce){ ctx.setTransform(SC,0,0,SC,0,0); ctx.drawImage(bg,0,0); drawClock(ctx); drawScreens(ctx,0);
+    Object.values(people).forEach(p=>{const s=SEAT[p.code];p.c=s.c;p.r=s.r;p.x=s.c*T+8;p.y=s.r*T+14;p.sitting=true;
+      chairBase(ctx,p.x,p.y);drawSit(ctx,p);chairFront(ctx,p.x,p.y);});
+    ctx.setTransform(1,0,0,1,0,0); placeOverlay(); }
+}
+async function tick(){
+  try{ await loadTasks(); await loadStatus(); await loadJournal(); }
+  catch(e){ document.getElementById("live").textContent="нет связи с сервером"; }
+}
+document.getElementById("add").onclick=async()=>{
+  const i=document.getElementById("ti"), m=document.getElementById("msg"), title=i.value.trim();
+  if(!title){m.textContent="Напишите, что нужно сделать.";i.focus();return;}
+  m.textContent="Передаю руководителю…";
+  try{
+    const r=await fetch("/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title})});
+    if(!r.ok)throw new Error(r.status);
+    const d=await r.json();
+    i.value="";
+    m.textContent=`Задача №${d.task_id} принята, подзадач: ${d.subtasks.length}. Руководитель идёт раздавать поручения.`;
+    tick();
+  }catch(e){ m.textContent="Сервер не принял задачу. Проверьте, что он запущен, и попробуйте ещё раз."; }
+};
+document.getElementById("ti").addEventListener("keydown",e=>{if(e.key==="Enter")document.getElementById("add").click();});
+
+buildBackground();
+makeHotspots();
+loadShelves();
+tick(); setInterval(tick,10000);
+tickClock(); setInterval(tickClock,1000);
+if(reduce){ /* без движения: все за столами, обновляется только время */ }
+else requestAnimationFrame(frame);
+</script>
+<script src="/theme.js"></script>

@@ -1,0 +1,32 @@
+# Запуск одной командой:  docker compose up -d
+# Открыть: http://localhost:8000
+services:
+  app:
+    build: .
+    container_name: inson-surveyor
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      PORT: 8000
+      PYTHONIOENCODING: utf-8
+      # Настройки ИИ и бота можно задать здесь или на странице /admin/deploy (она важнее).
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      PD_MODE: ${PD_MODE:-test}
+      SERVER_URL: ${SERVER_URL:-http://localhost:8000}
+      DATABASE_URL: ${DATABASE_URL:-}
+    volumes:
+      # Данные живут вне контейнера: база, загруженные документы, фото, отчёты и копии
+      - surveyor-data:/srv/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  surveyor-data:

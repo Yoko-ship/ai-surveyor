@@ -1,0 +1,162 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Портфельный аудит</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px}
+.live{font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent-dim);border-radius:999px;padding:2px 9px}
+.sub{color:var(--muted);font-size:12.5px;margin:4px 0 16px;font-family:var(--mono)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+select,button,input[type=text]{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+button{cursor:pointer;font-weight:600}button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+.drop{display:block;border:1.5px dashed var(--line);border-radius:14px;padding:26px;text-align:center;background:var(--card);cursor:pointer;margin-bottom:14px;transition:border-color .15s}
+.drop.over,.drop:hover{border-color:var(--accent-dim)}.drop b{display:block;font-size:15px}.drop span{color:var(--muted);font-size:12.5px}
+.drop input{display:none}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.tile b{display:block;font:600 22px var(--mono)}.tile span{font-size:12px;color:var(--muted)}
+.tile.bad b{color:var(--stop)}.tile.warn b{color:var(--warn)}.tile.good b{color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card h2{font-size:13px;margin:0 0 2px}.card p{font-size:12px;color:var(--muted);margin:0 0 8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.chip{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:5px;padding:2px 7px;white-space:nowrap;border:1px solid}
+.chip.ok{color:var(--accent);border-color:var(--accent-dim)}.chip.warn{color:var(--warn);border-color:var(--warn)}.chip.stop{color:var(--stop);border-color:var(--stop)}.chip.none{color:var(--muted);border-color:var(--line)}
+.viol{color:var(--muted);font-size:11.5px}.viol i{font-style:normal;color:var(--stop)}
+.map{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px 14px;font-size:12.5px}
+.map div{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}.map span{color:var(--muted)}.map b{font-family:var(--mono);font-weight:600;text-align:right}
+.map .no b{color:var(--stop)}
+.note{font-size:11.5px;color:var(--muted);margin-top:12px}.err{color:var(--stop);font-weight:600}
+.pos{color:var(--stop)}.neg{color:var(--accent)}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:16px}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a class="on" href="/portfolio">Портфель</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Портфельный аудит <span class="live">массовая проверка</span></h1>
+  <div class="sub" id="status">загрузите выгрузку договоров из учётной системы — каждый договор пройдёт через движок</div>
+
+  <label class="drop" id="drop">
+    <input type="file" id="file" accept=".xlsx,.xlsm">
+    <b>Перетащите сюда Excel-файл или нажмите, чтобы выбрать</b>
+    <span>xlsx · строку заголовков и колонки система находит сама · лист — первый непустой</span>
+  </label>
+  <div class="row">
+    <input type="text" id="sheet" placeholder="Лист (необязательно)" style="width:220px">
+    <select id="batches"><option value="">Прошлые загрузки…</option></select>
+    <span class="note" id="msg" style="margin:0"></span>
+  </div>
+
+  <div id="result" style="display:none">
+    <div class="tiles" id="tiles"></div>
+    <div class="grid">
+      <div class="card"><h2>Филиалы с нарушениями</h2><p>договоры не «ок», из них отклонено, недополученная премия</p><table id="topb"></table></div>
+      <div class="card"><h2>Продукты с нарушениями</h2><p>по коду вида страхования</p><table id="topp"></table></div>
+      <div class="card"><h2>Как система прочитала файл</h2><p id="mapsub"></p><div class="map" id="map"></div></div>
+    </div>
+    <div class="card">
+      <div class="row" style="margin-bottom:8px">
+        <h2 style="margin:0;font-size:13px">Договоры</h2>
+        <select id="filter"><option value="">все вердикты</option><option value="отклонено">отклонено</option><option value="на утверждение">на утверждение</option><option value="ок">ок</option><option value="не проверен">не проверен</option></select>
+        <select id="vfilter"><option value="">любое нарушение</option></select>
+        <input type="text" id="q" placeholder="поиск: договор, страхователь, филиал" style="flex:1;min-width:180px">
+        <span class="note" id="cnt" style="margin:0"></span>
+      </div>
+      <div style="overflow-x:auto"><table id="tbl"></table></div>
+    </div>
+    <p class="note">Ставки в процентах годовых, суммы в сумах. «Премия по расчёту» — по ставке, которую дал бы движок (техническая, но не ниже минимума); разница со знаком «+» — недополученная премия. Факторы объекта в выгрузке отсутствуют, поэтому приняты типовые (смешанная конструкция, склад, сигнализация, зона 8 баллов, без убытков); франшиза — по колонке файла. Каждое нарушение ссылается на норму: ГК ст. 936/938, Положение 1806 п. 15, тарифная политика.</p>
+  </div>
+</main></div>
+<script>
+const $=s=>document.querySelector(s);
+const fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU");
+const f3=n=>n==null?"—":Number(n).toFixed(3).replace(".",",");
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const CHIP={"ок":"ok","на утверждение":"warn","отклонено":"stop","не проверен":"none"};
+let DATA=null;
+
+function tiles(s){
+  const t=[["Договоров",fmt(s.rows_total),""],["Отклонено",fmt(s.by_verdict["отклонено"]||0),"bad"],["На утверждение",fmt(s.by_verdict["на утверждение"]||0),"warn"],
+    ["Ниже минимума",fmt(s.below_min),"bad"],["Ниже технической",fmt(s.below_technical),"warn"],["Сумма выше стоимости",fmt(s.sum_over_value),"bad"],
+    ["Без франшизы",fmt(s.no_franchise),"warn"],["Недополученная премия, сум",fmt(s.lost_premium),"bad"],["Премия по файлу, сум",fmt(s.premium_file_total),""],["Не проверено",fmt(s.unchecked),""]];
+  $("#tiles").innerHTML=t.map(([k,v,c])=>`<div class="tile ${c}"><b>${v}</b><span>${k}</span></div>`).join("");
+  const top=(el,rows)=>el.innerHTML=rows.length?`<thead><tr><th></th><th>Договоров</th><th>Отклонено</th><th>Недополучено</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="n">${fmt(r.rows)}</td><td class="n">${fmt(r.stop)}</td><td class="n">${fmt(r.lost)}</td></tr>`).join("")+"</tbody>":'<tbody><tr><td class="note">нарушений нет</td></tr></tbody>';
+  top($("#topb"),s.top_branches); top($("#topp"),s.top_products);
+}
+const LABELS={external_no:"Договор №",product:"Вид страхования",policyholder:"Страхователь",branch:"Филиал",sum_insured:"Страховая сумма",value_amount:"Страховая стоимость",premium:"Премия",rate:"Ставка",franchise:"Франшиза",region:"Регион",date_from:"Дата начала",date_to:"Дата окончания",term_days:"Срок, дней"};
+function mapping(m,unmapped,sub){
+  $("#mapsub").textContent=sub||"";
+  $("#map").innerHTML=Object.keys(LABELS).map(k=>`<div class="${m[k]?"":"no"}"><span>${LABELS[k]}</span><b>${m[k]?esc(m[k]):"не найдена"}</b></div>`).join("")
+    +(unmapped&&unmapped.length?`<div style="grid-column:1/-1"><span>Не использованы</span><b style="font-weight:400;color:var(--muted)">${esc(unmapped.join(", "))}</b></div>`:"");
+}
+function table(){
+  if(!DATA) return;
+  const v=$("#filter").value, vr=$("#vfilter").value, q=$("#q").value.trim().toLowerCase();
+  const rows=DATA.rows.filter(r=>(!v||r.verdict===v)&&(!vr||r.violations.some(x=>x.rule===vr))&&(!q||[r.external_no,r.policyholder,r.branch,r.product_code].join(" ").toLowerCase().includes(q)));
+  $("#cnt").textContent=`показано ${rows.length} из ${DATA.rows.length}`;
+  $("#tbl").innerHTML=`<thead><tr><th>Договор</th><th>Продукт</th><th>Страхователь · филиал</th><th>Страх. сумма</th><th>Ставка</th><th>Техн.</th><th>Мин.</th><th>Премия файл</th><th>Премия расчёт</th><th>Разница</th><th>Вердикт</th><th>Нарушения</th></tr></thead><tbody>`+
+    rows.map(r=>{const d=r.premium_diff; return `<tr><td style="font-family:var(--mono)">${esc(r.external_no)}</td><td>${esc(r.product_code||"—")}</td><td>${esc(r.policyholder||"—")}<br><span class="viol">${esc(r.branch||"")}</span></td>
+      <td class="n">${fmt(r.sum_insured)}</td><td class="n">${f3(r.applied_rate_pct)}</td><td class="n">${f3(r.technical_rate_pct)}</td><td class="n">${f3(r.min_rate_pct)}</td>
+      <td class="n">${fmt(r.premium_file)}</td><td class="n">${fmt(r.premium_calc)}</td><td class="n ${d>0?"pos":d<0?"neg":""}">${d==null?"—":(d>0?"+":"")+fmt(d)}</td>
+      <td><span class="chip ${CHIP[r.verdict]||"none"}">${esc(r.verdict)}</span></td>
+      <td class="viol">${r.violations.map(x=>x.status==="stop"?`<i>${esc(x.title)}</i>`:esc(x.title)).join("; ")}${r.note?(r.violations.length?"; ":"")+esc(r.note):""}</td></tr>`}).join("")+"</tbody>";
+}
+function show(d){
+  DATA=d; $("#result").style.display="";
+  tiles(d.summary); mapping(d.mapping,d.unmapped,`лист «${d.sheet||"—"}», заголовки в строке ${d.header_row||"—"}, файл ${d.file_name||""}`);
+  const rules={}; d.rows.forEach(r=>r.violations.forEach(x=>rules[x.rule]=x.title));
+  $("#vfilter").innerHTML='<option value="">любое нарушение</option>'+Object.entries(rules).map(([k,t])=>`<option value="${k}">${esc(t)}</option>`).join("");
+  table();
+  $("#status").textContent=`загрузка № ${d.batch_id} · ${d.rows.length} договоров · отклонено ${d.summary.by_verdict["отклонено"]||0} · на утверждение ${d.summary.by_verdict["на утверждение"]||0}`;
+  // связь с прошлой загрузкой по номерам договоров
+  fetch("/portfolio/batches/"+d.batch_id+"/diff").then(r=>r.json()).then(x=>{
+    let el=$("#diff"); if(!el){ el=document.createElement("div"); el.id="diff"; el.className="note"; el.style.marginTop="-8px"; el.style.marginBottom="12px"; $("#result").prepend(el); }
+    el.innerHTML = x.previous ? `к прошлой загрузке № ${x.previous.id} (${x.previous.imported_at.replace("T"," ")}): новых договоров <b>${x.new}</b>, исчезло <b>${x.gone}</b>, изменились <b>${x.changed}</b>, стали «отклонено» <b class="${x.became_rejected?"pos":""}">${x.became_rejected}</b>` : (x.note||"");
+  }).catch(()=>{});
+}
+async function upload(file){
+  if(!file) return;
+  $("#msg").className="note"; $("#msg").textContent="проверяю договоры…";
+  const fd=new FormData(); fd.append("file",file);
+  const sheet=$("#sheet").value.trim(); const url="/portfolio/import"+(sheet?"?sheet="+encodeURIComponent(sheet):"");
+  try{
+    const r=await fetch(url,{method:"POST",body:fd}); const j=await r.json();
+    if(!r.ok){ $("#msg").className="note err"; $("#msg").textContent=j.detail||("ошибка "+r.status); return; }
+    $("#msg").textContent="готово"; show(j); loadBatches(j.batch_id);
+  }catch(e){ $("#msg").className="note err"; $("#msg").textContent="сервер недоступен"; }
+}
+async function openBatch(id){
+  if(!id) return;
+  const [b,s]=await Promise.all([fetch("/portfolio/batches/"+id).then(r=>r.json()),fetch("/portfolio/batches/"+id+"/summary").then(r=>r.json())]);
+  show({batch_id:id,file_name:b.batch.file_name,mapping:b.batch.mapping,unmapped:[],summary:s.summary,rows:b.rows,sheet:null,header_row:null});
+}
+async function loadBatches(sel){
+  const list=await (await fetch("/portfolio/batches")).json();
+  $("#batches").innerHTML='<option value="">Прошлые загрузки…</option>'+list.map(b=>`<option value="${b.id}"${b.id==sel?" selected":""}>№${b.id} · ${b.imported_at.replace("T"," ")} · ${esc(b.file_name)} · ${b.rows_total} дог., стоп ${b.rows_stop}</option>`).join("");
+}
+$("#file").onchange=e=>upload(e.target.files[0]);
+const drop=$("#drop");
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
+drop.addEventListener("drop",e=>upload(e.dataTransfer.files[0]));
+$("#batches").onchange=e=>openBatch(e.target.value);
+$("#filter").onchange=$("#vfilter").onchange=table; $("#q").oninput=table;
+loadBatches();
+</script>
+
+<script src="/theme.js"></script>

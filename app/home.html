@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ИИ-сюрвейер INSON</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--stop:#EE8272;--warn:#E0A83F;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+main{padding:26px 28px 48px;max-width:1180px}
+h1{font-size:26px;font-weight:800;margin:0;letter-spacing:-.02em}.sub{color:var(--muted);margin:4px 0 20px;max-width:70ch}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:22px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;text-decoration:none;color:inherit;display:block}
+.tile:hover{border-color:var(--accent-dim)}.tile b{display:block;font:600 24px var(--mono)}.tile span{font-size:12px;color:var(--muted)}
+.tile em{font-style:normal;font:600 11px var(--mono);margin-left:6px;color:var(--accent)}
+h2{font-size:15px;margin:22px 0 10px;color:var(--muted);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:6px}
+.card:hover{border-color:var(--accent-dim)}.card b{font-size:15px}.card p{margin:0;color:var(--muted);font-size:13px}
+.card .go{margin-top:auto;color:var(--accent);font-weight:700;font-size:13px}
+.robots{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.robots i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.foot{color:var(--muted);font-size:12px;margin-top:26px}
+</style>
+<!--SIDEBAR-->
+<main>
+  <h1>ИИ-сюрвейер INSON</h1>
+  <p class="sub">Расчёт ставки с объяснением, проверки по закону и тарифной политике, предписания страхователю, портфельный аудит, динамика рынка и ёмкость компании — в одном месте.</p>
+  <div class="tiles" id="tiles"></div>
+  <h2>Что делать</h2>
+  <div class="cards">
+    <a class="card" href="/ui"><b>Новый расчёт</b><p>Объект, риски, документы — и сразу ставка, премия, что удешевит и что предписать страхователю.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/portfolio"><b>Портфельный аудит</b><p>Загрузите Excel-выгрузку договоров — система найдёт занижения, превышения и договоры без франшизы.</p><span class="go">Загрузить файл →</span></a>
+    <a class="card" href="/admin"><b>Запросы и админка</b><p>Список запросов с вердиктами, версии тарифов, коэффициенты, продукты, журнал действий.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/stats"><b>Динамика рынка</b><p>Квартальные отчёты НАПП подтягиваются сами. Премии, убыточность, средняя ставка по классам.</p><span class="go">Смотреть →</span></a>
+    <a class="card" href="/capacity-page"><b>Ёмкость и удержание</b><p>Лимиты по Положению 1806, резервы и активы по Положению 1882, удержание по классам.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/calibration"><b>Калибровка</b><p>Пересчёт ставок по накопленным убыткам: предложение → утверждение → новая версия тарифа.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/graph"><b>Паутина знаний</b><p>Продукты, классы, учётные группы и правила РНП — одной картой.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/office"><b>Офис агентов</b><p>Кто из агентов чем занят прямо сейчас.</p><div class="robots" id="robots"></div><span class="go">Заглянуть →</span></a>
+  </div>
+  <p class="foot" id="foot"></p>
+</main>
+<script>
+const fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU");
+(async()=>{
+  const [an, cap, ms, ag] = await Promise.all(["/analytics/summary","/capacity","/market/status","/agents/status"].map(u=>fetch(u).then(r=>r.json()).catch(()=>null)));
+  const bv = an ? Object.fromEntries(an.by_verdict.map(x=>[x.verdict,x.n])) : {};
+  const tiles = [
+    ["Запросов", an?an.requests:"—", bv["на утверждение"]?`${bv["на утверждение"]} на утверждении`:"", "/admin"],
+    ["Ниже технической ставки", an?an.below_technical:"—", "договоров", "/admin"],
+    ["Лимит на один риск", cap?fmt(cap.limit_per_risk):"—", cap&&cap.temporary.length?"временно":"сум", "/capacity-page"],
+    ["Срезов рынка", ms?ms.dates.length:"—", ms?`до ${ms.dates[ms.dates.length-1]}`:"", "/stats"],
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(([k,v,e,h])=>`<a class="tile" href="${h}"><b>${v}${e?`<em>${e}</em>`:""}</b><span>${k}</span></a>`).join("");
+  const colors={lead:"#E2B44D",law:"#8EA9FF",data:"#2ED3A2",actuary:"#F2A541",backend:"#B8C94F",ui:"#C597F0",reviewer:"#EE8272"};
+  if (ag) document.getElementById("robots").innerHTML = ag.agents.map(a=>`<i title="${a.name}: ${a.state}" style="background:${colors[a.code]};opacity:${a.state==="ожидает задачи"?.35:1}"></i>`).join("");
+  document.getElementById("foot").textContent = `Сервер работает. Рыночная статистика: ${ms?ms.points+" точек, последняя проверка НАПП "+(ms.last_refresh||"ещё не было"):"—"}.`;
+})();
+</script>
+
+<script src="/theme.js"></script>

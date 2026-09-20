@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Задачи команде</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0;max-width:1100px}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}.sub{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+.ask{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+input,textarea,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:9px 12px}
+textarea{min-height:72px;resize:vertical}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418;font-weight:700;cursor:pointer;align-self:flex-start}
+.route{font-size:12.5px;color:var(--muted)}.route b{color:var(--ink)}
+.task{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.task h3{margin:0;font-size:14.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.st{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--muted)}
+.st.work{color:var(--accent);border-color:var(--accent-dim)}.st.done{color:var(--gold);border-color:var(--gold)}.st.wait{color:var(--stop);border-color:var(--stop)}
+.subs{margin:8px 0 0;padding:0;list-style:none;display:grid;gap:5px}
+.subs li{display:grid;grid-template-columns:110px 1fr auto;gap:10px;font-size:13px;padding:6px 8px;border-radius:8px;background:var(--soft)}
+.subs .who{font-weight:700}.subs .res{color:var(--muted);font-size:12px;grid-column:2}
+.meta{font:11px var(--mono);color:var(--muted)}
+.note{font-size:12px;color:var(--muted);margin-top:14px}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a class="on" href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Задачи команде</h1>
+  <p class="sub">Напишите, что нужно, — руководитель разберёт задачу и раздаст её юристу, статистику, актуарию, разработчику или дизайнеру. Контролёр проверяет результат последним.</p>
+  <div class="ask">
+    <input id="title" placeholder="Что сделать — одной фразой, например: «сравнить нашу убыточность по ОСАГО с рынком»">
+    <textarea id="detail" placeholder="Подробности, если есть (необязательно)"></textarea>
+    <div class="route" id="route"></div>
+    <button class="go" id="send">Поставить задачу</button>
+  </div>
+  <div id="list"></div>
+  <p class="note">Исполнение делают агенты Claude Code: они читают очередь, отмечают «в работе» и «сделана», а вопросы к вам переводят задачу в статус «ждёт заказчика» — такие вопросы попадают в ежедневный доклад.</p>
+</main></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const NAMES={lead:"Руководитель",law:"Юрист",data:"Статистик",actuary:"Актуарий",backend:"Разработчик",ui:"Дизайнер",reviewer:"Контролёр"};
+const ROUTES=[["law",/закон|полож|напп|норм|прав|статья|lex\.uz|регулятор|лиценз|кодекс|указ|постановлен|верифик/],["data",/статист|отч[её]т|выгруз|excel|xlsx|данн|рынок|динамик|убыточн|калибров|обнов/],["actuary",/ставк|тариф|преми|коэффициент|надбавк|резерв|удержан|[её]мкост|pml|риск|франшиз|расч[её]т/],["backend",/api|база|сервер|интеграц|импорт|экспорт|телеграм|telegram|railway|развер|docker|вход|парол/],["ui",/экран|интерфейс|дизайн|страниц|кнопк|тем[аы]|логотип|офис|график|паутин|pdf|печат/]];
+function preview(){ const t=($("#title").value+" "+$("#detail").value).toLowerCase(); const who=ROUTES.filter(([c,r])=>r.test(t)).map(([c])=>NAMES[c]); $("#route").innerHTML=t.trim()?`Руководитель отдаст это: <b>${(who.length?who:["Разработчик"]).join(", ")}</b>, затем проверит <b>Контролёр</b>`:""; }
+$("#title").oninput=preview; $("#detail").oninput=preview;
+const cls=s=>s==="в работе"?"work":s==="сделана"?"done":s==="ждёт заказчика"?"wait":"";
+async function load(){
+  const all=await (await fetch("/tasks?limit=300")).json();
+  const parents=all.filter(t=>!t.parent_id), subs=all.filter(t=>t.parent_id);
+  $("#list").innerHTML=parents.length?parents.map(p=>`<div class="task"><h3>${esc(p.title)}<span class="st ${cls(p.status)}">${esc(p.status)}</span><span class="meta">№${p.id} · ${esc(p.created_at).replace("T"," ")} · ${esc(p.author)}</span></h3>
+    ${p.detail?`<div class="meta" style="margin-top:4px">${esc(p.detail)}</div>`:""}
+    <ul class="subs">${subs.filter(s=>s.parent_id===p.id).map(s=>`<li><span class="who">${NAMES[s.assignee]||esc(s.assignee)}</span><span>${esc(s.title.replace(/^[^:]+:\s*/,""))}</span><span class="st ${cls(s.status)}">${esc(s.status)}</span>${s.result?`<span class="res">${esc(s.result)}</span>`:""}</li>`).join("")}</ul></div>`).join("")
+    :'<div class="note">Задач пока нет — поставьте первую.</div>';
+}
+$("#send").onclick=async()=>{ const title=$("#title").value.trim(); if(!title) return;
+  const r=await fetch("/tasks",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,detail:$("#detail").value.trim()})});
+  if(r.ok){ $("#title").value=""; $("#detail").value=""; preview(); load(); } };
+load();
+</script>
+<script src="/theme.js"></script>

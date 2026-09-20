@@ -1,0 +1,20 @@
+.secrets.env
+.env
+data/photos/
+data/backups/
+sandbox/
+*.log
+# база и данные клиентов не публикуются: база собирается на сервере, статистика подтягивается сама
+data/surveyor.db
+data/uploads/
+data/reports/
+data/inbox/portfolio/
+# внутренние документы компании и извлечённые тексты — только на локальной машине
+library/*
+!library/catalog.json
+!library/КАТАЛОГ.md
+docs/source/
+docs/stat_uz_catalog.json
+__pycache__/
+*.pyc
+.railway/

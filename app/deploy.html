@@ -1,0 +1,426 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Деплой и состояние системы</title>
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0 0 4px}.sub{color:var(--muted);font-size:12.5px;margin:0 0 16px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.tile b{display:block;font:600 19px var(--mono);word-break:break-word}.tile span{font-size:12px;color:var(--muted)}
+.tile.good b{color:var(--accent)}.tile.warn b{color:var(--warn)}.tile.bad b{color:var(--stop)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card h2{font-size:13px;margin:0 0 2px}.card p{font-size:12px;color:var(--muted);margin:0 0 10px}
+.wide{grid-column:1/-1}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:12.5px}
+.kv span{color:var(--muted)}.kv b{font-family:var(--mono);font-weight:600;word-break:break-all}
+label.f{display:block;font-size:11.5px;color:var(--muted);margin:10px 0 4px}
+input,select,textarea,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+input,select,textarea{width:100%}
+button{cursor:pointer;font-weight:600;width:auto}
+button:hover{border-color:var(--accent-dim)}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+button.risk{border-color:var(--stop);color:var(--stop)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.note{font-size:11.5px;color:var(--muted)}.err{color:var(--stop)}.ok{color:var(--accent)}.warn{color:var(--warn)}
+.chip{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:5px;padding:2px 7px;border:1px solid var(--line);color:var(--muted)}
+.chip.ok{color:var(--accent);border-color:var(--accent-dim)}.chip.warn{color:var(--warn);border-color:var(--warn)}.chip.stop{color:var(--stop);border-color:var(--stop)}
+.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line)}
+.check:last-child{border-bottom:0}
+.check input[type=checkbox]{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);flex:none}
+.check .t{flex:1;min-width:0}.check .t b{font-size:13px;font-weight:700;display:block}
+.check .t input[type=text]{margin-top:5px;font-size:12.5px;padding:6px 9px}
+.mask{font-family:var(--mono);font-size:12px;color:var(--muted)}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--ink);padding:0;max-width:460px;width:92vw}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog .body{padding:18px 20px}
+dialog h3{margin:0 0 6px;font-size:16px}
+dialog ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--ink)}
+dialog li{margin-bottom:5px}
+dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px;border-top:1px solid var(--line)}
+.offline{border-color:var(--warn)}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:16px}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a class="on" href="/admin/deploy">Деплой</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Деплой и состояние системы</h1>
+  <p class="sub">Что сейчас работает, на чём работает и что нужно сделать перед переносом на сервер страховщика.</p>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>База данных</h2>
+      <p>Файл базы и сколько в ней записей по ключевым таблицам.</p>
+      <div class="kv" id="dbkv"></div>
+      <table id="tables" style="margin-top:10px"></table>
+    </div>
+
+    <div class="card">
+      <h2>Последние обновления</h2>
+      <p>Когда система в последний раз забирала данные и собирала доклад.</p>
+      <table id="updates"></table>
+      <h2 style="margin-top:14px">Расписания</h2>
+      <p>Задания, которые сервер выполняет сам.</p>
+      <table id="schedules"></table>
+    </div>
+
+    <div class="card">
+      <h2>Настройки</h2>
+      <p>Пустое поле — оставить как есть. Ключи показываются маской, целиком их не видно.</p>
+      <label class="f" for="provider">Провайдер ИИ</label>
+      <select id="provider">
+        <option value="">не менять</option>
+        <option value="kimi">kimi</option>
+        <option value="openai">openai</option>
+        <option value="anthropic">anthropic</option>
+        <option value="none">без ИИ — система работает как сейчас</option>
+      </select>
+      <label class="f" for="base_url">Базовый URL провайдера</label>
+      <input id="base_url" type="text" placeholder="например https://api.moonshot.ai/v1" autocomplete="off">
+      <label class="f" for="model">Модель</label>
+      <input id="model" type="text" placeholder="название модели" autocomplete="off">
+      <label class="f" for="api_key">Ключ API <span class="mask" id="keyMask"></span></label>
+      <input id="api_key" type="password" placeholder="вставьте новый ключ, чтобы заменить" autocomplete="new-password">
+      <label class="f" for="telegram_bot_token">Токен бота Telegram <span class="mask" id="tokMask"></span></label>
+      <input id="telegram_bot_token" type="password" placeholder="токен от @BotFather" autocomplete="new-password">
+      <label class="f" for="server_url">Адрес сервера — по нему открывается мини-апп</label>
+      <input id="server_url" type="text" placeholder="https://..." autocomplete="off">
+      <label class="f" for="pd_mode">Режим персональных данных</label>
+      <select id="pd_mode">
+        <option value="test">тест — данные реальных клиентов вводить нельзя</option>
+        <option value="prod">боевой — сервер в Узбекистане, данные клиентов разрешены</option>
+      </select>
+      <div class="row" style="margin-top:12px">
+        <button class="go" id="save">Сохранить настройки</button>
+        <span class="note" id="saveMsg"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Действия</h2>
+      <p>Резервная копия — файл базы целиком. Проверка схемы сверяет базу с db/schema.sql.</p>
+      <div class="row">
+        <button id="backup">Сделать резервную копию</button>
+        <button id="download">Скачать копию</button>
+        <button id="schema">Проверить схему</button>
+        <button id="ping">Проверить ИИ</button>
+      </div>
+      <div class="note" id="actMsg" style="margin-top:10px"></div>
+      <div id="schemaOut" style="margin-top:8px"></div>
+      <p class="note" style="margin-top:12px">Восстановление из копии сервер сам не делает: файл базы заменяет администратор вручную, на остановленном сервере. Так одна кнопка не может стереть рабочие данные.</p>
+    </div>
+
+    <div class="card wide">
+      <h2>Перенос на сервер страховщика</h2>
+      <p>Каждая галочка сохраняется сразу. В заметке рядом — кто делает и когда.</p>
+      <div id="checklist"><div class="note">загружаю…</div></div>
+    </div>
+
+    <div class="card wide">
+      <h2>Журнал обращений к ИИ</h2>
+      <p>Последние вызовы модели: зачем звали, сколько токенов и времени ушло, что ответила.</p>
+      <div style="overflow-x:auto"><table id="calls"></table></div>
+    </div>
+  </div>
+</main></div>
+
+<dialog id="modal">
+  <div class="body">
+    <h3 id="mTitle">Подтвердите действие</h3>
+    <p class="note" id="mText" style="margin:0"></p>
+    <ul id="mList"></ul>
+  </div>
+  <div class="foot">
+    <button id="mNo">Отмена</button>
+    <button class="risk" id="mYes">Да, продолжить</button>
+  </div>
+</dialog>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => (n == null || n === "") ? "—" : Number(n).toLocaleString("ru-RU");
+const when = s => !s ? "не было" : String(s).replace("T", " ").slice(0, 16);
+const dec = n => String(n).replace(".", ",");
+const NODATA = '<tbody><tr><td class="note">данные недоступны</td></tr></tbody>';
+
+function why(status, j){
+  const d = j && (j.detail || j.error);
+  const ru = typeof d === "string" && /[А-Яа-я]/.test(d) ? d : null;
+  if (ru) return ru;
+  if (status === 404 || status === 405) return "сервер ещё не умеет этот запрос";
+  if (status === 422) return "сервер не принял данные формы";
+  if (status >= 500) return "ошибка на сервере, смотрите лог sandbox/server.log";
+  return "сервер ответил " + status;
+}
+
+async function api(url, opts){
+  try{
+    const r = await fetch(url, opts);
+    let j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    if (!r.ok) return {ok: false, status: r.status, error: why(r.status, j), data: j};
+    return {ok: true, data: j};
+  } catch (e) {
+    return {ok: false, status: 0, error: "сервер не отвечает"};
+  }
+}
+
+/* ---------- модальное подтверждение ---------- */
+function confirmDanger(title, text, items){
+  return new Promise(resolve => {
+    $("#mTitle").textContent = title;
+    $("#mText").textContent = text;
+    $("#mList").innerHTML = (items || []).map(i => "<li>" + esc(i) + "</li>").join("");
+    const dlg = $("#modal");
+    const close = ans => { dlg.close(); resolve(ans); };
+    $("#mYes").onclick = () => close(true);
+    $("#mNo").onclick = () => close(false);
+    dlg.oncancel = e => { e.preventDefault(); close(false); };
+    dlg.showModal();
+  });
+}
+
+/* ---------- состояние системы ---------- */
+let SAVED = {pd_mode: "test"};
+
+function paintStatus(s){
+  const llm = s.llm || {};
+  const pd = (s.settings && s.settings.pd_mode) || "—";
+  const tiles = [
+    ["Версия кода", (s.version && s.version.code) || "—", ""],
+    ["Размер базы, МБ", (s.db && s.db.size_mb != null) ? dec(s.db.size_mb) : "—", ""],
+    ["ИИ", llm.provider ? (llm.connected ? "на связи" : "не отвечает") : "не настроен",
+      llm.provider ? (llm.connected ? "good" : "bad") : "warn"],
+    ["Модель", llm.model || "—", ""],
+    ["Режим персональных данных", pd === "prod" ? "боевой" : pd === "test" ? "тест" : "—", pd === "prod" ? "warn" : ""],
+    ["Адрес сервера", (s.settings && s.settings.server_url) || "не задан", ""]
+  ];
+  $("#tiles").innerHTML = tiles.map(t => '<div class="tile ' + t[2] + '"><b>' + esc(t[1]) + "</b><span>" + esc(t[0]) + "</span></div>").join("");
+
+  const db = s.db || {};
+  $("#dbkv").innerHTML = "<span>Файл</span><b>" + esc(db.path || "—") + "</b>"
+    + "<span>Размер</span><b>" + (db.size_mb != null ? esc(dec(db.size_mb)) + " МБ" : "—") + "</b>"
+    + "<span>Таблиц</span><b>" + ((db.tables || []).length || "—") + "</b>";
+  const tb = db.tables || [];
+  $("#tables").innerHTML = tb.length
+    ? "<thead><tr><th>Таблица</th><th>Записей</th></tr></thead><tbody>"
+      + tb.map(t => "<tr><td>" + esc(t.name) + '</td><td class="n">' + fmt(t.rows) + "</td></tr>").join("") + "</tbody>"
+    : NODATA;
+
+  const u = s.updates || {};
+  const names = [["napp", "Отчёты НАПП"], ["stat_uz", "Агентство статистики"], ["knowledge", "Знания команды"], ["report", "Ежедневный доклад"]];
+  $("#updates").innerHTML = "<tbody>" + names.map(n =>
+    "<tr><td>" + n[1] + '</td><td class="n ' + (u[n[0]] ? "" : "warn") + '">' + esc(when(u[n[0]])) + "</td></tr>").join("") + "</tbody>";
+
+  const sc = s.schedules || [];
+  $("#schedules").innerHTML = sc.length
+    ? "<thead><tr><th>Задание</th><th>Раз в</th><th>Последний запуск</th></tr></thead><tbody>"
+      + sc.map(x => "<tr><td>" + esc(x.name) + "</td><td>" + esc(x.period || "—") + '</td><td class="n">' + esc(when(x.last_run)) + "</td></tr>").join("") + "</tbody>"
+    : NODATA;
+
+  if (llm.reason && !llm.connected) $("#actMsg").innerHTML = '<span class="warn">ИИ: ' + esc(llm.reason) + "</span>";
+}
+
+function statusOffline(msg){
+  $("#tiles").innerHTML = '<div class="tile offline"><b class="warn">данные недоступны</b><span>' + esc(msg) + "</span></div>";
+  $("#dbkv").innerHTML = "<span>Файл</span><b>—</b>";
+  ["#tables", "#updates", "#schedules"].forEach(id => { $(id).innerHTML = NODATA; });
+}
+
+async function loadStatus(){
+  const r = await api("/deploy/status");
+  if (!r.ok) { statusOffline(r.error); return; }
+  paintStatus(r.data || {});
+}
+
+/* ---------- настройки ---------- */
+function maskOf(o, keys){
+  for (let i = 0; i < keys.length; i++) if (o && o[keys[i]]) return String(o[keys[i]]);
+  return "";
+}
+
+async function loadSettings(){
+  const r = await api("/deploy/settings");
+  if (!r.ok) { $("#saveMsg").innerHTML = '<span class="warn">данные недоступны: ' + esc(r.error) + "</span>"; return; }
+  const s = r.data || {};
+  SAVED = s;
+  if (s.provider) {
+    const sel = $("#provider");
+    let has = false;
+    for (let i = 0; i < sel.options.length; i++) if (sel.options[i].value === s.provider) has = true;
+    if (!has) sel.add(new Option(s.provider, s.provider));
+    sel.value = s.provider;
+  }
+  $("#base_url").value = s.base_url || "";
+  $("#model").value = s.model || "";
+  $("#server_url").value = s.server_url || "";
+  $("#pd_mode").value = s.pd_mode === "prod" ? "prod" : "test";
+  const km = maskOf(s, ["api_key_mask", "api_key_masked", "api_key"]);
+  $("#keyMask").textContent = km ? "· сейчас " + km : "· не задан";
+  const tm = maskOf(s, ["telegram_bot_token_mask", "telegram_bot_token_masked", "telegram_bot_token"]);
+  $("#tokMask").textContent = tm ? "· сейчас " + tm : "· не задан";
+}
+
+async function save(){
+  const body = {
+    provider: $("#provider").value,
+    base_url: $("#base_url").value.trim(),
+    model: $("#model").value.trim(),
+    api_key: $("#api_key").value.trim(),
+    telegram_bot_token: $("#telegram_bot_token").value.trim(),
+    pd_mode: $("#pd_mode").value,
+    server_url: $("#server_url").value.trim()
+  };
+  const wasTest = (SAVED.pd_mode || "test") !== "prod";
+  if (body.pd_mode === "prod" && wasTest) {
+    const ok = await confirmDanger(
+      "Включить боевой режим персональных данных?",
+      "Боевой режим разрешает вводить данные реальных клиентов. Включайте его только тогда, когда сервер физически стоит в Узбекистане.",
+      ["Правило проекта № 8: персональные данные граждан Узбекистана хранятся только на серверах в Узбекистане.",
+       "Пока сервер тестовый и стоит за пределами страны, боевой режим нарушит закон о персональных данных.",
+       "Данные, введённые после включения, останутся в базе — удалять их придётся вручную."]);
+    if (!ok) { $("#pd_mode").value = SAVED.pd_mode === "prod" ? "prod" : "test"; return; }
+    body.confirm = true;
+  }
+  $("#saveMsg").textContent = "сохраняю…";
+  const r = await api("/deploy/settings", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  if (!r.ok) { $("#saveMsg").innerHTML = '<span class="err">не сохранилось: ' + esc(r.error) + "</span>"; return; }
+  $("#saveMsg").innerHTML = '<span class="ok">сохранено</span>';
+  $("#api_key").value = "";
+  $("#telegram_bot_token").value = "";
+  await loadSettings();
+  await loadStatus();
+}
+
+/* ---------- действия ---------- */
+let LAST_BACKUP = null;
+
+async function backup(){
+  $("#actMsg").textContent = "делаю копию…";
+  const r = await api("/deploy/backup", {method: "POST"});
+  if (!r.ok) { $("#actMsg").innerHTML = '<span class="err">копия не сделана: ' + esc(r.error) + "</span>"; return; }
+  const d = r.data || {};
+  if (d.ok === false) { $("#actMsg").innerHTML = '<span class="err">' + esc(d.reason || "копия не сделана") + "</span>"; return; }
+  LAST_BACKUP = d.file || null;
+  $("#actMsg").innerHTML = '<span class="ok">копия готова:</span> <span class="mask">' + esc(d.file || "") + "</span> · "
+    + esc(d.size_mb == null ? "?" : dec(d.size_mb)) + " МБ";
+}
+
+function download(){
+  if (!LAST_BACKUP) { $("#actMsg").innerHTML = '<span class="warn">сначала сделайте копию — тогда будет что скачивать</span>'; return; }
+  location.href = "/deploy/backup/download?file=" + encodeURIComponent(LAST_BACKUP);
+}
+
+async function schemaCheck(){
+  $("#actMsg").textContent = "сверяю базу со схемой…";
+  const r = await api("/deploy/schema-check");
+  if (!r.ok) { $("#actMsg").innerHTML = '<span class="err">проверка недоступна: ' + esc(r.error) + "</span>"; $("#schemaOut").innerHTML = ""; return; }
+  const d = r.data || {};
+  const pr = d.problems || [];
+  $("#actMsg").innerHTML = d.ok ? '<span class="ok">схема в порядке</span>' : '<span class="warn">нашлись расхождения: ' + pr.length + "</span>";
+  $("#schemaOut").innerHTML = pr.length
+    ? "<table><tbody>" + pr.map(p => '<tr><td><span class="chip ' + (p.level === "ошибка" ? "stop" : "warn") + '">' + esc(p.level)
+      + "</span></td><td>" + esc(p.text) + "</td></tr>").join("") + "</tbody></table>"
+    : "";
+}
+
+async function ping(){
+  $("#actMsg").textContent = "спрашиваю модель…";
+  const r = await api("/llm/ping", {method: "POST"});
+  if (!r.ok) { $("#actMsg").innerHTML = '<span class="err">ИИ не ответил: ' + esc(r.error) + "</span>"; return; }
+  const d = r.data || {};
+  $("#actMsg").innerHTML = (d.ok === false)
+    ? '<span class="err">ИИ не ответил: ' + esc(d.reason || d.error || "причина не указана") + "</span>"
+    : '<span class="ok">ИИ на связи</span> <span class="note">' + esc(d.model || "") + (d.ms ? " · " + esc(d.ms) + " мс" : "") + "</span>";
+  loadCalls();
+  loadStatus();
+}
+
+/* ---------- чек-лист переноса ---------- */
+function paintChecklist(items){
+  if (!items.length) { $("#checklist").innerHTML = '<div class="note">данные недоступны</div>'; return; }
+  $("#checklist").innerHTML = items.map(it =>
+    '<div class="check" data-key="' + esc(it.key) + '">'
+    + '<input type="checkbox"' + (it.done ? " checked" : "") + ">"
+    + '<div class="t"><b>' + esc(it.title) + "</b>"
+    + '<input type="text" placeholder="заметка: кто делает, когда, какой адрес" value="' + esc(it.note || "") + '">'
+    + '<span class="note st"></span></div></div>').join("");
+
+  const rows = $("#checklist").querySelectorAll(".check");
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const box = row.querySelector("input[type=checkbox]");
+    const note = row.querySelector("input[type=text]");
+    const st = row.querySelector(".st");
+    const send = async () => {
+      st.className = "note st";
+      st.textContent = "сохраняю…";
+      const r = await api("/deploy/checklist", {method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({key: row.dataset.key, done: box.checked, note: note.value})});
+      if (!r.ok) { st.className = "note st err"; st.textContent = "не сохранилось: " + r.error; return; }
+      st.className = "note st ok";
+      st.textContent = "сохранено";
+      setTimeout(() => { if (st.textContent === "сохранено") st.textContent = ""; }, 2000);
+    };
+    box.onchange = send;
+    let timer = null;
+    note.oninput = () => { clearTimeout(timer); timer = setTimeout(send, 700); };
+  }
+}
+
+async function loadChecklist(){
+  const r = await api("/deploy/checklist");
+  if (!r.ok) { $("#checklist").innerHTML = '<div class="note">данные недоступны: ' + esc(r.error) + "</div>"; return; }
+  const d = r.data;
+  paintChecklist(Array.isArray(d) ? d : ((d && d.items) || []));
+}
+
+/* ---------- журнал обращений к ИИ ---------- */
+async function loadCalls(){
+  const r = await api("/llm/calls?limit=50");
+  if (!r.ok) { $("#calls").innerHTML = NODATA; return; }
+  const d = r.data;
+  const rows = Array.isArray(d) ? d : ((d && d.calls) || []);
+  $("#calls").innerHTML = rows.length
+    ? "<thead><tr><th>Время</th><th>Назначение</th><th>Модель</th><th>Токены</th><th>Мс</th><th>Ошибка</th></tr></thead><tbody>"
+      + rows.map(c => '<tr><td class="n">' + esc(when(c.created_at || c.time || c.ts))
+        + "</td><td>" + esc(c.purpose || c.kind || "—")
+        + "</td><td>" + esc(c.model || "—")
+        + '</td><td class="n">' + fmt(c.tokens != null ? c.tokens : (c.total_tokens != null ? c.total_tokens : null))
+        + '</td><td class="n">' + fmt(c.ms != null ? c.ms : c.duration_ms)
+        + '</td><td class="' + (c.error ? "err" : "note") + '">' + esc(c.error || "—") + "</td></tr>").join("") + "</tbody>"
+    : '<tbody><tr><td class="note">обращений к ИИ пока не было</td></tr></tbody>';
+}
+
+$("#save").onclick = save;
+$("#backup").onclick = backup;
+$("#download").onclick = download;
+$("#schema").onclick = schemaCheck;
+$("#ping").onclick = ping;
+
+loadStatus();
+loadSettings();
+loadChecklist();
+loadCalls();
+</script>
+<script src="/theme.js"></script>

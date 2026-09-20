@@ -1,0 +1,408 @@
+<title>Паутина РНП</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Намеренно одна тёмная тема — в духе графа Obsidian */
+:root{
+  --ground:#1A1C1E; --surface:#232629; --raise:#2C3034; --hover:#353A3F; --ink:#DCDEE0; --muted:#8C939A; --line:#3A3F44; --edge:#50575E;
+  --g1:#4FC1A9; --g2:#F2A541; --g3:#8EA9FF; --g4:#B8C94F; --flag:#FF6B5B;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;margin:0;overflow:hidden}
+button{font:inherit;color:inherit}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr;padding-inline:16px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding-block:12px}
+h1{font:700 22px/1 var(--cond);margin:0}
+.search{position:relative;flex:0 1 320px}
+.search input{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 12px}
+.search input::placeholder{color:var(--muted)}
+.results{position:absolute;z-index:5;left:0;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px;box-shadow:0 12px 28px rgba(0,0,0,.45);max-height:340px;overflow-y:auto}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font:500 12.5px var(--sans);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.chip .n{font-family:var(--mono);opacity:.7;margin-left:4px}
+:focus-visible{outline:2px solid var(--g1);outline-offset:2px}
+
+.body{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;min-height:0;padding-bottom:14px}
+@media (max-width:860px){.body{grid-template-columns:1fr;grid-template-rows:minmax(300px,1fr) auto}}
+.stage{position:relative;min-height:0;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+#graph{display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.tip{position:absolute;left:12px;top:10px;font-size:12.5px;color:var(--muted);pointer-events:none}
+.zoom{position:absolute;right:10px;top:10px;display:flex;gap:4px}
+.zoom button{font:600 14px var(--mono);width:30px;height:30px;background:var(--surface);border:1px solid var(--line);border-radius:6px;cursor:pointer}
+.legend{position:absolute;left:12px;bottom:10px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:9px;height:9px;border-radius:50%;display:inline-block}
+.sw.ring{border:2px solid var(--flag)}
+
+/* SVG */
+.link{stroke:var(--edge);stroke-width:1.2;fill:none}
+.link.p{stroke-width:.8;opacity:.7}
+.link.extra{stroke-width:1.6;stroke-dasharray:5 4}
+.gnode,.cnode,.pnode{cursor:pointer}
+.gnode text{font-family:var(--cond);text-anchor:middle;pointer-events:none}
+.cnode .count{font:600 11px var(--mono);fill:var(--ground);text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.lbl{font:12px var(--sans);fill:var(--ink);pointer-events:none;paint-order:stroke;stroke:var(--ground);stroke-width:4px;stroke-linejoin:round}
+.lbl.sub{fill:var(--muted);font-size:11px}
+.pnode .lbl{font-size:11px;fill:var(--muted)}
+.pnode:hover .lbl,.pnode.sel .lbl{fill:var(--ink)}
+.pnode circle.flag{stroke:var(--flag);stroke-width:2}
+.pnode.sel circle{stroke:var(--ink);stroke-width:2.5}
+.cnode.open circle{stroke:var(--ink);stroke-width:2.5}
+.dim{opacity:.28}
+.faded{opacity:.15}
+.cnode,.gnode,.pnode,.link{transition:opacity .2s}
+@media (prefers-reduced-motion:reduce){.cnode,.gnode,.pnode,.link{transition:none}}
+
+/* Панель */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px;min-height:0}
+@media (max-width:860px){.panel{max-height:none;overflow:visible}body{overflow:auto}.app{height:auto;min-height:100%}}
+.crumbs{display:flex;flex-wrap:wrap;gap:4px;align-items:center;font-size:12.5px;color:var(--muted)}
+.crumbs button{background:none;border:0;padding:0;color:var(--muted);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.crumbs button:hover{color:var(--ink)}
+.eyebrow{font:600 10.5px var(--sans);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.h{font:600 20px/1.2 var(--cond);margin:2px 0 0;text-wrap:balance}
+.code{font:600 13px var(--mono);color:var(--muted)}
+.method{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:8px;background:var(--raise);border-left:3px solid var(--gc)}
+.method .t{font-weight:500}
+.method .m{color:var(--muted);font-size:13px}
+.gtag{display:inline-block;font:600 11px var(--sans);color:var(--ground);background:var(--gc);border-radius:4px;padding:0 6px;white-space:nowrap}
+.list{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:baseline;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:8px 6px;cursor:pointer;border-radius:0}
+.row:hover{background:var(--hover)}
+.row .c{font:600 12px var(--mono);color:var(--muted)}
+.row .r{font-size:12px;color:var(--muted);text-align:right;max-width:120px}
+.row .fl{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--flag);margin-left:6px;vertical-align:1px}
+.results .row{grid-template-columns:44px 1fr;border-bottom:0;border-radius:6px}
+.empty{color:var(--muted);font-size:13px;margin:0}
+dl.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:0;font-size:13.5px}
+dl.kv dt{color:var(--muted)} dl.kv dd{margin:0}
+.parts{display:flex;flex-direction:column;gap:6px}
+.note{border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13px}
+.note.flag{border-color:var(--flag)} .note.flag .eyebrow{color:var(--flag)}
+.calc table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums;margin-top:6px}
+.calc td{padding:5px 0;border-bottom:1px solid var(--line)}
+.calc td:last-child{text-align:right;font-family:var(--mono)}
+.calc p{margin:4px 0 0;color:var(--muted);font-size:12.5px}
+</style>
+
+<div class="app">
+  <div class="top">
+    <h1>Паутина РНП</h1>
+    <div class="search">
+      <label for="q" class="eyebrow" style="position:absolute;left:-9999px">Поиск продукта</label>
+      <input id="q" type="search" placeholder="Найти продукт: код или название" autocomplete="off">
+      <div class="results" id="results" hidden></div>
+    </div>
+    <div class="chips" role="group" aria-label="Показать продукты">
+      <button class="chip" id="f-all" data-f="all" aria-pressed="true">Все</button>
+      <button class="chip" id="f-prop" data-f="prop" aria-pressed="false">Имущество</button>
+      <button class="chip" id="f-cross" data-f="cross" aria-pressed="false">В двух группах</button>
+      <button class="chip" id="f-flag" data-f="flag" aria-pressed="false">Требуют уточнения</button>
+      <button class="chip" id="f-gen" data-f="gen" aria-pressed="false">Генеральные</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="stage" id="stage">
+      <svg id="graph" role="img" aria-label="Учётные группы, классы и продукты"></svg>
+      <div class="tip">Нажмите на класс — раскроются его продукты</div>
+      <div class="zoom"><button type="button" id="zin" aria-label="Приблизить">+</button><button type="button" id="zout" aria-label="Отдалить">−</button><button type="button" id="zfit" aria-label="Показать всё">⤢</button></div>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--g1)"></i>1-я группа</span>
+        <span><i class="sw" style="background:var(--g2)"></i>2-я</span>
+        <span><i class="sw" style="background:var(--g3)"></i>3-я</span>
+        <span><i class="sw" style="background:var(--g4)"></i>4-я</span>
+        <span><i class="sw ring"></i>требует уточнения</span>
+      </div>
+    </div>
+    <aside class="panel" id="panel" aria-live="polite"></aside>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+const DATA = __DATA__;
+const GCOL = {"1":"#4FC1A9","2":"#F2A541","3":"#8EA9FF","4":"#B8C94F"};
+const SHORT = {"1":"по дням или 1/24","2":"100% базы","3":"40% базы","4":"75% базы"};
+const PROP = new Set(["7","8","9"]);
+
+/* ---------- данные ---------- */
+const products = DATA.products.map(([code,name,rate,comm,classes,note]) => {
+  const gen = note === "GEN";
+  const groups = [...new Set(classes.map(c => DATA.classes[c].group))];
+  return {code,name,rate,comm,classes,gen,note:gen?"":note,groups,cross:groups.length>1,
+    prop:classes.some(c=>PROP.has(c)),flag:!gen && /Уточнить|выделять/.test(note)};
+});
+const byCode = Object.fromEntries(products.map(p=>[p.code,p]));
+const productsOf = k => products.filter(p => p.classes.includes(k));
+const TESTS = {all:()=>true, prop:p=>p.prop, cross:p=>p.cross, flag:p=>p.flag, gen:p=>p.gen};
+let filter = "all";
+const pass = p => TESTS[filter](p);
+
+/* ---------- раскладка: группы на местах, классы вокруг ---------- */
+const G = {"1":{x:0,y:0},"2":{x:760,y:-40},"3":{x:760,y:-400},"4":{x:760,y:330}};
+const classKeys = Object.keys(DATA.classes);
+const C = {};
+const ring = (keys, center, r, start, span) => keys.forEach((k,i) => {
+  const a = start + (keys.length===1 ? 0 : span*i/(keys.length-(span>=2*Math.PI-1e-6?0:1)));
+  C[k] = {x:center.x + r*Math.cos(a), y:center.y + r*Math.sin(a), a};
+});
+const g1k = classKeys.filter(k=>DATA.classes[k].group==="1").sort((a,b)=>parseInt(a)-parseInt(b));
+ring(g1k, G["1"], 270, -Math.PI/2, 2*Math.PI);
+ring(["14","15","16","13з"], G["2"], 190, -Math.PI*0.75, Math.PI*1.5);
+C["16у"] = {x:G["4"].x, y:G["4"].y+140, a:Math.PI/2};
+
+/* ---------- svg ---------- */
+const svg = d3.select("#graph");
+const root = svg.append("g");
+const Lg = root.append("g"), Lx = root.append("g"), Lp = root.append("g"), Ln = root.append("g");
+const stage = document.getElementById("stage");
+
+const gl = Lg.selectAll("line").data(classKeys).join("line").attr("class","link")
+  .attr("x1",k=>C[k].x).attr("y1",k=>C[k].y)
+  .attr("x2",k=>G[DATA.classes[k].group].x).attr("y2",k=>G[DATA.classes[k].group].y);
+
+const gnode = Ln.selectAll("g.gnode").data(Object.keys(G)).join("g").attr("class","gnode")
+  .attr("transform",k=>`translate(${G[k].x},${G[k].y})`).attr("tabindex",0).attr("role","button")
+  .attr("aria-label",k=>DATA.groups[k].name);
+gnode.append("circle").attr("r",42).attr("fill",k=>GCOL[k]);
+gnode.append("text").attr("y",-6).attr("font-size",28).attr("font-weight",700).attr("fill","#1A1C1E").attr("dominant-baseline","central").text(k=>k);
+gnode.append("text").attr("y",18).attr("font-size",10).attr("font-weight",600).attr("letter-spacing",".08em").attr("fill","#1A1C1E").text("ГРУППА");
+gnode.append("text").attr("class","lbl sub").attr("y",60).attr("text-anchor","middle").text(k=>"РНП: "+SHORT[k]);
+
+const cnode = Ln.selectAll("g.cnode").data(classKeys).join("g").attr("class","cnode")
+  .attr("transform",k=>`translate(${C[k].x},${C[k].y})`).attr("tabindex",0).attr("role","button")
+  .attr("aria-label",k=>`Класс ${k}: ${DATA.classes[k].name}`);
+cnode.append("circle").attr("fill",k=>GCOL[DATA.classes[k].group]);
+cnode.append("text").attr("class","count");
+cnode.append("text").attr("class","lbl").attr("text-anchor","middle")
+  .text(k => { const n = DATA.classes[k].name; return `${k} · ${n.length>30 ? n.slice(0,28)+"…" : n}`; });
+
+function refreshCounts(){
+  cnode.each(function(k){
+    const n = productsOf(k).filter(pass).length;
+    const r = n ? 11 + Math.sqrt(n)*2.2 : 8;
+    const g = d3.select(this);
+    g.select("circle").attr("r", r);
+    g.select(".count").text(n || "");
+    g.select(".lbl").attr("y", r + 15);
+    g.classed("faded", n === 0 && state.open !== k);
+  });
+}
+
+/* ---------- состояние ---------- */
+const state = {open:null, product:null};
+
+function productPositions(k){
+  const list = productsOf(k);
+  const c = C[k], center = G[DATA.classes[k].group];
+  /* продукты — ровными столбцами в сторону от центра группы, подписи не пересекаются */
+  const dir = c.x >= center.x ? 1 : -1;
+  const perCol = 18, step = 24, colW = 290, pos = {};
+  const cols = Math.ceil(list.length / perCol);
+  list.forEach((p,i) => {
+    const col = Math.floor(i/perCol), inCol = Math.min(perCol, list.length - col*perCol), j = i - col*perCol;
+    pos[p.code] = {x:c.x + dir*(120 + col*colW), y:c.y + (j - (inCol-1)/2)*step, a: dir>0 ? 0 : Math.PI};
+  });
+  return {list, pos, dir, cols};
+}
+
+function renderGraph(){
+  const k = state.open;
+  const {list,pos} = k ? productPositions(k) : {list:[],pos:{}};
+  const c = k ? C[k] : {x:0,y:0};
+
+  Lp.selectAll("line").data(list, p=>p.code).join(
+    e => e.append("line").attr("class","link p").attr("x1",c.x).attr("y1",c.y).attr("x2",c.x).attr("y2",c.y),
+    u => u, x => x.remove())
+    .attr("stroke", p => GCOL[DATA.classes[k].group])
+    .transition().duration(300).attr("x1",c?c.x:0).attr("y1",c?c.y:0).attr("x2",p=>pos[p.code].x).attr("y2",p=>pos[p.code].y);
+
+  const pn = Ln.selectAll("g.pnode").data(list, p=>p.code).join(
+    e => { const g = e.append("g").attr("class","pnode").attr("tabindex",0).attr("role","button")
+             .attr("transform",`translate(${c.x},${c.y})`);
+           g.append("circle"); g.append("text").attr("class","lbl").attr("dominant-baseline","central");
+           g.append("title"); return g; },
+    u => u, x => x.remove());
+  pn.attr("aria-label", p=>`${p.code} ${p.name}`)
+    .classed("sel", p => state.product === p.code)
+    .classed("faded", p => !pass(p));
+  pn.select("title").text(p=>`${p.code} — ${p.name}`);
+  pn.select("circle").attr("r", p => p.cross ? 7 : 5.5).attr("fill", p => GCOL[p.groups[0]]).attr("class", p => p.flag ? "flag" : null);
+  pn.select("text")
+    .attr("x", p => Math.cos(pos[p.code].a) >= 0 ? 10 : -10)
+    .attr("text-anchor", p => Math.cos(pos[p.code].a) >= 0 ? "start" : "end")
+    .text(p => { const s = `${p.code} ${p.name}`; return s.length>34 ? s.slice(0,32)+"…" : s; });
+  pn.transition().duration(300).attr("transform", p=>`translate(${pos[p.code].x},${pos[p.code].y})`);
+  pn.raise();
+
+  /* дополнительные связи выбранного продукта: другие классы и 3-я группа */
+  const sel = state.product ? byCode[state.product] : null;
+  const extra = [];
+  if (sel && pos[sel.code]){
+    sel.classes.filter(x => x !== k).forEach(x => extra.push({to:C[x], col:GCOL[DATA.classes[x].group]}));
+    if (sel.gen) extra.push({to:G["3"], col:GCOL["3"]});
+  }
+  Lx.selectAll("line").data(extra).join("line").attr("class","link extra")
+    .attr("stroke",d=>d.col).attr("x1",pos[sel?.code]?.x).attr("y1",pos[sel?.code]?.y).attr("x2",d=>d.to.x).attr("y2",d=>d.to.y);
+
+  /* приглушение того, что не связано с открытым классом */
+  const keepC = new Set(k ? [k, ...(sel ? sel.classes : [])] : classKeys);
+  const keepG = new Set([...keepC].map(x => DATA.classes[x].group));
+  if (sel && sel.gen) keepG.add("3");
+  cnode.classed("open", x => x === k).classed("dim", x => k && !keepC.has(x));
+  gnode.classed("dim", x => k && !keepG.has(x));
+  gl.classed("dim", x => k && !keepC.has(x));
+  refreshCounts();
+}
+
+/* ---------- зум ---------- */
+const zoom = d3.zoom().scaleExtent([.2,4]).on("zoom", e => root.attr("transform", e.transform));
+svg.call(zoom).on("dblclick.zoom", null);
+function fitBox(x0,y0,x1,y1,dur){
+  const W = stage.clientWidth, H = stage.clientHeight, pad = 50;
+  const k = Math.min(2.2, Math.min((W-pad*2)/(x1-x0), (H-pad*2-30)/(y1-y0)));
+  const t = d3.zoomIdentity.translate(W/2, H/2+10).scale(k).translate(-(x0+x1)/2, -(y0+y1)/2);
+  (dur ? svg.transition().duration(dur) : svg).call(zoom.transform, t);
+}
+function fitAll(dur){ fitBox(-360,-470,960,470,dur); }
+function fitClass(k,dur){
+  const {pos, dir} = productPositions(k);
+  const pts = [C[k], ...Object.values(pos).map(p => ({x:p.x + dir*250, y:p.y})), ...Object.values(pos)];
+  const xs = pts.map(p=>p.x), ys = pts.map(p=>p.y);
+  fitBox(Math.min(...xs)-90, Math.min(...ys)-40, Math.max(...xs)+90, Math.max(...ys)+40, dur);
+}
+document.getElementById("zin").onclick = () => svg.transition().duration(250).call(zoom.scaleBy,1.35);
+document.getElementById("zout").onclick = () => svg.transition().duration(250).call(zoom.scaleBy,1/1.35);
+document.getElementById("zfit").onclick = () => fitAll(400);
+
+/* ---------- панель ---------- */
+const panel = document.getElementById("panel");
+const esc = s => String(s).replace(/[&<>"]/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch]));
+const fmt = n => Math.round(n).toLocaleString("ru-RU");
+const commPct = c => { const m = String(c).match(/(\d+)/); return m ? +m[1] : 0; };
+const methodBox = g => `<div class="method" style="--gc:${GCOL[g]}"><span class="gtag">${g}-я группа</span><div><div class="t">${esc(DATA.groups[g].rnp)}</div><div class="m">${esc(DATA.groups[g].formula)}</div></div></div>`;
+const rows = list => list.length
+  ? `<div class="list">${list.map(p=>`<button type="button" class="row" data-p="${p.code}"><span class="c">${p.code}</span><span>${esc(p.name)}${p.flag?'<i class="fl" title="Требует уточнения"></i>':""}</span><span class="r">${esc(p.rate)}</span></button>`).join("")}</div>`
+  : `<p class="empty">Под выбранный фильтр продуктов нет.</p>`;
+
+function renderHome(){
+  panel.innerHTML = `<div><div class="eyebrow">С чего начать</div><h2 class="h">Выберите учётную группу или класс</h2></div>
+    <p class="empty" style="color:var(--ink)">Каждый продукт относится к классу страхования, класс — к учётной группе, а группа определяет, как считать резерв незаработанной премии (РНП).</p>
+    ${["1","2","3","4"].map(g=>`<button type="button" class="row" data-g="${g}" style="grid-template-columns:auto 1fr"><span class="gtag" style="--gc:${GCOL[g]}">${g}-я</span><span>${esc(DATA.groups[g].rnp)}</span></button>`).join("")}
+    <p class="empty">База для РНП — брутто-премия минус комиссия агента.</p>`;
+}
+function renderGroup(g){
+  const cls = classKeys.filter(k=>DATA.classes[k].group===g);
+  const list = g==="3" ? products.filter(p=>p.gen).filter(pass) : null;
+  panel.innerHTML = `<div class="crumbs"><button type="button" data-home>Все группы</button></div>
+    <div><div class="eyebrow">Учётная группа</div><h2 class="h">${esc(DATA.groups[g].name)}</h2></div>
+    ${methodBox(g)}
+    ${g==="3"
+      ? `<div class="note">${esc(DATA.group3_rule)}. Кандидаты — генеральные договоры, если в них открытые даты.</div><div class="eyebrow">Кандидаты (${list.length})</div>${rows(list)}`
+      : `<div class="eyebrow">Классы</div><div class="list">${cls.map(k=>{ const n=productsOf(k).filter(pass).length;
+          return `<button type="button" class="row" data-c="${k}"><span class="c">${esc(k)}</span><span>${esc(DATA.classes[k].name)}</span><span class="r">${n} прод.</span></button>`;}).join("")}</div>
+        ${g==="4" ? '<p class="empty">Продуктов страхования урожая в тарифной политике нет.</p>' : ""}`}`;
+}
+function renderClass(k){
+  const c = DATA.classes[k];
+  const list = productsOf(k).filter(pass);
+  panel.innerHTML = `<div class="crumbs"><button type="button" data-home>Все группы</button>›<button type="button" data-g="${c.group}">${c.group}-я группа</button></div>
+    <div><div class="eyebrow">Класс ${esc(k)}</div><h2 class="h">${esc(c.name)}</h2></div>
+    ${methodBox(c.group)}
+    <div class="eyebrow">Продукты (${list.length})</div>${rows(list)}`;
+}
+function renderProduct(p){
+  const k = state.open, c = DATA.classes[k];
+  const pct = commPct(p.comm), base = 1e6*(1-pct/100);
+  const gs = [...p.groups]; if (p.gen && !gs.includes("3")) gs.push("3");
+  const calc = gs.map(g => {
+    const v = g==="1" ? base*265/365 : base*DATA.groups[g].share;
+    const how = g==="1" ? "осталось 265 из 365 дней" : `${Math.round(DATA.groups[g].share*100)}% базы`;
+    return `<tr><td><span class="gtag" style="--gc:${GCOL[g]}">${g}-я</span> ${how}</td><td>${fmt(v)}</td></tr>`;
+  }).join("");
+  panel.innerHTML = `<div class="crumbs"><button type="button" data-home>Все группы</button>›<button type="button" data-g="${c.group}">${c.group}-я группа</button>›<button type="button" data-c="${esc(k)}">Класс ${esc(k)}</button></div>
+    <div><div class="code">${p.code}${p.prop?" · имущество":""}</div><h2 class="h">${esc(p.name)}</h2></div>
+    <dl class="kv"><dt>Мин. тариф</dt><dd>${esc(p.rate)}</dd><dt>Комиссия агента</dt><dd>${esc(p.comm)}</dd></dl>
+    <div class="parts"><div class="eyebrow">${p.classes.length>1?"Договор делится на части":"Как считать РНП"}</div>
+      ${p.classes.map(x=>`<div class="method" style="--gc:${GCOL[DATA.classes[x].group]}"><span class="gtag">${DATA.classes[x].group}-я</span><div><div class="t">Класс ${esc(x)} · ${esc(DATA.classes[x].name)}</div><div class="m">${esc(DATA.groups[DATA.classes[x].group].rnp)}</div></div></div>`).join("")}</div>
+    ${p.gen?`<div class="note"><div class="eyebrow" style="color:${GCOL["3"]}">Генеральный договор</div>Если даты открытые — 3-я группа, РНП 40% базы. Проверить по договору.</div>`:""}
+    ${p.note?`<div class="note${p.flag?" flag":""}"><div class="eyebrow">${p.flag?"Требует уточнения":"Примечание"}</div>${esc(p.note)}</div>`:""}
+    <div class="calc"><div class="eyebrow">Пример</div><p>Премия 1 000 000 сум, комиссия ${pct}% → база ${fmt(base)} сум.${p.classes.length>1?" Для нескольких частей базу сначала делят по частям.":""}</p><table>${calc}</table></div>`;
+}
+
+/* ---------- действия ---------- */
+function openHome(){ state.open=null; state.product=null; state.group=null; renderGraph(); renderHome(); fitAll(400); }
+function openGroup(g){ state.open=null; state.product=null; state.group=g; renderGraph(); renderGroup(g); fitAll(400); }
+function openClass(k, zoomIn=true){ state.open=k; state.product=null; state.group=null; renderGraph(); renderClass(k); if (zoomIn) fitClass(k,450); }
+function openProduct(code, k){
+  const p = byCode[code];
+  const cls = k && p.classes.includes(k) ? k : (state.open && p.classes.includes(state.open) ? state.open : p.classes[0]);
+  const moved = state.open !== cls;
+  state.open = cls; state.product = code; renderGraph(); renderProduct(p);
+  if (moved) fitClass(cls,450);
+}
+
+gnode.on("click",(e,g)=>{ e.stopPropagation(); openGroup(g); })
+     .on("keydown",(e,g)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openGroup(g); } });
+cnode.on("click",(e,k)=>{ e.stopPropagation(); openClass(k); })
+     .on("keydown",(e,k)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openClass(k); } });
+Ln.on("click", e => { const g = e.target.closest(".pnode"); if (g){ e.stopPropagation(); openProduct(d3.select(g).datum().code); } });
+Ln.on("keydown", e => { const g = e.target.closest(".pnode"); if (g && (e.key==="Enter"||e.key===" ")){ e.preventDefault(); openProduct(d3.select(g).datum().code); } });
+
+panel.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.hasAttribute("data-home")) openHome();
+  else if (b.dataset.g) openGroup(b.dataset.g);
+  else if (b.dataset.c) openClass(b.dataset.c);
+  else if (b.dataset.p) openProduct(b.dataset.p, state.open);
+});
+
+/* фильтры */
+document.querySelectorAll(".chip").forEach(b => {
+  const f = b.dataset.f;
+  b.insertAdjacentHTML("beforeend", `<span class="n">${products.filter(TESTS[f]).length}</span>`);
+  b.addEventListener("click", () => {
+    filter = f;
+    document.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", String(x===b)));
+    renderGraph();
+    if (state.product) renderProduct(byCode[state.product]);
+    else if (state.open) renderClass(state.open);
+    else if (state.group) renderGroup(state.group);
+  });
+});
+
+/* поиск с подсказками */
+const q = document.getElementById("q"), results = document.getElementById("results");
+q.addEventListener("input", () => {
+  const s = q.value.trim().toLowerCase();
+  if (!s){ results.hidden = true; return; }
+  const hits = products.filter(p => p.code.includes(s) || p.name.toLowerCase().includes(s)).slice(0,12);
+  results.innerHTML = hits.length
+    ? hits.map(p=>`<button type="button" class="row" data-p="${p.code}"><span class="c">${p.code}</span><span>${esc(p.name)}</span></button>`).join("")
+    : `<p class="empty" style="padding:8px">Ничего не найдено</p>`;
+  results.hidden = false;
+});
+results.addEventListener("click", e => {
+  const b = e.target.closest("button[data-p]"); if (!b) return;
+  results.hidden = true; q.value = ""; openProduct(b.dataset.p);
+});
+q.addEventListener("keydown", e => {
+  if (e.key==="Enter"){ const b = results.querySelector("button[data-p]"); if (b){ results.hidden=true; q.value=""; openProduct(b.dataset.p); } }
+  if (e.key==="Escape"){ results.hidden = true; }
+});
+document.addEventListener("click", e => { if (!e.target.closest(".search")) results.hidden = true; });
+
+/* старт: класс 8 — имущество */
+renderGraph();
+openClass("8", false);
+fitClass("8", 0);
+window.addEventListener("resize", () => state.open ? fitClass(state.open,0) : fitAll(0));
+</script>

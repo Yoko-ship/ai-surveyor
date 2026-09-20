@@ -1,0 +1,215 @@
+<title>Cobalt 2021 · аналитика сюрвейера</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  --paper:#F5F7FB; --card:#FFFFFF; --soft:#EEF1F8; --line:#D9DEEA; --ink:#141A2E; --muted:#5B6480;
+  --accent:#1D2C8F; --on-accent:#FFFFFF; --green:#22A85A; --warn:#B7791F; --stop:#C0392B; --ok:#1F8A4C;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace; --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0B0F1A; --card:#121829; --soft:#1A2238; --line:#28324D; --ink:#E8ECF7; --muted:#95A0BF;
+  --accent:#8FA3FF; --on-accent:#0B0F1A; --green:#3CCB78; --warn:#E2B04A; --stop:#F07167; --ok:#3CCB78;}}
+:root[data-theme="dark"]{
+  --paper:#0B0F1A; --card:#121829; --soft:#1A2238; --line:#28324D; --ink:#E8ECF7; --muted:#95A0BF;
+  --accent:#8FA3FF; --on-accent:#0B0F1A; --green:#3CCB78; --warn:#E2B04A; --stop:#F07167; --ok:#3CCB78;}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);padding-inline:16px;padding-block:24px 48px;line-height:1.45}
+.wrap{max-width:1040px;margin:0 auto;display:grid;gap:20px}
+.brand{font-weight:800;font-size:15px;letter-spacing:.02em}.brand b{color:#1D2C8F}.brand i{color:#22A85A;font-style:normal}
+:root[data-theme="dark"] .brand b{color:#8FA3FF}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand b{color:#8FA3FF}}
+h1{font-size:26px;font-weight:800;margin:6px 0 2px;text-wrap:balance}
+h2{font-size:17px;font-weight:800;margin:0 0 4px}
+.sub{color:var(--muted);font-size:14px;max-width:70ch}
+.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;display:grid;gap:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.tile{background:var(--soft);border-radius:10px;padding:12px 14px;display:grid;gap:2px}
+.tile .v{font-family:var(--mono);font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+.tile .l{font-size:12px;color:var(--muted)}
+.tile.lift{background:var(--accent);color:var(--on-accent)}.tile.lift .l{color:var(--on-accent);opacity:.8}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td,th{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.scroll{overflow-x:auto}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.ok{color:var(--ok);border-color:var(--ok)}.pill.warn{color:var(--warn);border-color:var(--warn)}.pill.stop{color:var(--stop);border-color:var(--stop)}
+.pill.doc{color:var(--accent);border-color:var(--accent)}
+.srcbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.srcbar p{margin:0;font-size:12px;color:var(--muted);max-width:66ch}
+.srcbar .go{display:flex;gap:8px;flex-wrap:wrap}
+.srcbar a{display:inline-flex;align-items:center;gap:8px;background:var(--accent);color:var(--on-accent);text-decoration:none;font-weight:700;font-size:13px;padding:8px 12px;border-radius:999px}
+.srcbar a .dom{font-family:var(--mono);font-size:11px;background:rgba(255,255,255,.28);padding:2px 7px;border-radius:999px}
+:root[data-theme="dark"] .srcbar a .dom{background:rgba(0,0,0,.18)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .srcbar a .dom{background:rgba(0,0,0,.18)}}
+a.ad{color:var(--accent);text-decoration:none;font-weight:700}a.ad:hover,a.ad:focus-visible{text-decoration:underline;outline:none}
+.list{display:grid;gap:8px}.list div{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;font-size:13.5px}
+.list small{color:var(--muted);display:block}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:720px){.two{grid-template-columns:1fr}}
+.chart{width:100%;max-width:100%;height:auto;display:block}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:6px;border-radius:2px}
+.note{font-size:12.5px;color:var(--muted);border-left:3px solid var(--line);padding-left:10px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 14px;font-size:13.5px}
+.kv .n{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+.kv .sum{font-weight:800;border-top:1px solid var(--line);padding-top:6px}
+.up{color:var(--stop)}.down{color:var(--ok)}
+@media (prefers-reduced-motion:no-preference){.tile{transition:transform .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand"><b>INS</b><i>ON</i> · сюрвейер</div>
+    <div class="eyebrow" style="margin-top:10px">Пример аналитики по реальному объекту · данные сняты 20.09.2026</div>
+    <h1>Chevrolet Cobalt 2021, г. Ташкент — КАСКО «Premium» 0311</h1>
+    <p class="sub">Так система показывает один объект целиком: сколько он стоит по рынку, из чего сложилась ставка, как класс ведёт себя на рынке, что происходит в регионе и что попросить у клиента. Каждая цифра ведёт к источнику. Объект взят из живых объявлений, клиент условный: физическое лицо, пробег 60 000 км, ограниченный список водителей, без убытков за 3 года.</p>
+  </header>
+
+  <section class="card">
+    <div class="eyebrow">Итог одним взглядом</div>
+    <div class="tiles">
+      <div class="tile lift"><span class="v">103,5 млн</span><span class="l">страховая стоимость по рынку, сум</span></div>
+      <div class="tile"><span class="v">2,00 %</span><span class="l">применённая ставка (минимум политики; техническая 1,56 %)</span></div>
+      <div class="tile"><span class="v">2 069 560</span><span class="l">премия за год, сум</span></div>
+      <div class="tile"><span class="v"><span class="pill warn" style="font-size:13px">на утверждение</span></span><span class="l">4 предупреждения, стопов нет</span></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>1. Стоимость объекта: агент заявил 130 млн, рынок говорит 103,5 млн</h2>
+    <p class="sub">Расхождение 20,4 % больше порога 15 %, поэтому в расчёт пошла уточнённая стоимость. Окончательную сумму стороны согласуют при заключении договора (ГК ст. 935).</p>
+    <div class="two">
+      <div class="kv">
+        <span>Объявлений с ценой за 6 месяцев (с 20.03.2026)</span><span class="n">5</span>
+        <span>Медиана</span><span class="n">108 924 228</span>
+        <span>Вилка Q1 – Q3</span><span class="n">106,6 – 112,0 млн</span>
+        <span>Скидка на торг 5 % (экспертно, не калибровано)</span><span class="n">× 0,95</span>
+        <span class="sum">Оценка</span><span class="n sum">103 478 017 сум</span>
+        <span>Курс ЦБ РУз на 20.09.2026</span><span class="n">11 839,59 сум / $</span>
+      </div>
+      <div class="list">
+        <div><span class="pill doc">ad</span><span><a class="ad" href="https://avtoelon.uz/a/show/7538157" target="_blank" rel="noopener">Chevrolet Cobalt, 4 позиция</a><small>avtoelon.uz · 20.09.2026 · 108 924 228 сум</small></span></div>
+        <div><span class="pill doc">ad</span><span><a class="ad" href="https://avtoelon.uz/a/show/7465978" target="_blank" rel="noopener">Chevrolet Cobalt, 4 позиция</a><small>avtoelon.uz · 20.09.2026 · 112 002 521 сум</small></span></div>
+        <div><span class="pill doc">ad</span><span><a class="ad" href="https://avtoelon.uz/a/show/7387822" target="_blank" rel="noopener">Chevrolet Cobalt, 4 позиция</a><small>avtoelon.uz · 20.09.2026 · 106 556 310 сум</small></span></div>
+        <div><span class="pill doc">ad</span><span><a class="ad" href="https://avtoelon.uz/a/show/7494866" target="_blank" rel="noopener">Chevrolet Cobalt, 4 позиция</a><small>avtoelon.uz · 20.09.2026 · 104 010 798 сум</small></span></div>
+        <div><span class="pill doc">ad</span><span><a class="ad" href="https://avtoelon.uz/a/show/6941724" target="_blank" rel="noopener">Chevrolet Cobalt</a><small>avtoelon.uz · 20.09.2026 · 165 209 639 сум (выброс, на медиану не влияет)</small></span></div>
+      </div>
+    </div>
+    <div class="srcbar">
+      <p>Оценка подготовлена системой по объявлениям площадки: это не текст площадки. Оригиналы объявлений и фотографии на сайте источника. OLX закрыт защитой, обход не выполнялся.</p>
+      <div class="go"><a href="https://avtoelon.uz/avto/chevrolet/cobalt/gorod-tashkent/" target="_blank" rel="noopener">Читать в источнике <span class="dom">avtoelon.uz</span></a></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>2. Из чего сложилась ставка</h2>
+    <div class="two">
+      <div class="scroll"><table>
+        <tr><th>Шаг</th><th class="n">Значение</th></tr>
+        <tr><td>Базовая нетто-ставка · легковой (экспертная, до калибровки)</td><td class="n">1,200 %</td></tr>
+        <tr><td>Возраст ТС · до 5 лет</td><td class="n">× 0,95</td></tr>
+        <tr><td>Тип ТС · легковой</td><td class="n">× 1,00</td></tr>
+        <tr><td>Противоугонная система · сигнализация</td><td class="n">× 1,00</td></tr>
+        <tr><td>Водители · ограниченный список, стаж от 3 лет</td><td class="n">× 0,95</td></tr>
+        <tr><td>Убытки за 3 года · не было</td><td class="n">× 0,90</td></tr>
+        <tr><td>Франшиза · нет</td><td class="n">× 1,00</td></tr>
+        <tr><td>Нетто-ставка</td><td class="n">0,975 %</td></tr>
+        <tr><td>Рисковая надбавка 12 %</td><td class="n">+ 0,117 %</td></tr>
+        <tr><td>Нагрузка 30 % (без РПМ)</td><td class="n">÷ 0,70</td></tr>
+        <tr><td><b>Техническая ставка</b></td><td class="n"><b>1,560 %</b></td></tr>
+        <tr><td><b>Минимум тарифной политики, физлицо (приказ 54-П)</b></td><td class="n"><b>2,000 %</b></td></tr>
+        <tr><td>Применённая ставка → премия 103 478 017 × 2,00 % × 365/365</td><td class="n">2 069 560 сум</td></tr>
+      </table></div>
+      <div class="list">
+        <div><span class="pill ok">ок</span><span>Страховая сумма равна стоимости<small>Выплата будет полной (ГК ст. 936, 938).</small></span></div>
+        <div><span class="pill ok">ок</span><span>Минимальный тариф соблюдён<small>2,00 % для физлиц по продукту 0311.</small></span></div>
+        <div><span class="pill ok">ок</span><span>Лимит на один риск соблюдён<small>Предел 84 млрд сум (Положение 1806 п. 15).</small></span></div>
+        <div><span class="pill warn">внимание</span><span>Не хватает документов<small>Техпаспорт, фото ТС с 4 сторон и салона, сведения о противоугонной системе, справка об убытках.</small></span></div>
+        <div><span class="pill warn">внимание</span><span>Франшиза не установлена<small>Мелкие убытки лягут на компанию. Франшиза 1 % даст скидку клиенту.</small></span></div>
+        <div><span class="pill warn">внимание</span><span>Премия не поступила<small>Полис без уплаты премии обязывает страховщика полностью (ст. 33¹).</small></span></div>
+        <div><span class="pill warn">внимание</span><span>Клиенту не раскрыта информация<small>Ст. 63: цена, риски, исключения, возврат премии, претензии.</small></span></div>
+      </div>
+    </div>
+    <div class="srcbar">
+      <p>Расчёт подготовлен системой по тарифной политике компании и справочнику коэффициентов: коэффициенты класса 3 экспертные и помечены как некалиброванные до получения выгрузки убытков.</p>
+      <div class="go"><a href="http://127.0.0.1:8000/admin" target="_blank" rel="noopener">Открыть справочник <span class="dom">INSON · админка</span></a></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. Класс 3 на рынке: ставка падает, убыточность низкая</h2>
+    <p class="sub">Средняя годовая ставка по наземному транспорту на рынке снизилась с 1,41 % за 2024 год до 0,63 % за 2025 год, убыточность держится 12–15 %. Наши 2,00 % выше рынка на 188 %: рыночная средняя разбавлена корпоративными парками и дешёвыми программами, поэтому сравнение показывает не ошибку, а поле для торга по франшизе.</p>
+    <div class="legend"><span><i style="background:var(--accent)"></i>ставка рынка, % годовых</span><span><i style="background:var(--green)"></i>убыточность рынка, %</span></div>
+    <svg class="chart" viewBox="0 0 900 260" role="img" aria-label="Ставка и убыточность класса 3 по кварталам 2024–2026">
+      <g id="grid"></g><g id="lines"></g><g id="labels"></g>
+    </svg>
+    <div class="scroll"><table>
+      <tr><th>Период</th><th class="n">Премии, трлн сум</th><th class="n">Ставка рынка</th><th class="n">Убыточность</th></tr>
+      <tr><td>2024 год</td><td class="n">1,42</td><td class="n">1,411 %</td><td class="n">11,8 %</td></tr>
+      <tr><td>2025 год</td><td class="n">0,75</td><td class="n">0,628 %</td><td class="n">14,3 %</td></tr>
+      <tr><td>2026 · 6 мес.</td><td class="n">0,45</td><td class="n">0,695 %</td><td class="n">14,6 %</td></tr>
+    </table></div>
+    <div class="srcbar">
+      <p>Ряд собран системой из квартальных отчётов НАПП (таблица рыночной статистики, обновляется раз в сутки). Ставка = премии за год к ответственности; это изложение системы, оригинал по ссылке.</p>
+      <div class="go"><a href="https://napp.uz/uz/pages/statistika" target="_blank" rel="noopener">Читать в источнике <span class="dom">napp.uz</span></a></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>4. Регион: город Ташкент против республики</h2>
+    <div class="tiles">
+      <div class="tile"><span class="v">3,49 млн</span><span class="l">премии на жителя Ташкента за 2025 год, сум (республика 359 тыс.)</span></div>
+      <div class="tile"><span class="v">2,96 %</span><span class="l">проникновение страхования к ВРП Ташкента (республика 0,73 %)</span></div>
+      <div class="tile"><span class="v">3 112,8 тыс.</span><span class="l">население города на начало 2025 года</span></div>
+      <div class="tile"><span class="v">367,2 трлн</span><span class="l">ВРП Ташкента за 2025 год, сум</span></div>
+    </div>
+    <p class="note">Ташкент концентрирует 81 % премий страны при 8 % населения: сюда стянуты головные офисы страхователей. Для оценки объекта это означает плотный рынок объявлений и надёжную рыночную цену; для портфеля это концентрация риска по одной зоне (сейсмозона 8 баллов), которую движок учитывает в накоплении.</p>
+    <div class="srcbar">
+      <p>Показатели рассчитаны системой по формулам «премии региона / население» и «премии / ВРП» из двух источников. Население на начало года, премии за год: расхождение с методикой stat.uz около 1 %.</p>
+      <div class="go">
+        <a href="https://stat.uz/ru/ofitsialnaya-statistika/demography" target="_blank" rel="noopener">Население <span class="dom">stat.uz</span></a>
+        <a href="https://stat.uz/ru/ofitsialnaya-statistika/national-accounts" target="_blank" rel="noopener">ВРП <span class="dom">stat.uz</span></a>
+        <a href="https://napp.uz/uz/pages/statistika" target="_blank" rel="noopener">Премии <span class="dom">napp.uz</span></a>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>5. Что сделать агенту до оформления</h2>
+    <div class="list">
+      <div><span class="pill">1</span><span>Запросить техпаспорт и загрузить его: марка, год, VIN подставятся сами, пробег ввести вручную.</span></div>
+      <div><span class="pill">2</span><span>Сфотографировать ТС с четырёх сторон, салон и одометр.</span></div>
+      <div><span class="pill">3</span><span>Предложить франшизу 1 % страховой суммы: премия снизится, клиент берёт на себя мелкие царапины.</span></div>
+      <div><span class="pill">4</span><span>Согласовать страховую стоимость 103,5 млн с клиентом, показать ему объявления по ссылкам.</span></div>
+      <div><span class="pill">5</span><span>Раскрыть условия по ст. 63 и получить премию до выдачи полиса.</span></div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  const pts = [
+    ["2024·3м",0.885,20.3],["2024·6м",1.43,10.6],["2024·9м",1.316,11.0],["2024 год",1.411,11.8],
+    ["2025·3м",0.933,18.0],["2025·6м",0.573,29.9],["2025·9м",0.626,26.6],["2025 год",0.628,14.3],["2026·6м",0.695,14.6]];
+  const W=900,H=260,L=60,R=60,T=16,B=44, iw=W-L-R, ih=H-T-B;
+  const x=i=>L+i*iw/(pts.length-1);
+  const yR=v=>T+ih-(v/1.6)*ih, yL=v=>T+ih-(v/32)*ih;
+  const css=getComputedStyle(document.documentElement);
+  const acc=css.getPropertyValue("--accent").trim(), grn=css.getPropertyValue("--green").trim(),
+        mut=css.getPropertyValue("--muted").trim(), line=css.getPropertyValue("--line").trim();
+  let g="",lab="",ln="";
+  for(let v=0;v<=1.6;v+=0.4){const y=yR(v);g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="${line}" stroke-width="1"/>`;
+    lab+=`<text x="${L-8}" y="${y+4}" text-anchor="end" font-size="11" fill="${mut}" font-family="JetBrains Mono,monospace">${v.toFixed(1)}%</text>`;}
+  for(let v=0;v<=32;v+=8){const y=yL(v);lab+=`<text x="${W-R+8}" y="${y+4}" font-size="11" fill="${mut}" font-family="JetBrains Mono,monospace">${v}%</text>`;}
+  const p1=pts.map((p,i)=>`${i?"L":"M"}${x(i)},${yR(p[1])}`).join(" "), p2=pts.map((p,i)=>`${i?"L":"M"}${x(i)},${yL(p[2])}`).join(" ");
+  ln+=`<path d="${p1} L${x(pts.length-1)},${T+ih} L${L},${T+ih} Z" fill="${acc}" opacity=".08"/>`;
+  ln+=`<path d="${p1}" fill="none" stroke="${acc}" stroke-width="2.5" stroke-linejoin="round"/>`;
+  ln+=`<path d="${p2}" fill="none" stroke="${grn}" stroke-width="2.5" stroke-dasharray="6 4" stroke-linejoin="round"/>`;
+  pts.forEach((p,i)=>{ln+=`<circle cx="${x(i)}" cy="${yR(p[1])}" r="${i===pts.length-1?5:3}" fill="${acc}"/>`;
+    ln+=`<circle cx="${x(i)}" cy="${yL(p[2])}" r="3" fill="${grn}"/>`;
+    lab+=`<text x="${x(i)}" y="${H-14}" text-anchor="middle" font-size="11" fill="${mut}" font-family="Manrope,sans-serif">${p[0]}</text>`;});
+  const last=pts[pts.length-1];
+  lab+=`<text x="${x(pts.length-1)-8}" y="${yR(last[1])-10}" text-anchor="end" font-size="12" font-weight="700" fill="${acc}" font-family="JetBrains Mono,monospace">${last[1].toFixed(3)}%</text>`;
+  document.getElementById("grid").innerHTML=g; document.getElementById("lines").innerHTML=ln; document.getElementById("labels").innerHTML=lab;
+})();
+</script>

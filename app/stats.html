@@ -1,0 +1,819 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Динамика рынка</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;
+  --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}
+html[data-theme="light"]{--s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;--s4:#eda100;--s5:#e87ba4;--s6:#008300;--s7:#4a3aa7;--s8:#e34948}
+*{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}.brand i{width:34px;height:34px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}
+.brand b{display:block;font-size:15px}.brand span{font-size:11px;color:var(--muted)}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px}
+.live{font-size:11px;font-weight:700;color:var(--accent);border:1px solid var(--accent-dim);border-radius:999px;padding:2px 9px}
+.sub{color:var(--muted);font-size:12.5px;margin:4px 0 16px;font-family:var(--mono)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px}
+select,button,input{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:7px 11px}
+button{cursor:pointer;font-weight:600}button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+input::placeholder{color:var(--muted)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:14px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.tile b{display:block;font:600 22px var(--mono)}.tile span{font-size:12px;color:var(--muted)}
+.tile em{font-style:normal;font:600 12px var(--mono);margin-left:6px}.na{color:var(--muted)}.up{color:var(--accent)}.down{color:var(--stop)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.card h2{font-size:13px;margin:0 0 2px}.card p{font-size:12px;color:var(--muted);margin:0 0 8px}
+svg{display:block;width:100%;height:auto}.ax{font:10.5px var(--sans);fill:var(--muted)}.vl{font:600 10.5px var(--mono)}
+table{width:100%;border-collapse:collapse;font-size:12.5px}th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}td.n{font-family:var(--mono);text-align:right}
+.note{font-size:11.5px;color:var(--muted);margin-top:12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--soft);color:var(--muted);padding:7px 13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button.on{background:var(--accent-dim);color:#0F1418}
+.place{font:600 13px var(--mono);color:var(--ink);margin:2px 0 10px}
+.place b{color:var(--accent)}
+tbody tr.me td{background:color-mix(in srgb,var(--accent) 13%,transparent);font-weight:700;color:var(--ink)}
+tbody tr.me td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+tbody tr.nil td{color:var(--muted)}
+tfoot td{font-weight:700;border-top:1px solid var(--line);border-bottom:0;padding-top:9px}
+.tip{position:fixed;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font:12px var(--mono);display:none;z-index:5;box-shadow:0 8px 22px rgba(0,0,0,.28)}
+.tip b{display:block;font:600 11px var(--sans);color:var(--muted);margin-bottom:4px}
+.tip i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tip div{white-space:nowrap}.tip s{text-decoration:none;color:var(--muted)}
+.picker{margin-bottom:14px}
+.prow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.prow+.prow{margin-top:10px}
+.pick{position:relative}
+#pickBtn{display:inline-flex;align-items:center;gap:7px}
+#pickBtn.open{border-color:var(--accent-dim);color:var(--accent)}
+#pickBtn b{font:600 12px var(--mono);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:0 6px}
+.pan{position:absolute;z-index:20;top:calc(100% + 6px);left:0;width:360px;max-width:calc(100vw - 32px);
+  background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 38px rgba(0,0,0,.34);
+  display:flex;flex-direction:column;max-height:min(78vh,620px)}
+.pan[hidden]{display:none}
+.pan h3{margin:0;padding:10px 12px 4px;font:700 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.sel{flex:none;max-height:190px;overflow:auto;padding:0 8px 8px;border-bottom:1px solid var(--line)}
+.sel .it{display:flex;align-items:center;gap:8px;padding:5px 6px;margin-bottom:4px;border-radius:8px;
+  background:var(--soft);border:1px solid transparent;font-size:12.5px}
+.sel .it.drag{opacity:.4}
+.sel .it.over{border-color:var(--accent)}
+.sel .gr{flex:none;cursor:grab;color:var(--muted);font-size:13px;line-height:1;user-select:none}
+.sel .dot{flex:none;width:9px;height:9px;border-radius:50%}
+.sel em{flex:1;min-width:0;font-style:normal;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sel .x{flex:none;background:none;border:0;padding:0 2px;color:var(--muted);font-size:15px;line-height:1;cursor:pointer}
+.sel .x:hover{color:var(--stop)}
+.pan .srch{padding:8px 10px;border-bottom:1px solid var(--line)}
+#search{width:100%}
+.groups{flex:1;min-height:80px;overflow:auto;padding:6px 8px}
+.gh{display:flex;align-items:center;gap:8px;width:100%;padding:8px 6px;border:0;border-radius:8px;
+  background:none;color:var(--ink);font:600 12.5px var(--sans);text-align:left;cursor:pointer}
+.gh:hover{background:var(--soft)}
+.gh .ar{flex:none;display:inline-block;color:var(--muted);transition:transform .15s}
+.gh.open .ar{transform:rotate(90deg)}
+.gh .c{margin-left:auto;font:600 11px var(--mono);color:var(--muted)}
+.gh .c.on{color:var(--accent)}
+.gb{max-height:196px;overflow:auto;padding:0 0 6px 8px}
+.gb label{display:flex;gap:8px;align-items:center;min-width:0;padding:5px 8px;border-radius:7px;cursor:pointer;font-size:12.5px;color:var(--ink)}
+.gb label:hover{background:var(--soft)}
+.gb label.on{background:color-mix(in srgb,var(--accent) 12%,transparent)}
+.gb label em{flex:1;min-width:0;font-style:normal;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gb label span{margin-left:auto;flex:none;color:var(--muted);font:11px var(--mono)}
+.gb input{accent-color:var(--accent);width:14px;height:14px;padding:0;flex:none}
+.pan .foot{border-top:1px solid var(--line);padding:9px 10px;display:flex;flex-direction:column;gap:8px}
+.pan .foot .h{font-size:11.5px;color:var(--muted)}
+.pan .foot .b{display:flex;gap:8px}
+.pan .foot button{font-size:12.5px;padding:6px 10px}
+.empty{color:var(--muted);font-size:12px;padding:8px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:4px 6px 4px 10px;font-size:12.5px;font-weight:600}
+.chip i{width:9px;height:9px;border-radius:50%;flex:none}
+.chip button{background:none;border:0;padding:0 4px;color:var(--muted);font-size:15px;line-height:1;cursor:pointer}
+.chip button:hover{color:var(--stop)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0 0 8px;font-size:11.5px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:2px;flex:none}
+.swatch{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px;vertical-align:middle}
+/* плашка источника: чей это ряд и куда идти за оригиналом (стиль как в docs/agent_ui.template.html) */
+.srcbar{display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px;
+        background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.srcbar p{margin:0;font-size:12px;line-height:1.5;color:var(--muted);max-width:66ch;flex:1 1 260px}
+.srcbar p b{color:var(--ink);font-weight:600}
+.srcbar .go{display:flex;gap:8px;flex-wrap:wrap;flex:0 0 auto}
+.srcbar .go a{display:inline-flex;align-items:center;gap:8px;background:var(--accent-dim);color:#0F1418;
+        border-radius:999px;padding:7px 10px 7px 13px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap}
+.srcbar .go a:hover{filter:brightness(1.1)}
+.srcbar .go .dom{background:rgba(15,20,24,.18);border-radius:999px;padding:2px 9px;font-family:var(--mono);font-size:11.5px;font-weight:500}
+@media (max-width:620px){.srcbar{flex-direction:column;align-items:stretch}.srcbar p{flex:0 0 auto}.srcbar .go{flex-direction:column}.srcbar .go a{justify-content:space-between}}
+/* оговорки источника: их нельзя прятать, поэтому они стоят над числами */
+.limits{margin:10px 0 0;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:10px;
+        background:var(--soft);padding:9px 12px}
+.limits h4{margin:0 0 4px;font:700 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--warn)}
+.limits ul{margin:0;padding-left:18px;font-size:12px;line-height:1.55;color:var(--muted)}
+.limits li+li{margin-top:3px}
+.formula{margin:0 0 8px;font-size:12.5px;line-height:1.55;color:var(--ink);background:var(--soft);
+         border:1px solid var(--line);border-radius:10px;padding:9px 12px}
+.formula b{color:var(--muted);font:700 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:3px}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:12px}
+.mini .m{border:1px solid var(--line);border-radius:12px;padding:11px 13px;min-width:0;background:var(--paper)}
+.mini .m h3{margin:0 0 2px;font-size:12.5px;font-weight:700;display:flex;gap:7px;align-items:baseline}
+.mini .m h3 i{width:9px;height:9px;border-radius:2px;flex:none;align-self:center}
+.mini .m p{font-size:11.5px;color:var(--muted);margin:0 0 6px}
+/* в узкой карточке ряда плашка источника складывается в столбик — кнопки не уезжают за край */
+.mini .m .srcbar{flex-direction:column;align-items:stretch}
+.mini .m .srcbar p{flex:0 0 auto}
+.mini .m .srcbar .go{flex-direction:column}
+.mini .m .srcbar .go a{justify-content:space-between}
+.bar{height:8px;border-radius:4px;background:var(--s1);min-width:2px}
+.barcell{display:flex;align-items:center;gap:8px}
+.barcell span{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.barwrap{flex:1;min-width:40px}
+.nodata{border:1px solid var(--line);border-radius:10px;background:var(--soft);padding:10px 12px;font-size:12.5px;color:var(--muted)}
+.nodata b{color:var(--ink);display:block;margin-bottom:3px}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a><a class="on" href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a><a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Динамика рынка <span class="live" id="live">обновляется сам</span></h1>
+  <div class="sub" id="status">загрузка…</div>
+
+  <div class="card picker">
+    <h2>Что сравниваем</h2><p>Соберите до восьми рядов — классы, регионы и страховщиков вперемешку. Они лягут на одни графики в том порядке, в каком стоят в списке.</p>
+    <div class="prow">
+      <div class="pick">
+        <button id="pickBtn" aria-expanded="false" aria-haspopup="true">&#9881; Ряды <b id="pickN">0</b></button>
+        <div class="pan" id="pan" hidden>
+          <h3>Выбранные ряды</h3>
+          <div class="sel" id="panSel"></div>
+          <div class="srch"><input id="search" type="search" placeholder="Поиск по названию"></div>
+          <div class="groups" id="panGroups"></div>
+          <div class="foot">
+            <span class="h" id="panHint">Перетащите ряд за ручку, чтобы изменить порядок.</span>
+            <div class="b"><button id="qOrder">Сбросить порядок</button><button id="qClear">Сбросить выбор</button></div>
+          </div>
+        </div>
+      </div>
+      <button id="csvTop">Экспорт CSV</button>
+      <button id="qTop5">Топ-5 страховщиков</button>
+      <button id="qRegions">Крупнейшие регионы</button>
+      <button class="go" id="refresh">Проверить НАПП сейчас</button>
+      <span class="note" id="rmsg" style="margin:0"></span>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="prow">
+      <div class="seg" id="scaleSeg"><button data-s="abs" class="on">Абсолютные значения</button><button data-s="idx">Индекс: первая точка = 100</button></div>
+      <span class="note" id="pmsg" style="margin:0"></span>
+    </div>
+  </div>
+
+  <div id="summary"></div>
+
+  <div class="card" id="rankCard" style="margin-bottom:12px;display:none">
+    <h2>Рейтинг страховщиков по премиям</h2><p id="rankSub">считаю…</p>
+    <div class="place" id="rankPlace"></div>
+    <div style="overflow-x:auto"><table id="rank"></table></div>
+  </div>
+
+  <div class="grid">
+    <div class="card"><h2>Премии за квартал, млн сум</h2><p>прирост нарастающего итога внутри года</p><div id="c1"></div></div>
+    <div class="card"><h2>Убыточность, %</h2><p>выплаты к премиям с начала года</p><div id="c2"></div></div>
+    <div class="card"><h2>Средняя годовая ставка, %</h2><p>премии в годовом выражении к обязательствам на дату</p><div id="c3"></div></div>
+    <div class="card"><h2>Обязательства на дату, млрд сум</h2><p>совокупная страховая сумма</p><div id="c4"></div></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="prow" style="justify-content:space-between">
+      <div><h2>Таблица по всем выбранным рядам</h2><p id="tblSub" style="margin:0">по одной строке на срез и ряд</p></div>
+      <button id="csv">Скачать CSV</button>
+    </div>
+    <div style="overflow-x:auto;margin-top:8px"><table id="tbl"></table></div>
+  </div>
+
+  <div class="card" id="statCard" style="margin-top:12px;display:none">
+    <h2>Ряды Агентства статистики</h2>
+    <p id="statSub">выберите их в панели «Ряды», группа «Агентство статистики»</p>
+    <div class="mini" id="statMini"></div>
+  </div>
+
+  <h1 style="margin-top:26px;font-size:18px">Производные показатели</h1>
+  <div class="sub">рынок НАПП, делённый на знаменатель Агентства статистики: формула — словами, под каждым числом — оба источника</div>
+  <div id="indBox"></div>
+
+  <p class="note">Источник — квартальные отчёты НАПП, <span id="srcSheet">лист «классы страхования»</span>; в каждом отчёте два среза: текущий и год назад. Премии и выплаты в отчётах даны нарастающим итогом с начала года, обязательства — на дату. Отчёт за I квартал 2026 на сайте НАПП повреждён, поэтому точки за март 2026 нет.</p>
+  <p class="note">Как читать цифры: премии и выплаты — нарастающим итогом с начала года, обязательства — на дату среза.
+  По регионам взят итог по всем отраслям (общее страхование и страхование жизни), по компаниям — только общее страхование,
+  поэтому сумма по регионам и сумма по компаниям между собой не совпадают.
+  На разной базе и обязательства: лист 3.3 (регионы) и лист 2.3 (компании) на один и тот же срез дают разные итоги,
+  поэтому график «Обязательства на дату» между рядами разных видов несопоставим — сравнивать его можно только внутри одного вида.
+  Источник — отчёты НАПП.</p>
+</main></div>
+<div class="tip" id="tip"></div>
+<script>
+const $=s=>document.querySelector(s), fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU"), f1=n=>n==null?"—":n.toFixed(1).replace(".",","), f3=n=>n==null?"—":n.toFixed(3).replace(".",","), fm1=n=>n==null?"—":n.toLocaleString("ru-RU",{minimumFractionDigits:1,maximumFractionDigits:1});
+const tip=$("#tip");
+const MAX=8, PAL=["--s1","--s2","--s3","--s4","--s5","--s6","--s7","--s8"];
+const col=i=>"var("+PAL[i%8]+")";
+let ROWS=[], MODE="cls", RANKED=false, SEL=[], SERIES={}, SCALE="abs", QUERY="";
+const kind=k=>k.startsWith("stat:")?"stat":k.startsWith("region:")?"region":k.startsWith("company:")?"company":"cls";
+const SHEETS={cls:"лист «классы страхования»", region:"листы 3.1, 3.2 и 3.3 (по регионам)", company:"листы 2.1, 2.5 и 2.3 (по страховщикам)",
+  stat:"наборы Агентства статистики (stat.uz и data.egov.uz), ссылки под каждым рядом"};
+/* ряды Агентства статистики живут в stat_series и считаются отдельно от отчётов НАПП */
+const isStat=k=>k.indexOf("stat:")===0;
+const nappSel=()=>SEL.filter(k=>!isStat(k));
+const statSel=()=>SEL.filter(isStat);
+const cidx=k=>SEL.indexOf(k);            // цвет закреплён за рядом, а не за его местом в графике
+const ORDER=["cls8_9","cls8","cls9","cls7","cls3","cls13","cls14","cls16","total","mandatory","voluntary_general"];
+/* база г/г — срез с той же датой ровно годом раньше; другие срезы не подходят */
+const yearBefore=d=>(+d.slice(0,4)-1)+d.slice(4);
+const yearAgo=(pts,cur)=>(cur&&cur.date)?(pts.find(x=>x.date===yearBefore(cur.date))||null):null;
+const nameOf=k=>(ROWS.find(r=>r.row_key===k)||{}).row_name||k;
+const shortName=k=>{const n=nameOf(k).replace(/^\d+-klass\s*–\s*/,""); return n.length>44?n.slice(0,42)+"…":n;};
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+
+/* ---------- данные ---------- */
+async function series(key){
+  if(!SERIES[key]) SERIES[key]=(await (await fetch("/market/series?row="+encodeURIComponent(key))).json()).points;
+  return SERIES[key];
+}
+const loadAll=keys=>Promise.all(keys.map(series));
+
+/* ---------- Агентство статистики: каталог наборов и ряды ---------- */
+/* Регионы повторяют app/stat_sources.py (REGION_NAMES_RU) — один и тот же ключ region:* у НАПП и у stat.uz. */
+const REGIONS=[["total","Республика Узбекистан"],["region:QORAQALPOG'ISTON RESPUBLIKASI","Республика Каракалпакстан"],
+  ["region:ANDIJON","Андижанская область"],["region:BUXORO","Бухарская область"],["region:JIZZAX","Джизакская область"],
+  ["region:QASHQADARYO","Кашкадарьинская область"],["region:NAVOIY","Навоийская область"],["region:NAMANGAN","Наманганская область"],
+  ["region:SAMARQAND","Самаркандская область"],["region:SURXANDARYO","Сурхандарьинская область"],["region:SIRDARYO","Сырдарьинская область"],
+  ["region:TOSHKENT","Ташкентская область"],["region:FARG'ONA","Ферганская область"],["region:XORAZM","Хорезмская область"],
+  ["region:TOSHKENT SHAHRI","город Ташкент"]];
+let DS={};              // id набора → карточка из /stat/status
+let STATERR="";         // почему раздел статистики не отвечает; пусто — отвечает
+const dsOf=k=>DS[k.split("|")[0].slice(5)]||{};
+const statParts=k=>{const p=k.split("|"); return {ds:p[0].slice(5), region:p[1]||"", key:p[2]||""};};
+
+/* Что сказал сервер, когда не отдал данные: показываем причину, а не пустое место. */
+async function getJson(url){
+  const r=await fetch(url);
+  if(!r.ok) throw new Error("сервер ответил "+r.status+" на "+url+(r.status===404?" — раздел /stat ещё не поднят: модуль подключён, но сервер после этого не перезапускали":""));
+  return r.json();
+}
+/* Каталог наборов + список рядов для конструктора. Ничего не придумываем: что отдал /stat/status, то и показываем. */
+async function statCatalog(){
+  let st;
+  try { st=await getJson("/stat/status"); }
+  catch(e){ STATERR=e.message; DS={}; return []; }
+  STATERR=""; DS={};
+  const rows=[], noRegion=[];
+  (st["Наборы"]||[]).forEach(d=>{
+    DS[d.id]=d;
+    if(!d["Строк в базе"]) return;                      // набор зарегистрирован, но не загружен — в конструктор не кладём
+    if(d["Регионы"]==="да") REGIONS.forEach(([rk,rn])=>rows.push(
+      {row_key:"stat:"+d.id+"|"+rk+"|", row_name:d["Набор"]+" — "+rn, points:d["Периодичность"]}));
+    else noRegion.push(d);
+  });
+  /* у наборов без разреза по регионам строки различаются ключом: спрашиваем у сервера, какие ключи есть */
+  await Promise.all(noRegion.map(async d=>{
+    let keys=[];
+    try {
+      const j=await getJson("/stat/series?dataset="+encodeURIComponent(d.id)+"&region=&period="+encodeURIComponent(d["Период до"]||"")+"&limit=500");
+      keys=[...new Set((j["Строки"]||[]).map(r=>r.key))];
+    } catch(e){ keys=[]; }
+    if(keys.length<=1) rows.push({row_key:"stat:"+d.id+"||"+(keys[0]||""), row_name:d["Набор"], points:d["Периодичность"]});
+    else keys.sort().forEach(k=>rows.push(
+      {row_key:"stat:"+d.id+"||"+k, row_name:d["Набор"]+" — строка "+k, points:d["Периодичность"]}));
+  }));
+  return rows;
+}
+/* Один ряд stat_series. Точки не додумываем: пустое значение остаётся разрывом линии. */
+async function statSeries(key){
+  if(SERIES[key]) return SERIES[key];
+  const p=statParts(key);
+  const u="/stat/series?dataset="+encodeURIComponent(p.ds)+"&region="+encodeURIComponent(p.region)+
+          (p.key?"&key="+encodeURIComponent(p.key):"")+"&limit=5000";
+  try {
+    const j=await getJson(u);
+    SERIES[key]={rows:(j["Строки"]||[]).slice().sort((a,b)=>a.period<b.period?-1:1)};
+  } catch(e){ SERIES[key]={rows:[], error:e.message}; }
+  return SERIES[key];
+}
+const loadStat=keys=>Promise.all(keys.map(statSeries));
+
+/* плашка источника: слева — чей это ряд, справа — путь к оригиналу */
+const hostOf=u=>{ try { return new URL(u,location.href).hostname.replace(/^www\./,""); } catch(_) { return ""; } };
+function srcBar(text, links, lead){
+  const go=(links||[]).filter(l=>l&&l.url).map(l=>
+    '<a href="'+esc(l.url)+'" target="_blank" rel="noopener">'+esc(l.label)+'<span class="dom">'+esc(l.domain||hostOf(l.url))+"</span></a>").join("");
+  return '<div class="srcbar"><p>'+(lead?"<b>"+esc(lead)+"</b> ":"")+esc(text)+"</p>"+(go?'<div class="go">'+go+"</div>":"")+"</div>";
+}
+function limitsBox(title, items){
+  const list=(items||[]).filter(Boolean);
+  if(!list.length) return "";
+  return '<div class="limits"><h4>'+esc(title)+"</h4><ul>"+list.map(t=>"<li>"+esc(t)+"</li>").join("")+"</ul></div>";
+}
+const noData=(head,why)=>'<div class="nodata"><b>'+esc(head)+"</b>"+esc(why)+"</div>";
+
+/* ---------- графики ---------- */
+const CHARTS=[
+  {el:"#c1", key:"q_premiums", money:true, title:"Премии за квартал"},
+  {el:"#c2", key:"loss_ratio", money:false, title:"Убыточность"},
+  {el:"#c3", key:"annual_rate", money:false, title:"Средняя годовая ставка"},
+  {el:"#c4", key:"liabilities", money:true, title:"Обязательства на дату"}
+];
+const compact=new Intl.NumberFormat("ru-RU",{notation:"compact",maximumFractionDigits:1});
+/* короткая подпись: для оси и подписи последней точки — без единицы, единица стоит в заголовке графика */
+const short=v=>v==null?"—":v===0?"0":Math.abs(v)>=10000?compact.format(v):Math.abs(v)>=100?Math.round(v).toLocaleString("ru-RU"):Math.abs(v)>=10?f1(v):f3(v);
+/* значение в подсказке: полностью, с единицей */
+const full=(v,unit)=>v==null?"—":(Math.abs(v)>=100?Math.round(v).toLocaleString("ru-RU"):Math.abs(v)>=10?f1(v):f3(v))+unit;
+
+function chart(el, cfg, dates, labels){
+  const NS=nappSel();
+  const direct=NS.length>1 && NS.length<=4;
+  const ser=NS.map(k=>{ const i=cidx(k); return (()=>{
+    const pts=SERIES[k]||[], by={}; pts.forEach(p=>{ by[p.date]=p[cfg.key]==null?null:p[cfg.key]; });
+    let vals=dates.map(d=>(d in by)?by[d]:null);
+    if(SCALE==="idx"){ const base=vals.find(v=>v!=null&&v!==0); vals=(base==null)?vals.map(()=>null):vals.map(v=>v==null?null:v/base*100); }
+    return {key:k, name:shortName(k), color:col(i), vals:vals};
+  })(); }).filter(s=>s.vals.some(v=>v!=null));
+  /* единицу подбираем по самому крупному значению — заголовок и ось говорят одно и то же */
+  let unit=cfg.money?" млн сум":"%", head=cfg.title+(cfg.money?", млн сум":", %");
+  if(SCALE==="idx"){ unit=""; head=cfg.title+", индекс: первая точка = 100"; }
+  else if(cfg.money){
+    const mx=Math.max(0,...ser.flatMap(s=>s.vals).filter(v=>v!=null).map(Math.abs));
+    const u=mx>=1e6?{d:1e6,n:"трлн сум"}:mx>=1e3?{d:1e3,n:"млрд сум"}:{d:1,n:"млн сум"};
+    if(u.d!==1) ser.forEach(s=>{ s.vals=s.vals.map(v=>v==null?null:v/u.d); });
+    unit=" "+u.n; head=cfg.title+", "+u.n;
+  }
+  const h2=el.parentElement&&el.parentElement.querySelector("h2"); if(h2) h2.textContent=head;
+  if(!ser.length||dates.length<2){ el.innerHTML='<p class="note" style="margin:0">Мало точек для графика.</p>'; return; }
+  const flat=ser.flatMap(s=>s.vals).filter(v=>v!=null);
+  let hi=Math.max(...flat), lo=(SCALE==="idx")?Math.min(...flat):Math.min(0,...flat);
+  if(hi===lo) hi=lo+1;
+  hi=lo+(hi-lo)*1.1; if(SCALE==="idx") lo=lo-(hi-lo)*0.05;
+  const W=560,H=215,L=54,R=direct?64:16,T=14,B=34;
+  const x=i=>L+i*(W-L-R)/(dates.length-1), y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  for(let i=0;i<=4;i++){const v=lo+(hi-lo)*i/4;
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/>'+
+       '<text class="ax" x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+short(v)+'</text>';}
+  const step=Math.ceil(dates.length/5);
+  dates.forEach((d,i)=>{ if(i%step===0||i===dates.length-1)
+    s+='<text class="ax" x="'+x(i)+'" y="'+(H-10)+'" text-anchor="middle">'+esc(labels[i].replace(" · "," "))+'</text>'; });
+  s+='<line class="cross" x1="0" x2="0" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--muted)" stroke-dasharray="3 3" opacity="0"/>';
+  ser.forEach(se=>{
+    let d="", open=false;
+    se.vals.forEach((v,i)=>{ if(v==null){open=false;return;} d+=(open?"L":"M")+x(i)+","+y(v)+" "; open=true; });
+    s+='<path d="'+d+'" fill="none" stroke="'+se.color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+    se.vals.forEach((v,i)=>{ if(v!=null) s+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="3.2" fill="'+se.color+'" stroke="var(--card)" stroke-width="2"/>'; });
+    if(direct){ let li=-1; se.vals.forEach((v,i)=>{ if(v!=null) li=i; });
+      if(li>=0) s+='<text class="vl" x="'+(W-R+8)+'" y="'+(y(se.vals[li])+4)+'" fill="'+se.color+'">'+short(se.vals[li])+'</text>'; }
+  });
+  s+='<rect class="hit" x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(H-T-B)+'" fill="transparent"/></svg>';
+  const legend=(ser.length>1)?'<div class="legend">'+ser.map(se=>'<span><i style="background:'+se.color+'"></i>'+esc(se.name)+'</span>').join("")+'</div>':"";
+  el.innerHTML=legend+s;
+  const svg=el.querySelector("svg"), cross=svg.querySelector(".cross"), hit=svg.querySelector(".hit");
+  hit.addEventListener("mousemove",e=>{
+    const b=svg.getBoundingClientRect(), vx=(e.clientX-b.left)/b.width*W;
+    let i=Math.round((vx-L)/((W-L-R)/(dates.length-1))); i=Math.max(0,Math.min(dates.length-1,i));
+    cross.setAttribute("x1",x(i)); cross.setAttribute("x2",x(i)); cross.setAttribute("opacity","1");
+    tip.style.display="block";
+    tip.style.left=Math.min(e.clientX+14,innerWidth-300)+"px"; tip.style.top=Math.min(e.clientY+14,innerHeight-160)+"px";
+    tip.innerHTML="<b>"+esc(labels[i])+"</b>"+ser.map(se=>'<div><i style="background:'+se.color+'"></i>'+esc(se.name)+": "+
+      (se.vals[i]==null?"<s>нет данных</s>":full(se.vals[i],unit))+"</div>").join("");
+  });
+  hit.addEventListener("mouseleave",()=>{ tip.style.display="none"; cross.setAttribute("opacity","0"); });
+}
+
+/* ---------- сводка и таблица ---------- */
+function summary(dates,labels){
+  const box=$("#summary"), NS=nappSel();
+  if(SEL.length && !NS.length){
+    box.innerHTML='<div class="card" style="margin-bottom:14px"><h2>Выбраны только ряды Агентства статистики</h2>'+
+      '<p style="margin:0">Премии, выплаты и обязательства берутся из отчётов НАПП — добавьте класс, регион или страховщика, '+
+      'чтобы появились графики рынка. Ряды статистики показаны ниже, в своей карточке.</p></div>'; return; }
+  if(!SEL.length){ box.innerHTML='<div class="card" style="margin-bottom:14px"><h2>Ряды не выбраны</h2><p style="margin:0">Откройте панель «Ряды» и отметьте хотя бы один ряд — тогда появятся цифры и графики.</p></div>'; return; }
+  if(NS.length===1){
+    const p=SERIES[NS[0]]||[], cur=p[p.length-1];
+    if(!cur){ box.innerHTML=""; return; }
+    const yago=yearAgo(p,cur);
+    const delta=(a,b)=>(a!=null&&b)?'<em class="'+(a>=b?"up":"down")+'">'+(a>=b?"+":"")+f1((a-b)/b*100)+"% г/г</em>":'<em class="na" title="нет среза ровно годом раньше">— г/г</em>';
+    box.innerHTML='<div class="tiles">'+[["Премии с начала года, млн",fmt(cur.premiums_ytd),delta(cur.premiums_ytd,yago&&yago.premiums_ytd)],
+      ["Выплаты с начала года, млн",fmt(cur.payouts_ytd),delta(cur.payouts_ytd,yago&&yago.payouts_ytd)],
+      ["Убыточность",f1(cur.loss_ratio)+"%",""],["Средняя годовая ставка",f3(cur.annual_rate)+"%",""],
+      ["Обязательства, млрд",fmt(cur.liabilities/1000),delta(cur.liabilities,yago&&yago.liabilities)]]
+      .map(a=>'<div class="tile"><b>'+a[1]+a[2]+'</b><span>'+a[0]+" · "+esc(cur.label)+"</span></div>").join("")+"</div>";
+    return;
+  }
+  const last=dates[dates.length-1], lab=labels[labels.length-1];
+  const body=NS.map(k=>{ const i=cidx(k);
+    const p=SERIES[k]||[], cur=[...p].reverse().find(x=>x.date<=last)||{};
+    const yago=yearAgo(p,cur);
+    const gg=(cur.premiums_ytd!=null&&yago&&yago.premiums_ytd)?((cur.premiums_ytd-yago.premiums_ytd)/yago.premiums_ytd*100):null;
+    return "<tr><td><i class=\"swatch\" style=\"background:"+col(i)+"\"></i>"+esc(shortName(k))+"</td>"+
+      '<td class="n">'+fm1(cur.premiums_ytd)+'</td><td class="n">'+f1(cur.loss_ratio)+"%</td>"+
+      '<td class="n">'+f3(cur.annual_rate)+'%</td><td class="n">'+(cur.liabilities==null?"—":fmt(cur.liabilities/1000))+"</td>"+
+      '<td class="n '+(gg==null?"":gg>=0?"up":"down")+'">'+(gg==null?"—":(gg>=0?"+":"")+f1(gg)+"%")+"</td>"+
+      '<td class="n">'+esc(cur.label||"—")+"</td></tr>";
+  }).join("");
+  box.innerHTML='<div class="card" style="margin-bottom:14px"><h2>Последний срез по выбранным рядам</h2>'+
+    "<p>срез "+esc(lab)+"; если у ряда на эту дату данных нет, взят его последний срез — он в правой колонке</p>"+
+    '<div style="overflow-x:auto"><table><thead><tr><th>Ряд</th><th>Премии YTD, млн</th><th>Убыточность</th><th>Годовая ставка</th><th>Обязательства, млрд</th><th>Премии г/г</th><th>Срез</th></tr></thead><tbody>'+body+"</tbody></table></div></div>";
+}
+
+function longRows(){
+  const out=[];
+  nappSel().forEach(k=>(SERIES[k]||[]).forEach(p=>out.push([p.label,p.date,shortName(k),p.premiums_ytd,p.payouts_ytd,p.q_premiums,p.loss_ratio,p.annual_rate,p.liabilities])));
+  out.sort((a,b)=>a[1]===b[1]?a[2].localeCompare(b[2],"ru"):(a[1]<b[1]?1:-1));
+  return out;
+}
+function table(){
+  const rows=longRows();
+  $("#tblSub").textContent=rows.length+" строк: по одной на срез и ряд, новые сверху";
+  $("#tbl").innerHTML='<thead><tr><th>Срез</th><th>Ряд</th><th>Премии YTD</th><th>Выплаты YTD</th><th>Премии за квартал</th><th>Убыточность</th><th>Ставка, годовая</th><th>Обязательства</th></tr></thead><tbody>'+
+    rows.map(r=>"<tr><td>"+esc(r[0])+"</td><td>"+esc(r[2])+'</td><td class="n">'+fmt(r[3])+'</td><td class="n">'+fmt(r[4])+
+      '</td><td class="n">'+fmt(r[5])+'</td><td class="n">'+f1(r[6])+'%</td><td class="n">'+f3(r[7])+'%</td><td class="n">'+fmt(r[8])+"</td></tr>").join("")+"</tbody>";
+}
+function exportCsv(){
+  const head=["Срез","Дата","Ряд","Премии YTD, млн","Выплаты YTD, млн","Премии за квартал, млн","Убыточность, %","Годовая ставка, %","Обязательства, млн"];
+  const cell=v=>v==null?"":(typeof v==="number")?String(v).replace(".",","):'"'+String(v).replace(/"/g,'""')+'"';
+  const csv="﻿"+[head.map(cell).join(";")].concat(longRows().map(r=>r.map(cell).join(";"))).join("\r\n");
+  const a=document.createElement("a"), url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.href=url; a.download="dinamika-rynka.csv"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+$("#csv").onclick=exportCsv; $("#csvTop").onclick=exportCsv;
+
+/* ---------- отрисовка ---------- */
+async function draw(){
+  await Promise.all([loadAll(nappSel()), loadStat(statSel())]);
+  const set=new Set(), lab={};
+  nappSel().forEach(k=>(SERIES[k]||[]).forEach(p=>{ set.add(p.date); lab[p.date]=p.label; }));
+  const dates=[...set].sort(), labels=dates.map(d=>lab[d]||d);
+  CHARTS.forEach(c=>chart($(c.el),c,dates,labels));
+  summary(dates,labels); table(); chips(); statDraw();
+  const kinds=new Set(SEL.map(kind));
+  if(SCALE==="idx") $("#pmsg").textContent="Каждый ряд приведён к своей первой точке: видно темп, а не размер.";
+  else if(SEL.length>1) $("#pmsg").textContent=kinds.size>1
+    ? "Ряды разных видов на одной шкале: мелкий ряд может прижаться к нулю — тогда включите индекс."
+    : "Одна шкала на график.";
+  else $("#pmsg").textContent="";
+}
+
+/* ---------- выбор рядов: конструктор ---------- */
+const GROUPS=[
+  {id:"cls",  name:"Классы",         test:k=>k.indexOf("cls")===0 && k.indexOf("_")<0},
+  {id:"pack", name:"Пакеты классов", test:k=>k.indexOf("cls")===0 && k.indexOf("_")>=0},
+  {id:"tot",  name:"Итоги рынка",    test:k=>k==="total"||k==="mandatory"||k.indexOf("voluntary_")===0||k==="osago"||k==="cmr_mandatory"},
+  {id:"reg",  name:"Регионы",        test:k=>k.indexOf("region:")===0},
+  {id:"co",   name:"Страховщики",    test:k=>k.indexOf("company:")===0},
+  {id:"stat", name:"Агентство статистики", test:isStat}
+];
+const OPEN={}, HINT="Перетащите ряд за ручку, чтобы изменить порядок.";
+let DRAG=null;
+
+function chips(){
+  $("#chips").innerHTML=SEL.length
+    ? SEL.map((k,i)=>'<span class="chip"><i style="background:'+col(i)+'"></i>'+esc(shortName(k))+
+        '<button data-k="'+esc(k)+'" title="убрать ряд">×</button></span>').join("")
+    : '<span class="note" style="margin:0">Пока ничего не выбрано.</span>';
+}
+function renderSel(){
+  $("#pickN").textContent=SEL.length;
+  $("#panSel").innerHTML=SEL.length
+    ? SEL.map((k,i)=>'<div class="it" draggable="true" data-k="'+esc(k)+'">'+
+        '<span class="gr" title="перетащите, чтобы изменить порядок">&#9776;</span>'+
+        '<i class="dot" style="background:'+col(i)+'"></i><em title="'+esc(nameOf(k))+'">'+esc(shortName(k))+'</em>'+
+        '<button class="x" data-k="'+esc(k)+'" title="убрать ряд">×</button></div>').join("")
+    : '<div class="empty">Ряды не выбраны. Отметьте их в группах ниже.</div>';
+}
+function paintGroups(){
+  $("#panGroups").querySelectorAll("label").forEach(l=>{
+    const on=SEL.indexOf(l.dataset.k)>=0; l.classList.toggle("on",on); l.querySelector("input").checked=on;
+  });
+}
+function fillGroups(){
+  // список строится целиком; поиск только прячет несовпадающие строки (см. applyQuery) — так ничего не «исчезает»
+  const html=GROUPS.map(g=>{
+    const items=ROWS.filter(r=>g.test(r.row_key));
+    const open=!!OPEN[g.id], n=SEL.filter(k=>g.test(k)).length;
+    return '<div class="grp" data-g="'+g.id+'"><button class="gh'+(open?" open":"")+'" data-g="'+g.id+'" aria-expanded="'+open+'">'+
+      '<span class="ar">›</span>'+g.name+'<span class="c'+(n?" on":"")+'" data-total="'+items.length+'">'+(n?n+" из "+items.length:items.length)+'</span></button>'+
+      '<div class="gb"'+(open?"":" hidden")+'>'+
+      (items.length?items.map(r=>'<label data-k="'+esc(r.row_key)+'" data-n="'+esc(r.row_name.toLowerCase())+'"><input type="checkbox"><em>'+
+        esc(r.row_name)+'</em><span>'+esc(String(r.points))+'</span></label>').join("")
+       :'<div class="empty">'+esc(g.id==="stat"?(STATERR||"наборы Агентства статистики в базе не найдены"):"рядов нет")+"</div>")+
+      '</div></div>';
+  }).join("");
+  $("#panGroups").innerHTML=html;
+  paintGroups(); applyQuery();
+}
+function applyQuery(){
+  const q=QUERY; let any=false;
+  $("#panGroups").querySelectorAll(".grp").forEach(grp=>{
+    let hit=0;
+    grp.querySelectorAll("label").forEach(l=>{ const ok=!q||l.dataset.n.indexOf(q)>=0||l.dataset.k.toLowerCase().indexOf(q)>=0; l.hidden=!ok; if(ok) hit++; });
+    const gb=grp.querySelector(".gb"), gh=grp.querySelector(".gh"), c=gh.querySelector(".c");
+    if(q){ gb.hidden=hit===0; gh.classList.toggle("open",hit>0); c.textContent=hit?hit+" найдено":"нет совпадений"; }
+    else { gb.hidden=!OPEN[grp.dataset.g]; gh.classList.toggle("open",!!OPEN[grp.dataset.g]);
+      const n=SEL.filter(k=>GROUPS.find(g=>g.id===grp.dataset.g).test(k)).length; c.textContent=n?n+" из "+c.dataset.total:c.dataset.total; }
+    if(hit) any=true;
+  });
+  let em=$("#panGroups .empty"); if(!em){ em=document.createElement("div"); em.className="empty"; $("#panGroups").appendChild(em); }
+  em.hidden=any||!q; em.textContent="Ничего не нашлось по запросу «"+q+"».";
+}
+function paint(){ renderSel(); paintGroups(); chips(); }
+function toggle(k,on){
+  if(on){
+    if(SEL.indexOf(k)>=0) return;
+    if(SEL.length>=MAX){ const m="Больше "+MAX+" рядов на график не поместится — сначала уберите лишний ряд.";
+      $("#pmsg").textContent=m; $("#panHint").textContent=m; paint(); return; }
+    SEL=SEL.concat([k]);
+  } else SEL=SEL.filter(x=>x!==k);
+  $("#panHint").textContent=HINT;
+  syncKinds(); saveHash(); paint(); fillGroups(); draw();
+}
+/* вид данных вручную не переключают: он следует за выбранными рядами */
+function syncKinds(){
+  const ks=[...new Set(SEL.map(kind))];
+  if(ks.length===1){ MODE=ks[0]; $("#srcSheet").textContent=SHEETS[MODE]; }
+  else if(ks.length) $("#srcSheet").textContent="листы НАПП по классам, регионам и страховщикам";
+  else $("#srcSheet").textContent=SHEETS.cls;
+  if(SEL.some(k=>kind(k)==="company")){ if(!RANKED){ RANKED=true; ranking(); } else $("#rankCard").style.display=""; }
+  else $("#rankCard").style.display="none";
+}
+function saveHash(){
+  const h="tab="+MODE+(SEL.length?"&rows="+SEL.map(encodeURIComponent).join(","):"");
+  history.replaceState(null,"","#"+h);
+}
+function readHash(){
+  const h=location.hash.replace(/^#/,""); if(!h) return null;
+  if(["cls","region","company"].indexOf(h)>=0) return {tab:h, rows:[]};   // старые ссылки вида #region
+  const p=new URLSearchParams(h), tab=p.get("tab");
+  const rows=(p.get("rows")||"").split(",").map(decodeURIComponent).filter(Boolean);
+  return {tab:(["cls","region","company"].indexOf(tab)>=0)?tab:null, rows:rows.slice(0,MAX)};
+}
+
+/* панель */
+function openPan(v){
+  const pan=$("#pan"), btn=$("#pickBtn");
+  pan.hidden=!v; btn.classList.toggle("open",v); btn.setAttribute("aria-expanded",v);
+  if(v){ fillGroups(); renderSel(); $("#search").focus(); }
+}
+$("#pickBtn").onclick=e=>{ e.stopPropagation(); openPan($("#pan").hidden); };
+document.addEventListener("click",e=>{ if(!$("#pan").hidden && !e.target.closest(".pick")) openPan(false); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"&&!$("#pan").hidden){ openPan(false); $("#pickBtn").focus(); } });
+$("#panGroups").onclick=e=>{ const g=e.target.closest(".gh"); if(!g) return;
+  OPEN[g.dataset.g]=!OPEN[g.dataset.g]; if(QUERY){ QUERY=""; $("#search").value=""; } applyQuery(); };
+$("#panGroups").onchange=e=>{ const l=e.target.closest("label"); if(l) toggle(l.dataset.k,e.target.checked); };
+$("#panSel").onclick=e=>{ const b=e.target.closest("button[data-k]"); if(b) toggle(b.dataset.k,false); };
+$("#chips").onclick=e=>{ const b=e.target.closest("button[data-k]"); if(b) toggle(b.dataset.k,false); };
+$("#search").oninput=e=>{ QUERY=e.target.value.trim().toLowerCase(); applyQuery(); };
+
+/* абсолютные значения или индекс: первая точка = 100 */
+$("#scaleSeg").onclick=e=>{ const b=e.target.closest("button[data-s]"); if(!b||b.dataset.s===SCALE) return;
+  SCALE=b.dataset.s;
+  $("#scaleSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.s===SCALE));
+  draw(); };
+
+/* перетаскивание: порядок рядов = порядок линий, легенды и чипов */
+const panSel=$("#panSel");
+panSel.addEventListener("dragstart",e=>{ const it=e.target.closest(".it"); if(!it) return;
+  DRAG=it.dataset.k; it.classList.add("drag"); e.dataTransfer.effectAllowed="move"; e.dataTransfer.setData("text/plain",DRAG); });
+panSel.addEventListener("dragover",e=>{ if(DRAG==null) return; e.preventDefault(); e.dataTransfer.dropEffect="move";
+  const it=e.target.closest(".it");
+  panSel.querySelectorAll(".it").forEach(x=>x.classList.toggle("over",x===it&&x.dataset.k!==DRAG)); });
+panSel.addEventListener("dragleave",e=>{ const it=e.target.closest(".it"); if(it) it.classList.remove("over"); });
+panSel.addEventListener("drop",e=>{ e.preventDefault(); const it=e.target.closest(".it"), from=SEL.indexOf(DRAG);
+  if(!it||from<0) return;
+  const to=SEL.indexOf(it.dataset.k); if(to<0||to===from){ DRAG=null; renderSel(); return; }
+  SEL.splice(from,1); SEL.splice(to,0,DRAG); DRAG=null;
+  saveHash(); paint(); draw(); });
+panSel.addEventListener("dragend",()=>{ DRAG=null; renderSel(); });
+
+$("#qOrder").onclick=()=>{ SEL=ROWS.filter(r=>SEL.indexOf(r.row_key)>=0).map(r=>r.row_key);
+  saveHash(); paint(); draw(); $("#panHint").textContent="Порядок вернулся к порядку списка."; };
+$("#qClear").onclick=()=>{ SEL=[]; syncKinds(); saveHash(); paint(); fillGroups(); draw();
+  $("#pmsg").textContent=""; $("#panHint").textContent=HINT; };
+
+async function topBy(prefix,n,msg){
+  const keys=ROWS.filter(r=>r.row_key.indexOf(prefix)===0).map(r=>r.row_key);
+  $("#pmsg").textContent="считаю крупнейшие…";
+  await loadAll(keys);
+  const last=k=>{const p=(SERIES[k]||[]).slice().reverse().find(q=>q.premiums_ytd!=null); return p?p.premiums_ytd:-1;};
+  SEL=keys.sort((a,b)=>last(b)-last(a)).slice(0,n);
+  syncKinds(); saveHash(); paint(); fillGroups(); await draw(); $("#pmsg").textContent=msg;
+}
+$("#qTop5").onclick=()=>topBy("company:",5,"Пять компаний с наибольшими премиями на последнем срезе.");
+$("#qRegions").onclick=()=>topBy("region:",8,"Восемь регионов с наибольшими премиями: больше восьми линий на графике не разобрать.");
+
+/* ---------- рейтинг страховщиков ---------- */
+async function ranking(){
+  const card=$("#rankCard"); card.style.display="";
+  const comps=ROWS.filter(r=>r.row_key.indexOf("company:")===0);
+  const got=await Promise.all(comps.map(async r=>({key:r.row_key, name:r.row_name, pts:await series(r.row_key)})));
+  const date=got.flatMap(g=>g.pts.map(p=>p.date)).sort().pop();
+  if(!date){ $("#rankSub").textContent="нет данных по компаниям"; return; }
+  const label=(got.map(g=>g.pts.find(p=>p.date===date)).find(Boolean)||{}).label||date;
+  const list=got.map(g=>{const p=g.pts.find(q=>q.date===date)||{};
+    return {key:g.key, name:g.name, prem:(p.premiums_ytd==null?null:p.premiums_ytd), pay:(p.payouts_ytd==null?null:p.payouts_ytd)};});
+  const total=list.reduce((a,x)=>a+(x.prem||0),0), payTotal=list.reduce((a,x)=>a+(x.pay||0),0);
+  list.sort((a,b)=>(b.prem==null?-1:b.prem)-(a.prem==null?-1:a.prem));
+  let place=0, mine=0;
+  const body=list.map(x=>{
+    const has=x.prem!=null; if(has) place++;
+    const me=x.key==="company:INSON AJ"; if(me) mine=place;
+    return '<tr class="'+(me?"me":(has?"":"nil"))+'"><td class="n">'+(has?place:"—")+"</td><td>"+esc(x.name)+"</td>"+
+      '<td class="n">'+(has?fm1(x.prem):"—")+'</td><td class="n">'+(has?f3(x.prem/total*100)+"%":"—")+"</td>"+
+      '<td class="n">'+((has&&x.pay!=null&&x.prem>0)?f1(x.pay/x.prem*100)+"%":"—")+"</td></tr>";
+  }).join("");
+  $("#rank").innerHTML='<thead><tr><th>Место</th><th>Компания</th><th>Премии, млн сум</th><th>Доля рынка</th><th>Убыточность</th></tr></thead>'+
+    "<tbody>"+body+'</tbody><tfoot><tr><td></td><td>Итого по рынку</td><td class="n">'+fm1(total)+"</td>"+
+    '<td class="n">'+f1(100)+'%</td><td class="n">'+f1(payTotal/total*100)+"%</td></tr></tfoot>";
+  const nil=list.filter(x=>x.prem==null).length;
+  const zero=list.filter(x=>x.prem!=null&&!(x.prem>0)).length, act=place-zero;
+  $("#rankSub").textContent="срез "+label+" ("+date+") · общее страхование · "+place+" компаний в отчёте НАПП, из них "+act+" с ненулевыми премиями"+
+    (nil?" · ещё "+nil+" без данных на этот срез — они внизу с прочерком":"");
+  $("#rankPlace").innerHTML=mine?"INSON — <b>"+mine+"-е место из "+act+"</b> по премиям"+
+    (zero?" (в отчёте НАПП "+place+" строк, у "+zero+" премии нулевые — лицензия отозвана или деятельность приостановлена)":""):
+    "INSON на этом срезе без данных";
+}
+
+/* ---------- ряды Агентства статистики ---------- */
+const ROMAN=["","I","II","III","IV"];
+function perLabel(p){
+  let m=/^(\d{4})-Q(\d)$/.exec(p); if(m) return ROMAN[+m[2]]+" кв. "+m[1];
+  m=/^(\d{4})-M(\d{2})$/.exec(p); if(m) return m[2]+"."+m[1];
+  return p;
+}
+const perForm=p=>/-Q\d$/.test(p)?"квартал":/-M\d\d$/.test(p)?"месяц":"год";
+const FORMNAME={"год":"годовые значения","квартал":"квартальные значения","месяц":"месячные значения"};
+
+/* один ряд = один график: у наборов разные единицы и разные периоды, класть их на одну шкалу нельзя */
+function miniChart(pts, color, unit){
+  const W=520,H=170,L=52,R=54,T=12,B=30;
+  const vals=pts.map(p=>p.value);
+  const flat=vals.filter(v=>v!=null);
+  if(pts.length<2||!flat.length) return '<p class="note" style="margin:0">Мало точек для графика — значения в подписи выше.</p>';
+  let hi=Math.max(...flat), lo=Math.min(...flat);
+  const pad=(hi-lo)||Math.abs(hi)||1; hi=hi+pad*0.12; lo=lo-pad*0.12;
+  const x=i=>L+i*(W-L-R)/(pts.length-1), y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  let s='<svg viewBox="0 0 '+W+' '+H+'" role="img" preserveAspectRatio="xMidYMid meet">';
+  for(let i=0;i<=3;i++){ const v=lo+(hi-lo)*i/3;
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/>'+
+       '<text class="ax" x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+short(v)+"</text>"; }
+  const step=Math.ceil(pts.length/5);
+  pts.forEach((p,i)=>{ if(i%step===0||i===pts.length-1)
+    s+='<text class="ax" x="'+x(i)+'" y="'+(H-9)+'" text-anchor="middle">'+esc(perLabel(p.period))+"</text>"; });
+  s+='<line class="cross" x1="0" x2="0" y1="'+T+'" y2="'+(H-B)+'" stroke="var(--muted)" stroke-dasharray="3 3" opacity="0"/>';
+  let d="", open=false;
+  vals.forEach((v,i)=>{ if(v==null){open=false;return;} d+=(open?"L":"M")+x(i)+","+y(v)+" "; open=true; });
+  s+='<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  if(pts.length<=26) vals.forEach((v,i)=>{ if(v!=null)
+    s+='<circle cx="'+x(i)+'" cy="'+y(v)+'" r="3.2" fill="'+color+'" stroke="var(--card)" stroke-width="2"/>'; });
+  let li=-1; vals.forEach((v,i)=>{ if(v!=null) li=i; });
+  if(li>=0) s+='<text class="vl" x="'+(W-R+8)+'" y="'+(y(vals[li])+4)+'" fill="'+color+'">'+short(vals[li])+"</text>";
+  s+='<rect class="hit" x="'+L+'" y="'+T+'" width="'+(W-L-R)+'" height="'+(H-T-B)+'" fill="transparent"/></svg>';
+  return s;
+}
+function bindMini(box, pts, color, unit, name){
+  const svg=box.querySelector("svg"); if(!svg) return;
+  const cross=svg.querySelector(".cross"), hit=svg.querySelector(".hit");
+  const W=520,L=52,R=54, x=i=>L+i*(W-L-R)/(pts.length-1);
+  hit.addEventListener("mousemove",e=>{
+    const b=svg.getBoundingClientRect(), vx=(e.clientX-b.left)/b.width*W;
+    let i=Math.round((vx-L)/((W-L-R)/(pts.length-1))); i=Math.max(0,Math.min(pts.length-1,i));
+    cross.setAttribute("x1",x(i)); cross.setAttribute("x2",x(i)); cross.setAttribute("opacity","1");
+    tip.style.display="block";
+    tip.style.left=Math.min(e.clientX+14,innerWidth-300)+"px"; tip.style.top=Math.min(e.clientY+14,innerHeight-140)+"px";
+    tip.innerHTML="<b>"+esc(perLabel(pts[i].period))+"</b><div><i style=\"background:"+color+'"></i>'+esc(name)+": "+
+      (pts[i].value==null?"<s>нет данных</s>":esc(full(pts[i].value,"")+" "+unit))+"</div>";
+  });
+  hit.addEventListener("mouseleave",()=>{ tip.style.display="none"; cross.setAttribute("opacity","0"); });
+}
+function statDraw(){
+  const keys=statSel(), card=$("#statCard"), box=$("#statMini");
+  if(!keys.length){ card.style.display="none"; return; }
+  card.style.display="";
+  const parts=[]; const binds=[];
+  keys.forEach(k=>{
+    const got=SERIES[k]||{rows:[]}, d=dsOf(k), color=col(cidx(k)), name=shortName(k);
+    const head='<h3><i style="background:'+color+'"></i>'+esc(nameOf(k))+"</h3>";
+    const links=[{url:d["Ссылка на набор"]||"", label:"Открыть набор"},
+                 {url:d["Адрес данных"]||"", label:"Машинные данные"}];
+    const bar=srcBar((d["Источник"]||"источник не указан")+" · "+(d["Набор"]||"")+
+      " · периодичность: "+(d["Периодичность"]||"—")+" · единица: "+(d["Единица"]||"—")+
+      " · обновлено: "+(d["Последнее обновление"]||"не обновлялось"), links, "Источник данных:");
+    const lim=limitsBox("Оговорки набора", (d["Ограничения"]||[]).concat(
+      statParts(k).key&&!/^\d{4}$/.test(statParts(k).key)?["источник даёт только код строки «"+statParts(k).key+"», расшифровки названия в наборе нет"]:[]));
+    if(got.error){ parts.push('<div class="m">'+head+noData("Ряд не загрузился", got.error)+bar+"</div>"); return; }
+    if(!got.rows.length){ parts.push('<div class="m">'+head+
+      noData("Нет данных", "набор «"+(d["Набор"]||statParts(k).ds)+"» не содержит строк по этому разрезу: "+
+        (d["Причина"]||"последнее обновление — "+(d["Последнее обновление"]||"не было")))+bar+"</div>"); return; }
+    const forms=[...new Set(got.rows.map(r=>perForm(r.period)))];
+    forms.forEach(f=>{
+      const pts=got.rows.filter(r=>perForm(r.period)===f);
+      const unit=(pts[0]||{}).unit||d["Единица"]||"";
+      const id="mini"+parts.length;
+      const sub="<p>"+esc(FORMNAME[f]+" · "+unit+" · "+perLabel(pts[0].period)+" … "+perLabel(pts[pts.length-1].period)+
+        " · "+pts.length+" точек"+(forms.length>1?" · у набора есть и годовые, и более частые значения — на одном графике их мешать нельзя, поэтому они разведены":""))+"</p>";
+      parts.push('<div class="m" id="'+id+'">'+head+sub+miniChart(pts,color,unit)+lim+bar+"</div>");
+      binds.push([id,pts,color,unit,name]);
+    });
+  });
+  box.innerHTML=parts.join("");
+  binds.forEach(([id,pts,color,unit,name])=>bindMini(document.getElementById(id),pts,color,unit,name));
+  $("#statSub").textContent="выбрано рядов: "+keys.length+" · у каждого своя шкала и свой источник; с рядами НАПП они на один график не кладутся — разные единицы и разные периоды";
+}
+
+/* ---------- производные показатели ---------- */
+const fnum=v=>v==null?"—":(Math.abs(v)>=100?Math.round(v).toLocaleString("ru-RU"):v.toFixed(4).replace(".",","));
+function indicatorCard(j){
+  const rows=j["Строки"]||[];
+  const skip={"Регион":1,"region":1,"Значение":1,"Статус":1,"Причина":1,"Расчёт":1};
+  const cols=[];
+  rows.forEach(r=>Object.keys(r).forEach(kk=>{ if(!skip[kk] && kk.indexOf("Ссылка")!==0 && cols.indexOf(kk)<0) cols.push(kk); }));
+  const links=(j["Источники"]||[]).map(s=>({url:s["Ссылка"]||"", label:s["Название"]?"Отчёт НАПП":"Набор: "+(s["Набор"]||"")}));
+  const lim=(j["Предупреждения"]||[]).concat(
+    (j["Источники"]||[]).flatMap(s=>(s["Ограничения"]||[]).map(t=>(s["Набор"]?s["Набор"]+": ":"")+t)));
+  const head='<h2>'+esc(j["Показатель"]||"показатель")+"</h2>";
+  const meta=["Год","Срез НАПП","Период премий","Период населения","Период ВРП","Единица"]
+    .filter(kk=>j[kk]!=null).map(kk=>kk+": "+j[kk]).join(" · ");
+  const formula='<div class="formula"><b>Как считаем</b>'+esc(j["Формула"]||"формула не передана модулем")+"</div>";
+  if(j["Статус"]!=="ок" && !rows.length)
+    return '<div class="card" style="margin-bottom:12px">'+head+"<p>"+esc(meta)+"</p>"+formula+
+      noData("Нет данных", j["Причина"]||"модуль не вернул ни одной строки")+limitsBox("Оговорки источников",lim)+
+      srcBar("показатель собирается из отчёта НАПП и набора Агентства статистики", links, "Источники:")+"</div>";
+  const vals=rows.filter(r=>r.region!=="total" && r["Значение"]!=null).map(r=>r["Значение"]);
+  const mx=vals.length?Math.max(...vals):0;
+  const body=rows.map(r=>{
+    const me=r.region==="total", v=r["Значение"];
+    const barw=(!me && v!=null && mx>0)?Math.max(2,Math.round(v/mx*100)):0;
+    const cell=v==null?'<span class="na">нет данных</span>'
+      :'<div class="barcell"><span>'+fnum(v)+'</span>'+(barw?'<div class="barwrap"><div class="bar" style="width:'+barw+'%"></div></div>':"")+"</div>";
+    return '<tr class="'+(me?"me":(v==null?"nil":""))+'" title="'+esc(r["Расчёт"]||r["Причина"]||"")+'"><td>'+esc(r["Регион"])+"</td>"+
+      '<td>'+cell+"</td>"+cols.map(c=>'<td class="n">'+fnum(r[c])+"</td>").join("")+
+      "<td>"+esc(v==null?(r["Причина"]||"нет данных"):(r["Расчёт"]||""))+"</td></tr>";
+  }).join("");
+  return '<div class="card" style="margin-bottom:12px">'+head+"<p>"+esc(meta)+"</p>"+formula+
+    limitsBox("Оговорки источников: их нельзя не учитывать", lim)+
+    '<div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Регион</th><th>'+esc(j["Единица"]||"значение")+"</th>"+
+    cols.map(c=>"<th>"+esc(c)+"</th>").join("")+"<th>Как получилось</th></tr></thead><tbody>"+body+"</tbody></table></div>"+
+    srcBar("числитель — отчёт НАПП (таблица market_stats этой страницы), знаменатель — набор Агентства статистики; "+
+           "полоска показывает величину по регионам, строка «Республика Узбекистан» — итог, её в сравнение не включаем",
+           links, "Источники:")+"</div>";
+}
+async function indicators(){
+  const box=$("#indBox");
+  box.innerHTML='<div class="card"><p style="margin:0">считаю показатели…</p></div>';
+  const want=[["/stat/indicators/premiums-per-capita","Премии на душу населения по регионам"],
+              ["/stat/indicators/penetration","Проникновение страхования (премии к ВРП)"]];
+  const out=[];
+  for(const [u,name] of want){
+    try { out.push(indicatorCard(await getJson(u))); }
+    catch(e){ out.push('<div class="card" style="margin-bottom:12px"><h2>'+esc(name)+"</h2>"+
+      noData("Показатель не посчитан", e.message)+"</div>"); }
+  }
+  box.innerHTML=out.join("");
+}
+
+/* ---------- старт ---------- */
+const DEF={cls:"cls8_9", region:"region:TOSHKENT SHAHRI", company:"company:INSON AJ"};
+async function init(){
+  ROWS=await (await fetch("/market/rows")).json();
+  ROWS=ROWS.concat(await statCatalog());   // ряды Агентства статистики становятся рядом с рядами НАПП
+  // порядок списка: одиночные классы по номеру → пакеты классов → итоги рынка; регионы и компании — по алфавиту
+  const rank=k=>{ if(k.startsWith("cls")){ const n=k.slice(3).split("_"); return n.length===1?[0,+n[0]]:[1,+n[0],+(n[1]||0)]; }
+    if(isStat(k)) return [4,0];
+    if(k==="total") return [2,0]; if(k==="mandatory"||k==="voluntary_general"||k==="voluntary_life"||k==="osago"||k==="cmr_mandatory") return [2,1]; return [3,0]; };
+  ROWS.sort((a,b)=>{ const x=rank(a.row_key), y=rank(b.row_key); for(let i=0;i<Math.max(x.length,y.length);i++){ const d=(x[i]||0)-(y[i]||0); if(d) return d; } return a.row_name.localeCompare(b.row_name,"ru"); });
+  const h=readHash();
+  if(h&&h.tab) MODE=h.tab;
+  if(h&&h.rows.length) SEL=h.rows.filter(k=>ROWS.some(r=>r.row_key===k));
+  if(!SEL.length){
+    const d=ROWS.some(r=>r.row_key===DEF[MODE])?DEF[MODE]:((ROWS.find(r=>kind(r.row_key)===MODE)||{}).row_key);
+    SEL=d?[d]:[];
+  }
+  $("#srcSheet").textContent=SHEETS[MODE]||SHEETS.cls;
+  syncKinds(); paint(); fillGroups(); saveHash();
+  (async()=>{ const st=await (await fetch("/market/status")).json();
+    $("#status").textContent="точек "+st.points+" · срезы "+st.dates[0]+" … "+st.dates[st.dates.length-1]+
+      " · последняя проверка НАПП: "+(st.last_refresh||"ещё не было")+" · "+st.schedule+
+      " · Агентство статистики: "+(STATERR?"раздел не отвечает":(Object.keys(DS).length+" наборов, строк в базе "+
+        Object.values(DS).reduce((a,d)=>a+(d["Строк в базе"]||0),0))); })();
+  draw(); indicators();
+}
+$("#refresh").onclick=async()=>{ $("#rmsg").textContent="проверяю сайт НАПП…"; await fetch("/market/refresh",{method:"POST"});
+  const poll=setInterval(async()=>{const s=await (await fetch("/market/status")).json();
+    if(!s.running){ clearInterval(poll); $("#rmsg").textContent=(s.log||[]).slice(-1)[0]||"готово"; SERIES={}; RANKED=false; init(); }},2000); };
+init().then(()=>{ const q=new URLSearchParams(location.hash.replace(/^#/,"")).get("q");
+  if(q){ openPan(true); $("#search").value=q; QUERY=q.toLowerCase(); fillGroups(); } });
+</script>
+
+<script src="/theme.js"></script>

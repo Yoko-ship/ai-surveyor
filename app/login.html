@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход · Сюрвейер INSON</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;--ins:#1D2C8F;--on:#22A85A}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans);display:grid;place-items:center;padding:16px}
+.card{width:100%;max-width:420px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 24px 22px}
+.logo{text-align:center;margin-bottom:18px}
+.logo b{font-size:44px;font-weight:800;letter-spacing:-.02em;line-height:1}
+.logo .ins{color:var(--ins);text-shadow:0 0 18px rgba(29,44,143,.55)}.logo .on{color:var(--on)}
+.logo span{display:block;font:12px var(--mono);color:var(--muted);margin-top:6px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px}
+.tabs button{font:600 13px var(--sans);color:var(--muted);background:transparent;border:0;border-radius:8px;padding:8px;cursor:pointer}
+.tabs button.on{color:var(--accent);background:var(--card);border:1px solid var(--accent-dim)}
+form{display:none;flex-direction:column;gap:10px}form.on{display:flex}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+input,select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
+input:focus,select:focus{outline:none;border-color:var(--accent-dim)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.go{font:700 14px var(--sans);color:#0F1418;background:var(--accent);border:1px solid var(--accent-dim);border-radius:10px;padding:11px;cursor:pointer;margin-top:4px}
+button.go:disabled{opacity:.6;cursor:wait}
+.msg{display:none;font-size:13px;border-radius:9px;padding:9px 11px;border:1px solid var(--line)}
+.msg.err{display:block;color:var(--stop);border-color:rgba(238,130,114,.4);background:rgba(238,130,114,.08)}
+.msg.ok{display:block;color:var(--accent);border-color:var(--accent-dim);background:rgba(46,211,162,.08)}
+.msg.warn{display:block;color:var(--warn);border-color:rgba(224,168,63,.4);background:rgba(224,168,63,.08)}
+.code input{font:600 26px var(--mono);letter-spacing:.35em;text-align:center}
+.hint{font-size:11.5px;color:var(--muted);margin:0}
+.hint a{color:var(--accent);text-decoration:none}
+.foot{text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-family:var(--mono)}
+@media (max-width:480px){.row2{grid-template-columns:1fr}.logo b{font-size:38px}}
+</style>
+<div class="card">
+  <div class="logo"><b><span class="ins">INS</span><span class="on">ON</span></b><span>InsuranceON · сюрвейер</span></div>
+  <div class="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="reg" type="button">Подать заявку</button></div>
+
+  <form id="login" class="on" autocomplete="on">
+    <label>Логин<input name="login" autocomplete="username" required></label>
+    <label>Пароль<input name="password" type="password" autocomplete="current-password" required></label>
+    <div class="msg" id="m-login"></div>
+    <button class="go" type="submit">Войти</button>
+    <p class="hint">Нет доступа? Перейдите на вкладку «Подать заявку» — её проверит администратор.</p>
+  </form>
+
+  <form id="code" autocomplete="off">
+    <p class="hint" id="code-hint">Мы отправили 6-значный код в Telegram. Он действует 5 минут.</p>
+    <label class="code">Код из Telegram<input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="••••••" required></label>
+    <div class="msg" id="m-code"></div>
+    <button class="go" type="submit">Подтвердить</button>
+    <p class="hint"><a href="#" id="back">← Ввести логин и пароль заново</a></p>
+  </form>
+
+  <form id="reg">
+    <label>Фамилия, имя, отчество<input name="full_name" required minlength="3"></label>
+    <div class="row2">
+      <label>Телефон<input name="phone" placeholder="+998 __ ___ __ __"></label>
+      <label>Филиал<input name="branch" placeholder="Ташкент, Головной"></label>
+    </div>
+    <div class="row2">
+      <label>Логин<input name="login" required minlength="3" pattern="[A-Za-z0-9_.\-@]+" title="латинские буквы, цифры, точка, дефис, подчёркивание"></label>
+      <label>Пароль (от 8 знаков)<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
+    </div>
+    <div class="row2">
+      <label>Роль<select name="role"><option value="агент">Агент</option><option value="андеррайтер">Андеррайтер</option><option value="актуарий">Актуарий</option><option value="админ">Администратор</option></select></label>
+      <label>ID агента из ЕАИС<input name="agent_eais_id" placeholder="обязателен для агента"></label>
+    </div>
+    <p class="hint">Агент допускается к работе только после включения в реестр компании и получения ID в ЕАИС (Положение № 3845, п. 4). Заявку сверит и подтвердит администратор.</p>
+    <div class="msg" id="m-reg"></div>
+    <button class="go" type="submit">Отправить заявку</button>
+  </form>
+
+  <div class="foot">СО АО «INSON» · доступ только для сотрудников и агентов</div>
+</div>
+<script>
+(function(){
+  const $=s=>document.querySelector(s), forms={login:$("#login"),code:$("#code"),reg:$("#reg")};
+  let pendingLogin="";
+  function show(name){ Object.values(forms).forEach(f=>f.classList.remove("on")); forms[name].classList.add("on");
+    document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(name==="code"?"login":name))); }
+  function msg(id,text,kind){ const m=$("#m-"+id); m.className="msg"+(text?" "+kind:""); m.textContent=text||""; }
+  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ show(b.dataset.tab); msg("login");msg("reg"); });
+  $("#back").onclick=e=>{ e.preventDefault(); show("login"); msg("code"); };
+  const data=f=>Object.fromEntries(new FormData(f).entries());
+  async function post(url, body){
+    const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    let j={}; try{ j=await r.json(); }catch(e){}
+    if(!r.ok){ let d=j.detail; if(Array.isArray(d)) d=d.map(x=>(x.loc||[]).slice(-1)[0]+": "+x.msg).join("; "); throw new Error(d||("Ошибка "+r.status)); }
+    return j;
+  }
+  function busy(f,on){ f.querySelector("button.go").disabled=on; }
+  function done(j){ const u=j.user||{}; msg("login","Здравствуйте, "+(u.full_name||u.login)+". Входим…","ok");
+    location.href = new URLSearchParams(location.search).get("next") || "/"; }
+
+  forms.login.onsubmit=async e=>{ e.preventDefault(); msg("login"); busy(forms.login,true);
+    try{ const d=data(forms.login); const j=await post("/auth/login",d);
+      if(j.step==="code"){ pendingLogin=d.login; show("code");
+        let hint="Мы отправили 6-значный код в Telegram. Он действует "+(j.valid_minutes||5)+" минут.";
+        if(j.delivery && j.delivery.startsWith("недоступно")) hint="Доставка кода: "+j.delivery+". Обратитесь к администратору.";
+        $("#code-hint").textContent=hint;
+        if(j.dev_code){ msg("code","Режим разработки: код "+j.dev_code,"warn"); } }
+      else done(j);
+    }catch(err){ msg("login",err.message||"Сервер недоступен","err"); } finally{ busy(forms.login,false); } };
+
+  forms.code.onsubmit=async e=>{ e.preventDefault(); busy(forms.code,true);
+    try{ const j=await post("/auth/verify-code",{login:pendingLogin, code:data(forms.code).code}); msg("code"); done(j); }
+    catch(err){ msg("code",err.message,"err"); } finally{ busy(forms.code,false); } };
+
+  forms.reg.onsubmit=async e=>{ e.preventDefault(); msg("reg"); busy(forms.reg,true);
+    try{ const j=await post("/auth/register",data(forms.reg));
+      msg("reg",(j.message||"Заявка принята")+(j.status==="активен"?"":" Статус: "+j.status+"."),"ok"); forms.reg.reset(); }
+    catch(err){ msg("reg",err.message,"err"); } finally{ busy(forms.reg,false); } };
+})();
+</script>
+<script src="/theme.js"></script>
+</html>

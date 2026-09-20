@@ -1,0 +1,403 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Согласования</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;
+  --accent:#2BC46E;--accent-dim:#1E8F52;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;--ok:#5CC298;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.55 var(--sans)}
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100%}
+aside{border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:6px 8px 18px}
+aside a{color:var(--muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}
+aside a.on{color:var(--accent);border:1px solid var(--accent-dim);background:color-mix(in srgb,var(--accent) 8%,transparent)}
+main{padding:22px 26px 44px;min-width:0}
+h1{font-size:22px;font-weight:800;margin:0 0 4px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 16px;max-width:76ch}
+h2{font-size:15px;font-weight:700;margin:0 0 2px}
+h3{font-size:13px;font-weight:700;margin:16px 0 6px;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:15px 16px;margin-bottom:14px}
+.card > .sub{margin:2px 0 12px}
+.cols{display:grid;grid-template-columns:minmax(320px,400px) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1000px){.cols{grid-template-columns:1fr}}
+@media (max-width:760px){.app{grid-template-columns:1fr}aside{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:10px}.brand{display:none}main{padding:16px 14px 40px}}
+
+/* вход */
+.who{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+     background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px}
+.who b{font-weight:700}
+.who .test{color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:2px 9px;font-size:11.5px;font-weight:700}
+select,textarea,input,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
+textarea{width:100%;min-height:62px;resize:vertical}
+button{cursor:pointer}
+button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0B1418;font-weight:700}
+button.no{color:var(--stop);border-color:var(--stop)}
+button.ask{color:var(--gold);border-color:var(--gold)}
+button:disabled{opacity:.45;cursor:not-allowed}
+a{color:var(--accent)}
+
+/* списки */
+.item{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:9px 10px;border-radius:10px;
+      background:var(--soft);border:1px solid transparent;margin-bottom:7px;cursor:pointer}
+.item:hover{border-color:var(--line)}
+.item.on{border-color:var(--accent-dim)}
+.item .t{font-weight:700;font-size:13.5px}
+.item .m{font:11.5px var(--mono);color:var(--muted)}
+.pill{font-size:11px;font-weight:700;border:1px solid var(--line);border-radius:999px;padding:2px 9px;color:var(--muted);white-space:nowrap}
+.pill.wait{color:var(--warn);border-color:var(--warn)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+.pill.no{color:var(--stop);border-color:var(--stop)}
+.pill.q{color:var(--gold);border-color:var(--gold)}
+.empty{color:var(--muted);font-size:12.5px;padding:6px 2px}
+
+/* карточка запроса */
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+.kv > div{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:8px 11px;
+          display:flex;flex-direction:column;gap:2px}
+.kv span{font-size:11.5px;color:var(--muted)}
+.kv b{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.rev{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:start;padding:8px 10px;border-bottom:1px solid var(--line)}
+.rev:last-child{border-bottom:0}
+.rev .c{color:var(--muted);font-size:12.5px;margin-top:3px}
+.photos{display:flex;flex-wrap:wrap;gap:8px}
+.photos a{display:block;width:118px;height:88px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.photos img{width:100%;height:100%;object-fit:cover;display:block}
+.law{border-left:2px solid var(--line);padding:2px 0 2px 11px;color:var(--muted);font-size:12px;margin-top:10px}
+.law b{color:var(--ink)}
+.alarm{border-left-color:var(--stop);color:var(--stop)}
+.acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+td.mono{font:12px var(--mono);color:var(--muted);white-space:nowrap}
+.msg{font-size:12.5px;margin-top:8px}
+.msg.bad{color:var(--stop)}.msg.good{color:var(--ok)}
+</style>
+<div class="app">
+<aside>
+  <div class="brand"></div>
+  <a href="/">Главная</a><a href="/ui">Новый расчёт</a><a href="/admin">Запросы и админка</a><a href="/portfolio">Портфель</a>
+  <a class="on" href="/approvals">Согласования</a><a href="/tasks-page">Задачи команде</a><a href="/reports-page">Ежедневный доклад</a>
+  <a href="/stats">Динамика рынка</a><a href="/capacity-page">Ёмкость и удержание</a><a href="/calibration">Калибровка</a>
+  <a href="/graph">Паутина знаний</a><a href="/office">Офис агентов</a><a href="/docs">API</a>
+</aside>
+<main>
+  <h1>Согласования</h1>
+  <p class="sub">Запрос по генеральному соглашению рассматривают 2–3 человека. Здесь видно, что ждёт лично вас,
+     какие запросы висят у коллег и кто какое решение уже принял.</p>
+
+  <div class="who" id="who"><span class="empty">проверяем, кто вошёл…</span></div>
+
+  <div class="cols">
+    <div>
+      <section class="card">
+        <h2>Ждут меня</h2>
+        <p class="sub">запросы, где вы назначены согласующим и ещё не ответили</p>
+        <div id="inbox"><div class="empty">загружаем…</div></div>
+      </section>
+
+      <section class="card">
+        <h2>Все запросы на согласовании</h2>
+        <p class="sub" id="pendingSub">кто ещё не ответил и сколько решений осталось</p>
+        <div id="pending"><div class="empty">загружаем…</div></div>
+      </section>
+    </div>
+
+    <section class="card" id="card">
+      <h2>Карточка запроса</h2>
+      <p class="sub">выберите запрос слева — покажем объект, расчёт, фотографии и состав согласующих</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <h2>Лента решений</h2>
+    <p class="sub">кто, в какой должности, что решил и когда — это же попадает в ежедневный доклад</p>
+    <table><thead><tr><th>Когда</th><th>Кто</th><th>Должность</th><th>Запрос</th><th>Решение</th><th>Комментарий</th></tr></thead>
+      <tbody id="feed"><tr><td colspan="6" class="empty">загружаем…</td></tr></tbody></table>
+  </section>
+</main>
+</div>
+<script src="/theme.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => (n === null || n === undefined || n === "") ? "—" : Math.round(Number(n)).toLocaleString("ru-RU");
+const pc = n => (n === null || n === undefined) ? "—" : Number(n).toFixed(3).replace(".", ",") + "%";
+const when = s => String(s || "").replace("T", " ").slice(0, 16);
+const PILL = {"ожидает":"wait", "одобрил":"ok", "отклонил":"no", "вопрос":"q"};
+const STATUS_PILL = {"на согласовании":"wait", "согласован":"ok", "отклонён":"no", "не требуется":""};
+
+const S = {me:null, testLogin:null, users:[], inbox:[], pending:[], openId:null, card:null};
+
+async function j(url, opts){
+  const r = await fetch(url, opts);
+  let body = null;
+  try { body = await r.json(); } catch (e) { body = null; }
+  if (!r.ok) throw new Error((body && body.detail) || ("сервер ответил " + r.status));
+  return body;
+}
+
+/* ---------- кто смотрит страницу ---------- */
+// Настоящий вход — сессия из app/auth.py (cookie «sid»). Если её нет, страницу всё равно
+// можно посмотреть, но тогда человек выбирается списком и это честно помечено на экране.
+function currentUser(){
+  if (S.me) return S.me;
+  return S.users.find(u => u.login === S.testLogin) || null;
+}
+
+function paintWho(){
+  const box = $("#who");
+  if (S.me){
+    box.innerHTML = `<div>Вы вошли как <b>${esc(S.me.full_name || S.me.login)}</b>`
+      + `<span class="pill" style="margin-left:8px">${esc(S.me.role || "роль не указана")}</span>`
+      + (S.me.branch ? ` <span class="pill">${esc(S.me.branch)}</span>` : "") + `</div>`
+      + `<button id="logout">Выйти</button>`;
+    $("#logout").onclick = async () => { await fetch("/auth/logout", {method:"POST"}); location.reload(); };
+    return;
+  }
+  const opts = S.users.map(u => `<option value="${esc(u.login)}"${u.login === S.testLogin ? " selected" : ""}>`
+    + `${esc(u.full_name)} — ${esc(u.role || "без роли")}</option>`).join("");
+  box.innerHTML = `<div><span class="test">вход не выполнен — только просмотр</span>
+      <span style="margin-left:10px;color:var(--muted)">решение можно принять лишь под своей учётной записью</span></div>`
+    + (S.users.length
+        ? `<div style="display:flex;gap:8px;align-items:center">
+             <select id="asWho"><option value="">— кто смотрит —</option>${opts}</select>
+             <a href="/login">войти по-настоящему</a></div>`
+        : `<div style="color:var(--stop)">В базе нет активных сотрудников — сначала зарегистрируйте людей на странице
+             <a href="/login">входа</a>, иначе назначать согласующих не из кого.</div>`);
+  const sel = $("#asWho");
+  if (sel) sel.onchange = () => { S.testLogin = sel.value || null; try { localStorage.setItem("approvals-as", S.testLogin || ""); } catch(e){}
+    loadInbox(); if (S.openId) openRequest(S.openId); };
+}
+
+/* ---------- списки ---------- */
+function paintInbox(){
+  const u = currentUser();
+  if (!u){ $("#inbox").innerHTML = `<div class="empty">Выберите вверху, кто смотрит страницу, — тогда покажем его запросы.</div>`; return; }
+  $("#inbox").innerHTML = S.inbox.length ? S.inbox.map(i => `
+    <div class="item${S.openId === i.request_id ? " on" : ""}" data-open="${i.request_id}">
+      <div><div class="t">Запрос № ${i.request_id}${i.external_no ? " · " + esc(i.external_no) : ""}</div>
+        <div class="m">${esc(i.policyholder || "страхователь не указан")} · ${esc(i.product_code || "продукт не указан")}`
+        + `${i.partner ? " · генсоглашение " + esc(i.partner) : ""} · назначен ${when(i.assigned_at)}</div></div>
+      <span class="pill wait">ваш ход</span></div>`).join("")
+    : `<div class="empty">Вас никто не ждёт: запросов на ваше решение нет.</div>`;
+}
+
+function paintPending(){
+  $("#pending").innerHTML = S.pending.length ? S.pending.map(p => {
+    const left = p.reviewers.filter(r => r.status === "ожидает");
+    return `<div class="item${S.openId === p.request_id ? " on" : ""}" data-open="${p.request_id}">
+      <div><div class="t">Запрос № ${p.request_id}${p.external_no ? " · " + esc(p.external_no) : ""}</div>
+        <div class="m">ждём: ${esc(left.map(r => r.full_name).join(", ")) || "состав загружается"}</div></div>
+      <span class="pill wait">осталось ${p.waiting} из ${p.total}</span></div>`;
+  }).join("") : `<div class="empty">Ни один запрос сейчас не ждёт решения.</div>`;
+}
+
+function paintFeed(d){
+  const rows = (d.items || []).map(i => `<tr>
+      <td class="mono">${when(i.decided_at)}</td>
+      <td>${esc(i.full_name)}</td>
+      <td>${esc(i.position || "должность не указана")}</td>
+      <td><a href="#" data-open="${i.request_id}">№ ${i.request_id}</a>${i.external_no ? " " + esc(i.external_no) : ""}
+          ${i.partner ? `<div class="m">генсоглашение ${esc(i.partner)}</div>` : ""}</td>
+      <td><span class="pill ${PILL[i.decision] || ""}">${esc(i.decision)}</span></td>
+      <td>${esc(i.comment || "")}</td></tr>`).join("");
+  $("#feed").innerHTML = rows || `<tr><td colspan="6" class="empty">Решений пока не принимали.</td></tr>`;
+}
+
+/* ---------- правовые ограничения на состав ---------- */
+// Состав с агентом, с неработающим человеком или с самим инициатором сервер теперь отклоняет;
+// здесь то же самое показываем словами, чтобы было понятно, почему состав не приняли.
+function lawWarnings(reviewers){
+  const out = [];
+  const byId = Object.fromEntries(S.users.map(u => [u.id, u]));
+  const agents = reviewers.filter(r => (byId[r.user_id]?.role || r.position) === "агент");
+  if (agents.length) out.push(`${agents.map(a => esc(a.full_name)).join(", ")} — страховой агент. `
+    + `Агент не может согласовывать запрос: он посредник, а не работник компании (Положение 3845, п. 2).`);
+  const outsiders = reviewers.filter(r => byId[r.user_id] && byId[r.user_id].status !== "активен");
+  if (outsiders.length) out.push(`${outsiders.map(a => esc(a.full_name)).join(", ")} — не действующий работник. `
+    + `Сведения о страхователе открывают только работникам компании (ЗРУ-730, ст. 62).`);
+  if (reviewers.length < 2 || reviewers.length > 3)
+    out.push(`Согласующих должно быть от 2 до 3, сейчас ${reviewers.length}.`);
+  return out;
+}
+
+/* ---------- карточка запроса ---------- */
+async function openRequest(rid){
+  S.openId = rid;
+  paintInbox(); paintPending();
+  const box = $("#card");
+  box.innerHTML = `<h2>Запрос № ${rid}</h2><p class="sub">загружаем карточку…</p>`;
+  try {
+    const [card, appr] = await Promise.all([j("/requests/" + rid), j(`/requests/${rid}/approvals`)]);
+    const photos = await j(`/requests/${rid}/photos`).catch(() => ({items: []}));
+    const vals = await j(`/valuations?request_id=${rid}`).catch(() => []);
+    S.card = {rid, card, appr, photos: photos.items || photos || [], vals: vals || []};
+    paintCard();
+  } catch (e){
+    box.innerHTML = `<h2>Запрос № ${rid}</h2><p class="msg bad">Карточка не открылась: ${esc(e.message)}.
+      Обновите страницу; если повторится — запрос мог быть удалён.</p>`;
+  }
+}
+
+function paintCard(){
+  const {rid, card, appr, photos, vals} = S.card;
+  const r = card.request || {}, o = card.object || {}, c = card.calculation || null;
+  const u = currentUser();
+  const mine = u ? appr.reviewers.find(x => x.user_id === u.id) : null;
+  const val = vals[0] || null;
+  const kv = (k, v) => `<div><span>${k}</span><b>${v}</b></div>`;
+  const warns = lawWarnings(appr.reviewers);
+
+  $("#card").innerHTML = `
+    <h2>Запрос № ${rid}${r.external_no ? " · " + esc(r.external_no) : ""}
+      <span class="pill ${STATUS_PILL[appr.approval_status] || ""}" style="margin-left:8px">${esc(appr.approval_status)}</span></h2>
+    <p class="sub">${esc(r.policyholder || "страхователь не указан")} · ${esc(r.branch || "филиал не указан")} ·
+       создан ${when(r.created_at)} · <a href="/ui?request=${rid}" target="_blank">открыть в расчёте</a></p>
+
+    <h3>Объект</h3>
+    <div class="kv">
+      ${kv("Продукт", esc(r.product_code || "—"))}
+      ${kv("Тип объекта", esc(o.object_type || "—"))}
+      ${kv("Адрес", esc(o.address || "не указан"))}
+      ${kv("Регион", esc(o.region || "—") + (o.seismic_zone ? ", сейсмозона " + o.seismic_zone : ""))}
+      ${kv("Страховая стоимость", fmt(o.value_amount) + " сум")}
+      ${kv("Страховая сумма", fmt(o.sum_insured) + " сум")}
+      ${kv("Франшиза", o.franchise ? fmt(o.franchise) : "нет")}
+    </div>
+    ${o.sum_insured && o.value_amount && o.sum_insured < o.value_amount
+      ? `<div class="law">Недострахование: сумма меньше стоимости, выплата пойдёт пропорционально —
+           ${Math.round(o.sum_insured / o.value_amount * 100)}% убытка (ГК, ст. 936).</div>` : ""}
+
+    <h3>Расчёт</h3>
+    ${c ? `<div class="kv">
+      ${kv("Применённая ставка", pc(c.applied_rate_pct))}
+      ${kv("Техническая ставка", pc(c.gross_rate_pct))}
+      ${kv("Минимальный тариф", c.min_rate_pct == null ? "не установлен" : pc(c.min_rate_pct))}
+      ${kv("Премия", fmt(c.premium) + " сум")}
+      ${kv("Вывод движка", esc(c.verdict || "—"))}
+    </div>
+    <div class="law">Ставки и коэффициенты пока экспертные, <b>не откалиброваны</b> по убыткам компании.</div>`
+      : `<p class="empty">Расчёта по запросу нет — согласовывать нечего, сначала посчитайте в разделе «Новый расчёт».</p>`}
+
+    ${(card.checks || []).length ? `<h3>Проверки</h3>` + card.checks.map(ch =>
+      `<div class="rev"><div>${esc(ch.detail || ch.rule_code)}</div>
+        <span class="pill ${ch.status === "пройдено" ? "ok" : "no"}">${esc(ch.status)}</span></div>`).join("") : ""}
+
+    <h3>Оценка стоимости</h3>
+    ${val ? `<div class="kv">
+        ${kv("Заявлено страхователем", fmt(val.declared_value) + " сум")}
+        ${kv("Оценка системы", fmt(val.ai_value) + " сум")}
+        ${kv("Метод", esc(val.method || "—") + (val.method_version ? " · " + esc(val.method_version) : ""))}
+        ${kv("Подтвердил андеррайтер", esc(val.confirmed_by_underwriter || "нет"))}
+      </div>` : `<p class="empty">Оценку по этому запросу не делали — стоимость взята со слов страхователя.</p>`}
+
+    <h3>Фотографии (${photos.length})</h3>
+    ${photos.length ? `<div class="photos">` + photos.map(p =>
+        `<a href="/photos/${p.id}" target="_blank" title="${esc(p.filename || "фото")}">
+           <img src="/photos/${p.id}" alt="${esc(p.filename || "фото объекта")}" loading="lazy"></a>`).join("") + `</div>`
+      : `<p class="empty">Фотографий объекта в базе нет.</p>`}
+
+    <h3>Кто согласует</h3>
+    ${appr.reviewers.length ? appr.reviewers.map(x => `<div class="rev">
+        <div><b>${esc(x.full_name)}</b> <span style="color:var(--muted)">— ${esc(x.position || "должность не указана")}</span>
+          ${x.comment ? `<div class="c">${esc(x.comment)}</div>` : ""}
+          <div class="m" style="font:11.5px var(--mono);color:var(--muted)">назначен ${when(x.assigned_at)}${x.decided_at ? " · решил " + when(x.decided_at) : ""}</div></div>
+        <span class="pill ${PILL[x.status] || ""}">${esc(x.status)}</span></div>`).join("")
+      : `<p class="empty">Состав согласующих не назначен. Его выбирают на экране расчёта при сохранении «В договор».</p>`}
+    ${warns.length ? `<div class="law alarm"><b>Состав нужно поправить.</b><br>${warns.join("<br>")}</div>` : ""}
+
+    ${mine && S.me ? `<h3>Ваше решение</h3>
+      <textarea id="comment" placeholder="Комментарий: что именно смущает или на каком условии одобряете"></textarea>
+      <div class="acts">
+        <button class="go" data-decide="одобрил">Одобрить запрос</button>
+        <button class="no" data-decide="отклонил">Отклонить запрос</button>
+        <button class="ask" data-decide="вопрос">Задать вопрос</button>
+      </div>
+      <div class="law">Ваше прошлое решение — «${esc(mine.status)}». Новое решение его заменит, и запись уйдёт в ленту и в доклад.</div>
+      <div class="msg" id="decideMsg"></div>`
+      : `<div class="law">Решение принимают только назначенные люди, и только после входа в систему.
+          ${!S.me ? '<a href="/login">Войти</a>, чтобы принять решение.'
+            : (mine ? "" : esc(S.me.full_name) + " в этом составе нет.")}</div>`}`;
+}
+
+async function decide(decision){
+  const msg = $("#decideMsg");
+  if (!S.me){            // решение пишется по сессии: без входа сервер его не примет и правильно делает
+    msg.className = "msg bad";
+    msg.innerHTML = 'Решение записывается только от имени вошедшего. <a href="/login">Войдите</a> под своей учётной записью.';
+    return;
+  }
+  const comment = ($("#comment")?.value || "").trim();
+  if (decision !== "одобрил" && !comment){
+    msg.className = "msg bad";
+    msg.textContent = "Напишите в комментарии, что не так, — иначе агенту непонятно, что исправлять.";
+    return;
+  }
+  document.querySelectorAll("[data-decide]").forEach(b => b.disabled = true);
+  msg.className = "msg"; msg.textContent = "Отправляем решение…";
+  try {
+    const out = await j(`/requests/${S.card.rid}/decide`, {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({decision, comment: comment || null})});
+    msg.className = "msg good";
+    msg.textContent = `Записано: ${decision}. Итог по запросу — ${out.approval_status}.`;
+    await refresh();
+    await openRequest(S.card.rid);
+  } catch (e){
+    document.querySelectorAll("[data-decide]").forEach(b => b.disabled = false);
+    msg.className = "msg bad";
+    msg.textContent = "Решение не записано: " + e.message;
+  }
+}
+
+/* ---------- загрузка данных ---------- */
+async function loadInbox(){
+  const u = currentUser();
+  if (!u){ S.inbox = []; paintInbox(); return; }
+  try { S.inbox = (await j("/approvals/inbox?user=" + encodeURIComponent(u.login))).items || []; }
+  catch (e){ S.inbox = []; }
+  paintInbox();
+}
+
+// Список «все запросы на согласовании» отдаёт сервер (/approvals/pending);
+// имена тех, кого ещё ждут, добираем составом по первым 40 запросам.
+async function loadPending(){
+  let feed = {items: [], pending_requests: 0};
+  try { feed = await j("/approvals/feed?limit=200"); } catch (e){}
+  paintFeed(feed);
+  let pend = {items: []};
+  try { pend = await j("/approvals/pending"); } catch (e){}
+  const list = (pend.items || []).slice(0, 40);
+  const got = await Promise.all(list.map(p => j(`/requests/${p.id}/approvals`).catch(() => null)));
+  S.pending = list.map((p, k) => ({request_id: p.id, external_no: p.external_no, waiting: p.waiting, total: p.total,
+                                   reviewers: (got[k] && got[k].reviewers) || []}));
+  const total = (pend.items || []).length;
+  $("#pendingSub").textContent = S.pending.length < total
+    ? `кто ещё не ответил. Показаны ${S.pending.length} запросов из ${total} — остальные откроются по ссылке из ленты.`
+    : "кто ещё не ответил и сколько решений осталось";
+  paintPending();
+}
+
+async function refresh(){ await loadInbox(); await loadPending(); }
+
+async function start(){
+  try { S.users = await j("/auth/colleagues"); } catch (e){ S.users = []; }
+  try { S.me = await j("/auth/me"); } catch (e){ S.me = null; }
+  if (!S.me){ try { S.testLogin = localStorage.getItem("approvals-as") || null; } catch (e){} }
+  paintWho();
+  await refresh();
+  const rq = Number(new URLSearchParams(location.search).get("request"));
+  if (rq) openRequest(rq);
+}
+
+document.addEventListener("click", e => {
+  const open = e.target.closest("[data-open]");
+  if (open){ e.preventDefault(); openRequest(+open.dataset.open); return; }
+  const d = e.target.closest("[data-decide]");
+  if (d){ decide(d.dataset.decide); }
+});
+start();
+</script>
