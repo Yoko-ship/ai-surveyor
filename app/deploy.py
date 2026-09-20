@@ -23,7 +23,7 @@ from . import db, llm
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "app" / "deploy.html"
-BACKUPS = ROOT / "data" / "backups"
+BACKUPS = db.DATA_DIR / "backups"
 
 sys.path.insert(0, str(ROOT / "tools"))
 import backup as backup_tool             # noqa: E402

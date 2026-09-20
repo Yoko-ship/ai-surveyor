@@ -1,5 +1,6 @@
 """Доступ к базе. SQLite сейчас, PostgreSQL потом: SQL здесь без диалектных особенностей."""
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -8,7 +9,22 @@ from pathlib import Path
 from .engine import Reference
 
 ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = ROOT / "data" / "surveyor.db"
+# STORAGE_DIR — постоянный диск на сервере (на Railway смонтирован в /srv/storage): база, фото, загрузки, копии
+# живут там и переживают обновления кода. Без переменной — обычная папка data/ проекта.
+DATA_DIR = Path(os.environ["STORAGE_DIR"]) if os.environ.get("STORAGE_DIR") else ROOT / "data"
+DB_PATH = DATA_DIR / "surveyor.db"
+
+
+def init_storage():
+    """На постоянном диске ещё нет базы — переносим собранную при сборке образа (справочники, статистика)."""
+    if DATA_DIR == ROOT / "data":
+        return
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    built = ROOT / "data" / "surveyor.db"
+    if not DB_PATH.exists() and built.exists():
+        import shutil
+        shutil.copy2(built, DB_PATH)
+        print(f"хранилище: база перенесена на постоянный диск {DB_PATH}")
 SCHEMA = ROOT / "db" / "schema.sql"
 
 

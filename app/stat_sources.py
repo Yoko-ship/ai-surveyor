@@ -66,10 +66,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from app import db
 from app.valuation_sources import _http_get, robots_check
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "data" / "surveyor.db"
+DB = db.DB_PATH
 
 STATUS_OK = "ok"
 STATUS_EMPTY = "нет данных"

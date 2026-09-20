@@ -45,7 +45,7 @@ from . import db
 from .engine import Input, calculate
 
 ROOT = Path(__file__).resolve().parent.parent
-UPLOADS = ROOT / "data" / "uploads"
+UPLOADS = db.DATA_DIR / "uploads"
 
 app = FastAPI(title="ИИ-сюрвейер INSON", version="0.1",
               description="Расчёт ставки, проверки по законодательству и тарифной политике, документы, аналитика.")
@@ -100,9 +100,10 @@ def _inbox_watcher():
 
 @app.on_event("startup")
 def startup():
+    db.init_storage()
     db.ensure_schema()
     UPLOADS.mkdir(parents=True, exist_ok=True)
-    (ROOT / "data" / "photos").mkdir(parents=True, exist_ok=True)
+    (db.DATA_DIR / "photos").mkdir(parents=True, exist_ok=True)
     threading.Thread(target=_scheduler, daemon=True, name="stats-refresh").start()
     threading.Thread(target=_inbox_watcher, daemon=True, name="inbox-watcher").start()
     from . import team

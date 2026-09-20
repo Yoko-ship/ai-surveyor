@@ -28,7 +28,7 @@ from . import db
 from .engine import Input, calculate, premium_of
 
 ROOT = Path(__file__).resolve().parent.parent
-UPLOAD_DIR = ROOT / "data" / "uploads" / "portfolio"
+UPLOAD_DIR = db.DATA_DIR / "uploads" / "portfolio"
 
 router = APIRouter()
 

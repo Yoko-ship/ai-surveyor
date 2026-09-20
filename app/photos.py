@@ -24,7 +24,7 @@ from . import db
 from .docparse import ALL_KINDS, DOC_KINDS, KIND_PHOTO as DEFAULT_KIND, mark_received, parse_photo
 
 ROOT = Path(__file__).resolve().parent.parent
-PHOTOS_DIR = ROOT / "data" / "photos"
+PHOTOS_DIR = db.DATA_DIR / "photos"
 router = APIRouter()
 
 MAX_BYTES = 10 * 1024 * 1024          # ~10 МБ на файл
