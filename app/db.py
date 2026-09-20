@@ -21,10 +21,23 @@ def init_storage():
         return
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     built = ROOT / "data" / "surveyor.db"
-    if not DB_PATH.exists() and built.exists():
+    if not built.exists() or built.resolve() == DB_PATH.resolve():
+        return
+    empty = True
+    if DB_PATH.exists():
+        # файл мог появиться раньше переноса (модуль подключился к базе при импорте) — тогда он пустой
+        try:
+            con = sqlite3.connect(DB_PATH)
+            empty = con.execute("SELECT COUNT(*) FROM products").fetchone()[0] == 0
+            con.close()
+        except sqlite3.Error:
+            empty = True
+    if empty:
         import shutil
         shutil.copy2(built, DB_PATH)
-        print(f"хранилище: база перенесена на постоянный диск {DB_PATH}")
+        print(f"хранилище: собранная база перенесена на постоянный диск {DB_PATH}")
+    else:
+        print(f"хранилище: база на постоянном диске {DB_PATH}")
 SCHEMA = ROOT / "db" / "schema.sql"
 
 
