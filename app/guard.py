@@ -179,7 +179,10 @@ def _same(a: str, b: str) -> bool:
 
 
 def users_count(con) -> int:
-    return con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    """Сколько АДМИНИСТРАТОРОВ на сервере. Первый вход по коду нужен, пока нет ни одного админа:
+    обычные или демо-пользователи могут появиться раньше (демо-данные при старте), это не должно
+    закрывать дорогу первому администратору."""
+    return con.execute("SELECT COUNT(*) FROM users WHERE role=?", (ADMIN,)).fetchone()[0]
 
 
 def _setting_set(con, key: str, value: str):
