@@ -5,6 +5,40 @@
 <title>Вход · Сюрвейер INSON</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
 <style>
+/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
+   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
+   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
+:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
+html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+.btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
+  cursor:pointer;transition:background-color .12s,border-color .12s}
+.btn svg{flex:none;width:18px;height:18px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#111B57}
+.btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
+.btn-success:active:not(:disabled){background:#0E5230}
+.btn-danger,.btn-danger:visited{background:#A4231C;border-color:#A4231C;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-danger:hover:not(:disabled){background:#8F1D17;border-color:#8F1D17;color:#FFFFFF}
+.btn-danger:active:not(:disabled){background:#761712}
+.btn-secondary,.btn-secondary:visited{background:transparent;border-color:var(--btn-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.btn-secondary:hover:not(:disabled){background:var(--btn-hover);color:var(--ink)}
+.btn-secondary:active:not(:disabled){background:var(--btn-hover);border-color:var(--ink)}
+.btn-link,.btn-link:visited{background:transparent;border-color:transparent;padding:10px 4px;font-weight:600;
+  color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.btn-link:hover:not(:disabled){text-decoration-thickness:2px;color:var(--link)}
+.btn-block{display:flex;width:100%}
+.btn-sm{min-height:44px;padding:8px 12px;font-size:13px}
+/* ряд действий: внизу карточки справа; на телефоне — на всю ширину, основная кнопка первой (она первая в разметке) */
+.actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
+@media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
+/* ===== конец ui-kit ===== */
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
   --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;--ins:#1D2C8F;--on:#22A85A}
 *{box-sizing:border-box}html,body{height:100%}
@@ -16,15 +50,13 @@ body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)
 .logo span{display:block;font:12px var(--mono);color:var(--muted);margin-top:6px}
 .tabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px}
 .tabs button[hidden]{display:none}
-.tabs button{font:600 13px var(--sans);color:var(--muted);background:transparent;border:0;border-radius:8px;padding:8px;cursor:pointer}
-.tabs button.on{color:var(--accent);background:var(--card);border:1px solid var(--accent-dim)}
+.tabs button{font:600 13px var(--sans);color:var(--muted);-webkit-text-fill-color:var(--muted);background:transparent;border:0;border-radius:8px;padding:8px;min-height:44px;cursor:pointer}
+.tabs button.on{color:var(--accent);-webkit-text-fill-color:var(--accent);background:var(--card);border:1px solid var(--accent-dim)}
 form{display:none;flex-direction:column;gap:10px}form.on{display:flex}
 label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
 input,select{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:9px;padding:9px 11px;width:100%}
 input:focus,select:focus{outline:none;border-color:var(--accent-dim)}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-button.go{font:700 14px var(--sans);color:#0F1418;background:var(--accent);border:1px solid var(--accent-dim);border-radius:10px;padding:11px;cursor:pointer;margin-top:4px}
-button.go:disabled{opacity:.6;cursor:wait}
 .msg{display:none;font-size:13px;border-radius:9px;padding:9px 11px;border:1px solid var(--line)}
 .msg.err{display:block;color:var(--stop);border-color:rgba(238,130,114,.4);background:rgba(238,130,114,.08)}
 .msg.ok{display:block;color:var(--accent);border-color:var(--accent-dim);background:rgba(46,211,162,.08)}
@@ -32,24 +64,11 @@ button.go:disabled{opacity:.6;cursor:wait}
 .code input{font:600 26px var(--mono);letter-spacing:.35em;text-align:center}
 .hint{font-size:11.5px;color:var(--muted);margin:0}
 .hint a{color:var(--accent);text-decoration:none}
+.btn-lg{min-height:48px;font-size:15px}
+.gbtn{-webkit-text-fill-color:#1F1F1F}
 .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-family:var(--mono)}
-/* кнопка «Войти через Telegram»: синий INSON (#1D2C8F), белые текст и самолётик, контраст 12:1 — одинаково в обеих темах */
-.tgbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;min-height:48px;
-  padding:0 14px;background:#1D2C8F;border:1px solid #4A5BC4;border-radius:10px;color:#FFFFFF;
-  font:700 15px/1 var(--sans);cursor:pointer;-webkit-text-fill-color:#FFFFFF}
-.tgbtn span{color:#FFFFFF}
-.tgbtn:hover:not(:disabled){background:#16236F;border-color:#6B7BD6}
-.tgbtn:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
-.tgbtn:disabled{opacity:.6;cursor:default}
-.tgbtn svg{flex:none;width:19px;height:19px;color:#FFFFFF}
 .tgcode{font:600 30px/1 var(--mono);letter-spacing:.14em;text-align:center;color:var(--accent);
   background:var(--soft);border:1px dashed var(--accent-dim);border-radius:10px;padding:14px 6px;user-select:all}
-.tgopen{display:flex;align-items:center;justify-content:center;min-height:48px;text-align:center;text-decoration:none;
-  font:700 15px/1 var(--sans);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;background:#1D2C8F;
-  border:1px solid #4A5BC4;border-radius:10px;padding:0 14px}
-.tgopen:hover,.tgopen:active{background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
-.tgopen:visited{color:#FFFFFF}
-.tgopen:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
 .tgwrap{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
 .tgor{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:var(--muted);font-size:11.5px}
 .tgor:before,.tgor:after{content:"";flex:1;height:1px;background:var(--line)}
@@ -76,12 +95,12 @@ button.go:disabled{opacity:.6;cursor:wait}
   <div class="logo"><b><span class="ins">INS</span><span class="on">ON</span></b><span>InsuranceON · сюрвейер</span></div>
 
   <div class="tgwrap">
-    <button type="button" class="tgbtn" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
+    <button type="button" class="btn btn-primary btn-block btn-lg" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
     <p class="hint" id="tg-note">Свой Telegram, без пароля: получите код и отправьте его боту.</p>
     <div id="tgLinkBox" hidden>
       <div class="tgcode" id="tgCode">INS-••••</div>
       <p class="hint" id="tgHow" style="margin:8px 0"></p>
-      <a class="tgopen" id="tgOpen" href="#" target="_blank" rel="noopener">Открыть бота</a>
+      <a class="btn btn-primary btn-block" id="tgOpen" href="#" target="_blank" rel="noopener">Открыть бота</a>
     </div>
     <div class="msg" id="m-tg"></div>
   </div>
@@ -106,7 +125,7 @@ button.go:disabled{opacity:.6;cursor:wait}
     <label><span data-i18n="tg.login_field">Логин</span><input name="login" autocomplete="username" required></label>
     <label><span data-i18n="tg.password">Пароль</span><input name="password" type="password" autocomplete="current-password" required></label>
     <div class="msg" id="m-login"></div>
-    <button class="go" type="submit" data-i18n="tg.enter">Войти</button>
+    <button class="btn btn-primary btn-block go" type="submit" data-i18n="tg.enter">Войти</button>
     <p class="hint">Нет логина? Вернитесь наверх и войдите через Telegram или рабочей почтой — доступ откроется сразу.</p>
   </form>
 
@@ -114,7 +133,7 @@ button.go:disabled{opacity:.6;cursor:wait}
     <p class="hint" id="code-hint">Мы отправили 6-значный код в Telegram. Он действует 5 минут.</p>
     <label class="code"><span data-i18n="tg.code">Код из Telegram</span><input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="••••••" required></label>
     <div class="msg" id="m-code"></div>
-    <button class="go" type="submit" data-i18n="tg.confirm">Подтвердить</button>
+    <button class="btn btn-primary btn-block go" type="submit" data-i18n="tg.confirm">Подтвердить</button>
     <p class="hint"><a href="#" id="back">← Ввести логин и пароль заново</a></p>
   </form>
 
@@ -129,7 +148,7 @@ button.go:disabled{opacity:.6;cursor:wait}
       <label>Пароль (от 8 знаков)<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
     </div>
     <div class="msg" id="m-boot"></div>
-    <button class="go" type="submit">Создать администратора</button>
+    <button class="btn btn-primary btn-block go" type="submit">Создать администратора</button>
   </form>
 
   </details>

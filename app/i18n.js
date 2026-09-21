@@ -104,9 +104,9 @@
       ".lang-switch{position:fixed;z-index:99;bottom:14px;right:" + (hasTheme ? "165px" : "14px") + ";" +
       "display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--card,#161C21);" +
       "border:1px solid var(--line,#26303A);box-shadow:0 6px 18px rgba(0,0,0,.18)}" +
-      ".lang-switch button{font:700 12px/1 Manrope,system-ui,sans-serif;color:var(--muted,#8E9BA6);" +
+      ".lang-switch button{font:700 12px/1 Manrope,system-ui,sans-serif;color:var(--muted,#8E9BA6);-webkit-text-fill-color:var(--muted,#8E9BA6);" +
       "background:transparent;border:0;border-radius:999px;padding:6px 9px;min-height:0;width:auto;cursor:pointer}" +
-      ".lang-switch button[aria-pressed=\"true\"]{color:var(--ink,#E6ECF0);background:var(--soft,#1C242B)}";
+      ".lang-switch button[aria-pressed=\"true\"]{color:var(--ink,#E6ECF0);-webkit-text-fill-color:var(--ink,#E6ECF0);background:var(--soft,#1C242B)}";
     document.head.appendChild(css);
 
     var box = document.createElement("div");

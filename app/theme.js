@@ -12,7 +12,7 @@
   html[data-theme="dark"] body{background:var(--paper);color:var(--ink)}
   html[data-theme="light"] body{background:var(--paper);color:var(--ink)}
   .theme-toggle{position:fixed;right:14px;bottom:14px;z-index:99;display:inline-flex;align-items:center;gap:8px;
-    font:600 12.5px Manrope,system-ui,sans-serif;color:var(--ink,#E6ECF0);background:var(--card,#161C21);border:1px solid var(--line,#26303A);
+    font:600 12.5px Manrope,system-ui,sans-serif;color:var(--ink,#E6ECF0);-webkit-text-fill-color:var(--ink,#E6ECF0);background:var(--card,#161C21);border:1px solid var(--line,#26303A);
     border-radius:999px;padding:7px 12px;cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.18)}
   .theme-toggle i{width:26px;height:14px;border-radius:999px;background:var(--line,#26303A);position:relative;display:inline-block}
   .theme-toggle i::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--accent,#2ED3A2);transition:left .15s}

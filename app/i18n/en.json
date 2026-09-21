@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 660
+    "keys": 678
   },
   "calc.address": "Address of the object",
   "calc.address_hint": "location from the cadastre; marketplaces search by city and district",
@@ -664,5 +664,23 @@
   "tg.waiting_hint": "The decision is recorded in your name and goes into the approval feed and the daily report.",
   "tg.who_approves": "Who approves",
   "tg.who_unknown": "The server did not say who you are: {reason}. Refresh the page.",
-  "tg.zero_sum": "The sum insured and the value of the object must be above zero."
+  "tg.zero_sum": "The sum insured and the value of the object must be above zero.",
+  "tg.wait_title": "Access closed",
+  "tg.register_title": "Registration",
+  "tg.phone_format_hint": "Format: +998XXXXXXXXX",
+  "tg.optional_empty": "May be left empty.",
+  "tg.optional": "Optional.",
+  "tg.calc_lead": "Describe the object and the contract, mark the risk factors — the system will calculate the rate, the premium and the checks.",
+  "tg.result_empty": "The result will appear here after the calculation: rate, checks and what to tell the client.",
+  "tg.photos_section": "Photos and documents",
+  "tg.photos_lead": "Files are attached to the last saved request — first calculate and save it in the “Calculation” section.",
+  "tg.users_lead": "Who works in the system: full name, department, position, phone. The list is open to everyone signed in. Blocking closes access at once and ends all of the person’s sessions.",
+  "tg.agreements_title": "General agreements",
+  "tg.agreement_form_hint": "Fill in the fields and save — the agreement will appear in the list.",
+  "tg.approvers_range_hint": "From 1 to 3 people.",
+  "tg.settings_title": "Settings",
+  "tg.settings_lead": "Telegram bot status and server migration.",
+  "tg.decision_title": "Your decision",
+  "tg.decision_lead": "Review the calculation and the checks above, then decide.",
+  "tg.prob_remarks": "remarks: {n}"
 }

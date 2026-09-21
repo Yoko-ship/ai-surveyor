@@ -415,6 +415,27 @@ def check_candidates_and_exports(rid, uids):
           " выгрузка без входа закрыта, участнику открыта — ок")
 
 
+def check_ui_kit(html):
+    """Кнопки (21.09.2026): один ui-kit на tg.html, admin_hub.html, login.html; тема Telegram кнопки не перекрашивает."""
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    pat = re.compile(r"/\* ===== ui-kit кнопок INSON v1.*?/\* ===== конец ui-kit ===== \*/", re.S)
+    kits = {n: pat.search((app_dir / n).read_text(encoding="utf-8")) for n in ("tg.html", "admin_hub.html", "login.html")}
+    miss = [n for n, m in kits.items() if not m]
+    assert not miss, "нет блока ui-kit в " + ", ".join(miss)
+    assert len({m.group(0) for m in kits.values()}) == 1, "блок ui-kit на страницах различается"
+    kit = kits["tg.html"].group(0)
+    for cls in (".btn-primary", ".btn-secondary", ".btn-danger", ".btn-success", ".btn-link"):
+        assert cls + "," in kit or cls + "{" in kit, "в ui-kit нет " + cls
+    assert "min-height:44px" in kit and "-webkit-text-fill-color:#FFFFFF" in kit, "кнопки ниже 44px или без явного цвета текста"
+    # старые классы кнопок в мини-аппе больше не используются
+    old = re.findall(r'<button[^>]*class="(?:go|ghost|no)"', html)
+    assert not old, "остались старые классы кнопок: " + str(old[:5])
+    # тема Telegram: только фон и основной текст, с проверкой контраста; button_color не применяется
+    assert "button_color" not in html and "link_color" not in html, "цвета кнопок Telegram снова накладываются на страницу"
+    assert "function contrast(" in html and ">= 4.5" in html, "нет проверки контраста перед применением цветов Telegram"
+    print("20. ui-kit кнопок один на три страницы, тема Telegram кнопки не трогает, контраст проверяется — ок")
+
+
 if __name__ == "__main__":
     with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
         agent_id, uids, prod = setup()
@@ -429,6 +450,7 @@ if __name__ == "__main__":
             check_register_api()
             check_users_api(uids)
             check_candidates_and_exports(rid, uids)
+            check_ui_kit(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

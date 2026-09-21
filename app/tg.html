@@ -5,88 +5,170 @@
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="/i18n.js"></script>
 <style>
+/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
+   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
+   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
+:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
+html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+.btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
+  cursor:pointer;transition:background-color .12s,border-color .12s}
+.btn svg{flex:none;width:18px;height:18px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#111B57}
+.btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
+.btn-success:active:not(:disabled){background:#0E5230}
+.btn-danger,.btn-danger:visited{background:#A4231C;border-color:#A4231C;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-danger:hover:not(:disabled){background:#8F1D17;border-color:#8F1D17;color:#FFFFFF}
+.btn-danger:active:not(:disabled){background:#761712}
+.btn-secondary,.btn-secondary:visited{background:transparent;border-color:var(--btn-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.btn-secondary:hover:not(:disabled){background:var(--btn-hover);color:var(--ink)}
+.btn-secondary:active:not(:disabled){background:var(--btn-hover);border-color:var(--ink)}
+.btn-link,.btn-link:visited{background:transparent;border-color:transparent;padding:10px 4px;font-weight:600;
+  color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.btn-link:hover:not(:disabled){text-decoration-thickness:2px;color:var(--link)}
+.btn-block{display:flex;width:100%}
+.btn-sm{min-height:44px;padding:8px 12px;font-size:13px}
+/* ряд действий: внизу карточки справа; на телефоне — на всю ширину, основная кнопка первой (она первая в разметке) */
+.actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
+@media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
+/* ===== конец ui-kit ===== */
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
+  --on-accent:#0F1418;--on-stop:#0F1418;--brand-a:#8EA9FF;--brand-b:#3FBE74;
   --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
-  --rail:60px;--side:248px}
+  --rail:60px;--side:248px;--s1:8px;--s2:12px;--s3:16px;--s4:24px}
+/* светлая тема: включается, когда Telegram присылает светлый фон (или ?theme=light для проверки).
+   Цвета статусов подобраны под белый фон: каждый — не меньше 4,5:1. */
+html[data-theme="light"]{--paper:#F5F7F9;--card:#FFFFFF;--ink:#101C26;--muted:#56646F;--line:#DDE4E9;--soft:#EDF1F4;
+  --accent:#177A41;--accent-dim:#177A41;--gold:#8A5A00;--warn:#8A5A00;--stop:#B3261E;--on-accent:#FFFFFF;--on-stop:#FFFFFF;
+  --brand-a:#1D2C8F;--brand-b:#177A41}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;
   padding-left:calc(var(--rail) + env(safe-area-inset-left));padding-right:env(safe-area-inset-right)}
 body.side-wide{padding-left:calc(var(--side) + env(safe-area-inset-left))}
-.wrap{max-width:520px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 24px)}
+/* контент: одна колонка на телефоне, на широком экране — по центру, не шире 960px */
+/* снизу 72px: там стоит переключатель языка RU/UZ/EN (app/i18n.js) — контент под ним не прячется */
+.wrap{max-width:960px;margin:0 auto;padding:var(--s3) var(--s3) calc(env(safe-area-inset-bottom) + 72px)}
+.narrow{max-width:560px;margin:0 auto}
+@media (min-width:600px){.wrap{padding:var(--s4) var(--s4) calc(env(safe-area-inset-bottom) + 72px)}}
 .whoami{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--muted)}
 .whoami b{color:var(--ink);font-weight:700}
-.whoami button{width:auto;min-height:32px;padding:4px 12px;font-size:12px;background:transparent;border-radius:9px}
-.banner{border:1px solid var(--warn);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--warn);margin-bottom:12px}
+.banner{border:1px solid var(--warn);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--warn);margin-bottom:var(--s3)}
 .banner.stop{border-color:var(--stop);color:var(--stop)}
 .banner.ok{border-color:var(--accent-dim);color:var(--accent)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px;margin-bottom:12px}
-.card h2{margin:0 0 2px;font-size:13px}
-.card p.sub{margin:0 0 10px;font-size:12px;color:var(--muted)}
-label.f{display:block;font-size:12px;color:var(--muted);margin:12px 0 5px}
-label.f:first-child{margin-top:0}
-input,select,textarea,button{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:11px;padding:11px 12px;min-height:46px;width:100%;min-width:0}
-textarea{min-height:64px;resize:vertical}
-select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 21px,calc(100% - 13px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px}
-button{cursor:pointer;font-weight:700}
-button.go{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
-button.ghost{background:transparent}
-button.no{background:transparent;border-color:var(--stop);color:var(--stop)}
-button:disabled{opacity:.5}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+/* заголовок раздела: название + одна строка пояснения, справа — служебное действие («Обновить») */
+.sec-head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:var(--s2);margin:0 0 var(--s3)}
+.sec-head>div{flex:1 1 260px;min-width:0}
+.sec-head h1{margin:0;font:800 22px/1.2 var(--sans);letter-spacing:-.01em}
+.sec-head p{margin:4px 0 0;font-size:13px;color:var(--muted);max-width:62ch}
+.sec-head .btn{flex:none}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:var(--s3);margin-bottom:var(--s2);min-width:0}
+.card h2{margin:0 0 2px;font:700 15px/1.3 var(--sans)}
+.card p.sub{margin:0 0 var(--s2);font-size:13px;color:var(--muted)}
+.card>.note:last-child:empty{display:none}
+/* сетки раздела */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s3);align-items:start}
+@media (min-width:1180px){.grid2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.cards{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s2);align-items:start}
+.cards>.card{margin-bottom:0}
+@media (min-width:1180px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cards>.span{grid-column:1/-1}}
+/* экран расчёта: форма слева, итог справа */
+@media (min-width:1180px){#result:empty::before{content:attr(data-empty);
+  display:block;border:1px dashed var(--line);border-radius:14px;padding:var(--s4);color:var(--muted);font-size:13px}}
+/* поля формы: метка сверху, подсказка снизу, ширина 100% */
+label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:var(--s2) 0 6px}
+label.f:first-child,.card>h2+p.sub+label.f{margin-top:0}
+.hint{display:block;font-size:12px;color:var(--muted);margin-top:6px}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+textarea{min-height:72px;resize:vertical}
+select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 20px,calc(100% - 13px) 20px;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:36px}
+input[type=file]{padding:6px;font-size:13px;color:var(--muted)}
+input[type=file]::file-selector-button{font:700 13px var(--sans);min-height:36px;margin-right:10px;padding:6px 14px;border-radius:8px;
+  border:1px solid var(--btn-line);background:transparent;color:var(--ink);cursor:pointer}
+button{font:inherit;cursor:pointer}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--s2)}
 .two>div{min-width:0}
-.row{display:flex;gap:8px;flex-wrap:wrap}
-.row button{width:auto;flex:1 1 30%;min-width:96px}
-.note{font-size:12px;color:var(--muted)}
+@media (max-width:420px){.two{grid-template-columns:1fr}}
+.note{font-size:13px;color:var(--muted)}
+.msg{margin-top:var(--s1);font-size:13px}
+.msg:empty{display:none}
 .err{color:var(--stop)}.ok{color:var(--accent)}.warn{color:var(--warn)}
 .big{font:700 30px/1.1 var(--mono);margin:2px 0}
-.kv{display:grid;grid-template-columns:1fr auto;gap:7px 12px;font-size:13px}
-.kv span{color:var(--muted)}
-.kv b{font-family:var(--mono);font-weight:600;text-align:right}
-.chain{font-size:12.5px}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;font-size:13px}
+.kv span{color:var(--muted);min-width:0}
+.kv b{font-family:var(--mono);font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere}
+.kv.wrap-b b{max-width:22ch}
+.chain{font-size:13px}
 .chain div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
 .chain div:last-child{border-bottom:0}
 .chain b{font-family:var(--mono);font-weight:600;white-space:nowrap}
-.check{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.check{display:flex;gap:9px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .check:last-child{border-bottom:0}
 .check i{font-style:normal;flex:none;width:8px;height:8px;border-radius:50%;margin-top:6px}
 .check.ok i{background:var(--accent)}.check.warn i{background:var(--warn)}.check.stop i{background:var(--stop)}
+.check>div{min-width:0;overflow-wrap:anywhere}
 .check b{display:block;font-weight:700}
 .check span{color:var(--muted)}
 .verdict{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;border:1px solid var(--line);border-radius:6px;padding:3px 9px;color:var(--muted)}
 .verdict.ok{color:var(--accent);border-color:var(--accent-dim)}
 .verdict.warn{color:var(--warn);border-color:var(--warn)}
 .verdict.stop{color:var(--stop);border-color:var(--stop)}
-.tip{border:1px solid var(--line);border-radius:11px;padding:9px 11px;margin-bottom:8px;font-size:12.5px}
+.tip{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px;font-size:13px}
 .tip b{display:block}
 .tip span{color:var(--accent);font-family:var(--mono)}
 /* крупная плашка статуса согласования */
-.st{display:block;border:1px solid var(--line);border-left-width:4px;border-radius:11px;padding:9px 12px;margin:10px 0;font-size:14px;font-weight:800;color:var(--muted)}
+.st{display:block;border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:9px 12px;margin:var(--s2) 0;font-size:14px;font-weight:800;color:var(--muted)}
 .st.wait{color:var(--warn);border-color:var(--warn)}
 .st.done{color:var(--accent);border-color:var(--accent-dim)}
 .st.no{color:var(--stop);border-color:var(--stop)}
-.rev{font-size:12.5px;border-top:1px solid var(--line);padding-top:8px}
+.rev{font-size:13px;border-top:1px solid var(--line);padding-top:8px}
 .rev>div{padding:7px 0;border-bottom:1px solid var(--line)}
 .rev>div:last-child{border-bottom:0}
 .rev .who{display:flex;justify-content:space-between;gap:10px}
 .rev .who b{font-weight:700}
 .rev .who em{font-style:normal;font-family:var(--mono);white-space:nowrap}
 .rev .who em.ok{color:var(--accent)}.rev .who em.no{color:var(--stop)}.rev .who em.q{color:var(--warn)}
-.rev .meta{color:var(--muted);font-size:11.5px}
-.pick{border:1px solid var(--line);border-radius:11px;max-height:220px;overflow:auto}
-.pick label{display:flex;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
+.rev .meta{color:var(--muted);font-size:12px}
+.pick{border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto}
+.pick label{display:flex;gap:10px;align-items:center;min-height:44px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
 .pick label:last-child{border-bottom:0}
 .pick input{width:20px;height:20px;min-height:20px;flex:none;accent-color:var(--accent)}
-.pick .r{color:var(--muted);font-size:11.5px}
+.pick .r{color:var(--muted);font-size:12px}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
-.ph{position:relative;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--soft);touch-action:none;user-select:none;-webkit-user-select:none}
+.ph{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);touch-action:none;user-select:none;-webkit-user-select:none}
 .ph.drag{opacity:.55;border-color:var(--accent-dim)}
 .ph img{display:block;width:100%;height:96px;object-fit:cover;pointer-events:none}
-.ph .no{position:absolute;left:6px;top:6px;font:700 11px var(--mono);background:rgba(0,0,0,.6);border-radius:6px;padding:1px 6px}
-.ph .del{position:absolute;right:4px;bottom:4px;width:34px;height:34px;min-height:34px;padding:0;border-radius:9px;background:rgba(0,0,0,.6);border-color:transparent;line-height:1}
-.files{font-size:12.5px}
+.ph .no{position:absolute;left:6px;top:6px;font:700 11px var(--mono);color:#FFFFFF;background:rgba(0,0,0,.6);border-radius:6px;padding:1px 6px}
+/* удалить фото: 44×44, белый крестик на тёмной подложке — читается на любом снимке */
+.ph .del{position:absolute;right:0;bottom:0;width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:10px 0 0 0;
+  background:rgba(0,0,0,.62);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font:700 20px/1 var(--sans)}
+.ph .del:focus-visible{outline:2px solid #FFFFFF;outline-offset:-3px}
+.files{font-size:13px}
 .files div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
+.files div>*{min-width:0;overflow-wrap:anywhere}
 .files div:last-child{border-bottom:0}
+/* запрос целиком — одна карточка: внутренние блоки идут секциями через разделитель */
+.group{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:var(--s3);overflow:hidden}
+.group>.card,.group>div>.card{background:transparent;border:0;border-radius:0;margin:0;border-top:1px solid var(--line)}
+.group>.card:first-child{border-top:0}
+.group>div:empty{display:none}
+.group .card h2{font-size:14px}
+.group>.card:first-child h2{font-size:16px}
+.group>h2{margin:var(--s3) var(--s3) 2px;font-size:16px}
+.group>p.sub{margin:0 var(--s3) var(--s2);font-size:13px;color:var(--muted)}
+.group>.st,.group>.rev{margin:var(--s2) var(--s3)}
+.group>.rev{padding-bottom:var(--s1)}
+.count{font-size:13px;color:var(--muted);margin:0 0 var(--s2)}
+.count b{color:var(--ink)}
+.cards>.count,.cards>.card:only-child{grid-column:1/-1;margin:0}
 /* ---------- меню слева: узкая рейка, раскрывается в панель ---------- */
 #side{position:fixed;left:0;top:0;bottom:0;z-index:60;width:calc(var(--rail) + env(safe-area-inset-left));
   background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;
@@ -98,7 +180,7 @@ body.side-wide #side{box-shadow:none}
 #scrim{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .16s}
 body.side-open:not(.side-wide) #scrim{opacity:1;pointer-events:auto}
 body.side-wide #scrim{display:none}
-#side .burger{background:none;border:0;border-radius:0;width:100%;min-height:48px;padding:0;color:var(--muted);
+#side .burger{background:none;border:0;border-radius:0;width:100%;min-height:48px;padding:0;color:var(--muted);-webkit-text-fill-color:var(--muted);
   display:flex;align-items:center;gap:12px;font-size:12.5px;font-weight:700;text-align:left}
 #side .burger i{font-style:normal;font-size:20px;line-height:1;flex:none;width:var(--rail);text-align:center}
 #side .burger span{display:none}
@@ -106,7 +188,7 @@ body.side-open #side .burger span{display:block}
 body.side-wide #side .burger{display:none}
 #side .brand{display:flex;align-items:center;gap:12px;min-height:46px;color:var(--ink)}
 #side .brand i{font-style:normal;flex:none;width:var(--rail);text-align:center;font:800 15px/1 var(--sans);letter-spacing:-.02em}
-#side .brand i b{color:#8EA9FF} #side .brand i b + b{color:#3FBE74}
+#side .brand i b{color:var(--brand-a)} #side .brand i b + b{color:var(--brand-b)}
 #side .brand div{display:none;min-width:0}
 body.side-open #side .brand div{display:block}
 #side .brand b.t{display:block;font-size:13.5px;white-space:nowrap}
@@ -114,86 +196,70 @@ body.side-open #side .brand div{display:block}
 #nav{display:flex;flex-direction:column;gap:2px;padding:8px 0;flex:1 1 auto}
 #nav.hidden{display:none}
 #nav button{position:relative;background:none;border:0;border-radius:0;width:100%;min-height:52px;padding:6px 1px;
-  color:var(--muted);font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:var(--muted);-webkit-text-fill-color:var(--muted);font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:3px;line-height:1.1;text-align:center}
 #nav button i{font-style:normal;font-size:18px;line-height:1}
 #nav button u{text-decoration:none;font-size:9.5px;max-width:var(--rail);padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nav button span{display:none;font-size:13.5px}
-#nav button.on{color:var(--accent);background:rgba(46,211,162,.10);box-shadow:inset 3px 0 0 var(--accent)}
-#nav cite{position:absolute;top:5px;right:8px;font:700 10px var(--mono);font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px}
+#nav button.on{color:var(--accent);-webkit-text-fill-color:var(--accent);background:rgba(46,211,162,.10);box-shadow:inset 3px 0 0 var(--accent)}
+#nav cite{position:absolute;top:5px;right:8px;font:700 10px var(--mono);font-style:normal;background:var(--stop);color:var(--on-stop);-webkit-text-fill-color:var(--on-stop);border-radius:8px;padding:0 5px}
 #nav cite:empty{display:none}
 body.side-open #nav button{flex-direction:row;justify-content:flex-start;gap:12px;min-height:48px;padding:6px 12px 6px 0;text-align:left}
 body.side-open #nav button i{flex:none;width:var(--rail);text-align:center}
 body.side-open #nav button u{display:none}
 body.side-open #nav button span{display:block;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 body.side-open #nav cite{display:none}   /* в раскрытой панели счётчик стоит внутри названия */
-#nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px;font:700 10px var(--mono)}
+#nav button em{font-style:normal;background:var(--stop);color:var(--on-stop);-webkit-text-fill-color:var(--on-stop);border-radius:8px;padding:0 5px;font:700 10px var(--mono)}
 #side .whoami{display:none;margin:0;padding:12px 12px 0;border-top:1px solid var(--line)}
 body.side-open #side .whoami{display:flex;flex-wrap:wrap;gap:8px}
 body.side-open #side .whoami.hidden{display:none}
-#side .whoami button{flex:none}
-#nav button:focus-visible,#side .burger:focus-visible,#side .whoami button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#side .whoami .btn{flex:none}
+#nav button:focus-visible,#side .burger:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 /* шаги регистрации */
 .step{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.step i{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);
+.step i{font-style:normal;flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);color:var(--muted)}
 .step.on i{border-color:var(--accent-dim);color:var(--accent)}
-.step.done i{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
-.step b{font-size:13px}
-.consent{border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:10px;font-size:12px;
-  color:var(--muted);max-height:168px;overflow:auto;white-space:pre-wrap}
-.consent em{font-style:normal;display:block;margin-top:8px;color:var(--ink);font-size:11.5px}
-label.chk{display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;color:var(--ink);font-size:13px}
-label.chk input{width:20px;height:20px;min-height:20px;flex:none;margin-top:1px;accent-color:var(--accent)}
+.step.done i{background:var(--accent-dim);border-color:var(--accent-dim);color:var(--on-accent)}
+.step b{font-size:15px}
+.consent{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-top:var(--s2);font-size:12.5px;
+  color:var(--muted);max-height:168px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
+.consent em{font-style:normal;display:block;margin-top:8px;color:var(--ink);font-size:12px}
+label.chk{display:flex;gap:10px;align-items:flex-start;min-height:44px;margin:var(--s2) 0 0;padding-top:2px;color:var(--ink);font-size:13.5px;font-weight:400}
+label.chk input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent-color:var(--accent)}
 /* вероятность подтверждения */
 .prob{font:700 34px/1.1 var(--mono);margin:2px 0 2px}
 .prob.low{color:var(--stop)}.prob.mid{color:var(--warn)}.prob.high{color:var(--accent)}
-.pr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.pr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
 .pr:last-child{border-bottom:0}
+.pr>span{min-width:0;overflow-wrap:anywhere}
 .pr b{font-family:var(--mono);font-weight:600;white-space:nowrap;color:var(--muted)}
 .pr.stop b{color:var(--stop);white-space:normal;text-align:right;max-width:42%}
-.pr .norm{display:block;color:var(--muted);font-size:11px;margin-top:2px}
-.h3{margin:12px 0 2px;font-size:12px;color:var(--muted);font-weight:700}
-/* строка выгрузок */
-a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;
-  background:var(--soft);border:1px solid var(--line);border-radius:11px;min-height:46px;padding:11px 12px;
-  color:var(--ink);font-weight:700;width:auto;flex:1 1 30%;min-width:96px}
+.pr .norm{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
+.h3{margin:var(--s2) 0 2px;font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
 .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;border:1px solid var(--accent-dim);
   color:var(--accent);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .tag.off{border-color:var(--line);color:var(--muted)}
-/* кнопка «Войти через Telegram»: синий INSON (#1D2C8F), белые текст и самолётик, контраст 12:1 — одинаково в обеих темах */
-.tgbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;min-height:48px;
-  padding:0 14px;background:#1D2C8F;border:1px solid #4A5BC4;border-radius:10px;color:#FFFFFF;
-  font:700 15px/1 var(--sans);cursor:pointer;-webkit-text-fill-color:#FFFFFF}
-.tgbtn span{color:#FFFFFF}
-.tgbtn:hover:not(:disabled){background:#16236F;border-color:#6B7BD6}
-.tgbtn:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
-.tgbtn:disabled{opacity:.6;cursor:default}
-.tgbtn svg{flex:none;width:19px;height:19px;color:#FFFFFF}
-/* «Открыть бота» — тот же синий INSON с белым текстом: тема Telegram не перекрашивает ссылку */
-.tgopen{display:flex;align-items:center;justify-content:center;min-height:48px;text-align:center;text-decoration:none;
-  font:700 15px/1 var(--sans);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;background:#1D2C8F;
-  border:1px solid #4A5BC4;border-radius:10px;padding:0 14px}
-.tgopen:hover,.tgopen:active{background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
-.tgopen:visited{color:#FFFFFF}
-.tgopen:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
+/* экран входа */
 .tgcode{font-family:var(--mono);font-weight:600;font-size:30px;letter-spacing:.14em;text-align:center;
-  color:var(--accent);background:var(--soft);border:1px dashed var(--accent-dim);border-radius:11px;
-  padding:14px 6px;margin:10px 0;user-select:all}
-.tgor{display:flex;align-items:center;gap:10px;margin:14px 0 12px;color:var(--muted);font-size:11.5px}
+  color:var(--accent);background:var(--soft);border:1px dashed var(--accent-dim);border-radius:10px;
+  padding:14px 6px;margin:var(--s2) 0;user-select:all}
+.tgor{display:flex;align-items:center;gap:10px;margin:var(--s3) 0;color:var(--muted);font-size:12px}
 .tgor:before,.tgor:after{content:"";flex:1;height:1px;background:var(--line)}
-/* кнопка Google: фирменный вид, одинаковый в тёмной и светлой теме */
-.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:48px;min-height:48px;
-  padding:0 14px;background:#FFFFFF;border:1px solid #DADCE0;border-radius:10px;color:#1F1F1F;
+/* кнопка Google: фирменный вид (правила Google), одинаковый в тёмной и светлой теме, текст #1F1F1F на белом — 16:1 */
+.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;min-height:48px;
+  padding:0 14px;background:#FFFFFF;border:1px solid #DADCE0;border-radius:10px;color:#1F1F1F;-webkit-text-fill-color:#1F1F1F;
   font:700 15px/1 var(--sans);cursor:pointer;transition:border-color .12s,box-shadow .12s,background .12s}
 .gbtn svg{flex:none;width:18px;height:18px}
 .gbtn:hover:not(:disabled){border-color:#C6C9CE;box-shadow:0 1px 4px rgba(0,0,0,.28)}
 .gbtn:active:not(:disabled){background:#F5F5F5}
 .gbtn:disabled{opacity:.55;cursor:default}
-.gbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.gbtn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn-lg{min-height:48px;font-size:15px}
 .hidden{display:none}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
 @keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}#side{transition:none}}
 </style>
 
 <aside id="side">
@@ -202,7 +268,7 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
     <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode">подключаюсь&#8230;</span></div></div>
   <nav id="nav" class="hidden" aria-label="Разделы"></nav>
-  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button class="ghost" id="outBtn" data-i18n="common.logout">Выйти</button></div>
+  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button type="button" class="btn btn-secondary btn-sm" id="outBtn" data-i18n="common.logout">Выйти</button></div>
 </aside>
 <div id="scrim"></div>
 
@@ -210,63 +276,60 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <div class="banner" id="pdWarn" data-i18n="tg.test_server">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
   <div class="banner hidden" id="authWarn"></div>
 
-  <!-- ---------- вход рабочей почтой (режим «браузер») ---------- -->
-  <div id="screen-login" class="hidden">
+  <!-- ---------- вход (режим «браузер») ---------- -->
+  <div id="screen-login" class="hidden narrow">
+    <div class="sec-head"><div><h1 data-i18n="tg.login">Вход</h1>
+      <p data-i18n="tg.login_hint">Telegram не открыт. Войдите своим Telegram — или рабочей почтой.</p></div></div>
     <div class="card">
-      <h2 data-i18n="tg.login">Вход</h2>
-      <p class="sub" data-i18n="tg.login_hint">Telegram не открыт. Войдите своим Telegram — или рабочей почтой.</p>
-      <button type="button" class="tgbtn" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
+      <button type="button" class="btn btn-primary btn-block btn-lg" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
       <div class="hidden" id="tgLinkBox">
-        <p class="note" style="margin-top:12px">Отправьте этот код боту — страница войдёт сама.</p>
+        <p class="note" style="margin:var(--s3) 0 0">Отправьте этот код боту — страница войдёт сама.</p>
         <div class="tgcode" id="tgCode">INS-••••</div>
-        <a class="tgopen" id="tgOpen" href="#" target="_blank" rel="noopener" style="flex:1 1 100%">Открыть бота</a>
-        <p class="note" id="tgHow" style="margin-top:8px"></p>
-        <div class="note" id="tgWait" style="margin-top:8px"></div>
+        <p class="note" id="tgHow"></p>
+        <div class="actions"><a class="btn btn-primary" id="tgOpen" href="#" target="_blank" rel="noopener">Открыть бота</a></div>
+        <div class="note msg" id="tgWait"></div>
       </div>
       <div class="tgor">или</div>
       <button type="button" class="gbtn" id="gBtn" disabled><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg><span>Продолжить с Google</span></button>
-      <div class="note" id="gMsg" style="margin-top:8px"></div>
-      <p class="note" id="gOff" style="margin-top:8px;display:none">Вход через Google не настроен</p>
-      <p class="note" id="gHint" style="margin-top:4px;font-size:11.5px;display:none"></p>
-      <p class="note" style="margin-top:10px">Внутри Telegram вход происходит автоматически.</p>
-      <p class="note" style="margin-top:8px;font-size:11.5px"><a href="/login" style="color:var(--muted)">Служебный вход</a></p>
+      <div class="note msg" id="gMsg"></div>
+      <p class="note msg" id="gOff" style="display:none">Вход через Google не настроен</p>
+      <p class="note msg" id="gHint" style="display:none"></p>
+      <p class="note" style="margin:var(--s3) 0 0">Внутри Telegram вход происходит автоматически.</p>
+      <div class="actions" style="margin-top:var(--s1)"><a class="btn btn-link" href="/login">Служебный вход</a></div>
     </div>
     <div class="card">
       <h2 data-i18n="tg.no_access">Ещё нет доступа</h2>
       <p class="sub">Доступ открывается сам при первом входе — через Telegram или с рабочей почты. Анкету о себе заполняют один раз, и вы сразу работаете: ждать подтверждения не нужно.</p>
-      <p class="note">ID агента из ЕАИС (Положение № 3845, п. 4) проставляет администратор в разделе «Пользователи» — на вход это не влияет.</p>
+      <p class="note" style="margin:0">ID агента из ЕАИС (Положение № 3845, п. 4) проставляет администратор в разделе «Пользователи» — на вход это не влияет.</p>
     </div>
   </div>
 
   <!-- ---------- доступ закрыт администратором (единственный экран ожидания) ---------- -->
-  <div id="screen-wait" class="hidden">
+  <div id="screen-wait" class="hidden narrow">
+    <div class="sec-head"><div><h1 data-i18n="tg.wait_title">Доступ закрыт</h1><p id="waitWhy"></p></div></div>
     <div class="card">
-      <h2>Доступ закрыт</h2>
-      <p class="sub" id="waitWhy"></p>
       <div class="kv" id="waitKv"></div>
-      <p class="note" style="margin-top:12px">Учётную запись закрыл администратор системы — например, при увольнении или исключении из реестра агентов (Положение № 3845, п. 4). Пока запись закрыта, разделы приложения не открываются: сведения о страхователях не должны попадать к постороннему (ЗРУ‑730, ст. 62). Восстановить доступ может только администратор.</p>
-      <button class="ghost" id="waitAgain" style="margin-top:12px" data-i18n="tg.check_again">Проверить ещё раз</button>
+      <p class="note" style="margin:var(--s2) 0 0">Учётную запись закрыл администратор системы — например, при увольнении или исключении из реестра агентов (Положение № 3845, п. 4). Пока запись закрыта, разделы приложения не открываются: сведения о страхователях не должны попадать к постороннему (ЗРУ‑730, ст. 62). Восстановить доступ может только администратор.</p>
+      <div class="actions"><button type="button" class="btn btn-secondary" id="waitAgain" data-i18n="tg.check_again">Проверить ещё раз</button></div>
     </div>
   </div>
 
   <!-- ---------- регистрация в мини-приложении ---------- -->
-  <div id="screen-register" class="hidden">
-    <div class="card">
-      <h2>Регистрация</h2>
-      <p class="sub" id="regWhy">Вы впервые открыли приложение.</p>
-      <p class="note" id="regHow">Три шага: номер телефона, код из чата бота, короткая анкета. После анкеты вы сразу войдёте — ждать подтверждения не нужно.</p>
-    </div>
+  <div id="screen-register" class="hidden narrow">
+    <div class="sec-head"><div><h1 data-i18n="tg.register_title">Регистрация</h1>
+      <p><span id="regWhy">Вы впервые открыли приложение.</span> <span id="regHow">Три шага: номер телефона, код из чата бота, короткая анкета. После анкеты вы сразу войдёте — ждать подтверждения не нужно.</span></p></div></div>
 
     <!-- шаг 1: номер телефона -->
     <div class="card" id="regStep1">
       <div class="step on"><i>1</i><b>Номер телефона</b></div>
       <p class="sub">Код придёт в ваш чат с ботом. Бот должен быть запущен — иначе сообщение не дойдёт.</p>
-      <label class="f" for="regPhone">Номер в формате +998XXXXXXXXX</label>
+      <label class="f" for="regPhone">Номер телефона</label>
       <input id="regPhone" type="tel" inputmode="tel" autocomplete="tel" value="+998" maxlength="13">
+      <span class="hint" data-i18n="tg.phone_format_hint">В формате +998XXXXXXXXX</span>
       <div class="consent" id="regConsentPhone">загружаю текст согласия…</div>
       <label class="chk"><input type="checkbox" id="regPhoneOk"><span id="regPhoneOkText">Согласен на обработку номера телефона</span></label>
-      <button class="go" id="regSend" style="margin-top:12px">Получить код</button>
-      <div class="note" id="regSendMsg" style="margin-top:8px"></div>
+      <div class="actions"><button type="button" class="btn btn-primary" id="regSend">Получить код</button></div>
+      <div class="note msg" id="regSendMsg"></div>
     </div>
 
     <!-- шаг 2: код -->
@@ -275,10 +338,12 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       <p class="sub">Шесть цифр из последнего сообщения бота.</p>
       <label class="f" for="regCode" data-i18n="common.code">Код</label>
       <input id="regCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
-      <div class="note" id="regTries" style="margin-top:8px"></div>
-      <button class="go" id="regCheck" style="margin-top:12px" data-i18n="tg.confirm_code">Проверить код</button>
-      <button class="ghost" id="regResend" style="margin-top:8px">Отправить код заново</button>
-      <div class="note" id="regCodeMsg" style="margin-top:8px"></div>
+      <span class="hint" id="regTries"></span>
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="regCheck" data-i18n="tg.confirm_code">Проверить код</button>
+        <button type="button" class="btn btn-secondary" id="regResend">Отправить код заново</button>
+      </div>
+      <div class="note msg" id="regCodeMsg"></div>
     </div>
 
     <!-- шаг 3: анкета -->
@@ -298,12 +363,14 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
         <input id="regPosOther" type="text" autocomplete="off">
       </div>
       <div id="regBranchBox">
-        <label class="f" for="regBranch">Филиал (можно оставить пустым)</label>
+        <label class="f" for="regBranch">Филиал</label>
         <input id="regBranch" type="text" autocomplete="off" placeholder="например Чиланзарский">
+        <span class="hint" data-i18n="tg.optional_empty">Можно оставить пустым.</span>
       </div>
       <div id="regPhoneOptBox" class="hidden">
-        <label class="f" for="regPhoneOpt">Телефон — необязательно</label>
+        <label class="f" for="regPhoneOpt">Телефон</label>
         <input id="regPhoneOpt" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998901234567">
+        <span class="hint" data-i18n="tg.optional">Необязательно.</span>
         <div id="regPhoneConsentBox" class="hidden">
           <div class="consent" id="regConsentPhoneOpt">загружаю текст согласия…</div>
           <label class="chk"><input type="checkbox" id="regPhoneOptOk"><span id="regPhoneOptOkText">Согласен на обработку номера телефона</span></label>
@@ -311,16 +378,20 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       </div>
       <div class="consent" id="regConsentMain">загружаю текст согласия…</div>
       <label class="chk"><input type="checkbox" id="regMainOk"><span id="regMainOkText">Согласен на обработку персональных данных</span></label>
-      <button class="go" id="regSubmit" style="margin-top:12px">Зарегистрироваться</button>
-      <div class="note" id="regSubmitMsg" style="margin-top:8px"></div>
+      <div class="actions"><button type="button" class="btn btn-primary" id="regSubmit">Зарегистрироваться</button></div>
+      <div class="note msg" id="regSubmitMsg"></div>
     </div>
   </div>
 
   <!-- ---------- приложение ---------- -->
   <div id="screen-app" class="hidden">
 
-  <!-- расчёт -->
+  <!-- расчёт: на широком экране форма слева, итог справа -->
   <section id="tab-calc" data-section="calc" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.calc">Расчёт</h1>
+      <p data-i18n="tg.calc_lead">Опишите объект и договор, отметьте факторы риска — система посчитает ставку, премию и проверки.</p></div></div>
+    <div class="grid2">
+    <div>
     <div class="card">
       <h2 data-i18n="tg.form_title">Объект и договор</h2>
       <p class="sub" data-i18n="tg.form_hint">Коротко: что страхуем, на какую сумму и на какой срок.</p>
@@ -361,40 +432,37 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
     <div class="card">
       <h2 data-i18n="disclosure.title">Раскрытие клиенту</h2>
       <p class="sub" data-i18n="disclosure.legal">Статья 63 Закона о страховой деятельности.</p>
-      <label class="f" style="display:flex;gap:10px;align-items:center;margin:0">
-        <input type="checkbox" id="disclosure" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
-        <span style="color:var(--ink)" data-i18n="disclosure.done">Клиенту всё рассказал</span>
-      </label>
-      <label class="f" style="display:flex;gap:10px;align-items:center;margin-top:12px">
-        <input type="checkbox" id="paid" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
-        <span style="color:var(--ink)" data-i18n="disclosure.premium_paid">Премия поступила</span>
-      </label>
+      <label class="chk" style="margin-top:0"><input type="checkbox" id="disclosure"><span data-i18n="disclosure.done">Клиенту всё рассказал</span></label>
+      <label class="chk"><input type="checkbox" id="paid"><span data-i18n="disclosure.premium_paid">Премия поступила</span></label>
+      <div class="actions"><button type="button" class="btn btn-primary" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button></div>
+      <div class="note msg" id="calcMsg"></div>
+    </div>
     </div>
 
-    <button class="go" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button>
-    <div class="note" id="calcMsg" style="margin-top:8px"></div>
-
-    <div id="result"></div>
+    <div id="result" data-empty="Итог появится здесь после расчёта: ставка, проверки и что сказать клиенту."></div>
+    </div>
   </section>
 
   <!-- мои запросы -->
   <section id="tab-my-requests" data-section="my-requests" class="hidden">
-    <div class="card">
-      <h2 data-i18n="tg.nav.requests">Мои запросы</h2>
-      <p class="sub" data-i18n="tg.requests_hint">Последние 50 запросов, поданных под вашим ID агента. Видно, кто согласовал и когда.</p>
-      <button class="ghost" id="myReload" data-i18n="tg.requests_refresh">Обновить список</button>
-    </div>
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.requests">Мои запросы</h1>
+      <p data-i18n="tg.requests_hint">Последние 50 запросов, поданных под вашим ID агента. Видно, кто согласовал и когда.</p></div>
+      <button type="button" class="btn btn-secondary" id="myReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
     <div id="myList"></div>
   </section>
 
   <!-- фото и документы -->
   <section id="tab-photos" data-section="photos" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.photos_section">Фото и документы</h1>
+      <p data-i18n="tg.photos_lead">Файлы прикрепляются к последнему сохранённому запросу — сначала посчитайте и сохраните его в разделе «Расчёт».</p></div></div>
+    <div class="grid2">
     <div class="card">
       <h2 data-i18n="tg.photos_title">Фотографии объекта</h2>
-      <p class="sub">Сначала посчитайте и сохраните запрос — фото прикрепляются к нему. Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
-      <div class="note" id="phMsg">запрос ещё не сохранён</div>
-      <input type="file" id="phFile" accept="image/*" multiple capture="environment" style="margin-top:10px">
-      <div class="photos" id="phList" style="margin-top:10px"></div>
+      <p class="sub">Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
+      <p class="note" id="phMsg" style="margin:0 0 var(--s2)">запрос ещё не сохранён</p>
+      <label class="f" for="phFile">Снимки объекта</label>
+      <input type="file" id="phFile" accept="image/*" multiple capture="environment">
+      <div class="photos" id="phList" style="margin-top:var(--s2)"></div>
     </div>
     <div class="card">
       <h2 data-i18n="tg.docs_title">Документы объекта</h2>
@@ -406,46 +474,44 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       </select>
       <label class="f" for="docFile" data-i18n="tg.doc_file">Файл — PDF или фотография</label>
       <input type="file" id="docFile" accept="image/*,application/pdf">
-      <div class="note" id="docMsg" style="margin-top:10px">запрос ещё не сохранён</div>
-      <div class="files" id="docList" style="margin-top:10px"></div>
+      <div class="note msg" id="docMsg">запрос ещё не сохранён</div>
+      <div class="files" id="docList" style="margin-top:var(--s2)"></div>
+    </div>
     </div>
   </section>
 
   <!-- ждут меня -->
   <section id="tab-inbox" data-section="inbox" class="hidden">
-    <div class="card">
-      <h2 data-i18n="tg.nav.waiting">Ждут моего решения</h2>
-      <p class="sub" data-i18n="tg.waiting_hint">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p>
-      <button class="ghost" id="inboxReload" data-i18n="tg.requests_refresh">Обновить список</button>
-    </div>
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.waiting">Ждут моего решения</h1>
+      <p data-i18n="tg.waiting_hint">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p></div>
+      <button type="button" class="btn btn-secondary" id="inboxReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
     <div id="inboxList"></div>
   </section>
 
   <!-- заявки на доступ -->
   <section id="tab-applications" data-section="applications" class="hidden">
-    <div class="card">
-      <h2 data-i18n="tg.nav.applications">Заявки на доступ</h2>
-      <p class="sub" data-i18n="tg.applications_hint">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p>
-      <button class="ghost" id="appReload" data-i18n="tg.requests_refresh">Обновить список</button>
-    </div>
-    <div id="appList"></div>
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.applications">Заявки на доступ</h1>
+      <p data-i18n="tg.applications_hint">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p></div>
+      <button type="button" class="btn btn-secondary" id="appReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
+    <div class="cards" id="appList"></div>
   </section>
 
   <!-- пользователи -->
   <section id="tab-users" data-section="users" class="hidden">
-    <div class="card">
-      <h2 data-i18n="tg.nav.users">Пользователи</h2>
-      <p class="sub">Кто работает в системе: ФИО, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p>
-      <button class="ghost" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button>
-    </div>
-    <div id="usrList"></div>
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.users">Пользователи</h1>
+      <p data-i18n="tg.users_lead">Кто работает в системе: ФИО, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p></div>
+      <button type="button" class="btn btn-secondary" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
+    <div class="cards" id="usrList"></div>
   </section>
 
-  <!-- генеральные соглашения -->
+  <!-- генеральные соглашения: форма слева, список справа -->
   <section id="tab-agreements" data-section="agreements" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.agreements_title">Генеральные соглашения</h1>
+      <p data-i18n="tg.agreement_hint">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p></div></div>
+    <div class="grid2">
     <div class="card">
       <h2 data-i18n="tg.agreement_new">Новое генеральное соглашение</h2>
-      <p class="sub" data-i18n="tg.agreement_hint">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p>
+      <p class="sub" data-i18n="tg.agreement_form_hint">Заполните поля и сохраните — соглашение появится в списке.</p>
       <label class="f" for="agPartner" data-i18n="tg.partner">Партнёр</label>
       <input id="agPartner" type="text" placeholder="например Asia Alliance Bank" autocomplete="off">
       <label class="f" for="agProduct" data-i18n="tg.product_code_opt">Код продукта (можно оставить пустым)</label>
@@ -456,28 +522,34 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
         <option value="действует" data-i18n="status.agreement.active">действует</option>
         <option value="закрыто" data-i18n="status.agreement.closed">закрыто</option>
       </select>
-      <label class="f">Согласующие по умолчанию — от 1 до 3 человек</label>
+      <label class="f">Согласующие по умолчанию</label>
       <div class="pick" id="agPick"><div class="note" style="padding:10px 12px">загружаю…</div></div>
+      <span class="hint" data-i18n="tg.approvers_range_hint">От 1 до 3 человек.</span>
       <label class="f" for="agTerms" data-i18n="tg.terms_short">Условия коротко</label>
       <textarea id="agTerms" placeholder="что за соглашение и на что оно влияет"></textarea>
-      <button class="go" id="agSave" style="margin-top:12px" data-i18n="tg.agreement_save">Сохранить соглашение</button>
-      <div class="note" id="agMsg" style="margin-top:8px"></div>
+      <div class="actions"><button type="button" class="btn btn-primary" id="agSave" data-i18n="tg.agreement_save">Сохранить соглашение</button></div>
+      <div class="note msg" id="agMsg"></div>
     </div>
     <div id="agList"></div>
+    </div>
   </section>
 
   <!-- настройки -->
   <section id="tab-settings" data-section="settings" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.settings_title">Настройки</h1>
+      <p data-i18n="tg.settings_lead">Состояние бота Telegram и перенос сервера.</p></div></div>
+    <div class="grid2">
     <div class="card">
       <h2 data-i18n="tg.nav.bot">Бот Telegram</h2>
       <p class="sub" data-i18n="tg.bot_hint">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
       <div class="kv" id="botKv"><span>Состояние</span><b>загружаю…</b></div>
-      <button class="ghost" id="botReload" style="margin-top:12px" data-i18n="common.refresh">Обновить</button>
+      <div class="actions"><button type="button" class="btn btn-secondary" id="botReload" data-i18n="common.refresh">Обновить</button></div>
     </div>
     <div class="card">
       <h2 data-i18n="tg.transfer_title">Перенос и копии</h2>
       <p class="sub" data-i18n="tg.transfer_hint">Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.</p>
-      <a href="/admin/deploy" style="color:var(--accent)">Открыть «Перенос и копии»</a>
+      <div class="actions"><a class="btn btn-secondary" href="/admin/deploy">Открыть «Перенос и копии»</a></div>
+    </div>
     </div>
   </section>
 
@@ -504,14 +576,49 @@ if (!window.I18N_LANG) window.I18N_LANG = "ru";
 const navTitle = (key, ru) => T("tg.nav." + key, ru);
 
 /* ---------- Telegram: готовность, разворот, цвета поверх наших ---------- */
+/* Цвета Telegram берём только для фона страницы (bg_color), фона карточек (secondary_bg_color)
+   и основного текста (text_color) — и только если контраст текста к фону по формуле WCAG не ниже 4,5:1.
+   К кнопкам и ссылкам-кнопкам цвета Telegram не применяются никогда: у них свои явные цвета (ui-kit выше).
+   Светлый или тёмный набор наших цветов выбирается по яркости фона Telegram. */
+function hexColor(s){
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(s || "").trim());
+  if (!m) return null;
+  const h = m[1].length === 3 ? m[1].replace(/./g, c => c + c) : m[1];
+  return "#" + h.toLowerCase();
+}
+function luminance(hex){
+  const v = [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255)
+    .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+function contrast(a, b){
+  const x = luminance(a), y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+const THEME_URL = new URLSearchParams(location.search).get("theme");   // ?theme=light — для проверки
+if (THEME_URL === "light" || THEME_URL === "dark") document.documentElement.dataset.theme = THEME_URL;
 function applyTheme(){
   if (!TG) return;
   const p = TG.themeParams || {};
-  const map = {bg_color: "--paper", secondary_bg_color: "--card", text_color: "--ink",
-    hint_color: "--muted", section_separator_color: "--line", button_color: "--accent"};
   const root = document.documentElement;
-  for (const k in map) if (p[k]) root.style.setProperty(map[k], p[k]);
-  if (p.secondary_bg_color && !p.section_separator_color) root.style.setProperty("--soft", p.secondary_bg_color);
+  ["--paper", "--card", "--ink"].forEach(v => root.style.removeProperty(v));
+  const bg = hexColor(p.bg_color), card = hexColor(p.secondary_bg_color), ink = hexColor(p.text_color);
+  if (!(THEME_URL === "light" || THEME_URL === "dark")) {
+    // вне Telegram (обычный браузер) цветов темы нет — остаёмся на своей тёмной теме
+    const light = bg ? luminance(bg) > 0.4 : !!(TG.initData && TG.colorScheme === "light");
+    root.dataset.theme = light ? "light" : "dark";
+  }
+  const cs = getComputedStyle(root);
+  const ours = n => hexColor(cs.getPropertyValue(n)) || "#000000";
+  const ourInk = ours("--ink"), muted = ours("--muted");
+  // фон годится, если на нём читаются и наш основной, и наш второстепенный текст
+  const bgOk = x => x && contrast(ourInk, x) >= 4.5 && contrast(muted, x) >= 4.5;
+  const paper = bgOk(bg) ? bg : ours("--paper");
+  const cardUse = bgOk(card) ? card : ours("--card");
+  if (paper !== ours("--paper")) root.style.setProperty("--paper", paper);
+  if (cardUse !== ours("--card")) root.style.setProperty("--card", cardUse);
+  // текст Telegram — только если он читается и на фоне страницы, и на фоне карточек
+  if (ink && contrast(ink, paper) >= 4.5 && contrast(ink, cardUse) >= 4.5) root.style.setProperty("--ink", ink);
 }
 if (TG) {
   try {
@@ -1289,6 +1396,7 @@ async function calculate(){
   if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
 }
 $("#calcBtn").onclick = calculate;
+$("#result").dataset.empty = T("tg.result_empty", $("#result").dataset.empty);
 
 const VCLASS = {"ок": "ok", "на утверждение": "warn", "отклонено": "stop"};
 
@@ -1339,7 +1447,7 @@ function paintResult(j, b){
     + probHtml(probFrom(j))
 
     + '<div class="card"><h2>Что сказать клиенту</h2><p class="sub">Обязательное раскрытие по статье 63 Закона о страховой деятельности.</p>'
-    + '<div class="kv">'
+    + '<div class="kv wrap-b">'
     + "<span>Цена</span><b>" + fmt(j.premium) + " сум за " + esc(b.term_days) + " дн.</b>"
     + "<span>Покрываемые риски</span><b>" + (perils.length ? perils.length + " по классу " + esc(b.class_code) : "по правилам продукта") + "</b>"
     + "<span>Исключённые риски</span><b>" + esc(excluded(j, b).join(", ") || "нет") + "</b>"
@@ -1351,8 +1459,8 @@ function paintResult(j, b){
     + '<div class="card"><h2>Сохранить запрос</h2><p class="sub">После сохранения появится номер, к нему прикрепляются фото и документы.</p>'
     + '<label class="f" for="branch">Филиал</label><input id="branch" type="text" placeholder="например Чиланзарский" autocomplete="off">'
     + '<label class="f" for="holder">Страхователь</label><input id="holder" type="text" placeholder="название организации" autocomplete="off">'
-    + '<button class="go" id="saveBtn" style="margin-top:12px">Сохранить запрос</button>'
-    + '<div class="note" id="saveMsg" style="margin-top:8px"></div></div>'
+    + '<div class="actions"><button type="button" class="btn btn-primary" id="saveBtn">Сохранить запрос</button></div>'
+    + '<div class="note msg" id="saveMsg"></div></div>'
 
     + '<div id="approvalBox"></div><div id="exportBox"></div>';
 
@@ -1416,6 +1524,30 @@ function probRows(list){
   }).join("");
 }
 
+/* Одна короткая строка под крупной цифрой: вывод без хвоста про замечания + их число.
+   Сплошной текст разбора (summary) не выводим — он повторяет списки «Что снижает / Что повысит». */
+function probLine(p){
+  const head = String(p.verdict || "").replace(/[:,—–-]?\s*замечани[а-я]*.*$/i, "").trim();
+  const n = (p.minus || []).length;
+  return (head ? head + ", " : "") + T("tg.prob_remarks", "замечаний: {n}", {n: n});
+}
+
+/* Проверка из карточки запроса: сервер хранит код правила и строку «Название: пояснение».
+   Показываем название, код — нет. На других языках — перевод по ключу check.<код>.<статус>.title. */
+function checkText(x){
+  const bad = x.status === "нарушено" || x.status === "stop" || x.status === "warn";
+  const cls = (x.status === "ok" || x.status === "пройдено") ? "ok" : x.status === "stop" ? "stop" : "warn";
+  let title = "", detail = String(x.detail || "");
+  const m = /^(.+?(?::\s*\d+)?):\s+([\s\S]*)$/.exec(detail);
+  if (m) { title = m[1]; detail = m[2]; }
+  if (I18N_LANG !== "ru" && x.rule_code && window.I18N_HAS) {
+    const order = bad ? ["stop", "warn", "unknown"] : ["ok"];
+    const key = order.map(st => "check." + x.rule_code + "." + st + ".title").filter(k => I18N_HAS(k))[0];
+    if (key) title = T(key, title).replace(/:?\s*\{n\}/, "");
+  }
+  return {cls: cls, title: title || "—", detail: detail};
+}
+
 function probHtml(raw){
   const p = normProb(raw);
   if (!p) {
@@ -1425,8 +1557,7 @@ function probHtml(raw){
   const cls = p.value >= 70 ? "high" : p.value >= 40 ? "mid" : "low";
   return '<div class="card"><h2>Вероятность подтверждения</h2>'
     + '<div class="prob ' + cls + '">~' + p.value + "%</div>"
-    + (p.verdict ? '<p class="sub">' + esc(p.verdict) + "</p>" : "")
-    + (p.summary ? '<p class="note" style="color:var(--ink)">' + esc(p.summary) + "</p>" : "")
+    + '<p class="sub">' + esc(probLine(p)) + "</p>"
     + '<div class="h3">Что снижает</div>' + probRows(p.minus)
     + '<div class="h3">Что повысит</div>' + probRows(p.how.length ? p.how : p.plus)
     + (p.calibrated ? ""
@@ -1438,13 +1569,13 @@ function probHtml(raw){
 function exportsHtml(rid){
   return '<div class="card" id="exp-' + rid + '"><h2>Выгрузка анализа</h2>'
     + '<p class="sub">Запрос № ' + rid + ": расчёт, проверки, вероятность подтверждения и участники — одним файлом.</p>"
-    + '<div class="row">'
-    + '<button class="btn" data-dl="' + rid + '" data-fmt="pdf">Скачать PDF</button>'
-    + '<button class="btn" data-dl="' + rid + '" data-fmt="xlsx">Скачать XLSX</button>'
-    + '<button class="ghost" data-tgsend="' + rid + '">Прислать в Telegram</button>'
+    + '<p class="note" style="margin:0">«Прислать в Telegram» нужна потому, что во встроенном браузере Telegram скачивание файла часто не срабатывает: бот пришлёт оба файла прямо в чат.</p>'
+    + '<div class="actions">'
+    + '<button type="button" class="btn btn-secondary" data-dl="' + rid + '" data-fmt="pdf">Скачать PDF</button>'
+    + '<button type="button" class="btn btn-secondary" data-dl="' + rid + '" data-fmt="xlsx">Скачать XLSX</button>'
+    + '<button type="button" class="btn btn-secondary" data-tgsend="' + rid + '">Прислать в Telegram</button>'
     + "</div>"
-    + '<p class="note" style="margin-top:8px">Третья кнопка нужна потому, что во встроенном браузере Telegram скачивание файла часто не срабатывает: бот пришлёт оба файла прямо в чат.</p>'
-    + '<div class="note" id="expm-' + rid + '" style="margin-top:8px"></div></div>';
+    + '<div class="note msg" id="expm-' + rid + '"></div></div>';
 }
 
 function bindExports(root){
@@ -1595,9 +1726,9 @@ async function paintApprovalBox(){
       ? '<p class="note ok">Состав подставлен из генерального соглашения «' + esc(CAND.agreement.partner)
         + "». Его можно изменить.</p>" : "")
     + '<div class="pick" id="revPick">' + candHtml(pre) + "</div>"
-    + '<div class="note" id="revCount" style="margin-top:8px"></div>'
-    + '<button class="go" id="sendRev" style="margin-top:12px">Отправить на согласование</button>'
-    + '<div class="note" id="revMsg" style="margin-top:8px"></div>'
+    + '<div class="note msg" id="revCount"></div>'
+    + '<div class="actions"><button type="button" class="btn btn-primary" id="sendRev">Отправить на согласование</button></div>'
+    + '<div class="note msg" id="revMsg"></div>'
     + "</div>";
   $("#revPick").querySelectorAll('input[name="rev"]').forEach(i => { i.onchange = revCount; });
   $("#sendRev").onclick = sendReviewers;
@@ -1678,7 +1809,7 @@ async function loadMine(){
 function mineCard(q){
   const s = q.approval_status || "не требуется";
   const revs = q.reviewers || [];
-  return '<div class="card"><h2>Запрос № ' + esc(q.external_no || q.id) + "</h2>"
+  return '<article class="group"><div class="card"><h2>Запрос № ' + esc(q.external_no || q.id) + "</h2>"
     + '<p class="sub">' + esc(q.object_type || "объект не указан")
     + (q.product_code ? " · продукт " + esc(q.product_code) : "")
     + (q.partner ? " · " + esc(q.partner) : "") + "</p>"
@@ -1698,7 +1829,7 @@ function mineCard(q){
       : '<div class="note">Согласующие не назначены.</div>')
     + "</div>"
     + probHtml(probFrom(q))
-    + exportsHtml(q.id);
+    + exportsHtml(q.id) + "</article>";
 }
 $("#myReload").onclick = loadMine;
 
@@ -1722,23 +1853,25 @@ async function loadInbox(){
 }
 
 function inboxCard(it){
-  return '<div class="card" id="inbox-' + it.request_id + '"><h2>Запрос № ' + esc(it.external_no || it.request_id) + "</h2>"
+  return '<article class="group" id="inbox-' + it.request_id + '"><div class="card"><h2>Запрос № ' + esc(it.external_no || it.request_id) + "</h2>"
     + '<p class="sub">' + esc(it.policyholder || "страхователь не указан")
     + (it.product_code ? " · продукт " + esc(it.product_code) : "")
     + (it.branch ? " · " + esc(it.branch) : "")
     + (it.partner ? " · " + esc(it.partner) : "") + "</p>"
     + '<div class="kv"><span>Вы в очереди</span><b>' + esc(it.order_no || "—") + "</b>"
-    + "<span>Назначено</span><b>" + esc(when(it.assigned_at) || "—") + "</b></div>"
+    + "<span>Назначено</span><b>" + esc(when(it.assigned_at) || "—") + "</b></div></div>"
+    + '<div id="det-' + it.request_id + '"><div class="card"><div class="note"><span class="spin"></span> загружаю расчёт, анализ и документы…</div></div></div>'
+    + exportsHtml(it.request_id)
+    + '<div class="card"><h2>' + esc(T("tg.decision_title", "Ваше решение")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.decision_lead", "Посмотрите расчёт и проверки выше, затем решите.")) + "</p>"
     + '<label class="f" for="cm-' + it.request_id + '">Примечание (необязательно)</label>'
     + '<textarea id="cm-' + it.request_id + '" placeholder="можно не заполнять; если отклоняете — напишите, что исправить"></textarea>'
-    + '<div class="row" style="margin-top:10px">'
-    + '<button class="go" data-dec="одобрил" data-rid="' + it.request_id + '">Подтвердить</button>'
-    + '<button class="no" data-dec="отклонил" data-rid="' + it.request_id + '">Отклонить</button>'
-    + '<button class="ghost" data-dec="вопрос" data-rid="' + it.request_id + '">Задать вопрос</button>'
+    + '<div class="actions">'
+    + '<button type="button" class="btn btn-success" data-dec="одобрил" data-rid="' + it.request_id + '">Подтвердить</button>'
+    + '<button type="button" class="btn btn-danger" data-dec="отклонил" data-rid="' + it.request_id + '">Отклонить</button>'
+    + '<button type="button" class="btn btn-secondary" data-dec="вопрос" data-rid="' + it.request_id + '">Задать вопрос</button>'
     + "</div>"
-    + '<div class="note" id="dm-' + it.request_id + '" style="margin-top:8px"></div></div>'
-    + '<div id="det-' + it.request_id + '"><div class="card"><div class="note"><span class="spin"></span> загружаю расчёт, анализ и документы…</div></div></div>'
-    + exportsHtml(it.request_id);
+    + '<div class="note msg" id="dm-' + it.request_id + '"></div></div></article>';
 }
 
 /* Расчёт, анализ и документы по запросу — чтобы решать, не выходя из карточки. */
@@ -1766,8 +1899,8 @@ async function loadInboxDetail(rid){
     + "</div></div>"
     + '<div class="card"><h2>Проверки</h2><p class="sub">Каждая ссылается на норму.</p>'
     + ((d.checks || []).length
-      ? (d.checks || []).map(x => '<div class="check ' + (x.status === "ok" ? "ok" : x.status === "stop" ? "stop" : "warn")
-        + '"><i></i><div><b>' + esc(x.rule_code || "проверка") + "</b><span>" + esc(x.detail || "") + "</span></div></div>").join("")
+      ? (d.checks || []).map(x => { const c = checkText(x);
+        return '<div class="check ' + c.cls + '"><i></i><div><b>' + esc(c.title) + "</b><span>" + esc(c.detail) + "</span></div></div>"; }).join("")
       : '<div class="note">Проверок по этому расчёту нет.</div>')
     + "</div>"
     + probHtml(probFrom(d) || probFrom(d.request || {}) || probFrom(c))
@@ -1820,11 +1953,11 @@ async function loadApplications(){
       + "<span>ID агента в ЕАИС</span><b>" + esc(u.agent_eais_id || "—") + "</b>"
       + "<span>Заявка подана</span><b>" + esc(when(u.created_at) || "—") + "</b>"
       + "</div>"
-      + '<p class="note ' + regCls + '" style="margin-top:10px">Сверка с реестром: ' + esc(regText) + "</p>"
-      + '<div class="row" style="margin-top:10px">'
-      + '<button class="go" data-app="' + u.id + '">Подтвердить</button>'
-      + '<button class="no" data-rej="' + u.id + '">Отклонить</button></div>'
-      + '<div class="note" id="am-' + u.id + '" style="margin-top:8px"></div></div>';
+      + '<p class="note ' + regCls + '" style="margin:var(--s2) 0 0">Сверка с реестром: ' + esc(regText) + "</p>"
+      + '<div class="actions">'
+      + '<button type="button" class="btn btn-success" data-app="' + u.id + '">Подтвердить</button>'
+      + '<button type="button" class="btn btn-danger" data-rej="' + u.id + '">Отклонить</button></div>'
+      + '<div class="note msg" id="am-' + u.id + '"></div></div>';
   }).join("");
   document.querySelectorAll("[data-app]").forEach(b => { b.onclick = () => appDecide(b.dataset.app, "approve"); });
   document.querySelectorAll("[data-rej]").forEach(b => { b.onclick = () => appDecide(b.dataset.rej, "reject"); });
@@ -1849,10 +1982,10 @@ async function loadUsers(){
   if (!r.ok) { $("#usrList").innerHTML = '<div class="card"><div class="note err">Список не загрузился: ' + esc(r.error) + "</div></div>"; return; }
   CAN_MANAGE = !!r.data.can_manage;
   const items = r.data.items || [];
-  $("#usrList").innerHTML = '<div class="card"><h2>Всего людей: ' + (r.data.count != null ? r.data.count : items.length) + "</h2>"
-    + '<p class="sub">' + (CAN_MANAGE
+  $("#usrList").innerHTML = '<p class="count"><b>Всего людей: ' + (r.data.count != null ? r.data.count : items.length) + "</b>"
+    + " · " + (CAN_MANAGE
       ? "Вы администратор: можете выдать и снять права администратора. Заблокированные остаются в базе — так сохраняется история их решений."
-      : "Права администратора выдаёт и снимает администратор системы.") + "</p></div>"
+      : "Права администратора выдаёт и снимает администратор системы.") + "</p>"
     + items.map(userCard).join("");
   bindUsers();
 }
@@ -1880,13 +2013,13 @@ function userCard(u){
     + "<span>Филиал</span><b>" + esc(u.branch || "—") + "</b>"
     + "</div>"
     + (CAN_MANAGE && !me
-      ? '<div class="row" style="margin-top:10px">'
+      ? '<div class="actions">'
         + (u.is_admin
-          ? '<button class="no" data-revoke="' + u.id + '">Снять админа</button>'
-          : '<button class="go" data-make="' + u.id + '">Сделать админом</button>')
-        + (u.status === "активен" ? '<button class="ghost" data-block="' + u.id + '">Заблокировать</button>' : "")
+          ? '<button type="button" class="btn btn-secondary" data-revoke="' + u.id + '">Снять админа</button>'
+          : '<button type="button" class="btn btn-primary" data-make="' + u.id + '">Сделать админом</button>')
+        + (u.status === "активен" ? '<button type="button" class="btn btn-danger" data-block="' + u.id + '">Заблокировать</button>' : "")
         + "</div>" : "")
-    + '<div class="note" id="um-' + u.id + '" style="margin-top:8px"></div></div>';
+    + '<div class="note msg" id="um-' + u.id + '"></div></div>';
 }
 
 function bindUsers(){
@@ -1933,7 +2066,7 @@ async function loadAgreementsTab(){
     ? AGREEMENTS.map(a => '<div class="card"><h2>' + esc(a.partner) + "</h2>"
         + '<p class="sub">' + esc(a.status || "—") + (a.product_code ? " · продукт " + esc(a.product_code) : "") + "</p>"
         + (a.terms ? '<p class="note">' + esc(a.terms) + "</p>" : "")
-        + '<div class="note" style="margin-top:8px">Согласующие по умолчанию: '
+        + '<div class="note" style="margin-top:var(--s1)">Согласующие по умолчанию: '
         + esc(namesOf(a.default_reviewers || []) || "не заданы") + "</div></div>").join("")
     : '<div class="card"><div class="note">Соглашений пока нет.</div></div>';
 }
@@ -1997,7 +2130,7 @@ function paintPhotos(){
   $("#phList").innerHTML = PHOTOS.map((p, i) =>
     '<div class="ph" data-id="' + p.id + '"><img src="/photos/' + p.id + '" alt="фото объекта">'
     + '<span class="no">' + (i + 1) + "</span>"
-    + '<button class="del" data-del="' + p.id + '">×</button></div>').join("");
+    + '<button type="button" class="del" data-del="' + p.id + '" aria-label="Удалить фото" title="Удалить фото">×</button></div>').join("");
   $("#phList").querySelectorAll("[data-del]").forEach(b => { b.onclick = e => { e.stopPropagation(); delPhoto(b.dataset.del); }; });
   bindDrag();
 }

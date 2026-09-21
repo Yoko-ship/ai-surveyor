@@ -11,6 +11,40 @@
   Ничего сверх перечисленного здесь не появляется: спорные пункты уходят в docs/Открытые вопросы.md.
 -->
 <style>
+/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
+   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
+   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
+:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
+html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+.btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
+  cursor:pointer;transition:background-color .12s,border-color .12s}
+.btn svg{flex:none;width:18px;height:18px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#111B57}
+.btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
+.btn-success:active:not(:disabled){background:#0E5230}
+.btn-danger,.btn-danger:visited{background:#A4231C;border-color:#A4231C;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-danger:hover:not(:disabled){background:#8F1D17;border-color:#8F1D17;color:#FFFFFF}
+.btn-danger:active:not(:disabled){background:#761712}
+.btn-secondary,.btn-secondary:visited{background:transparent;border-color:var(--btn-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.btn-secondary:hover:not(:disabled){background:var(--btn-hover);color:var(--ink)}
+.btn-secondary:active:not(:disabled){background:var(--btn-hover);border-color:var(--ink)}
+.btn-link,.btn-link:visited{background:transparent;border-color:transparent;padding:10px 4px;font-weight:600;
+  color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.btn-link:hover:not(:disabled){text-decoration-thickness:2px;color:var(--link)}
+.btn-block{display:flex;width:100%}
+.btn-sm{min-height:44px;padding:8px 12px;font-size:13px}
+/* ряд действий: внизу карточки справа; на телефоне — на всю ширину, основная кнопка первой (она первая в разметке) */
+.actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
+@media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
+/* ===== конец ui-kit ===== */
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;
   --accent:#2BC46E;--accent-dim:#1E8F52;--warn:#E0A83F;--stop:#EE8272;--ok:#5CC298;
   --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;
@@ -47,8 +81,7 @@ main{padding:20px 22px 44px;min-width:0}
 .head{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
 h1{font:800 21px var(--sans);margin:0}
 .head .why{font-size:12.5px;color:var(--muted);max-width:56ch;margin:2px 0 0}
-.back{display:none;background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:9px;
-  padding:7px 12px;font:600 13px var(--sans);cursor:pointer;margin-bottom:12px}
+.back{display:none;margin-bottom:12px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:12px;min-width:0}
 .card h3{font:700 14px var(--sans);margin:0 0 3px}
 .card .note{font-size:12px;color:var(--muted);margin:0 0 10px}
@@ -71,10 +104,6 @@ form.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap
 label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted)}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);
   border-radius:8px;padding:8px 10px;width:100%;min-width:0}
-button.go{font:600 13px var(--sans);color:#0C1216;background:var(--accent);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
-button.mini{font:600 12px var(--sans);color:var(--ink);background:var(--soft);border:1px solid var(--line);
-  border-radius:7px;padding:5px 9px;cursor:pointer;white-space:nowrap}
-button.mini.danger{color:var(--stop);border-color:color-mix(in srgb,var(--stop) 45%,var(--line))}
 .msg{font-size:12px;color:var(--muted);margin-top:8px;min-height:1em}
 .msg.bad{color:var(--stop)}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
@@ -90,7 +119,7 @@ button.mini.danger{color:var(--stop);border-color:color-mix(in srgb,var(--stop) 
   body.menu-view .menu{display:block;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
   body.menu-view main{display:none}
   main{padding:14px 12px 40px}
-  body.section-view .back{display:inline-block}
+  body.section-view .back{display:inline-flex}
   .frame{height:calc(100vh - 170px)}
   h1{font-size:18px}
 }
@@ -100,7 +129,7 @@ button.mini.danger{color:var(--stop);border-color:color-mix(in srgb,var(--stop) 
   <nav class="rail" id="rail" aria-label="Группы разделов"><div class="mark"><b>S</b></div></nav>
   <nav class="menu" id="menu" aria-label="Разделы группы"></nav>
   <main id="main">
-    <button class="back" id="back" type="button">← Разделы группы</button>
+    <button class="btn btn-secondary back" id="back" type="button">← Разделы группы</button>
     <div class="head"><div><h1 id="title">Админка</h1><p class="why" id="why"></p></div><div id="tools"></div></div>
     <div id="view"></div>
   </main>
@@ -231,9 +260,9 @@ V.people_users = async function (el) {
     var role = '<span class="v ' + (u.is_admin ? "ok" : "dim") + '">' + esc(u.role) + "</span>";
     var st = u.status === "активен" ? "ok" : u.status === "заблокирован" ? "stop" : "warn";
     var ctl = d.can_manage
-      ? (u.is_admin ? '<button class="mini" data-act="revoke" data-id="' + u.id + '">Снять права админа</button>'
-                    : '<button class="mini" data-act="make" data-id="' + u.id + '">Сделать админом</button>') +
-        ' <button class="mini danger" data-act="block" data-id="' + u.id + '">Заблокировать</button>'
+      ? (u.is_admin ? '<button class="btn btn-secondary btn-sm" data-act="revoke" data-id="' + u.id + '">Снять права админа</button>'
+                    : '<button class="btn btn-secondary btn-sm" data-act="make" data-id="' + u.id + '">Сделать админом</button>') +
+        ' <button class="btn btn-danger btn-sm" data-act="block" data-id="' + u.id + '">Заблокировать</button>'
       : "—";
     return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.department) + "</td><td>" + esc(u.position) +
       "</td><td>" + esc(u.phone || "—") + "</td><td>" + esc(mail) + "</td><td>" + esc(u.login) + "</td><td>" + esc(way) +
@@ -262,8 +291,8 @@ V.people_pending = async function (el) {
   var rows = items.map(function (u) {
     return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.login) + "</td><td>" + esc(u.role) +
       "</td><td>" + esc(u.branch || "—") + "</td><td>" + esc(u.registry ? u.registry.name : "в реестре компании не найден") +
-      '</td><td><button class="mini" data-ok="' + u.id + '">Подтвердить</button> ' +
-      '<button class="mini danger" data-no="' + u.id + '">Отклонить</button></td></tr>';
+      '</td><td><button class="btn btn-secondary btn-sm" data-ok="' + u.id + '">Подтвердить</button> ' +
+      '<button class="btn btn-danger btn-sm" data-no="' + u.id + '">Отклонить</button></td></tr>';
   });
   el.innerHTML = '<div class="card"><h3>Заявки на вход</h3>' +
     '<p class="note">Заявка приходит от того, кто регистрируется логином и паролем. Подтверждение открывает доступ по его роли.</p>' +
@@ -338,7 +367,7 @@ V.requests_card = async function (el, rid) {
   el.innerHTML = '<div class="card"><h3>Карточка запроса</h3>' +
     '<p class="note">Введите номер запроса или откройте его из раздела «Запросы и сводка».</p>' +
     '<form class="f" id="rf"><label>Номер запроса<input name="rid" type="number" value="' + esc(rid) + '" required></label>' +
-    '<button class="go">Открыть карточку</button></form><div class="msg" id="rMsg"></div></div><div id="rBody"></div>';
+    '<button class="btn btn-primary">Открыть карточку</button></form><div class="msg" id="rMsg"></div></div><div id="rBody"></div>';
   $("#rf").onsubmit = function (e) { e.preventDefault(); open_section("requests", "card", e.target.rid.value); };
   if (!rid) return;
   V._rid = rid;
@@ -408,26 +437,26 @@ V.tariffs_forms = function (el) {
    '<div class="card"><h3>Версия тарифов</h3><p class="note">Своя версия компании или минимальные ставки регулятора. Старые расчёты остаются на своей версии.</p>' +
    '<form class="f" data-url="/admin/tariff-versions" data-m="POST"><label>Уровень<select name="level"><option>компания</option><option>регулятор</option></select></label>' +
    '<label>Название<input name="name" required placeholder="Тарифная политика 2027"></label><label>Документ<input name="document_ref" placeholder="приказ №, дата"></label>' +
-   '<label>Действует с<input name="effective_from" type="date" required></label><button class="go">Создать версию</button></form><div class="msg"></div></div>' +
+   '<label>Действует с<input name="effective_from" type="date" required></label><button class="btn btn-primary">Создать версию</button></form><div class="msg"></div></div>' +
 
    '<div class="card"><h3>Минимальная ставка</h3><p class="note">Нижний порог по продукту. Тип клиента — если ставки разные для физических и юридических лиц.</p>' +
    '<form class="f" data-url="/admin/min-rates" data-m="POST"><label>ID версии<input name="tariff_version_id" type="number" required></label>' +
    '<label>Код продукта<input name="product_code" required placeholder="0807"></label>' +
    '<label>Тип клиента<select name="payer_type"><option value="">все</option><option>юр</option><option>физ</option></select></label>' +
-   '<label>Ставка, %<input name="min_rate_pct" type="number" step="0.001" required></label><button class="go">Добавить ставку</button></form><div class="msg"></div></div>' +
+   '<label>Ставка, %<input name="min_rate_pct" type="number" step="0.001" required></label><button class="btn btn-primary">Добавить ставку</button></form><div class="msg"></div></div>' +
 
    '<div class="card"><h3>Коэффициент</h3><p class="note">Фактор → вариант → множитель. «Калиброван» значит посчитан по статистике компании.</p>' +
    '<form class="f" data-url="/admin/coefficients" data-m="POST"><label>Код фактора<input name="factor_code" required placeholder="protection"></label>' +
    '<label>Название фактора<input name="factor_name" required></label><label>Код варианта<input name="option_code" required></label>' +
    '<label>Название варианта<input name="option_name" required></label><label>Множитель<input name="multiplier" type="number" step="0.01" required></label>' +
    '<label>Калиброван<select name="calibrated"><option value="0">нет</option><option value="1">да</option></select></label>' +
-   '<label>Источник<input name="source"></label><button class="go">Сохранить коэффициент</button></form><div class="msg"></div></div>' +
+   '<label>Источник<input name="source"></label><button class="btn btn-primary">Сохранить коэффициент</button></form><div class="msg"></div></div>' +
 
    '<div class="card"><h3>Новый продукт</h3><p class="note">Создаётся в тестовом статусе. Классы — через запятую, например 8,13.</p>' +
    '<form class="f" data-url="/admin/products" data-m="POST"><label>Код<input name="code" required placeholder="0836"></label>' +
    '<label>Название<input name="name" required></label><label>Классы<input name="classes" required placeholder="8"></label>' +
    '<label>Текст тарифа<input name="rate_text" placeholder="0,05%"></label><label>Мин. ставка, %<input name="min_rate_pct" type="number" step="0.001"></label>' +
-   '<label>ID версии<input name="tariff_version_id" type="number"></label><button class="go">Создать продукт</button></form><div class="msg"></div></div>' +
+   '<label>ID версии<input name="tariff_version_id" type="number"></label><button class="btn btn-primary">Создать продукт</button></form><div class="msg"></div></div>' +
    "</div>";
   bind_forms(el);
 };
@@ -436,7 +465,7 @@ V.tariffs_reference = async function (el) {
                ["checklists", "Чек-листы"], ["rules", "Правила"], ["min_rates", "Минимальные ставки"]];
   el.innerHTML = '<div class="card"><h3>Справочники</h3><p class="note">Таблицы такими, как их читает движок расчёта.</p>' +
     '<div class="bar">' + names.map(function (n, i) {
-      return '<button class="mini" data-ref="' + n[0] + '"' + (i ? "" : ' style="border-color:var(--accent)"') + ">" + n[1] + "</button>";
+      return '<button class="btn btn-secondary btn-sm" data-ref="' + n[0] + '"' + (i ? "" : ' style="border-color:var(--accent)"') + ">" + n[1] + "</button>";
     }).join("") + '</div><div id="refBody">Загружаем…</div></div>';
   var show = async function (name) {
     var b = $("#refBody"); b.textContent = "Загружаем…";
@@ -467,13 +496,13 @@ V.tariffs_valuation = async function (el) {
         '" data-f="rate_pct" type="number" step="0.1" value="' + esc(x.rate_pct) + '" style="max-width:96px"></td>' +
         '<td class="n"><input data-code="' + esc(x.code) + '" data-f="residual_min_pct" type="number" step="0.1" value="' +
         esc(x.residual_min_pct == null ? "" : x.residual_min_pct) + '" style="max-width:96px"></td><td>' + cal(x.calibrated) +
-        '</td><td><button class="mini" data-save="' + esc(x.code) + '">Сохранить</button></td></tr>';
+        '</td><td><button class="btn btn-secondary btn-sm" data-save="' + esc(x.code) + '">Сохранить</button></td></tr>';
     }), "Норм пока нет") + '<div class="msg" id="nMsg"></div></div>' +
     '<div class="card"><h3>Настройки оценки</h3><p class="note">Значения, которыми пользуется оценка стоимости объекта.</p>' +
     tbl(["Ключ", "Название", "Значение", "Ед.", "Статус", ""], sets.map(function (x) {
       return '<tr><td style="font-family:var(--mono);font-size:11.5px">' + esc(x.key) + "</td><td>" + esc(x.name) +
         '</td><td class="n"><input data-key="' + esc(x.key) + '" value="' + esc(x.value) + '" style="max-width:120px"></td><td>' +
-        esc(x.unit) + "</td><td>" + cal(x.calibrated) + '</td><td><button class="mini" data-skey="' + esc(x.key) +
+        esc(x.unit) + "</td><td>" + cal(x.calibrated) + '</td><td><button class="btn btn-secondary btn-sm" data-skey="' + esc(x.key) +
         '">Сохранить</button></td></tr>';
     }), "Настроек пока нет") + '<div class="msg" id="sMsg"></div></div>';
   el.onclick = async function (e) {
@@ -504,7 +533,7 @@ V.tariffs_osgor = async function (el) {
     '<div class="tile"><b>' + esc(String(d.kst_min).replace(".", ",") + " – " + String(d.kst_max).replace(".", ",")) +
     '</b><span>коэффициент от и до</span></div></div>' +
     '<form class="f" id="osf"><label>Поиск по названию или коду<input name="q" placeholder="строительство"></label>' +
-    '<button class="go">Найти</button></form><div id="osBody"></div></div>';
+    '<button class="btn btn-primary">Найти</button></form><div id="osBody"></div></div>';
   var show = async function (q) {
     var b = $("#osBody"); b.textContent = "Ищем…";
     try {
@@ -541,7 +570,7 @@ V.tariffs_review = async function (el) {
       (d.rules_to_review || []).map(function (r) {
         return '<tr><td style="font-family:var(--mono);font-size:11.5px">' + esc(r.code) + "</td><td>" + esc(r.name) +
           "</td><td>" + esc(r.severity) + "</td><td>" + esc(r.legal_ref || "—") + "</td><td>" + esc(r.review_reason || "—") +
-          "</td><td>" + esc(String(r.review_since || "").slice(0, 10)) + '</td><td><button class="mini" data-ok="' + esc(r.code) +
+          "</td><td>" + esc(String(r.review_since || "").slice(0, 10)) + '</td><td><button class="btn btn-secondary btn-sm" data-ok="' + esc(r.code) +
           '">Снять пометку</button></td></tr>';
       }), "Правил, требующих пересмотра, нет") + '<div class="msg" id="lwMsg"></div></div>' +
     '<div class="card"><h3>Последние события</h3>' +
@@ -581,7 +610,7 @@ V.market_statagency = async function (el) {
     '<div class="card"><h3>Ряды</h3><p class="note">Последние строки. Набор можно выбрать.</p>' +
     '<form class="f" id="ssf"><label>Набор<select name="dataset"><option value="">все</option>' +
     sets.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x["Набор"]) + "</option>"; }).join("") +
-    '</select></label><button class="go">Показать ряды</button></form><div id="ssBody"></div></div>';
+    '</select></label><button class="btn btn-primary">Показать ряды</button></form><div id="ssBody"></div></div>';
   var show = async function (ds) {
     var b = $("#ssBody"); b.textContent = "Загружаем…";
     try {
@@ -604,7 +633,7 @@ V.market_finance = function (el) {
     '<label>Собственные средства, сум<input name="own_funds" type="number" required></label>' +
     '<label>Страховые резервы, сум<input name="reserves" type="number" required></label>' +
     '<label>Источник<input name="source" placeholder="баланс ф.1, отчёт о резервах"></label>' +
-    '<button class="go">Сохранить показатели</button></form><div class="msg"></div></div>' +
+    '<button class="btn btn-primary">Сохранить показатели</button></form><div class="msg"></div></div>' +
     '<div class="card"><h3>Резервы, активы и платёжеспособность</h3>' +
     '<p class="note">Эти три отчёта сейчас загружаются не через экран: готовой формы для них в системе нет, ' +
     'а придумывать её мы не стали — вопрос записан в «Открытые вопросы» (№ 158). Как есть они видны на странице ' +
@@ -668,8 +697,8 @@ V.system_ai = async function (el) {
     'Без ключа система работает полностью — просто без этих подсказок. ФИО, ПИНФЛ, паспорт и телефон заменяются ' +
     'на метки до отправки.</p><div class="kv">' +
     kv.map(function (p) { return "<span>" + esc(p[0]) + "</span><div>" + esc(p[1]) + "</div>"; }).join("") + "</div>" +
-    '<div class="bar" style="margin-top:12px"><button class="go" id="ping">Проверить связь с моделью</button>' +
-    '<a href="/admin/deploy" target="_blank" rel="noopener">Ключи и настройки</a></div>' +
+    '<div class="bar" style="margin-top:12px"><button class="btn btn-primary" id="ping">Проверить связь с моделью</button>' +
+    '<a class="btn btn-link" href="/admin/deploy" target="_blank" rel="noopener">Ключи и настройки</a></div>' +
     '<div class="msg" id="aiMsg">' + esc(s.reason || "") + "</div></div>" +
     '<div class="card"><h3>Последние обращения</h3><div id="aiCalls">Загружаем…</div></div>';
   $("#ping").onclick = async function () {
