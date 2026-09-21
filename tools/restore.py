@@ -12,16 +12,20 @@
 чтобы ошибочное восстановление можно было откатить.
 Сервер на время восстановления лучше остановить: файл базы занят.
 """
+import shutil
+import sqlite3
 import sys
+import tempfile
 import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
-BACKUPS = DATA / "backups"
 
 sys.path.insert(0, str(ROOT / "tools"))
 import backup as backup_tool                                      # noqa: E402
+
+DATA = backup_tool.DATA                    # папка данных сервера (STORAGE_DIR или data/)
+BACKUPS = DATA / "backups"
 
 
 def _safe(name: str) -> Path:
@@ -42,6 +46,29 @@ def inspect(name: str) -> dict:
             "sample": names[:20]}
 
 
+def _restore_db(z: zipfile.ZipFile, item: str):
+    """
+    База — не перезаписью файла, а штатной копией SQLite поверх рабочей базы. В режиме WAL рядом
+    лежат surveyor.db-wal и -shm: если просто заменить файл, SQLite применит к новой базе старый
+    журнал и испортит её. Копия SQLite заменяет содержимое целиком и корректно при открытых соединениях.
+    """
+    tmp = Path(tempfile.mkdtemp(prefix="restore_"))
+    try:
+        snap = tmp / "surveyor.db"
+        with z.open(item) as src, snap.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
+        DATA.mkdir(parents=True, exist_ok=True)
+        s = sqlite3.connect(str(snap))
+        d = sqlite3.connect(str(backup_tool.DB), timeout=30)
+        try:
+            s.backup(d)
+        finally:
+            d.close()
+            s.close()
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def restore(name: str, confirm: bool = False, who: str = "админ") -> dict:
     """Возвращает отчёт. Без confirm=True ничего не делает — это защита от случайного нажатия."""
     info = inspect(name)
@@ -56,10 +83,16 @@ def restore(name: str, confirm: bool = False, who: str = "админ") -> dict:
     restored = 0
     with zipfile.ZipFile(p) as z:
         for item in z.namelist():
-            if item == "КОПИЯ.txt":
+            if item == "КОПИЯ.txt" or not item.startswith("data/"):
                 continue
-            target = (ROOT / item).resolve()
-            if not str(target).startswith(str(ROOT.resolve())):      # защита от путей вида ../..
+            if item == "data/surveyor.db":
+                _restore_db(z, item)
+                restored += 1
+                continue
+            rel = item[len("data/"):]
+            root = backup_tool.folder_root(rel.split("/", 1)[0]).resolve()
+            target = (root / rel).resolve()
+            if not str(target).startswith(str(root)):                # защита от путей вида ../..
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
             with z.open(item) as src, target.open("wb") as dst:

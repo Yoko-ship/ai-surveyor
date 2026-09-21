@@ -43,7 +43,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from . import db
+from . import background, db, web
 
 ROOT = Path(__file__).resolve().parent.parent
 REGISTRY = ROOT / "docs" / "Отслеживаемые акты.json"
@@ -583,13 +583,17 @@ def _scheduler():
             if done_for != today and (now.hour, now.minute) >= (CHECK_HOUR, CHECK_MINUTE):
                 check_all()
                 done_for = today
+                if _state.get("error"):
+                    background.failed("lawwatch", kind="ошибка прохода")
+                else:
+                    background.ok("lawwatch")
         except Exception as e:
-            print("lawwatch: проход не выполнен:", e)
+            background.failed("lawwatch", e)
         time.sleep(600)
 
 
 def start_scheduler():
-    threading.Thread(target=_scheduler, daemon=True, name="lawwatch").start()
+    background.start("lawwatch", _scheduler)
 
 
 def last_status() -> dict:
@@ -708,7 +712,7 @@ def law_feed_page(embed: int = 0):
     """Страница «Законодательство». Оформление делает дизайнер — файл app/lawfeed.html."""
     if not FEED_HTML.exists():
         raise HTTPException(404, "страница app/lawfeed.html ещё не сделана")
-    return _page(FEED_HTML.read_text(encoding="utf-8"), "/law-feed", embed)
+    return _page(web.read_text(FEED_HTML), "/law-feed", embed)
 
 
 _ensure_seed()

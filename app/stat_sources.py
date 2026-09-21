@@ -70,7 +70,9 @@ from app import db
 from app.valuation_sources import _http_get, robots_check
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = db.DB_PATH
+# База по умолчанию — та, с которой работает сервер СЕЙЧАС (db.DB_PATH читается при вызове,
+# а не при импорте: STORAGE_DIR и подмена базы в тестах должны учитываться).
+DB = None
 
 STATUS_OK = "ok"
 STATUS_EMPTY = "нет данных"
@@ -434,7 +436,7 @@ def fetch(dataset_id: str) -> Tuple[List[dict], dict]:
 # Сохранение
 # --------------------------------------------------------------------------- #
 
-def save(records: List[dict], db_path: Path = DB) -> dict:
+def save(records: List[dict], db_path: Path = None) -> dict:
     """
     Пишет записи в stat_series. История не перезаписывается:
       * новый период — вставляется;
@@ -451,7 +453,8 @@ def save(records: List[dict], db_path: Path = DB) -> dict:
     res = {"вставлено": 0, "изменено": 0, "без изменений": 0, "всего": len(records)}
     if not records:
         return res
-    con = sqlite3.connect(str(db_path))
+    # те же настройки соединения, что у сервера: WAL и ожидание блокировки вместо мгновенной ошибки
+    con = db.connect_path(db_path or DB or db.DB_PATH, row_factory=False)
     try:
         cur = con.cursor()
         now = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
@@ -496,7 +499,7 @@ def _same(a, b) -> bool:
     return abs(float(a) - float(b)) < 1e-9
 
 
-def fetch_and_save(dataset_id: str, db_path: Path = DB) -> dict:
+def fetch_and_save(dataset_id: str, db_path: Path = None) -> dict:
     """Загрузить набор и сохранить. Статус источника возвращается всегда."""
     recs, st = fetch(dataset_id)
     st["saved"] = save(recs, db_path) if recs else {"вставлено": 0, "изменено": 0,

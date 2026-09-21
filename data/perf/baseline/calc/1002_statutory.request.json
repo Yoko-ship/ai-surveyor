@@ -1,0 +1,9 @@
+{
+ "product_code": "1002",
+ "class_code": "10",
+ "object_type": "Легковой",
+ "value_amount": 100000000.0,
+ "sum_insured": 100000000.0,
+ "applied_rate_pct": 0.01,
+ "manual_reason": "ставка филиала"
+}

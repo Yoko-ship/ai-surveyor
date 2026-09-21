@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from . import access, db
+from . import access, db, web
 from .auth import current_user, require
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -64,14 +64,24 @@ class AgreementIn(BaseModel):
 
 # ---------- логика ----------
 
-def _notify(hook: str, *args):
+def _notify(hook: str, con, *args):
     """Мягкий хук в Telegram (app/tgbot.py). Бот не загрузился или не подключён — согласование
-    продолжает работать как обычно: уведомление не обязательное звено."""
-    try:
-        from . import tgbot
-        getattr(tgbot, hook)(*args)
-    except Exception as e:                  # ошибка уведомления не отменяет уже принятое решение
-        print("уведомление в Telegram не ушло:", e)
+    продолжает работать как обычно: уведомление не обязательное звено.
+    Хук выполняется ПОСЛЕ сохранения решения, своим соединением: сборка PDF-вложений и отправка
+    (до десятков секунд) не должны держать базу закрытой на запись. Кому и что уходит — как раньше."""
+    def run(c):
+        try:
+            from . import tgbot
+            getattr(tgbot, hook)(c, *args)
+        except Exception as e:              # ошибка уведомления не отменяет уже принятое решение
+            print("уведомление в Telegram не ушло:", e)
+
+    def later():
+        with db.tx() as c:
+            run(c)
+
+    if not (db.holds_write_lock(con) and db.after_commit(con, later)):
+        run(con)
 
 
 def recalc(con, request_id: int, decided_by: Optional[str] = None, comment: Optional[str] = None) -> str:
@@ -412,7 +422,7 @@ def post_agreement(body: AgreementIn, user: dict = Depends(require("админ")
 
 @router.get("/approvals", response_class=HTMLResponse)
 def approvals_page(embed: int = 0):
-    return _page((ROOT / "app" / "approvals.html").read_text(encoding="utf-8"), "/approvals", embed)
+    return _page(web.read_text(ROOT / "app" / "approvals.html"), "/approvals", embed)
 
 
 def _page(html: str, active: str, embed: int) -> str:

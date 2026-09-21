@@ -25,7 +25,7 @@ import threading
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 DIR = Path(__file__).resolve().parent / "i18n"
@@ -273,9 +273,11 @@ def langs():
 
 
 @router.get("/{lang}.json")
-def dictionary(lang: str):
+def dictionary(lang: str, request: Request = None):
     """Словарь целиком — страница забирает его одним запросом при загрузке."""
     if normalize_lang(lang) != lang or lang not in LANGS:
         raise HTTPException(status_code=404,
                             detail=f"Языка «{lang}» нет. Есть: {', '.join(LANGS)}.")
-    return JSONResponse(load(lang), headers={"Cache-Control": f"public, max-age={CACHE_SECONDS}"})
+    # ETag по содержимому: через 5 минут браузер переспросит и получит 304 без тела, если словарь тот же
+    from . import web
+    return web.json_with_etag(request, JSONResponse(load(lang)), f"public, max-age={CACHE_SECONDS}")

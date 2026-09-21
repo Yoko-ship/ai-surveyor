@@ -1,0 +1,16 @@
+{
+ "product_code": "0701",
+ "class_code": "7",
+ "object_type": "Груз",
+ "value_amount": 800000000.0,
+ "sum_insured": 800000000.0,
+ "factors": {
+  "cargo_mode": "auto",
+  "cargo_pack": "container",
+  "cargo_route": "cis",
+  "cargo_transship": "t1",
+  "cargo_nature": "fragile",
+  "loss_history": "clean",
+  "franchise": "f1"
+ }
+}

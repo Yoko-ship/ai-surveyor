@@ -1,0 +1,16 @@
+{
+ "product_code": "0311",
+ "class_code": "3",
+ "object_type": "Легковой",
+ "value_amount": 146100000.0,
+ "sum_insured": 146100000.0,
+ "payer_type": "юр",
+ "factors": {
+  "veh_age": "a3",
+  "veh_type": "car",
+  "antitheft": "alarm",
+  "drivers": "limited",
+  "loss_history": "clean",
+  "franchise": "f1"
+ }
+}

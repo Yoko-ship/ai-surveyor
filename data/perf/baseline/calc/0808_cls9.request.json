@@ -1,0 +1,11 @@
+{
+ "product_code": "0808",
+ "class_code": "9",
+ "object_type": "Производство",
+ "value_amount": 2000000000.0,
+ "sum_insured": 1500000000.0,
+ "factors": {
+  "loss_history": "clean",
+  "franchise": "f1"
+ }
+}

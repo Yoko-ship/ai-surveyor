@@ -210,15 +210,30 @@ async def check(request: Request):
     return None
 
 
+class GuardMiddleware:
+    """
+    Проверка входа как «чистый» ASGI-слой. Раньше был @app.middleware("http") (BaseHTTPMiddleware):
+    он перекладывает каждый ответ через дополнительную очередь и заметно добавляет к каждому запросу.
+    Логика та же — функция check(); пользователь кладётся в scope, обработчик базу второй раз не читает.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        denied = await check(Request(scope, receive))
+        if denied is not None:
+            await denied(scope, receive, send)
+            return
+        await self.app(scope, receive, send)
+
+
 def install(app):
     """Подключает middleware и маршруты первого администратора."""
-    @app.middleware("http")
-    async def guard_middleware(request: Request, call_next):
-        denied = await check(request)
-        if denied is not None:
-            return denied
-        return await call_next(request)
-
+    app.add_middleware(GuardMiddleware)
     app.include_router(router)
 
 

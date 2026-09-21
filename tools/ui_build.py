@@ -95,9 +95,18 @@ def export() -> dict:
     return data
 
 
+# В страницу встраиваем только то, что читает шаблон (D.<ключ>). rules и tariff_versions экран
+# не использует — они остаются в docs/agent_data.json для сверки, но в /ui не уходят (−15 КБ).
+# Пробелы-разделители JSON тоже не нужны браузеру.
+EMBED = ("classes", "products", "class_factors", "coefficients", "base_rates", "perils", "load",
+         "checklists", "financials", "settings")
+
+
 def build(data: dict):
     tpl = TEMPLATE.read_text(encoding="utf-8")
-    OUT.write_text(tpl.replace("__DATA__", json.dumps(data, ensure_ascii=False)), encoding="utf-8")
+    embed = {k: data[k] for k in EMBED if k in data}
+    OUT.write_text(tpl.replace("__DATA__", json.dumps(embed, ensure_ascii=False, separators=(",", ":"))),
+                   encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
 
-from . import db
+from . import background, db, web
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS_DIR = ROOT / "data" / "reports"
@@ -385,13 +385,14 @@ def scheduler():
                 have = con.execute("SELECT 1 FROM daily_reports WHERE report_date=?", (yesterday,)).fetchone()
             if not have and now >= target:
                 make_report()
-        except Exception as e:
-            print("ежедневный доклад:", e)
+            background.ok("daily-report")
+        except Exception as e:                       # поток живёт дальше, ошибка — в журнал
+            background.failed("daily-report", e)
         time.sleep(600)
 
 
 def start_scheduler():
-    threading.Thread(target=scheduler, daemon=True, name="daily-report").start()
+    background.start("daily-report", scheduler)
 
 
 @router.post("/reports/make")
@@ -416,12 +417,12 @@ def report_md(day: str):
 
 @router.get("/reports-page", response_class=HTMLResponse)
 def reports_page(embed: int = 0):
-    return _page((ROOT / "app" / "reports.html").read_text(encoding="utf-8"), "/reports-page", embed)
+    return _page(web.read_text(ROOT / "app" / "reports.html"), "/reports-page", embed)
 
 
 @router.get("/tasks-page", response_class=HTMLResponse)
 def tasks_page(embed: int = 0):
-    return _page((ROOT / "app" / "tasks.html").read_text(encoding="utf-8"), "/tasks-page", embed)
+    return _page(web.read_text(ROOT / "app" / "tasks.html"), "/tasks-page", embed)
 
 
 def _page(html: str, active: str, embed: int) -> str:

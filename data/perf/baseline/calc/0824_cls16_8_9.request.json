@@ -1,0 +1,16 @@
+{
+ "product_code": "0824",
+ "class_code": "8",
+ "object_type": "Магазин",
+ "value_amount": 900000000.0,
+ "sum_insured": 900000000.0,
+ "factors": {
+  "construction": "wood",
+  "activity": "trade",
+  "protection": "none",
+  "seismic": "z9",
+  "wear": "old",
+  "loss_history": "clean",
+  "franchise": "f1"
+ }
+}

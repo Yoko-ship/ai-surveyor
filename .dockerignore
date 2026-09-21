@@ -1,0 +1,36 @@
+# Что НЕ попадает в образ Docker (сборка на Railway, Render, docker compose).
+# Смысл тот же, что у .gitignore и .railwayignore: ни данных людей, ни секретов, ни рабочего мусора.
+# База в образ не кладётся — она собирается при сборке (tools/db_build.py) и живёт на постоянном диске.
+
+.git/
+.github/
+.railway/
+.secrets.env
+.env
+**/__pycache__/
+*.pyc
+*.log
+
+# песочница разработчика: виртуальное окружение, замеры, скриншоты, временные копии базы
+sandbox/
+
+# рабочие данные: база (и её журнал WAL), загрузки, фото, отчёты, копии, замеры скорости
+data/surveyor.db
+data/surveyor.db-wal
+data/surveyor.db-shm
+data/uploads/
+data/photos/
+data/reports/
+data/backups/
+data/perf/
+data/inbox/portfolio/
+
+# внутренние документы компании и извлечённые тексты — только на локальной машине
+library/*
+!library/catalog.json
+!library/КАТАЛОГ.md
+docs/source/
+docs/stat_uz_catalog.json
+
+# тесты в образе не нужны
+tests/

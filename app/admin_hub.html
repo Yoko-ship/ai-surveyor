@@ -121,7 +121,7 @@ var NAV = [
  {id:"people", icon:"◉", short:"Люди", title:"Люди",
   why:"Кто работает в системе, кто ждёт подтверждения и кто когда входил.",
   items:[
-   {id:"users",   title:"Пользователи", why:"Список работников: ФИО, департамент, должность, телефон, способ входа, роль."},
+   {id:"users",   title:"Пользователи", why:"Список работников: ФИО, департамент, должность, телефон, почта, способ входа, роль."},
    {id:"pending", title:"Заявки на вход", why:"Заявки, поданные логином и паролем. Подтверждение открывает доступ."},
    {id:"logins",  title:"Журнал входов", why:"Строки журнала действий, где действие начинается со слова «вход»."}]},
  {id:"requests", icon:"❑", short:"Запросы", title:"Запросы и согласования",
@@ -213,11 +213,20 @@ function frame(src, title) {
 /* ------------------------------------------------------------------ разделы */
 var V = {};
 
+/* Способ входа из ответа /tg/users. Старый сервер поля не отдаёт — прочерк. */
+var LOGIN_METHOD = {telegram: ["telegram", "Telegram"], google: ["google", "Google"],
+  both: ["both", "Telegram и Google"], service: ["service", "Служебный"]};
+function login_method(m) {
+  var x = LOGIN_METHOD[m];
+  if (!x) return "—";
+  return window.T ? window.T("tg.login_method." + x[0], x[1]) : x[1];
+}
+
 /* --- Люди --- */
 V.people_users = async function (el) {
   var d = await api("/tg/users");
   var rows = d.items.map(function (u) {
-    var way = u.telegram ? "Telegram" : "логин и пароль";
+    var way = login_method(u.login_method);
     var mail = u.email || "—";
     var role = '<span class="v ' + (u.is_admin ? "ok" : "dim") + '">' + esc(u.role) + "</span>";
     var st = u.status === "активен" ? "ok" : u.status === "заблокирован" ? "stop" : "warn";
@@ -227,14 +236,13 @@ V.people_users = async function (el) {
         ' <button class="mini danger" data-act="block" data-id="' + u.id + '">Заблокировать</button>'
       : "—";
     return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.department) + "</td><td>" + esc(u.position) +
-      "</td><td>" + esc(u.phone || "—") + "</td><td>" + esc(mail) + "</td><td>" + esc(u.login) + "</td><td>" + way +
+      "</td><td>" + esc(u.phone || "—") + "</td><td>" + esc(mail) + "</td><td>" + esc(u.login) + "</td><td>" + esc(way) +
       "</td><td>" + role + '</td><td><span class="v ' + st + '">' + esc(u.status) + "</span></td><td>" + ctl + "</td></tr>";
   });
   el.innerHTML = '<div class="card"><h3>Работники: ' + d.count + "</h3>" +
-    '<p class="note">Права меняет администратор. Последнего администратора снять нельзя — управлять системой станет некому. ' +
-    'Почта в столбце пустая: точка /tg/users её сейчас не отдаёт — вопрос записан в «Открытые вопросы» (№ 159). ' +
-    'Способ входа показан по отметке Telegram; вход через Google точка тоже не отдаёт.</p>' +
-    tbl(["ФИО", "Департамент", "Должность", "Телефон", "Почта", "Логин", "Способ входа", "Роль", "Статус", ""], rows, "Работников пока нет") +
+    '<p class="note">Права меняет администратор. Последнего администратора снять нельзя — управлять системой станет некому.</p>' +
+    tbl(["ФИО", "Департамент", "Должность", "Телефон", '<span data-i18n="tg.user_email">Почта</span>', "Логин",
+         '<span data-i18n="tg.user_login_method">Вход</span>', "Роль", "Статус", ""], rows, "Работников пока нет") +
     '<div class="msg" id="uMsg"></div></div>';
   el.onclick = async function (e) {
     var b = e.target.closest("button[data-act]"); if (!b) return;

@@ -9,6 +9,7 @@
 Полный цикл (скачать новое → разобрать → загрузить):  python tools/market_stats.py --refresh
 """
 import csv
+import os
 import re
 import sqlite3
 import subprocess
@@ -17,8 +18,25 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DB = ROOT / "data" / "surveyor.db"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+from app import db as appdb  # noqa: E402
+
+# База — та же, что у сервера (app/db.py): с STORAGE_DIR это постоянный диск, без него — data/.
+# Раньше путь был жёстко data/surveyor.db, и на Railway рыночная статистика писалась не в ту базу.
+# DB = None — «как у сервера»; присвоить путь можно явно (tools/perf_check.py пишет в копию).
+DB = None
 PARSED = ROOT / "data" / "parsed"
+STEP_TIMEOUT_SEC = 900            # скачивание и разбор отчётов НАПП: дольше — процесс останавливаем
+
+
+def db_path() -> Path:
+    return Path(DB) if DB else appdb.DB_PATH
+
+
+def _connect():
+    """Соединение с настройками сервера (WAL, ожидание блокировки 5 с), строки — кортежи."""
+    return appdb.connect_path(db_path(), row_factory=False)
 
 # строки отчёта, которым даём устойчивые ключи (остальные получают ключ из названия)
 KEYS = [
@@ -42,7 +60,7 @@ KEYS = [
 # Русские названия классов — из справочника classes в базе (Закон о страховой деятельности)
 def _class_names():
     try:
-        con = sqlite3.connect(DB)
+        con = sqlite3.connect(str(db_path()))
         d = {r[0]: r[1] for r in con.execute("SELECT code, name FROM classes")}
         con.close()
         return d
@@ -271,22 +289,17 @@ COMPANY_SHEETS = (("2.1.csv", r"UMUMIY SUG'URTA MUKOFOTLARI"), ("2.5.csv", None)
 
 
 def build():
-    con = sqlite3.connect(DB)
-    con.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
-    n = 0
+    # Сначала разбираем все CSV в память (без базы), потом пишем одной короткой транзакцией:
+    # раньше блокировка записи держалась всё время разбора, и расчёты в это время ждали.
+    # Порядок операций и итог в таблице — те же, что были.
     warn = []
     now = datetime.now().isoformat(timespec="seconds")
+    first = []
     for sheet in sorted(PARSED.glob("*/1.4.csv")):
         src = sheet.parent.name
         for d, key, ru, prem, pay, liab in load_sheet(sheet):
-            con.execute("INSERT OR REPLACE INTO market_stats VALUES (?,?,?,?,?,?,?,?)",
-                        (d, key, ru, prem, pay, liab, src, now))
-            n += 1
-    # строки, оставшиеся от прежней загрузки под старым названием страховщика
-    for k, (new_key, _) in COMPANY_RENAMES.items():
-        if k != new_key:
-            con.execute("DELETE FROM market_stats WHERE row_key=?", (f"company:{k}",))
-    # разрезы «регионы» и «страховщики»
+            first.append((d, key, ru, prem, pay, liab, src, now))
+    cuts = []
     for folder in sorted(p for p in PARSED.iterdir() if p.is_dir()):
         for prefix, sheets, ru_map, renames in (("region", REGION_SHEETS, RU_REGIONS, None),
                                                 ("company", COMPANY_SHEETS, None, COMPANY_RENAMES)):
@@ -294,17 +307,28 @@ def build():
             for m in missing:
                 warn.append(f"{folder.name}: нет листа {m} — разрез {prefix} неполный")
             for d, key, name, prem, pay, liab in rows:
-                con.execute("INSERT OR REPLACE INTO market_stats VALUES (?,?,?,?,?,?,?,?)",
-                            (d, key, name, prem, pay, liab, folder.name, now))
-                n += 1
+                cuts.append((d, key, name, prem, pay, liab, folder.name, now))
+    con = _connect()
+    try:
+        con.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8"))
+        con.executemany("INSERT OR REPLACE INTO market_stats VALUES (?,?,?,?,?,?,?,?)", first)
+        # строки, оставшиеся от прежней загрузки под старым названием страховщика
+        for k, (new_key, _) in COMPANY_RENAMES.items():
+            if k != new_key:
+                con.execute("DELETE FROM market_stats WHERE row_key=?", (f"company:{k}",))
+        # разрезы «регионы» и «страховщики»
+        con.executemany("INSERT OR REPLACE INTO market_stats VALUES (?,?,?,?,?,?,?,?)", cuts)
+        con.commit()
+        dates = [r[0] for r in con.execute("SELECT DISTINCT report_date FROM market_stats ORDER BY 1")]
+        # число операций INSERT OR REPLACE больше числа строк (срезы пересекаются между отчётами
+        # и перезаписываются), поэтому наружу отдаём фактическое число строк таблицы
+        total = con.execute("SELECT COUNT(*) FROM market_stats").fetchone()[0]
+    finally:
+        con.close()
     for w in warn:
         print("ВНИМАНИЕ:", w)
-    con.commit()
-    dates = [r[0] for r in con.execute("SELECT DISTINCT report_date FROM market_stats ORDER BY 1")]
-    # n — число операций INSERT OR REPLACE (срезы пересекаются между отчётами и
-    # перезаписываются), поэтому наружу отдаём фактическое число строк таблицы
-    total = con.execute("SELECT COUNT(*) FROM market_stats").fetchone()[0]
-    con.close()
+    # рыночный ориентир входит в справочники расчёта — кэш сервера сбрасываем
+    appdb.invalidate_reference()
     return total, dates
 
 
@@ -313,9 +337,12 @@ def refresh():
     py = sys.executable
     log = []
     for script in ("napp_download.py", "inspect_excel.py"):
-        r = subprocess.run([py, str(ROOT / "tools" / script)], capture_output=True, text=True,
-                           env={**__import__("os").environ, "PYTHONIOENCODING": "utf-8"})
-        log.append(f"{script}: {(r.stdout or r.stderr).strip()[-300:]}")
+        try:
+            r = subprocess.run([py, str(ROOT / "tools" / script)], capture_output=True, text=True,
+                               env={**os.environ, "PYTHONIOENCODING": "utf-8"}, timeout=STEP_TIMEOUT_SEC)
+            log.append(f"{script}: {(r.stdout or r.stderr).strip()[-300:]}")
+        except subprocess.TimeoutExpired:
+            log.append(f"{script}: не уложился в {STEP_TIMEOUT_SEC} с — остановлен, берём то, что уже разобрано")
     PARSED.mkdir(parents=True, exist_ok=True)
     n, dates = build()
     if dates:
@@ -364,7 +391,7 @@ def contracts_15():
 
 def osgor_csv():
     """docs/ОСГОР — статистика рынка (НАПП).csv: по срезам, деньги + договоры + убыточность."""
-    con = sqlite3.connect(DB)
+    con = sqlite3.connect(str(db_path()))
     money = {(r[1], r[0]): r[2:] for r in con.execute(
         "SELECT report_date, row_key, premiums_ytd, payouts_ytd, liabilities, source_file "
         "FROM market_stats WHERE row_key IN ('osgor','osgor_annuity')")}

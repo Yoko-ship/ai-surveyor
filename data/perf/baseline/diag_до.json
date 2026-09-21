@@ -1,0 +1,41 @@
+{
+ "label": "до",
+ "source_db": "sandbox\\perf\\baseline.db",
+ "started": "2026-09-21T14:23:58",
+ "machine": {
+  "platform": "Windows-10-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count": 20,
+  "python_client": "3.10.5",
+  "server_python": "C:\\Users\\Max\\ai-surveyor\\sandbox\\.venv\\Scripts\\python.exe",
+  "ram_gb": 31.8,
+  "ram_load_pct": 44
+ },
+ "auth": "session",
+ "port": 8765,
+ "runs": 20,
+ "warmup": 2,
+ "diag": {
+  "pragma": {
+   "journal_mode": "delete",
+   "synchronous": 2,
+   "busy_timeout": 5000,
+   "foreign_keys": 1,
+   "cache_size": -2000,
+   "page_size": 4096,
+   "page_count": 1699,
+   "mmap_size": 0,
+   "temp_store": 0
+  },
+  "db.connect()+close": {
+   "median_ms": 0.15,
+   "p95_ms": 0.16
+  },
+  "load_reference": {
+   "median_ms": 2.59,
+   "p95_ms": 3.26
+  },
+  "market_rates_ms": 0.83
+ },
+ "finished": "2026-09-21T14:23:59"
+}

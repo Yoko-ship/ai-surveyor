@@ -215,13 +215,14 @@ def run():
 def main():
     assert SRC_DB.exists(), "нет data/surveyor.db — выполните python tools/db_build.py"
     tmp = Path(tempfile.mkdtemp(prefix="auth_")) / "surveyor_auth_test.db"
-    shutil.copy(SRC_DB, tmp)
+    db.snapshot(SRC_DB, tmp)          # штатная копия SQLite: учитывает журнал WAL рабочей базы
     original = db.DB_PATH
     db.DB_PATH = tmp
     try:
         run()
     finally:
         db.DB_PATH = original
+        db.close_pool()                 # соединения пула держат файл копии открытым
         shutil.rmtree(tmp.parent, ignore_errors=True)
     print(f"\nВсе проверки пройдены ({len(PASSED)}). Основная база не изменена, временная копия удалена.")
 

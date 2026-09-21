@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
-from . import db, llm
+from . import db, llm, web
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
@@ -241,6 +241,7 @@ def do_restore(body: RestoreIn):
         raise HTTPException(404, str(e))
     if not res["applied"]:
         raise HTTPException(400, res["reason"])
+    db.invalidate_reference()              # справочники в памяти — от прежней базы
     with db.tx() as con:
         db.audit(con, "админ", "восстановление из копии", "backup", {"file": body.file})
     return res
@@ -315,7 +316,7 @@ STUB = """<!doctype html><html lang="ru"><meta charset="utf-8">
 @router.get("/admin/deploy", response_class=HTMLResponse)
 def deploy_page(embed: int = 0):
     """Страницу верстает интерфейсный поток (app/deploy.html); пока её нет — заглушка со ссылками."""
-    html = PAGE.read_text(encoding="utf-8") if PAGE.exists() else STUB
+    html = web.read_text(PAGE) if PAGE.exists() else STUB
     return _page(html, "/admin/deploy", embed)
 
 

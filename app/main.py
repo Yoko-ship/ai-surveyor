@@ -41,9 +41,11 @@ from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from . import access, db
+from . import access, background, db, web
 from .auth import current_user
 from .engine import Input, calculate
+
+web.setup_logging()
 
 ROOT = Path(__file__).resolve().parent.parent
 UPLOADS = db.DATA_DIR / "uploads"
@@ -57,11 +59,12 @@ import market_stats  # noqa: E402  (tools/market_stats.py)
 
 REFRESH_EVERY_SEC = 24 * 3600
 _refresh_state = {"last": None, "log": [], "running": False}
+_refresh_lock = threading.Lock()          # расписание и кнопка «обновить» не запускают разбор дважды
 
 
 def _refresh_job():
     """Агент-статистик: сам проверяет сайт НАПП, забирает новые отчёты и обновляет ряд."""
-    if _refresh_state["running"]:
+    if not _refresh_lock.acquire(blocking=False):
         return
     _refresh_state["running"] = True
     try:
@@ -70,10 +73,13 @@ def _refresh_job():
         with db.tx() as con:
             db.audit(con, "агент-статистик", "обновление рыночной статистики", "market_stats",
                      _refresh_state["log"][-1])
+        background.ok("stats-refresh")
     except Exception as e:  # ошибка сети не должна ронять сервер
         _refresh_state["log"] = [f"ошибка: {e}"]
+        background.failed("stats-refresh", e)
     finally:
         _refresh_state["running"] = False
+        _refresh_lock.release()
 
 
 def _scheduler():
@@ -83,20 +89,45 @@ def _scheduler():
         time.sleep(REFRESH_EVERY_SEC)
 
 
+def _inbox_step():
+    from . import history
+    res = history.auto_import()
+    if res:
+        with db.tx() as con:
+            db.audit(con, "агент-статистик", "автоимпорт выгрузок", "portfolio", res)
+
+
 def _inbox_watcher():
     """Агент-статистик: раз в 10 минут смотрит папку data/inbox/portfolio — новые выгрузки договоров
     импортируются сами и связываются с прошлыми загрузками по номеру договора."""
-    time.sleep(90)
-    while True:
-        try:
-            from . import history
-            res = history.auto_import()
-            if res:
-                with db.tx() as con:
-                    db.audit(con, "агент-статистик", "автоимпорт выгрузок", "portfolio", res)
-        except Exception as e:
-            print("автоимпорт:", e)
-        time.sleep(600)
+    background.run_loop("inbox-watcher", _inbox_step, first_delay=90, every=600)
+
+
+DEMO_SEED_TIMEOUT_SEC = 600
+
+
+def _demo_seed_then_bootstrap():
+    """Демо-данные (только тестовый сервер) — в фоне, чтобы не задерживать старт; с пределом по времени.
+    Код первого администратора — после них, как и раньше: демо-данные могут завести своих людей."""
+    import subprocess
+    try:
+        r = subprocess.run([sys.executable, str(ROOT / "tools" / "demo_seed.py"), "--yes"],
+                           capture_output=True, text=True, timeout=DEMO_SEED_TIMEOUT_SEC,
+                           env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        print("демо-данные:", (r.stdout or r.stderr).strip()[-400:])
+    except subprocess.TimeoutExpired:
+        background.failed("demo-seed", kind="превышено время")
+        print(f"демо-данные: не уложились в {DEMO_SEED_TIMEOUT_SEC} с — процесс остановлен")
+    db.invalidate_reference()             # данные менял другой процесс — справочники перечитать
+    _bootstrap_code()
+
+
+def _bootstrap_code():
+    try:                                   # пустой сервер: код первого администратора — в журнал
+        from . import guard
+        guard.ensure_bootstrap_code()
+    except Exception as e:
+        print("код первого администратора не выдан:", e)
 
 
 @app.on_event("startup")
@@ -105,8 +136,9 @@ def startup():
     db.ensure_schema()
     UPLOADS.mkdir(parents=True, exist_ok=True)
     (db.DATA_DIR / "photos").mkdir(parents=True, exist_ok=True)
-    threading.Thread(target=_scheduler, daemon=True, name="stats-refresh").start()
-    threading.Thread(target=_inbox_watcher, daemon=True, name="inbox-watcher").start()
+    # фоновые потоки: каждый не больше одного, SURVEYOR_NO_BACKGROUND=1 выключает все (тесты, замеры)
+    background.start("stats-refresh", _scheduler)
+    background.start("inbox-watcher", _inbox_watcher)
     from . import team
     team.start_scheduler()
     try:                                   # открытые данные агентства статистики: раз в сутки
@@ -125,16 +157,10 @@ def startup():
             print("бот Telegram: включён запасной режим опроса (TG_POLLING=1)")
     except Exception as e:
         print("опрос Telegram не запущен:", e)
-    if os.environ.get("DEMO_SEED") == "1":  # демо-данные для показа: только тестовый сервер, только PD_MODE=test
-        import subprocess, sys as _sys
-        r = subprocess.run([_sys.executable, str(ROOT / "tools" / "demo_seed.py"), "--yes"],
-                           capture_output=True, text=True, env={**os.environ, "PYTHONIOENCODING": "utf-8"})
-        print("демо-данные:", (r.stdout or r.stderr).strip()[-400:])
-    try:                                   # пустой сервер: код первого администратора — в журнал
-        from . import guard
-        guard.ensure_bootstrap_code()
-    except Exception as e:
-        print("код первого администратора не выдан:", e)
+    # демо-данные для показа: только тестовый сервер, только PD_MODE=test
+    if os.environ.get("DEMO_SEED") == "1" and background.start("demo-seed", _demo_seed_then_bootstrap):
+        return
+    _bootstrap_code()
 
 
 # ---------- модели входа ----------
@@ -211,9 +237,21 @@ def to_input(con, c: CalcIn) -> Input:
 
 @app.get("/health")
 def health():
+    """Проверка живости (Railway, Docker). status и products — как раньше: на них опирается проверка
+    площадки. Дальше — состояние базы, фоновых потоков и даты обновлений; без секретов и данных людей."""
     with db.tx() as con:
         n = con.execute("SELECT COUNT(*) FROM products").fetchone()[0]
-    return {"status": "ok", "products": n}
+        base = {"opens": True, "journal_mode": con.execute("PRAGMA journal_mode").fetchone()[0]}
+        updates = {}
+        for key, sql in (("market_stats", "SELECT MAX(loaded_at) FROM market_stats"),
+                         ("stat_series", "SELECT MAX(fetched_at) FROM stat_series"),
+                         ("lawwatch", "SELECT MAX(last_checked_at) FROM watched_acts")):
+            try:
+                updates[key] = con.execute(sql).fetchone()[0]
+            except Exception:
+                updates[key] = None
+    return {"status": "ok", "products": n, "db": base, "background": background.status(),
+            "updated": updates}
 
 
 REF_SQL = {
@@ -465,7 +503,7 @@ def market_series(row: str = "cls8_9"):
 
 @app.post("/market/refresh")
 def market_refresh():
-    threading.Thread(target=_refresh_job, daemon=True).start()
+    threading.Thread(target=_refresh_job, daemon=True, name="stats-refresh-manual").start()
     return {"started": True, "note": "проверяю сайт НАПП и обновляю ряд; результат — в /market/status"}
 
 
@@ -481,7 +519,7 @@ def market_status():
 
 @app.get("/stats", response_class=HTMLResponse)
 def stats_page(embed: int = 0):
-    return page((ROOT / "app" / "stats.html").read_text(encoding="utf-8"), "/stats", bool(embed))
+    return page(web.read_text(ROOT / "app" / "stats.html"), "/stats", bool(embed))
 
 
 # ---------- офис агентов ----------
@@ -528,7 +566,7 @@ def agents_status():
 
 @app.get("/office", response_class=HTMLResponse)
 def office_page(embed: int = 0):
-    return page((ROOT / "app" / "office.html").read_text(encoding="utf-8"), "/office", bool(embed))
+    return page(web.read_text(ROOT / "app" / "office.html"), "/office", bool(embed))
 
 
 # ---------- ёмкость, резервы, удержание ----------
@@ -610,7 +648,7 @@ def set_solvency(s: SolvencyRow):
 
 @app.get("/capacity-page", response_class=HTMLResponse)
 def capacity_page(embed: int = 0):
-    return page((ROOT / "app" / "capacity.html").read_text(encoding="utf-8"), "/capacity-page", bool(embed))
+    return page(web.read_text(ROOT / "app" / "capacity.html"), "/capacity-page", bool(embed))
 
 
 # ---------- админка ----------
@@ -666,6 +704,7 @@ def add_version(v: TariffVersion):
         cur = con.execute("INSERT INTO tariff_versions (level, name, document_ref, effective_from) VALUES (?,?,?,?)",
                           (v.level, v.name, v.document_ref, v.effective_from))
         db.audit(con, "admin", "новая версия тарифов", f"version:{cur.lastrowid}", v.model_dump())
+        db.reference_changed(con)        # расчёт должен сразу видеть новое значение
         return {"id": cur.lastrowid}
 
 
@@ -675,6 +714,7 @@ def add_min_rate(m: MinRate):
         con.execute("INSERT INTO min_rates (tariff_version_id, product_code, class_code, payer_type, min_rate_pct) VALUES (?,?,?,?,?)",
                     (m.tariff_version_id, m.product_code, m.class_code, m.payer_type, m.min_rate_pct))
         db.audit(con, "admin", "минимальная ставка", m.product_code, m.model_dump())
+        db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True}
 
 
@@ -687,6 +727,7 @@ def add_coefficient(c: Coefficient):
                     " VALUES (?,?,?,?,?,?,?,?)", (c.factor_code, c.factor_name, c.class_code, c.option_code,
                                                  c.option_name, c.multiplier, c.calibrated, c.source))
         db.audit(con, "admin", "коэффициент", f"{c.factor_code}/{c.option_code}", c.model_dump())
+        db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True}
 
 
@@ -702,6 +743,7 @@ def add_product(p: Product):
             con.execute("INSERT INTO min_rates (tariff_version_id, product_code, class_code, payer_type, min_rate_pct) VALUES (?,?,?,?,?)",
                         (p.tariff_version_id, p.code, p.classes[0], None, p.min_rate_pct))
         db.audit(con, "admin", "продукт", p.code, p.model_dump())
+        db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True, "status": "тест — до утверждения виден только андеррайтеру"}
 
 
@@ -711,6 +753,7 @@ def set_financials(f: Financials):
         con.execute("INSERT OR REPLACE INTO company_financials VALUES (?,?,?,?)",
                     (f.report_date, f.own_funds, f.reserves, f.source))
         db.audit(con, "admin", "финансовые показатели", f.report_date, f.model_dump())
+        db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True, "risk_limit": 0.2 * (f.own_funds + f.reserves)}
 
 
@@ -841,32 +884,37 @@ def page(html: str, active: str = "", embed: bool = False) -> str:
 
 
 @app.get("/theme.js")
-def theme_js():
-    from fastapi.responses import Response
-    return Response((ROOT / "app" / "theme.js").read_text(encoding="utf-8"), media_type="application/javascript")
+def theme_js(request: Request):
+    return web.asset_response(request, ROOT / "app" / "theme.js", "application/javascript")
 
 
 @app.get("/i18n.js")
-def i18n_js():
+def i18n_js(request: Request):
     """Словарь интерфейса на странице: выбор языка, подписи по data-i18n, функция T().
     Отдаётся рядом с /theme.js и так же открыт до входа (app/guard.py)."""
-    from fastapi.responses import Response
-    return Response((ROOT / "app" / "i18n.js").read_text(encoding="utf-8"),
-                    media_type="application/javascript")
+    return web.asset_response(request, ROOT / "app" / "i18n.js", "application/javascript")
+
+
+AGENT_UI = ROOT / "docs" / "agent_ui.html"
+
+
+def _ui_page(embed: bool) -> str:
+    html = web.read_text(AGENT_UI)
+    head = ("<!doctype html><html><meta charset='utf-8'>"
+            "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&display=swap'>")
+    bar = "" if embed else sidebar("/ui")
+    return page(head + bar + html + "<script src='/theme.js'></script>", embed=embed)
 
 
 @app.get("/ui", response_class=HTMLResponse)
 def ui(embed: int = 0):
-    html = (ROOT / "docs" / "agent_ui.html").read_text(encoding="utf-8")
-    head = ("<!doctype html><html><meta charset='utf-8'>"
-            "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&display=swap'>")
-    bar = "" if embed else sidebar("/ui")
-    return page(head + bar + html + "<script src='/theme.js'></script>", embed=bool(embed))
+    # склейка страницы (300 КБ) — одна на версию файла, а не на каждый запрос
+    return web.build(("ui", bool(embed)), [AGENT_UI], lambda: _ui_page(bool(embed)))
 
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin():
-    html = (ROOT / "app" / "admin.html").read_text(encoding="utf-8")
+    html = web.read_text(ROOT / "app" / "admin.html")
     return html.replace("<div class=\"wrap\">", sidebar("/admin") + "<div class=\"wrap\">", 1)
 
 
@@ -880,7 +928,7 @@ def admin_hub():
     Файл верстает дизайнер; пока его нет — понятная 404, сервер поднимается как обычно."""
     if not ADMIN_HUB.exists():
         raise HTTPException(404, "страница app/admin_hub.html ещё не сделана")
-    return page(ADMIN_HUB.read_text(encoding="utf-8"), "/admin/hub")
+    return page(web.read_text(ADMIN_HUB), "/admin/hub")
 
 
 @app.get("/graph", response_class=HTMLResponse)
@@ -891,7 +939,7 @@ def graph(embed: int = 0):
     единой админки) убираем только ссылку «← к приложению»: внутри рамки она уводила бы
     пользователя из админки прямо в окне раздела.
     """
-    html = (ROOT / "docs" / "tariff_web.html").read_text(encoding="utf-8")
+    html = web.read_text(ROOT / "docs" / "tariff_web.html")
     back = ('<a href="/stats" style="position:fixed;right:16px;bottom:14px;z-index:9;font:600 13px Manrope,system-ui;'
             'color:#2ED3A2;text-decoration:none;background:#161C21;border:1px solid #26303A;border-radius:999px;padding:7px 13px">← к приложению</a>')
     return "<!doctype html><meta charset='utf-8'>" + html + ("" if embed else back)
@@ -929,6 +977,21 @@ from . import guard  # noqa: E402
 
 guard.install(app)
 
+# Слои поверх guard (последний добавленный — внешний):
+#   сжатие gzip — страницы 60–300 КБ уходят в 4–5 раз меньше (важно для мини-аппа в мобильной сети);
+#   PDF, XLSX, ZIP и картинки не сжимаем: они уже сжаты, только потратим время;
+#   Cache-Control: no-store по умолчанию; единый ответ на необработанную ошибку.
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware  # noqa: E402
+
+GZIP_SKIP = DEFAULT_EXCLUDED_CONTENT_TYPES + (
+    "application/pdf", "application/octet-stream", "image/*",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+app.add_middleware(web.CacheControlMiddleware)
+app.add_middleware(web.PageGzipCache, compresslevel=6)     # страницы сжимаются один раз на версию файла
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6, exclude_content_types=GZIP_SKIP)
+app.add_middleware(web.ErrorMiddleware)
+
 
 @app.get("/accumulation")
 def accumulation():
@@ -949,4 +1012,4 @@ def accumulation():
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return (ROOT / "app" / "home.html").read_text(encoding="utf-8").replace("<!--SIDEBAR-->", sidebar("/"))
+    return web.read_text(ROOT / "app" / "home.html").replace("<!--SIDEBAR-->", sidebar("/"))

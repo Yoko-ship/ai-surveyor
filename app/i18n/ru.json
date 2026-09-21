@@ -3,7 +3,7 @@
     "lang": "ru",
     "note": "Русский — исходный язык интерфейса.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 654
+    "keys": 660
   },
   "calc.address": "Адрес объекта",
   "calc.address_hint": "местонахождение из кадастра; площадки ищут по городу и району",
@@ -590,6 +590,10 @@
   "tg.login_failed": "Вход через Telegram не выполнен: {reason}",
   "tg.login_field": "Логин",
   "tg.login_hint": "Telegram не открыт — входим по логину и паролю, как на рабочем компьютере.",
+  "tg.login_method.both": "Telegram и Google",
+  "tg.login_method.google": "Google",
+  "tg.login_method.service": "Служебный",
+  "tg.login_method.telegram": "Telegram",
   "tg.mode": "Режим",
   "tg.nav.admin": "Админка",
   "tg.nav.agreements": "Соглашения",
@@ -650,6 +654,8 @@
   "tg.title": "Сюрвейер INSON",
   "tg.transfer_hint": "Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.",
   "tg.transfer_title": "Перенос и копии",
+  "tg.user_email": "Почта",
+  "tg.user_login_method": "Вход",
   "tg.users_hint": "Заблокированные остаются в базе — так сохраняется история их решений.",
   "tg.users_total": "Всего людей: {n}",
   "tg.waiting_confirm": "Заявка ждёт подтверждения",

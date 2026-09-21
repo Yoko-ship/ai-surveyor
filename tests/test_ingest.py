@@ -36,7 +36,7 @@ def _sandbox():
     """Временная копия базы и отдельная папка файлов: рабочая база остаётся нетронутой."""
     src = db.DB_PATH
     dst = TMP / "surveyor.db"
-    shutil.copy2(src, dst)
+    db.snapshot(src, dst)               # штатная копия SQLite: учитывает журнал WAL рабочей базы
     db.DB_PATH = dst
     db.DATA_DIR = TMP
     from app import ingest, photos
@@ -1274,6 +1274,7 @@ def test_date_all_six_writings():
 
 
 def cleanup():
+    db.close_pool()                     # соединения пула держат файл копии открытым
     shutil.rmtree(TMP, ignore_errors=True)
     print("временная база и файлы удалены (рабочая база не менялась)")
 

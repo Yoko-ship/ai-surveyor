@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 654
+    "keys": 660
   },
   "calc.address": "Address of the object",
   "calc.address_hint": "location from the cadastre; marketplaces search by city and district",
@@ -590,6 +590,10 @@
   "tg.login_failed": "Sign-in through Telegram failed: {reason}",
   "tg.login_field": "Login",
   "tg.login_hint": "Telegram is not open — sign in with a login and password, as on a work computer.",
+  "tg.login_method.both": "Telegram and Google",
+  "tg.login_method.google": "Google",
+  "tg.login_method.service": "Service",
+  "tg.login_method.telegram": "Telegram",
   "tg.mode": "Mode",
   "tg.nav.admin": "Admin panel",
   "tg.nav.agreements": "Agreements",
@@ -650,6 +654,8 @@
   "tg.title": "INSON surveyor",
   "tg.transfer_hint": "Server state, backups and the migration checklist are on a separate page.",
   "tg.transfer_title": "Migration and backups",
+  "tg.user_email": "Email",
+  "tg.user_login_method": "Sign-in",
   "tg.users_hint": "Blocked people stay in the database so the history of their decisions is kept.",
   "tg.users_total": "People in total: {n}",
   "tg.waiting_confirm": "The application is awaiting confirmation",

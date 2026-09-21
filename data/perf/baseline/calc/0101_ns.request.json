@@ -1,0 +1,11 @@
+{
+ "product_code": "0101",
+ "class_code": "1",
+ "object_type": "Человек",
+ "value_amount": 50000000.0,
+ "sum_insured": 50000000.0,
+ "factors": {
+  "loss_history": "clean",
+  "franchise": "f0"
+ }
+}

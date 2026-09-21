@@ -51,7 +51,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from . import db
+from . import db, web
 
 ROOT = Path(__file__).resolve().parent.parent
 router = APIRouter()
@@ -65,6 +65,7 @@ STATUS_PENDING, STATUS_ACTIVE, STATUS_BLOCKED = "ожидает подтверж
 
 PBKDF2_ITERATIONS = 200_000
 SESSION_HOURS = 12
+SESSION_EXTEND_EVERY_SEC = 60        # продление сессии пишется в базу не чаще раза в минуту
 CODE_MINUTES = 5
 CODE_MAX_ATTEMPTS = 5
 COOKIE = "sid"
@@ -345,8 +346,11 @@ def session_user(con, token: Optional[str], extend: bool = True) -> Optional[dic
     if not u:
         return None
     if extend:
-        con.execute("UPDATE sessions SET expires_at=? WHERE token=?",
-                    (_ts(datetime.now() + timedelta(hours=SESSION_HOURS)), token))
+        # продлеваем не чаще раза в минуту: запись в базу на каждое обращение выстраивала
+        # параллельные запросы в очередь. Срок сессии от этого короче не более чем на минуту.
+        new_exp = datetime.now() + timedelta(hours=SESSION_HOURS)
+        if s["expires_at"] < _ts(new_exp - timedelta(seconds=SESSION_EXTEND_EVERY_SEC)):
+            con.execute("UPDATE sessions SET expires_at=? WHERE token=?", (_ts(new_exp), token))
     return u[0]
 
 
@@ -511,4 +515,4 @@ def me(user: dict = Depends(current_user)):
 
 @router.get("/login", response_class=HTMLResponse)
 def login_page():
-    return (ROOT / "app" / "login.html").read_text(encoding="utf-8")
+    return web.read_text(ROOT / "app" / "login.html")

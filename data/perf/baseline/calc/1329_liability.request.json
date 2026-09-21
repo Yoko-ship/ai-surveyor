@@ -1,0 +1,14 @@
+{
+ "product_code": "1329",
+ "class_code": "13",
+ "object_type": "Общегражданская ответственность",
+ "value_amount": 500000000.0,
+ "sum_insured": 500000000.0,
+ "factors": {
+  "liab_activity": "trade",
+  "liab_turnover": "t10",
+  "liab_claims": "clean",
+  "liab_limit": "l1000",
+  "franchise": "f1"
+ }
+}

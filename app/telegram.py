@@ -32,7 +32,7 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from . import auth, db, llm
+from . import auth, db, llm, web
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
@@ -215,5 +215,5 @@ STUB = """<!doctype html><html lang="ru"><meta charset="utf-8">
 def tg_page():
     """Страницу делает интерфейсный поток (app/tg.html); пока её нет — понятная заглушка."""
     if TG_PAGE.exists():
-        return TG_PAGE.read_text(encoding="utf-8")
+        return web.read_text(TG_PAGE)
     return STUB

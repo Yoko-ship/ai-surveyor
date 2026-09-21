@@ -1,0 +1,62 @@
+{
+ "label": "после",
+ "source_db": "sandbox\\perf\\baseline.db",
+ "started": "2026-09-21T14:47:46",
+ "machine": {
+  "platform": "Windows-10-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count": 20,
+  "python_client": "3.10.5",
+  "server_python": "C:\\Users\\Max\\ai-surveyor\\sandbox\\.venv\\Scripts\\python.exe",
+  "ram_gb": 31.8,
+  "ram_load_pct": 45
+ },
+ "auth": "session",
+ "port": 8765,
+ "runs": 20,
+ "warmup": 2,
+ "db": {
+  "size_bytes": 6959104,
+  "requests": 2,
+  "calculations": 2,
+  "audit": 768,
+  "market_stats": 744,
+  "stat_series": 16179,
+  "valuations": 2,
+  "sessions": 1,
+  "users": 1
+ },
+ "copy_sec": 0.07,
+ "startup_sec": 1.05,
+ "load": {
+  "waves": 5,
+  "parallel": 20,
+  "requests": 100,
+  "ok": 100,
+  "errors": 0,
+  "status_codes": [
+   200
+  ],
+  "database_is_locked_in_server_log": 0,
+  "database_is_locked_in_responses": 0,
+  "tracebacks_in_server_log": 0,
+  "median_ms": 22.0,
+  "p95_ms": 350.4,
+  "max_ms": 353.4,
+  "wall_sec": 0.46,
+  "rps": 216.1,
+  "writer": {
+   "market_stats_builds": 1,
+   "build_ms": [
+    92
+   ],
+   "audit_writes": 10,
+   "errors": [],
+   "errors_total": 0,
+   "locked_errors": 0
+  }
+ },
+ "net_blocked": 0,
+ "server_tracebacks": 0,
+ "finished": "2026-09-21T14:47:50"
+}

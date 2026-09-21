@@ -5,11 +5,16 @@
 Из сервера: POST /deploy/backup (страница /admin/deploy).
 
 Что попадает в архив: data/surveyor.db (снимок через SQLite backup — копия целостна даже
-во время работы сервера), а также data/uploads, data/photos, data/reports, data/inbox, data/parsed.
+во время работы сервера и в режиме WAL, когда часть данных ещё в файле surveyor.db-wal),
+а также data/uploads, data/photos, data/reports, data/inbox, data/parsed.
 Сами архивы (data/backups) в копию не кладём.
 
-Имя файла: data/backups/surveyor-ГГГГ-ММ-ДД-ЧЧММ.zip
+Папка данных — та же, что у сервера: STORAGE_DIR (постоянный диск на Railway) или data/ проекта.
+В архиве пути всегда вида data/..., поэтому копию с сервера можно развернуть локально и наоборот.
+
+Имя файла: <папка данных>/backups/surveyor-ГГГГ-ММ-ДД-ЧЧММ.zip
 """
+import os
 import shutil
 import sqlite3
 import sys
@@ -19,7 +24,8 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
+# как в app/db.py: без этого на Railway копировалась бы база из образа, а не с постоянного диска
+DATA = Path(os.environ["STORAGE_DIR"]) if os.environ.get("STORAGE_DIR") else ROOT / "data"
 DB = DATA / "surveyor.db"
 BACKUPS = DATA / "backups"
 
@@ -33,7 +39,8 @@ def db_snapshot(dest: Path) -> bool:
     """Целостный снимок базы: у SQLite для этого есть собственный механизм backup."""
     if not DB.exists():
         return False
-    src = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
+    # не mode=ro: база в режиме WAL на чтение открывается только при наличии файла -shm
+    src = sqlite3.connect(str(DB), timeout=10)
     try:
         out = sqlite3.connect(dest)
         with out:
@@ -44,10 +51,25 @@ def db_snapshot(dest: Path) -> bool:
     return True
 
 
+def arcname(f: Path, root: Path = None) -> str:
+    """Путь внутри архива: всегда data/<путь от папки данных>."""
+    return "data/" + str(f.relative_to(root or DATA)).replace("\\", "/")
+
+
+def folder_root(folder: str) -> Path:
+    """Где лежит папка: на постоянном диске (фото, загрузки) или в data/ проекта (отчёты НАПП —
+    их кладут скрипты tools/ рядом с кодом)."""
+    return DATA if (DATA / folder).exists() else ROOT / "data"
+
+
 def make(note: str = "") -> dict:
     BACKUPS.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y-%m-%d-%H%M")
     archive = BACKUPS / f"surveyor-{stamp}.zip"
+    n = 2
+    while archive.exists():            # вторая копия в ту же минуту (например, «перед восстановлением»)
+        archive = BACKUPS / f"surveyor-{stamp}-{n}.zip"   # не должна затирать первую
+        n += 1
     n, skipped = 0, []
     tmp = Path(tempfile.mkdtemp(prefix="bkp_"))
     try:
@@ -58,16 +80,18 @@ def make(note: str = "") -> dict:
                 z.write(snap, "data/surveyor.db")
                 n += 1
             for folder in FOLDERS:
-                base = DATA / folder
+                root = folder_root(folder)
+                base = root / folder
                 if not base.exists() or folder in SKIP:
                     continue
                 for f in base.rglob("*"):
                     if not f.is_file():
                         continue
+                    name = arcname(f, root)
                     if f.stat().st_size > MAX_FILE_MB * 1024 * 1024:
-                        skipped.append(str(f.relative_to(ROOT)))
+                        skipped.append(name)
                         continue
-                    z.write(f, str(f.relative_to(ROOT)).replace("\\", "/"))
+                    z.write(f, name)
                     n += 1
             z.writestr("КОПИЯ.txt", f"Резервная копия ИИ-сюрвейера INSON\nсоздана: {datetime.now():%d.%m.%Y %H:%M}\n"
                                     f"файлов: {n}\nпримечание: {note or '—'}\n"

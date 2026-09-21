@@ -37,7 +37,7 @@ from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
-from . import db
+from . import background, db
 from . import stat_sources as ss
 
 router = APIRouter()
@@ -691,8 +691,10 @@ def _refresh_job():
     try:
         refresh()
         _state["error"] = None
+        background.ok("stat-agency-refresh")
     except Exception as e:                           # ошибка не должна ронять поток и сервер
         _state["error"] = "%s: %s" % (type(e).__name__, e)
+        background.failed("stat-agency-refresh", e)
     finally:
         _state["running"] = False
 
@@ -705,7 +707,7 @@ def _scheduler():
 
 
 def start_scheduler():
-    threading.Thread(target=_scheduler, daemon=True, name="stat-agency-refresh").start()
+    background.start("stat-agency-refresh", _scheduler)
 
 
 def last_statuses() -> dict:

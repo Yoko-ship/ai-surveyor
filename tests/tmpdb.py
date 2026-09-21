@@ -29,11 +29,12 @@ def temp_db(name: str = "surveyor-test.db"):
     """Подменяет db.DB_PATH копией рабочей базы. Возвращает путь к копии."""
     folder = Path(tempfile.mkdtemp(prefix="surveyor-test-"))
     copy = folder / name
-    shutil.copy2(db.DB_PATH, copy)
+    db.snapshot(db.DB_PATH, copy)       # штатная копия SQLite: учитывает журнал WAL рабочей базы
     original = db.DB_PATH
     db.DB_PATH = copy
     try:
         yield copy
     finally:
         db.DB_PATH = original
+        db.close_pool()                 # соединения пула держат файл копии открытым
         shutil.rmtree(folder, ignore_errors=True)

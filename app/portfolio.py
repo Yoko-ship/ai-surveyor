@@ -24,7 +24,7 @@ import openpyxl
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse
 
-from . import db
+from . import db, web
 from .engine import Input, calculate, premium_of
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -456,7 +456,7 @@ def portfolio_summary(bid: int):
 
 @router.get("/portfolio", response_class=HTMLResponse)
 def portfolio_page(embed: int = 0):
-    return _page((ROOT / "app" / "portfolio.html").read_text(encoding="utf-8"), "/portfolio", embed)
+    return _page(web.read_text(ROOT / "app" / "portfolio.html"), "/portfolio", embed)
 
 
 def _page(html: str, active: str, embed: int) -> str:

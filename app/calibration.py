@@ -28,7 +28,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from . import db
+from . import db, web
 from .engine import FACTORS
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -417,6 +417,7 @@ def approve(con, run_id: int, who: str) -> dict:
                 (who, db.now(), run_id))
     db.audit(con, who, "калибровка утверждена", f"calibration_run:{run_id}",
              {"tariff_version_id": version_id, **changed, "items": len(items)})
+    db.reference_changed(con)          # новые ставки и коэффициенты — в расчёт сразу, без ожидания кэша
     return {"ok": True, "run_id": run_id, "tariff_version_id": version_id, **changed}
 
 
@@ -535,7 +536,7 @@ def list_claims(status: Optional[str] = None, limit: int = 200):
 
 @router.get("/calibration", response_class=HTMLResponse)
 def calibration_page(embed: int = 0):
-    return _page((ROOT / "app" / "calibration.html").read_text(encoding="utf-8"), "/calibration", embed)
+    return _page(web.read_text(ROOT / "app" / "calibration.html"), "/calibration", embed)
 
 
 def _page(html: str, active: str, embed: int) -> str:

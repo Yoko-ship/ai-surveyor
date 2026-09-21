@@ -165,6 +165,8 @@ CREATE TABLE IF NOT EXISTS market_stats (
     loaded_at     TEXT NOT NULL,
     PRIMARY KEY (report_date, row_key)
 );
+-- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
+CREATE INDEX IF NOT EXISTS ix_market_stats_row ON market_stats(row_key, report_date); -- ряд и последний срез
 
 -- Отчётность по резервам (Положение 1882): на отчётную дату, по учётной группе или виду
 CREATE TABLE IF NOT EXISTS reserve_reports (
@@ -306,6 +308,7 @@ CREATE TABLE IF NOT EXISTS audit (
     entity   TEXT,
     detail   TEXT
 );
+CREATE INDEX IF NOT EXISTS ix_audit_ts ON audit(ts);                               -- журнал за сутки (доклад)
 
 -- ============ ПОРТФЕЛЬНЫЙ АУДИТ ============
 -- Загрузка выгрузки договоров из учётной системы и массовая проверка движком (app/portfolio.py)
@@ -436,6 +439,9 @@ CREATE INDEX IF NOT EXISTS ix_login_codes_user ON login_codes(user_id);
 -- кто входит по паролю или через Telegram, уникальности не мешает.
 -- Синтаксис общий для SQLite и PostgreSQL.
 CREATE UNIQUE INDEX IF NOT EXISTS ux_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL;
+-- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
+CREATE INDEX IF NOT EXISTS ix_users_telegram ON users(telegram_id);                -- вход из Telegram, бот
+CREATE INDEX IF NOT EXISTS ix_users_phone ON users(phone);                         -- регистрация по телефону
 
 -- ---------------------------------------------------------------------------
 -- Вход через Google (app/google_auth.py, OAuth 2.0 + PKCE).
@@ -473,6 +479,15 @@ CREATE INDEX IF NOT EXISTS ix_requests_created ON requests(created_at);
 CREATE INDEX IF NOT EXISTS ix_calc_request ON calculations(request_id);
 CREATE INDEX IF NOT EXISTS ix_objects_request ON objects(request_id);
 CREATE INDEX IF NOT EXISTS ix_perils_class ON perils(class_code);
+-- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
+CREATE INDEX IF NOT EXISTS ix_requests_status ON requests(status);                 -- список запросов по статусу
+CREATE INDEX IF NOT EXISTS ix_requests_branch ON requests(branch);                 -- ... по филиалу
+CREATE INDEX IF NOT EXISTS ix_requests_agent ON requests(agent_id);                -- «свои» запросы агента
+CREATE INDEX IF NOT EXISTS ix_requests_author ON requests(created_by_user_id);     -- «свои» запросы автора
+CREATE INDEX IF NOT EXISTS ix_requests_approval ON requests(approval_status);      -- ждут согласования
+CREATE INDEX IF NOT EXISTS ix_check_results_calc ON check_results(calculation_id); -- карточка запроса
+CREATE INDEX IF NOT EXISTS ix_recommendations_calc ON recommendations(calculation_id);
+CREATE INDEX IF NOT EXISTS ix_documents_request ON documents(request_id);
 
 -- ============ ДЕЛЕГИРОВАНИЕ И ОТЧЁТЫ ============
 
@@ -655,6 +670,8 @@ CREATE TABLE IF NOT EXISTS stat_series_revisions (
 CREATE INDEX IF NOT EXISTS ix_stat_series_dataset ON stat_series(dataset_id, region, period);
 CREATE INDEX IF NOT EXISTS ix_stat_series_period  ON stat_series(period);
 CREATE INDEX IF NOT EXISTS ix_stat_revisions_key  ON stat_series_revisions(dataset_id, region, period);
+-- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
+CREATE INDEX IF NOT EXISTS ix_stat_series_fetched ON stat_series(fetched_at);      -- что обновилось за сутки
 
 -- ---------------------------------------------------------------------------
 -- Коллективное согласование запросов (несколько человек на один запрос).
@@ -950,6 +967,8 @@ CREATE TABLE IF NOT EXISTS document_extracts (
 
 CREATE INDEX IF NOT EXISTS ix_document_extracts_request ON document_extracts(request_id, id);
 CREATE INDEX IF NOT EXISTS ix_document_extracts_kind ON document_extracts(kind, id);
+-- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
+CREATE INDEX IF NOT EXISTS ix_document_extracts_photo ON document_extracts(photo_id); -- удаление фото (каскад)
 
 -- ============ ОСГОР: КЛАССИФИКАЦИЯ ВИДОВ ДЕЯТЕЛЬНОСТИ ============
 -- Классификация видов деятельности работодателя и коэффициенты страховых тарифов (КСТ).

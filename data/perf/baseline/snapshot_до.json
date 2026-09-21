@@ -1,0 +1,131 @@
+{
+ "label": "до",
+ "source_db": "sandbox\\perf\\baseline.db",
+ "started": "2026-09-21T14:23:10",
+ "machine": {
+  "platform": "Windows-10-10.0.26200-SP0",
+  "processor": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+  "cpu_count": 20,
+  "python_client": "3.10.5",
+  "server_python": "C:\\Users\\Max\\ai-surveyor\\sandbox\\.venv\\Scripts\\python.exe",
+  "ram_gb": 31.8,
+  "ram_load_pct": 44
+ },
+ "auth": "session",
+ "port": 8765,
+ "runs": 20,
+ "warmup": 2,
+ "db": {
+  "size_bytes": 6959104,
+  "requests": 2,
+  "calculations": 2,
+  "audit": 768,
+  "market_stats": 744,
+  "stat_series": 16179,
+  "valuations": 2,
+  "sessions": 1,
+  "users": 1
+ },
+ "copy_sec": 0.04,
+ "startup_sec": 1.05,
+ "snapshot": {
+  "created": "2026-09-21T14:23:12",
+  "products": [
+   {
+    "name": "0807_sklad",
+    "status": 200,
+    "bytes": 9439,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "0311_kasko",
+    "status": 200,
+    "bytes": 6955,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "1404_credit",
+    "status": 200,
+    "bytes": 6533,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "1323_osgor",
+    "status": 200,
+    "bytes": 7336,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "0808_cls9",
+    "status": 200,
+    "bytes": 7038,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "0824_cls16_8_9",
+    "status": 200,
+    "bytes": 10199,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "0701_cargo",
+    "status": 200,
+    "bytes": 6535,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "1329_liability",
+    "status": 200,
+    "bytes": 6490,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "0101_ns",
+    "status": 200,
+    "bytes": 6657,
+    "same_bytes_twice": true
+   },
+   {
+    "name": "1002_statutory",
+    "status": 200,
+    "bytes": 7888,
+    "same_bytes_twice": true
+   }
+  ],
+  "unstable_between_runs": {},
+  "data_dependent": {
+   "market.*": "рыночный ориентир НАПП: последний срез market_stats (обновляет агент-статистик)",
+   "checks.risk_limit_20.detail": "предел 20% на риск и дата отчётности — последняя строка company_financials",
+   "probability.stat.*": "поправка по накопленным решениям: decision_outcomes растёт с каждым решением"
+  },
+  "date_dependent": [
+   "rates.min_pct",
+   "rates.min_source",
+   "rates.applied_pct",
+   "premium",
+   "verdict"
+  ],
+  "today": "2026-09-21",
+  "source_db": "sandbox\\perf\\baseline.db",
+  "data_fingerprint": {
+   "products": "d3546ed759edfc19",
+   "product_classes": "037228737253413b",
+   "base_rates": "022f69bb56ad3c7f",
+   "coefficients": "28af01557cc8aea9",
+   "perils": "94c11d0b151b7c96",
+   "load_components": "5d244e5bb4cb43a8",
+   "min_rates": "12397cfe3397505a",
+   "tariff_versions": "68b02f9a27dbbf9b",
+   "checklists": "c2d10ebdbb04bc6b",
+   "company_financials": "d38410b4464c2b3f",
+   "preventive_measures": "9983140f9745e548",
+   "market_stats": "4868ab7ce0793b24",
+   "rules": "a7c51df7cfd9eb84",
+   "decision_outcomes": "e3b0c44298fc1c14",
+   "valuations": "de86a6ff10fe4584"
+  }
+ },
+ "net_blocked": 0,
+ "server_tracebacks": 0,
+ "finished": "2026-09-21T14:23:12"
+}

@@ -222,7 +222,7 @@ def check_bootstrap_empty():
     import shutil
     import tempfile
     tmp = Path(tempfile.mkdtemp()) / "surveyor-guard.db"
-    shutil.copy2(db.ROOT / "data" / "surveyor.db", tmp)
+    db.snapshot(db.ROOT / "data" / "surveyor.db", tmp)   # штатная копия SQLite: учитывает WAL
     original = db.DB_PATH
     db.DB_PATH = tmp
     # проверяем именно пустой сервер: файлы .env / .secrets.env администратора и окружение
@@ -257,6 +257,7 @@ def check_bootstrap_empty():
         ok("код одноразовый: после использования не работает", st == 403)
     finally:
         db.DB_PATH = original
+        db.close_pool()                 # соединения пула держат файл копии открытым
         llm.ENV_FILES = env_files
         if env_code is not None:
             os.environ["ADMIN_BOOTSTRAP_CODE"] = env_code

@@ -39,7 +39,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from . import approvals, auth, db, llm, outcomes
+from . import approvals, auth, background, db, llm, outcomes
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
@@ -259,15 +259,42 @@ def app_link(request_id=None) -> str:
     return base + "/tg" + (f"?request={request_id}" if request_id else "")
 
 
+def _defer(con, job) -> bool:
+    """
+    Идёт пишущая транзакция (своя con или внешняя db.tx() этого потока) — отправку откладываем
+    до её фиксации. Иначе база заперта на запись всё время сетевого вызова (до 25 с с повторами),
+    и параллельные запросы получают «database is locked». Кому и что уходит — не меняется.
+    """
+    for c in (con, db.current_tx()):
+        if c is not None and db.holds_write_lock(c) and db.after_commit(c, job):
+            return True
+    return False
+
+
+def _journal_con(con):
+    """Журнал отправки пишем своим коротким соединением, если у con нет открытой транзакции:
+    иначе запись журнала сама откроет транзакцию в con и следующие отправки уйдут «после фиксации»."""
+    if con is not None and hasattr(con, "after_commit_jobs") and not db.holds_write_lock(con):
+        return None
+    return con
+
+
+DEFERRED = {"ok": True, "deferred": True, "reason": "отправка после сохранения"}
+
+
 def send(chat_id, text: str, keyboard: Optional[dict] = None, kind: str = "уведомление",
          con=None, user_id: Optional[int] = None, request_id: Optional[int] = None) -> dict:
     """
     Единая отправка сообщения. Повтор при ошибке — не больше трёх попыток, пауза удваивается;
     при 429 ждём retry_after от Telegram. Без токена ничего не отправляет и честно говорит об этом.
+    Внутри пишущей транзакции отправка откладывается до её фиксации (_defer).
     """
     if not connected():
         _journal_out(con, chat_id, user_id, request_id, kind, False, NOT_CONNECTED)
         return {"ok": False, "reason": NOT_CONNECTED}
+    if _defer(con, lambda: send(chat_id, text, keyboard, kind, None, user_id, request_id)):
+        return dict(DEFERRED)
+    con = _journal_con(con)
     payload = {"chat_id": chat_id, "text": text, "disable_web_page_preview": True}
     if keyboard:
         payload["reply_markup"] = keyboard
@@ -333,6 +360,9 @@ def send_file(chat_id, filename: str, blob: bytes, mime: str, caption: str = "",
     if not connected():
         _journal_out(con, chat_id, user_id, request_id, kind, False, NOT_CONNECTED)
         return {"ok": False, "reason": NOT_CONNECTED}
+    if _defer(con, lambda: send_file(chat_id, filename, blob, mime, caption, kind, None, user_id, request_id)):
+        return dict(DEFERRED)
+    con = _journal_con(con)
     method, field = ("sendPhoto", "photo") if str(mime).startswith("image/") else ("sendDocument", "document")
     fields = {"chat_id": str(chat_id)}
     if caption:
@@ -395,6 +425,9 @@ def edit_card(con, chat_id, message_id, text: str) -> dict:
     """Обновляет уже отправленную карточку: кнопки убираются, видно, кто и что решил."""
     if not connected() or not message_id:
         return {"ok": False, "reason": NOT_CONNECTED}
+    if _defer(con, lambda: edit_card(None, chat_id, message_id, text)):
+        return dict(DEFERRED)
+    con = _journal_con(con)
     res = _deliver("editMessageText", {"chat_id": chat_id, "message_id": message_id, "text": text,
                                        "disable_web_page_preview": True})
     if not res.get("ok"):
@@ -404,6 +437,8 @@ def edit_card(con, chat_id, message_id, text: str) -> dict:
 
 def answer_callback(callback_id: str, text: str = ""):
     if connected() and callback_id:
+        if _defer(None, lambda: answer_callback(callback_id, text)):
+            return
         _deliver("answerCallbackQuery", {"callback_query_id": callback_id, "text": text[:190]})
 
 
@@ -946,8 +981,10 @@ def poll_loop():
                 _poll_state["running"] = False
                 return
             poll_once()
+            background.ok("tg-polling")
         except Exception as e:
             _poll_state["last_error"] = str(e)[:200]
+            background.failed("tg-polling", e)
             time.sleep(10)
 
 
@@ -955,8 +992,7 @@ def start_polling():
     """Вызывается из app/main.py на старте. Без токена или без флага поток не создаётся вовсе."""
     if not connected() or not polling_enabled() or _poll_state["running"]:
         return False
-    threading.Thread(target=poll_loop, daemon=True, name="tg-polling").start()
-    return True
+    return background.start("tg-polling", poll_loop)
 
 
 # --------------------------------------------------------------------------- #

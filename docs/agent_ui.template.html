@@ -1298,10 +1298,14 @@ async function loadReviewers(){
   const R = S.rev;
   if (R.loaded) return;
   R.loaded = true;
-  try { R.users = await (await fetch("/auth/colleagues")).json(); }
-  catch (e){ R.users = []; R.error = "Список работников не загрузился — сервер не ответил."; }
-  try { R.agreements = await (await fetch("/general-agreements")).json(); } catch (e){ R.agreements = []; }
-  try { R.me = await (await fetch("/auth/me")).json(); } catch (e){ R.me = null; }
+  // три независимых запроса — параллельно, а не друг за другом
+  const get = url => fetch(url).then(r => r.json());
+  const [users, agreements, me] = await Promise.allSettled([
+    get("/auth/colleagues"), get("/general-agreements"), get("/auth/me")]);
+  if (users.status === "fulfilled") R.users = users.value;
+  else { R.users = []; R.error = "Список работников не загрузился — сервер не ответил."; }
+  R.agreements = agreements.status === "fulfilled" ? agreements.value : [];
+  R.me = me.status === "fulfilled" ? me.value : null;
   if (!Array.isArray(R.users)) R.users = [];
   if (!Array.isArray(R.agreements)) R.agreements = [];
   paintReviewers();

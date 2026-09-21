@@ -1,0 +1,19 @@
+{
+ "product_code": "1404",
+ "class_code": "14",
+ "object_type": "Кредит",
+ "value_amount": 100000000.0,
+ "sum_insured": 40000000.0,
+ "factors": {
+  "credit_collateral": "partial",
+  "credit_term": "t36",
+  "credit_industry": "trade",
+  "credit_history": "clean"
+ },
+ "credit": {
+  "loan_amount": 100000000.0,
+  "collateral_value": 60000000.0,
+  "policyholder_is_bank": true,
+  "payer_is_bank": true
+ }
+}

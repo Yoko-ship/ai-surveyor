@@ -1,6 +1,11 @@
-fastapi>=0.110
-uvicorn[standard]>=0.29
-python-multipart>=0.0.9
-openpyxl>=3.1
-pandas>=2.0
-pymupdf>=1.24
+# Версии закреплены 21.09.2026 — ровно те, на которых прошли все тесты и проверка оптимизации.
+# Обновлять осознанно: GZipMiddleware(exclude_content_types) есть только в свежих starlette.
+fastapi==0.141.1
+starlette==1.6.0
+pydantic==2.13.5
+uvicorn[standard]==0.53.0
+python-multipart==0.0.32
+openpyxl==3.1.5
+pymupdf==1.28.2
+# pandas нужен только разбору отчётов НАПП на сервере (tools/inspect_excel.py)
+pandas==2.2.3

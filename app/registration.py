@@ -476,21 +476,47 @@ def post_submit(body: SubmitIn, request: Request, response: Response):
 #  Раздел «Пользователи»
 # --------------------------------------------------------------------------- #
 
+LOGIN_TELEGRAM, LOGIN_GOOGLE, LOGIN_BOTH, LOGIN_SERVICE = "telegram", "google", "both", "service"
+
+
+def login_method(u: dict) -> str:
+    """
+    Как человек входит. Telegram — есть users.telegram_id; Google — есть users.google_sub;
+    оба — «both». Ни того, ни другого — служебная запись: вход только по логину и паролю
+    (первый администратор по коду, учётные записи, заведённые до входа через Telegram/Google).
+    """
+    tg, google = bool(u.get("telegram_id")), bool(u.get("google_sub"))
+    if tg and google:
+        return LOGIN_BOTH
+    if tg:
+        return LOGIN_TELEGRAM
+    if google:
+        return LOGIN_GOOGLE
+    return LOGIN_SERVICE
+
+
+def contacts(u: dict) -> dict:
+    """Телефон и почта показываются по одному правилу: кому скрыт телефон, тому скрыта и почта.
+    Сейчас список видят все зарегистрированные (решение заказчика 21.09.2026) — контакты видны всем им."""
+    return {"phone": u.get("phone") or "", "email": u.get("email") or None}
+
+
 def people(con) -> list:
     out = []
     for u in db.rows(con, "SELECT * FROM users ORDER BY full_name, login"):
         out.append({"id": u["id"], "login": u["login"], "full_name": u["full_name"],
                     "department": u.get("department") or "", "position": u.get("position") or "",
-                    "phone": u.get("phone") or "", "role": u["role"], "status": u["status"],
+                    **contacts(u), "role": u["role"], "status": u["status"],
                     "is_admin": u["role"] == ADMIN, "branch": u.get("branch") or "",
-                    "telegram": bool(u.get("telegram_id"))})
+                    "telegram": bool(u.get("telegram_id")), "login_method": login_method(u)})
     return out
 
 
 @router.get("/tg/users")
 def get_users(user: dict = Depends(auth.current_user)):
     """Список видят все зарегистрированные (решение заказчика 21.09.2026): ФИО, департамент,
-    должность, телефон, отметка «админ». Кнопки управления — только у админа."""
+    должность, телефон, почта, способ входа (login_method: telegram | google | both | service),
+    отметка «админ». Кнопки управления — только у админа."""
     with db.tx() as con:
         items = people(con)
     return {"can_manage": user["role"] == ADMIN, "count": len(items), "items": items}

@@ -322,6 +322,17 @@ def check_ui_blocks(html):
     miss = [k for k in users if k not in html]
     assert not miss, "раздел «Пользователи»: нет " + ", ".join(miss)
     assert "/auth/users" not in html, "раздел «Пользователи» всё ещё ходит в админский /auth/users"
+    # почта и способ входа (21.09.2026): поля email и login_method из /tg/users, у старого сервера — прочерк
+    cols = ['T("tg.user_email", "Почта")', 'T("tg.user_login_method", "Вход")', "u.email || \"—\"",
+            "loginMethod(u.login_method)", '"Telegram и Google"', '"Служебный"']
+    miss = [k for k in cols if k not in html]
+    assert not miss, "в карточке человека нет почты или способа входа: " + ", ".join(miss)
+    hub = (Path(__file__).resolve().parent.parent / "app" / "admin_hub.html").read_text(encoding="utf-8")
+    cols = ['data-i18n="tg.user_email">Почта<', 'data-i18n="tg.user_login_method">Вход<',
+            "login_method(u.login_method)", '"Telegram и Google"', '"Служебный"']
+    miss = [k for k in cols if k not in hub]
+    assert not miss, "в админке, раздел «Пользователи», нет колонок почты и входа: " + ", ".join(miss)
+    assert "№ 159" not in hub, "в админке осталось пояснение про закрытый вопрос № 159"
 
     prob = ["Вероятность подтверждения", "Что снижает", "Что повысит", "жёсткое нарушение",
             "Вероятность ещё не рассчитана", "не калибрована", "how_to_raise", "function probHtml("]

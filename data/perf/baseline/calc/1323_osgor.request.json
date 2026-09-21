@@ -1,0 +1,12 @@
+{
+ "product_code": "1323",
+ "class_code": "13",
+ "object_type": "Ответственность",
+ "value_amount": 4800000000.0,
+ "sum_insured": 4800000000.0,
+ "factors": {
+  "liab_activity": "trade",
+  "liab_claims": "clean",
+  "franchise": "f1"
+ }
+}

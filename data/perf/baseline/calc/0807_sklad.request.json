@@ -1,0 +1,16 @@
+{
+ "product_code": "0807",
+ "class_code": "8",
+ "object_type": "Склад",
+ "value_amount": 4200000000.0,
+ "sum_insured": 4200000000.0,
+ "factors": {
+  "construction": "mixed",
+  "activity": "warehouse",
+  "protection": "alarm",
+  "seismic": "z8",
+  "wear": "mid",
+  "loss_history": "clean",
+  "franchise": "f0"
+ }
+}

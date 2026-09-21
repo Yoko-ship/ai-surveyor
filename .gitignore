@@ -6,6 +6,9 @@ sandbox/
 *.log
 # база и данные клиентов не публикуются: база собирается на сервере, статистика подтягивается сама
 data/surveyor.db
+# журнал WAL базы (с 21.09.2026): в нём свежие записи, те же данные людей
+data/surveyor.db-wal
+data/surveyor.db-shm
 data/uploads/
 data/reports/
 data/inbox/portfolio/
