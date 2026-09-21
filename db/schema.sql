@@ -861,6 +861,28 @@ CREATE TABLE IF NOT EXISTS reg_codes (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_reg_codes_tg ON reg_codes(telegram_id);
 
 -- ---------------------------------------------------------------------------
+-- Вход из обычного браузера через Telegram: «обратный код» (app/tg_link.py).
+-- Браузер получает одноразовый код INS-XXXX, человек отправляет его боту, бот привязывает
+-- к заявке свой telegram_id, и страница входит сама. Самого кода в базе нет — только отпечаток
+-- sha256(код + перец из app_settings): из выгрузки таблицы код не восстановить (правило № 8).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tg_link_codes (
+    id           INTEGER PRIMARY KEY,
+    link_id      TEXT NOT NULL,             -- анонимный ключ ожидания: знает только вкладка браузера
+    code_hash    TEXT NOT NULL,             -- отпечаток кода; открытого кода нигде не хранится
+    telegram_id  TEXT,                      -- кто прислал код боту (из обновления Telegram, не из текста)
+    tg_user_json TEXT,                      -- id, username, имя — для link_or_request и remember_owner
+    created_at   TEXT NOT NULL,
+    expires_at   TEXT NOT NULL,             -- 10 минут с выдачи
+    used_at      TEXT,                      -- код сработал: второй раз не принимается
+    ip           TEXT                       -- адрес, откуда просили код: ограничение 5 кодов за 10 минут
+);
+
+CREATE INDEX IF NOT EXISTS ix_tg_link_codes_link ON tg_link_codes(link_id);
+CREATE INDEX IF NOT EXISTS ix_tg_link_codes_hash ON tg_link_codes(code_hash);
+CREATE INDEX IF NOT EXISTS ix_tg_link_codes_created ON tg_link_codes(created_at);
+
+-- ---------------------------------------------------------------------------
 -- Вероятность подтверждения запроса и то, чем дело кончилось на самом деле.
 -- Одна таблица на прогноз и на факт: пишет её модуль app/analysis.py (актуарий),
 -- читают app/outcomes.py, карточки и выгрузки. Состав полей — как в analysis.SCHEMA_SQL,

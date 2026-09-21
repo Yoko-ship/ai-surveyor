@@ -199,6 +199,14 @@ def run():
     h, s = auth.hash_password("abc12345")
     ok("PBKDF2: 64 hex-символа, соль 32, проверка проходит, другой пароль — нет",
        len(h) == 64 and len(s) == 32 and auth.check_password("abc12345", h, s) and not auth.check_password("abc12346", h, s))
+    # 15. заявок на доступ больше нет: точка закрыта (решение заказчика 21.09.2026)
+    d = expect(410, auth.register, auth.RegisterIn(full_name="Заявкин Заявка Заявкович", login="zayavka1",
+                                                   password="password1", role="агент", agent_eais_id="X-1"))
+    ok("POST /auth/register закрыт: 410 и подсказка про Telegram и Google",
+       "Telegram" in d and "Google" in d)
+    ok("страница входа: вкладки «Подать заявку» больше нет",
+       "Подать заявку" not in (db.ROOT / "app" / "login.html").read_text(encoding="utf-8"))
+
     ok("страница входа и маршруты на месте", (db.ROOT / "app" / "login.html").exists()
        and {r.path for r in auth.router.routes} >= {"/auth/register", "/auth/login", "/auth/verify-code", "/auth/logout",
                                                     "/auth/me", "/auth/pending", "/login"})

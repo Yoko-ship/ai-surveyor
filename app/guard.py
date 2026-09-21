@@ -68,6 +68,9 @@ WHITE_EXACT = {
     # который каждая точка проверяет сама (app/registration.py)
     "/tg/register/send-code", "/tg/register/verify-code", "/tg/register/submit",
     "/tg/register/departments", "/tg/register/positions", "/tg/consent",
+    # вход из обычного браузера через код боту (app/tg_link.py): сессии ещё нет, подлинность
+    # подтверждает сам Telegram — код приходит боту от конкретного telegram_id
+    "/auth/tg-link/start", "/auth/tg-link/status",
     # вход через Google (app/google_auth.py): перечисляем точно, а не префиксом, чтобы
     # будущий путь вида /auth/google-что-нибудь не открылся наружу молча
     "/auth/google", "/auth/google/status", "/auth/google/callback",

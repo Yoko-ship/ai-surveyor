@@ -856,6 +856,7 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("approvals", "approvals_router"), ("lawwatch", "lawwatch_router"),
                     ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router"),
                     ("tgbot", "tgbot_router"), ("registration", "registration_router"),
+                    ("tg_link", "tg_link_router"),
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router")):
     try:

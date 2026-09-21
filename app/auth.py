@@ -8,10 +8,10 @@
     def list_requests(..., user: dict = Depends(require("андеррайтер", "актуарий", "админ"))): ...
 
 Процесс (описание для руководителя — docs/Верификация пользователей.md):
-  1. POST /auth/register  — человек подаёт заявку: ФИО, телефон, логин, пароль, роль, филиал, ID агента из ЕАИС.
-                            Для роли «агент» ID обязателен: по Положению 3845 (п. 4) агент работает только после
-                            включения в реестр страховщика и получения ID в ЕАИС. Статус — «ожидает подтверждения».
-  2. GET  /auth/pending    — админ видит заявки и сверку с реестром компании (таблица agents по eais_id).
+  1. POST /auth/register  — ЗАКРЫТО с 21.09.2026 (ответ 410): заявок на доступ больше нет. Человек входит
+                            сам — Telegram (app/tg_link.py, app/telegram.py) или рабочая почта Google
+                            (app/google_auth.py) — и после короткой анкеты сразу активен, роль «сотрудник».
+  2. GET  /auth/pending    — админ видит оставшиеся старые заявки и сверку с реестром компании (таблица agents).
      POST /auth/approve/{id} | /auth/reject/{id} | /auth/block/{id} — решение админа, всё пишется в audit.
   3. POST /auth/login      — логин + пароль. Если у пользователя есть telegram_id — второй шаг: 6-значный код
                             (5 минут, 5 попыток), POST /auth/verify-code. Отправка кода — заглушка send_code().
@@ -184,6 +184,10 @@ def registry_entry(con, eais_id: str) -> Optional[dict]:
 
 
 def register_user(con, data: RegisterIn) -> dict:
+    """Заведение учётной записи логином и паролем. С 21.09.2026 снаружи недоступно
+    (POST /auth/register отвечает 410): остался один живой вызов — первый администратор
+    по коду ADMIN_BOOTSTRAP_CODE (app/guard.py), а он сразу активен. Статус «ожидает
+    подтверждения» поэтому больше никому не выдаётся; в коде он остался ради старых записей."""
     login = data.login.strip().lower()
     if not re.fullmatch(r"[a-z0-9_.\-@]+", login):
         raise HTTPException(422, "Логин — латинские буквы, цифры, точка, дефис или подчёркивание")
@@ -418,10 +422,17 @@ def _ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
+# Решение заказчика 21.09.2026: «заявок на доступ» больше нет. Человек входит сам —
+# через Telegram (код боту или мини-приложение) или через рабочую почту Google, и сразу
+# становится активным сотрудником. Точка оставлена закрытой, а не удалена: по ней ещё могут
+# постучаться старые вкладки и закладки, и им нужен понятный ответ, а не 404.
+REGISTER_CLOSED = ("Регистрация теперь через Telegram или Google. Откройте страницу входа "
+                   "и выберите «Войти через Telegram» или «Продолжить с Google»")
+
+
 @router.post("/auth/register")
 def register(body: RegisterIn):
-    with db.tx() as con:
-        return register_user(con, body)
+    raise HTTPException(410, REGISTER_CLOSED)
 
 
 @router.get("/auth/pending")

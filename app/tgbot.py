@@ -788,17 +788,31 @@ def handle_callback(con, cq: dict, update_id=None) -> dict:
 #  Разбор обновления
 # --------------------------------------------------------------------------- #
 
+def link_code_message(con, tg_id, frm: dict, code: str, update_id=None) -> dict:
+    """Код входа из браузера (app/tg_link.py). Сам код в журнал не попадает — только исход."""
+    from . import tg_link
+    res = tg_link.bind(con, code, frm or {"id": tg_id})
+    log(con, "in", "код входа", tg_id, None, res["ok"], (None if res["ok"] else res["reason"][:120]), update_id)
+    send(tg_id, "Готово, вернитесь в браузер — страница войдёт сама." if res["ok"] else res["reason"],
+         kind="код входа", con=con)
+    return {"action": "код входа принят" if res["ok"] else "код входа отклонён"}
+
+
 def handle_message(con, msg: dict, update_id=None) -> dict:
     tg_id = str(((msg.get("from") or {}).get("id")) or ((msg.get("chat") or {}).get("id")) or "")
     if not tg_id:
         return {"action": "без отправителя"}
     text = (msg.get("text") or "").strip()
+    frm = msg.get("from") or {}
     u = user_by_tg(con, tg_id)
     if text.startswith("/"):
         cmd, _, rest = text.partition(" ")
         cmd = cmd.split("@")[0].lower()
         log(con, "in", "start" if cmd == "/start" else "команда", tg_id, (u or {}).get("id"), True, None, update_id)
         if cmd == "/start":
+            # «/start link_INS-7K3M» — человек пришёл по ссылке со страницы входа в браузере
+            if rest.strip().lower().startswith("link_"):
+                return link_code_message(con, tg_id, frm, rest.strip()[5:], update_id)
             return cmd_start(con, tg_id, update_id)
         if cmd == "/me":
             return cmd_me(con, tg_id)
@@ -811,6 +825,10 @@ def handle_message(con, msg: dict, update_id=None) -> dict:
             return {"action": "help"}
         send(tg_id, "Такой команды нет. " + HELP, kind="команда", con=con, user_id=(u or {}).get("id"))
         return {"action": "нет команды"}
+    # голый код входа в чате: «INS-7K3M» без всяких команд
+    from . import tg_link
+    if tg_link.looks_like_code(text) and not dialog(con, tg_id):
+        return link_code_message(con, tg_id, frm, text, update_id)
     log(con, "in", "команда", tg_id, (u or {}).get("id"), True, None, update_id)
     return dialog_text(con, tg_id, text)
 

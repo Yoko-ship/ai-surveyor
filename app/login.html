@@ -33,6 +33,20 @@ button.go:disabled{opacity:.6;cursor:wait}
 .hint{font-size:11.5px;color:var(--muted);margin:0}
 .hint a{color:var(--accent);text-decoration:none}
 .foot{text-align:center;font-size:11px;color:var(--muted);margin-top:16px;font-family:var(--mono)}
+/* кнопка «Войти через Telegram»: наша тёмная, значок самолётика — инлайн-SVG (сторонних скриптов нет) */
+.tgbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;min-height:48px;
+  padding:0 14px;background:var(--soft);border:1px solid var(--accent-dim);border-radius:10px;color:var(--ink);
+  font:700 15px/1 var(--sans);cursor:pointer}
+.tgbtn:hover:not(:disabled){border-color:var(--accent)}
+.tgbtn svg{flex:none;width:19px;height:19px;color:var(--accent)}
+.tgcode{font:600 30px/1 var(--mono);letter-spacing:.14em;text-align:center;color:var(--accent);
+  background:var(--soft);border:1px dashed var(--accent-dim);border-radius:10px;padding:14px 6px;user-select:all}
+.tgopen{display:block;text-align:center;text-decoration:none;font:700 14px var(--sans);color:var(--ink);
+  background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:11px}
+.tgopen:hover{border-color:var(--accent-dim)}
+.tgwrap{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.tgor{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:var(--muted);font-size:11.5px}
+.tgor:before,.tgor:after{content:"";flex:1;height:1px;background:var(--line)}
 /* кнопка Google: фирменный вид, одинаковый в тёмной и светлой теме */
 .gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:48px;min-height:48px;
   padding:0 14px;background:#FFFFFF;border:1px solid #DADCE0;border-radius:10px;color:#1F1F1F;
@@ -54,6 +68,19 @@ button.go:disabled{opacity:.6;cursor:wait}
 <div class="card">
   <div class="logo"><b><span class="ins">INS</span><span class="on">ON</span></b><span>InsuranceON · сюрвейер</span></div>
 
+  <div class="tgwrap">
+    <button type="button" class="tgbtn" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
+    <p class="hint" id="tg-note">Свой Telegram, без пароля: получите код и отправьте его боту.</p>
+    <div id="tgLinkBox" hidden>
+      <div class="tgcode" id="tgCode">INS-••••</div>
+      <p class="hint" id="tgHow" style="margin:8px 0"></p>
+      <a class="tgopen" id="tgOpen" href="#" target="_blank" rel="noopener">Открыть бота</a>
+    </div>
+    <div class="msg" id="m-tg"></div>
+  </div>
+
+  <div class="tgor">или</div>
+
   <div class="gwrap">
     <button type="button" class="gbtn" id="gBtn" disabled><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg><span>Продолжить с Google</span></button>
     <p class="hint" id="g-note">Рабочая почта компании. Доступ откроется сразу после короткой анкеты.</p>
@@ -64,8 +91,8 @@ button.go:disabled{opacity:.6;cursor:wait}
 
   <details class="svc" id="svc">
     <summary>Служебный вход</summary>
-    <p class="hint svc-lead">Этим входом пользуются первый администратор по коду и демонстрационные учётные записи. Сотрудники входят через Google.</p>
-  <div class="tabs" id="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="reg" type="button">Подать заявку</button><button data-tab="boot" type="button" id="tab-boot" hidden>Первый вход</button></div>
+    <p class="hint svc-lead">Этим входом пользуются первый администратор по коду и демонстрационные учётные записи. Сотрудники входят через Telegram или рабочую почту.</p>
+  <div class="tabs" id="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="boot" type="button" id="tab-boot" hidden>Первый вход</button></div>
   <div class="msg" id="m-boot-hint" hidden></div>
 
   <form id="login" class="on" autocomplete="on">
@@ -73,7 +100,7 @@ button.go:disabled{opacity:.6;cursor:wait}
     <label>Пароль<input name="password" type="password" autocomplete="current-password" required></label>
     <div class="msg" id="m-login"></div>
     <button class="go" type="submit">Войти</button>
-    <p class="hint">Нет доступа? Перейдите на вкладку «Подать заявку» — её проверит администратор.</p>
+    <p class="hint">Нет логина? Вернитесь наверх и войдите через Telegram или рабочей почтой — доступ откроется сразу.</p>
   </form>
 
   <form id="code" autocomplete="off">
@@ -82,25 +109,6 @@ button.go:disabled{opacity:.6;cursor:wait}
     <div class="msg" id="m-code"></div>
     <button class="go" type="submit">Подтвердить</button>
     <p class="hint"><a href="#" id="back">← Ввести логин и пароль заново</a></p>
-  </form>
-
-  <form id="reg">
-    <label>Фамилия, имя, отчество<input name="full_name" required minlength="3"></label>
-    <div class="row2">
-      <label>Телефон<input name="phone" placeholder="+998 __ ___ __ __"></label>
-      <label>Филиал<input name="branch" placeholder="Ташкент, Головной"></label>
-    </div>
-    <div class="row2">
-      <label>Логин<input name="login" required minlength="3" pattern="[A-Za-z0-9_.\-@]+" title="латинские буквы, цифры, точка, дефис, подчёркивание"></label>
-      <label>Пароль (от 8 знаков)<input name="password" type="password" required minlength="8" autocomplete="new-password"></label>
-    </div>
-    <div class="row2">
-      <label>Роль<select name="role"><option value="агент">Агент</option><option value="андеррайтер">Андеррайтер</option><option value="актуарий">Актуарий</option><option value="админ">Администратор</option></select></label>
-      <label>ID агента из ЕАИС<input name="agent_eais_id" placeholder="обязателен для агента"></label>
-    </div>
-    <p class="hint">Агент допускается к работе только после включения в реестр компании и получения ID в ЕАИС (Положение № 3845, п. 4). Заявку сверит и подтвердит администратор.</p>
-    <div class="msg" id="m-reg"></div>
-    <button class="go" type="submit">Отправить заявку</button>
   </form>
 
   <form id="boot">
@@ -123,12 +131,12 @@ button.go:disabled{opacity:.6;cursor:wait}
 </div>
 <script>
 (function(){
-  const $=s=>document.querySelector(s), forms={login:$("#login"),code:$("#code"),reg:$("#reg"),boot:$("#boot")};
+  const $=s=>document.querySelector(s), forms={login:$("#login"),code:$("#code"),boot:$("#boot")};
   let pendingLogin="";
   function show(name){ Object.values(forms).forEach(f=>f.classList.remove("on")); forms[name].classList.add("on");
     document.querySelectorAll(".tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(name==="code"?"login":name))); }
   function msg(id,text,kind){ const m=$("#m-"+id); m.className="msg"+(text?" "+kind:""); m.textContent=text||""; }
-  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ show(b.dataset.tab); msg("login");msg("reg"); });
+  document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{ show(b.dataset.tab); msg("login"); });
   $("#back").onclick=e=>{ e.preventDefault(); show("login"); msg("code"); };
   const data=f=>Object.fromEntries(new FormData(f).entries());
   async function post(url, body){
@@ -167,10 +175,46 @@ button.go:disabled{opacity:.6;cursor:wait}
     const h=$("#m-boot-hint"); h.hidden=false; h.className="msg warn";
     h.textContent="Первый администратор входит по коду ADMIN_BOOTSTRAP_CODE — вкладка «Первый вход»."; }).catch(()=>{});
 
-  forms.reg.onsubmit=async e=>{ e.preventDefault(); msg("reg"); busy(forms.reg,true);
-    try{ const j=await post("/auth/register",data(forms.reg));
-      msg("reg",(j.message||"Заявка принята")+(j.status==="активен"?"":" Статус: "+j.status+"."),"ok"); forms.reg.reset(); }
-    catch(err){ msg("reg",err.message,"err"); } finally{ busy(forms.reg,false); } };
+  // ---------- вход через Telegram кодом боту ----------
+  // Виджета Telegram и сторонних скриптов нет: человек отправляет наш одноразовый код боту,
+  // страница опрашивает сервер (app/tg_link.py) и входит сама.
+  const tgBtn=$("#tgBtn"); const LINK={id:"",timer:null,until:0};
+  function linkStop(){ if(LINK.timer){ clearInterval(LINK.timer); LINK.timer=null; } }
+  function linkWait(){
+    const left=Math.max(0,Math.round((LINK.until-Date.now())/1000));
+    msg("tg","Жду сообщение боту… код действует "+Math.floor(left/60)+":"+String(left%60).padStart(2,"0"),"ok");
+  }
+  async function linkStart(){
+    tgBtn.disabled=true; msg("tg","Готовлю код…","ok");
+    try{
+      const j=await post("/auth/tg-link/start",{link_id:LINK.id||""});
+      LINK.id=j.link_id||""; LINK.until=Date.now()+(j.expires_in||600)*1000;
+      $("#tgCode").textContent=j.code||"";
+      $("#tgOpen").href=j.link||"#";
+      $("#tgHow").textContent="Нажмите «Открыть бота» и кнопку «Запустить» — или напишите код "+(j.bot||"боту")+" сообщением.";
+      $("#tgLinkBox").hidden=false;
+      tgBtn.querySelector("span").textContent="Получить новый код";
+      linkStop(); LINK.timer=setInterval(linkPoll,(j.poll_seconds||2)*1000); linkWait();
+    }catch(err){ msg("tg",err.message||"Код не выдан","err"); }
+    finally{ tgBtn.disabled=false; }
+  }
+  async function linkPoll(){
+    if(!LINK.id){ linkStop(); return; }
+    let j;
+    try{ const r=await fetch("/auth/tg-link/status?link_id="+encodeURIComponent(LINK.id)); j=await r.json(); }
+    catch(e){ return; }                       // сеть моргнула — ждём следующую попытку
+    if(j.status==="ожидание"){ linkWait(); return; }
+    linkStop();
+    if(j.status==="готово"){ msg("tg","Вошли. Открываю рабочий стол…","ok"); done(j); return; }
+    if(j.status==="нужна регистрация"){
+      try{ sessionStorage.setItem("surveyor_tglink_reg",JSON.stringify({link_id:LINK.id,reason:j.reason||""})); }catch(e){}
+      msg("tg","Осталась короткая анкета. Открываю её…","ok");
+      location.href="/tg";
+      return;
+    }
+    msg("tg",(j.reason||"Вход не завершён")+" Нажмите «Получить новый код».","err");
+  }
+  tgBtn.onclick=linkStart;
 
   // ---------- вход через Google ----------
   const gBtn=$("#gBtn");

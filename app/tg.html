@@ -160,6 +160,17 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
 .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;border:1px solid var(--accent-dim);
   color:var(--accent);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .tag.off{border-color:var(--line);color:var(--muted)}
+/* кнопка «Войти через Telegram»: наша тёмная, значок самолётика — инлайн-SVG (сторонних скриптов нет) */
+.tgbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;min-height:48px;
+  padding:0 14px;background:var(--soft);border:1px solid var(--accent-dim);border-radius:10px;color:var(--ink);
+  font:700 15px/1 var(--sans);cursor:pointer}
+.tgbtn:hover:not(:disabled){border-color:var(--accent)}
+.tgbtn svg{flex:none;width:19px;height:19px;color:var(--accent)}
+.tgcode{font-family:var(--mono);font-weight:600;font-size:30px;letter-spacing:.14em;text-align:center;
+  color:var(--accent);background:var(--soft);border:1px dashed var(--accent-dim);border-radius:11px;
+  padding:14px 6px;margin:10px 0;user-select:all}
+.tgor{display:flex;align-items:center;gap:10px;margin:14px 0 12px;color:var(--muted);font-size:11.5px}
+.tgor:before,.tgor:after{content:"";flex:1;height:1px;background:var(--line)}
 /* кнопка Google: фирменный вид, одинаковый в тёмной и светлой теме */
 .gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:48px;min-height:48px;
   padding:0 14px;background:#FFFFFF;border:1px solid #DADCE0;border-radius:10px;color:#1F1F1F;
@@ -192,7 +203,16 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <div id="screen-login" class="hidden">
     <div class="card">
       <h2>Вход</h2>
-      <p class="sub">Telegram не открыт. Войдите рабочей почтой — той же, с которой работаете в компании.</p>
+      <p class="sub">Telegram не открыт. Войдите своим Telegram — или рабочей почтой.</p>
+      <button type="button" class="tgbtn" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
+      <div class="hidden" id="tgLinkBox">
+        <p class="note" style="margin-top:12px">Отправьте этот код боту — страница войдёт сама.</p>
+        <div class="tgcode" id="tgCode">INS-••••</div>
+        <a class="btn" id="tgOpen" href="#" target="_blank" rel="noopener" style="flex:1 1 100%">Открыть бота</a>
+        <p class="note" id="tgHow" style="margin-top:8px"></p>
+        <div class="note" id="tgWait" style="margin-top:8px"></div>
+      </div>
+      <div class="tgor">или</div>
       <button type="button" class="gbtn" id="gBtn" disabled><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg><span>Продолжить с Google</span></button>
       <div class="note" id="gMsg" style="margin-top:8px"></div>
       <p class="note" id="gOff" style="margin-top:8px;display:none">Вход через Google не настроен</p>
@@ -202,18 +222,18 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
     </div>
     <div class="card">
       <h2>Ещё нет доступа</h2>
-      <p class="sub">Доступ открывается сам при первом входе с рабочей почты: анкету о себе заполняют один раз, и вы сразу работаете — ждать подтверждения не нужно.</p>
-      <p class="note">Агенту нужна отдельная заявка с ID агента из ЕАИС (Положение № 3845, п. 4): её подают на странице <a href="/login" style="color:var(--accent)">служебного входа</a>.</p>
+      <p class="sub">Доступ открывается сам при первом входе — через Telegram или с рабочей почты. Анкету о себе заполняют один раз, и вы сразу работаете: ждать подтверждения не нужно.</p>
+      <p class="note">ID агента из ЕАИС (Положение № 3845, п. 4) проставляет администратор в разделе «Пользователи» — на вход это не влияет.</p>
     </div>
   </div>
 
-  <!-- ---------- ждём подтверждения администратора ---------- -->
+  <!-- ---------- доступ закрыт администратором (единственный экран ожидания) ---------- -->
   <div id="screen-wait" class="hidden">
     <div class="card">
-      <h2>Заявка ждёт подтверждения</h2>
+      <h2>Доступ закрыт</h2>
       <p class="sub" id="waitWhy"></p>
       <div class="kv" id="waitKv"></div>
-      <p class="note" style="margin-top:12px">Администратор сверит вас с реестром агентов компании (Положение № 3845, п. 4). Пока этого нет, разделы приложения не открываются — так сведения о страхователях не попадают к непроверенному человеку (ЗРУ‑730, ст. 62).</p>
+      <p class="note" style="margin-top:12px">Учётную запись закрыл администратор системы — например, при увольнении или исключении из реестра агентов (Положение № 3845, п. 4). Пока запись закрыта, разделы приложения не открываются: сведения о страхователях не должны попадать к постороннему (ЗРУ‑730, ст. 62). Восстановить доступ может только администратор.</p>
       <button class="ghost" id="waitAgain" style="margin-top:12px">Проверить ещё раз</button>
     </div>
   </div>
@@ -629,6 +649,7 @@ async function boot(){
     if (st.data.pd_mode === "prod") $("#pdWarn").classList.add("hidden");
   }
   if (!IN_TG) {
+    if (linkPending()) return;               // вошли кодом боту на /login — здесь анкета
     if (googlePending()) return;             // анкету начали на /login — доводим здесь
     if (await googleReturn()) return;        // вернулись от Google с одноразовым кодом
   }
@@ -638,7 +659,7 @@ async function boot(){
     const s = a.ok && a.data ? a.data.status : "";
     if (a.ok && a.data && a.data.token) setToken(a.data.token);
     if (s === "нужна регистрация") { showRegister(a.data.reason); return; }
-    if (s === "нужна верификация") { showWait(a.data.reason); return; }
+    if (s === "нужна верификация") { showRegister(a.data.reason); return; }   // заявок нет: сразу анкета
     if (s === "ошибка") {
       banner("#authWarn", "stop", "Вход через Telegram не выполнен: " + (a.data.reason || "причина не указана"));
     }
@@ -646,7 +667,10 @@ async function boot(){
   await loadMe();
 }
 
-/* Статус не «активен»: показываем только этот экран и ничего больше не грузим. */
+/* Единственный случай, когда мы показываем «стоп»-экран, — запись закрыл администратор.
+   Всех остальных, кто ещё не в системе, ведём в регистрацию: заявок и ожидания больше нет. */
+const BLOCKED = "заблокирован";
+
 function showWait(reason, extra){
   $("#whoami").classList.add("hidden");
   $("#authWarn").classList.add("hidden");
@@ -680,8 +704,9 @@ async function loadMe(){
     googleStatus();
     return;
   }
-  if (!u) {                                   // заявка подана, но ещё не подтверждена
-    showWait(ME.reason, ME.status);
+  if (!u) {
+    if (ME.status === BLOCKED) { showWait("Учётную запись закрыл администратор.", ME.status); return; }
+    showRegister(ME.reason);                  // запись не достроена — доводим анкету, а не ждём никого
     return;
   }
 
@@ -697,6 +722,76 @@ async function loadMe(){
   if ((ME.nav || []).some(x => x.key === "inbox")) {
     api("/tg/inbox").then(i => { if (i.ok) navBadge("inbox", i.data.count || 0); });
   }
+}
+
+/* ---------- вход через Telegram кодом боту (обычный браузер) ---------- */
+/* Виджета Telegram и сторонних скриптов здесь нет: код идёт в обратную сторону — человек
+   отправляет наш одноразовый код боту, а страница ждёт ответа сервера (app/tg_link.py). */
+const LINK = {id: "", timer: null, until: 0};
+
+function linkStop(){ if (LINK.timer) { clearInterval(LINK.timer); LINK.timer = null; } }
+
+async function tgLinkStart(){
+  $("#tgBtn").disabled = true;
+  $("#tgWait").innerHTML = '<span class="spin"></span> готовлю код…';
+  $("#tgLinkBox").classList.remove("hidden");
+  const r = await api("/auth/tg-link/start", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({link_id: LINK.id || ""})});
+  $("#tgBtn").disabled = false;
+  if (!r.ok) {
+    $("#tgWait").innerHTML = '<span class="err">' + esc(r.error) + "</span>";
+    return;
+  }
+  const d = r.data || {};
+  LINK.id = d.link_id || "";
+  LINK.until = Date.now() + (d.expires_in || 600) * 1000;
+  $("#tgCode").textContent = d.code || "";
+  $("#tgOpen").href = d.link || "#";
+  $("#tgBtn").querySelector("span").textContent = "Получить новый код";
+  $("#tgHow").textContent = "Нажмите «Открыть бота» и кнопку «Запустить» — или напишите код "
+    + (d.bot || "боту") + " сообщением.";
+  linkStop();
+  LINK.timer = setInterval(tgLinkPoll, (d.poll_seconds || 2) * 1000);
+  tgLinkWait();
+}
+
+function tgLinkWait(){
+  const left = Math.max(0, Math.round((LINK.until - Date.now()) / 1000));
+  $("#tgWait").innerHTML = '<span class="spin"></span> жду сообщение боту… код действует '
+    + Math.floor(left / 60) + ":" + String(left % 60).padStart(2, "0");
+}
+
+async function tgLinkPoll(){
+  if (!LINK.id) { linkStop(); return; }
+  const r = await api("/auth/tg-link/status?link_id=" + encodeURIComponent(LINK.id));
+  if (!r.ok) return;                       // сеть моргнула — ждём следующую попытку
+  const d = r.data || {};
+  if (d.status === "ожидание") { tgLinkWait(); return; }
+  linkStop();
+  if (d.status === "готово") {
+    if (d.token) setToken(d.token);
+    $("#tgWait").innerHTML = '<span class="ok">Вошли.</span>';
+    await loadMe();
+    return;
+  }
+  if (d.status === "нужна регистрация") { showLinkRegister(LINK.id, d.reason); return; }
+  if (/заблокирован|закрыт/i.test(d.reason || "")) { showWait(d.reason, BLOCKED); return; }
+  $("#tgWait").innerHTML = '<span class="err">' + esc(d.reason || "Вход не завершён")
+    + ' Нажмите «Получить новый код».</span>';
+}
+
+$("#tgBtn").onclick = tgLinkStart;
+
+/* Кодом боту вошли на /login, а анкета живёт здесь — забираем ожидание из сессии вкладки. */
+function linkPending(){
+  let raw = null;
+  try { raw = sessionStorage.getItem("surveyor_tglink_reg"); sessionStorage.removeItem("surveyor_tglink_reg"); } catch (e) {}
+  if (!raw) return false;
+  try {
+    const j = JSON.parse(raw);
+    if (j && j.link_id) { showLinkRegister(j.link_id, j.reason); return true; }
+  } catch (e) {}
+  return false;
 }
 
 /* ---------- вход через Google ---------- */
@@ -739,8 +834,8 @@ async function googleReturn(){
   const r = await api("/auth/google/exchange", {method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({code: code})});
   if (!r.ok) {
-    // «заявка не подтверждена» — это не ошибка входа, а отдельный экран ожидания
-    if (r.status === 403 && /подтвержден/i.test(r.error)) { showWait(r.error, "ожидает подтверждения"); return true; }
+    // закрытая администратором запись — единственный «стоп»; всё прочее показываем как ошибку входа
+    if (r.status === 403 && /заблокирован|закрыт/i.test(r.error)) { showWait(r.error, BLOCKED); return true; }
     $("#gMsg").innerHTML = '<span class="err">' + esc(r.error) + ' Нажмите «Продолжить с Google» ещё раз.</span>';
     googleStatus();
     return true;
@@ -778,7 +873,7 @@ $("#outBtn").onclick = async () => {
 
 /* ---------- регистрация: номер → код → анкета ---------- */
 const REG = {phone: "", code: "", other: "другое", tries: null, timer: null, left: 0,
-  google: false, regToken: "", email: ""};
+  google: false, regToken: "", email: "", link: ""};
 
 function initData(){ return TG && TG.initData ? TG.initData : ""; }
 
@@ -787,7 +882,8 @@ function regMsg(sel, kind, text){
 }
 
 function regStep(n){
-  $("#regStep2").classList.toggle("hidden", n < 2);
+  // вход по коду боту: Telegram уже подтверждён, шага «код из чата» нет
+  $("#regStep2").classList.toggle("hidden", !!REG.link || n < 2);
   $("#regStep3").classList.toggle("hidden", n < 3);
   $("#regStep1").querySelector(".step").className = "step" + (n > 1 ? " done" : " on");
   if (n >= 2) $("#regStep2").querySelector(".step").className = "step" + (n > 2 ? " done" : " on");
@@ -795,6 +891,8 @@ function regStep(n){
 
 function showRegister(reason){
   REG.google = false;
+  REG.link = "";
+  $("#regSend").textContent = "Получить код";
   $("#whoami").classList.add("hidden");
   $("#authWarn").classList.add("hidden");
   if (reason) $("#regWhy").textContent = reason;
@@ -805,6 +903,31 @@ function showRegister(reason){
   $("#regGoogleWho").classList.add("hidden");
   $("#regBranchBox").classList.remove("hidden");
   $("#regPhoneOptBox").classList.add("hidden");
+  screen("register");
+  regStep(1);
+  loadConsent("телефон", "#regConsentPhone", "#regPhoneOkText",
+    "Согласен на обработку номера телефона");
+  loadRegForm();
+}
+
+/* Первый вход из браузера по коду боту: Telegram подтверждён, код на телефон не нужен —
+   остаются номер (он же рабочий контакт) и анкета. */
+function showLinkRegister(linkId, reason){
+  REG.google = false;
+  REG.link = linkId || "";
+  REG.code = "";
+  $("#whoami").classList.add("hidden");
+  $("#authWarn").classList.add("hidden");
+  $("#regWhy").textContent = reason || "Вы впервые входите через Telegram.";
+  $("#regHow").textContent = "Два шага: номер телефона и короткая анкета. Telegram уже подтверждён —"
+    + " код из чата бота здесь не нужен. После анкеты вы сразу войдёте.";
+  $("#regStep1").classList.remove("hidden");
+  $("#regStep2").classList.add("hidden");
+  $("#regStep3Head").innerHTML = "<i>2</i><b>О себе</b>";
+  $("#regGoogleWho").classList.add("hidden");
+  $("#regBranchBox").classList.remove("hidden");
+  $("#regPhoneOptBox").classList.add("hidden");
+  $("#regSend").textContent = "Продолжить";
   screen("register");
   regStep(1);
   loadConsent("телефон", "#regConsentPhone", "#regPhoneOkText",
@@ -906,7 +1029,14 @@ async function regSendCode(){
     return;
   }
   if (!$("#regPhoneOk").checked) {
-    regMsg("#regSendMsg", "err", "Отметьте согласие на обработку номера — без него код не отправляем.");
+    regMsg("#regSendMsg", "err", "Отметьте согласие на обработку номера — без него продолжить нельзя.");
+    return;
+  }
+  if (REG.link) {                      // Telegram подтверждён сообщением боту — сразу к анкете
+    REG.phone = phone;
+    regMsg("#regSendMsg", "ok", "Номер принят.");
+    regStep(3);
+    $("#regName").focus();
     return;
   }
   $("#regSend").disabled = true;
@@ -964,7 +1094,13 @@ $("#regPos").onchange = () => {
 };
 
 async function regSubmit(){
-  const body = REG.google
+  const body = REG.link
+    ? {link_id: REG.link, phone: REG.phone,
+       full_name: $("#regName").value.trim(), department: $("#regDept").value.trim(),
+       position: $("#regPos").value, position_other: $("#regPosOther").value.trim(),
+       branch: $("#regBranch").value.trim(), consent: $("#regMainOk").checked,
+       consent_phone: $("#regPhoneOk").checked}
+    : REG.google
     ? {reg_token: REG.regToken,
        full_name: $("#regName").value.trim(), department: $("#regDept").value.trim(),
        position: $("#regPos").value, position_other: $("#regPosOther").value.trim(),
@@ -997,7 +1133,7 @@ async function regSubmit(){
   }
   $("#regSubmit").disabled = true;
   $("#regSubmitMsg").innerHTML = '<span class="spin"></span> регистрирую…';
-  const r = await api(REG.google ? "/auth/google/register" : "/tg/register/submit",
+  const r = await api(REG.google && !REG.link ? "/auth/google/register" : "/tg/register/submit",
     {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
   $("#regSubmit").disabled = false;
   if (!r.ok) { regMsg("#regSubmitMsg", "err", r.error); return; }

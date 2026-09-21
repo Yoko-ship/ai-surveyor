@@ -12,6 +12,9 @@
   3. POST /tg/register/verify-code — проверка кода: 10 минут, 5 попыток, повторная отправка не чаще
      раза в минуту, не больше 5 кодов в сутки, после второй исчерпанной серии — пауза 15 минут
      (меры из раздела 7 docs/Регистрация и роли.md).
+  3а. Вход из обычного браузера (app/tg_link.py) приходит сюда же, но с link_id вместо initData:
+     шаги 2 и 3 пропускаются — Telegram подтверждён тем, что человек отправил код боту,
+     и второй код, теперь на телефон, спрашивать не за чем.
   4. POST /tg/register/submit — анкета: ФИО, департамент, должность, согласия на обработку ПД.
      Пользователь становится активным СРАЗУ, роль «сотрудник»: расчёт, свои запросы, фото и документы,
      отправка на согласование. Подтверждение администратором по этому пути не требуется.
@@ -111,6 +114,24 @@ def tg_user(init_data: str) -> dict:
     return {"telegram_id": tg_id, "user": u}
 
 
+def who_registers(con, body) -> dict:
+    """
+    Кто заполняет анкету. Два равноправных пути подтверждения Telegram:
+      * мини-приложение — подписанный initData (подпись проверяет app/telegram.py);
+      * обычный браузер — код, отправленный боту (app/tg_link.py): Telegram подтверждён тем,
+        что сообщение пришло от этого telegram_id, поэтому код на телефон здесь не нужен.
+    """
+    link_id = (getattr(body, "link_id", "") or "").strip()
+    if link_id and not (getattr(body, "initData", "") or "").strip():
+        from . import tg_link
+        row = tg_link.linked(con, link_id)
+        if not row:
+            raise HTTPException(401, "Вход по коду бота не подтверждён — получите новый код "
+                                     "на странице входа")
+        return {"telegram_id": row["telegram_id"], "user": tg_link.tg_user_of(row), "via_link": True}
+    return tg_user(getattr(body, "initData", "") or "") | {"via_link": False}
+
+
 def _existing(con, tg_id: str) -> Optional[dict]:
     r = db.rows(con, "SELECT * FROM users WHERE telegram_id=?", tg_id)
     return r[0] if r else None
@@ -137,6 +158,7 @@ class CodeIn(BaseModel):
 
 class SubmitIn(BaseModel):
     initData: str = ""
+    link_id: str = ""                    # вход из браузера по коду боту (app/tg_link.py)
     phone: str = ""
     code: str = ""                       # можно прислать код ещё раз — проверка та же
     full_name: str = ""
@@ -322,19 +344,21 @@ def _save_consents(con, uid: Optional[int], tg_id: str, data: SubmitIn):
                     (uid, tg_id, c["version"], "мини-приложение", db.now(), c["hash"], scope))
 
 
-def register(con, tg_id: str, data: SubmitIn) -> dict:
-    """Создаёт (или достраивает) пользователя и сразу делает его активным сотрудником."""
+def register(con, tg_id: str, data: SubmitIn, via_link: bool = False) -> dict:
+    """Создаёт (или достраивает) пользователя и сразу делает его активным сотрудником.
+    via_link — пришли из браузера по коду боту: Telegram уже подтверждён, второй код не спрашиваем."""
     phone = normalize_phone(data.phone)
-    row = _row(con, tg_id)
-    if not row or not row["verified_at"]:
-        if not (data.code or "").strip():
-            raise HTTPException(400, "Сначала подтвердите номер кодом из чата бота")
-        check_code(con, tg_id, phone, data.code)
+    if not via_link:
         row = _row(con, tg_id)
-    if row["expires_at"] < db.now():
-        raise HTTPException(400, "Подтверждение номера устарело — получите код заново")
-    if not hmac.compare_digest(row["phone_hash"], _digest(phone)):
-        raise HTTPException(400, "Номер не совпадает с подтверждённым — получите код на нужный номер")
+        if not row or not row["verified_at"]:
+            if not (data.code or "").strip():
+                raise HTTPException(400, "Сначала подтвердите номер кодом из чата бота")
+            check_code(con, tg_id, phone, data.code)
+            row = _row(con, tg_id)
+        if row["expires_at"] < db.now():
+            raise HTTPException(400, "Подтверждение номера устарело — получите код заново")
+        if not hmac.compare_digest(row["phone_hash"], _digest(phone)):
+            raise HTTPException(400, "Номер не совпадает с подтверждённым — получите код на нужный номер")
 
     full_name = check_full_name(data.full_name)
     department = check_department(data.department)
@@ -437,9 +461,9 @@ def post_verify_code(body: CodeIn):
 @router.post("/tg/register/submit")
 def post_submit(body: SubmitIn, request: Request, response: Response):
     """Анкета. После неё человек СРАЗУ активен: ждать подтверждения администратора не нужно."""
-    who = tg_user(body.initData)
     with db.tx() as con:
-        out = register(con, who["telegram_id"], body)
+        who = who_registers(con, body)
+        out = register(con, who["telegram_id"], body, via_link=who["via_link"])
         u = db.rows(con, "SELECT * FROM users WHERE id=?", out["user_id"])[0]
         token, _ = auth.create_session(con, u, ip=(request.client.host if request.client else ""),
                                        user_agent="telegram-mini-app")
