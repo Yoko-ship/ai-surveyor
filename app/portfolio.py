@@ -455,5 +455,11 @@ def portfolio_summary(bid: int):
 
 
 @router.get("/portfolio", response_class=HTMLResponse)
-def portfolio_page():
-    return (ROOT / "app" / "portfolio.html").read_text(encoding="utf-8")
+def portfolio_page(embed: int = 0):
+    return _page((ROOT / "app" / "portfolio.html").read_text(encoding="utf-8"), "/portfolio", embed)
+
+
+def _page(html: str, active: str, embed: int) -> str:
+    """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
+    from .main import page
+    return page(html, active, bool(embed))

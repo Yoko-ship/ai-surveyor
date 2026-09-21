@@ -415,10 +415,16 @@ def report_md(day: str):
 
 
 @router.get("/reports-page", response_class=HTMLResponse)
-def reports_page():
-    return (ROOT / "app" / "reports.html").read_text(encoding="utf-8")
+def reports_page(embed: int = 0):
+    return _page((ROOT / "app" / "reports.html").read_text(encoding="utf-8"), "/reports-page", embed)
 
 
 @router.get("/tasks-page", response_class=HTMLResponse)
-def tasks_page():
-    return (ROOT / "app" / "tasks.html").read_text(encoding="utf-8")
+def tasks_page(embed: int = 0):
+    return _page((ROOT / "app" / "tasks.html").read_text(encoding="utf-8"), "/tasks-page", embed)
+
+
+def _page(html: str, active: str, embed: int) -> str:
+    """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
+    from .main import page
+    return page(html, active, bool(embed))

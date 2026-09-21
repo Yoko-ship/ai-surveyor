@@ -1,0 +1,793 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админка INSON</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
+<!--
+  Одна админка для браузера и для мини-аппа Telegram (21.09.2026).
+  Это сборка уже готовых разделов, а не новая логика: страница либо читает существующие точки API,
+  либо показывает готовую страницу во встроенном окне (iframe, тот же домен, сессия — cookie sid).
+  Маршрут GET /admin/hub и режим ?embed=1 (без общего меню слева) делает app/main.py.
+  Ничего сверх перечисленного здесь не появляется: спорные пункты уходят в docs/Открытые вопросы.md.
+-->
+<style>
+:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;
+  --accent:#2BC46E;--accent-dim:#1E8F52;--warn:#E0A83F;--stop:#EE8272;--ok:#5CC298;
+  --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;
+  --rail:58px;--menu:214px}
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:var(--rail) var(--menu) minmax(0,1fr);align-items:start}
+
+/* --- рейка групп --- */
+.rail{position:sticky;top:0;height:100vh;overflow-y:auto;background:#0C1216;border-right:1px solid var(--line);
+  display:flex;flex-direction:column;gap:2px;padding:10px 0}
+.rail .mark{display:grid;place-items:center;height:40px;margin-bottom:8px}
+.rail .mark b{width:30px;height:30px;border-radius:50%;background:var(--accent-dim);display:grid;place-items:center;
+  color:#0C1216;font:800 13px var(--sans)}
+.rail button{background:none;border:0;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;
+  align-items:center;gap:3px;padding:8px 2px;font:600 9px var(--sans);line-height:1.15;text-align:center;width:100%}
+.rail button i{font-style:normal;font-size:17px;line-height:1}
+.rail button u{text-decoration:none}
+.rail button.on{color:var(--accent);box-shadow:inset 2px 0 0 var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
+.rail button:focus-visible,.menu a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* --- список разделов группы --- */
+.menu{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:16px 10px 24px;background:var(--card)}
+.menu h2{font:800 13px var(--sans);margin:0 0 2px;padding:0 8px}
+.menu p{font-size:11px;color:var(--muted);margin:0 0 12px;padding:0 8px}
+.menu a{display:block;text-decoration:none;color:var(--muted);font-weight:600;font-size:13px;
+  padding:8px 10px;border-radius:9px}
+.menu a.on{color:var(--ink);background:var(--soft);box-shadow:inset 2px 0 0 var(--accent)}
+
+/* --- содержимое --- */
+main{padding:20px 22px 44px;min-width:0}
+.head{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+h1{font:800 21px var(--sans);margin:0}
+.head .why{font-size:12.5px;color:var(--muted);max-width:56ch;margin:2px 0 0}
+.back{display:none;background:var(--soft);border:1px solid var(--line);color:var(--ink);border-radius:9px;
+  padding:7px 12px;font:600 13px var(--sans);cursor:pointer;margin-bottom:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;margin-bottom:12px;min-width:0}
+.card h3{font:700 14px var(--sans);margin:0 0 3px}
+.card .note{font-size:12px;color:var(--muted);margin:0 0 10px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.tile b{display:block;font:600 21px var(--mono)}.tile span{font-size:11.5px;color:var(--muted)}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 10.5px var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+tr.pick{cursor:pointer}tr.pick:hover td{background:var(--soft)}
+.v{display:inline-block;font:700 11px var(--sans);border-radius:5px;padding:1px 7px;white-space:nowrap}
+.v.ok{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.v.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.v.stop{background:color-mix(in srgb,var(--stop) 16%,transparent);color:var(--stop)}
+.v.dim{background:var(--soft);color:var(--muted)}
+form.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;align-items:end}
+label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted)}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);border:1px solid var(--line);
+  border-radius:8px;padding:8px 10px;width:100%;min-width:0}
+button.go{font:600 13px var(--sans);color:#0C1216;background:var(--accent);border:0;border-radius:8px;padding:9px 14px;cursor:pointer}
+button.mini{font:600 12px var(--sans);color:var(--ink);background:var(--soft);border:1px solid var(--line);
+  border-radius:7px;padding:5px 9px;cursor:pointer;white-space:nowrap}
+button.mini.danger{color:var(--stop);border-color:color-mix(in srgb,var(--stop) 45%,var(--line))}
+.msg{font-size:12px;color:var(--muted);margin-top:8px;min-height:1em}
+.msg.bad{color:var(--stop)}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.kv{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:5px 14px;font-size:13px}
+.kv span{color:var(--muted)}
+.frame{width:100%;height:calc(100vh - 150px);min-height:460px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.hint{font-size:12px;color:var(--muted);margin:0 0 8px}
+.flag{border-left:3px solid var(--warn);padding-left:9px;color:var(--warn);font-size:12px;margin:0 0 10px}
+@media (max-width:860px){
+  :root{--rail:48px}
+  .app{grid-template-columns:var(--rail) minmax(0,1fr)}
+  .menu{display:none}
+  body.menu-view .menu{display:block;position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  body.menu-view main{display:none}
+  main{padding:14px 12px 40px}
+  body.section-view .back{display:inline-block}
+  .frame{height:calc(100vh - 170px)}
+  h1{font-size:18px}
+}
+</style>
+
+<div class="app">
+  <nav class="rail" id="rail" aria-label="Группы разделов"><div class="mark"><b>S</b></div></nav>
+  <nav class="menu" id="menu" aria-label="Разделы группы"></nav>
+  <main id="main">
+    <button class="back" id="back" type="button">← Разделы группы</button>
+    <div class="head"><div><h1 id="title">Админка</h1><p class="why" id="why"></p></div><div id="tools"></div></div>
+    <div id="view"></div>
+  </main>
+</div>
+
+<script src="/i18n.js"></script>
+<script>
+"use strict";
+var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); };
+var $ = function (s) { return document.querySelector(s); };
+var num = function (n) { return n == null || n === "" ? "—" : Math.round(Number(n)).toLocaleString("ru-RU"); };
+var pct = function (n) { return n == null ? "—" : Number(n).toFixed(3).replace(".", ",") + "%"; };
+var when = function (s) { return esc(String(s || "").replace("T", " ").slice(0, 16)); };
+
+/* Разделы. kind:"frame" — готовая страница во встроенном окне (тот же домен, сессия — cookie sid). */
+var NAV = [
+ {id:"people", icon:"◉", short:"Люди", title:"Люди",
+  why:"Кто работает в системе, кто ждёт подтверждения и кто когда входил.",
+  items:[
+   {id:"users",   title:"Пользователи", why:"Список работников: ФИО, департамент, должность, телефон, способ входа, роль."},
+   {id:"pending", title:"Заявки на вход", why:"Заявки, поданные логином и паролем. Подтверждение открывает доступ."},
+   {id:"logins",  title:"Журнал входов", why:"Строки журнала действий, где действие начинается со слова «вход»."}]},
+ {id:"requests", icon:"❑", short:"Запросы", title:"Запросы и согласования",
+  why:"Расчёты филиалов, их карточки и работа согласующих.",
+  items:[
+   {id:"list",      title:"Запросы и сводка", why:"Сводка по всем запросам и последние тридцать строк."},
+   {id:"card",      title:"Карточка запроса", why:"Расчёт, проверки, документы, распознанные поля, согласующие, выгрузки."},
+   {id:"approvals", title:"Согласования", kind:"frame", src:"/approvals",
+    why:"Готовая страница согласований: «ждут меня», лента решений, генеральные соглашения."}]},
+ {id:"tariffs", icon:"₌", short:"Тарифы", title:"Тарифы и справочники",
+  why:"Всё, из чего складывается ставка: версии, минимумы, коэффициенты, справочники, нормы износа.",
+  items:[
+   {id:"forms",     title:"Версии, ставки, продукты", why:"Формы админки: версия тарифов, минимальная ставка, коэффициент, продукт."},
+   {id:"reference", title:"Справочники", why:"Продукты, классы, опасности, коэффициенты, чек-листы, правила, минимальные ставки."},
+   {id:"valuation", title:"Оценка: износ и настройки", why:"Процент износа за год, остаточный минимум и настройки оценки."},
+   {id:"osgor",     title:"ОСГОР: виды деятельности", why:"Справочник видов деятельности и коэффициентов по ним."},
+   {id:"vehicle",   title:"Транспорт и спецтехника", why:"Справочник групп техники и документов, по которым её опознают."},
+   {id:"review",    title:"Правила к пересмотру", why:"Проверки, помеченные роботом-юристом после изменения нормы."},
+   {id:"calibration", title:"Калибровка", kind:"frame", src:"/calibration",
+    why:"Готовая страница калибровки коэффициентов по убыткам."}]},
+ {id:"market", icon:"↗", short:"Рынок", title:"Рынок и данные",
+  why:"Внешние данные рынка и собственные показатели компании.",
+  items:[
+   {id:"stats",     title:"Динамика рынка", kind:"frame", src:"/stats", why:"Готовая страница рыночных отчётов."},
+   {id:"capacity",  title:"Ёмкость и удержание", kind:"frame", src:"/capacity-page", why:"Готовая страница ёмкости, резервов, активов и маржи."},
+   {id:"portfolio", title:"Портфель", kind:"frame", src:"/portfolio", why:"Готовая страница портфельного аудита."},
+   {id:"statagency",title:"Агентство статистики", why:"Состояние наборов stat.uz, их реестр и последние строки рядов."},
+   {id:"finance",   title:"Финансы компании", why:"Собственные средства и страховые резервы — от них считается лимит на один риск."}]},
+ {id:"knowledge", icon:"§", short:"Знания", title:"Знания и законы",
+  why:"Что изменилось в праве и что команда уже изучила.",
+  items:[
+   {id:"lawfeed", title:"Законодательство", kind:"frame", src:"/law-feed", why:"Готовая лента событий по актам."},
+   {id:"graph",   title:"Паутина знаний", kind:"frame", src:"/graph", why:"Продукты, классы и учётные группы одной картой."},
+   {id:"acts",    title:"Отслеживаемые акты", why:"Какие акты робот проверяет на lex.uz и когда сверял."},
+   {id:"topics",  title:"Реестр знаний", why:"Темы, которые команда изучает, и журнал занятий."},
+   {id:"library", title:"Библиотека", why:"Полки с документами компании и нормативными текстами."}]},
+ {id:"team", icon:"✎", short:"Команда", title:"Команда",
+  why:"Задачи агентам, ежедневный доклад и рабочий стол.",
+  items:[
+   {id:"tasks",   title:"Задачи", kind:"frame", src:"/tasks-page", why:"Готовая доска задач команде."},
+   {id:"reports", title:"Ежедневный доклад", kind:"frame", src:"/reports-page", why:"Готовая страница докладов."},
+   {id:"office",  title:"Офис агентов", kind:"frame", src:"/office", why:"Готовая страница офиса."}]},
+ {id:"system", icon:"⚙", short:"Система", title:"Система",
+  why:"Запуск, обслуживание и связь с внешними службами.",
+  items:[
+   {id:"deploy", title:"Запуск и обслуживание", kind:"frame", src:"/admin/deploy",
+    why:"Готовая страница: настройки, режим данных, резервные копии, чек-лист запуска."},
+   {id:"ai",     title:"Искусственный интеллект", why:"Состояние модели, проверка связи и журнал обращений."},
+   {id:"bot",    title:"Бот Telegram", why:"Состояние бота и способ получения обновлений."},
+   {id:"google", title:"Вход через Google", why:"Настроен вход или нет и с каких доменов пускаем."},
+   {id:"langs",  title:"Языки", why:"Какие языки интерфейса есть и какой показываем по умолчанию."},
+   {id:"audit",  title:"Журнал действий", why:"Последние записи журнала: кто, что и с чем сделал."}]}
+];
+
+/* ------------------------------------------------------------------ обмен */
+async function api(path, options) {
+  var r = await fetch(path, Object.assign({headers: {Accept: "application/json"}}, options || {}));
+  var body = null;
+  try { body = await r.json(); } catch (e) { body = null; }
+  if (!r.ok) {
+    var d = body && body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) : "";
+    if (r.status === 401) d = d || "Нужно войти в систему";
+    if (r.status === 403) d = d || "Раздел открыт только администратору";
+    throw new Error(d || ("сервер ответил " + r.status));
+  }
+  return body;
+}
+async function send(path, method, data) {
+  return api(path, {method: method, headers: {"Content-Type": "application/json", Accept: "application/json"},
+                    body: JSON.stringify(data || {})});
+}
+function fail(e) {
+  return '<div class="card"><h3>Раздел не загрузился</h3><p class="note">Причина: ' + esc(e.message || e) +
+         '.</p><p class="note">Что сделать: обновите страницу; если сказано про вход — войдите заново ' +
+         'на <a href="/login">странице входа</a>; если раздел открыт только администратору — попросите админа.</p></div>';
+}
+function tbl(head, rows, empty) {
+  return '<div class="scroll"><table><thead><tr>' + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+    "</tr></thead><tbody>" + (rows.length ? rows.join("") :
+    '<tr><td colspan="' + head.length + '">' + (empty || "Записей пока нет") + "</td></tr>") + "</tbody></table></div>";
+}
+function frame(src, title) {
+  var sep = src.indexOf("?") >= 0 ? "&" : "?";
+  return '<p class="hint">Раздел открыт как есть — той же страницей, что и отдельным адресом ' +
+         '<a href="' + esc(src) + '" target="_blank" rel="noopener">' + esc(src) + '</a>.</p>' +
+         '<iframe class="frame" src="' + esc(src + sep + "embed=1") + '" title="' + esc(title) + '" loading="lazy"></iframe>';
+}
+
+/* ------------------------------------------------------------------ разделы */
+var V = {};
+
+/* --- Люди --- */
+V.people_users = async function (el) {
+  var d = await api("/tg/users");
+  var rows = d.items.map(function (u) {
+    var way = u.telegram ? "Telegram" : "логин и пароль";
+    var mail = u.email || "—";
+    var role = '<span class="v ' + (u.is_admin ? "ok" : "dim") + '">' + esc(u.role) + "</span>";
+    var st = u.status === "активен" ? "ok" : u.status === "заблокирован" ? "stop" : "warn";
+    var ctl = d.can_manage
+      ? (u.is_admin ? '<button class="mini" data-act="revoke" data-id="' + u.id + '">Снять права админа</button>'
+                    : '<button class="mini" data-act="make" data-id="' + u.id + '">Сделать админом</button>') +
+        ' <button class="mini danger" data-act="block" data-id="' + u.id + '">Заблокировать</button>'
+      : "—";
+    return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.department) + "</td><td>" + esc(u.position) +
+      "</td><td>" + esc(u.phone || "—") + "</td><td>" + esc(mail) + "</td><td>" + esc(u.login) + "</td><td>" + way +
+      "</td><td>" + role + '</td><td><span class="v ' + st + '">' + esc(u.status) + "</span></td><td>" + ctl + "</td></tr>";
+  });
+  el.innerHTML = '<div class="card"><h3>Работники: ' + d.count + "</h3>" +
+    '<p class="note">Права меняет администратор. Последнего администратора снять нельзя — управлять системой станет некому. ' +
+    'Почта в столбце пустая: точка /tg/users её сейчас не отдаёт — вопрос записан в «Открытые вопросы» (№ 159). ' +
+    'Способ входа показан по отметке Telegram; вход через Google точка тоже не отдаёт.</p>' +
+    tbl(["ФИО", "Департамент", "Должность", "Телефон", "Почта", "Логин", "Способ входа", "Роль", "Статус", ""], rows, "Работников пока нет") +
+    '<div class="msg" id="uMsg"></div></div>';
+  el.onclick = async function (e) {
+    var b = e.target.closest("button[data-act]"); if (!b) return;
+    var id = b.dataset.id, act = b.dataset.act, m = $("#uMsg");
+    var ask = act === "block" ? "Заблокировать работника? Он перестанет входить в систему."
+            : act === "make" ? "Выдать права администратора?" : "Снять права администратора?";
+    if (!confirm(ask)) return;
+    m.className = "msg"; m.textContent = "Отправляем…";
+    try {
+      await send(act === "block" ? "/auth/block/" + id : "/tg/users/" + id + (act === "make" ? "/make-admin" : "/revoke-admin"), "POST", {});
+      open_section("people", "users");
+    } catch (err) { m.className = "msg bad"; m.textContent = "Не вышло: " + err.message; }
+  };
+};
+V.people_pending = async function (el) {
+  var items = await api("/auth/pending");
+  var rows = items.map(function (u) {
+    return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.login) + "</td><td>" + esc(u.role) +
+      "</td><td>" + esc(u.branch || "—") + "</td><td>" + esc(u.registry ? u.registry.name : "в реестре компании не найден") +
+      '</td><td><button class="mini" data-ok="' + u.id + '">Подтвердить</button> ' +
+      '<button class="mini danger" data-no="' + u.id + '">Отклонить</button></td></tr>';
+  });
+  el.innerHTML = '<div class="card"><h3>Заявки на вход</h3>' +
+    '<p class="note">Заявка приходит от того, кто регистрируется логином и паролем. Подтверждение открывает доступ по его роли.</p>' +
+    tbl(["ФИО", "Логин", "Роль", "Филиал", "Реестр компании", ""], rows, "Новых заявок нет") +
+    '<div class="msg" id="pMsg"></div></div>';
+  el.onclick = async function (e) {
+    var ok = e.target.dataset ? e.target.dataset.ok : null, no = e.target.dataset ? e.target.dataset.no : null;
+    if (!ok && !no) return;
+    var m = $("#pMsg"); m.className = "msg"; m.textContent = "Отправляем…";
+    try {
+      if (ok) await send("/auth/approve/" + ok, "POST", {});
+      else {
+        var why = prompt("Одной строкой: почему отклоняем заявку?");
+        if (why === null) { m.textContent = ""; return; }
+        await send("/auth/reject/" + no + "?reason=" + encodeURIComponent(why), "POST", {});
+      }
+      open_section("people", "pending");
+    } catch (err) { m.className = "msg bad"; m.textContent = "Не вышло: " + err.message; }
+  };
+};
+V.people_logins = async function (el) {
+  var a = await api("/audit?limit=300");
+  var rows = a.filter(function (x) { return String(x.action || "").toLowerCase().indexOf("вход") === 0; })
+    .slice(0, 60).map(function (x) {
+      return "<tr><td>" + when(x.ts) + "</td><td>" + esc(x.who) + "</td><td>" + esc(x.action) + "</td><td>" +
+        esc(x.entity) + '</td><td style="font-family:var(--mono);font-size:11.5px">' + esc(String(x.detail || "").slice(0, 90)) + "</td></tr>";
+    });
+  el.innerHTML = '<div class="card"><h3>Входы в систему</h3>' +
+    '<p class="note">Отдельного журнала входов в системе нет: это строки общего журнала действий, у которых действие ' +
+    'начинается со слова «вход» — вход, вход через Telegram, вход через Google, вход по коду бота.</p>' +
+    tbl(["Когда", "Кто", "Действие", "Объект", "Детали"], rows, "Входов в журнале пока нет") + "</div>";
+};
+
+/* --- Запросы --- */
+V.requests_list = async function (el) {
+  var a = await api("/analytics/summary");
+  var bv = {}; (a.by_verdict || []).forEach(function (x) { bv[x.verdict] = x.n; });
+  var tiles = [["Запросов", a.requests], ["Без замечаний", bv["ок"] || 0], ["На утверждение", bv["на утверждение"] || 0],
+    ["Отклонено", bv["отклонено"] || 0], ["Ручных ставок", a.manual_rates], ["Ниже технической", a.below_technical]]
+    .map(function (p) { return '<div class="tile"><b>' + p[1] + "</b><span>" + p[0] + "</span></div>"; }).join("");
+  var r = await api("/requests?limit=30");
+  var vcl = function (v) { return v === "ок" ? "ok" : v === "на утверждение" ? "warn" : "stop"; };
+  var rows = r.map(function (x) {
+    return '<tr class="pick" data-rid="' + x.id + '"><td>' + x.id + "</td><td>" + esc(x.branch) + "</td><td>" +
+      esc(x.product_code) + "</td><td>" + esc(x.policyholder) + '</td><td class="n">' + pct(x.applied_rate_pct) +
+      '</td><td class="n">' + pct(x.gross_rate_pct) + '</td><td class="n">' + pct(x.min_rate_pct) + '</td><td class="n">' +
+      num(x.premium) + '</td><td><span class="v ' + vcl(x.verdict) + '">' + esc(x.verdict) + "</span></td><td>" +
+      esc(x.status) + "</td></tr>";
+  });
+  var grp = function (title, rs, cols) {
+    return '<div class="card"><h3>' + title + "</h3>" + tbl(cols.map(function (c) { return c[0]; }),
+      (rs || []).map(function (x) { return "<tr>" + cols.map(function (c) { return '<td class="' + (c[2] || "") + '">' + c[1](x) + "</td>"; }).join("") + "</tr>"; }),
+      "Пока пусто") + "</div>";
+  };
+  el.innerHTML = '<div class="tiles">' + tiles + "</div>" +
+    '<div class="card"><h3>Последние запросы</h3><p class="note">Нажмите строку — откроется карточка запроса.</p>' +
+    tbl(["№", "Филиал", "Продукт", "Страхователь", "Ставка", "Техн.", "Мин.", "Премия", "Вердикт", "Статус"], rows, "Запросов пока нет") + "</div>" +
+    '<div class="cols">' +
+    grp("По продуктам", a.by_product, [["Продукт", function (x) { return esc(x.product_code); }], ["Запросов", function (x) { return x.n; }, "n"],
+      ["Средняя ставка", function (x) { return pct(x.avg_rate); }, "n"], ["Премия", function (x) { return num(x.premium); }, "n"]]) +
+    grp("По филиалам", a.by_branch, [["Филиал", function (x) { return esc(x.branch); }], ["Запросов", function (x) { return x.n; }, "n"],
+      ["Ниже технической", function (x) { return x.below_tech; }, "n"]]) +
+    grp("Частые нарушения", a.top_violations, [["Правило", function (x) { return esc(x.rule_code); }], ["Раз", function (x) { return x.n; }, "n"]]) +
+    "</div>";
+  el.onclick = function (e) {
+    var tr = e.target.closest("tr[data-rid]"); if (!tr) return;
+    open_section("requests", "card", tr.dataset.rid);
+  };
+};
+V.requests_card = async function (el, rid) {
+  rid = rid || V._rid || "";
+  el.innerHTML = '<div class="card"><h3>Карточка запроса</h3>' +
+    '<p class="note">Введите номер запроса или откройте его из раздела «Запросы и сводка».</p>' +
+    '<form class="f" id="rf"><label>Номер запроса<input name="rid" type="number" value="' + esc(rid) + '" required></label>' +
+    '<button class="go">Открыть карточку</button></form><div class="msg" id="rMsg"></div></div><div id="rBody"></div>';
+  $("#rf").onsubmit = function (e) { e.preventDefault(); open_section("requests", "card", e.target.rid.value); };
+  if (!rid) return;
+  V._rid = rid;
+  var body = $("#rBody"), msg = $("#rMsg");
+  msg.textContent = "Загружаем карточку…";
+  var c, out = "";
+  try { c = await api("/requests/" + rid); }
+  catch (e) { msg.className = "msg bad"; msg.textContent = "Карточка не открылась: " + e.message; return; }
+  msg.textContent = "";
+  var q = c.request || {}, calc = c.calculation || {};
+  out += '<div class="cols"><div class="card"><h3>Запрос № ' + esc(q.id) + "</h3>" +
+    '<div class="kv"><span>Страхователь</span><div>' + esc(q.policyholder) + "</div>" +
+    "<span>Филиал</span><div>" + esc(q.branch) + "</div>" +
+    "<span>Продукт</span><div>" + esc(q.product_code) + "</div>" +
+    "<span>Создан</span><div>" + when(q.created_at) + "</div>" +
+    "<span>Статус</span><div>" + esc(q.status) + "</div></div></div>" +
+    '<div class="card"><h3>Расчёт</h3><div class="kv">' +
+    "<span>Применённая ставка</span><div>" + pct(calc.applied_rate_pct) + "</div>" +
+    "<span>Техническая</span><div>" + pct(calc.gross_rate_pct) + "</div>" +
+    "<span>Минимальная</span><div>" + pct(calc.min_rate_pct) + "</div>" +
+    "<span>Премия</span><div>" + num(calc.premium) + "</div>" +
+    "<span>Вердикт</span><div>" + esc(calc.verdict || "—") + "</div></div>" +
+    '<p class="note" style="margin-top:10px">Выгрузки: <a href="/requests/' + esc(rid) + '/analysis.pdf" target="_blank">разбор PDF</a> · ' +
+    '<a href="/requests/' + esc(rid) + '/analysis.xlsx" target="_blank">разбор XLSX</a> · ' +
+    '<a href="/requests/' + esc(rid) + '/proposal.pdf" target="_blank">предложение клиенту PDF</a></p></div></div>';
+  out += '<div class="card"><h3>Проверки</h3>' + tbl(["Правило", "Итог", "Что именно"],
+    (c.checks || []).map(function (x) {
+      return "<tr><td>" + esc(x.rule_code) + '</td><td><span class="v ' + (x.status === "ок" ? "ok" : "warn") + '">' +
+        esc(x.status) + "</span></td><td>" + esc(x.detail) + "</td></tr>"; }), "Проверок нет") + "</div>";
+  var part = async function (title, note, path, render) {
+    try { var d = await api(path); out += '<div class="card"><h3>' + title + '</h3><p class="note">' + note + "</p>" + render(d) + "</div>"; }
+    catch (e) { out += '<div class="card"><h3>' + title + '</h3><p class="note">Не загрузилось: ' + esc(e.message) + "</p></div>"; }
+  };
+  await part("Согласующие", "Кто рассматривает запрос и что решил.", "/requests/" + rid + "/approvals", function (d) {
+    return '<p class="note">Состояние: ' + esc(d.approval_status) + (d.general_agreement_id ? " · генеральное соглашение № " + esc(d.general_agreement_id) : "") + "</p>" +
+      tbl(["Очередь", "Кто", "Решение", "Когда", "Примечание"], (d.reviewers || []).map(function (x) {
+        return "<tr><td>" + esc(x.order_no) + "</td><td>" + esc(x.login || x.user_id) + "</td><td>" + esc(x.status) +
+          "</td><td>" + when(x.decided_at) + "</td><td>" + esc(x.comment || "") + "</td></tr>"; }), "Согласующие не назначены");
+  });
+  await part("Чек-лист документов", "Что нужно по правилам и что уже получено.", "/requests/" + rid + "/checklist", function (d) {
+    return tbl(["Пункт", "Область", "Обязателен", "Получен"], (d["пункты"] || []).map(function (x) {
+      return "<tr><td>" + esc(x["пункт"]) + "</td><td>" + esc(x["область"]) + " " + esc(x["код"]) + "</td><td>" +
+        (x["обязателен"] ? "да" : "нет") + '</td><td><span class="v ' + (x["получен"] ? "ok" : "warn") + '">' +
+        (x["получен"] ? "получен" : "нет") + "</span></td></tr>"; }), "Чек-лист пуст");
+  });
+  await part("Файлы запроса", "Загруженные документы объекта, без фотографий.", "/requests/" + rid + "/documents/files", function (d) {
+    return tbl(["Файл", "Вид", "Размер", "Разбор", "Когда"], (d || []).map(function (x) {
+      return "<tr><td>" + esc(x.filename) + "</td><td>" + esc(x.doc_kind) + '</td><td class="n">' + num(x.size_bytes) +
+        "</td><td>" + esc(x.parse_status || "—") + "</td><td>" + when(x.uploaded_at) + "</td></tr>"; }), "Файлов нет");
+  });
+  await part("Распознанные поля", "Что вычитано из документов и откуда взято.", "/requests/" + rid + "/extracted-fields", function (d) {
+    var f = d["поля"] || {};
+    return tbl(["Поле", "Значение", "Метод", "Уверенность", "Документ"], Object.keys(f).map(function (k) {
+      var x = f[k];
+      return "<tr><td>" + esc(x["название"] || k) + "</td><td>" + esc(x["значение"]) +
+        (x["требует_проверки"] ? ' <span class="v warn">проверить</span>' : "") + "</td><td>" + esc(x["метод"]) +
+        '</td><td class="n">' + esc(x["уверенность"]) + "</td><td>" + esc((x["документ"] || {})["имя_файла"] || "") + "</td></tr>";
+    }), "Полей пока нет");
+  });
+  body.innerHTML = out;
+};
+V.requests_approvals = function (el) { el.innerHTML = frame("/approvals", "Согласования"); };
+
+/* --- Тарифы и справочники --- */
+V.tariffs_forms = function (el) {
+  el.innerHTML = '<div class="cols">' +
+   '<div class="card"><h3>Версия тарифов</h3><p class="note">Своя версия компании или минимальные ставки регулятора. Старые расчёты остаются на своей версии.</p>' +
+   '<form class="f" data-url="/admin/tariff-versions" data-m="POST"><label>Уровень<select name="level"><option>компания</option><option>регулятор</option></select></label>' +
+   '<label>Название<input name="name" required placeholder="Тарифная политика 2027"></label><label>Документ<input name="document_ref" placeholder="приказ №, дата"></label>' +
+   '<label>Действует с<input name="effective_from" type="date" required></label><button class="go">Создать версию</button></form><div class="msg"></div></div>' +
+
+   '<div class="card"><h3>Минимальная ставка</h3><p class="note">Нижний порог по продукту. Тип клиента — если ставки разные для физических и юридических лиц.</p>' +
+   '<form class="f" data-url="/admin/min-rates" data-m="POST"><label>ID версии<input name="tariff_version_id" type="number" required></label>' +
+   '<label>Код продукта<input name="product_code" required placeholder="0807"></label>' +
+   '<label>Тип клиента<select name="payer_type"><option value="">все</option><option>юр</option><option>физ</option></select></label>' +
+   '<label>Ставка, %<input name="min_rate_pct" type="number" step="0.001" required></label><button class="go">Добавить ставку</button></form><div class="msg"></div></div>' +
+
+   '<div class="card"><h3>Коэффициент</h3><p class="note">Фактор → вариант → множитель. «Калиброван» значит посчитан по статистике компании.</p>' +
+   '<form class="f" data-url="/admin/coefficients" data-m="POST"><label>Код фактора<input name="factor_code" required placeholder="protection"></label>' +
+   '<label>Название фактора<input name="factor_name" required></label><label>Код варианта<input name="option_code" required></label>' +
+   '<label>Название варианта<input name="option_name" required></label><label>Множитель<input name="multiplier" type="number" step="0.01" required></label>' +
+   '<label>Калиброван<select name="calibrated"><option value="0">нет</option><option value="1">да</option></select></label>' +
+   '<label>Источник<input name="source"></label><button class="go">Сохранить коэффициент</button></form><div class="msg"></div></div>' +
+
+   '<div class="card"><h3>Новый продукт</h3><p class="note">Создаётся в тестовом статусе. Классы — через запятую, например 8,13.</p>' +
+   '<form class="f" data-url="/admin/products" data-m="POST"><label>Код<input name="code" required placeholder="0836"></label>' +
+   '<label>Название<input name="name" required></label><label>Классы<input name="classes" required placeholder="8"></label>' +
+   '<label>Текст тарифа<input name="rate_text" placeholder="0,05%"></label><label>Мин. ставка, %<input name="min_rate_pct" type="number" step="0.001"></label>' +
+   '<label>ID версии<input name="tariff_version_id" type="number"></label><button class="go">Создать продукт</button></form><div class="msg"></div></div>' +
+   "</div>";
+  bind_forms(el);
+};
+V.tariffs_reference = async function (el) {
+  var names = [["products", "Продукты"], ["classes", "Классы"], ["perils", "Опасности"], ["coefficients", "Коэффициенты"],
+               ["checklists", "Чек-листы"], ["rules", "Правила"], ["min_rates", "Минимальные ставки"]];
+  el.innerHTML = '<div class="card"><h3>Справочники</h3><p class="note">Таблицы такими, как их читает движок расчёта.</p>' +
+    '<div class="bar">' + names.map(function (n, i) {
+      return '<button class="mini" data-ref="' + n[0] + '"' + (i ? "" : ' style="border-color:var(--accent)"') + ">" + n[1] + "</button>";
+    }).join("") + '</div><div id="refBody">Загружаем…</div></div>';
+  var show = async function (name) {
+    var b = $("#refBody"); b.textContent = "Загружаем…";
+    try {
+      var rows = await api("/reference/" + name);
+      if (!rows.length) { b.innerHTML = '<p class="note">Справочник пуст.</p>'; return; }
+      var cols = Object.keys(rows[0]);
+      b.innerHTML = '<p class="note">Строк: ' + rows.length + (rows.length > 200 ? ", показываем первые 200" : "") + "</p>" +
+        tbl(cols.map(esc), rows.slice(0, 200).map(function (r) {
+          return "<tr>" + cols.map(function (c) { return "<td>" + esc(r[c]) + "</td>"; }).join("") + "</tr>"; }));
+    } catch (e) { b.innerHTML = fail(e); }
+  };
+  el.querySelector(".bar").onclick = function (e) {
+    var t = e.target.closest("button[data-ref]"); if (!t) return;
+    el.querySelectorAll("[data-ref]").forEach(function (x) { x.style.borderColor = ""; });
+    t.style.borderColor = "var(--accent)"; show(t.dataset.ref);
+  };
+  show("products");
+};
+V.tariffs_valuation = async function (el) {
+  var cal = function (c) { return Number(c) ? '<span class="v ok">калиброван</span>' : '<span class="v warn">экспертное</span>'; };
+  var norms = await api("/valuation/norms"), sets = await api("/valuation/settings");
+  el.innerHTML = '<div class="card"><h3>Нормы износа</h3>' +
+    '<p class="note">Процент износа за год и остаточный минимум — доля от новой цены, ниже которой стоимость не опускается. ' +
+    'Пометка «экспертное» значит: значение не посчитано по статистике компании.</p>' +
+    tbl(["Код", "Название", "Износ, %/год", "Остаток, %", "Статус", ""], norms.map(function (x) {
+      return "<tr><td>" + esc(x.code) + "</td><td>" + esc(x.name) + '</td><td class="n"><input data-code="' + esc(x.code) +
+        '" data-f="rate_pct" type="number" step="0.1" value="' + esc(x.rate_pct) + '" style="max-width:96px"></td>' +
+        '<td class="n"><input data-code="' + esc(x.code) + '" data-f="residual_min_pct" type="number" step="0.1" value="' +
+        esc(x.residual_min_pct == null ? "" : x.residual_min_pct) + '" style="max-width:96px"></td><td>' + cal(x.calibrated) +
+        '</td><td><button class="mini" data-save="' + esc(x.code) + '">Сохранить</button></td></tr>';
+    }), "Норм пока нет") + '<div class="msg" id="nMsg"></div></div>' +
+    '<div class="card"><h3>Настройки оценки</h3><p class="note">Значения, которыми пользуется оценка стоимости объекта.</p>' +
+    tbl(["Ключ", "Название", "Значение", "Ед.", "Статус", ""], sets.map(function (x) {
+      return '<tr><td style="font-family:var(--mono);font-size:11.5px">' + esc(x.key) + "</td><td>" + esc(x.name) +
+        '</td><td class="n"><input data-key="' + esc(x.key) + '" value="' + esc(x.value) + '" style="max-width:120px"></td><td>' +
+        esc(x.unit) + "</td><td>" + cal(x.calibrated) + '</td><td><button class="mini" data-skey="' + esc(x.key) +
+        '">Сохранить</button></td></tr>';
+    }), "Настроек пока нет") + '<div class="msg" id="sMsg"></div></div>';
+  el.onclick = async function (e) {
+    var code = e.target.dataset ? e.target.dataset.save : null, key = e.target.dataset ? e.target.dataset.skey : null;
+    if (!code && !key) return;
+    var m = $(code ? "#nMsg" : "#sMsg"); m.className = "msg"; m.textContent = "Сохраняем…";
+    try {
+      if (code) {
+        var row = norms.filter(function (x) { return x.code === code; })[0];
+        var get = function (f) { return el.querySelector('input[data-code="' + code + '"][data-f="' + f + '"]').value; };
+        await send("/valuation/norms", "POST", Object.assign({}, row, {rate_pct: Number(get("rate_pct")),
+          residual_min_pct: get("residual_min_pct") === "" ? null : Number(get("residual_min_pct"))}));
+      } else {
+        var s = sets.filter(function (x) { return x.key === key; })[0];
+        await send("/valuation/settings", "POST", Object.assign({}, s, {value: el.querySelector('input[data-key="' + key + '"]').value}));
+      }
+      m.textContent = "Сохранено. Обновляем…";
+      open_section("tariffs", "valuation");
+    } catch (err) { m.className = "msg bad"; m.textContent = "Не сохранилось: " + err.message; }
+  };
+};
+V.tariffs_osgor = async function (el) {
+  var d = await api("/osgor/activities");
+  el.innerHTML = '<div class="card"><h3>ОСГОР: виды деятельности</h3>' +
+    '<p class="note">Справочник коэффициентов по видам деятельности работодателя. Норма: ' + esc(d.legal_ref) + "</p>" +
+    '<div class="tiles"><div class="tile"><b>' + esc(d.total) + '</b><span>видов деятельности</span></div>' +
+    '<div class="tile"><b>' + esc(d.categories) + '</b><span>категорий риска</span></div>' +
+    '<div class="tile"><b>' + esc(String(d.kst_min).replace(".", ",") + " – " + String(d.kst_max).replace(".", ",")) +
+    '</b><span>коэффициент от и до</span></div></div>' +
+    '<form class="f" id="osf"><label>Поиск по названию или коду<input name="q" placeholder="строительство"></label>' +
+    '<button class="go">Найти</button></form><div id="osBody"></div></div>';
+  var show = async function (q) {
+    var b = $("#osBody"); b.textContent = "Ищем…";
+    try {
+      var r = await api("/osgor/activities" + (q ? "?q=" + encodeURIComponent(q) : ""));
+      var items = r.items || [];
+      if (!items.length) { b.innerHTML = '<p class="note">' + (q ? "По запросу ничего не нашлось." : "Введите слово в поиск — справочник большой, целиком он не выводится.") + "</p>"; return; }
+      var cols = Object.keys(items[0]);
+      b.innerHTML = tbl(cols.map(esc), items.slice(0, 120).map(function (x) {
+        return "<tr>" + cols.map(function (c) { return "<td>" + esc(x[c]) + "</td>"; }).join("") + "</tr>"; }));
+    } catch (e) { b.innerHTML = fail(e); }
+  };
+  $("#osf").onsubmit = function (e) { e.preventDefault(); show(e.target.q.value.trim()); };
+  show("");
+};
+V.tariffs_vehicle = async function (el) {
+  var d = await api("/vehicle/reference"), out = "";
+  Object.keys(d).forEach(function (k) {
+    if (Array.isArray(d[k])) {
+      out += '<div class="card"><h3>' + esc(k) + "</h3>" + tbl(["Значение"], d[k].map(function (x) {
+        return "<tr><td>" + esc(typeof x === "object" ? JSON.stringify(x) : x) + "</td></tr>"; })) + "</div>";
+    } else {
+      out += '<div class="card"><h3>' + esc(k) + '</h3><p class="note">' +
+        esc(typeof d[k] === "object" ? JSON.stringify(d[k]) : d[k]) + "</p></div>";
+    }
+  });
+  el.innerHTML = '<p class="hint">Справочник, по которому система относит машину к группе и классу.</p><div class="cols">' + out + "</div>";
+};
+V.tariffs_review = async function (el) {
+  var d = await api("/law-events?limit=12");
+  el.innerHTML = '<div class="card"><h3>Правила, требующие пересмотра</h3>' +
+    '<p class="note">Изменился акт, на который ссылается проверка — робот-юрист помечает её. Расчёты не блокируются: ' +
+    'правило работает по старой формулировке, чтобы прошлые расчёты воспроизводились. Пометку снимает человек.</p>' +
+    tbl(["Правило", "Название", "Важность", "Норма", "Почему помечено", "С какого дня", ""],
+      (d.rules_to_review || []).map(function (r) {
+        return '<tr><td style="font-family:var(--mono);font-size:11.5px">' + esc(r.code) + "</td><td>" + esc(r.name) +
+          "</td><td>" + esc(r.severity) + "</td><td>" + esc(r.legal_ref || "—") + "</td><td>" + esc(r.review_reason || "—") +
+          "</td><td>" + esc(String(r.review_since || "").slice(0, 10)) + '</td><td><button class="mini" data-ok="' + esc(r.code) +
+          '">Снять пометку</button></td></tr>';
+      }), "Правил, требующих пересмотра, нет") + '<div class="msg" id="lwMsg"></div></div>' +
+    '<div class="card"><h3>Последние события</h3>' +
+    tbl(["Когда", "Вид", "Что", "Источник"], (d.items || []).map(function (x) {
+      return "<tr><td>" + when(x.created_at) + "</td><td>" + esc(x.kind) + "</td><td>" +
+        (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.title) + "</a>" : esc(x.title)) +
+        '<div style="color:var(--muted);font-size:11.5px">' + esc(x.summary || "") + "</div></td><td>" + esc(x.source) + "</td></tr>";
+    }), "Событий пока нет") + "</div>";
+  el.onclick = async function (e) {
+    var code = e.target.dataset ? e.target.dataset.ok : null; if (!code) return;
+    var note = prompt("Одной строкой: почему изменение не касается правила " + code + " или что уже поправлено?");
+    if (!note) return;
+    var m = $("#lwMsg"); m.className = "msg"; m.textContent = "Отправляем…";
+    try { await send("/rules/" + encodeURIComponent(code) + "/review-ok", "POST", {who: "admin", note: note});
+          open_section("tariffs", "review"); }
+    catch (err) { m.className = "msg bad"; m.textContent = "Не вышло: " + err.message; }
+  };
+};
+V.tariffs_calibration = function (el) { el.innerHTML = frame("/calibration", "Калибровка"); };
+
+/* --- Рынок и данные --- */
+V.market_stats = function (el) { el.innerHTML = frame("/stats", "Динамика рынка"); };
+V.market_capacity = function (el) { el.innerHTML = frame("/capacity-page", "Ёмкость и удержание"); };
+V.market_portfolio = function (el) { el.innerHTML = frame("/portfolio", "Портфель"); };
+V.market_statagency = async function (el) {
+  var s = await api("/stat/status"), c = await api("/stat/catalog");
+  var sets = c["Наборы"] || [];
+  el.innerHTML = '<div class="tiles"><div class="tile"><b>' + esc(s["Наборов"]) + '</b><span>наборов</span></div>' +
+    '<div class="tile"><b>' + when(s["Последнее массовое обновление"]) + '</b><span>последнее обновление</span></div>' +
+    '<div class="tile"><b>' + (s["Обновление идёт"] ? "идёт" : "нет") + '</b><span>обновление сейчас</span></div></div>' +
+    (s["Ошибка расписания"] ? '<p class="flag">Ошибка расписания: ' + esc(s["Ошибка расписания"]) + "</p>" : "") +
+    '<div class="card"><h3>Реестр наборов</h3><p class="note">Периодичность: ' + esc(s["Периодичность обновления"]) + "</p>" +
+    tbl(["Набор", "Источник", "Единица", "Периодичность", "Страница"], sets.map(function (x) {
+      return "<tr><td>" + esc(x["Набор"]) + "</td><td>" + esc(x["Источник"]) + "</td><td>" + esc(x["Единица"]) +
+        "</td><td>" + esc(x["Периодичность"]) + '</td><td><a href="' + esc(x["Страница набора"]) +
+        '" target="_blank" rel="noopener">открыть</a></td></tr>'; }), "Наборов нет") + "</div>" +
+    '<div class="card"><h3>Ряды</h3><p class="note">Последние строки. Набор можно выбрать.</p>' +
+    '<form class="f" id="ssf"><label>Набор<select name="dataset"><option value="">все</option>' +
+    sets.map(function (x) { return '<option value="' + esc(x.id) + '">' + esc(x["Набор"]) + "</option>"; }).join("") +
+    '</select></label><button class="go">Показать ряды</button></form><div id="ssBody"></div></div>';
+  var show = async function (ds) {
+    var b = $("#ssBody"); b.textContent = "Загружаем…";
+    try {
+      var r = await api("/stat/series?limit=50" + (ds ? "&dataset=" + encodeURIComponent(ds) : ""));
+      b.innerHTML = '<p class="note">Всего строк: ' + esc(r["Всего строк"]) + ", показано: " + esc(r["Показано"]) + "</p>" +
+        tbl(["Набор", "Регион", "Период", "Значение", "Единица", "Забрано"], (r["Строки"] || []).map(function (x) {
+          return "<tr><td>" + esc(x["Набор"]) + "</td><td>" + esc(x["Регион"]) + "</td><td>" + esc(x.period) +
+            '</td><td class="n">' + esc(x.value) + "</td><td>" + esc(x.unit) + "</td><td>" + when(x.fetched_at) + "</td></tr>"; }));
+    } catch (e) { b.innerHTML = fail(e); }
+  };
+  /* поле берём через elements: e.target.dataset — это служебный DOMStringMap формы, а не наш <select name="dataset"> */
+  $("#ssf").onsubmit = function (e) { e.preventDefault(); show(e.target.elements["dataset"].value); };
+  show("");
+};
+V.market_finance = function (el) {
+  el.innerHTML = '<div class="card"><h3>Собственные средства и резервы</h3>' +
+    '<p class="note">Нужны для лимита 20% на один риск (Положение 1806, п. 15). Пока не введены — лимит не проверяется, ' +
+    'а на странице «Ёмкость и удержание» цифры помечены как временные.</p>' +
+    '<form class="f" data-url="/admin/financials" data-m="PUT"><label>Дата отчёта<input name="report_date" type="date" required></label>' +
+    '<label>Собственные средства, сум<input name="own_funds" type="number" required></label>' +
+    '<label>Страховые резервы, сум<input name="reserves" type="number" required></label>' +
+    '<label>Источник<input name="source" placeholder="баланс ф.1, отчёт о резервах"></label>' +
+    '<button class="go">Сохранить показатели</button></form><div class="msg"></div></div>' +
+    '<div class="card"><h3>Резервы, активы и платёжеспособность</h3>' +
+    '<p class="note">Эти три отчёта сейчас загружаются не через экран: готовой формы для них в системе нет, ' +
+    'а придумывать её мы не стали — вопрос записан в «Открытые вопросы» (№ 158). Как есть они видны на странице ' +
+    '<a href="/capacity-page" target="_blank" rel="noopener">«Ёмкость и удержание»</a>.</p></div>';
+  bind_forms(el);
+};
+
+/* --- Знания и законы --- */
+V.knowledge_lawfeed = function (el) { el.innerHTML = frame("/law-feed", "Законодательство"); };
+V.knowledge_graph = function (el) { el.innerHTML = frame("/graph", "Паутина знаний"); };
+V.knowledge_acts = async function (el) {
+  var d = await api("/watched-acts"), s = d.status || {};
+  el.innerHTML = '<div class="tiles"><div class="tile"><b>' + esc(d.count) + '</b><span>актов под наблюдением</span></div>' +
+    '<div class="tile"><b>' + when(s.last) + '</b><span>последняя сверка</span></div>' +
+    '<div class="tile"><b>' + esc(s.changed_acts) + '</b><span>изменившихся актов</span></div>' +
+    '<div class="tile"><b>' + esc(s.unseen_events) + '</b><span>непросмотренных событий</span></div></div>' +
+    (s.error ? '<p class="flag">Ошибка сверки: ' + esc(s.error) + "</p>" : "") +
+    '<div class="card"><h3>Отслеживаемые акты</h3><p class="note">Расписание: ' + esc(s.schedule) + "</p>" +
+    tbl(["Код", "Акт", "Проверен", "Изменился"], (d.items || []).map(function (x) {
+      return '<tr><td style="font-family:var(--mono);font-size:11.5px">' + esc(x.code) + "</td><td>" +
+        (x.url ? '<a href="' + esc(x.url) + '" target="_blank" rel="noopener">' + esc(x.title) + "</a>" : esc(x.title)) +
+        "</td><td>" + when(x.checked_at || x.last_checked) + "</td><td>" +
+        (x.changed ? '<span class="v warn">да</span>' : '<span class="v dim">нет</span>') + "</td></tr>"; }), "Актов нет") + "</div>";
+};
+V.knowledge_topics = async function (el) {
+  var t = await api("/knowledge/topics"), l = await api("/knowledge/log");
+  el.innerHTML = '<div class="tiles"><div class="tile"><b>' + esc(t.count) + '</b><span>тем в реестре</span></div>' +
+    '<div class="tile"><b>' + esc(t.gaps_total) + '</b><span>пробелов</span></div>' +
+    '<div class="tile"><b>' + esc(l.minutes_total) + '</b><span>минут занятий</span></div></div>' +
+    '<div class="card"><h3>Темы</h3><p class="note">Области: ' + esc((t.areas || []).join(", ")) + "</p>" +
+    tbl(["Тема", "Область", "Состояние"], (t.items || []).map(function (x) {
+      return "<tr><td>" + esc(x.topic) + "</td><td>" + esc(x.area) + "</td><td>" + esc(x.status || x.state || "") + "</td></tr>"; }), "Тем нет") + "</div>" +
+    '<div class="card"><h3>Журнал занятий</h3>' +
+    tbl(["Когда", "Кто", "Что изучено", "Минут"], (l.items || []).map(function (x) {
+      return "<tr><td>" + when(x.ts) + "</td><td>" + esc(x.agent) + "</td><td>" + esc(x.what) + '</td><td class="n">' +
+        esc(x.minutes) + "</td></tr>"; }), "Записей нет") + "</div>";
+};
+V.knowledge_library = async function (el) {
+  var rows = await api("/office/shelves"), by = {};
+  rows.forEach(function (r) { (by[r.group] = by[r.group] || []).push(r); });
+  el.innerHTML = '<p class="hint">Документы компании и нормативные тексты, разложенные по полкам.</p><div class="cols">' +
+    Object.keys(by).map(function (g) {
+      return '<div class="card"><h3>' + esc(g) + '</h3><p class="note">Документов: ' + by[g].length + "</p>" +
+        tbl(["Название"], by[g].map(function (r) { return "<tr><td>" + esc(r.name) + "</td></tr>"; })) + "</div>";
+    }).join("") + "</div>";
+};
+
+/* --- Команда --- */
+V.team_tasks = function (el) { el.innerHTML = frame("/tasks-page", "Задачи команде"); };
+V.team_reports = function (el) { el.innerHTML = frame("/reports-page", "Ежедневный доклад"); };
+V.team_office = function (el) { el.innerHTML = frame("/office", "Офис агентов"); };
+
+/* --- Система --- */
+V.system_deploy = function (el) { el.innerHTML = frame("/admin/deploy", "Запуск и обслуживание"); };
+V.system_ai = async function (el) {
+  var s = await api("/llm/status");
+  var kv = [["Провайдер", s.provider_name || s.provider], ["Модель", s.model || "—"], ["Ключ", s.key_mask || "не задан"],
+            ["Состояние", s.connected ? "подключён" : "не подключён"], ["Режим данных", s.pd_mode]];
+  el.innerHTML = '<div class="card"><h3>Искусственный интеллект</h3>' +
+    '<p class="note">ИИ объясняет расчёт клиенту и дочитывает поля документов, которые не нашлись правилами. ' +
+    'Без ключа система работает полностью — просто без этих подсказок. ФИО, ПИНФЛ, паспорт и телефон заменяются ' +
+    'на метки до отправки.</p><div class="kv">' +
+    kv.map(function (p) { return "<span>" + esc(p[0]) + "</span><div>" + esc(p[1]) + "</div>"; }).join("") + "</div>" +
+    '<div class="bar" style="margin-top:12px"><button class="go" id="ping">Проверить связь с моделью</button>' +
+    '<a href="/admin/deploy" target="_blank" rel="noopener">Ключи и настройки</a></div>' +
+    '<div class="msg" id="aiMsg">' + esc(s.reason || "") + "</div></div>" +
+    '<div class="card"><h3>Последние обращения</h3><div id="aiCalls">Загружаем…</div></div>';
+  $("#ping").onclick = async function () {
+    var m = $("#aiMsg"); m.className = "msg"; m.textContent = "Проверяем…";
+    try { var r = await send("/llm/ping", "POST", {}); m.textContent = (r.ok ? "Связь есть. " : "Не получилось. ") + (r.reason || ""); }
+    catch (e) { m.className = "msg bad"; m.textContent = "Не получилось: " + e.message; }
+  };
+  try {
+    var c = await api("/llm/calls?limit=15");
+    $("#aiCalls").innerHTML = tbl(["Когда", "Зачем", "Модель", "Токенов", "мс", "Итог"], c.map(function (x) {
+      return "<tr><td>" + when(x.ts) + "</td><td>" + esc(x.purpose) + "</td><td>" + esc(x.model) + '</td><td class="n">' +
+        esc(x.total_tokens == null ? "—" : x.total_tokens) + '</td><td class="n">' + esc(x.ms == null ? "—" : x.ms) +
+        "</td><td>" + (x.ok ? "успех" : esc(x.error || "ошибка")) + "</td></tr>"; }), "Обращений пока не было");
+  } catch (e) { $("#aiCalls").innerHTML = fail(e); }
+};
+V.system_bot = async function (el) {
+  var b = await api("/tg/bot-status");
+  el.innerHTML = '<div class="card"><h3>Бот Telegram</h3><p class="note">Через бота сотрудники входят в мини-приложение ' +
+    'и получают уведомления.</p><div class="kv">' + Object.keys(b).map(function (k) {
+      var v = b[k]; if (v === true) v = "да"; if (v === false) v = "нет"; if (v === null) v = "—";
+      return "<span>" + esc(k) + "</span><div>" + esc(typeof v === "object" ? JSON.stringify(v) : v) + "</div>";
+    }).join("") + "</div></div>";
+};
+V.system_google = async function (el) {
+  var g = await api("/auth/google/status");
+  el.innerHTML = '<div class="card"><h3>Вход через Google</h3><div class="kv">' +
+    "<span>Настроен</span><div>" + (g.configured ? "да" : "нет") + "</div>" +
+    "<span>Сообщение</span><div>" + esc(g.message || "") + "</div>" +
+    "<span>Домены</span><div>" + esc(g.domains || "любой аккаунт Google") + "</div></div>" +
+    (g.hint ? '<p class="note" style="margin-top:10px">' + esc(g.hint) + "</p>" : "") + "</div>";
+};
+V.system_langs = async function (el) {
+  var l = await api("/i18n/langs");
+  el.innerHTML = '<div class="card"><h3>Языки интерфейса</h3><p class="note">По умолчанию: ' + esc(l["default"]) +
+    ". Выбор человека хранится в cookie «" + esc(l.cookie) + "».</p>" +
+    tbl(["Код", "Язык"], (l.langs || []).map(function (x) {
+      return "<tr><td>" + esc(x.code) + "</td><td>" + esc(x.name) + "</td></tr>"; })) + "</div>";
+};
+V.system_audit = async function (el) {
+  var a = await api("/audit?limit=100");
+  el.innerHTML = '<div class="card"><h3>Журнал действий</h3><p class="note">Последние сто записей. ' +
+    'ФИО и телефоны в журнал не попадают — только логин и событие.</p>' +
+    tbl(["Когда", "Кто", "Действие", "Объект", "Детали"], a.map(function (x) {
+      return "<tr><td>" + when(x.ts) + "</td><td>" + esc(x.who) + "</td><td>" + esc(x.action) + "</td><td>" + esc(x.entity) +
+        '</td><td style="font-family:var(--mono);font-size:11.5px">' + esc(String(x.detail || "").slice(0, 120)) + "</td></tr>"; })) + "</div>";
+};
+
+/* --------------------------------------------------------------- формы */
+function bind_forms(el) {
+  el.querySelectorAll("form.f[data-url]").forEach(function (f) {
+    f.onsubmit = async function (e) {
+      e.preventDefault();
+      var d = {}, msg = f.nextElementSibling;
+      new FormData(f).forEach(function (v, k) {
+        if (v === "") return;
+        d[k] = (isNaN(v) || k.slice(-4) === "code" || k === "name" || k === "classes") ? v : Number(v);
+      });
+      if (d.classes) d.classes = String(d.classes).split(",").map(function (s) { return s.trim(); });
+      msg.className = "msg"; msg.textContent = "Сохраняем…";
+      try {
+        var j = await send(f.dataset.url, f.dataset.m, d);
+        msg.textContent = "Сохранено." + (j && j.id ? " ID: " + j.id : "");
+        f.reset();
+      } catch (err) { msg.className = "msg bad"; msg.textContent = "Не сохранилось: " + err.message; }
+    };
+  });
+}
+
+/* --------------------------------------------------------------- навигация */
+var narrow = function () { return window.matchMedia("(max-width:860px)").matches; };
+/* Свои классы ставим точечно: на странице может быть ещё и общее меню сервера,
+   которое держит на body свои классы (side-open, side-wide) — их стирать нельзя. */
+function view_mode(mode) {
+  document.body.classList.toggle("menu-view", mode === "menu");
+  document.body.classList.toggle("section-view", mode === "section");
+}
+var cur = {g: "people", s: "users"};
+
+function paint_rail() {
+  var r = $("#rail");
+  r.innerHTML = '<div class="mark"><b>S</b></div>' + NAV.map(function (g) {
+    return '<button type="button" data-g="' + g.id + '"' + (g.id === cur.g ? ' class="on"' : "") +
+      ' title="' + esc(g.title) + '"><i aria-hidden="true">' + g.icon + "</i><u>" + esc(g.short) + "</u></button>";
+  }).join("");
+  r.onclick = function (e) {
+    var b = e.target.closest("button[data-g]"); if (!b) return;
+    var g = NAV.filter(function (x) { return x.id === b.dataset.g; })[0];
+    if (narrow()) { cur.g = g.id; paint_rail(); paint_menu(); view_mode("menu"); }
+    else open_section(g.id, g.items[0].id);
+  };
+}
+function paint_menu() {
+  var g = NAV.filter(function (x) { return x.id === cur.g; })[0];
+  $("#menu").innerHTML = "<h2>" + esc(g.title) + "</h2><p>" + esc(g.why) + "</p>" + g.items.map(function (it) {
+    return '<a href="#' + g.id + "/" + it.id + '"' + (it.id === cur.s ? ' class="on"' : "") + ">" + esc(it.title) + "</a>";
+  }).join("");
+}
+async function open_section(gid, sid, arg) {
+  var g = NAV.filter(function (x) { return x.id === gid; })[0] || NAV[0];
+  var s = g.items.filter(function (x) { return x.id === sid; })[0] || g.items[0];
+  cur = {g: g.id, s: s.id};
+  if (location.hash !== "#" + g.id + "/" + s.id) location.hash = g.id + "/" + s.id;
+  view_mode(narrow() ? "section" : "");
+  paint_rail(); paint_menu();
+  $("#title").textContent = s.title;
+  $("#why").textContent = s.why || "";
+  var view = $("#view");
+  view.onclick = null;
+  view.innerHTML = '<p class="hint">Загружаем раздел…</p>';
+  var fn = V[g.id + "_" + s.id];
+  if (!fn) { view.innerHTML = '<p class="hint">Раздел пока пуст.</p>'; return; }
+  try { await fn(view, arg); } catch (e) { view.innerHTML = fail(e); }
+  if (window.i18nPaint) window.i18nPaint(view);
+}
+$("#back").onclick = function () { view_mode("menu"); };
+window.addEventListener("hashchange", function () {
+  var p = location.hash.replace("#", "").split("/");
+  if (p[0] && (p[0] !== cur.g || p[1] !== cur.s)) open_section(p[0], p[1]);
+});
+window.addEventListener("resize", function () {
+  if (!narrow()) view_mode("");
+  else if (!document.body.classList.contains("menu-view")) view_mode("section");
+});
+(function () {
+  var p = location.hash.replace("#", "").split("/");
+  open_section(p[0] || "people", p[1] || "users");
+})();
+</script>
+<script src="/theme.js"></script>

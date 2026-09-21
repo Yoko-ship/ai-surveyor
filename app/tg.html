@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Сюрвейер INSON</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="/i18n.js"></script>
 <style>
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
   --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
@@ -189,21 +190,21 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <button class="burger" id="burger" type="button" aria-controls="nav" aria-expanded="false">
     <i aria-hidden="true">&#9776;</i><span>Свернуть меню</span></button>
   <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
-    <div><b class="t">Сюрвейер INSON</b><span id="mode">подключаюсь&#8230;</span></div></div>
+    <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode">подключаюсь&#8230;</span></div></div>
   <nav id="nav" class="hidden" aria-label="Разделы"></nav>
-  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button class="ghost" id="outBtn">Выйти</button></div>
+  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button class="ghost" id="outBtn" data-i18n="common.logout">Выйти</button></div>
 </aside>
 <div id="scrim"></div>
 
 <div class="wrap">
-  <div class="banner" id="pdWarn">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
+  <div class="banner" id="pdWarn" data-i18n="tg.test_server">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
   <div class="banner hidden" id="authWarn"></div>
 
   <!-- ---------- вход рабочей почтой (режим «браузер») ---------- -->
   <div id="screen-login" class="hidden">
     <div class="card">
-      <h2>Вход</h2>
-      <p class="sub">Telegram не открыт. Войдите своим Telegram — или рабочей почтой.</p>
+      <h2 data-i18n="tg.login">Вход</h2>
+      <p class="sub" data-i18n="tg.login_hint">Telegram не открыт. Войдите своим Telegram — или рабочей почтой.</p>
       <button type="button" class="tgbtn" id="tgBtn"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span>Войти через Telegram</span></button>
       <div class="hidden" id="tgLinkBox">
         <p class="note" style="margin-top:12px">Отправьте этот код боту — страница войдёт сама.</p>
@@ -221,7 +222,7 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       <p class="note" style="margin-top:8px;font-size:11.5px"><a href="/login" style="color:var(--muted)">Служебный вход</a></p>
     </div>
     <div class="card">
-      <h2>Ещё нет доступа</h2>
+      <h2 data-i18n="tg.no_access">Ещё нет доступа</h2>
       <p class="sub">Доступ открывается сам при первом входе — через Telegram или с рабочей почты. Анкету о себе заполняют один раз, и вы сразу работаете: ждать подтверждения не нужно.</p>
       <p class="note">ID агента из ЕАИС (Положение № 3845, п. 4) проставляет администратор в разделе «Пользователи» — на вход это не влияет.</p>
     </div>
@@ -234,7 +235,7 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       <p class="sub" id="waitWhy"></p>
       <div class="kv" id="waitKv"></div>
       <p class="note" style="margin-top:12px">Учётную запись закрыл администратор системы — например, при увольнении или исключении из реестра агентов (Положение № 3845, п. 4). Пока запись закрыта, разделы приложения не открываются: сведения о страхователях не должны попадать к постороннему (ЗРУ‑730, ст. 62). Восстановить доступ может только администратор.</p>
-      <button class="ghost" id="waitAgain" style="margin-top:12px">Проверить ещё раз</button>
+      <button class="ghost" id="waitAgain" style="margin-top:12px" data-i18n="tg.check_again">Проверить ещё раз</button>
     </div>
   </div>
 
@@ -262,10 +263,10 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
     <div class="card hidden" id="regStep2">
       <div class="step on"><i>2</i><b>Код из чата бота</b></div>
       <p class="sub">Шесть цифр из последнего сообщения бота.</p>
-      <label class="f" for="regCode">Код</label>
+      <label class="f" for="regCode" data-i18n="common.code">Код</label>
       <input id="regCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
       <div class="note" id="regTries" style="margin-top:8px"></div>
-      <button class="go" id="regCheck" style="margin-top:12px">Проверить код</button>
+      <button class="go" id="regCheck" style="margin-top:12px" data-i18n="tg.confirm_code">Проверить код</button>
       <button class="ghost" id="regResend" style="margin-top:8px">Отправить код заново</button>
       <div class="note" id="regCodeMsg" style="margin-top:8px"></div>
     </div>
@@ -311,56 +312,56 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- расчёт -->
   <section id="tab-calc" data-section="calc" class="hidden">
     <div class="card">
-      <h2>Объект и договор</h2>
-      <p class="sub">Коротко: что страхуем, на какую сумму и на какой срок.</p>
-      <label class="f" for="cls">Класс страхования</label>
+      <h2 data-i18n="tg.form_title">Объект и договор</h2>
+      <p class="sub" data-i18n="tg.form_hint">Коротко: что страхуем, на какую сумму и на какой срок.</p>
+      <label class="f" for="cls" data-i18n="calc.class">Класс страхования</label>
       <select id="cls"><option>загружаю…</option></select>
-      <label class="f" for="prod">Продукт</label>
+      <label class="f" for="prod" data-i18n="calc.product">Продукт</label>
       <select id="prod"><option>сначала выберите класс</option></select>
-      <label class="f" for="otype">Тип объекта</label>
+      <label class="f" for="otype" data-i18n="calc.object_type">Тип объекта</label>
       <input id="otype" type="text" value="Склад" autocomplete="off">
       <div class="two">
         <div>
-          <label class="f" for="sum">Страховая сумма, сум</label>
+          <label class="f" for="sum" data-i18n="calc.sum_insured_field">Страховая сумма, сум</label>
           <input id="sum" type="text" inputmode="numeric" value="800 000 000">
         </div>
         <div>
-          <label class="f" for="val">Стоимость объекта, сум</label>
+          <label class="f" for="val" data-i18n="calc.value_field">Стоимость объекта, сум</label>
           <input id="val" type="text" inputmode="numeric" value="1 000 000 000">
         </div>
       </div>
       <div class="two">
         <div>
-          <label class="f" for="term">Срок, дней</label>
+          <label class="f" for="term" data-i18n="calc.term_days">Срок, дней</label>
           <input id="term" type="text" inputmode="numeric" value="365">
         </div>
         <div>
-          <label class="f" for="fr">Франшиза</label>
-          <select id="fr"><option value="">не применяется</option></select>
+          <label class="f" for="fr" data-i18n="calc.franchise">Франшиза</label>
+          <select id="fr"><option value="" data-i18n="calc.franchise_none">не применяется</option></select>
         </div>
       </div>
     </div>
 
     <div class="card" id="factorsCard">
-      <h2>Факторы риска</h2>
-      <p class="sub">Набор зависит от класса. Пустое поле — фактор не учитывается.</p>
+      <h2 data-i18n="calc.factors">Факторы риска</h2>
+      <p class="sub" data-i18n="calc.factors_hint">Набор зависит от класса. Пустое поле — фактор не учитывается.</p>
       <div id="factors"><div class="note">загружаю…</div></div>
     </div>
 
     <div class="card">
-      <h2>Раскрытие клиенту</h2>
-      <p class="sub">Статья 63 Закона о страховой деятельности.</p>
+      <h2 data-i18n="disclosure.title">Раскрытие клиенту</h2>
+      <p class="sub" data-i18n="disclosure.legal">Статья 63 Закона о страховой деятельности.</p>
       <label class="f" style="display:flex;gap:10px;align-items:center;margin:0">
         <input type="checkbox" id="disclosure" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
-        <span style="color:var(--ink)">Клиенту всё рассказал</span>
+        <span style="color:var(--ink)" data-i18n="disclosure.done">Клиенту всё рассказал</span>
       </label>
       <label class="f" style="display:flex;gap:10px;align-items:center;margin-top:12px">
         <input type="checkbox" id="paid" style="width:20px;height:20px;min-height:20px;accent-color:var(--accent)">
-        <span style="color:var(--ink)">Премия поступила</span>
+        <span style="color:var(--ink)" data-i18n="disclosure.premium_paid">Премия поступила</span>
       </label>
     </div>
 
-    <button class="go" id="calcBtn">Посчитать</button>
+    <button class="go" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button>
     <div class="note" id="calcMsg" style="margin-top:8px"></div>
 
     <div id="result"></div>
@@ -369,9 +370,9 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- мои запросы -->
   <section id="tab-my-requests" data-section="my-requests" class="hidden">
     <div class="card">
-      <h2>Мои запросы</h2>
-      <p class="sub">Последние 50 запросов, поданных под вашим ID агента. Видно, кто согласовал и когда.</p>
-      <button class="ghost" id="myReload">Обновить список</button>
+      <h2 data-i18n="tg.nav.requests">Мои запросы</h2>
+      <p class="sub" data-i18n="tg.requests_hint">Последние 50 запросов, поданных под вашим ID агента. Видно, кто согласовал и когда.</p>
+      <button class="ghost" id="myReload" data-i18n="tg.requests_refresh">Обновить список</button>
     </div>
     <div id="myList"></div>
   </section>
@@ -379,21 +380,21 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- фото и документы -->
   <section id="tab-photos" data-section="photos" class="hidden">
     <div class="card">
-      <h2>Фотографии объекта</h2>
+      <h2 data-i18n="tg.photos_title">Фотографии объекта</h2>
       <p class="sub">Сначала посчитайте и сохраните запрос — фото прикрепляются к нему. Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
       <div class="note" id="phMsg">запрос ещё не сохранён</div>
       <input type="file" id="phFile" accept="image/*" multiple capture="environment" style="margin-top:10px">
       <div class="photos" id="phList" style="margin-top:10px"></div>
     </div>
     <div class="card">
-      <h2>Документы объекта</h2>
-      <p class="sub">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
-      <label class="f" for="docKind">Что за документ</label>
+      <h2 data-i18n="tg.docs_title">Документы объекта</h2>
+      <p class="sub" data-i18n="tg.docs_hint">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
+      <label class="f" for="docKind" data-i18n="tg.doc_kind_question">Что за документ</label>
       <select id="docKind">
         <option value="техпаспорт">Технический паспорт</option>
         <option value="кадастр">Кадастровые документы</option>
       </select>
-      <label class="f" for="docFile">Файл — PDF или фотография</label>
+      <label class="f" for="docFile" data-i18n="tg.doc_file">Файл — PDF или фотография</label>
       <input type="file" id="docFile" accept="image/*,application/pdf">
       <div class="note" id="docMsg" style="margin-top:10px">запрос ещё не сохранён</div>
       <div class="files" id="docList" style="margin-top:10px"></div>
@@ -403,9 +404,9 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- ждут меня -->
   <section id="tab-inbox" data-section="inbox" class="hidden">
     <div class="card">
-      <h2>Ждут моего решения</h2>
-      <p class="sub">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p>
-      <button class="ghost" id="inboxReload">Обновить список</button>
+      <h2 data-i18n="tg.nav.waiting">Ждут моего решения</h2>
+      <p class="sub" data-i18n="tg.waiting_hint">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p>
+      <button class="ghost" id="inboxReload" data-i18n="tg.requests_refresh">Обновить список</button>
     </div>
     <div id="inboxList"></div>
   </section>
@@ -413,9 +414,9 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- заявки на доступ -->
   <section id="tab-applications" data-section="applications" class="hidden">
     <div class="card">
-      <h2>Заявки на доступ</h2>
-      <p class="sub">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p>
-      <button class="ghost" id="appReload">Обновить список</button>
+      <h2 data-i18n="tg.nav.applications">Заявки на доступ</h2>
+      <p class="sub" data-i18n="tg.applications_hint">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p>
+      <button class="ghost" id="appReload" data-i18n="tg.requests_refresh">Обновить список</button>
     </div>
     <div id="appList"></div>
   </section>
@@ -423,9 +424,9 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- пользователи -->
   <section id="tab-users" data-section="users" class="hidden">
     <div class="card">
-      <h2>Пользователи</h2>
+      <h2 data-i18n="tg.nav.users">Пользователи</h2>
       <p class="sub">Кто работает в системе: ФИО, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p>
-      <button class="ghost" id="usrReload">Обновить список</button>
+      <button class="ghost" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button>
     </div>
     <div id="usrList"></div>
   </section>
@@ -433,23 +434,23 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- генеральные соглашения -->
   <section id="tab-agreements" data-section="agreements" class="hidden">
     <div class="card">
-      <h2>Новое генеральное соглашение</h2>
-      <p class="sub">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p>
-      <label class="f" for="agPartner">Партнёр</label>
+      <h2 data-i18n="tg.agreement_new">Новое генеральное соглашение</h2>
+      <p class="sub" data-i18n="tg.agreement_hint">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p>
+      <label class="f" for="agPartner" data-i18n="tg.partner">Партнёр</label>
       <input id="agPartner" type="text" placeholder="например Asia Alliance Bank" autocomplete="off">
-      <label class="f" for="agProduct">Код продукта (можно оставить пустым)</label>
+      <label class="f" for="agProduct" data-i18n="tg.product_code_opt">Код продукта (можно оставить пустым)</label>
       <input id="agProduct" type="text" placeholder="например 0126" autocomplete="off">
       <label class="f" for="agStatus">Статус</label>
       <select id="agStatus">
-        <option value="черновик">черновик</option>
-        <option value="действует">действует</option>
-        <option value="закрыто">закрыто</option>
+        <option value="черновик" data-i18n="status.agreement.draft">черновик</option>
+        <option value="действует" data-i18n="status.agreement.active">действует</option>
+        <option value="закрыто" data-i18n="status.agreement.closed">закрыто</option>
       </select>
       <label class="f">Согласующие по умолчанию — от 1 до 3 человек</label>
       <div class="pick" id="agPick"><div class="note" style="padding:10px 12px">загружаю…</div></div>
-      <label class="f" for="agTerms">Условия коротко</label>
+      <label class="f" for="agTerms" data-i18n="tg.terms_short">Условия коротко</label>
       <textarea id="agTerms" placeholder="что за соглашение и на что оно влияет"></textarea>
-      <button class="go" id="agSave" style="margin-top:12px">Сохранить соглашение</button>
+      <button class="go" id="agSave" style="margin-top:12px" data-i18n="tg.agreement_save">Сохранить соглашение</button>
       <div class="note" id="agMsg" style="margin-top:8px"></div>
     </div>
     <div id="agList"></div>
@@ -458,14 +459,14 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
   <!-- настройки -->
   <section id="tab-settings" data-section="settings" class="hidden">
     <div class="card">
-      <h2>Бот Telegram</h2>
-      <p class="sub">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
+      <h2 data-i18n="tg.nav.bot">Бот Telegram</h2>
+      <p class="sub" data-i18n="tg.bot_hint">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
       <div class="kv" id="botKv"><span>Состояние</span><b>загружаю…</b></div>
-      <button class="ghost" id="botReload" style="margin-top:12px">Обновить</button>
+      <button class="ghost" id="botReload" style="margin-top:12px" data-i18n="common.refresh">Обновить</button>
     </div>
     <div class="card">
-      <h2>Перенос и копии</h2>
-      <p class="sub">Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.</p>
+      <h2 data-i18n="tg.transfer_title">Перенос и копии</h2>
+      <p class="sub" data-i18n="tg.transfer_hint">Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.</p>
       <a href="/admin/deploy" style="color:var(--accent)">Открыть «Перенос и копии»</a>
     </div>
   </section>
@@ -487,6 +488,10 @@ const when = s => {
     hour: "2-digit", minute: "2-digit"});
 };
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+/* Подписи: T("ключ", "русский запас") из /i18n.js. Словарь не подключился — остаётся русский. */
+if (!window.T) window.T = (k, f) => (f != null ? f : k);
+if (!window.I18N_LANG) window.I18N_LANG = "ru";
+const navTitle = (key, ru) => T("tg.nav." + key, ru);
 
 /* ---------- Telegram: готовность, разворот, цвета поверх наших ---------- */
 function applyTheme(){
@@ -589,13 +594,24 @@ function paintNav(items){
   nav.classList.toggle("hidden", !list.length);
   if (!list.length) { nav.innerHTML = ""; return; }
   nav.innerHTML = list.map(it => {
-    const full = NAV_SHORT[it.key] || it.title || it.key;
+    const full = navTitle(it.key, NAV_SHORT[it.key] || it.title || it.key);
+    const rail = I18N_LANG === "ru" ? (NAV_RAIL[it.key] || full) : full;
     return '<button type="button" data-tab="' + esc(it.key) + '" title="' + esc(full) + '">'
       + "<i aria-hidden=\"true\">" + esc(NAV_ICON[it.key] || "•") + "</i>"
-      + "<u>" + esc(NAV_RAIL[it.key] || full) + "</u>"
+      + "<u>" + esc(rail) + "</u>"
       + "<span>" + esc(full) + "</span><cite></cite></button>";
   }).join("");
-  nav.querySelectorAll("button").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+  nav.querySelectorAll("[data-tab]").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+  /* «Админка» — переход в общий каркас админки (/admin/hub) в этом же окне: домен тот же,
+     вход по cookie сессии, ничего в адрес не подставляем. Признак админа берём там же, где и
+     админские разделы: сервер отдаёт их в меню только админу (app/tgbot.py, NAV_ADMIN). */
+  if (list.some(it => it.key === "settings")) {
+    const hub = T("tg.nav.admin", "Админка");
+    nav.insertAdjacentHTML("beforeend",
+      '<button type="button" id="navAdmin" title="' + esc(hub) + '">'
+      + '<i aria-hidden="true">▦</i><u>' + esc(hub) + "</u><span>" + esc(hub) + "</span></button>");
+    $("#navAdmin").onclick = () => { location.href = "/admin/hub"; };
+  }
   openTab(list.some(it => it.key === TAB) ? TAB : list[0].key);
 }
 
@@ -604,7 +620,7 @@ function openTab(key){
   sectionKeys().forEach(k => {
     document.querySelector('[data-section="' + k + '"]').classList.toggle("hidden", k !== key);
   });
-  $("#nav").querySelectorAll("button").forEach(b => {
+  $("#nav").querySelectorAll("[data-tab]").forEach(b => {
     const on = b.dataset.tab === key;
     b.classList.toggle("on", on);
     b.setAttribute("aria-current", on ? "page" : "false");
@@ -618,7 +634,7 @@ function openTab(key){
 function navBadge(key, n){
   const btn = $("#nav").querySelector('[data-tab="' + key + '"]');
   if (!btn) return;
-  const base = NAV_SHORT[key] || (ME.nav.filter(x => x.key === key)[0] || {}).title || key;
+  const base = navTitle(key, NAV_SHORT[key] || (ME.nav.filter(x => x.key === key)[0] || {}).title || key);
   btn.querySelector("span").innerHTML = esc(base) + (n ? ' <em>' + n + "</em>" : "");
   btn.querySelector("cite").textContent = n ? String(n) : "";   // счётчик виден и на узкой рейке
   btn.title = base + (n ? " (" + n + ")" : "");
@@ -628,7 +644,7 @@ function navBadge(key, n){
 function mainButton(show){
   if (!TG || !TG.MainButton) return;
   try {
-    TG.MainButton.setText("Посчитать");
+    TG.MainButton.setText(T("tg.calc_button", "Посчитать"));
     if (show) TG.MainButton.show(); else TG.MainButton.hide();
   } catch (e) {}
 }
@@ -636,7 +652,7 @@ const IN_TG = !!(TG && TG.initData);
 if (TG && TG.MainButton) {
   try {
     TG.MainButton.onClick(() => calculate());
-    TG.MainButton.setText("Посчитать");
+    TG.MainButton.setText(T("tg.calc_button", "Посчитать"));
     if (IN_TG) $("#calcBtn").classList.add("hidden");   // в Telegram считает нижняя кнопка клиента
   } catch (e) {}
 }

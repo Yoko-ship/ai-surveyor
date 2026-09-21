@@ -480,8 +480,8 @@ def market_status():
 
 
 @app.get("/stats", response_class=HTMLResponse)
-def stats_page():
-    return (ROOT / "app" / "stats.html").read_text(encoding="utf-8")
+def stats_page(embed: int = 0):
+    return page((ROOT / "app" / "stats.html").read_text(encoding="utf-8"), "/stats", bool(embed))
 
 
 # ---------- офис агентов ----------
@@ -527,8 +527,8 @@ def agents_status():
 
 
 @app.get("/office", response_class=HTMLResponse)
-def office_page():
-    return (ROOT / "app" / "office.html").read_text(encoding="utf-8")
+def office_page(embed: int = 0):
+    return page((ROOT / "app" / "office.html").read_text(encoding="utf-8"), "/office", bool(embed))
 
 
 # ---------- ёмкость, резервы, удержание ----------
@@ -609,8 +609,8 @@ def set_solvency(s: SolvencyRow):
 
 
 @app.get("/capacity-page", response_class=HTMLResponse)
-def capacity_page():
-    return (ROOT / "app" / "capacity.html").read_text(encoding="utf-8")
+def capacity_page(embed: int = 0):
+    return page((ROOT / "app" / "capacity.html").read_text(encoding="utf-8"), "/capacity-page", bool(embed))
 
 
 # ---------- админка ----------
@@ -813,6 +813,29 @@ def sidebar(active: str) -> str:
             + SIDEBAR_JS)
 
 
+# Встраивание в единую админку (/admin/hub): страница едет в <iframe> на том же домене,
+# и собственное меню там лишнее — прячем и общую рейку sidebar(), и свой <aside> страницы,
+# и отступ body под рейку. Права это не меняет: guard/access проверяются как обычно.
+EMBED_CSS = ("<style id=\"embed-nav-off\">"
+             # прячем только меню (.app>aside и общую рейку), но не панели с данными,
+             # например aside.summary на экране расчёта
+             "#side,#sbScrim,.app>aside{display:none!important}"
+             ".app{grid-template-columns:1fr!important}"
+             "body{padding-left:0!important;padding-right:0!important}"
+             "</style>")
+
+
+def page(html: str, active: str = "", embed: bool = False) -> str:
+    """Одна раскладка для всех экранов.
+    embed=True — отдаём без меню (для iframe админки); иначе подставляем общую рейку
+    вместо метки <!--SIDEBAR-->, а страницы со своим <aside> остаются как были."""
+    if embed:
+        return html + EMBED_CSS
+    if active and "<!--SIDEBAR-->" in html:
+        return html.replace("<!--SIDEBAR-->", sidebar(active), 1)
+    return html
+
+
 # Мост UI_BRIDGE убран 20.09.2026: экран /ui (docs/agent_ui.html) сам показывает рынок,
 # предупредительные мероприятия, сохраняет запрос и даёт ссылку на PDF.
 
@@ -823,12 +846,22 @@ def theme_js():
     return Response((ROOT / "app" / "theme.js").read_text(encoding="utf-8"), media_type="application/javascript")
 
 
+@app.get("/i18n.js")
+def i18n_js():
+    """Словарь интерфейса на странице: выбор языка, подписи по data-i18n, функция T().
+    Отдаётся рядом с /theme.js и так же открыт до входа (app/guard.py)."""
+    from fastapi.responses import Response
+    return Response((ROOT / "app" / "i18n.js").read_text(encoding="utf-8"),
+                    media_type="application/javascript")
+
+
 @app.get("/ui", response_class=HTMLResponse)
-def ui():
+def ui(embed: int = 0):
     html = (ROOT / "docs" / "agent_ui.html").read_text(encoding="utf-8")
-    return ("<!doctype html><html><meta charset='utf-8'>"
-            "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&display=swap'>"
-            + sidebar("/ui") + html + "<script src='/theme.js'></script>")
+    head = ("<!doctype html><html><meta charset='utf-8'>"
+            "<link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Manrope:wght@600;800&display=swap'>")
+    bar = "" if embed else sidebar("/ui")
+    return page(head + bar + html + "<script src='/theme.js'></script>", embed=bool(embed))
 
 
 @app.get("/admin", response_class=HTMLResponse)
@@ -837,13 +870,31 @@ def admin():
     return html.replace("<div class=\"wrap\">", sidebar("/admin") + "<div class=\"wrap\">", 1)
 
 
+ADMIN_HUB = ROOT / "app" / "admin_hub.html"
+
+
+@app.get("/admin/hub", response_class=HTMLResponse)
+@app.get("/admin/hub/", response_class=HTMLResponse)
+def admin_hub():
+    """Единая админка: каркас с левым меню, разделы открываются в iframe с ?embed=1.
+    Файл верстает дизайнер; пока его нет — понятная 404, сервер поднимается как обычно."""
+    if not ADMIN_HUB.exists():
+        raise HTTPException(404, "страница app/admin_hub.html ещё не сделана")
+    return page(ADMIN_HUB.read_text(encoding="utf-8"), "/admin/hub")
+
+
 @app.get("/graph", response_class=HTMLResponse)
-def graph():
-    """Паутина знаний в стиле Obsidian: продукты → классы → учётные группы → правила РНП."""
+def graph(embed: int = 0):
+    """Паутина знаний в стиле Obsidian: продукты → классы → учётные группы → правила РНП.
+
+    Своего бокового меню страница не имеет, поэтому в режиме встраивания (?embed=1, внутри
+    единой админки) убираем только ссылку «← к приложению»: внутри рамки она уводила бы
+    пользователя из админки прямо в окне раздела.
+    """
     html = (ROOT / "docs" / "tariff_web.html").read_text(encoding="utf-8")
     back = ('<a href="/stats" style="position:fixed;right:16px;bottom:14px;z-index:9;font:600 13px Manrope,system-ui;'
             'color:#2ED3A2;text-decoration:none;background:#161C21;border:1px solid #26303A;border-radius:999px;padding:7px 13px">← к приложению</a>')
-    return "<!doctype html><meta charset='utf-8'>" + html + back
+    return "<!doctype html><meta charset='utf-8'>" + html + ("" if embed else back)
 
 
 # модули, которые делают агенты: портфельный аудит, предложение клиенту, калибровка

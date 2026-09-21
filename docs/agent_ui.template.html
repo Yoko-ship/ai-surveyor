@@ -225,8 +225,8 @@ details.card[open] > summary{margin-bottom:14px}
 
 <div class="wrap">
   <header>
-    <h1>Новый расчёт</h1>
-    <p>Выберите продукт и заполните поля. Ставка и премия справа пересчитываются сразу — кнопку «посчитать» нажимать не нужно.</p>
+    <h1 data-i18n="calc.title">Новый расчёт</h1>
+    <p data-i18n="calc.subtitle">Выберите продукт и заполните поля. Ставка и премия справа пересчитываются сразу — кнопку «посчитать» нажимать не нужно.</p>
   </header>
 
   <div class="grid">
@@ -235,7 +235,7 @@ details.card[open] > summary{margin-bottom:14px}
     <aside class="summary" aria-live="polite">
       <div class="sum-top">
         <div class="premium" id="premium">—</div>
-        <div class="rateline">ставка <b id="rate">—</b> <span id="rateNote"></span></div>
+        <div class="rateline"><span data-i18n="calc.rate_word">ставка</span> <b id="rate">—</b> <span id="rateNote"></span></div>
         <div class="scale">
           <div class="bar"><div class="fill" id="fill" style="width:0"></div></div>
           <div class="marks"><span id="mMin">мин —</span><span id="mTech">тех —</span><span id="mMax">макс —</span></div>
@@ -243,20 +243,24 @@ details.card[open] > summary{margin-bottom:14px}
         <div id="market" class="hint" style="margin-top:8px"></div>
       </div>
       <div class="verdict" id="verdict"></div>
-      <div class="sec"><h3>Из чего сложилась ставка</h3><div class="wf" id="wf"></div></div>
-      <div class="sec"><h3>Проверки</h3><div id="checks"></div></div>
-      <div class="sec"><h3>Как удешевить</h3><div id="tips"></div></div>
-      <div class="sec" id="msec" hidden><h3>Что предписать страхователю</h3><div id="measures"></div></div>
+      <div class="sec"><h3 data-i18n="calc.breakdown">Из чего сложилась ставка</h3><div class="wf" id="wf"></div></div>
+      <div class="sec"><h3 data-i18n="calc.checks">Проверки</h3><div id="checks"></div></div>
+      <div class="sec"><h3 data-i18n="calc.cheaper">Как удешевить</h3><div id="tips"></div></div>
+      <div class="sec" id="msec" hidden><h3 data-i18n="calc.measures">Что предписать страхователю</h3><div id="measures"></div></div>
       <div class="actions">
-        <button type="button" id="toUnderwriter">Андеррайтеру</button>
-        <button type="button" class="primary" id="toContract">В договор</button>
+        <button type="button" id="toUnderwriter" data-i18n="calc.for_underwriter">Андеррайтеру</button>
+        <button type="button" class="primary" id="toContract" data-i18n="calc.for_contract">В договор</button>
       </div>
     </aside>
   </div>
   <p class="foot" id="foot"></p>
 </div>
 
+<script src="/i18n.js"></script>
 <script>
+/* Подписи экрана: T("ключ", "русский запас") из /i18n.js. Нет словаря — остаётся русский. */
+if (!window.T) window.T = (k, f, v) => { let s = (f != null ? f : k);
+  if (v) for (const n in v) s = String(s).split("{" + n + "}").join(v[n]); return s; };
 const D = __DATA__;
 const fmt = n => Math.round(n).toLocaleString("ru-RU");
 const pc = n => Number(n).toFixed(3).replace(".", ",") + "%";
@@ -565,27 +569,27 @@ function cardObject(){
   const credit = CREDIT_CLASSES.includes(cls);
   const opt = (arr, cur) => arr.map(x => `<option value="${esc(x)}"${x===cur?" selected":""}>${esc(x)}</option>`).join("");
   return `<section class="card">
-    <h2>Объект и деньги</h2>
+    <h2>${esc(T("calc.object", "Объект и деньги"))}</h2>
     <p class="sub">${esc(classTitle(cls))}. Ставка справа меняется с каждым вводом.</p>
     <div class="row">
-      ${types.length ? `<label class="f"><span>Что страхуем</span>
+      ${types.length ? `<label class="f"><span>${esc(T("calc.object_what", "Что страхуем"))}</span>
         <select data-k="objectType">${opt(types, S.objectType)}</select>
         <em>от этого зависит базовая ставка класса</em></label>`
-      : `<label class="f"><span>Что страхуем</span><input data-k="objectType" value="${esc(S.objectType)}">
+      : `<label class="f"><span>${esc(T("calc.object_what", "Что страхуем"))}</span><input data-k="objectType" value="${esc(S.objectType)}">
         <em>для этого класса своей базовой ставки нет — движок возьмёт среднюю</em></label>`}
-      <label class="f"><span>Регион</span><input data-k="region" value="${esc(S.region)}"></label>
-      ${payerMatters(S.product) ? `<label class="f"><span>Тип клиента</span>
+      <label class="f"><span>${esc(T("calc.region", "Регион"))}</span><input data-k="region" value="${esc(S.region)}"></label>
+      ${payerMatters(S.product) ? `<label class="f"><span>${esc(T("calc.payer_type", "Тип клиента"))}</span>
         <select data-k="payer">
           <option value="юр"${S.payer==="юр"?" selected":""}>Юридическое лицо</option>
           <option value="физ"${S.payer==="физ"?" selected":""}>Физическое лицо</option>
         </select><em>по этому продукту минимальный тариф разный</em></label>` : ""}
-      <label class="f"><span>Страховая стоимость, сум</span>
+      <label class="f"><span>${esc(T("calc.value_field", "Страховая стоимость, сум"))}</span>
         <input type="number" data-k="value" value="${S.value}" step="1000000"><em id="valueHint"></em></label>
-      <label class="f"><span>Страховая сумма, сум</span>
+      <label class="f"><span>${esc(T("calc.sum_insured_field", "Страховая сумма, сум"))}</span>
         <input type="number" data-k="sum" value="${S.sum}" step="1000000">
         <em id="sumHint"></em>
         <em>${credit ? "не больше необеспеченной части и половины кредита" : "равна стоимости — выплата будет полной"}</em></label>
-      <label class="f"><span>Срок, дней</span><input type="number" data-k="term" value="${S.term}" min="1" max="1825"></label>
+      <label class="f"><span>${esc(T("calc.term_days", "Срок, дней"))}</span><input type="number" data-k="term" value="${S.term}" min="1" max="1825"></label>
     </div>
     ${cls !== "3" && !S.veh.on ? `<p class="hint" style="margin:12px 0 0">Объект — транспорт, спецтехника
       или навесное оборудование? <button type="button" class="seg" id="vehOn">Проверить, что это</button>
@@ -607,10 +611,10 @@ function cardObject(){
 function cardFactors(){
   const cls = S.class_code;
   const fs = factorsOf(cls);
-  if (!fs.length) return `<section class="card"><h2>Факторы риска</h2>
-    <p class="sub">Для этого класса коэффициентов в справочнике пока нет — ставка считается по базовой.</p></section>`;
+  if (!fs.length) return `<section class="card"><h2>${esc(T("calc.factors", "Факторы риска"))}</h2>
+    <p class="sub">${esc(T("calc.factors_none", "Для этого класса коэффициентов в справочнике пока нет — ставка считается по базовой."))}</p></section>`;
   return `<section class="card">
-    <h2>Факторы риска</h2>
+    <h2>${esc(T("calc.factors", "Факторы риска"))}</h2>
     <p class="sub">Набор вопросов свой у каждого класса. Здесь — ${fs.length} ${fs.length===1?"фактор":fs.length<5?"фактора":"факторов"} класса ${esc(cls)}.</p>
     <div class="row">${fs.map(f => {
       const opts = optionsOf(cls, f);
@@ -626,16 +630,16 @@ function cardPerils(){
   const cls = S.class_code;
   const list = perilsOf(cls);
   if (!list.length) return `<section class="card">
-    <h2>Покрытие</h2>
+    <h2>${esc(T("calc.coverage", "Покрытие"))}</h2>
     <p class="sub" style="margin:0">Покрытие целиком по правилам продукта: отдельных рисков, которые можно выключить,
     у класса ${esc(cls)} в справочнике нет.</p></section>`;
   return `<section class="card">
-    <h2>Риски</h2>
+    <h2>${esc(T("calc.step.risks", "Риски"))}</h2>
     <p class="sub">Процент — вклад риска в нетто-ставку. Выключение удешевляет полис и сужает защиту.</p>
     <div class="perils">${list.map(p => `
       <label class="peril"><input type="checkbox" data-peril="${p.code}"${S.perils.has(p.code)?" checked":""}>
         <span class="nm">${esc(p.name)}</span>
-        ${p.is_catastrophic?'<span class="cat">кат</span>':""}
+        ${p.is_catastrophic?`<span class="cat">${esc(T("calc.factor_cat", "кат"))}</span>`:""}
         <span class="pc">${Math.round(p.base_share*100)}%</span></label>`).join("")}</div>
   </section>`;
 }
@@ -648,7 +652,7 @@ function cardPhoto(){
   const hasId = !!S.requestId;
   const shots = S.serverPhotos;
   return `<section class="card" id="photoCard">
-    <h2>Фотографии объекта</h2>
+    <h2>${esc(T("tg.photos_title", "Фотографии объекта"))}</h2>
     <p class="sub">Снимки хранятся на сервере вместе с запросом: их увидит андеррайтер и проверяющий.
       Принимаются JPEG, PNG и WebP, не больше 10 МБ каждый.</p>
     <div class="photozone">
@@ -1870,10 +1874,14 @@ function paintForm(){
   if (S.last) paintResultCard(S.last);
   const fin = D.financials;
   document.getElementById("foot").innerHTML =
-    `<span class="pill">данные не откалиброваны</span> Базовые ставки (${D.base_rates.length} строк) и коэффициенты `
-    + `(${D.coefficients.length} строк) — экспертные, до загрузки статистики компании. `
-    + (fin ? `Лимит на один риск считается от 20% собственных средств (${fmt(fin.own_funds)} сум) и резервов `
-           + `(${fmt(fin.reserves)} сум) на ${fin.report_date} — ${esc(fin.source || "данные временные")}.` : "");
+    `<span class="pill">${esc(T("common.not_calibrated", "данные не откалиброваны"))}</span> `
+    + esc(T("calc.not_calibrated_note",
+            "Базовые ставки ({rates} строк) и коэффициенты ({coefs} строк) — экспертные, до загрузки статистики компании.",
+            {rates: D.base_rates.length, coefs: D.coefficients.length})) + " "
+    + (fin ? esc(T("calc.limit_note",
+                   "Лимит на один риск считается от 20% собственных средств ({own} сум) и резервов ({res} сум) на {date} — {source}.",
+                   {own: fmt(fin.own_funds), res: fmt(fin.reserves), date: fin.report_date,
+                    source: fin.source || "данные временные"})) : "");
 }
 
 /* ---------- панель расчёта ---------- */
@@ -1882,13 +1890,15 @@ function paintSummary(j){
   const applied = r.applied_pct, tech = r.technical_pct, floor = r.min_pct ?? 0;
   document.getElementById("premium").innerHTML = fmt(j.premium) + ' <small>сум</small>';
   document.getElementById("rate").textContent = pc(applied);
-  document.getElementById("rateNote").textContent = r.manual ? "введена вручную"
-    : applied > tech + 1e-9 ? "поднята до минимального тарифа" : "техническая";
+  document.getElementById("rateNote").textContent = r.manual ? T("calc.rate_manual_flag", "введена вручную")
+    : applied > tech + 1e-9 ? T("calc.rate_raised_to_min", "поднята до минимального тарифа")
+    : T("calc.rate_is_technical", "техническая");
   const max = Math.max(tech, floor) * 1.6 || 1;
   document.getElementById("fill").style.width = Math.min(100, applied / max * 100) + "%";
-  document.getElementById("mMin").textContent = r.min_pct == null ? "минимума нет" : "мин " + pc(floor);
-  document.getElementById("mTech").textContent = "тех " + pc(tech);
-  document.getElementById("mMax").textContent = "макс " + pc(max);
+  document.getElementById("mMin").textContent = r.min_pct == null ? T("calc.rate_min_none", "минимума нет")
+    : T("calc.rate_min", "мин") + " " + pc(floor);
+  document.getElementById("mTech").textContent = T("calc.rate_tech", "тех") + " " + pc(tech);
+  document.getElementById("mMax").textContent = T("calc.rate_max", "макс") + " " + pc(max);
 
   const mk = document.getElementById("market");
   if (j.market){
@@ -1896,7 +1906,7 @@ function paintSummary(j){
     mk.innerHTML = `Рынок: <b style="font-family:var(--mono);color:var(--ink)">${pc(j.market.rate_pct)}</b> `
       + `(${esc(j.market.label)}) — вы <b style="color:${d>=0?"var(--ok)":"var(--stop)"}">${d>=0?"дороже":"дешевле"} `
       + `на ${Math.abs(d).toFixed(0)}%</b>, убыточность рынка ${j.market.loss_ratio.toFixed(1).replace(".", ",")}%`;
-  } else mk.textContent = "Рыночной ставки по этому классу в отчётах НАПП нет.";
+  } else mk.textContent = T("calc.market_none", "Рыночной ставки по этому классу в отчётах НАПП нет.");
 
   const worst = j.checks.some(c=>c.status==="stop") ? "stop" : j.checks.some(c=>c.status==="warn") ? "warn" : "ok";
   const v = document.getElementById("verdict");
@@ -2156,7 +2166,7 @@ document.getElementById("toContract").addEventListener("click", async e => {
       a.textContent = "Скачать предложение клиенту (PDF) →";
     }
   } catch (err){ b.textContent = "Сервер не ответил — расчёт не сохранён"; }
-  setTimeout(() => { b.textContent = "В договор"; }, 4000);
+  setTimeout(() => { b.textContent = T("calc.for_contract", "В договор"); }, 4000);
 }, true);
 
 paintForm();

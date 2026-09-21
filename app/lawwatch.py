@@ -704,11 +704,17 @@ def get_status():
 
 
 @router.get("/law-feed", response_class=HTMLResponse)
-def law_feed_page():
+def law_feed_page(embed: int = 0):
     """Страница «Законодательство». Оформление делает дизайнер — файл app/lawfeed.html."""
     if not FEED_HTML.exists():
         raise HTTPException(404, "страница app/lawfeed.html ещё не сделана")
-    return FEED_HTML.read_text(encoding="utf-8")
+    return _page(FEED_HTML.read_text(encoding="utf-8"), "/law-feed", embed)
 
 
 _ensure_seed()
+
+
+def _page(html: str, active: str, embed: int) -> str:
+    """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
+    from .main import page
+    return page(html, active, bool(embed))

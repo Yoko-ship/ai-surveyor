@@ -58,7 +58,7 @@ NEED_LOGIN = "нужен вход"
 # --- белый список: без сессии ---
 WHITE_EXACT = {
     "/health",                       # проверка живости площадки
-    "/theme.js", "/favicon.ico",     # статика страниц входа
+    "/theme.js", "/favicon.ico", "/i18n.js",     # статика страниц входа
     "/login",
     "/auth/register", "/auth/login", "/auth/verify-code", "/auth/logout",
     "/auth/bootstrap", "/auth/bootstrap-needed",
@@ -76,7 +76,9 @@ WHITE_EXACT = {
     "/auth/google", "/auth/google/status", "/auth/google/callback",
     "/auth/google/exchange", "/auth/google/register",
 }
-WHITE_PREFIX = ("/tg/webhook/",)     # секрет проверяет app/tgbot.py
+# "/i18n/" — словарь интерфейса: подписи экранов, данных клиентов в нём нет, а нужен он
+# до входа: на /login и на экране заявки мини-аппа
+WHITE_PREFIX = ("/tg/webhook/", "/i18n/")     # секрет вебхука проверяет app/tgbot.py
 
 # --- только в режиме разработчика ---
 DEV_ONLY = {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}

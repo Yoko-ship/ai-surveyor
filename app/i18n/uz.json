@@ -3,7 +3,7 @@
     "lang": "uz",
     "note": "Oʻzbekcha (lotin). Qonun matnidan olingan atamalar — docs/i18n_terms.json; «draft» roʻyxatidagi kalitlar interfeys uchun ishchi tarjima, yurist tasdiqlashi kerak.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 653,
+    "keys": 654,
     "draft": [
       "calc.address",
       "calc.address_hint",
@@ -493,6 +493,7 @@
       "tg.login_field",
       "tg.login_hint",
       "tg.mode",
+      "tg.nav.admin",
       "tg.nav.agreements",
       "tg.nav.applications",
       "tg.nav.bot",
@@ -561,7 +562,7 @@
       "tg.who_unknown",
       "tg.zero_sum"
     ],
-    "draft_count": 555,
+    "draft_count": 556,
     "from_terms_count": 98
   },
   "calc.address": "Obyekt manzili",
@@ -1150,6 +1151,7 @@
   "tg.login_field": "Login",
   "tg.login_hint": "Telegram ochilmagan — ish kompyuteridagidek login va parol bilan kiramiz.",
   "tg.mode": "Rejim",
+  "tg.nav.admin": "Admin paneli",
   "tg.nav.agreements": "Bitimlar",
   "tg.nav.applications": "Arizalar",
   "tg.nav.bot": "Telegram boti",

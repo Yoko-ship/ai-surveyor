@@ -65,6 +65,7 @@ button.go:disabled{opacity:.6;cursor:wait}
 .svc-lead{margin:10px 0 14px}
 @media (max-width:480px){.row2{grid-template-columns:1fr}.logo b{font-size:38px}}
 </style>
+<script src="/i18n.js"></script>
 <div class="card">
   <div class="logo"><b><span class="ins">INS</span><span class="on">ON</span></b><span>InsuranceON · сюрвейер</span></div>
 
@@ -90,24 +91,24 @@ button.go:disabled{opacity:.6;cursor:wait}
   </div>
 
   <details class="svc" id="svc">
-    <summary>Служебный вход</summary>
+    <summary data-i18n="tg.login">Служебный вход</summary>
     <p class="hint svc-lead">Этим входом пользуются первый администратор по коду и демонстрационные учётные записи. Сотрудники входят через Telegram или рабочую почту.</p>
-  <div class="tabs" id="tabs"><button class="on" data-tab="login" type="button">Войти</button><button data-tab="boot" type="button" id="tab-boot" hidden>Первый вход</button></div>
+  <div class="tabs" id="tabs"><button class="on" data-tab="login" type="button"><span data-i18n="tg.enter">Войти</span></button><button data-tab="boot" type="button" id="tab-boot" hidden>Первый вход</button></div>
   <div class="msg" id="m-boot-hint" hidden></div>
 
   <form id="login" class="on" autocomplete="on">
-    <label>Логин<input name="login" autocomplete="username" required></label>
-    <label>Пароль<input name="password" type="password" autocomplete="current-password" required></label>
+    <label><span data-i18n="tg.login_field">Логин</span><input name="login" autocomplete="username" required></label>
+    <label><span data-i18n="tg.password">Пароль</span><input name="password" type="password" autocomplete="current-password" required></label>
     <div class="msg" id="m-login"></div>
-    <button class="go" type="submit">Войти</button>
+    <button class="go" type="submit" data-i18n="tg.enter">Войти</button>
     <p class="hint">Нет логина? Вернитесь наверх и войдите через Telegram или рабочей почтой — доступ откроется сразу.</p>
   </form>
 
   <form id="code" autocomplete="off">
     <p class="hint" id="code-hint">Мы отправили 6-значный код в Telegram. Он действует 5 минут.</p>
-    <label class="code">Код из Telegram<input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="••••••" required></label>
+    <label class="code"><span data-i18n="tg.code">Код из Telegram</span><input name="code" inputmode="numeric" pattern="\d{6}" maxlength="6" placeholder="••••••" required></label>
     <div class="msg" id="m-code"></div>
-    <button class="go" type="submit">Подтвердить</button>
+    <button class="go" type="submit" data-i18n="tg.confirm">Подтвердить</button>
     <p class="hint"><a href="#" id="back">← Ввести логин и пароль заново</a></p>
   </form>
 
@@ -115,7 +116,7 @@ button.go:disabled{opacity:.6;cursor:wait}
     <p class="hint">Сервер пуст: пользователей ещё нет. Первый администратор входит по коду
       <code>ADMIN_BOOTSTRAP_CODE</code> — его задаёт тот, кто разворачивает систему,
       или сервер печатает его в свой журнал при первом запуске. Код действует один раз.</p>
-    <label>Код первого администратора<input name="code" required autocomplete="off"></label>
+    <label><span data-i18n="tg.bot_admin_code">Код первого администратора</span><input name="code" required autocomplete="off"></label>
     <label>Фамилия, имя, отчество<input name="full_name" required minlength="3"></label>
     <div class="row2">
       <label>Логин<input name="login" required minlength="3" pattern="[A-Za-z0-9_.\-@]+" title="латинские буквы, цифры, точка, дефис, подчёркивание"></label>

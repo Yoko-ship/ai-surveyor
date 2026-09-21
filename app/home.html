@@ -21,6 +21,7 @@ h2{font-size:15px;margin:22px 0 10px;color:var(--muted);font-weight:700;letter-s
 .robots{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}.robots i{width:10px;height:10px;border-radius:50%;display:inline-block}
 .foot{color:var(--muted);font-size:12px;margin-top:26px}
 </style>
+<script src="/i18n.js"></script>
 <!--SIDEBAR-->
 <main>
   <h1>ИИ-сюрвейер INSON</h1>
@@ -28,13 +29,13 @@ h2{font-size:15px;margin:22px 0 10px;color:var(--muted);font-weight:700;letter-s
   <div class="tiles" id="tiles"></div>
   <h2>Что делать</h2>
   <div class="cards">
-    <a class="card" href="/ui"><b>Новый расчёт</b><p>Объект, риски, документы — и сразу ставка, премия, что удешевит и что предписать страхователю.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/ui"><b data-i18n="calc.title">Новый расчёт</b><p>Объект, риски, документы — и сразу ставка, премия, что удешевит и что предписать страхователю.</p><span class="go"><span data-i18n="common.open">Открыть</span> →</span></a>
     <a class="card" href="/portfolio"><b>Портфельный аудит</b><p>Загрузите Excel-выгрузку договоров — система найдёт занижения, превышения и договоры без франшизы.</p><span class="go">Загрузить файл →</span></a>
-    <a class="card" href="/admin"><b>Запросы и админка</b><p>Список запросов с вердиктами, версии тарифов, коэффициенты, продукты, журнал действий.</p><span class="go">Открыть →</span></a>
-    <a class="card" href="/stats"><b>Динамика рынка</b><p>Квартальные отчёты НАПП подтягиваются сами. Премии, убыточность, средняя ставка по классам.</p><span class="go">Смотреть →</span></a>
-    <a class="card" href="/capacity-page"><b>Ёмкость и удержание</b><p>Лимиты по Положению 1806, резервы и активы по Положению 1882, удержание по классам.</p><span class="go">Открыть →</span></a>
-    <a class="card" href="/calibration"><b>Калибровка</b><p>Пересчёт ставок по накопленным убыткам: предложение → утверждение → новая версия тарифа.</p><span class="go">Открыть →</span></a>
-    <a class="card" href="/graph"><b>Паутина знаний</b><p>Продукты, классы, учётные группы и правила РНП — одной картой.</p><span class="go">Открыть →</span></a>
+    <a class="card" href="/admin"><b>Запросы и админка</b><p>Список запросов с вердиктами, версии тарифов, коэффициенты, продукты, журнал действий.</p><span class="go"><span data-i18n="common.open">Открыть</span> →</span></a>
+    <a class="card" href="/stats"><b>Динамика рынка</b><p>Квартальные отчёты НАПП подтягиваются сами. Премии, убыточность, средняя ставка по классам.</p><span class="go"><span data-i18n="common.open">Смотреть</span> →</span></a>
+    <a class="card" href="/capacity-page"><b>Ёмкость и удержание</b><p>Лимиты по Положению 1806, резервы и активы по Положению 1882, удержание по классам.</p><span class="go"><span data-i18n="common.open">Открыть</span> →</span></a>
+    <a class="card" href="/calibration"><b>Калибровка</b><p>Пересчёт ставок по накопленным убыткам: предложение → утверждение → новая версия тарифа.</p><span class="go"><span data-i18n="common.open">Открыть</span> →</span></a>
+    <a class="card" href="/graph"><b>Паутина знаний</b><p>Продукты, классы, учётные группы и правила РНП — одной картой.</p><span class="go"><span data-i18n="common.open">Открыть</span> →</span></a>
     <a class="card" href="/office"><b>Офис агентов</b><p>Кто из агентов чем занят прямо сейчас.</p><div class="robots" id="robots"></div><span class="go">Заглянуть →</span></a>
   </div>
   <p class="foot" id="foot"></p>

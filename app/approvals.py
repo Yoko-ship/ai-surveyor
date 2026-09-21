@@ -411,5 +411,11 @@ def post_agreement(body: AgreementIn, user: dict = Depends(require("админ")
 
 
 @router.get("/approvals", response_class=HTMLResponse)
-def approvals_page():
-    return (ROOT / "app" / "approvals.html").read_text(encoding="utf-8")
+def approvals_page(embed: int = 0):
+    return _page((ROOT / "app" / "approvals.html").read_text(encoding="utf-8"), "/approvals", embed)
+
+
+def _page(html: str, active: str, embed: int) -> str:
+    """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
+    from .main import page
+    return page(html, active, bool(embed))

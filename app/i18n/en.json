@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 653
+    "keys": 654
   },
   "calc.address": "Address of the object",
   "calc.address_hint": "location from the cadastre; marketplaces search by city and district",
@@ -591,6 +591,7 @@
   "tg.login_field": "Login",
   "tg.login_hint": "Telegram is not open — sign in with a login and password, as on a work computer.",
   "tg.mode": "Mode",
+  "tg.nav.admin": "Admin panel",
   "tg.nav.agreements": "Agreements",
   "tg.nav.applications": "Applications",
   "tg.nav.bot": "Telegram bot",
