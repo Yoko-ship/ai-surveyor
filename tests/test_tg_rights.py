@@ -90,6 +90,8 @@ def setup():
             u = db.rows(con, "SELECT * FROM users WHERE id=?", cur.lastrowid)[0]
             TOKENS[login], _ = auth.create_session(con, u, "127.0.0.1", "test")
         con.execute("DELETE FROM osgor_brv")      # копия рабочей базы: начинаем с пустого справочника
+        # и с пустого журнала по БРВ: в рабочей базе уже есть правки заказчика, проверка «кто вписал» — о тесте
+        con.execute("DELETE FROM audit WHERE entity LIKE 'osgor_brv:%'")
 
 
 # ---------- 1. меню ----------
@@ -103,6 +105,8 @@ def check_menu():
     ok("«ОСГОР» сразу после «Расчёта»", "calc" in keys and keys[keys.index("calc") + 1:][:1] == ["osgor"], keys)
     ok("«Мои запросы» в меню нет", "my-requests" not in keys, keys)
     ok("«Ждут меня» у сотрудника не появилось", "inbox" not in keys, keys)
+    ok("сотрудник: меню ровно analytics, calc, osgor, photos, users",
+       keys == ["analytics", "calc", "osgor", "photos", "users"], keys)
     ok("is_admin = false, can_edit пуст",
        me["user"]["is_admin"] is False and me["can_edit"] == [], (me["user"], me.get("can_edit")))
     ok("user.name = full_name", me["user"]["name"] == me["user"]["full_name"], me["user"])
@@ -115,7 +119,14 @@ def check_menu():
     ok("админ: can_edit — все справочники",
        me["can_edit"] == [e["key"] for e in tgbot.EDITABLE] and "osgor_brv" in me["can_edit"]
        and "risk_thresholds" in me["can_edit"], me["can_edit"])
-    ok("админ: «Ждут меня» на месте, «Мои запросы» нет", "inbox" in keys and "my-requests" not in keys, keys)
+    ok("админ: «Мои запросы» нет", "my-requests" not in keys, keys)
+    # задача 150: «Ждут меня», «Заявки», «Соглашения» убраны из меню для всех ролей
+    ok("админ: нет «Ждут меня», «Заявок», «Соглашений»",
+       not {"inbox", "applications", "agreements"} & set(keys), keys)
+    ok("админ: меню = база + «Настройки»",
+       keys == ["analytics", "calc", "osgor", "photos", "users", "settings"], keys)
+    st, _ = call("GET", "/tg/inbox", who=ADM)
+    ok("/tg/inbox как точка остался", st == 200, st)
 
 
 # ---------- 2–3. права ----------

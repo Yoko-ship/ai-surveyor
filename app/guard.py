@@ -118,7 +118,10 @@ ROLE_PREFIX = (
 # Исключения из ROLE_PREFIX: аналитика риска открыта любой активной роли (задача 144, мини-приложение).
 # Точные пути, а не префикс: /analytics/summary (сводка по всем запросам компании) остаётся закрытой.
 # Запись порогов закрыта отдельно — ADMIN_METHOD_PATH.
-ANY_ROLE_EXACT = {"/analytics/risk", "/analytics/risk/fields", "/analytics/risk/thresholds"}
+ANY_ROLE_EXACT = {"/analytics/risk", "/analytics/risk/fields", "/analytics/risk/thresholds",
+                  # задача 150: документы по продукту и договор для анализа (только свой — проверяет модуль)
+                  "/analytics/risk/docs", "/analytics/risk/document"}
+ANY_ROLE_PREFIX = ("/analytics/risk/document/",)
 # Утверждение и отклонение расчёта калибровки меняет действующие коэффициенты — это запись
 # в справочники, а она только у администратора (раздел 8, строка «Справочники, тарифы, версии»).
 ADMIN_SUFFIX_UNDER = {"/calibration/runs": ("/approve", "/reject")}
@@ -184,7 +187,7 @@ def needs_admin(method: str, path: str) -> bool:
 
 def allowed_roles(path: str):
     """Какие роли пускаем в раздел. None — ограничения по роли нет (нужен только вход)."""
-    if path in ANY_ROLE_EXACT:
+    if path in ANY_ROLE_EXACT or path.startswith(ANY_ROLE_PREFIX):
         return None
     for prefix, roles in ROLE_PREFIX:
         if path == prefix or path.startswith(prefix + "/"):

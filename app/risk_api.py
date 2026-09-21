@@ -2,18 +2,21 @@
 Вход по сети для вкладки «Аналитика» мини-аппа (задача 144, этап 2).
 
     GET  /analytics/risk/fields?class_code=  — поля формы для класса, регионы, классы, продукты, типы объектов
-    POST /analytics/risk                     — анализ риска + техническая картина рынка; ничего не сохраняет
+    POST /analytics/risk                     — анализ риска + рынок + документы (doc_ids) + разбор ИИ; не сохраняет
     GET  /analytics/risk/thresholds          — действующие пороги уровня риска (любой вошедший)
     PUT  /analytics/risk/thresholds          — правка порогов (только админ: guard + require)
 
 Считает не роутер: app/risk_analytics.py (модель) и app/market_picture.py (рынок, stat.uz).
 Доступ: guard.ANY_ROLE_EXACT открывает эти пути любой подтверждённой роли, PUT — ADMIN_METHOD_PATH.
 """
-from fastapi import APIRouter, Body, Depends, HTTPException
+from typing import List
+
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from . import auth, db
+from . import analysis_docs as adocs
+from . import auth, db, ingest, llm
 from . import market_picture as mp
 from . import risk_analytics as ra
 
@@ -67,6 +70,18 @@ def risk_fields(class_code: str = "") -> dict:
 class RiskIn(BaseModel):
     must: dict = {}
     optional: dict = {}
+    doc_ids: List[str] = []          # договор и документы из POST /analytics/risk/document (задача 150)
+
+
+def _user_opt(request: Request):
+    """Вошедший, если он есть: единый вход кладёт его в scope, иначе — по сессии."""
+    u = request.scope.get("surveyor_user")
+    if u is None:
+        token = auth.request_token(request)
+        if token:
+            with db.tx() as con:
+                u = auth.session_user(con, token)
+    return u
 
 
 def _invalid(v: dict, message: str) -> JSONResponse:
@@ -81,15 +96,34 @@ def _invalid(v: dict, message: str) -> JSONResponse:
 
 
 @router.post("/analytics/risk")
-def risk_analyze(body: RiskIn):
-    """Анализ риска объекта (ra.analyze) + блок market (mp.picture) одним ответом. В базу не пишет."""
+def risk_analyze(body: RiskIn, request: Request):
+    """
+    Анализ риска объекта (ra.analyze) + блок market (mp.picture) + блок documents (что из нужных
+    документов получено) + ai_summary (разбор ИИ, если он подключён) одним ответом. В базу не пишет.
+    """
     if len(body.must) > BODY_MAX_KEYS or len(body.optional) > BODY_MAX_KEYS:
         raise HTTPException(422, "Слишком много полей в запросе")
+    if len(body.doc_ids) > adocs.MAX_DOC_IDS:
+        raise HTTPException(422, f"Документов в одном анализе — не больше {adocs.MAX_DOC_IDS}")
+    user = None
+    if body.doc_ids:
+        user = _user_opt(request)
+        if not user:
+            raise HTTPException(401, "Нужно войти в систему, чтобы использовать загруженные документы")
     v = ra.validate(body.must, body.optional)
     if not v["ok"]:
         return _invalid(v, "Анализ не запущен: заполните обязательные поля и исправьте ошибки.")
+    must, optional = dict(body.must), dict(body.optional)
     with db.tx() as con:
-        res = ra.analyze(con, body.must, body.optional)
+        # документы проверяем до анализа: чужой или просроченный id — 404, анализ не запускается
+        docs = adocs.documents_block(con, user, list(dict.fromkeys(body.doc_ids)),
+                                     str(must.get("product_code") or ""), str(must.get("class_code") or ""),
+                                     str(must.get("object_type") or ""))
+        # флаг «документы загружены» в полноте данных ставит сервер, если распознан хоть один
+        if docs["items"] and not ra._present(optional.get("documents")) and any(
+                i["status"] in (ingest.ST_OK, ingest.ST_PARTIAL) for i in docs["items"]):
+            optional["documents"] = True
+        res = ra.analyze(con, must, optional)
         if not res.get("ok"):
             return _invalid(res.get("validation") or {}, res.get("message") or "Анализ не запущен")
         s = res["summary"]
@@ -104,6 +138,15 @@ def risk_analyze(body: RiskIn):
                                        f"наша ставка — по всему договору"]
     res["market_compare"] = res.pop("market")     # сравнение, по которому считался балл уровня риска
     res["market"] = pic
+    res["documents"] = docs
+    comp = res["completeness"]
+    comp["docs_pct"] = docs["completeness_docs_pct"]
+    comp["docs_missing"] = len(docs["missing"])
+    if docs["missing"] and not any(w.get("key") == "documents" for w in comp.get("what_to_add") or []):
+        comp.setdefault("what_to_add", []).append(
+            {"key": "documents", "why": f"не хватает документов по чек-листу: {len(docs['missing'])}"})
+    ai = llm.risk_summary(res)
+    res["ai_summary"], res["ai_status"], res["ai_source"] = ai["text"], ai["status"], ai["source"]
     return res
 
 

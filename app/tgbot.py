@@ -1038,9 +1038,9 @@ EDITABLE = [
 
 def can_edit(u: dict) -> list:
     return [e["key"] for e in EDITABLE] if u.get("role") == "админ" else []
-NAV_REVIEWER = [("inbox", "Ждут меня")]
-NAV_ADMIN = [("applications", "Заявки"), ("agreements", "Генеральные соглашения"),
-             ("settings", "Настройки")]
+# 21.09.2026 (задача 150): «Ждут меня», «Заявки», «Генеральные соглашения» из меню мини-аппа убраны
+# для всех ролей; точки /tg/inbox, /approvals, /agreements и данные остаются.
+NAV_ADMIN = [("settings", "Настройки")]
 
 
 def _session_user(request: Request) -> Optional[dict]:
@@ -1064,8 +1064,6 @@ def tg_me(request: Request):
         return {"mode": _mode(), "status": u["status"], "user": None, "rights": [], "nav": [],
                 "reason": WAIT_MSG}
     nav = list(NAV_BASE)
-    if u["role"] in ("андеррайтер", "актуарий", "админ"):
-        nav += NAV_REVIEWER
     if u["role"] == "админ":
         nav += NAV_ADMIN
     # name — то же, что full_name: с 21.09.2026 в анкете одно поле «Имя», хранится в users.full_name

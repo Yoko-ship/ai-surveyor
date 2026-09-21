@@ -483,7 +483,7 @@ def _load_reference(con, today: str) -> Reference:
     pcs = {}
     for r in rows(con, "SELECT product_code, class_code FROM product_classes ORDER BY part_no"):
         pcs.setdefault(r["product_code"], []).append(r["class_code"])
-    checklists = rows(con, "SELECT scope_type, scope_code, doc_name, required FROM checklists")
+    checklists = rows(con, "SELECT scope_type, scope_code, doc_name, required, condition FROM checklists ORDER BY id")
     fin = rows(con, "SELECT * FROM company_financials ORDER BY report_date DESC LIMIT 1")
     measures = rows(con, "SELECT * FROM preventive_measures")
     # факторы каждого класса: движок строит форму и расчёт по набору своего класса, а не по фиксированному списку

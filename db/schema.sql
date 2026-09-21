@@ -1046,3 +1046,24 @@ CREATE TABLE IF NOT EXISTS risk_thresholds (
     calibrated      INTEGER NOT NULL DEFAULT 0,
     note            TEXT
 );
+
+-- ============ АНАЛИТИКА РИСКА: ДОГОВОР ДЛЯ АНАЛИЗА ============
+-- app/analysis_docs.py (задача 150): договор, загруженный во вкладке «Аналитика» без запроса.
+-- id — случайный токен (не подбирается перебором), доступ только владельцу (user_id).
+-- Файл — DATA_DIR/analysis/<id>/, живёт 24 часа (expires_at), затем удаляется вместе со строкой.
+-- Полного текста документа и ПД здесь нет: в fields_json только замаскированные поля, факты,
+-- подстановка в форму (prefill) и пояснения.
+CREATE TABLE IF NOT EXISTS analysis_docs (
+    id          TEXT PRIMARY KEY,
+    user_id     INTEGER NOT NULL,
+    filename    TEXT,
+    mime        TEXT NOT NULL,
+    size        INTEGER NOT NULL,
+    kind        TEXT,
+    language    TEXT,
+    status      TEXT NOT NULL,
+    fields_json TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    expires_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_analysis_docs_user ON analysis_docs(user_id, expires_at);

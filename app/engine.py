@@ -178,6 +178,37 @@ def premium_of(rate_pct: float, sum_insured: float, term_days: int) -> float:
     return rate_pct / 100 * sum_insured * term_days / 365
 
 
+def _obj_match(c: dict, object_type: Optional[str]) -> bool:
+    # Строка справочника «Спецтехника» покрывает все подтипы («Спецтехника — экскаватор» и т. д.),
+    # поэтому сравнение идёт по началу названия.
+    if c["scope_type"] != "тип_объекта" or not c.get("scope_code"):
+        return False
+    obj = (object_type or "").strip().lower()
+    return bool(obj) and obj.startswith(str(c["scope_code"]).strip().lower())
+
+
+def checklist_items(checklists: list, class_code: Optional[str], object_type: Optional[str] = None,
+                    product_code: Optional[str] = None) -> list:
+    """
+    Строки чек-листа, которые относятся к договору. Собирается по признакам: «всегда», по классу
+    и по типу объекта (тип нужен спецтехнике: документы у экскаватора и у легкового автомобиля
+    разные, а класс у них один — 3). С product_code — ещё строки продукта (scope_type «продукт»).
+    Движок в проверке docs_missing продукт не передаёт — поведение расчёта прежнее.
+    Возвращает строки справочника как есть (с required и condition), без дублей по doc_name.
+    """
+    out, seen = [], set()
+    for c in checklists:
+        st = c["scope_type"]
+        hit = (st == "всегда"
+               or (st != "продукт" and class_code is not None and c["scope_code"] == class_code)
+               or (st == "продукт" and product_code is not None and c["scope_code"] == product_code)
+               or _obj_match(c, object_type))
+        if hit and c["doc_name"] not in seen:
+            seen.add(c["doc_name"])
+            out.append(c)
+    return out
+
+
 def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict) -> list:
     out = []
     add = lambda code, s, t, d: out.append({"rule": code, "status": s, "title": t, "detail": d})
@@ -319,20 +350,8 @@ def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict) ->
                 "Страхователем выступает банк-кредитор, премия принимается только от банка.")
 
     # документы
-    # Чек-лист собирается по трём признакам: «всегда», по классу и по типу объекта.
-    # Тип объекта нужен спецтехнике: документы у экскаватора и у легкового автомобиля разные,
-    # а класс у них один (3). Строка справочника «Спецтехника» покрывает все подтипы
-    # («Спецтехника — экскаватор» и т. д.), поэтому сравнение идёт по началу названия.
-    def _obj_match(c) -> bool:
-        if c["scope_type"] != "тип_объекта" or not c.get("scope_code"):
-            return False
-        obj = (inp.object_type or "").strip().lower()
-        return bool(obj) and obj.startswith(str(c["scope_code"]).strip().lower())
-
-    need = [c["doc_name"] for c in ref.checklists
-            if c["required"] and (c["scope_type"] == "всегда"
-                                  or c["scope_code"] == inp.class_code
-                                  or _obj_match(c))]
+    need = [c["doc_name"] for c in checklist_items(ref.checklists, inp.class_code, inp.object_type)
+            if c["required"]]
     missing = [d for d in need if d not in set(inp.docs_received)]
     if missing:
         add("docs_missing", "warn", f"Не хватает документов: {len(missing)}", "; ".join(missing))

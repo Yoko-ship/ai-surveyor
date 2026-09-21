@@ -481,6 +481,61 @@ def explain_calculation(card: dict, class_code: str = None) -> dict:
             "ai": status() | {"error": last_error["text"] if source == "шаблон" else None}}
 
 
+SYSTEM_RISK = (
+    "Ты андеррайтер страховой компании в Узбекистане. По результатам анализа риска объекта "
+    "напиши связный разбор из 5–7 предложений по-русски: уровень риска и что его определяет, "
+    "страховая сумма к стоимости, ставка к минимуму и рынку, главные сценарии убытка, каких данных "
+    "и документов не хватает. Используй только цифры и факты из данных, ничего не добавляй. "
+    "Без списков и заголовков, без упоминания людей.")
+AI_OFF = "ИИ не подключён — анализ выполнен по правилам и справочникам"
+
+
+def risk_summary_data(res: dict) -> dict:
+    """Что отдаём модели из ответа /analytics/risk: только объект и цифры, ничего о человеке."""
+    s = res.get("summary") or {}
+    lvl = res.get("level") or {}
+    docs = res.get("documents") or {}
+    comp = res.get("completeness") or {}
+    return {
+        "класс": s.get("class_code"), "продукт": s.get("product_code"), "тип_объекта": s.get("object_type"),
+        "регион": s.get("region"), "страховая_сумма": s.get("sum_insured"),
+        "стоимость": s.get("object_value"), "сумма_к_стоимости": s.get("ratio_sum_to_value"),
+        "ставка_применённая_проц": s.get("rate_applied_pct"), "ставка_минимальная_проц": s.get("rate_min_pct"),
+        "премия": s.get("premium"),
+        "уровень_риска": lvl.get("level"), "балл": lvl.get("score"),
+        "составляющие": [{"что": c.get("name"), "баллы": c.get("points"), "почему": c.get("why")}
+                         for c in (lvl.get("components") or []) if c.get("applicable")],
+        "главные_факторы": res.get("top_drivers") or [],
+        "сценарии": {k: {"что": v.get("title"), "убыток": v.get("amount"), "доля_суммы_проц": v.get("pct_of_sum"),
+                         "главная_причина": v.get("dominant"), "уровень": v.get("level")}
+                     for k, v in (res.get("scenarios") or {}).items() if isinstance(v, dict)},
+        "риски": [{"риск": r.get("name"), "доля_проц": r.get("share_of_net_pct")}
+                  for r in (res.get("risks") or []) if isinstance(r, dict)],
+        "полнота_данных_проц": comp.get("pct"), "уверенность": comp.get("confidence"),
+        "что_добавить": [w.get("key") for w in comp.get("what_to_add") or []],
+        "не_хватает_документов": docs.get("missing") or [],
+        "рынок": (res.get("market") or {}).get("notes") or [],
+    }
+
+
+def risk_summary(res: dict) -> dict:
+    """
+    Короткий разбор результатов анализа риска. Без ключа — {"text": None, "status": AI_OFF}:
+    шаблонного текста здесь нет, ответ анализа и так содержит все цифры.
+    """
+    if not enabled():
+        return {"text": None, "status": AI_OFF, "source": None}
+    data = risk_summary_data(res)
+    answer = chat("разбор анализа риска", SYSTEM_RISK,
+                  "Результаты анализа (JSON):\n" + json.dumps(data, ensure_ascii=False, default=str),
+                  max_tokens=600)
+    if answer and answer.strip():
+        return {"text": answer.strip(), "status": "Разбор подготовил ИИ по результатам анализа — цифры "
+                                                  "сверяйте с блоками ниже", "source": "ИИ"}
+    return {"text": None, "status": "ИИ не ответил (" + str(last_error["text"] or "пустой ответ") +
+                                     ") — анализ выполнен по правилам и справочникам", "source": None}
+
+
 # --------------------------------------------------------------------------- #
 #  (б) Помощь разбору документов — только по полям, которые не нашли регэкспы
 # --------------------------------------------------------------------------- #

@@ -38,13 +38,15 @@ PEOPLE = [("тест-ui-агент", "агент", EAIS), ("тест-ui-анде
           ("тест-ui-админ", "админ", None)]
 TOKENS = {}
 
-# разделы, которые сервер раздаёт по ролям (app/tgbot.py: NAV_BASE / NAV_REVIEWER / NAV_ADMIN)
+# разделы, которые сервер раздаёт по ролям (app/tgbot.py: NAV_BASE / NAV_ADMIN)
 # задача 144: «Аналитика» и «ОСГОР» добавлены, «Мои запросы» из меню убраны (точка /tg/my-requests осталась)
-NAV_KEYS = ["analytics", "calc", "osgor", "photos", "inbox", "applications", "users", "agreements", "settings"]
+# задача 150: «Ждут меня», «Заявки», «Генеральные соглашения» убраны из меню для всех ролей
+NAV_KEYS = ["analytics", "calc", "osgor", "photos", "users", "settings"]
+REMOVED_KEYS = ["inbox", "applications", "agreements"]
 # «Пользователи» открыты всем зарегистрированным (решение заказчика 21.09.2026)
 NAV_BY_ROLE = {
     "агент": {"analytics", "calc", "osgor", "photos", "users"},
-    "андеррайтер": {"analytics", "calc", "osgor", "photos", "users", "inbox"},
+    "андеррайтер": {"analytics", "calc", "osgor", "photos", "users"},
     "админ": set(NAV_KEYS),
 }
 
@@ -186,6 +188,10 @@ def check_nav_by_role():
     st, me = call("GET", "/tg/me")
     assert st == 200 and me["status"] == "не вошёл" and me["nav"] == [], me
     print("4. /tg/me отдаёт разный nav по ролям, без входа — пустой — ок")
+    for login, _role, _eais in PEOPLE:
+        _st, me = call("GET", "/tg/me", who=login)
+        assert not {n["key"] for n in me["nav"]} & set(REMOVED_KEYS), me["nav"]
+    print("4a. «Ждут меня», «Заявки», «Соглашения» сервер не отдаёт ни одной роли — ок")
 
 
 def check_wait_screen(uids, html):
@@ -437,6 +443,29 @@ def check_ui_kit(html):
     print("20. ui-kit кнопок один на три страницы, тема Telegram кнопки не трогает, контраст проверяется — ок")
 
 
+def check_removed_tabs(html):
+    """Задача 150 (разметка — дизайнер): убранных разделов в tg.html нет."""
+    left = [k for k in REMOVED_KEYS if f'id="tab-{k}"' in html or f'data-section="{k}"' in html]
+    assert not left, "в разметке остались убранные разделы: " + ", ".join(left)
+    print("21. в разметке нет разделов inbox, applications, agreements — ок")
+
+
+def check_analytics_steps(html):
+    """Задача 150 (разметка — дизайнер): аналитика по шагам продукт → документы → договор → суммы → анализ."""
+    must = {
+        "/analytics/risk/docs": "шаг 2: список нужных документов не запрашивается",
+        "/analytics/risk/document": "шаг 3: нет загрузки договора",
+        'accept=".pdf,.docx': "шаг 3: поле файла не ограничено PDF и DOCX",
+        "doc_ids": "шаг 5: распознанные документы не передаются в анализ",
+        "prefill": "шаг 4: суммы из договора не подставляются",
+        "ai_summary": "шаг 5: не показан разбор ИИ",
+        "ai_status": "шаг 5: не показано, что ИИ не подключён",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "аналитика по шагам: " + "; ".join(miss)
+    print("22. аналитика по шагам: документы, загрузка договора, подстановка сумм, разбор ИИ — ок")
+
+
 if __name__ == "__main__":
     with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
         agent_id, uids, prod = setup()
@@ -452,6 +481,9 @@ if __name__ == "__main__":
             check_users_api(uids)
             check_candidates_and_exports(rid, uids)
             check_ui_kit(html)
+            # ниже — ожидания к разметке после дизайнера (задача 150)
+            check_removed_tabs(html)
+            check_analytics_steps(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

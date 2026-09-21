@@ -1400,24 +1400,17 @@ def _save(con, photo: dict, data: dict) -> int:
     return cur.lastrowid
 
 
-def ingest_file(con, photo_id: int, who: str = "api", use_llm: bool = True) -> dict:
+def parse_path(full: Path, mime: str = None, filename: str = None, kind_hint: str = None,
+               use_llm: bool = True) -> dict:
     """
-    Весь конвейер по одному файлу: прочитать → определить язык и вид → извлечь поля и факты →
-    записать в document_extracts → отметить пункт чек-листа.
-
-    Идемпотентно: повторный вызов обновляет ту же строку.
-    В журнал пишем только id, вид, язык, статус и число полей — ни текста, ни имени файла.
+    Ядро разбора одного файла без базы: прочитать → язык и вид → поля и факты (поля уже
+    замаскированы). Его используют ingest_file (документы запроса) и app/analysis_docs.py
+    (договор для вкладки «Аналитика», без запроса).
     """
-    photo = _photo(con, photo_id)
-    full = ROOT / photo["path"]
-    if not full.exists():
-        raise HTTPException(404, "Файл не найден на диске")
-
-    read = read_file(full, photo.get("mime"))
+    read = read_file(full, mime)
     text, tables = read["text"], read["tables"]
     lang = detect_language(text)
-    kind_hint = photo.get("doc_kind")
-    kind = detect_kind(text, tables, photo.get("filename"))
+    kind = detect_kind(text, tables, filename)
 
     # вид, указанный агентом при загрузке, сильнее автоопределения, если оно ничего не нашло
     if kind["kind"] == KIND_OTHER and kind_hint in KINDS and kind_hint != KIND_OTHER:
@@ -1444,6 +1437,137 @@ def ingest_file(con, photo_id: int, who: str = "api", use_llm: bool = True) -> d
             "status": status, "text": text, "tables": tables,
             "fields": fields, "facts": facts,
             "confidence": _confidence(fields, kind["confidence"]), "method": method}
+    return {"read": read, "kind": kind, "lang": lang, "ai": ai, "fields": fields, "facts": facts,
+            "status": status, "method": method, "data": data}
+
+
+# --------------------------------------------------------------------------- #
+# Условия договора страхования: суммы, стоимость, место, год — для вкладки «Аналитика»
+# --------------------------------------------------------------------------- #
+
+# Подписи в договоре страхования. Длинные подписи проверяются раньше (сортировка ниже).
+CONTRACT_TERMS = [
+    ("sum_insured", "Страховая сумма", "money",
+     ["общая страховая сумма", "страховая сумма", "лимит ответственности",
+      "sug'urta summasi", "umumiy sug'urta summasi", "суғурта суммаси",
+      "sum insured", "insured amount", "limit of liability"]),
+    ("object_value", "Стоимость имущества", "money",
+     ["действительная стоимость имущества", "действительная стоимость", "страховая стоимость имущества",
+      "страховая стоимость", "стоимость имущества", "стоимость объекта",
+      "стоимость застрахованного имущества", "рыночная стоимость", "балансовая стоимость",
+      "mulk qiymati", "sug'urta qiymati", "haqiqiy qiymati", "мулк қиймати", "суғурта қиймати",
+      "insured value", "property value", "actual value"]),
+    ("address", "Местонахождение объекта", None,
+     ["адрес места страхования", "место страхования", "территория страхования", "адрес объекта",
+      "местонахождение имущества", "местонахождение объекта", "адрес", "место нахождения",
+      "sug'urta hududi", "obyekt manzili", "manzil", "манзил", "location", "address"]),
+    ("year", "Год постройки или выпуска", "year",
+     ["год постройки", "год ввода в эксплуатацию", "год выпуска", "qurilgan yili",
+      "ishlab chiqarilgan yili", "қурилган йили", "ишлаб чиқарилган йили",
+      "year of construction", "year of manufacture"]),
+    ("walls", "Материал стен и конструкция", None,
+     ["материал стен", "конструкция здания", "конструктивные элементы", "devor materiali",
+      "девор материали"]),
+    ("object_kind", "Объект страхования", None,
+     ["объект страхования", "застрахованное имущество", "sug'urta obyekti", "суғурта объекти",
+      "insured property", "subject of insurance"]),
+    ("activity", "Деятельность на объекте", None,
+     ["вид деятельности на объекте", "назначение объекта", "использование объекта",
+      "faoliyat turi", "фаолият тури", "occupancy"]),
+]
+
+MONEY_SCALE = (("трлн", 1e12), ("триллион", 1e12), ("trln", 1e12), ("млрд", 1e9), ("миллиард", 1e9),
+               ("mlrd", 1e9), ("млн", 1e6), ("миллион", 1e6), ("mln", 1e6), ("тыс", 1e3),
+               ("тысяч", 1e3), ("ming", 1e3), ("минг", 1e3))
+_MONEY_SPACES = re.compile(r"[    ']")
+
+
+def money_value(raw: str) -> Optional[dict]:
+    """
+    Сумма из строки: {"value": число, "currency": "UZS"|"USD"|"EUR"|"RUB"|None}. Множитель
+    (млн, млрд) учитывается — _apply_pattern отдаёт только число, для подстановки в форму мало.
+    """
+    v = _blank_dates(raw or "")
+    for rx_name in ("money", "money_prefix", "money_scaled_bare"):
+        rx = patterns().get(rx_name)
+        m = rx.search(v) if rx else None
+        if not m:
+            continue
+        g = m.groupdict()
+        try:
+            num = float(_MONEY_SPACES.sub("", g.get("amount") or "").replace(",", "."))
+        except ValueError:
+            continue
+        scale = (g.get("scale") or "").lower()
+        for word, mult in MONEY_SCALE:
+            if scale.startswith(word):
+                num *= mult
+                break
+        cur = (g.get("cur") or "").lower()
+        currency = None
+        if cur:
+            currency = ("USD" if ("usd" in cur or "долл" in cur or "$" in cur) else
+                        "EUR" if ("eur" in cur or "€" in cur) else
+                        "RUB" if "rub" in cur else "UZS")
+        return {"value": num, "currency": currency}
+    return None
+
+
+def extract_contract_terms(text: str, tables: list = None) -> List[dict]:
+    """
+    Условия договора страхования по подписям: страховая сумма, стоимость, место, год и т. д.
+    Строки с подписью человека пропускает _find_labelled (PD-01); значения маскируются.
+    У денег дополнительно value_num и currency — с учётом «млн»/«млрд».
+    """
+    lines = _lines(text, tables)
+    out = []
+    for key, name, pattern, labels in CONTRACT_TERMS:
+        spec = {"key": key, "pattern": pattern,
+                "labels": sorted({D.norm(x) for x in labels}, key=len, reverse=True),
+                "folded": sorted({D.fold(x) for x in labels if D.fold(x)}, key=len, reverse=True)}
+        hit = _find_labelled(lines, spec)
+        if not hit:
+            continue
+        item = {"ключ": key, "название": name, "значение": _mask_field_value(hit["value"], key),
+                "найдено_по": hit["label"], "уверенность": hit["confidence"], "метод": METHOD_REGEX}
+        if pattern == "money":
+            mv = None
+            for ln in lines:                   # строка с подписью целиком: там и множитель, и валюта
+                if D.is_personal_label(ln):
+                    continue
+                got = D._tail_after_label(ln, [hit["label"]], False) or \
+                    D._tail_after_label(ln, [hit["label"]], True)
+                if got:
+                    mv = money_value(D.cut_tail(got[1]))
+                    if mv:
+                        break
+            mv = mv or money_value(hit["value"])
+            if not mv:
+                continue
+            item.update({"value_num": mv["value"], "currency": mv["currency"]})
+        out.append(item)
+    return out
+
+
+def ingest_file(con, photo_id: int, who: str = "api", use_llm: bool = True) -> dict:
+    """
+    Весь конвейер по одному файлу: прочитать → определить язык и вид → извлечь поля и факты →
+    записать в document_extracts → отметить пункт чек-листа.
+
+    Идемпотентно: повторный вызов обновляет ту же строку.
+    В журнал пишем только id, вид, язык, статус и число полей — ни текста, ни имени файла.
+    """
+    photo = _photo(con, photo_id)
+    full = ROOT / photo["path"]
+    if not full.exists():
+        raise HTTPException(404, "Файл не найден на диске")
+
+    kind_hint = photo.get("doc_kind")
+    core = parse_path(full, photo.get("mime"), photo.get("filename"), kind_hint, use_llm)
+    read, kind, lang, ai = core["read"], core["kind"], core["lang"], core["ai"]
+    tables, fields, facts = read["tables"], core["fields"], core["facts"]
+    status, method = core["status"], core["method"]
+    data = core["data"]
     extract_id = _save(con, photo, data)
 
     # пункт чек-листа: отмечаем только если вид документа опознан

@@ -397,9 +397,72 @@ details.how code{font-family:var(--mono);font-size:12px;color:var(--ink);overflo
 .srcbar a{color:var(--link);-webkit-text-fill-color:var(--link)}
 .dev.pos{color:var(--warn)}.dev.neg{color:var(--stop)}.dev.ok{color:var(--accent)}
 /* на широком экране дашборд аналитики шире обычной колонки */
-@media (min-width:1100px){.wrap:has(#tab-analytics:not(.hidden)){max-width:1320px}}
+@media (min-width:1100px){.wrap:has(#tab-analytics.an-wide:not(.hidden)){max-width:1320px}}
 .kv.disc{grid-template-columns:minmax(120px,220px) minmax(0,1fr);gap:8px 16px}
 .kv.disc b{font-family:var(--sans);font-weight:600;text-align:left}
+/* ---------- аналитика по шагам ---------- */
+#tab-analytics:not(.an-wide){max-width:960px;margin:0 auto}
+.stepper{list-style:none;display:flex;gap:6px;margin:0 0 var(--s3);padding:0}
+.stepper li{flex:1 1 0;min-width:0}
+.stepper button{width:100%;min-height:52px;display:flex;align-items:center;gap:8px;padding:10px 4px 6px 0;background:none;border:0;
+  border-top:3px solid var(--line);border-radius:0;color:var(--muted);-webkit-text-fill-color:var(--muted);font:600 13px/1.2 var(--sans);text-align:left}
+.stepper i{flex:none;width:26px;height:26px;border-radius:50%;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;
+  font:700 12px/1 var(--mono);font-style:normal}
+.stepper span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stepper li.done button{border-top-color:var(--accent-dim);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.stepper li.done i{background:var(--accent-dim);border-color:var(--accent-dim);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+.stepper li.on button{border-top-color:var(--accent);color:var(--ink);-webkit-text-fill-color:var(--ink);font-weight:800}
+.stepper li.on i{border:2px solid var(--accent);color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.stepper button:disabled{cursor:default}
+.stepper li:not(.on):not(.done) button:disabled{opacity:.75}
+.stepper li.done button:hover span{text-decoration:underline;text-underline-offset:3px}
+.stepper button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+@media (max-width:599px){.stepper{gap:4px}.stepper li{flex:0 0 40px}.stepper li.on{flex:1 1 auto}
+  .stepper li:not(.on) span{display:none}.stepper li:not(.on) button{justify-content:center;padding-right:0}}
+.plist{border:1px solid var(--line);border-radius:10px;max-height:360px;overflow:auto;overscroll-behavior:contain}
+.plist button{display:grid;grid-template-columns:48px minmax(0,1fr);gap:2px 10px;align-items:baseline;width:100%;min-height:48px;padding:9px 12px;
+  background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;color:var(--ink);-webkit-text-fill-color:var(--ink);text-align:left;font:inherit}
+.plist button:last-child{border-bottom:0}
+.plist button b{font:600 13px var(--mono);color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.plist button span{font-size:13.5px;min-width:0;overflow-wrap:anywhere}
+.plist button em{grid-column:2;font-style:normal;font-size:11.5px;color:var(--muted);-webkit-text-fill-color:var(--muted)}
+.plist button:hover{background:var(--soft)}
+.plist button[aria-pressed="true"]{background:var(--soft);box-shadow:inset 3px 0 0 var(--accent)}
+.plist button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.plist .none,.plist .more{padding:12px;font-size:13px;color:var(--muted)}
+.check.opt i{background:var(--line)}
+.check b .tag{vertical-align:1px}
+.drop{display:flex;flex-direction:column;align-items:stretch;gap:8px;border:1.5px dashed var(--btn-line);border-radius:12px;padding:var(--s3);
+  background:var(--soft);transition:border-color .12s,background-color .12s}
+.drop.over{border-color:var(--accent);background:var(--card)}
+.drop input[type=file]{background:var(--card)}
+@media (hover:none){.drop .dnd{display:none}}
+.upl{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:var(--s2);min-width:0}
+.upl-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.upl-h b{min-width:0;overflow-wrap:anywhere}
+.upl-h .verdict{flex:none}
+.upl-m{font-size:12.5px;color:var(--muted);margin-top:2px}
+.pf{font-size:13px}
+.pf>div{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.pf>div:last-child{border-bottom:0}
+.pf span{flex:1 1 auto;min-width:0}
+.pf small{display:block;color:var(--muted);font-size:11.5px;overflow-wrap:anywhere}
+.pf b{flex:0 1 auto;max-width:55%;font:600 13px var(--mono);text-align:right;overflow-wrap:break-word}
+ul.notes{margin:var(--s2) 0 0;padding-left:18px;font-size:12.5px;color:var(--warn)}
+ul.notes li{margin:2px 0}
+.hero2{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s3)}
+@media (min-width:600px){.hero2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.hero2>div{min-width:0}
+.hero2 label.f{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--ink)}
+.hero2 input{font:600 22px/1.2 var(--mono);min-height:56px}
+.tag.pfmark{margin-left:0;font-weight:700;letter-spacing:0}
+.an-sum-act{display:flex;flex-wrap:wrap;gap:8px}
+@media (max-width:599px){.an-sum-act{width:100%}.an-sum-act .btn{flex:1 1 140px}}
+.docpct{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+.docpct b{font:700 28px/1 var(--mono)}
+.docpct span{font-size:12.5px;color:var(--muted)}
+.ai-text{white-space:pre-wrap;font-size:14px;line-height:1.6;margin:2px 0 var(--s2);overflow-wrap:anywhere}
+.note.ai-off{color:var(--ink);font-size:13.5px}
 /* ---------- ОСГОР ---------- */
 .combo{position:relative}
 .suggest{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:30;margin:0;padding:4px;list-style:none;background:var(--card);
@@ -562,13 +625,15 @@ details.how code{font-family:var(--mono);font-size:12px;color:var(--ink);overflo
 
   <!-- ---------- приложение ---------- -->
   <div id="screen-app" class="hidden">
+  <!-- карточка решения: открывается по ссылке из уведомления бота (/tg?request=<№>), раздела в меню нет -->
+  <div id="reviewBox"></div>
 
-  <!-- аналитика риска: данные объекта сверху, под ними дашборд -->
+  <!-- аналитика риска по шагам: продукт → документы → договор → суммы → анализ (задача 150) -->
   <section id="tab-analytics" data-section="analytics" class="hidden">
     <div class="sec-head"><div><h1 data-i18n="tg.an.title">Аналитика риска</h1>
-      <p data-i18n="tg.an.lead">Внесите данные объекта — система покажет премию, уровень риска, сценарии убытка и положение на рынке.</p></div></div>
-    <div class="card" id="anInput"><div class="note" data-i18n="common.loading">загружаю…</div></div>
-    <div id="anDash"></div>
+      <p data-i18n="tg.an.lead_steps">Пять шагов: продукт, нужные документы, договор, суммы — и анализ риска с премией, сценариями и рынком.</p></div></div>
+    <ol class="stepper" id="anSteps" data-i18n-aria="tg.an.steps_aria" aria-label="Шаги анализа"></ol>
+    <div id="anStep"></div>
   </section>
 
   <!-- ОСГОР: калькулятор премии -->
@@ -697,58 +762,12 @@ details.how code{font-family:var(--mono);font-size:12px;color:var(--ink);overflo
     </div>
   </section>
 
-  <!-- ждут меня -->
-  <section id="tab-inbox" data-section="inbox" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.waiting_title">Ждут моего решения</h1>
-      <p data-i18n="tg.waiting_hint">Решение записывается на ваше имя и попадает в ленту согласований и в ежедневный доклад.</p></div>
-      <button type="button" class="btn btn-secondary" id="inboxReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
-    <div id="inboxList"></div>
-  </section>
-
-  <!-- заявки на доступ -->
-  <section id="tab-applications" data-section="applications" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.applications_title">Заявки на доступ</h1>
-      <p data-i18n="tg.applications_hint">Перед подтверждением сверьте ID агента с реестром компании — это требование Положения № 3845, п. 4.</p></div>
-      <button type="button" class="btn btn-secondary" id="appReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
-    <div class="cards" id="appList"></div>
-  </section>
-
   <!-- пользователи -->
   <section id="tab-users" data-section="users" class="hidden">
     <div class="sec-head"><div><h1 data-i18n="tg.nav.users">Пользователи</h1>
       <p data-i18n="tg.users_lead2">Кто работает в системе: имя, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p></div>
       <button type="button" class="btn btn-secondary" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
     <div class="cards" id="usrList"></div>
-  </section>
-
-  <!-- генеральные соглашения: форма слева, список справа -->
-  <section id="tab-agreements" data-section="agreements" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.agreements_title">Генеральные соглашения</h1>
-      <p data-i18n="tg.agreement_hint">Согласующие по умолчанию подставятся агенту сами, когда он выберет это соглашение.</p></div></div>
-    <div class="grid2">
-    <div class="card">
-      <h2 data-i18n="tg.agreement_new">Новое генеральное соглашение</h2>
-      <p class="sub" data-i18n="tg.agreement_form_hint">Заполните поля и сохраните — соглашение появится в списке.</p>
-      <label class="f" for="agPartner" data-i18n="tg.partner">Партнёр</label>
-      <input id="agPartner" type="text" data-i18n-placeholder="tg.partner_ph" placeholder="например Asia Alliance Bank" autocomplete="off">
-      <label class="f" for="agProduct" data-i18n="tg.product_code_opt">Код продукта (можно оставить пустым)</label>
-      <input id="agProduct" type="text" data-i18n-placeholder="tg.product_code_ph" placeholder="например 0126" autocomplete="off">
-      <label class="f" for="agStatus" data-i18n="tg.agreement_status">Статус</label>
-      <select id="agStatus">
-        <option value="черновик" data-i18n="status.agreement.draft">черновик</option>
-        <option value="действует" data-i18n="status.agreement.active">действует</option>
-        <option value="закрыто" data-i18n="status.agreement.closed">закрыто</option>
-      </select>
-      <label class="f" data-i18n="tg.default_approvers_label">Согласующие по умолчанию</label>
-      <div class="pick" id="agPick"><div class="note" style="padding:10px 12px" data-i18n="common.loading">загружаю…</div></div>
-      <span class="hint" data-i18n="tg.approvers_range_hint">От 1 до 3 человек.</span>
-      <label class="f" for="agTerms" data-i18n="tg.terms_short">Условия коротко</label>
-      <textarea id="agTerms" data-i18n-placeholder="tg.terms_ph" placeholder="что за соглашение и на что оно влияет"></textarea>
-      <div class="actions"><button type="button" class="btn btn-primary" id="agSave" data-i18n="tg.agreement_save">Сохранить соглашение</button></div>
-      <div class="note msg" id="agMsg"></div>
-    </div>
-    <div id="agList"></div>
-    </div>
   </section>
 
   <!-- настройки; у админа — ещё «Данные и справочники» -->
@@ -951,27 +970,23 @@ $("#scrim").onclick = () => { if (!WIDE.matches) sideOpen(false); };
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !WIDE.matches) sideOpen(false); });
 
 /* ---------- разделы меню: рисуются по ответу сервера ---------- */
-const NAV_ICON = {analytics: "◔", calc: "₌", osgor: "⛨", photos: "▣", inbox: "◈", applications: "✎",
-  users: "◍", agreements: "§", settings: "⚙"};
+const NAV_ICON = {analytics: "◔", calc: "₌", osgor: "⛨", photos: "▣", users: "◍", settings: "⚙"};
 /* полные и короткие (для узкой рейки) подписи — по языку интерфейса */
 function navFull(key, title){
   const full = {analytics: () => T("tg.nav.analytics", "Аналитика"), calc: () => T("tg.nav.calc", "Расчёт"),
     osgor: () => T("tg.nav.osgor", "ОСГОР"), photos: () => T("tg.nav.photos", "Фото"),
-    inbox: () => T("tg.nav.waiting", "Ждут меня"), applications: () => T("tg.nav.applications", "Заявки"),
-    users: () => T("tg.nav.users", "Пользователи"), agreements: () => T("tg.nav.agreements", "Соглашения"),
+    users: () => T("tg.nav.users", "Пользователи"),
     settings: () => T("tg.nav.settings", "Настройки")}[key];
   return full ? full() : (title || key);
 }
 function navRail(key, title){
   const rail = {analytics: () => T("tg.rail.analytics", "Аналит."), calc: () => T("tg.rail.calc", "Расчёт"),
     osgor: () => T("tg.rail.osgor", "ОСГОР"), photos: () => T("tg.rail.photos", "Фото"),
-    inbox: () => T("tg.rail.inbox", "Ждут"), applications: () => T("tg.rail.applications", "Заявки"),
-    users: () => T("tg.rail.users", "Люди"), agreements: () => T("tg.rail.agreements", "Генсогл."),
+    users: () => T("tg.rail.users", "Люди"),
     settings: () => T("tg.rail.settings", "Настр.")}[key];
   return rail ? rail() : navFull(key, title);
 }
-const LOADERS = {analytics: loadAnalytics, osgor: loadOsgor, inbox: loadInbox, applications: loadApplications,
-  users: loadUsers, agreements: loadAgreementsTab, settings: loadSettings, photos: paintPhotoMsgs};
+const LOADERS = {analytics: loadAnalytics, osgor: loadOsgor, users: loadUsers, settings: loadSettings, photos: paintPhotoMsgs};
 let TAB = null;
 const BADGES = {};
 
@@ -1058,7 +1073,7 @@ if (TG && TG.MainButton) {
 /* app/i18n.js меняет словарь без перезагрузки, ставит тексты по data-i18n и шлёт событие i18n:changed.
    Здесь перерисовываются подписи, которые рисует JS: меню, шапка, текущий экран и открытый раздел. */
 const REPAINT = {analytics: anRepaint, osgor: osRepaint, calc: calcRepaint, photos: paintPhotos,
-  inbox: inboxRepaint, applications: appsRepaint, users: usersRepaint, agreements: agrRepaint, settings: settingsRepaint};
+  users: usersRepaint, settings: settingsRepaint};
 function repaintCurrent(){
   document.title = T("tg.title", "Сюрвейер INSON");
   paintStatic();
@@ -1069,6 +1084,7 @@ function repaintCurrent(){
   if (SCREEN === "login") loginTexts();
   if (SCREEN === "app" && ME.user) {
     paintWho();
+    if (REVIEW) reviewRepaint();
     paintNav(ME.nav || [], true);
     if (TAB && REPAINT[TAB]) REPAINT[TAB]();
   }
@@ -1209,9 +1225,7 @@ async function loadMe(){
   loadRefs();
   api("/auth/me").then(m => { if (m.ok) EAIS = m.data.agent_eais_id || null; });
   api("/tg/bot-status").then(b => { if (b.ok) { BOT = b.data; paintTgOpen(); } });
-  if ((ME.nav || []).some(x => x.key === "inbox")) {
-    api("/tg/inbox").then(i => { if (i.ok) navBadge("inbox", i.data.count || 0); });
-  }
+  openReviewFromLink();                     // уведомление бота открывает /tg?request=<№> — карточка решения
 }
 
 /* ---------- вход через Telegram кодом боту (обычный браузер) ---------- */
@@ -1657,34 +1671,514 @@ $("#regSubmit").onclick = regSubmit;
 $("#regCode").addEventListener("keydown", e => { if (e.key === "Enter") regCheckCode(); });
 
 /* =====================================================================================
-   Аналитика риска (задача 145). Данные: GET /analytics/risk/fields, POST /analytics/risk.
-   Панель «Данные объекта» строится из ответа сервера для выбранного класса; дашборд — из ответа анализа.
-   Перерисовка: при смене класса — только форма (значения совпадающих полей сохраняются),
-   при вводе — только индикатор заполненности, при смене языка — всё (anRepaint).
+   Аналитика риска по шагам (задача 150): 1 Продукт → 2 Документы → 3 Договор → 4 Суммы → 5 Анализ.
+   Данные: GET /analytics/risk/fields — классы, все продукты и поля формы класса;
+           GET /analytics/risk/docs — чек-лист «что попросить у клиента»;
+           POST /analytics/risk/document — договор (PDF, DOCX) → распознанные поля и prefill;
+           DELETE /analytics/risk/document/{id} — удалить файл раньше суток;
+           POST /analytics/risk — must, optional и doc_ids → дашборд, documents, ai_summary, ai_status.
+   Состояние мастера — WZ; копия в sessionStorage, поэтому перезагрузка и смена языка шагов не теряют.
+   Перерисовка: смена шага и языка — текущий шаг целиком; ввод в поле — только индикатор заполненности,
+   подсказка о соотношении сумм и пометка «из договора», чтобы курсор оставался в поле.
    ===================================================================================== */
-const AN = {cls: "8/9", fields: null, fieldsErr: "", res: null, group: "property", collapsed: false, scn: "EML",
-  missing: [], errors: {}, msg: null, busy: false, loaded: false};
+const AN = {cls: "", fields: null, fieldsErr: "", res: null, group: "property", scn: "EML",
+  missing: [], errors: {}, msg: null, busy: false};
 const MONEY_UNIT = "сум";                  // единица денежных полей в ответе сервера
+const WZ_KEY = "surveyor_an_wizard";
+const WZ_MAX_DOCS = 10;                    // столько doc_ids принимает POST /analytics/risk
+const WZ_MAX_BYTES = 15 * 1024 * 1024;     // предел файла на сервере
+const HERO = ["sum_insured", "object_value"];          // крупные поля шага 4
+const FROM_STEP1 = ["class_code", "product_code"];     // приходят с шага 1, в форме шага 4 не повторяются
+let CAT = null, CAT_ERR = "";                          // все классы и продукты
+const WZ = {step: 1, max: 1, fcls: "", q: "", cls: "", product: null, otype: "",
+  docs: null, docsErr: "", uploads: [], raw: {}, upMsg: null, busyUp: 0};
 
 function anLoadingCard(){ return '<div class="note">' + spin(T("common.loading", "загружаю…")) + "</div>"; }
 
-async function loadAnalytics(){
-  if (!AN.loaded) { AN.loaded = true; await anFetchFields(AN.cls); }
-  anRepaint();
+/* ---------- память мастера ---------- */
+function wzSave(){
+  try {
+    sessionStorage.setItem(WZ_KEY, JSON.stringify({step: WZ.step, max: WZ.max, fcls: WZ.fcls, q: WZ.q, cls: WZ.cls,
+      product: WZ.product, otype: WZ.otype, uploads: WZ.uploads, raw: WZ.raw, res: AN.res, group: AN.group}));
+  } catch (e) { /* память недоступна — мастер работает до перезагрузки */ }
 }
+function wzLoad(){
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem(WZ_KEY) || "null"); } catch (e) { s = null; }
+  if (!s || typeof s !== "object") return;
+  ["step", "max", "fcls", "q", "cls", "product", "otype", "raw"].forEach(k => { if (s[k] != null) WZ[k] = s[k]; });
+  WZ.uploads = Array.isArray(s.uploads) ? s.uploads : [];
+  AN.res = s.res || null;
+  AN.group = s.group || "property";
+  if (WZ.step === 5 && !AN.res) WZ.step = 4;
+}
+function wzKeep(){ if ($("#anInput")) WZ.raw = anRead().raw; }
 
+/* ---------- данные ---------- */
+async function anFetchCatalog(){
+  const r = await api("/analytics/risk/fields");
+  if (!r.ok) { CAT_ERR = r.error; return; }
+  CAT_ERR = "";
+  CAT = {classes: r.data.classes || [], products: r.data.products || []};
+}
 async function anFetchFields(cls){
-  $("#anInput").innerHTML = anLoadingCard();
   const r = await api("/analytics/risk/fields?class_code=" + encodeURIComponent(cls));
-  if (!r.ok) { AN.fieldsErr = r.error; AN.loaded = false; return; }
+  if (!r.ok) { AN.fieldsErr = r.error; return; }
   AN.fieldsErr = "";
   AN.cls = cls;
   AN.fields = r.data;
 }
+async function wzFetchDocs(){
+  const q = "product_code=" + encodeURIComponent(WZ.product ? WZ.product.code : "")
+    + "&class_code=" + encodeURIComponent(WZ.product ? "" : WZ.cls)
+    + "&object_type=" + encodeURIComponent(WZ.otype || "");
+  const r = await api("/analytics/risk/docs?" + q);
+  if (!r.ok) { WZ.docsErr = r.error; WZ.docs = null; return; }
+  WZ.docsErr = "";
+  WZ.docs = r.data;
+}
+async function wzEnsure(step){
+  if (!CAT && !CAT_ERR) await anFetchCatalog();
+  if (step >= 2 && WZ.cls && (!AN.fields || AN.cls !== WZ.cls) && !AN.fieldsErr) await anFetchFields(WZ.cls);
+  if (step === 2 && !WZ.docs && !WZ.docsErr) await wzFetchDocs();
+}
 
-function anRepaint(){
-  anPaintInput();
-  anPaintDash();
+let WZ_BOOTED = false;
+async function loadAnalytics(){
+  if (!WZ_BOOTED) { WZ_BOOTED = true; wzLoad(); }
+  const step = WZ.step;
+  wzPaint();
+  await wzEnsure(step);
+  if (WZ.step === step && TAB === "analytics") wzPaint();
+}
+function anRepaint(){ wzPaint(); }
+
+async function wzGo(step){
+  wzKeep();
+  if (step > 1 && !WZ.cls) step = 1;
+  if (step === 5 && !AN.res) step = 4;
+  WZ.step = step;
+  WZ.max = Math.max(WZ.max, step);
+  wzSave();
+  wzPaint();
+  const top = $("#tab-analytics");
+  if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({block: "start"});
+  await wzEnsure(step);
+  if (WZ.step === step) wzPaint();
+}
+
+/* ---------- степпер ---------- */
+function stepName(i){
+  switch (i) {
+    case 1: return T("tg.an.s1", "Продукт");
+    case 2: return T("tg.an.s2", "Документы");
+    case 3: return T("tg.an.s3", "Договор");
+    case 4: return T("tg.an.s4", "Суммы");
+    default: return T("tg.an.s5", "Анализ");
+  }
+}
+function wzStepper(){
+  let h = "";
+  for (let i = 1; i <= 5; i++) {
+    const on = i === WZ.step;
+    const reach = i <= WZ.max && (i < 5 || !!AN.res) && (i === 1 || !!WZ.cls);
+    const cls = on ? "on" : reach ? "done" : "";
+    h += '<li class="' + cls + '"><button type="button" data-step="' + i + '"' + (on || !reach ? " disabled" : "")
+      + (on ? ' aria-current="step"' : "") + ' title="' + esc(T("tg.an.step_n", "Шаг {n}: {name}", {n: i, name: stepName(i)})) + '">'
+      + "<i>" + i + "</i><span>" + esc(stepName(i)) + "</span></button></li>";
+  }
+  return h;
+}
+function wzPaint(){
+  wzKeep();
+  const sec = $("#tab-analytics");
+  sec.classList.toggle("an-wide", WZ.step === 5);
+  const ol = $("#anSteps");
+  ol.innerHTML = wzStepper();
+  ol.querySelectorAll("[data-step]").forEach(b => { b.onclick = () => wzGo(Number(b.dataset.step)); });
+  const box = $("#anStep");
+  if (WZ.step === 1) wzStep1(box);
+  else if (WZ.step === 2) wzStep2(box);
+  else if (WZ.step === 3) wzStep3(box);
+  else if (WZ.step === 4) wzStep4(box);
+  else wzStep5(box);
+}
+function failCard(title, reason, retryId){
+  return '<div class="card"><h2>' + esc(title) + '</h2><p class="note err">' + esc(reason) + "</p>"
+    + '<div class="actions"><button type="button" class="btn btn-secondary" id="' + retryId + '">' + esc(T("common.retry", "Повторить")) + "</button></div></div>";
+}
+
+/* ---------- шаг 1: продукт ---------- */
+function prodClasses(p){ return (p.classes || []).join("/"); }
+function wzFiltered(){
+  const q = String(WZ.q || "").trim().toLowerCase();
+  return ((CAT && CAT.products) || []).filter(p =>
+    (!WZ.fcls || (p.classes || []).indexOf(WZ.fcls) >= 0)
+    && (!q || String(p.code).toLowerCase().indexOf(q) === 0 || String(p.name || "").toLowerCase().indexOf(q) >= 0));
+}
+function wzStep1(box){
+  if (CAT_ERR) {
+    box.innerHTML = failCard(T("tg.an.s1_title", "Какой продукт оформляем"), T("tg.an.cat_failed", "Список продуктов не загрузился: {reason}", {reason: CAT_ERR}), "wzRetry1");
+    $("#wzRetry1").onclick = async () => { CAT_ERR = ""; box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; await anFetchCatalog(); wzPaint(); };
+    return;
+  }
+  if (!CAT) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
+  box.innerHTML = '<div class="card">'
+    + "<h2>" + esc(T("tg.an.s1_title", "Какой продукт оформляем")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.an.s1_hint", "Выберите класс или сразу найдите продукт по коду или названию. Следующим шагом покажем, какие документы попросить у клиента.")) + "</p>"
+    + '<div class="two"><div><label class="f" for="wzCls">' + esc(T("tg.an.f.class_code", "Класс страхования")) + "</label>"
+    + '<select id="wzCls"><option value="">' + esc(T("tg.an.all_classes", "все классы")) + "</option>"
+    + CAT.classes.map(c => '<option value="' + esc(c.code) + '">' + esc(c.code + " · " + c.name) + "</option>").join("") + "</select></div>"
+    + '<div><label class="f" for="wzQ">' + esc(T("tg.an.find_product", "Найти продукт")) + "</label>"
+    + '<input id="wzQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="' + esc(T("tg.an.find_ph", "код или слово, например 0807 или склад")) + '"></div></div>'
+    + '<p class="count" id="wzCount" style="margin:var(--s2) 0 6px"></p>'
+    + '<div class="plist" id="wzList" role="group" aria-label="' + esc(T("tg.an.f.product_code", "Продукт")) + '"></div>'
+    + '<div class="picked" id="wzPicked"></div>'
+    + '<div class="actions" id="wzAct1"></div>'
+    + "</div>";
+  $("#wzCls").value = WZ.fcls;
+  $("#wzQ").value = WZ.q;
+  $("#wzCls").onchange = () => { WZ.fcls = $("#wzCls").value; wzSave(); wzPaintList(); wzPaintPicked(); };
+  $("#wzQ").oninput = () => { WZ.q = $("#wzQ").value; wzPaintList(); };
+  $("#wzQ").onblur = wzSave;
+  wzPaintList();
+  wzPaintPicked();
+}
+function wzPaintList(){
+  const list = wzFiltered();
+  const shown = list.slice(0, 80);
+  $("#wzCount").innerHTML = esc(T("tg.an.found_n", "Найдено продуктов: {n}", {n: list.length}));
+  $("#wzList").innerHTML = shown.length
+    ? shown.map(p => '<button type="button" data-code="' + esc(p.code) + '" aria-pressed="' + (!!WZ.product && WZ.product.code === p.code) + '">'
+      + "<b>" + esc(p.code) + "</b><span>" + esc(p.name) + "</span><em>"
+      + esc(T("tg.an.classes_n", "класс {c}", {c: (p.classes || []).join(", ")})) + "</em></button>").join("")
+      + (list.length > shown.length ? '<div class="more">' + esc(T("tg.an.more_n", "Ещё {n} — уточните поиск", {n: list.length - shown.length})) + "</div>" : "")
+    : '<div class="none">' + esc(T("tg.an.found_none", "Ничего не нашлось. Проверьте код или выберите «все классы».")) + "</div>";
+  $("#wzList").querySelectorAll("[data-code]").forEach(b => { b.onclick = () => wzPick(b.dataset.code); });
+}
+function wzSetClass(cls, product){
+  const changed = cls !== WZ.cls || (product ? product.code : "") !== (WZ.product ? WZ.product.code : "");
+  WZ.product = product;
+  WZ.cls = cls;
+  if (changed) {
+    WZ.docs = null; WZ.docsErr = ""; WZ.otype = "";
+    AN.res = null; AN.missing = []; AN.errors = {}; AN.msg = null; AN.fieldsErr = "";
+    WZ.max = 1;
+  }
+  wzSave();
+}
+function wzPick(code){
+  const p = ((CAT && CAT.products) || []).filter(x => x.code === code)[0];
+  if (!p) return;
+  wzSetClass(prodClasses(p), {code: p.code, name: p.name, classes: p.classes || []});
+  $("#wzList").querySelectorAll("[data-code]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.code === code)));
+  wzPaintPicked();
+  const next = $("#wzNext1");
+  if (next) next.focus({preventScroll: false});
+}
+function wzPaintPicked(){
+  const p = WZ.product;
+  const cl = WZ.fcls && CAT ? CAT.classes.filter(c => c.code === WZ.fcls)[0] : null;
+  $("#wzPicked").innerHTML = p
+    ? esc(T("tg.an.picked", "Выбрано:")) + " <b>" + esc(p.code + " · " + p.name) + "</b> · " + esc(T("tg.an.classes_n", "класс {c}", {c: p.classes.join(", ")}))
+    : cl ? esc(T("tg.an.picked_class", "Продукт не выбран — чек-лист покажем по классу {c}.", {c: cl.code + " · " + cl.name}))
+    : esc(T("tg.an.pick_hint", "Выберите продукт из списка или хотя бы класс."));
+  const can = !!p || !!cl;
+  $("#wzAct1").innerHTML = '<button type="button" class="btn btn-primary" id="wzNext1"' + (can ? "" : " disabled") + ">"
+    + esc(p || !cl ? T("tg.an.to_docs", "Дальше: какие нужны документы") : T("tg.an.to_docs_class", "Дальше без продукта")) + "</button>";
+  $("#wzNext1").onclick = () => {
+    if (!p && cl) wzSetClass(cl.code, null);
+    wzGo(2);
+  };
+}
+
+/* ---------- шаг 2: какие документы нужны ---------- */
+function srcName(s){
+  if (s === "общий") return T("tg.an.src_common", "для всех");
+  if (s === "класс") return T("tg.an.src_class", "по классу");
+  if (s === "продукт") return T("tg.an.src_product", "по продукту");
+  if (s === "тип объекта") return T("tg.an.src_type", "по типу объекта");
+  return s || "";
+}
+/* какие пункты чек-листа закрыты загруженными файлами: closes из ответа загрузки или анализа */
+function wzClosed(){
+  const out = {};
+  WZ.uploads.forEach(u => (u.closes || []).forEach(n => { out[n] = u.doc_id; }));
+  const items = (AN.res && AN.res.documents && AN.res.documents.items) || [];
+  items.forEach(i => (i.closes || []).forEach(n => { out[n] = i.doc_id; }));
+  return out;
+}
+function prodLine(){
+  const p = WZ.product;
+  return p ? p.code + " · " + p.name + " · " + T("tg.an.classes_n", "класс {c}", {c: p.classes.join(", ")})
+    : T("tg.an.class_only", "Класс {c}, продукт не выбран", {c: WZ.cls});
+}
+function wzStep2(box){
+  const types = (AN.fields && AN.fields.object_types) || [];
+  box.innerHTML = '<div class="card">'
+    + "<h2>" + esc(T("tg.an.s2_title", "Что попросить у клиента")) + "</h2>"
+    + '<p class="sub">' + esc(prodLine()) + "</p>"
+    + '<label class="f" for="wzType">' + esc(T("tg.an.otype_filter", "Тип объекта — уточняет список")) + "</label>"
+    + '<select id="wzType"><option value="">' + esc(T("tg.an.otype_any", "не важно")) + "</option>"
+    + types.map(t => '<option value="' + esc(t) + '">' + esc(t) + "</option>").join("") + "</select>"
+    + '<div id="wzDocs" style="margin-top:var(--s3)"></div>'
+    + '<div class="actions"><button type="button" class="btn btn-primary" id="wzNext2">' + esc(T("tg.an.to_contract", "Дальше: загрузить договор")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" id="wzBack2">' + esc(T("common.back", "Назад")) + "</button></div>"
+    + "</div>";
+  const sel = $("#wzType");
+  if (WZ.otype && types.indexOf(WZ.otype) < 0) sel.insertAdjacentHTML("beforeend", '<option value="' + esc(WZ.otype) + '">' + esc(WZ.otype) + "</option>");
+  sel.value = WZ.otype || "";
+  sel.onchange = async () => {
+    WZ.otype = sel.value; WZ.docs = null; WZ.docsErr = "";
+    if (WZ.otype && !WZ.raw.object_type) WZ.raw.object_type = WZ.otype;
+    wzSave(); wzPaintDocs();
+    await wzFetchDocs();
+    if (WZ.step === 2) wzPaintDocs();
+  };
+  $("#wzNext2").onclick = () => wzGo(3);
+  $("#wzBack2").onclick = () => wzGo(1);
+  wzPaintDocs();
+}
+function docRow(x, state){
+  const bits = [];
+  if (x.when) bits.push(T("tg.an.doc_when", "когда нужен: {w}", {w: x.when}));
+  if (x.why) bits.push(x.why);
+  if (x.legal_ref) bits.push(x.legal_ref);
+  return '<div class="check ' + state + '"><i></i><div><b>' + esc(x.doc_name)
+    + (state === "ok" ? ' <span class="tag">' + esc(T("tg.an.doc_closed", "есть")) + "</span>" : "") + "</b>"
+    + "<span>" + esc(srcName(x.source)) + (bits.length ? " · " + esc(bits.join(" · ")) : "") + "</span></div></div>";
+}
+function wzPaintDocs(){
+  const box = $("#wzDocs");
+  if (!box) return;
+  if (WZ.docsErr) {
+    box.innerHTML = '<p class="note err">' + esc(T("tg.an.docs_failed", "Список документов не загрузился: {reason}", {reason: WZ.docsErr})) + "</p>"
+      + '<button type="button" class="btn btn-secondary" id="wzRetry2">' + esc(T("common.retry", "Повторить")) + "</button>";
+    $("#wzRetry2").onclick = async () => { WZ.docsErr = ""; box.innerHTML = anLoadingCard(); await wzFetchDocs(); wzPaintDocs(); };
+    return;
+  }
+  const d = WZ.docs;
+  if (!d) { box.innerHTML = anLoadingCard(); return; }
+  const closed = wzClosed();
+  const req = d.required || [], opt = d.optional || [];
+  const got = req.filter(x => closed[x.doc_name]).length;
+  box.innerHTML = '<div class="h3">' + esc(T("tg.an.docs_required", "Обязательные · {n}", {n: req.length})) + "</div>"
+    + (got ? '<p class="note ok" style="margin:2px 0 4px">' + esc(T("tg.an.docs_got_n", "Закрыто файлами: {c} из {n}", {c: got, n: req.length})) + "</p>" : "")
+    + (req.length ? req.map(x => docRow(x, closed[x.doc_name] ? "ok" : "warn")).join("") : '<p class="note">' + esc(T("common.none", "нет")) + "</p>")
+    + (opt.length ? '<div class="h3" style="margin-top:var(--s3)">' + esc(T("tg.an.docs_optional", "Дополнительные — по условиям · {n}", {n: opt.length})) + "</div>"
+      + opt.map(x => docRow(x, closed[x.doc_name] ? "ok" : "opt")).join("") : "")
+    + '<p class="note" style="margin-top:var(--s2)">' + esc(d.basis_text || "") + "</p>";
+}
+
+/* ---------- шаг 3: договор ---------- */
+function kindName(k){
+  switch (k) {
+    case "договор": return T("tg.an.kind.contract", "договор");
+    case "техпаспорт": return T("tg.an.kind.passport", "техпаспорт");
+    case "кадастр": return T("tg.an.kind.cadastre", "кадастр");
+    case "отчёт оценщика": return T("tg.an.kind.valuation", "отчёт оценщика");
+    case "выписка": return T("tg.an.kind.statement", "выписка");
+    case "штатное расписание": return T("tg.an.kind.staff", "штатное расписание");
+    case "фото объекта": return T("tg.an.kind.photo", "фото объекта");
+    case "прочее": return T("tg.an.kind.other", "вид не определён");
+    default: return k || T("tg.an.kind.other", "вид не определён");
+  }
+}
+function langName(l){
+  switch (l) {
+    case "ru": return T("tg.an.lang.ru", "русский");
+    case "uz-latn": return T("tg.an.lang.uz_latn", "узбекский (латиница)");
+    case "uz-cyrl": return T("tg.an.lang.uz_cyrl", "узбекский (кириллица)");
+    case "en": return T("tg.an.lang.en", "английский");
+    default: return T("tg.an.lang.unknown", "язык не определён");
+  }
+}
+function upStatus(s){
+  if (s === "разобран") return {cls: "ok", text: T("tg.an.st_ok", "распознан")};
+  if (s === "частично") return {cls: "warn", text: T("tg.an.st_partial", "распознан частично")};
+  if (s === "нужно распознавание") return {cls: "warn", text: T("tg.an.st_ocr", "скан без текста")};
+  if (s === "не поддерживается") return {cls: "stop", text: T("tg.an.st_unsupported", "формат не читается")};
+  if (s === "ошибка") return {cls: "stop", text: T("tg.an.st_error", "ошибка чтения")};
+  return {cls: "", text: s || "—"};
+}
+function confName(c){
+  if (c === "высокая") return T("tg.an.conf_high", "уверенность высокая");
+  if (c === "средняя") return T("tg.an.conf_mid", "уверенность средняя");
+  return c ? T("tg.an.conf_other", "уверенность: {c}", {c: c}) : "";
+}
+function sizeName(b){
+  const n = Number(b) || 0;
+  return n >= 1048576 ? T("tg.an.size_mb", "{n} МБ", {n: nf(n / 1048576, 1)}) : T("tg.an.size_kb", "{n} КБ", {n: nf(Math.max(1, n / 1024), 0)});
+}
+/* значение prefill → строка для поля формы */
+function pfRaw(key, x){
+  if (key === "region") return x.name || String(x.value || "");
+  if (HERO.indexOf(key) >= 0 || typeof x.value === "number" && fieldUnit(key) === MONEY_UNIT) return Number(x.value).toLocaleString(LOC());
+  return String(x.value == null ? "" : x.value);
+}
+function fieldDef(key){
+  const all = AN.fields ? (AN.fields.must || []).concat(AN.fields.optional || []) : [];
+  return all.filter(f => f.key === key)[0] || null;
+}
+function fieldUnit(key){ const f = fieldDef(key); return f ? f.unit : null; }
+/* значение prefill для показа */
+function pfShow(key, x){
+  if (HERO.indexOf(key) >= 0 || fieldUnit(key) === MONEY_UNIT) return money(x.value);
+  if (key === "region") return x.name || String(x.value || "");
+  const f = fieldDef(key);
+  if (f && f.options) { const o = f.options.filter(o => o.code === x.value)[0]; if (o) return optLabel(f, o); }
+  return String(x.value == null ? "" : x.value);
+}
+function pfLabel(key, x){
+  const f = fieldDef(key);
+  if (f) return fieldLabel(f);
+  return fieldLabel({key: key, label: x.label || key});
+}
+/* что подставлено: первое значение по каждому полю в порядке загрузки */
+function wzPrefill(){
+  const out = {};
+  WZ.uploads.forEach(u => {
+    const pf = u.prefill || {};
+    ["must", "optional"].forEach(g => Object.keys(pf[g] || {}).forEach(k => {
+      if (!out[k]) out[k] = Object.assign({grp: g, doc_id: u.doc_id}, pf[g][k]);
+    }));
+  });
+  return out;
+}
+function wzApplyPrefill(){
+  const pf = wzPrefill();
+  Object.keys(pf).forEach(k => { if (WZ.raw[k] == null || WZ.raw[k] === "" || WZ.raw[k] === false) WZ.raw[k] = pfRaw(k, pf[k]); });
+}
+function wzStep3(box){
+  box.innerHTML = '<div class="card">'
+    + "<h2>" + esc(T("tg.an.s3_title", "Договор страхования")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.an.s3_hint", "Загрузите договор — прочитаем суммы, адрес и условия и подставим их на следующем шаге. Файл хранится 24 часа, затем удаляется.")) + "</p>"
+    + '<div class="drop" id="wzDrop">'
+    + '<label class="f" for="wzFile" style="margin:0">' + esc(T("tg.an.drop_title", "Файл договора")) + "</label>"
+    + '<input type="file" id="wzFile" accept=".pdf,.docx" multiple>'
+    + '<span class="hint" style="margin:0"><span class="dnd">' + esc(T("tg.an.drop_dnd", "Можно перетащить файл сюда. ")) + "</span>"
+    + esc(T("tg.an.drop_formats", "PDF или Word (.docx), до 15 МБ, до 10 файлов.")) + "</span></div>"
+    + '<div class="note msg" id="wzUpMsg"></div>'
+    + '<div id="wzUps"></div>'
+    + '<p class="note" style="margin-top:var(--s2)">' + esc(T("tg.an.more_docs", "Сюда же можно загрузить документы из чек-листа — отчёт оценщика, техпаспорт, выписку. Они закрывают пункты чек-листа; договор страхования — предмет анализа и пунктов не закрывает.")) + "</p>"
+    + '<div class="actions" id="wzAct3"></div>'
+    + "</div>";
+  const inp = $("#wzFile");
+  inp.onchange = () => { const f = inp.files; wzUpload(f).then(() => { inp.value = ""; }); };
+  const drop = $("#wzDrop");
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); wzUpload(e.dataTransfer && e.dataTransfer.files); });
+  wzPaintUploads();
+}
+function wzPaintUpMsg(){
+  const m = $("#wzUpMsg");
+  if (!m) return;
+  const x = WZ.upMsg;
+  m.innerHTML = !x ? "" : x.kind === "busy" ? spin(x.text()) : x.kind === "err" ? errHtml(x.text()) : okHtml(x.text());
+}
+function wzPaintUploads(){
+  const box = $("#wzUps");
+  if (!box) return;
+  wzPaintUpMsg();
+  const closed = wzClosed();
+  box.innerHTML = WZ.uploads.map(u => upHtml(u, Object.keys(closed).filter(n => closed[n] === u.doc_id))).join("");
+  box.querySelectorAll("[data-del]").forEach(b => { b.onclick = () => wzDelete(b.dataset.del); });
+  const full = WZ.uploads.length >= WZ_MAX_DOCS;
+  const inp = $("#wzFile");
+  if (inp) inp.disabled = full || WZ.busyUp > 0;
+  const act = $("#wzAct3");
+  if (!act) return;
+  act.innerHTML = (WZ.uploads.length
+      ? '<button type="button" class="btn btn-primary" id="wzNext3">' + esc(T("tg.an.to_sums", "Дальше: суммы и объект")) + "</button>"
+      : '<button type="button" class="btn btn-secondary" id="wzNext3">' + esc(T("tg.an.no_contract", "Нет договора — ввести вручную")) + "</button>")
+    + '<button type="button" class="btn btn-secondary" id="wzBack3">' + esc(T("common.back", "Назад")) + "</button>";
+  $("#wzNext3").disabled = WZ.busyUp > 0;
+  $("#wzNext3").onclick = () => wzGo(4);
+  $("#wzBack3").onclick = () => wzGo(2);
+}
+function upHtml(u, closes){
+  const st = upStatus(u.status);
+  const pf = u.prefill || {};
+  const rows = [];
+  ["must", "optional"].forEach(g => Object.keys(pf[g] || {}).forEach(k => rows.push([k, pf[g][k]])));
+  const fields = Object.keys(u.fields || {}).map(k => u.fields[k]).filter(f => f && f.value != null && f.value !== "");
+  return '<div class="upl">'
+    + '<div class="upl-h"><b>' + esc(u.filename || "") + '</b><span class="verdict ' + st.cls + '">' + esc(st.text) + "</span></div>"
+    + '<div class="upl-m">' + esc([kindName(u.kind), langName(u.language), sizeName(u.size)].join(" · "))
+    + (u.insurance_contract ? ' <span class="tag">' + esc(T("tg.an.is_contract", "договор страхования")) + "</span>" : "") + "</div>"
+    + (u.status === "нужно распознавание"
+      ? '<div class="itv warn"><div><b>' + esc(T("tg.an.up_scan", "Нужно распознавание: заполните вручную")) + "</b><span>"
+        + esc(T("tg.an.up_scan_d", "Это скан без текстового слоя — прочитать его пока нельзя. Суммы и данные объекта введите на следующем шаге.")) + "</span></div></div>" : "")
+    + (rows.length
+      ? '<div class="h3">' + esc(T("tg.an.pf_title", "Подставим в форму")) + '</div><div class="pf">'
+        + rows.map(([k, x]) => "<div><span>" + esc(pfLabel(k, x)) + "<small>" + esc(T("tg.an.from_contract", "из договора"))
+          + (x.confidence ? " · " + esc(confName(x.confidence)) : "") + (x.found_by ? " · " + esc(T("tg.an.found_by", "строка «{s}»", {s: x.found_by})) : "") + "</small></span>"
+          + "<b>" + esc(pfShow(k, x)) + "</b></div>").join("") + "</div>"
+      : (u.status === "нужно распознавание" ? "" : '<p class="note" style="margin-top:var(--s2)">' + esc(T("tg.an.pf_none", "Подставить в форму из этого файла нечего.")) + "</p>"))
+    + (closes.length ? '<p class="note ok" style="margin-top:var(--s2)">' + esc(T("tg.an.closes", "Закрывает пункт чек-листа: {list}", {list: closes.join(", ")})) + "</p>" : "")
+    + (fields.length
+      ? '<details class="how"><summary>' + esc(T("tg.an.recognized", "Что распознано в файле · {n}", {n: fields.length})) + '</summary><div class="kv wrap-b" style="margin-top:6px">'
+        + fields.map(f => "<span>" + esc(f.name || "") + "</span><b>" + esc(String(f.value)) + "</b>").join("") + "</div></details>" : "")
+    + ((u.notes || []).length ? '<ul class="notes">' + u.notes.map(n => "<li>" + esc(n) + "</li>").join("") + "</ul>" : "")
+    + '<div class="actions" style="margin-top:var(--s2)"><button type="button" class="btn btn-secondary btn-sm" data-del="' + esc(u.doc_id) + '">'
+    + esc(T("tg.an.delete_file", "Удалить файл")) + "</button></div></div>";
+}
+function upError(status, reason){
+  if (/[А-Яа-я]/.test(reason || "")) return reason;
+  if (status === 413) return T("tg.an.up_413", "файл больше 15 МБ — сожмите PDF или уберите из него фотографии");
+  if (status === 415) return T("tg.an.up_415", "нужен договор в PDF или Word (.docx)");
+  return reason;
+}
+async function wzUpload(files){
+  const list = Array.prototype.slice.call(files || []);
+  for (const f of list) {
+    if (WZ.uploads.length >= WZ_MAX_DOCS) {
+      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_limit", "В одном анализе — не больше 10 файлов. Удалите лишний и загрузите снова.")};
+      break;
+    }
+    if (f.size > WZ_MAX_BYTES) {
+      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_failed", "«{name}» не загружен: {reason}", {name: f.name, reason: T("tg.an.up_413", "файл больше 15 МБ — сожмите PDF или уберите из него фотографии")})};
+      continue;
+    }
+    WZ.busyUp++;
+    WZ.upMsg = {kind: "busy", text: () => T("tg.an.up_reading", "загружаю и читаю «{name}»…", {name: f.name})};
+    wzPaintUploads();
+    const fd = new FormData();
+    fd.append("file", f);
+    const r = await api("/analytics/risk/document?class_code=" + encodeURIComponent(WZ.cls || ""), {method: "POST", body: fd});
+    WZ.busyUp--;
+    if (!r.ok) {
+      const reason = upError(r.status, r.error);
+      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_failed", "«{name}» не загружен: {reason}", {name: f.name, reason: reason})};
+      continue;
+    }
+    WZ.uploads.push(r.data);
+    wzApplyPrefill();
+    const n = Object.keys((r.data.prefill || {}).must || {}).length + Object.keys((r.data.prefill || {}).optional || {}).length;
+    WZ.upMsg = {kind: "ok", text: () => T("tg.an.up_done", "«{name}» прочитан: для формы найдено значений — {n}.", {name: f.name, n: n})};
+  }
+  wzSave();
+  if (WZ.step === 3) wzPaintUploads();
+}
+async function wzDelete(id){
+  const r = await api("/analytics/risk/document/" + encodeURIComponent(id), {method: "DELETE"});
+  if (!r.ok && r.status !== 404) {                 // 404 — срок хранения уже истёк, убираем из списка
+    WZ.upMsg = {kind: "err", text: () => T("tg.an.del_failed", "Файл не удалён: {reason}", {reason: r.error})};
+    wzPaintUpMsg();
+    return;
+  }
+  const gone = WZ.uploads.filter(u => u.doc_id === id)[0];
+  WZ.uploads = WZ.uploads.filter(u => u.doc_id !== id);
+  // значения, подставленные только из удалённого файла и не исправленные вручную, убираем из формы
+  const left = wzPrefill();
+  if (gone) ["must", "optional"].forEach(g => Object.keys((gone.prefill || {})[g] || {}).forEach(k => {
+    if (!left[k] && WZ.raw[k] === pfRaw(k, gone.prefill[g][k])) delete WZ.raw[k];
+  }));
+  wzApplyPrefill();
+  WZ.upMsg = {kind: "ok", text: () => T("tg.an.del_done", "Файл удалён с сервера.")};
+  wzSave();
+  wzPaintUploads();
 }
 
 /* ---------- подписи полей: ключи словаря, запас — подпись сервера ---------- */
@@ -1821,6 +2315,8 @@ function anRead(){
     if (sub) { out[grp][key] = out[grp][key] || {}; out[grp][key][sub] = val; }
     else out[grp][key] = val;
   });
+  if (WZ.cls) out.must.class_code = WZ.cls;              // класс и продукт выбраны на шаге 1
+  if (WZ.product) out.must.product_code = WZ.product.code;
   return {body: out, raw: raw};
 }
 function anRestore(raw){
@@ -1858,50 +2354,102 @@ function anMeter(){
   });
 }
 
-function anPaintInput(){
-  const box = $("#anInput");
+/* ---------- шаг 4: суммы и объект ---------- */
+function heroField(f){
+  const id = "anf-" + f.key;
+  return '<div id="anw-' + esc(f.key) + '"><label class="f" for="' + id + '"><span>' + esc(fieldLabel(f)) + "</span>"
+    + '<span class="unit">' + esc(unitName(f.unit || MONEY_UNIT, f.unit_code)) + "</span></label>"
+    + '<input id="' + id + '" type="text" autocomplete="off" inputmode="numeric" data-key="' + esc(f.key) + '" data-money="1" placeholder="0">'
+    + '<span class="ferr" id="ane-' + esc(f.key) + '"></span></div>';
+}
+function wzStep4(box){
   if (AN.fieldsErr) {
-    box.innerHTML = '<h2>' + esc(T("tg.an.data", "Данные объекта")) + "</h2>"
-      + '<div class="note err">' + esc(T("tg.an.fields_failed", "Поля формы не загрузились: {reason}. Обновите раздел.", {reason: AN.fieldsErr})) + "</div>"
-      + '<div class="actions"><button type="button" class="btn btn-secondary" id="anRetry">' + esc(T("common.retry", "Повторить")) + "</button></div>";
-    $("#anRetry").onclick = loadAnalytics;
+    box.innerHTML = failCard(T("tg.an.data", "Данные объекта"), T("tg.an.fields_failed", "Поля формы не загрузились: {reason}. Обновите раздел.", {reason: AN.fieldsErr}), "wzRetry4");
+    $("#wzRetry4").onclick = async () => { AN.fieldsErr = ""; box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; await anFetchFields(WZ.cls); wzPaint(); };
     return;
   }
-  if (!AN.fields) { box.innerHTML = anLoadingCard(); return; }
-  const keep = anRead().raw;
-  const must = AN.fields.must || [], opt = AN.fields.optional || [];
-  const p = anCompleteness();
-  const openOpt = box.querySelector("details.opt") ? box.querySelector("details.opt").open : false;
-  box.innerHTML =
-    '<div id="anForm"' + (AN.collapsed && AN.res ? ' class="hidden"' : "") + ">"
-    + '<div class="an-head"><h2>' + esc(T("tg.an.data", "Данные объекта")) + "</h2>" + meterHtml(p, "anMeter") + "</div>"
-    + '<p class="sub">' + esc(T("tg.an.data_hint", "Сначала обязательные поля — без них анализ не запустится. Дополнительные повышают точность.")) + "</p>"
+  if (!AN.fields || AN.cls !== WZ.cls) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
+  wzApplyPrefill();
+  if (WZ.otype && !WZ.raw.object_type) WZ.raw.object_type = WZ.otype;
+  const must = (AN.fields.must || []).filter(f => HERO.indexOf(f.key) < 0 && FROM_STEP1.indexOf(f.key) < 0);
+  const hero = HERO.map(k => (AN.fields.must || []).filter(f => f.key === k)[0]).filter(Boolean);
+  const opt = AN.fields.optional || [];
+  box.innerHTML = '<div id="anInput">'
+    + '<div class="card"><h2>' + esc(T("tg.an.sums_title", "Суммы")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.an.sums_hint", "Страховая сумма — предел выплаты по договору. Стоимость — сколько объект стоит на самом деле.")) + "</p>"
+    + '<div class="hero2">' + hero.map(heroField).join("") + "</div>"
+    + '<div id="wzRatio"></div></div>'
+    + '<div class="card"><div class="an-head"><h2>' + esc(T("tg.an.data", "Данные объекта")) + "</h2>" + meterHtml(0, "anMeter") + "</div>"
+    + '<p class="sub">' + esc(prodLine()) + "</p>"
     + '<div class="h3">' + esc(T("tg.an.must", "Обязательно")) + "</div>"
     + '<div class="fgrid">' + must.map(fieldHtml).join("") + "</div>"
-    + '<details class="opt"' + (openOpt ? " open" : "") + '><summary>' + esc(T("tg.an.optional", "Дополнительно"))
-    + " <span>" + esc(T("tg.an.optional_hint", "повышает точность")) + "</span>" + meterHtml(p, "anMeterOpt") + "</summary>"
+    + '<details class="opt"><summary>' + esc(T("tg.an.optional", "Дополнительно"))
+    + " <span>" + esc(T("tg.an.optional_hint", "повышает точность")) + "</span>" + meterHtml(0, "anMeterOpt") + "</summary>"
     + '<div class="fgrid">' + opt.map(fieldHtml).join("") + "</div></details>"
-    + '<div class="actions"><button type="button" class="btn btn-primary" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button></div>"
-    + '<div class="note msg" id="anMsg"></div></div>'
-    + '<div id="anSum" class="an-sum' + (AN.collapsed && AN.res ? "" : " hidden") + '"></div>';
-  $("#anf-class_code").value = AN.cls;
-  anRestore(keep);
-  $("#anf-class_code").value = AN.cls;
+    + '<div class="actions"><button type="button" class="btn btn-primary" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" id="wzBack4">' + esc(T("common.back", "Назад")) + "</button></div>"
+    + '<div class="note msg" id="anMsg"></div></div></div>';
+  anRestore(WZ.raw);
+  box.querySelectorAll("[data-money]").forEach(el => { if (el.value) groupDigitsLive(el); });
+  wzMarks();
+  wzRatio();
+  anMeter();
   anShowErrors();
   anPaintMsg();
-  anPaintSummary();
-  $("#anf-class_code").onchange = anClassChange;
   $("#anGo").onclick = analyze;
-  box.querySelectorAll("[data-money]").forEach(el => {
-    el.addEventListener("blur", () => { const d = el.value.replace(/\D/g, ""); el.value = d ? Number(d).toLocaleString(LOC()) : ""; });
-  });
-  box.oninput = anOnInput;
-  box.onchange = anOnInput;
+  $("#wzBack4").onclick = () => wzGo(3);
+  const inp = $("#anInput");
+  inp.oninput = anOnInput;
+  inp.onchange = anOnInput;
+}
+/* пометка «из договора — проверьте» у полей, где значение подставлено и ещё не исправлено */
+function wzMarks(){
+  const pf = wzPrefill();
+  const raw = anRead().raw;
+  Object.keys(pf).forEach(k => wzMark(k, pf[k], raw[k]));
+}
+function wzMark(k, x, cur){
+  const w = $("#anw-" + k);
+  if (!w) return;
+  const old = w.querySelector(".pfmark");
+  if (old) old.remove();
+  if (!x || String(cur == null ? "" : cur) !== pfRaw(k, x)) return;
+  const lab = w.querySelector("label");
+  if (lab) lab.insertAdjacentHTML("beforeend", '<span class="tag pfmark" title="' + esc(confName(x.confidence)) + '">'
+    + esc(T("tg.an.from_contract_check", "из договора — проверьте")) + "</span>");
+}
+/* соотношение страховой суммы и стоимости — ГК РУз, ст. 936 и 938 */
+function wzRatio(){
+  const el = $("#wzRatio");
+  if (!el) return;
+  const s = num(($("#anf-sum_insured") || {}).value), v = num(($("#anf-object_value") || {}).value);
+  if (!s || !v) { el.innerHTML = '<p class="note" style="margin:var(--s2) 0 0">' + esc(T("tg.an.ratio_empty", "Введите обе суммы — покажем, будет ли выплата полной.")) + "</p>"; return; }
+  const k = s / v;
+  const p = nf(k * 100, k < 0.995 || k > 1.005 ? 1 : 0);
+  let cls, title, text;
+  if (Math.abs(k - 1) < 0.005) {
+    cls = ""; title = T("tg.an.ratio_full", "Сумма равна стоимости — при убытке выплата полная");
+    text = T("tg.an.ratio_full_d", "Недострахования и превышения нет.");
+  } else if (k < 1) {
+    cls = "warn"; title = T("tg.an.ratio_under", "Недострахование: сумма — {p}% стоимости", {p: p});
+    text = T("tg.an.ratio_under_d", "При убытке выплата составит {p}% ущерба — пропорционально (ГК РУз, ст. 936). Скажите об этом клиенту.", {p: p});
+  } else {
+    cls = "stop"; title = T("tg.an.ratio_over", "Сумма больше стоимости: {p}%", {p: p});
+    text = T("tg.an.ratio_over_d", "Договор недействителен в части, превышающей стоимость (ГК РУз, ст. 938). Снизьте сумму до стоимости или проверьте оценку.");
+  }
+  el.innerHTML = '<div class="itv ' + cls + '"><div><b>' + esc(title) + "</b><span>" + esc(text) + "</span></div></div>";
 }
 function anOnInput(e){
-  if (!e.target || !e.target.dataset || !e.target.dataset.key) return;
+  const t = e.target;
+  if (!t || !t.dataset || !t.dataset.key) return;
+  if (e.type === "input" && t.dataset.money) groupDigitsLive(t);   // разделители сразу, курсор на месте
+  WZ.raw = anRead().raw;
+  wzSave();
   anMeter();                                   // перерисовываем только индикатор — курсор остаётся в поле
-  const k = e.target.dataset.key;
+  const k = t.dataset.key;
+  if (HERO.indexOf(k) >= 0) wzRatio();
+  const pf = wzPrefill();
+  if (pf[k]) wzMark(k, pf[k], WZ.raw[k]);
   if (AN.missing.indexOf(k) >= 0 || AN.errors[k]) {
     AN.missing = AN.missing.filter(x => x !== k);
     delete AN.errors[k];
@@ -1909,19 +2457,9 @@ function anOnInput(e){
   }
 }
 
-async function anClassChange(){
-  const cls = $("#anf-class_code").value;
-  const keep = anRead().raw;
-  AN.missing = []; AN.errors = {};
-  await anFetchFields(cls);
-  anPaintInput();
-  anRestore(keep);
-  $("#anf-class_code").value = AN.cls;
-  anMeter();
-}
-
 function anShowErrors(){
   const box = $("#anInput");
+  if (!box) return;
   box.querySelectorAll("[id^='anw-']").forEach(w => w.classList.remove("bad"));
   box.querySelectorAll(".ferr").forEach(e => { e.textContent = ""; });
   AN.missing.forEach(k => {
@@ -1934,6 +2472,9 @@ function anShowErrors(){
     if (w) w.classList.add("bad");
     if (e) e.textContent = AN.errors[k];          // текст ошибки — с сервера
   });
+  // ошибка в свёрнутом блоке «Дополнительно» не должна прятаться
+  const det = box.querySelector("details.opt");
+  if (det && det.querySelector(".bad")) det.open = true;
 }
 function anPaintMsg(){
   const m = $("#anMsg");
@@ -1944,27 +2485,22 @@ function anPaintMsg(){
   else if (x.kind === "missing") m.innerHTML = errHtml(T("tg.an.missing", "Анализ не запущен: заполните поля, отмеченные красным ({n}).", {n: x.n}));
   else if (x.kind === "server") m.innerHTML = errHtml(x.text);
 }
-function anPaintSummary(){
-  const s = $("#anSum");
-  if (!s || !AN.res) return;
-  const sm = AN.res.summary || {};
-  const comp = (AN.res.completeness || {}).pct;
-  s.innerHTML = "<p><b>" + esc(sm.class_code || AN.cls) + "</b> · " + esc(sm.object_type || "—") + " · <b>"
-    + esc(compact(sm.sum_insured)) + " " + esc(SUM()) + "</b> · " + esc(sm.region || "—") + " · "
-    + esc(T("tg.an.months_n", "{n} мес.", {n: nf(sm.term_months || 12, 0)}))
-    + (comp != null ? " · " + esc(T("tg.an.filled_n", "заполнено {n}%", {n: comp})) : "") + "</p>"
-    + '<button type="button" class="btn btn-secondary" id="anEdit">' + esc(T("tg.an.edit", "Изменить данные")) + "</button>";
-  $("#anEdit").onclick = () => { AN.collapsed = false; $("#anForm").classList.remove("hidden"); s.classList.add("hidden"); $("#anForm").scrollIntoView({block: "start"}); };
-}
 
 async function analyze(){
   if (AN.busy) return;
-  const {body} = anRead();
+  const {body, raw} = anRead();
+  WZ.raw = raw;
   // сначала проверяем сами: пустые обязательные подсвечиваем сразу, не дожидаясь сервера
   const miss = (AN.fields.must || []).filter(f => f.required && body.must[f.key] == null).map(f => f.key);
   AN.errors = {};
   AN.missing = miss;
-  if (miss.length) { AN.msg = {kind: "missing", n: miss.length}; anShowErrors(); anPaintMsg(); return; }
+  if (miss.length) {
+    AN.msg = {kind: "missing", n: miss.length}; anShowErrors(); anPaintMsg();
+    const first = $("#anw-" + miss[0]);
+    if (first) first.scrollIntoView({block: "center"});
+    return;
+  }
+  body.doc_ids = WZ.uploads.map(u => u.doc_id);
   AN.busy = true; AN.msg = {kind: "busy"}; anPaintMsg();
   $("#anGo").disabled = true;
   const r = await api("/analytics/risk", jsonOpts("POST", body));
@@ -1981,11 +2517,40 @@ async function analyze(){
   AN.msg = null;
   AN.res = r.data;
   AN.group = (AN.fields && AN.fields.group) || "property";
-  AN.collapsed = true;
-  anPaintInput();
-  anPaintDash();
   if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
-  $("#anDash").scrollIntoView({block: "start"});
+  wzGo(5);
+}
+
+/* ---------- шаг 5: анализ ---------- */
+function wzStep5(box){
+  if (!AN.res) { wzGo(4); return; }
+  box.innerHTML = '<div class="card an-sum" id="anSum"></div><div id="anDash"></div>';
+  anPaintSummary();
+  anPaintDash();
+}
+function anPaintSummary(){
+  const s = $("#anSum");
+  if (!s || !AN.res) return;
+  const sm = AN.res.summary || {};
+  const comp = (AN.res.completeness || {}).pct;
+  s.innerHTML = "<p><b>" + esc(sm.class_code || WZ.cls) + "</b>" + (sm.product_code ? " · " + esc(sm.product_code) : "")
+    + " · " + esc(sm.object_type || "—") + " · <b>"
+    + esc(compact(sm.sum_insured)) + " " + esc(SUM()) + "</b> · " + esc(sm.region || "—") + " · "
+    + esc(T("tg.an.months_n", "{n} мес.", {n: nf(sm.term_months || 12, 0)}))
+    + (comp != null ? " · " + esc(T("tg.an.filled_n", "заполнено {n}%", {n: comp})) : "") + "</p>"
+    + '<div class="an-sum-act"><button type="button" class="btn btn-secondary" id="anEdit">' + esc(T("tg.an.edit", "Изменить данные")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" id="anNew">' + esc(T("tg.an.new", "Новый анализ")) + "</button></div>";
+  $("#anEdit").onclick = () => wzGo(4);
+  $("#anNew").onclick = wzReset;
+}
+/* новый анализ: мастер с начала, загруженные файлы удаляем с сервера сразу, не дожидаясь суток */
+function wzReset(){
+  WZ.uploads.forEach(u => { api("/analytics/risk/document/" + encodeURIComponent(u.doc_id), {method: "DELETE"}); });
+  Object.assign(WZ, {step: 1, max: 1, q: "", cls: "", product: null, otype: "", docs: null, docsErr: "",
+    uploads: [], raw: {}, upMsg: null});
+  AN.res = null; AN.missing = []; AN.errors = {}; AN.msg = null; AN.scn = "EML";
+  try { sessionStorage.removeItem(WZ_KEY); } catch (e) {}
+  wzGo(1);
 }
 
 /* ---------- уровни риска ---------- */
@@ -2085,15 +2650,45 @@ function periodName(p){
 function anPaintDash(){
   const box = $("#anDash");
   const r = AN.res;
-  if (!r) {
-    box.innerHTML = '<div class="card"><div class="note">' + esc(T("tg.an.empty", "Дашборд появится после анализа: уровень риска, премия, сценарии EML, PML и MFL, риски и положение на рынке.")) + "</div></div>";
-    return;
-  }
+  if (!box || !r) return;
   box.innerHTML = '<div class="dash">'
+    + anAiCard(r) + anDocsCard(r)
     + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anClientCard(r)
     + "</div>";
   box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; anPaintScenario(); }; });
   anPaintScenario();
+}
+
+/* разбор ИИ: текст — только если ИИ его вернул; иначе честный статус с сервера, без имитации */
+function anAiCard(r){
+  const text = r.ai_summary && String(r.ai_summary).trim();
+  return '<div class="card w8"><p class="eyebrow">' + esc(T("tg.an.ai", "Разбор ИИ"))
+    + (text ? "" : ' <span class="tag off">' + esc(T("tg.an.ai_off_tag", "без ИИ")) + "</span>") + "</p>"
+    + (text ? '<div class="ai-text">' + esc(text) + "</div>" : "")
+    + '<p class="note' + (text ? "" : " ai-off") + '">' + esc(r.ai_status || T("tg.an.ai_unknown", "Сервер не сообщил, подключён ли ИИ.")) + "</p>"
+    + (text ? "" : '<p class="note">' + esc(T("tg.an.ai_off_hint", "Все цифры ниже посчитаны по правилам, справочникам и статистике — без ИИ.")) + "</p>")
+    + "</div>";
+}
+/* документы: что получено и чего не хватает по чек-листу */
+function anDocsCard(r){
+  const d = r.documents || {};
+  const items = d.items || [], missing = d.missing || [];
+  const p = d.completeness_docs_pct != null ? Number(d.completeness_docs_pct) : null;
+  return '<div class="card w4"><p class="eyebrow">' + esc(T("tg.an.docs_block", "Документы")) + "</p>"
+    + (p != null ? '<div class="docpct"><b>' + esc(nf(p, 0)) + "%</b><span>"
+      + esc(T("tg.an.docs_closed", "обязательных закрыто {c} из {n}", {c: d.closed || 0, n: d.required_total || 0})) + "</span></div>"
+      + '<div class="bars"><div class="bar"><b style="width:' + Math.max(0, Math.min(100, p)) + '%"></b></div></div>' : "")
+    + '<div class="h3">' + esc(T("tg.an.docs_got", "Получено · {n}", {n: items.length})) + "</div>"
+    + (items.length
+      ? '<div class="files">' + items.map(i => "<div><span>" + esc(kindName(i.kind))
+        + (i.insurance_contract ? " · " + esc(T("tg.an.is_contract", "договор страхования")) : "") + "</span><b>"
+        + esc(i.closes && i.closes.length ? T("tg.an.closes_n", "закрывает {n}", {n: i.closes.length}) : upStatus(i.status).text) + "</b></div>").join("") + "</div>"
+      : '<p class="note">' + esc(T("tg.an.docs_got_none", "Файлы не загружали — анализ по введённым данным.")) + "</p>")
+    + (missing.length
+      ? '<details class="how"><summary>' + esc(T("tg.an.docs_missing", "Не хватает · {n}", {n: missing.length})) + "</summary><ul>"
+        + missing.map(n => "<li>" + esc(n) + "</li>").join("") + "</ul></details>" : "")
+    + (d.note ? '<p class="note">' + esc(d.note) + "</p>" : "")
+    + "</div>";
 }
 
 function anLevelCard(r){
@@ -3319,25 +3914,6 @@ function paintPhotoMsgs(){
 }
 
 /* ---------- отправка на согласование (прямо из расчёта) ---------- */
-let COLLEAGUES = [], AGREEMENTS = [];
-
-async function loadPickLists(){
-  const [a, c] = await Promise.all([api("/general-agreements"), api("/auth/colleagues")]);
-  AGREEMENTS = a.ok ? (a.data || []) : [];
-  const mine = ME.user ? ME.user.id : null;
-  COLLEAGUES = (c.ok ? (c.data || []) : []).filter(x => x.role !== "агент" && x.id !== mine);
-  return {agrErr: a.ok ? "" : a.error, colErr: c.ok ? "" : c.error};
-}
-
-function pickHtml(id, checked){
-  if (!COLLEAGUES.length) return '<div class="note" style="padding:10px 12px">' + esc(T("tg.pick_none", "Работников компании в списке нет: согласующим может быть только штатный работник, агент — не может (Положение № 3845, п. 2).")) + "</div>";
-  const on = checked || [];
-  return COLLEAGUES.map(c =>
-    '<label><input type="checkbox" name="' + id + '" value="' + c.id + '"'
-    + (on.indexOf(c.id) >= 0 ? " checked" : "") + "><span>" + esc(c.full_name)
-    + '<br><span class="r">' + esc(roleName(c.role)) + (c.branch ? " · " + esc(c.branch) : "") + "</span></span></label>").join("");
-}
-
 function picked(id){
   return Array.prototype.slice.call(document.querySelectorAll('input[name="' + id + '"]:checked')).map(x => Number(x.value));
 }
@@ -3397,16 +3973,6 @@ function revCount(){
   if (b) b.disabled = !ok;
 }
 
-function matchReviewers(list){
-  const out = [];
-  (list || []).forEach(item => {
-    const s = String(item);
-    const c = COLLEAGUES.filter(x => String(x.id) === s || x.full_name === s || x.login === s)[0];
-    if (c && out.indexOf(c.id) < 0) out.push(c.id);
-  });
-  return out;
-}
-
 async function sendReviewers(){
   const ids = picked("rev");
   const agrId = CAND.agreement ? CAND.agreement.id : null;
@@ -3422,7 +3988,7 @@ async function sendReviewers(){
   const names = (r.data.reviewers || []).map(x => x.full_name).join(", ");
   $("#revMsg").innerHTML = okHtml(T("tg.sent", "Отправлено: {who}", {who: names}) + ". "
     + (BOT && BOT.connected ? T("tg.notify_sent", "Уведомления ушли в Telegram.")
-      : T("tg.bot_not_connected", "Бот ещё не подключён, поэтому согласующие увидят запрос в приложении, в разделе «Ждут меня».")));
+      : T("tg.bot_not_connected2", "Бот ещё не подключён: уведомления не ушли. Сообщите согласующим номер запроса — решение они примут на странице согласований.")));
 }
 
 /* ---------- статусы согласования: значения сервера → подписи по словарю ---------- */
@@ -3454,37 +4020,43 @@ function decName(s){
 }
 const DEC_APPROVE = "одобрил", DEC_REJECT = "отклонил", DEC_QUESTION = "вопрос";   // значения для сервера
 
-/* ---------- ждут меня ---------- */
-let INBOX = null;
-async function loadInbox(){
-  $("#inboxList").innerHTML = '<div class="card"><div class="note">' + spin(T("common.loading", "загружаю…")) + "</div></div>";
+/* ---------- решение по запросу: по ссылке из уведомления бота ----------
+   Раздела «Ждут меня» в меню больше нет (задача 150). Бот присылает согласующему кнопку
+   /tg?request=<№> — тогда над разделом появляется карточка запроса с решением. */
+let REVIEW = null;
+async function openReviewFromLink(){
+  const rid = Number(new URLSearchParams(location.search).get("request")) || 0;
+  if (!rid) return;
   const r = await api("/tg/inbox");
-  if (!r.ok) { INBOX = {err: r.error}; inboxRepaint(); return; }
-  INBOX = {items: r.data.items || []};
-  navBadge("inbox", INBOX.items.length);
-  inboxRepaint();
+  if (!r.ok) return;
+  const it = (r.data.items || []).filter(x => Number(x.request_id) === rid)[0];
+  if (!it) return;                           // решение уже принято или запрос не ваш — карточку не показываем
+  REVIEW = {item: it, done: null};
+  reviewRepaint();
 }
-function inboxRepaint(){
-  if (!INBOX) return;
-  if (INBOX.err) { $("#inboxList").innerHTML = '<div class="card"><div class="note err">' + esc(T("tg.list_failed", "Список не загрузился: {reason}", {reason: INBOX.err})) + "</div></div>"; return; }
-  const items = INBOX.items;
-  if (!items.length) { $("#inboxList").innerHTML = '<div class="card"><div class="note">' + esc(T("tg.waiting_empty", "Решений от вас сейчас не ждут.")) + "</div></div>"; return; }
-  const typed = {};
-  items.forEach(it => { const t = $("#cm-" + it.request_id); if (t) typed[it.request_id] = t.value; });
-  $("#inboxList").innerHTML = items.map(inboxCard).join("");
-  items.forEach(it => {
-    if (typed[it.request_id]) $("#cm-" + it.request_id).value = typed[it.request_id];
-    [DEC_APPROVE, DEC_REJECT, DEC_QUESTION].forEach(d => {
-      const b = document.querySelector('[data-dec="' + d + '"][data-rid="' + it.request_id + '"]');
-      if (b) b.onclick = () => decide(it.request_id, d);
-    });
-    loadInboxDetail(it.request_id);
+function reviewRepaint(){
+  const box = $("#reviewBox");
+  if (!REVIEW) { box.innerHTML = ""; return; }
+  const it = REVIEW.item, rid = it.request_id;
+  const typed = $("#cm-" + rid) ? $("#cm-" + rid).value : "";
+  if (REVIEW.done) { box.innerHTML = reviewDoneHtml(rid, REVIEW.done); bindReviewClose(); return; }
+  box.innerHTML = reviewCard(it);
+  if (typed) $("#cm-" + rid).value = typed;
+  [DEC_APPROVE, DEC_REJECT, DEC_QUESTION].forEach(d => {
+    const b = box.querySelector('[data-dec="' + d + '"]');
+    if (b) b.onclick = () => decide(rid, d);
   });
-  bindExports($("#inboxList"));
+  bindReviewClose();
+  bindExports(box);
+  loadReviewDetail(rid);
 }
-
-function inboxCard(it){
-  return '<article class="group" id="inbox-' + it.request_id + '"><div class="card"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: it.external_no || it.request_id})) + "</h2>"
+function bindReviewClose(){
+  const b = $("#reviewClose");
+  if (b) b.onclick = () => { REVIEW = null; reviewRepaint(); };
+}
+function reviewCard(it){
+  return '<article class="group" id="review-' + it.request_id + '"><div class="card"><div class="an-head"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: it.external_no || it.request_id})) + "</h2>"
+    + '<button type="button" class="btn btn-secondary btn-sm" id="reviewClose">' + esc(T("tg.review_close", "Скрыть карточку")) + "</button></div>"
     + '<p class="sub">' + esc(it.policyholder || T("tg.policyholder_unset", "страхователь не указан"))
     + (it.product_code ? " · " + esc(T("tg.product_n", "продукт {c}", {c: it.product_code})) : "")
     + (it.branch ? " · " + esc(it.branch) : "")
@@ -3498,15 +4070,15 @@ function inboxCard(it){
     + '<label class="f" for="cm-' + it.request_id + '">' + esc(T("tg.dec_note", "Примечание (необязательно)")) + "</label>"
     + '<textarea id="cm-' + it.request_id + '" placeholder="' + esc(T("tg.dec_note_ph", "можно не заполнять; если отклоняете — напишите, что исправить")) + '"></textarea>'
     + '<div class="actions">'
-    + '<button type="button" class="btn btn-success" data-dec="' + DEC_APPROVE + '" data-rid="' + it.request_id + '">' + esc(T("tg.confirm", "Подтвердить")) + "</button>"
-    + '<button type="button" class="btn btn-danger" data-dec="' + DEC_REJECT + '" data-rid="' + it.request_id + '">' + esc(T("tg.reject", "Отклонить")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-dec="' + DEC_QUESTION + '" data-rid="' + it.request_id + '">' + esc(T("tg.ask", "Задать вопрос")) + "</button>"
+    + '<button type="button" class="btn btn-success" data-dec="' + DEC_APPROVE + '">' + esc(T("tg.confirm", "Подтвердить")) + "</button>"
+    + '<button type="button" class="btn btn-danger" data-dec="' + DEC_REJECT + '">' + esc(T("tg.reject", "Отклонить")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-dec="' + DEC_QUESTION + '">' + esc(T("tg.ask", "Задать вопрос")) + "</button>"
     + "</div>"
     + '<div class="note msg" id="dm-' + it.request_id + '"></div></div></article>';
 }
 
 /* Расчёт, анализ и документы по запросу — чтобы решать, не выходя из карточки. */
-async function loadInboxDetail(rid){
+async function loadReviewDetail(rid){
   const box = $("#det-" + rid);
   if (!box) return;
   const r = await api("/requests/" + rid);
@@ -3549,68 +4121,19 @@ async function decide(rid, decision){
   msg.innerHTML = spin(T("tg.decision_saving", "записываю решение…"));
   const r = await api("/requests/" + rid + "/decide", jsonOpts("POST", {decision: decision, comment: cm || null}));
   if (!r.ok) { msg.innerHTML = errHtml(T("tg.decision_failed", "Решение не записано: {reason}", {reason: r.error})); return; }
-  INBOX.items = INBOX.items.filter(x => x.request_id !== rid);
-  const card = $("#inbox-" + rid);
-  if (card) {
-    card.innerHTML = '<div class="card"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: rid})) + "</h2><p class=\"sub\">"
-      + esc(T("tg.decision_saved", "Ваше решение записано: {decision}", {decision: decName(decision)})) + ".</p>"
-      + '<span class="st ' + stClass(r.data.approval_status) + '">' + esc(stName(r.data.approval_status)) + "</span>"
-      + '<div class="rev">' + (r.data.reviewers || []).map(x =>
-        '<div><div class="who"><b>' + esc(x.full_name) + '</b><em class="' + decClass(x.status) + '">'
-        + esc(decName(x.status)) + "</em></div><div class=\"meta\">" + esc(x.position || "")
-        + (x.decided_at ? " · " + esc(when(x.decided_at)) : "") + "</div></div>").join("") + "</div></div>";
-  }
-  navBadge("inbox", INBOX.items.length);
+  REVIEW.done = {decision: decision, status: r.data.approval_status, reviewers: r.data.reviewers || []};
+  reviewRepaint();
 }
-$("#inboxReload").onclick = loadInbox;
-
-/* ---------- заявки на доступ (админ) ---------- */
-let APPS = null;
-async function loadApplications(){
-  $("#appList").innerHTML = '<div class="card"><div class="note">' + spin(T("common.loading", "загружаю…")) + "</div></div>";
-  const r = await api("/auth/pending");
-  APPS = r.ok ? {items: r.data || [], done: {}} : {err: r.error};
-  appsRepaint();
+function reviewDoneHtml(rid, d){
+  return '<div class="card"><div class="an-head"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: rid})) + "</h2>"
+    + '<button type="button" class="btn btn-secondary btn-sm" id="reviewClose">' + esc(T("tg.review_close", "Скрыть карточку")) + "</button></div>"
+    + "<p class=\"sub\">" + esc(T("tg.decision_saved", "Ваше решение записано: {decision}", {decision: decName(d.decision)})) + ".</p>"
+    + '<span class="st ' + stClass(d.status) + '">' + esc(stName(d.status)) + "</span>"
+    + '<div class="rev">' + d.reviewers.map(x =>
+      '<div><div class="who"><b>' + esc(x.full_name) + '</b><em class="' + decClass(x.status) + '">'
+      + esc(decName(x.status)) + "</em></div><div class=\"meta\">" + esc(x.position || "")
+      + (x.decided_at ? " · " + esc(when(x.decided_at)) : "") + "</div></div>").join("") + "</div></div>";
 }
-function appsRepaint(){
-  if (!APPS) return;
-  if (APPS.err) { $("#appList").innerHTML = '<div class="card"><div class="note err">' + esc(T("tg.apps_failed", "Заявки не загрузились: {reason}", {reason: APPS.err})) + "</div></div>"; return; }
-  const items = APPS.items;
-  if (!items.length) { $("#appList").innerHTML = '<div class="card"><div class="note">' + esc(T("tg.applications_empty", "Новых заявок нет.")) + "</div></div>"; return; }
-  $("#appList").innerHTML = items.map(u => {
-    if (APPS.done[u.id]) return '<div class="card" id="app-' + u.id + '"><div class="note ok">'
-      + esc(APPS.done[u.id] === "approve" ? T("tg.access_granted", "Доступ открыт.") : T("tg.application_rejected", "Заявка отклонена, учётная запись удалена.")) + "</div></div>";
-    const reg = u.registry;
-    const regText = !u.agent_eais_id ? T("tg.agent_id_unset", "ID агента не указан")
-      : reg ? reg.name + " · " + reg.status : T("tg.registry_not_found", "в реестре компании не найден");
-    const regCls = !u.agent_eais_id ? "warn" : reg ? (reg.status === "активен" ? "ok" : "warn") : "err";
-    return '<div class="card" id="app-' + u.id + '"><h2>' + esc(u.full_name) + "</h2>"
-      + '<p class="sub">' + esc(u.login) + (u.phone ? " · " + esc(u.phone) : "") + "</p>"
-      + '<div class="kv">'
-      + "<span>" + esc(T("tg.role", "Роль")) + "</span><b>" + esc(roleName(u.role)) + "</b>"
-      + "<span>" + esc(T("tg.branch", "Филиал")) + "</span><b>" + esc(u.branch || "—") + "</b>"
-      + "<span>" + esc(T("tg.agent_id", "ID агента в ЕАИС")) + "</span><b>" + esc(u.agent_eais_id || "—") + "</b>"
-      + "<span>" + esc(T("tg.applied_at", "Заявка подана")) + "</span><b>" + esc(when(u.created_at) || "—") + "</b>"
-      + "</div>"
-      + '<p class="note ' + regCls + '" style="margin:var(--s2) 0 0">' + esc(T("tg.registry_check_v", "Сверка с реестром: {v}", {v: regText})) + "</p>"
-      + '<div class="actions">'
-      + '<button type="button" class="btn btn-success" data-app="' + u.id + '">' + esc(T("tg.confirm", "Подтвердить")) + "</button>"
-      + '<button type="button" class="btn btn-danger" data-rej="' + u.id + '">' + esc(T("tg.reject", "Отклонить")) + "</button></div>"
-      + '<div class="note msg" id="am-' + u.id + '"></div></div>';
-  }).join("");
-  document.querySelectorAll("[data-app]").forEach(b => { b.onclick = () => appDecide(b.dataset.app, "approve"); });
-  document.querySelectorAll("[data-rej]").forEach(b => { b.onclick = () => appDecide(b.dataset.rej, "reject"); });
-}
-
-async function appDecide(uid, what){
-  const msg = $("#am-" + uid);
-  msg.innerHTML = spin(T("common.saving", "сохраняю…"));
-  const r = await api("/auth/" + what + "/" + uid, {method: "POST"});
-  if (!r.ok) { msg.innerHTML = errHtml(T("tg.not_done", "Не получилось: {reason}", {reason: r.error})); return; }
-  APPS.done[uid] = what;
-  appsRepaint();
-}
-$("#appReload").onclick = loadApplications;
 
 /* ---------- пользователи (список видят все вошедшие) ---------- */
 let CAN_MANAGE = false, USERS = null;
@@ -3706,56 +4229,6 @@ async function blockUser(uid){
 }
 const BLOCK_REASON = "решение администратора в мини-аппе";   // пишется в журнал сервера, на экран не выводится
 $("#usrReload").onclick = loadUsers;
-
-/* ---------- генеральные соглашения (админ) ---------- */
-let AGR_LOADED = false;
-async function loadAgreementsTab(){
-  $("#agList").innerHTML = '<div class="card"><div class="note">' + spin(T("common.loading", "загружаю…")) + "</div></div>";
-  await loadPickLists();
-  AGR_LOADED = true;
-  agrRepaint();
-}
-function agrRepaint(){
-  if (!AGR_LOADED) return;
-  const keep = picked("agrev");
-  $("#agPick").innerHTML = pickHtml("agrev", keep);
-  $("#agList").innerHTML = AGREEMENTS.length
-    ? AGREEMENTS.map(a => '<div class="card"><h2>' + esc(a.partner) + "</h2>"
-        + '<p class="sub">' + esc(agrStatus(a.status)) + (a.product_code ? " · " + esc(T("tg.product_n", "продукт {c}", {c: a.product_code})) : "") + "</p>"
-        + (a.terms ? '<p class="note">' + esc(a.terms) + "</p>" : "")
-        + '<div class="note" style="margin-top:var(--s1)">' + esc(T("tg.default_approvers_v", "Согласующие по умолчанию: {v}", {v: namesOf(a.default_reviewers || []) || T("tg.not_set_pl", "не заданы")})) + "</div></div>").join("")
-    : '<div class="card"><div class="note">' + esc(T("tg.agreements_empty", "Соглашений пока нет.")) + "</div></div>";
-}
-function agrStatus(s){
-  if (s === "черновик") return T("status.agreement.draft", "черновик");
-  if (s === "действует") return T("status.agreement.active", "действует");
-  if (s === "закрыто") return T("status.agreement.closed", "закрыто");
-  return s || "—";
-}
-
-function namesOf(list){
-  return matchReviewers(list).map(id => (COLLEAGUES.filter(c => c.id === id)[0] || {}).full_name).filter(Boolean).join(", ");
-}
-
-$("#agSave").onclick = async () => {
-  const partner = $("#agPartner").value.trim();
-  if (!partner) { $("#agMsg").innerHTML = errHtml(T("tg.agreement_no_partner", "Укажите партнёра — без него соглашение не опознать.")); return; }
-  const ids = picked("agrev");
-  if (ids.length > 3) {
-    $("#agMsg").innerHTML = errHtml(T("tg.agreement_max3", "Согласующих по умолчанию — не больше трёх либо ни одного."));
-    return;
-  }
-  $("#agSave").disabled = true;
-  $("#agMsg").innerHTML = spin(T("common.saving", "сохраняю…"));
-  const r = await api("/general-agreements", jsonOpts("POST", {partner: partner, product_code: $("#agProduct").value.trim() || null,
-    terms: $("#agTerms").value.trim() || null, default_reviewers: ids, status: $("#agStatus").value}));
-  $("#agSave").disabled = false;
-  if (!r.ok) { $("#agMsg").innerHTML = errHtml(T("tg.not_saved", "Не сохранилось: {reason}", {reason: r.error})); return; }
-  $("#agMsg").innerHTML = okHtml(T("tg.agreement_saved", "Сохранено. Агенты увидят это соглашение при отправке на согласование."));
-  $("#agPartner").value = ""; $("#agProduct").value = ""; $("#agTerms").value = "";
-  document.querySelectorAll('input[name="agrev"]').forEach(x => { x.checked = false; });
-  loadAgreementsTab();
-};
 
 /* ---------- настройки: состояние бота ---------- */
 let BOT_ERR = "";

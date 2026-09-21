@@ -299,7 +299,9 @@ def run(rid, ids):
     st, me = call("GET", "/tg/me", who=LOGINS[0])
     keys = [n["key"] for n in me["nav"]]
     assert st == 200 and me["status"] == "активен" and me["user"]["role"] == "админ", me
-    assert {"calc", "inbox", "users", "settings"} <= set(keys), keys
+    assert {"calc", "users", "settings"} <= set(keys), keys
+    # задача 150: «Ждут меня», «Заявки», «Соглашения» из меню убраны; /tg/inbox остался (ниже)
+    assert not {"inbox", "applications", "agreements"} & set(keys), keys
     st, me2 = call("GET", "/tg/me", who=LOGINS[4])
     assert "inbox" not in [n["key"] for n in me2["nav"]] and "расчёт" in me2["rights"], me2
     st, inb = call("GET", "/tg/inbox", who=LOGINS[1])
