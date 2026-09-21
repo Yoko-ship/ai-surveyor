@@ -170,6 +170,13 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
 .tgbtn:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
 .tgbtn:disabled{opacity:.6;cursor:default}
 .tgbtn svg{flex:none;width:19px;height:19px;color:#FFFFFF}
+/* «Открыть бота» — тот же синий INSON с белым текстом: тема Telegram не перекрашивает ссылку */
+.tgopen{display:flex;align-items:center;justify-content:center;min-height:48px;text-align:center;text-decoration:none;
+  font:700 15px/1 var(--sans);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;background:#1D2C8F;
+  border:1px solid #4A5BC4;border-radius:10px;padding:0 14px}
+.tgopen:hover,.tgopen:active{background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.tgopen:visited{color:#FFFFFF}
+.tgopen:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
 .tgcode{font-family:var(--mono);font-weight:600;font-size:30px;letter-spacing:.14em;text-align:center;
   color:var(--accent);background:var(--soft);border:1px dashed var(--accent-dim);border-radius:11px;
   padding:14px 6px;margin:10px 0;user-select:all}
@@ -212,7 +219,7 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
       <div class="hidden" id="tgLinkBox">
         <p class="note" style="margin-top:12px">Отправьте этот код боту — страница войдёт сама.</p>
         <div class="tgcode" id="tgCode">INS-••••</div>
-        <a class="btn" id="tgOpen" href="#" target="_blank" rel="noopener" style="flex:1 1 100%">Открыть бота</a>
+        <a class="tgopen" id="tgOpen" href="#" target="_blank" rel="noopener" style="flex:1 1 100%">Открыть бота</a>
         <p class="note" id="tgHow" style="margin-top:8px"></p>
         <div class="note" id="tgWait" style="margin-top:8px"></div>
       </div>
