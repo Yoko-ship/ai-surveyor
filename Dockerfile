@@ -20,7 +20,8 @@ COPY tools tools
 COPY app app
 
 # База собирается при сборке образа: справочники нужны сразу. STORAGE_DIR при сборке не учитываем:
-# база образа — всегда data/surveyor.db; на постоянный диск её переносит сервер при первом старте
+# база образа — всегда data/surveyor.db; на постоянный диск её переносит сервер при первом старте,
+# а при следующих — доводит справочники по отпечатку сборки (app/refsync.py)
 # (app/db.py, init_storage), а уже существующую базу на диске не трогает.
 RUN env -u STORAGE_DIR python tools/db_build.py && env -u STORAGE_DIR python tools/market_stats.py
 

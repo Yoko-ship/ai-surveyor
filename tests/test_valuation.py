@@ -10,6 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import db                                           # noqa: E402
 from app import valuation as V                               # noqa: E402
 from app.engine import Input, calculate                      # noqa: E402
@@ -295,10 +296,11 @@ def cleanup():
 
 
 if __name__ == "__main__":
-    try:
-        for name, fn in sorted(list(globals().items())):
-            if name.startswith("test_"):
-                fn()
-    finally:
-        cleanup()
-    print("методика оценки: все контрольные примеры сошлись")
+    with temp_db("surveyor-valuation.db"):  # рабочая data/surveyor.db не меняется
+        try:
+            for name, fn in sorted(list(globals().items())):
+                if name.startswith("test_"):
+                    fn()
+        finally:
+            cleanup()
+        print("методика оценки: все контрольные примеры сошлись")

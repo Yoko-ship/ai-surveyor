@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # Тест ходит в приложение напрямую с адреса 127.0.0.1 (см. tests/test_tgbot.py).
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import approvals, auth, db, exports, llm, outcomes, registration, telegram, tgbot  # noqa: E402
 from app.main import app                                                                    # noqa: E402
 
@@ -531,4 +532,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with temp_db("surveyor-registration.db"):  # рабочая data/surveyor.db не меняется
+        main()

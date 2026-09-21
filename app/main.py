@@ -132,8 +132,12 @@ def _bootstrap_code():
 
 @app.on_event("startup")
 def startup():
+    from .web import install_log_filters   # журналы uvicorn: без строки запроса, секрета вебхука и ПД
+    install_log_filters()
     db.init_storage()
     db.ensure_schema()
+    from . import refsync                 # справочники образа -> постоянный диск (если сборка новее)
+    refsync.sync_on_start()
     UPLOADS.mkdir(parents=True, exist_ok=True)
     (db.DATA_DIR / "photos").mkdir(parents=True, exist_ok=True)
     # фоновые потоки: каждый не больше одного, SURVEYOR_NO_BACKGROUND=1 выключает все (тесты, замеры)

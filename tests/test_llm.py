@@ -17,6 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import db                                          # noqa: E402
 from app import llm                                         # noqa: E402
 
@@ -129,4 +130,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    with temp_db("surveyor-llm.db"):  # рабочая data/surveyor.db не меняется
+        main()

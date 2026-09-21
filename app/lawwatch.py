@@ -136,13 +136,19 @@ def seed_acts(con) -> int:
             continue
         url = a.get("lex_url") or None
         refs = json.dumps(a.get("rules_refs") or [], ensure_ascii=False)
-        row = con.execute("SELECT code, status FROM watched_acts WHERE code=?", (code,)).fetchone()
+        row = con.execute("SELECT code, status, title, kind, lex_url, redaction, last_changed_at, priority, why,"
+                          " rules_refs FROM watched_acts WHERE code=?", (code,)).fetchone()
         # у внутренних актов и у актов без установленного адреса робота нет — следит юрист
         status = ST_NOURL if not url else ST_WATCH
         if not url and (a.get("kind") == "внутренний акт"):
             status = ST_MANUAL
         if row:
             keep = row["status"] if row["status"] in (ST_CHANGED, ST_DOWN) and url else status
+            red = a.get("redaction") if row["last_changed_at"] is None else row["redaction"]
+            if (row["title"], row["kind"], row["lex_url"], row["redaction"], row["priority"], row["why"],
+                    row["rules_refs"], row["status"]) == (a.get("title") or code, a.get("kind"), url, red,
+                                                          a.get("priority"), a.get("why"), refs, keep):
+                continue            # без изменений — не пишем: импорт модуля не должен трогать файл базы
             # дату редакции из реестра ставим, пока робот сам не увидел более свежую:
             # иначе после каждого прохода реестр «откатывал» бы находку и событие приходило заново
             con.execute("""UPDATE watched_acts SET title=?, kind=?, lex_url=?,

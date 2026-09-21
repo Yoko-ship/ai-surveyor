@@ -296,6 +296,20 @@ def check_errors():
     st3, body3 = jcall("GET", "/requests/999999999")
     ok("8б. HTTPException и ошибки ввода — как раньше: %d, %d, %d" % (st, st2, st3),
        st == 409 and body["detail"] == "как раньше" and st2 == 422 and st3 == 404)
+    # журнал: секрет вебхука в пути и ПД в тексте исключения маскируются, стек остаётся
+    import logging as _lg
+    from app import web as _web
+    try:
+        raise ValueError("телефон +998 90 123-45-67")
+    except ValueError as e:
+        info = _web._masked_exc_info(e)
+    text = _lg.Formatter().formatException(info)
+    ok("8в. журнал ошибок: /tg/webhook/<секрет> → %s; телефон в тексте исключения скрыт, стек на месте"
+       % _web._safe_path("/tg/webhook/abc123"),
+       # последняя строка — текст исключения; строки кода в стеке (там литерал) — не данные людей
+       _web._safe_path("/tg/webhook/abc123") == "/tg/webhook/***"
+       and text.splitlines()[-1].endswith("ValueError: телефон [ТЕЛЕФОН]") and "test_optimization.py" in text,
+       text[-300:])
 
 
 def check_health():

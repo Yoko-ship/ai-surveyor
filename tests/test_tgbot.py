@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # пропускает локальные соединения только в режиме разработчика.
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import approvals, auth, db, tgbot        # noqa: E402
 from app.main import app                          # noqa: E402
 
@@ -359,17 +360,18 @@ def check_consent():
 
 
 if __name__ == "__main__":
-    rid, ids = setup()
-    real_token, real_deliver = tgbot.bot_token, tgbot._deliver
-    try:
-        tgbot.bot_token = lambda: "TEST-TOKEN"      # токена у компании ещё нет — подменяем, сеть не трогаем
-        tgbot._deliver = fake_deliver
-        run(rid, ids)
-        tgbot.bot_token = lambda: ""                # проверка режима «бот не подключён»
-        run_no_token(rid)
-        check_no_pd()
-        check_consent()
-        print("\nВсе проверки бота Telegram пройдены.")
-    finally:
-        tgbot.bot_token, tgbot._deliver = real_token, real_deliver
-        teardown(rid)
+    with temp_db("surveyor-tgbot.db"):  # рабочая data/surveyor.db не меняется
+        rid, ids = setup()
+        real_token, real_deliver = tgbot.bot_token, tgbot._deliver
+        try:
+            tgbot.bot_token = lambda: "TEST-TOKEN"      # токена у компании ещё нет — подменяем, сеть не трогаем
+            tgbot._deliver = fake_deliver
+            run(rid, ids)
+            tgbot.bot_token = lambda: ""                # проверка режима «бот не подключён»
+            run_no_token(rid)
+            check_no_pd()
+            check_consent()
+            print("\nВсе проверки бота Telegram пройдены.")
+        finally:
+            tgbot.bot_token, tgbot._deliver = real_token, real_deliver
+            teardown(rid)

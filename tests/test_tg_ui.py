@@ -25,6 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # пропускает локальные соединения только в режиме разработчика.
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import approvals     # noqa: E402
 from app import auth          # noqa: E402
 from app import db            # noqa: E402
@@ -415,18 +416,19 @@ def check_candidates_and_exports(rid, uids):
 
 
 if __name__ == "__main__":
-    agent_id, uids, prod = setup()
-    rid = None
-    try:
-        html = check_page()
-        check_nav_by_role()
-        check_wait_screen(uids, html)
-        rid = check_flow(uids, prod)
-        check_register_markup(html)
-        check_ui_blocks(html)
-        check_register_api()
-        check_users_api(uids)
-        check_candidates_and_exports(rid, uids)
-        print("\nВсе проверки мини-приложения пройдены.")
-    finally:
-        teardown(rid)
+    with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
+        agent_id, uids, prod = setup()
+        rid = None
+        try:
+            html = check_page()
+            check_nav_by_role()
+            check_wait_screen(uids, html)
+            rid = check_flow(uids, prod)
+            check_register_markup(html)
+            check_ui_blocks(html)
+            check_register_api()
+            check_users_api(uids)
+            check_candidates_and_exports(rid, uids)
+            print("\nВсе проверки мини-приложения пройдены.")
+        finally:
+            teardown(rid)

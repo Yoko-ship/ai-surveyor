@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # пропускает локальные соединения только в режиме разработчика.
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import db          # noqa: E402
 from app import lawwatch    # noqa: E402
 from app import team        # noqa: E402
@@ -281,11 +282,12 @@ def run():
 
 
 if __name__ == "__main__":
-    real_fetch = lawwatch.fetch
-    status = setup()
-    try:
-        run()
-        print("\nВсе проверки слежения за законодательством пройдены.")
-    finally:
-        lawwatch.fetch = real_fetch
-        teardown(status)
+    with temp_db("surveyor-lawwatch.db"):  # рабочая data/surveyor.db не меняется
+        real_fetch = lawwatch.fetch
+        status = setup()
+        try:
+            run()
+            print("\nВсе проверки слежения за законодательством пройдены.")
+        finally:
+            lawwatch.fetch = real_fetch
+            teardown(status)

@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # сам guard включаем принудительно: режим разработчика проверяем точечно, ниже
 os.environ.pop("SURVEYOR_DEV", None)
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import auth, db, guard, llm   # noqa: E402
 from app.main import app          # noqa: E402
 
@@ -295,4 +296,5 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    with temp_db("surveyor-guard.db"):  # рабочая data/surveyor.db не меняется
+        sys.exit(main())

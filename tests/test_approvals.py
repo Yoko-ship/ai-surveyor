@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # пропускает локальные соединения только в режиме разработчика.
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import db            # noqa: E402
 from app import approvals     # noqa: E402
 from app import auth          # noqa: E402
@@ -261,9 +262,10 @@ def run(rid, uids):
 
 
 if __name__ == "__main__":
-    rid, uids = setup()
-    try:
-        run(rid, uids)
-        print("\nВсе проверки согласования пройдены.")
-    finally:
-        teardown(rid)
+    with temp_db("surveyor-approvals.db"):  # рабочая data/surveyor.db не меняется
+        rid, uids = setup()
+        try:
+            run(rid, uids)
+            print("\nВсе проверки согласования пройдены.")
+        finally:
+            teardown(rid)

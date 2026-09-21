@@ -193,6 +193,71 @@ class PageGzipCache:
 ERROR_TEXT = "Внутренняя ошибка сервера. Код ошибки: {id}. Сообщите администратору."
 
 
+class AccessLogFilter(logging.Filter):
+    """Журнал запросов uvicorn («GET /путь?строка HTTP/1.1» 200): убирает строку запроса (там могут быть
+    телефон, почта, коды) и секрет вебхука бота из пути. Сама запись остаётся — метод, путь и код ответа."""
+
+    def filter(self, record):
+        try:
+            args = list(record.args or ())
+            # uvicorn.access: (адрес клиента, метод, путь с строкой запроса, версия HTTP, код)
+            if len(args) >= 3 and isinstance(args[2], str):
+                p = args[2].split("?", 1)[0]
+                args[2] = _safe_path(p)
+                record.args = tuple(args)
+        except Exception:
+            pass
+        return True
+
+
+class ErrorLogFilter(logging.Filter):
+    """uvicorn.error: текст сообщений об исключениях проходит через маску ПД."""
+
+    def filter(self, record):
+        try:
+            if record.exc_info and record.exc_info[1] is not None:
+                record.exc_info = _masked_exc_info(record.exc_info[1])
+        except Exception:
+            pass
+        return True
+
+
+def install_log_filters():
+    """Вызывается при старте приложения. Повторный вызов фильтры не дублирует."""
+    for name, flt in (("uvicorn.access", AccessLogFilter), ("uvicorn.error", ErrorLogFilter)):
+        lg = logging.getLogger(name)
+        if not any(isinstance(f, flt) for f in lg.filters):
+            lg.addFilter(flt())
+
+
+class MaskedError(Exception):
+    """Исключение для журнала: исходный тип и текст с замаскированными ПД, стек вызовов прежний."""
+
+
+def _safe_path(path) -> str:
+    # секрет вебхука бота — часть пути; в журнал его не пишем
+    path = path or ""
+    if path.startswith("/tg/webhook/"):
+        return "/tg/webhook/***"
+    return path
+
+
+def _masked_exc_info(exc, depth: int = 0):
+    """(тип, значение, стек) для log.error: текст исключения — через маску ПД (app/llm.py).
+    Стек вызовов (файлы, строки кода) данных людей не содержит и остаётся как есть для отладки."""
+    try:
+        from .llm import mask_pd
+        text = mask_pd(str(exc))
+    except Exception:                    # маска недоступна — лучше не писать текст вовсе
+        text = "(текст скрыт)"
+    masked = MaskedError(f"{type(exc).__name__}: {text}")
+    masked.__traceback__ = exc.__traceback__
+    cause = exc.__cause__ or exc.__context__
+    if cause is not None and depth < 5:
+        masked.__cause__ = _masked_exc_info(cause, depth + 1)[1]
+    return (MaskedError, masked, exc.__traceback__)
+
+
 class ErrorMiddleware:
     """Единый ответ на необработанное исключение. HTTPException и ошибки проверки ввода сюда не доходят —
     их, как и раньше, отдаёт FastAPI со своими кодами (4xx)."""
@@ -214,13 +279,14 @@ class ErrorMiddleware:
 
         try:
             await self.app(scope, receive, _send)
-        except Exception:
+        except Exception as e:
             eid = secrets.token_hex(4)
             # в журнал — метод и путь (без строки запроса и тела: там могут быть данные людей)
-            log.error("необработанная ошибка, код %s: %s %s", eid, scope.get("method"), scope.get("path"),
-                      exc_info=True)
-            if started:                      # ответ уже начат — дописать нечего, соединение закроется
-                raise
+            log.error("необработанная ошибка, код %s: %s %s", eid, scope.get("method"), _safe_path(scope.get("path")),
+                      exc_info=_masked_exc_info(e))
+            if started:                      # ответ уже начат — дописать нечего, соединение закроется.
+                # Исходное исключение не пробрасываем: uvicorn напечатал бы его текст (а в нём могут быть ПД).
+                raise RuntimeError(f"ответ прерван, код ошибки {eid}") from None
             text = ERROR_TEXT.format(id=eid)
             accept = ""
             for k, v in scope.get("headers") or []:
