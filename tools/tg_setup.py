@@ -11,7 +11,7 @@
                          секрет берётся из настройки TG_WEBHOOK_SECRET, а если её нет — создаётся здесь
                          и сохраняется в app_settings (в вывод не печатается);
   3. setChatMenuButton — кнопка «Открыть сюрвейер» на {SERVER_URL}/tg;
-  4. setMyCommands     — /start, /me, /inbox, /help.
+  4. setMyCommands     — /start, /me, /help (/inbox убрана 21.09.2026: мини-апп только для аналитики).
 
 Без токена ничего не ломает: печатает инструкцию и выходит с кодом 1.
 Ни токен, ни секрет в вывод не попадают — только маски.
@@ -31,7 +31,6 @@ from app import tgbot             # noqa: E402
 
 COMMANDS = [{"command": "start", "description": "Регистрация или вход"},
             {"command": "me", "description": "Кто я и моя роль"},
-            {"command": "inbox", "description": "Что ждёт моего решения"},
             {"command": "help", "description": "Подсказка"}]
 
 NO_TOKEN = """Токен бота не задан — настраивать нечего.

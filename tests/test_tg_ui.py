@@ -367,12 +367,20 @@ def check_ui_blocks(html):
     got = re.search(r"async function downloadAnalysis\(rid, fmt\)\{(.+?)\n\}", html, re.S)
     assert got and "Authorization" in got.group(1) and "/analysis.\" + fmt" in got.group(1),         "downloadAnalysis не забирает файл запросом с заголовком Authorization"
 
-    rev = ["reviewer-candidates", "Выбрано ", "function revCount(", "Примечание (необязательно)",
-           "Подтвердить", "Отклонить"]
-    miss = [k for k in rev if k not in html]
-    assert not miss, "отправка на согласование и карточка ответственного: нет " + ", ".join(miss)
-    assert "от 2 до 3" not in html, "на странице осталось старое правило «от 2 до 3 согласующих»"
-    print("16. «Пользователи», вероятность, выгрузки, выбор согласующих и карточка решения — в разметке — ок")
+    # 21.09.2026: мини-апп только для аналитики — ни отправки на согласование из расчёта,
+    # ни карточки решения по ссылке /tg?request=<№>; серверные точки согласования остаются
+    gone = ["reviewer-candidates", "/reviewers", "function revCount(", "paintApprovalBox", "sendReviewers",
+            'id="approvalBox"', "general_agreement", "Отправить на согласование", "от 2 до 3",
+            'id="reviewBox"', "openReviewFromLink", "reviewCard(", "function decide(", "/decide",
+            "/tg/inbox", 'get("request")', "get('request')", "data-dec=", "Примечание (необязательно)",
+            ">Отклонить<", "Задать вопрос"]
+    left = [k for k in gone if k in html]
+    assert not left, "в мини-аппе осталось согласование: " + ", ".join(left)
+    # параметр ?request= просто игнорируется: страница та же, что и без него
+    st, with_req = call("GET", "/tg", params={"request": "123"})
+    assert st == 200 and with_req == html, "GET /tg?request=123 отдаёт не ту же страницу"
+    print("16. «Пользователи», вероятность, выгрузки — в разметке; блока согласования и карточки решения нет,"
+          " ?request= игнорируется — ок")
 
 
 def check_register_api():

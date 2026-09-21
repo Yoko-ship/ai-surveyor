@@ -1,5 +1,9 @@
 """
-Коллективное согласование запросов: 2–3 человека на один запрос.
+Коллективное согласование запросов: 1–3 человека на один запрос.
+
+С 21.09.2026 мини-апп только для аналитики: серверное согласование работает, но в Telegram
+ничего не уходит. Проверяем подменой отправки: у всех участников есть telegram_id, бот «подключён»,
+а исходящих — 0.
 
 Запуск из корня проекта (pytest и httpx в sandbox\\.venv не установлены, поэтому обычные assert
 и свой крошечный ASGI-клиент — живой сервер не трогаем и не перезапускаем):
@@ -28,6 +32,7 @@ from app import db            # noqa: E402
 from app import approvals     # noqa: E402
 from app import auth          # noqa: E402
 from app import team          # noqa: E402
+from app import tgbot         # noqa: E402
 from app.main import app      # noqa: E402
 
 BRANCH = "тест"
@@ -37,6 +42,8 @@ LOGINS = ["тест-согл-1", "тест-согл-2", "тест-согл-3", "
 ROLES = ["андеррайтер", "андеррайтер", "андеррайтер", "андеррайтер", "админ", "агент", "андеррайтер", "агент"]
 EAIS, EAIS2 = "ТЕСТ-EAIS-1", "ТЕСТ-EAIS-2"
 TOKENS = {}
+TG_BASE = 980100            # telegram_id участников: base + номер (заведомо не настоящие)
+OUT = []                    # перехваченные исходящие в Telegram: (метод, данные)
 
 
 # ---------- минимальный ASGI-клиент (httpx в окружении нет) ----------
@@ -80,10 +87,10 @@ def setup():
             con.execute("DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE login=?)", (login,))
             con.execute("DELETE FROM users WHERE login=?", (login,))
             cur = con.execute("INSERT INTO users (login, full_name, role, branch, agent_eais_id, password_hash, salt,"
-                              " status, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                              " status, telegram_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                               (login, f"Тестовый Согласующий {i}", role, BRANCH,
                                {"тест-агент": EAIS, "тест-иниц": EAIS, "тест-агент2": EAIS2}.get(login),
-                               "x", "y", "активен", ts))
+                               "x", "y", "активен", str(TG_BASE + i), ts))
             uids.append(cur.lastrowid)
         con.execute("UPDATE users SET status='заблокирован' WHERE id=?", (uids[2],))   # на нём проверяем валидацию
         # «тест-иниц» — тот, кто подал запрос: связь через ID агента в ЕАИС
@@ -260,12 +267,22 @@ def run(rid, uids):
     assert "Ждут решения" in body, body[-2000:]
     print("9. страница /approvals открывается, раздел «Согласования» есть в докладе — ок")
 
+    # 9. Telegram: назначения и решения выше прошли, а в бот не ушло ни одного сообщения и файла
+    assert OUT == [], OUT[:3]
+    print("10. назначение и решения в Telegram не отправлялись: 0 сообщений (мини-апп только для аналитики) — ок")
+
 
 if __name__ == "__main__":
     with temp_db("surveyor-approvals.db"):  # рабочая data/surveyor.db не меняется
         rid, uids = setup()
+        real = (tgbot.bot_token, tgbot._deliver, tgbot._deliver_file)
         try:
+            # бот «подключён», сеть подменена сборщиком: любая отправка попала бы в OUT
+            tgbot.bot_token = lambda: "TEST-TOKEN"
+            tgbot._deliver = lambda method, payload: OUT.append((method, payload)) or {"ok": True, "result": {}}
+            tgbot._deliver_file = lambda method, fields, *a: OUT.append((method, fields)) or {"ok": True, "result": {}}
             run(rid, uids)
             print("\nВсе проверки согласования пройдены.")
         finally:
+            tgbot.bot_token, tgbot._deliver, tgbot._deliver_file = real
             teardown(rid)

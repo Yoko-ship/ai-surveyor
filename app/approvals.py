@@ -16,6 +16,9 @@
     все 'одобрил'            -> 'согласован'
     хотя бы один 'отклонил'  -> 'отклонён'
     иначе                    -> 'на согласовании'
+
+Telegram: с 21.09.2026 ни назначение, ни решение сообщений в бот не отправляют (мини-апп только
+для аналитики, решение заказчика). Раньше это делали хуки tgbot.on_assigned / on_decided — удалены.
 """
 import json
 from pathlib import Path
@@ -63,26 +66,6 @@ class AgreementIn(BaseModel):
 
 
 # ---------- логика ----------
-
-def _notify(hook: str, con, *args):
-    """Мягкий хук в Telegram (app/tgbot.py). Бот не загрузился или не подключён — согласование
-    продолжает работать как обычно: уведомление не обязательное звено.
-    Хук выполняется ПОСЛЕ сохранения решения, своим соединением: сборка PDF-вложений и отправка
-    (до десятков секунд) не должны держать базу закрытой на запись. Кому и что уходит — как раньше."""
-    def run(c):
-        try:
-            from . import tgbot
-            getattr(tgbot, hook)(c, *args)
-        except Exception as e:              # ошибка уведомления не отменяет уже принятое решение
-            print("уведомление в Telegram не ушло:", e)
-
-    def later():
-        with db.tx() as c:
-            run(c)
-
-    if not (db.holds_write_lock(con) and db.after_commit(con, later)):
-        run(con)
-
 
 def recalc(con, request_id: int, decided_by: Optional[str] = None, comment: Optional[str] = None) -> str:
     """Пересчитывает итоговый статус согласования запроса и сохраняет его."""
@@ -212,7 +195,7 @@ def assign(con, request_id: int, user_ids: List[int], who: Optional[str] = None,
                  {"ошибка": str(e)})
     db.audit(con, who or "system", "назначены согласующие", f"request:{request_id}",
              {"было": [o["user_id"] for o in old], "стало": ids, "генсоглашение": agreement_id})
-    _notify("on_assigned", con, request_id, ids)
+    # в Telegram не пишем: мини-апп только для аналитики (решение заказчика 21.09.2026)
     from . import outcomes
     return {"request_id": request_id, "approval_status": status, "reviewers": reviewers(con, request_id),
             "probability": prob or outcomes.empty("вероятность рассчитать не удалось")}
@@ -238,7 +221,6 @@ def decide(con, request_id: int, who: str, decision: str, comment: Optional[str]
     status = recalc(con, request_id, decided_by=u["login"], comment=comment)
     db.audit(con, u["login"], "решение по согласованию", f"request:{request_id}",
              {"было": before, "стало": decision, "комментарий": comment, "итог": status})
-    _notify("on_decided", con, request_id, u, decision, comment, status)
     return {"request_id": request_id, "approval_status": status,
             "decision": decision, "reviewers": reviewers(con, request_id)}
 

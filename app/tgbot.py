@@ -1,5 +1,11 @@
 """
-Бот Telegram: регистрация, команды и согласование запросов прямо в чате.
+Бот Telegram: регистрация, команды и вход в мини-приложение.
+
+С 21.09.2026 мини-приложение только для аналитики (решение заказчика): бот НЕ присылает карточки
+запросов на согласование и итоги согласования, команды /inbox нет. Серверное согласование
+(app/approvals.py, /requests/*/decide, /approvals) работает как прежде, но в Telegram не пишет.
+Кнопки «Подтвердить/Отклонить/Вопрос» из старых сообщений отвечают «Согласование в приложении
+отключено» и ничего не записывают.
 
 Как это работает для заказчика — docs/Telegram мини-апп.md, раздел «Бот».
 Коротко:
@@ -18,8 +24,8 @@
 сообщений, ни ФИО, ни телефонов, ни сведений о страхователе — только telegram_id, наш user_id,
 тип события и техническая причина ошибки.
 
-Проверка подлинности решения: кто нажал кнопку, определяется по telegram_id отправителя нажатия,
-а не по содержимому callback_data. Подделать чужое решение подменой данных кнопки нельзя.
+Кнопки подтверждения заявки администратором (uapprove/ureject): кто нажал, определяется по
+telegram_id отправителя нажатия, а не по содержимому callback_data.
 
 Тесты — tests/test_tgbot.py (поддельные обновления, сеть не трогается).
 """
@@ -52,14 +58,9 @@ POLL_TIMEOUT_SEC = 25                 # long polling: сколько Telegram д
 
 NOT_CONNECTED = "Бот не подключён"
 
-# Шаг диалога остался один: комментарий к решению «вопрос».
-# Пошаговая регистрация в боте убрана — она живёт в мини-приложении (app/registration.py).
-S_QUESTION = "вопрос"
-
 HELP = ("Что умеет бот:\n"
         "/start — открыть приложение\n"
         "/me — кто я, роль и состояние учётной записи\n"
-        "/inbox — запросы, которые ждут моего решения\n"
         "/help — эта подсказка\n"
         "/admin КОД — разовый код первого администратора")
 
@@ -68,12 +69,11 @@ OPEN_APP = ("Откройте приложение кнопкой «Открыт
             "При регистрации нужен номер телефона: код придёт сюда же, в этот чат.")
 
 WAIT_MSG = ("Заявка принята и ждёт подтверждения администратора. "
-            "Как только вас подтвердят, расчёт и согласование откроются.")
+            "Как только вас подтвердят, откроются аналитика и расчёт.")
 
-# Вложения к карточке согласующего: явный порог, выше него в чат уходит только ссылка на приложение.
-MAX_ATTACH_FILES = 10                   # не больше десяти файлов на карточку
-MAX_ONE_FILE_BYTES = 10 * 1024 * 1024   # 10 МБ на файл (столько же принимает app/photos.py)
-MAX_ATTACH_BYTES = 25 * 1024 * 1024     # 25 МБ суммарно на один запрос
+# Ответ на /inbox и на кнопки решения из старых сообщений (решение заказчика 21.09.2026).
+ANALYTICS_ONLY = "Приложение теперь только для аналитики рисков — откройте его кнопкой меню"
+APPROVAL_OFF = "Согласование в приложении отключено"
 
 
 # --------------------------------------------------------------------------- #
@@ -266,12 +266,10 @@ def _is_app_url(data) -> bool:
                                                         or d.startswith(base + "/tg#"))
 
 
-def app_link(request_id=None) -> str:
-    """Ссылка «Открыть в приложении». Без настройки SERVER_URL кнопки просто не будет."""
+def app_link() -> str:
+    """Ссылка «Открыть приложение». Без настройки SERVER_URL кнопки просто не будет."""
     base = server_url()
-    if not base:
-        return ""
-    return base + "/tg" + (f"?request={request_id}" if request_id else "")
+    return base + "/tg" if base else ""
 
 
 def _defer(con, job) -> bool:
@@ -388,56 +386,8 @@ def send_file(chat_id, filename: str, blob: bytes, mime: str, caption: str = "",
     return {"ok": ok, "reason": "" if ok else (res.get("description") or "Telegram не принял файл")}
 
 
-def attachments(con, request_id: int) -> dict:
-    """
-    Что можно приложить к карточке: PDF анализа и файлы запроса (фото, техпаспорт, кадастр,
-    загруженные документы). Порог — MAX_ATTACH_FILES / MAX_ONE_FILE_BYTES / MAX_ATTACH_BYTES;
-    не помещаемся — в чат уходит только ссылка на приложение, файлы остаются там.
-    """
-    files, skipped, total = [], [], 0
-    try:
-        from . import exports
-        pdf = exports.build_analysis_pdf(con, request_id)
-        files.append((f"анализ_запроса_{request_id}.pdf", pdf, "application/pdf"))
-        total += len(pdf)
-    except Exception as e:                       # PDF не собрался — карточка всё равно уходит
-        skipped.append("PDF анализа: " + str(e)[:120])
-    rows = db.rows(con, "SELECT filename, path, mime, size_bytes, doc_kind FROM photos"
-                        " WHERE request_id=? ORDER BY id", request_id)
-    rows += [{"filename": d["doc_name"], "path": d["file_path"], "mime": "application/octet-stream",
-              "size_bytes": None, "doc_kind": d["doc_name"]}
-             for d in db.rows(con, "SELECT doc_name, file_path FROM documents"
-                                   " WHERE request_id=? AND file_path IS NOT NULL", request_id)]
-    for r in rows:
-        if len(files) >= MAX_ATTACH_FILES:
-            skipped.append("файлов больше %d" % MAX_ATTACH_FILES)
-            break
-        full = ROOT / str(r["path"] or "")
-        if not full.exists():
-            skipped.append("нет на диске: %s" % (r.get("filename") or full.name))
-            continue
-        blob = full.read_bytes()
-        if len(blob) > MAX_ONE_FILE_BYTES or total + len(blob) > MAX_ATTACH_BYTES:
-            skipped.append("слишком большой: %s" % (r.get("filename") or full.name))
-            continue
-        total += len(blob)
-        files.append((r.get("filename") or full.name, blob, r.get("mime") or "application/octet-stream"))
-    return {"files": files, "skipped": skipped, "total_bytes": total}
-
-
-def send_attachments(con, chat_id, request_id: int, user_id=None) -> dict:
-    """Шлёт вложения по запросу. Ошибка доставки файла не отменяет саму карточку."""
-    att = attachments(con, request_id)
-    sent = 0
-    for name, blob, mime in att["files"]:
-        if send_file(chat_id, name, blob, mime, caption=f"Запрос № {request_id}: {name}",
-                     con=con, user_id=user_id, request_id=request_id).get("ok"):
-            sent += 1
-    return {"sent": sent, "skipped": att["skipped"], "total_bytes": att["total_bytes"]}
-
-
 def edit_card(con, chat_id, message_id, text: str) -> dict:
-    """Обновляет уже отправленную карточку: кнопки убираются, видно, кто и что решил."""
+    """Обновляет уже отправленное сообщение (заявка администратору): кнопки убираются."""
     if not connected() or not message_id:
         return {"ok": False, "reason": NOT_CONNECTED}
     if _defer(con, lambda: edit_card(None, chat_id, message_id, text)):
@@ -483,119 +433,16 @@ def dialog(con, telegram_id) -> Optional[dict]:
     return d
 
 
-def set_dialog(con, telegram_id, step: str, draft: dict):
-    con.execute("DELETE FROM tg_dialogs WHERE telegram_id=?", (str(telegram_id),))
-    con.execute("INSERT INTO tg_dialogs (telegram_id, step, draft, updated_at) VALUES (?,?,?,?)",
-                (str(telegram_id), step, json.dumps(draft, ensure_ascii=False), db.now()))
-
-
 def drop_dialog(con, telegram_id):
     con.execute("DELETE FROM tg_dialogs WHERE telegram_id=?", (str(telegram_id),))
-
-
-# --------------------------------------------------------------------------- #
-#  Карточки и тексты
-# --------------------------------------------------------------------------- #
-
-def request_card(con, request_id: int) -> str:
-    """Карточка запроса для согласующего: сведений о страхователе в неё не кладём."""
-    r = db.rows(con, "SELECT * FROM requests WHERE id=?", request_id)
-    if not r:
-        return f"Запрос {request_id} не найден"
-    r = r[0]
-    obj = db.rows(con, "SELECT * FROM objects WHERE request_id=? ORDER BY id LIMIT 1", request_id)
-    calc = db.rows(con, "SELECT * FROM calculations WHERE request_id=? ORDER BY id DESC LIMIT 1", request_id)
-    prod = db.rows(con, "SELECT name FROM products WHERE code=?", r.get("product_code") or "")
-    agent = db.rows(con, "SELECT name FROM agents WHERE id=?", r.get("agent_id")) if r.get("agent_id") else []
-    partner = db.rows(con, "SELECT partner FROM general_agreements WHERE id=?",
-                      r.get("general_agreement_id")) if r.get("general_agreement_id") else []
-
-    def money(v):
-        return f"{v:,.0f}".replace(",", " ") + " сум" if isinstance(v, (int, float)) and v else "не указана"
-
-    lines = [f"Запрос № {r.get('external_no') or r['id']} · филиал: {r.get('branch') or 'не указан'}",
-             f"Продукт: {r.get('product_code') or '—'} {prod[0]['name'] if prod else ''}".strip(),
-             f"Объект: {obj[0]['object_type'] if obj else 'не указан'}",
-             f"Страховая сумма: {money(obj[0]['sum_insured'] if obj else None)}"]
-    if calc:
-        rate = calc[0].get("applied_rate_pct") or calc[0].get("gross_rate_pct")
-        lines.append(f"Ставка: {rate:.3f} %" if rate else "Ставка: не рассчитана")
-        lines.append(f"Премия: {money(calc[0].get('premium'))}")
-    lines.append(f"Подал: {agent[0]['name'] if agent else 'не указан'}")
-    # вероятность подтверждения и почему — одной строкой, целиком (app/analysis.py)
-    try:
-        prob = outcomes.summary(con, request_id)
-        if prob["ready"]:
-            lines.append("")
-            lines.append(f"Вероятность подтверждения: {prob['probability']} % — {prob['verdict']}")
-            lines.append(prob["summary"])
-    except Exception as e:                  # карточка уходит и без вероятности
-        print("карточка: вероятность не показана:", e)
-    if partner:
-        lines.append(f"Генеральное соглашение: {partner[0]['partner']}")
-    return "\n".join(lines)
-
-
-def decision_keyboard(request_id: int, reviewer_row_id: int) -> dict:
-    rows = [[("Подтвердить", f"approve:{request_id}:{reviewer_row_id}"),
-             ("Отклонить", f"reject:{request_id}:{reviewer_row_id}")],
-            [("Вопрос", f"ask:{request_id}:{reviewer_row_id}")]]
-    link = app_link(request_id)
-    if link:
-        rows.append([("Открыть в приложении", link)])
-    return kb(rows)
-
-
-# --------------------------------------------------------------------------- #
-#  Хуки из app/approvals.py (вызываются мягко, через try/except)
-# --------------------------------------------------------------------------- #
-
-def on_assigned(con, request_id: int, user_ids: list):
-    """Назначили согласующих — каждому, у кого есть Telegram, уходит карточка с кнопками,
-    ссылкой «Открыть в приложении» и вложениями (PDF анализа и файлы запроса)."""
-    card = request_card(con, request_id)
-    att = attachments(con, request_id)
-    if att["skipped"]:
-        card += "\n\nНе вложено (смотрите в приложении): " + "; ".join(att["skipped"][:3])
-    for row in approvals.reviewers(con, request_id):
-        u = db.rows(con, "SELECT * FROM users WHERE id=?", row["user_id"])
-        if not u or not u[0].get("telegram_id"):
-            continue
-        chat = u[0]["telegram_id"]
-        send(chat, "Вам на согласование:\n\n" + card,
-             decision_keyboard(request_id, row["id"]), kind="уведомление",
-             con=con, user_id=u[0]["id"], request_id=request_id)
-        for name, blob, mime in att["files"]:
-            send_file(chat, name, blob, mime, caption=f"Запрос № {request_id}: {name}",
-                      con=con, user_id=u[0]["id"], request_id=request_id)
-
-
-def on_decided(con, request_id: int, user: dict, decision: str, comment: Optional[str], status: str):
-    """Итог согласования — инициатору и всем согласующим (только когда итог окончательный)."""
-    if status not in (approvals.APPROVED, approvals.REJECTED):
-        return
-    who = user.get("full_name") or user.get("login")
-    text = (f"Запрос № {request_id}: итог «{status}».\n"
-            f"Последнее решение: {decision} — {who}." + (f"\nКомментарий: {comment}" if comment else ""))
-    targets = {}
-    for row in approvals.reviewers(con, request_id):
-        u = db.rows(con, "SELECT * FROM users WHERE id=?", row["user_id"])
-        if u and u[0].get("telegram_id"):
-            targets[u[0]["id"]] = u[0]
-    for uid in approvals.initiator_user_ids(con, request_id):
-        u = db.rows(con, "SELECT * FROM users WHERE id=?", uid)
-        if u and u[0].get("telegram_id"):
-            targets[uid] = u[0]
-    for uid, u in targets.items():
-        send(u["telegram_id"], text, kind="уведомление", con=con, user_id=uid, request_id=request_id)
 
 
 # --------------------------------------------------------------------------- #
 #  Команды
 # --------------------------------------------------------------------------- #
 
-def start_keyboard(request_id=None):
-    link = app_link(request_id)
+def start_keyboard():
+    link = app_link()
     return kb([[("Открыть приложение", link)]]) if link else None
 
 
@@ -631,22 +478,10 @@ def cmd_me(con, tg_id) -> dict:
 
 
 def cmd_inbox(con, tg_id) -> dict:
+    """/inbox убран из команд (21.09.2026): согласования в Telegram больше нет, отправляем в приложение."""
     u = user_by_tg(con, tg_id)
-    if not u or u["status"] != auth.STATUS_ACTIVE:
-        send(tg_id, WAIT_MSG if u else "Вы ещё не зарегистрированы. Начните с команды /start.",
-             kind="команда", con=con, user_id=(u["id"] if u else None))
-        return {"action": "нет доступа"}
-    items = approvals.inbox(con, u["login"])
-    if not items:
-        send(tg_id, "Запросов, ждущих вашего решения, нет.", kind="команда", con=con, user_id=u["id"])
-        return {"action": "inbox", "count": 0}
-    for it in items[:10]:
-        row = db.rows(con, "SELECT id FROM request_reviewers WHERE request_id=? AND user_id=?",
-                      it["request_id"], u["id"])
-        send(tg_id, request_card(con, it["request_id"]),
-             decision_keyboard(it["request_id"], row[0]["id"]) if row else None,
-             kind="команда", con=con, user_id=u["id"], request_id=it["request_id"])
-    return {"action": "inbox", "count": len(items)}
+    send(tg_id, ANALYTICS_ONLY, start_keyboard(), kind="команда", con=con, user_id=(u or {}).get("id"))
+    return {"action": "inbox отключён"}
 
 
 def cmd_admin(con, tg_id, code: str) -> dict:
@@ -694,15 +529,13 @@ def cmd_admin(con, tg_id, code: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-#  Диалог в чате: остался один шаг — комментарий к решению «вопрос»
+#  Свободный текст в чате
 # --------------------------------------------------------------------------- #
 
 def dialog_text(con, tg_id, text: str) -> dict:
     """Свободный текст в чате. Анкеты в боте больше нет: регистрация — в мини-приложении."""
-    d = dialog(con, tg_id)
-    if d and d["step"] == S_QUESTION:            # комментарий к решению «вопрос»
-        return question_comment(con, tg_id, d["draft"], (text or "").strip())
-    if d:
+    # старый незаконченный шаг «вопрос к решению» просто сбрасываем: решения в боте больше нет
+    if dialog(con, tg_id):
         drop_dialog(con, tg_id)
     send(tg_id, "Не понял. " + HELP, start_keyboard(), kind="команда", con=con)
     return {"action": "не понял"}
@@ -722,38 +555,6 @@ def notify_admins_new_user(con, uid: int, role: str):
     keyboard = kb([[("Открыть приложение", link)]]) if link else None
     for a in admins(con):
         send(a["telegram_id"], text, keyboard, kind="уведомление", con=con, user_id=a["id"])
-
-
-def question_comment(con, tg_id, draft: dict, comment: str) -> dict:
-    u = user_by_tg(con, tg_id)
-    rid = draft.get("request_id")
-    drop_dialog(con, tg_id)
-    if not u or not rid:
-        send(tg_id, "Запрос не найден — начните заново.", kind="отказ", con=con)
-        return {"action": "отказ"}
-    return apply_decision(con, u, rid, "вопрос", comment, tg_id)
-
-
-def apply_decision(con, u: dict, request_id: int, decision: str, comment: Optional[str], tg_id,
-                   chat_id=None, message_id=None) -> dict:
-    """Решение пишется существующей approvals.decide от имени пользователя по его telegram_id."""
-    try:
-        res = approvals.decide(con, request_id, u["login"], decision, comment)
-    except HTTPException as e:
-        log(con, "in", "отказ", tg_id, u["id"], False, "decide", request_id=request_id)
-        send(tg_id, e.detail, kind="отказ", con=con, user_id=u["id"], request_id=request_id)
-        return {"action": "отказ", "reason": e.detail}
-    log(con, "in", "callback", tg_id, u["id"], True, None, request_id=request_id)
-    if chat_id and message_id:
-        edit_card(con, chat_id, message_id,
-                  request_card(con, request_id) + f"\n\nВаше решение: {decision}"
-                  + (f"\nКомментарий: {comment}" if comment else "")
-                  + f"\nИтог по запросу: {res['approval_status']}")
-    else:
-        send(tg_id, f"Решение «{decision}» записано. Итог по запросу: {res['approval_status']}",
-             kind="уведомление", con=con, user_id=u["id"], request_id=request_id)
-    # уведомления об итоге рассылает сам approvals.decide через мягкий хук on_decided — здесь не дублируем
-    return {"action": "решение", "decision": decision, "approval_status": res["approval_status"]}
 
 
 def handle_callback(con, cq: dict, update_id=None) -> dict:
@@ -803,31 +604,11 @@ def handle_callback(con, cq: dict, update_id=None) -> dict:
         return {"action": "заявка подтверждена", "user_id": uid, "role": role}
 
     if action in ("approve", "reject", "ask"):
-        u = user_by_tg(con, tg_id)
-        rid = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
-        row_id = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
-        if not u or u["status"] != auth.STATUS_ACTIVE:
-            log(con, "in", "отказ", tg_id, (u or {}).get("id"), False, "not active", update_id, rid)
-            answer_callback(cq_id, "Вы не вошли в систему")
-            return {"action": "отказ", "reason": "не активен"}
-        # строка согласующего обязана принадлежать нажавшему: подменой callback_data чужое решение не записать
-        row = db.rows(con, "SELECT * FROM request_reviewers WHERE id=? AND request_id=?", row_id, rid)
-        mine = db.rows(con, "SELECT * FROM request_reviewers WHERE request_id=? AND user_id=?", rid, u["id"])
-        if not mine or (row and row[0]["user_id"] != u["id"]):
-            log(con, "in", "отказ", tg_id, u["id"], False, "not reviewer", update_id, rid)
-            answer_callback(cq_id, "Вы не назначены согласующим по этому запросу")
-            send(tg_id, "Вы не назначены согласующим по этому запросу.", kind="отказ", con=con,
-                 user_id=u["id"], request_id=rid)
-            return {"action": "отказ", "reason": "не назначен согласующим"}
-        if action == "ask":
-            set_dialog(con, tg_id, S_QUESTION, {"request_id": rid, "reviewer_row_id": mine[0]["id"]})
-            answer_callback(cq_id, "Напишите вопрос сообщением")
-            send(tg_id, "Напишите ваш вопрос одним сообщением — он уйдёт вместе с решением «вопрос».",
-                 kind="команда", con=con, user_id=u["id"], request_id=rid)
-            return {"action": "ждём вопрос", "request_id": rid}
-        answer_callback(cq_id, "Принято")
-        return apply_decision(con, u, rid, "одобрил" if action == "approve" else "отклонил",
-                              None, tg_id, chat_id, message_id)
+        # кнопки решения из старых сообщений: решение не пишем, только отвечаем на нажатие
+        answer_callback(cq_id, APPROVAL_OFF)
+        log(con, "in", "callback", tg_id, (user_by_tg(con, tg_id) or {}).get("id"), False,
+            "согласование отключено", update_id)
+        return {"action": "согласование отключено"}
 
     answer_callback(cq_id)
     log(con, "in", "callback", tg_id, None, False, "unknown action", update_id)

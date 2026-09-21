@@ -126,24 +126,6 @@ button{font:inherit;cursor:pointer}
 .tip{border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:8px;font-size:13px}
 .tip b{display:block}
 .tip span{color:var(--accent);font-family:var(--mono)}
-/* крупная плашка статуса согласования */
-.st{display:block;border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:9px 12px;margin:var(--s2) 0;font-size:14px;font-weight:800;color:var(--muted)}
-.st.wait{color:var(--warn);border-color:var(--warn)}
-.st.done{color:var(--accent);border-color:var(--accent-dim)}
-.st.no{color:var(--stop);border-color:var(--stop)}
-.rev{font-size:13px;border-top:1px solid var(--line);padding-top:8px}
-.rev>div{padding:7px 0;border-bottom:1px solid var(--line)}
-.rev>div:last-child{border-bottom:0}
-.rev .who{display:flex;justify-content:space-between;gap:10px}
-.rev .who b{font-weight:700}
-.rev .who em{font-style:normal;font-family:var(--mono);white-space:nowrap}
-.rev .who em.ok{color:var(--accent)}.rev .who em.no{color:var(--stop)}.rev .who em.q{color:var(--warn)}
-.rev .meta{color:var(--muted);font-size:12px}
-.pick{border:1px solid var(--line);border-radius:10px;max-height:240px;overflow:auto}
-.pick label{display:flex;gap:10px;align-items:center;min-height:44px;padding:10px 12px;border-bottom:1px solid var(--line);font-size:13px}
-.pick label:last-child{border-bottom:0}
-.pick input{width:20px;height:20px;min-height:20px;flex:none;accent-color:var(--accent)}
-.pick .r{color:var(--muted);font-size:12px}
 .photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
 .ph{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--soft);touch-action:none;user-select:none;-webkit-user-select:none}
 .ph.drag{opacity:.55;border-color:var(--accent-dim)}
@@ -157,17 +139,6 @@ button{font:inherit;cursor:pointer}
 .files div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
 .files div>*{min-width:0;overflow-wrap:anywhere}
 .files div:last-child{border-bottom:0}
-/* запрос целиком — одна карточка: внутренние блоки идут секциями через разделитель */
-.group{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:var(--s3);overflow:hidden}
-.group>.card,.group>div>.card{background:transparent;border:0;border-radius:0;margin:0;border-top:1px solid var(--line)}
-.group>.card:first-child{border-top:0}
-.group>div:empty{display:none}
-.group .card h2{font-size:14px}
-.group>.card:first-child h2{font-size:16px}
-.group>h2{margin:var(--s3) var(--s3) 2px;font-size:16px}
-.group>p.sub{margin:0 var(--s3) var(--s2);font-size:13px;color:var(--muted)}
-.group>.st,.group>.rev{margin:var(--s2) var(--s3)}
-.group>.rev{padding-bottom:var(--s1)}
 .count{font-size:13px;color:var(--muted);margin:0 0 var(--s2)}
 .count b{color:var(--ink)}
 .cards>.count,.cards>.card:only-child{grid-column:1/-1;margin:0}
@@ -638,8 +609,6 @@ ul.notes li{margin:2px 0}
 
   <!-- ---------- приложение ---------- -->
   <div id="screen-app" class="hidden">
-  <!-- карточка решения: открывается по ссылке из уведомления бота (/tg?request=<№>), раздела в меню нет -->
-  <div id="reviewBox"></div>
 
   <!-- аналитика риска по шагам: продукт → документы → договор → суммы → анализ (задача 150) -->
   <section id="tab-analytics" data-section="analytics" class="hidden">
@@ -1097,7 +1066,6 @@ function repaintCurrent(){
   if (SCREEN === "login") loginTexts();
   if (SCREEN === "app" && ME.user) {
     paintWho();
-    if (REVIEW) reviewRepaint();
     paintNav(ME.nav || [], true);
     if (TAB && REPAINT[TAB]) REPAINT[TAB]();
   }
@@ -1238,7 +1206,6 @@ async function loadMe(){
   loadRefs();
   api("/auth/me").then(m => { if (m.ok) EAIS = m.data.agent_eais_id || null; });
   api("/tg/bot-status").then(b => { if (b.ok) { BOT = b.data; paintTgOpen(); } });
-  openReviewFromLink();                     // уведомление бота открывает /tg?request=<№> — карточка решения
 }
 
 /* ---------- вход через Telegram кодом боту (обычный браузер) ---------- */
@@ -3563,7 +3530,7 @@ function calcRepaint(){
     const saveMsg = $("#saveMsg") ? $("#saveMsg").innerHTML : "";
     paintResult(LAST, LAST_BODY);
     $("#branch").value = keepBranch; $("#holder").value = keepHolder;
-    if (RID) { paintSaved(); paintApprovalBox(); $("#exportBox").innerHTML = exportsHtml(RID); bindExports($("#exportBox")); }
+    if (RID) { paintSaved(); $("#exportBox").innerHTML = exportsHtml(RID); bindExports($("#exportBox")); }
     else if (saveMsg && canSave()) $("#saveMsg").innerHTML = "";
   }
 }
@@ -3688,7 +3655,7 @@ function paintResult(j, b){
     + '<div class="actions"><button type="button" class="btn btn-primary" id="saveBtn">' + esc(T("tg.save_title", "Сохранить запрос")) + "</button></div>"
     + '<div class="note msg" id="saveMsg"></div></div>'
 
-    + '<div id="approvalBox"></div><div id="exportBox"></div>';
+    + '<div id="exportBox"></div>';
 
   $("#saveBtn").onclick = saveRequest;
   if (!canSave()) {
@@ -3914,7 +3881,6 @@ async function saveRequest(){
   paintSaved();
   loadPhotos();
   loadDocs();
-  paintApprovalBox();
   $("#exportBox").innerHTML = exportsHtml(RID);
   bindExports($("#exportBox"));
 }
@@ -3927,228 +3893,6 @@ function paintPhotoMsgs(){
   const t = RID ? T("tg.request_n", "запрос № {n}", {n: RID}) : T("tg.request_unsaved", "запрос ещё не сохранён");
   if (!$("#phMsg").dataset.busy) $("#phMsg").textContent = t;
   if (!$("#docMsg").dataset.busy) $("#docMsg").textContent = t;
-}
-
-/* ---------- отправка на согласование (прямо из расчёта) ---------- */
-function picked(id){
-  return Array.prototype.slice.call(document.querySelectorAll('input[name="' + id + '"]:checked')).map(x => Number(x.value));
-}
-
-let CAND = {min: 1, max: 3, items: [], agreement: null, pre: [], err: ""};
-
-/* Кого можно выбрать — спрашиваем у сервера по этому запросу: он уже убрал автора
-   и подставил состав из генерального соглашения. */
-async function paintApprovalBox(){
-  const box = $("#approvalBox");
-  if (!box || !RID) return;
-  const title = "<div class=\"card\"><h2>" + esc(T("tg.send_review", "Отправить на согласование")) + "</h2>";
-  box.innerHTML = title + '<div class="note">' + spin(T("tg.list_loading", "загружаю список…")) + "</div></div>";
-  const r = await api("/requests/" + RID + "/reviewer-candidates");
-  if (!r.ok) {
-    box.innerHTML = title + '<div class="note err">' + esc(T("tg.list_failed", "Список не загрузился: {reason}", {reason: r.error})) + "</div></div>";
-    return;
-  }
-  const keep = picked("rev");
-  CAND = {min: r.data.min || 1, max: r.data.max || 3, items: r.data.items || [],
-    agreement: r.data.general_agreement || null};
-  const pre = keep.length ? keep : (r.data.preselected || []);
-  box.innerHTML = title
-    + '<p class="sub">' + esc(T("tg.rev_lead", "Запрос № {n} рассматривают от {min} до {max} администраторов. Себя выбрать нельзя — решение по своему запросу не принимают.", {n: RID, min: CAND.min, max: CAND.max})) + "</p>"
-    + (CAND.agreement
-      ? '<p class="note ok">' + esc(T("tg.rev_from_agreement", "Состав подставлен из генерального соглашения «{name}». Его можно изменить.", {name: CAND.agreement.partner})) + "</p>" : "")
-    + '<div class="pick" id="revPick">' + candHtml(pre) + "</div>"
-    + '<div class="note msg" id="revCount"></div>'
-    + '<div class="actions"><button type="button" class="btn btn-primary" id="sendRev">' + esc(T("tg.send_review", "Отправить на согласование")) + "</button></div>"
-    + '<div class="note msg" id="revMsg"></div>'
-    + "</div>";
-  $("#revPick").querySelectorAll('input[name="rev"]').forEach(i => { i.onchange = revCount; });
-  $("#sendRev").onclick = sendReviewers;
-  revCount();
-}
-
-function candHtml(pre){
-  if (!CAND.items.length) {
-    return '<div class="note" style="padding:10px 12px">' + esc(T("tg.rev_none", "Администраторов, которым можно отдать этот запрос, сейчас нет. Обратитесь к администратору системы.")) + "</div>";
-  }
-  const on = pre || [];
-  return CAND.items.map(c =>
-    '<label><input type="checkbox" name="rev" value="' + c.id + '"'
-    + (on.indexOf(c.id) >= 0 ? " checked" : "") + "><span>" + esc(c.full_name)
-    + '<br><span class="r">' + esc(c.position || T("tg.position_unset", "должность не указана"))
-    + (c.department ? " · " + esc(c.department) : "")
-    + (c.branch ? " · " + esc(c.branch) : "") + "</span></span></label>").join("");
-}
-
-function revCount(){
-  const n = picked("rev").length;
-  const ok = n >= CAND.min && n <= CAND.max;
-  const c = $("#revCount");
-  if (c) c.innerHTML = '<span class="' + (ok ? "ok" : "warn") + '">' + esc(T("tg.rev_picked", "Выбрано {n} из {max}", {n: n, max: CAND.max})) + "</span>"
-    + (ok ? "" : ' <span class="note">' + esc(T("tg.rev_need", "— нужно от {min} до {max} человек", {min: CAND.min, max: CAND.max})) + "</span>");
-  const b = $("#sendRev");
-  if (b) b.disabled = !ok;
-}
-
-async function sendReviewers(){
-  const ids = picked("rev");
-  const agrId = CAND.agreement ? CAND.agreement.id : null;
-  if (ids.length < CAND.min || ids.length > CAND.max) {
-    $("#revMsg").innerHTML = errHtml(T("tg.rev_count_bad", "Выберите от {min} до {max} человек: сейчас отмечено {n}.", {min: CAND.min, max: CAND.max, n: ids.length}));
-    return;
-  }
-  $("#sendRev").disabled = true;
-  $("#revMsg").innerHTML = spin(T("common.sending", "отправляю…"));
-  const r = await api("/requests/" + RID + "/reviewers", jsonOpts("POST", {user_ids: ids, general_agreement_id: agrId}));
-  $("#sendRev").disabled = false;
-  if (!r.ok) { $("#revMsg").innerHTML = errHtml(T("tg.rev_failed", "Не отправлено: {reason}", {reason: r.error})); return; }
-  const names = (r.data.reviewers || []).map(x => x.full_name).join(", ");
-  $("#revMsg").innerHTML = okHtml(T("tg.sent", "Отправлено: {who}", {who: names}) + ". "
-    + (BOT && BOT.connected ? T("tg.notify_sent", "Уведомления ушли в Telegram.")
-      : T("tg.bot_not_connected2", "Бот ещё не подключён: уведомления не ушли. Сообщите согласующим номер запроса — решение они примут на странице согласований.")));
-}
-
-/* ---------- статусы согласования: значения сервера → подписи по словарю ---------- */
-function stClass(s){
-  if (s === "на согласовании") return "wait";
-  if (s === "согласован") return "done";
-  if (s === "отклонён") return "no";
-  return "";
-}
-function stName(s){
-  if (s === "на согласовании") return T("status.request.in_review", "на согласовании");
-  if (s === "согласован") return T("tg.st.approved", "согласован");
-  if (s === "отклонён") return T("tg.st.rejected", "отклонён");
-  if (s === "не требуется") return T("status.approval.not_required", "не требуется");
-  return s || "—";
-}
-function decClass(s){
-  if (s === "одобрил") return "ok";
-  if (s === "отклонил") return "no";
-  if (s === "вопрос") return "q";
-  return "";
-}
-function decName(s){
-  if (s === "одобрил") return T("status.approval.approved", "одобрил");
-  if (s === "отклонил") return T("status.approval.rejected", "отклонил");
-  if (s === "вопрос") return T("status.approval.question", "вопрос");
-  if (s === "ожидает") return T("tg.st.waiting", "ожидает");
-  return s || "—";
-}
-const DEC_APPROVE = "одобрил", DEC_REJECT = "отклонил", DEC_QUESTION = "вопрос";   // значения для сервера
-
-/* ---------- решение по запросу: по ссылке из уведомления бота ----------
-   Раздела «Ждут меня» в меню больше нет (задача 150). Бот присылает согласующему кнопку
-   /tg?request=<№> — тогда над разделом появляется карточка запроса с решением. */
-let REVIEW = null;
-async function openReviewFromLink(){
-  const rid = Number(new URLSearchParams(location.search).get("request")) || 0;
-  if (!rid) return;
-  const r = await api("/tg/inbox");
-  if (!r.ok) return;
-  const it = (r.data.items || []).filter(x => Number(x.request_id) === rid)[0];
-  if (!it) return;                           // решение уже принято или запрос не ваш — карточку не показываем
-  REVIEW = {item: it, done: null};
-  reviewRepaint();
-}
-function reviewRepaint(){
-  const box = $("#reviewBox");
-  if (!REVIEW) { box.innerHTML = ""; return; }
-  const it = REVIEW.item, rid = it.request_id;
-  const typed = $("#cm-" + rid) ? $("#cm-" + rid).value : "";
-  if (REVIEW.done) { box.innerHTML = reviewDoneHtml(rid, REVIEW.done); bindReviewClose(); return; }
-  box.innerHTML = reviewCard(it);
-  if (typed) $("#cm-" + rid).value = typed;
-  [DEC_APPROVE, DEC_REJECT, DEC_QUESTION].forEach(d => {
-    const b = box.querySelector('[data-dec="' + d + '"]');
-    if (b) b.onclick = () => decide(rid, d);
-  });
-  bindReviewClose();
-  bindExports(box);
-  loadReviewDetail(rid);
-}
-function bindReviewClose(){
-  const b = $("#reviewClose");
-  if (b) b.onclick = () => { REVIEW = null; reviewRepaint(); };
-}
-function reviewCard(it){
-  return '<article class="group" id="review-' + it.request_id + '"><div class="card"><div class="an-head"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: it.external_no || it.request_id})) + "</h2>"
-    + '<button type="button" class="btn btn-secondary btn-sm" id="reviewClose">' + esc(T("tg.review_close", "Скрыть карточку")) + "</button></div>"
-    + '<p class="sub">' + esc(it.policyholder || T("tg.policyholder_unset", "страхователь не указан"))
-    + (it.product_code ? " · " + esc(T("tg.product_n", "продукт {c}", {c: it.product_code})) : "")
-    + (it.branch ? " · " + esc(it.branch) : "")
-    + (it.partner ? " · " + esc(it.partner) : "") + "</p>"
-    + '<div class="kv"><span>' + esc(T("tg.queue_position", "Вы в очереди")) + "</span><b>" + esc(it.order_no || "—") + "</b>"
-    + "<span>" + esc(T("tg.assigned", "Назначено")) + "</span><b>" + esc(when(it.assigned_at) || "—") + "</b></div></div>"
-    + '<div id="det-' + it.request_id + '"><div class="card"><div class="note">' + spin(T("tg.inbox_loading", "загружаю расчёт, анализ и документы…")) + "</div></div></div>"
-    + exportsHtml(it.request_id)
-    + '<div class="card"><h2>' + esc(T("tg.decision_title", "Ваше решение")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.decision_lead", "Посмотрите расчёт и проверки выше, затем решите.")) + "</p>"
-    + '<label class="f" for="cm-' + it.request_id + '">' + esc(T("tg.dec_note", "Примечание (необязательно)")) + "</label>"
-    + '<textarea id="cm-' + it.request_id + '" placeholder="' + esc(T("tg.dec_note_ph", "можно не заполнять; если отклоняете — напишите, что исправить")) + '"></textarea>'
-    + '<div class="actions">'
-    + '<button type="button" class="btn btn-success" data-dec="' + DEC_APPROVE + '">' + esc(T("tg.confirm", "Подтвердить")) + "</button>"
-    + '<button type="button" class="btn btn-danger" data-dec="' + DEC_REJECT + '">' + esc(T("tg.reject", "Отклонить")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-dec="' + DEC_QUESTION + '">' + esc(T("tg.ask", "Задать вопрос")) + "</button>"
-    + "</div>"
-    + '<div class="note msg" id="dm-' + it.request_id + '"></div></div></article>';
-}
-
-/* Расчёт, анализ и документы по запросу — чтобы решать, не выходя из карточки. */
-async function loadReviewDetail(rid){
-  const box = $("#det-" + rid);
-  if (!box) return;
-  const r = await api("/requests/" + rid);
-  if (!r.ok) {
-    box.innerHTML = '<div class="card"><div class="note err">' + esc(T("tg.detail_failed", "Расчёт не загрузился: {reason}", {reason: r.error})) + "</div></div>";
-    return;
-  }
-  const d = r.data || {};
-  const c = d.calculation || {};
-  const o = d.object || {};
-  const docs = d.documents || [];
-  box.innerHTML = '<div class="card"><h2>' + esc(T("tg.nav.calc", "Расчёт")) + "</h2>"
-    + '<p class="sub">' + esc(o.object_type || T("tg.object_unset", "объект не указан"))
-    + (d.request && d.request.term_days ? " · " + esc(T("tg.term_n", "срок {n} дн.", {n: d.request.term_days})) : "") + "</p>"
-    + '<div class="kv">'
-    + "<span>" + esc(T("tg.rate", "Ставка")) + "</span><b>" + pct(c.applied_rate_pct != null ? c.applied_rate_pct : c.gross_rate_pct) + "</b>"
-    + "<span>" + esc(T("tg.premium", "Премия")) + "</span><b>" + fmt(c.premium) + "</b>"
-    + "<span>" + esc(T("tg.an.sum_insured", "Страховая сумма")) + "</span><b>" + fmt(o.sum_insured) + "</b>"
-    + "<span>" + esc(T("tg.an.f.object_value", "Стоимость объекта")) + "</span><b>" + fmt(o.value_amount) + "</b>"
-    + "<span>" + esc(T("tg.engine_verdict", "Вердикт движка")) + "</span><b>" + esc(verdictName(c.verdict)) + "</b>"
-    + "</div></div>"
-    + '<div class="card"><h2>' + esc(T("calc.checks", "Проверки")) + '</h2><p class="sub">' + esc(T("calc.checks_hint", "Каждая ссылается на норму.")) + "</p>"
-    + ((d.checks || []).length
-      ? (d.checks || []).map(x => { const c = checkText(x);
-        return '<div class="check ' + c.cls + '"><i></i><div><b>' + esc(c.title) + "</b><span>" + esc(c.detail) + "</span></div></div>"; }).join("")
-      : '<div class="note">' + esc(T("tg.checks_none", "Проверок по этому расчёту нет.")) + "</div>")
-    + "</div>"
-    + probHtml(probFrom(d) || probFrom(d.request || {}) || probFrom(c))
-    + '<div class="card"><h2>' + esc(T("tg.nav.docs", "Документы")) + "</h2>"
-    + (docs.length
-      ? '<div class="files">' + docs.map(x => "<div><span>" + esc(x.doc_name || T("tg.doc_default", "документ")) + "</span><b>"
-        + esc(x.received ? T("tg.doc_received", "получен") : T("common.no", "нет")) + "</b></div>").join("") + "</div>"
-      : '<div class="note">' + esc(T("tg.docs_none", "Документы к запросу не приложены.")) + "</div>")
-    + "</div>";
-}
-
-async function decide(rid, decision){
-  const cm = ($("#cm-" + rid) ? $("#cm-" + rid).value.trim() : "");
-  const msg = $("#dm-" + rid);
-  msg.innerHTML = spin(T("tg.decision_saving", "записываю решение…"));
-  const r = await api("/requests/" + rid + "/decide", jsonOpts("POST", {decision: decision, comment: cm || null}));
-  if (!r.ok) { msg.innerHTML = errHtml(T("tg.decision_failed", "Решение не записано: {reason}", {reason: r.error})); return; }
-  REVIEW.done = {decision: decision, status: r.data.approval_status, reviewers: r.data.reviewers || []};
-  reviewRepaint();
-}
-function reviewDoneHtml(rid, d){
-  return '<div class="card"><div class="an-head"><h2>' + esc(T("tg.request_no2", "Запрос № {n}", {n: rid})) + "</h2>"
-    + '<button type="button" class="btn btn-secondary btn-sm" id="reviewClose">' + esc(T("tg.review_close", "Скрыть карточку")) + "</button></div>"
-    + "<p class=\"sub\">" + esc(T("tg.decision_saved", "Ваше решение записано: {decision}", {decision: decName(d.decision)})) + ".</p>"
-    + '<span class="st ' + stClass(d.status) + '">' + esc(stName(d.status)) + "</span>"
-    + '<div class="rev">' + d.reviewers.map(x =>
-      '<div><div class="who"><b>' + esc(x.full_name) + '</b><em class="' + decClass(x.status) + '">'
-      + esc(decName(x.status)) + "</em></div><div class=\"meta\">" + esc(x.position || "")
-      + (x.decided_at ? " · " + esc(when(x.decided_at)) : "") + "</div></div>").join("") + "</div></div>";
 }
 
 /* ---------- пользователи (список видят все вошедшие) ---------- */

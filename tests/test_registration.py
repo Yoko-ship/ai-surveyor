@@ -444,12 +444,12 @@ def check_decide_and_exports(ids, rid, new_uid):
     print(f"13а. вероятность приходит в GET /requests/{rid} (ключ probability), /approvals/inbox "
           f"и /requests/{rid}/approvals — одно и то же число {s['probability']} % — ок")
 
-    # карточка согласующему в Telegram: строка про вероятность целиком
-    with db.tx() as con:
-        card_text = tgbot.request_card(con, rid)
-    assert f"Вероятность подтверждения: {s['probability']} %" in card_text, card_text
-    assert s["summary"] in card_text, card_text
-    print("13б. в карточке для Telegram есть строка с вероятностью и объяснением — ок")
+    # 21.09.2026: мини-апп только для аналитики — карточка согласующему в Telegram не уходит
+    # (ни текста с вероятностью, ни PDF анализа во вложении), хотя запрос отправлен на согласование
+    cards = [p for m, p in OUT if m in ("sendDocument", "sendPhoto")
+             or "Вероятность подтверждения" in str(p.get("text", ""))]
+    assert not cards, cards[:2]
+    print("13б. отправка на согласование карточку и вложения в Telegram не шлёт — ок")
 
     # выгрузки: число и разбор вместо надписи «вероятность ещё не рассчитана»
     st, blob = call("GET", f"/requests/{rid}/analysis.xlsx", who=LOGINS[0], raw=True)

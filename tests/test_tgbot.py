@@ -1,5 +1,7 @@
 """
-Бот Telegram: приглашение в мини-приложение вместо анкеты, согласование кнопками, журнал без ПД.
+Бот Telegram: приглашение в мини-приложение вместо анкеты, журнал без ПД.
+С 21.09.2026 мини-апп только для аналитики: карточек и итогов согласования бот не шлёт, /inbox
+отвечает ссылкой на приложение, старые кнопки решения ничего не записывают.
 
 Запуск из корня проекта (pytest и httpx в sandbox\\.venv не установлены — свой ASGI-клиент,
 живой сервер не трогаем и не перезапускаем):
@@ -129,7 +131,7 @@ def setup():
                               " salt, status, telegram_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
                               (login, f"Тестовый {login}", role, BRANCH, eais, "x", "y", "активен", tg, ts))
             ids[login] = cur.lastrowid
-        # инициатор запроса — агент из реестра; ему уходит уведомление об итоге
+        # инициатор запроса — агент из реестра; уведомления об итоге ему больше не уходят
         con.execute("UPDATE users SET telegram_id=? WHERE login=?", (TG_NEW + "9", LOGINS[4]))
         con.execute("DELETE FROM agents WHERE eais_id IN (?,?)", (EAIS, EAIS_NEW))
         con.execute("INSERT INTO agents (eais_id, name, kind, status) VALUES (?,?,?,?)",
@@ -211,47 +213,53 @@ def run(rid, ids):
     assert u["status"] == auth.STATUS_ACTIVE and u["role"] == "андеррайтер", u
     print(f"2. админ подтвердил заявку старого пути: статус «{u['status']}», роль «{u['role']}» — ок")
 
-    # 3. назначение согласующих: карточки ушли обоим
+    # 3. назначение согласующих: согласование на сервере работает, в Telegram не уходит ничего
     OUT.clear()
     with db.tx() as con:
         approvals.assign(con, rid, [ids[LOGINS[1]], ids[LOGINS[2]]], who=LOGINS[0])
         rows = approvals.reviewers(con, rid)
     row1 = [r for r in rows if r["user_id"] == ids[LOGINS[1]]][0]
-    row2 = [r for r in rows if r["user_id"] == ids[LOGINS[2]]][0]
-    assert any("Страховая сумма" in t for t in texts_for(TG_R1)), texts_for(TG_R1)
-    assert any("Страховая сумма" in t for t in texts_for(TG_R2)), texts_for(TG_R2)
-    print("3. карточки запроса ушли обоим согласующим — ок")
+    assert len(rows) == 2 and all(r["status"] == "ожидает" for r in rows), rows
+    assert OUT == [], OUT
+    print("3. согласующие назначены на сервере, в Telegram — 0 сообщений (карточек нет) — ок")
 
-    # 4. «Одобрить» от чужого telegram_id — отказ, решение не записано
-    OUT.clear()
-    tgbot.process(upd_cb(TG_STRANGER, f"approve:{rid}:{row1['id']}"))
-    with db.tx() as con:
-        rows = approvals.reviewers(con, rid)
-    assert all(r["status"] == "ожидает" for r in rows), rows
-    assert any("не назначены согласующим" in t for t in texts_for(TG_STRANGER)), texts_for(TG_STRANGER)
-    print("4. чужой нажал «Одобрить» — отказ, решение не записано — ок")
+    # 4. кнопки решения из старых сообщений: ответ «отключено», решение не записано, диалог не начат
+    for action in ("approve", "reject", "ask"):
+        OUT.clear()
+        tgbot.process(upd_cb(TG_R1, f"{action}:{rid}:{row1['id']}"))
+        answers = [p for m, p in OUT if m == "answerCallbackQuery"]
+        assert len(answers) == 1 and answers[0]["text"] == tgbot.APPROVAL_OFF, OUT
+        assert all(m == "answerCallbackQuery" for m, _ in OUT), OUT      # ни карточки, ни правки
+        with db.tx() as con:
+            rows = approvals.reviewers(con, rid)
+            assert tgbot.dialog(con, TG_R1) is None
+        assert all(r["status"] == "ожидает" and not r["decided_at"] for r in rows), rows
+    print(f"4. старые кнопки Подтвердить/Отклонить/Вопрос: «{tgbot.APPROVAL_OFF}», ничего не записано — ок")
 
-    # 5. «Одобрить» от назначенного: решение записано, инициатору пока ничего (итог не окончательный)
-    OUT.clear()
-    tgbot.process(upd_cb(TG_R1, f"approve:{rid}:{row1['id']}"))
-    with db.tx() as con:
-        rows = approvals.reviewers(con, rid)
-        r = db.rows(con, "SELECT approval_status FROM requests WHERE id=?", rid)[0]
-    mine = [x for x in rows if x["user_id"] == ids[LOGINS[1]]][0]
-    assert mine["status"] == "одобрил" and mine["decided_at"], mine
-    assert r["approval_status"] == "на согласовании", r
-    assert any(m == "editMessageText" for m, _ in OUT), OUT
-    print(f"5. первый согласующий одобрил: статус «{r['approval_status']}», карточка обновлена — ок")
+    # 5. /inbox: вместо списка — «приложение только для аналитики» с web_app-кнопкой; в /help его нет
+    assert "/inbox" not in tgbot.HELP, tgbot.HELP
+    real_url = tgbot.server_url
+    tgbot.server_url = lambda: "https://surveyor.test"
+    try:
+        OUT.clear()
+        tgbot.process(upd_text(TG_R1, "/inbox"))
+    finally:
+        tgbot.server_url = real_url
+    msgs = [p for m, p in OUT if m == "sendMessage"]
+    assert len(msgs) == 1 and msgs[0]["text"] == tgbot.ANALYTICS_ONLY, OUT
+    btn = msgs[0]["reply_markup"]["inline_keyboard"][0][0]
+    assert btn.get("web_app", {}).get("url") == "https://surveyor.test/tg", btn
+    print("5. /inbox: ответ «только для аналитики» с кнопкой мини-аппа, в справке команды нет — ок")
 
-    # 6. второй одобрил — итог «согласован», уведомления ушли инициатору и обоим согласующим
+    # 6. решения на сервере (как со страницы /approvals): итог «согласован», в Telegram — 0 сообщений
     OUT.clear()
-    tgbot.process(upd_cb(TG_R2, f"approve:{rid}:{row2['id']}"))
     with db.tx() as con:
+        approvals.decide(con, rid, LOGINS[1], "одобрил")
+        approvals.decide(con, rid, LOGINS[2], "одобрил")
         r = db.rows(con, "SELECT approval_status FROM requests WHERE id=?", rid)[0]
     assert r["approval_status"] == "согласован", r
-    for tg in (TG_R1, TG_R2, TG_NEW + "9"):
-        assert any("итог «согласован»" in t for t in texts_for(tg)), (tg, texts_for(tg))
-    print("6. второй одобрил: итог «согласован», уведомления ушли инициатору и обоим согласующим — ок")
+    assert OUT == [], OUT
+    print("6. оба одобрили на сервере: итог «согласован», итоги в Telegram не ушли (0 сообщений) — ок")
 
     # 7. /admin с кодом: первый раз — админ, второй раз тот же код — отказ
     OUT.clear()
