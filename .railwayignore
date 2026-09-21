@@ -21,9 +21,13 @@ __pycache__/
 
 .git/
 .secrets.env
-library/
+library/*
+!library/catalog.json
+!library/КАТАЛОГ.md
 docs/source/
 data/surveyor.db
+data/surveyor.db-wal
+data/surveyor.db-shm
 data/uploads/
 data/photos/
 data/reports/
