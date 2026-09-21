@@ -6,7 +6,7 @@
 ИНН, телефон, e-mail, госномер, номер карты и кадастровый номер заменяются на плейсхолдеры.
 Обойти маскировку нельзя: наружу открыт только chat(), внутри которого она вызывается.
 
-Настройки берутся так: таблица app_settings (приоритет) → переменная окружения → файл .env → значение по умолчанию.
+Настройки берутся так: таблица app_settings (приоритет) → переменная окружения → файлы .env и .secrets.env → значение по умолчанию.
 Ключи наружу отдаются маской вида "sk-...abcd" — целиком их не показывает ни один ответ API.
 
 Если ключа нет, status() честно говорит «ИИ не подключён», а все вызовы возвращают None:
@@ -37,7 +37,9 @@ from . import db
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
-ENV_FILE = ROOT / ".env"
+# файлы с настройками: .env (основной) и .secrets.env (ключи, в репозиторий не попадает);
+# .secrets.env дополняет .env, но не затирает уже найденные там значения
+ENV_FILES = (ROOT / ".env", ROOT / ".secrets.env")
 
 TIMEOUT_SEC = 40
 RETRIES = 1                       # одна повторная попытка
@@ -48,8 +50,11 @@ SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY",
                 # бот Telegram (app/tgbot.py): секрет вебхука, код первого администратора,
                 # запасной режим опроса и версия текста согласия на обработку ПД
                 "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE", "ADMIN_BOOTSTRAP_USED",
-                "TG_ADMIN_USERNAME",   # username Telegram первого администратора: входит админом без кода
-                "TG_POLLING", "CONSENT_VERSION")
+                "TG_ADMIN_USERNAME", "TG_OWNER_CHAT_ID",   # username Telegram первого администратора: входит админом без кода
+                "TG_POLLING", "CONSENT_VERSION",
+                # вход через Google (app/google_auth.py): приложение в Google Cloud Console
+                # и необязательное ограничение по доменам почты, через запятую
+                "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_ALLOWED_DOMAINS")
 
 PROVIDERS = {
     "kimi":      {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k3",       "name": "Kimi (Moonshot)"},
@@ -61,7 +66,8 @@ PROVIDERS = {
 DEFAULTS = {"LLM_PROVIDER": "none", "PD_MODE": "test", "SERVER_URL": "http://127.0.0.1:8000",
             "LLM_BASE_URL": "", "LLM_MODEL": "", "LLM_API_KEY": "", "TELEGRAM_BOT_TOKEN": "",
             "TG_WEBHOOK_SECRET": "", "ADMIN_BOOTSTRAP_CODE": "", "ADMIN_BOOTSTRAP_USED": "",
-            "TG_POLLING": "0", "CONSENT_VERSION": "черновик-1"}
+            "TG_POLLING": "0", "CONSENT_VERSION": "черновик-1",
+            "GOOGLE_CLIENT_ID": "", "GOOGLE_CLIENT_SECRET": "", "GOOGLE_ALLOWED_DOMAINS": ""}
 
 NOT_CONNECTED = "ИИ не подключён: не задан ключ API"
 
@@ -73,17 +79,24 @@ last_error = {"text": None}       # текст последней ошибки �
 # --------------------------------------------------------------------------- #
 
 def _env_file() -> dict:
-    """Простое чтение .env (без пакета python-dotenv): KEY=value, строки с # пропускаем."""
+    """Чтение .env и .secrets.env (без пакета python-dotenv): KEY=value, строки с # пропускаем.
+    Первый файл главнее: значения из .secrets.env только дополняют.
+    encoding utf-8-sig — иначе первый ключ файла с BOM читается как "﻿KEY"."""
     out = {}
-    try:
-        for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+    for path in ENV_FILES:
+        try:
+            text = path.read_text(encoding="utf-8-sig")
+        except Exception:
+            continue
+        for line in text.splitlines():
             line = line.strip()
             if not line or line.startswith("#") or "=" not in line:
                 continue
             k, v = line.split("=", 1)
-            out[k.strip()] = v.strip().strip('"').strip("'")
-    except Exception:
-        pass
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            if k and k not in out:
+                out[k] = v
     return out
 
 
@@ -96,7 +109,7 @@ def _db_settings() -> dict:
 
 
 def get(key: str, default: str = None) -> str:
-    """Значение настройки: база → окружение → .env → значение по умолчанию."""
+    """Значение настройки: база → окружение → .env и .secrets.env → значение по умолчанию."""
     v = _db_settings().get(key)
     if v is None or v == "":
         v = os.environ.get(key) or _env_file().get(key)
@@ -212,9 +225,13 @@ PD_RULES = [
 ]
 
 # ФИО: 2–4 слова с заглавной подряд (кириллица или латиница) либо «Фамилия И. О.»
-NAME_INITIALS = re.compile(rf"\b{_CYR_WORD}\s+[А-ЯЁ]\.\s?[А-ЯЁ]\.|\b[А-ЯЁ]\.\s?[А-ЯЁ]\.\s?{_CYR_WORD}")
-NAME_CYR = re.compile(rf"\b{_CYR_WORD}(?:\s+{_CYR_WORD}){{1,3}}\b")
-NAME_LAT = re.compile(rf"\b{_LAT_WORD}(?:\s+{_LAT_WORD}){{1,3}}\b")
+# _SP — пробел внутри имени: перевод строки им не считается, иначе маска перескакивает
+# на следующую строку и съедает её подпись («Домашний адрес», «Адрес объекта»)
+_SP = r"[^\S\r\n]+"
+_SP0 = r"[^\S\r\n]*"                 # необязательный пробел — тоже без перевода строки
+NAME_INITIALS = re.compile(rf"\b{_CYR_WORD}{_SP}[А-ЯЁ]\.{_SP0}[А-ЯЁ]\.|\b[А-ЯЁ]\.{_SP0}[А-ЯЁ]\.{_SP0}{_CYR_WORD}")
+NAME_CYR = re.compile(rf"\b{_CYR_WORD}(?:{_SP}{_CYR_WORD}){{1,3}}\b")
+NAME_LAT = re.compile(rf"\b{_LAT_WORD}(?:{_SP}{_LAT_WORD}){{1,3}}\b")
 
 
 def _mask_names(text: str) -> str:
@@ -227,6 +244,16 @@ def _mask_names(text: str) -> str:
     text = NAME_CYR.sub(lambda m: repl(m, NAME_STOP), text)
     text = NAME_LAT.sub(lambda m: repl(m, LAT_STOP), text)
     return text
+
+
+def mask_names(text: str) -> str:
+    """Только правило ФИО, без остальных правил PD_RULES — публичное имя для app/ingest.py."""
+    return _mask_names(text or "")
+
+
+def mask_name_initials(text: str) -> str:
+    """Только «Фамилия И. О.»: в характеристиках объекта такое написание — точно человек."""
+    return NAME_INITIALS.sub("[ФИО]", text or "")
 
 
 def mask_pd(text) -> str:
@@ -489,6 +516,113 @@ def extract_fields(text: str, missing: list, doc_kind: str = "") -> dict:
     wanted = {x.get("key") for x in missing}
     return {k: str(v).strip() for k, v in data.items()
             if k in wanted and v not in (None, "", "нет", "не указано")}
+
+
+# --------------------------------------------------------------------------- #
+#  (б2) Разбор документа целиком — для app/ingest.py
+# --------------------------------------------------------------------------- #
+# Заказчик (21.09.2026): загруженный файл должен переводиться во внутреннее представление,
+# одинаковое для русского, узбекского и английского документа. Поэтому ключи ответа всегда
+# английские и всегда одни и те же, а промпт берётся по языку документа из app/llm_prompts/.
+
+PROMPTS_DIR = ROOT / "app" / "llm_prompts"
+
+# Файл промпта по языку документа. uz-latn и uz-cyrl — один файл; mixed и неизвестно — ru.
+PROMPT_BY_LANG = {"ru": "ru.txt", "uz-latn": "uz.txt", "uz-cyrl": "uz.txt", "uz": "uz.txt",
+                  "en": "en.txt", "mixed": "ru.txt"}
+
+# Разрешённые ключи полей. Один и тот же набор для документа на любом языке.
+DOC_FIELD_KEYS = (
+    # транспорт
+    "brand", "model", "year", "vehicle_type", "vin", "body_no", "chassis_no", "engine_no",
+    "engine_cc", "seats", "color", "region",
+    # недвижимость
+    "cadastral_no", "address", "object_kind", "area_m2", "land_area_ha", "right_kind",
+    "cadastral_value", "encumbrance", "mortgage", "rooms", "build_year", "floors", "walls",
+    # оценка и деньги
+    "market_value", "appraised_value", "book_value", "valuation_date", "currency", "amount",
+    "sum_insured",
+    # договор
+    "contract_no", "contract_date", "period_from", "period_to",
+    # выписка и организация
+    "account_no", "balance_close", "turnover", "inn_org", "org_name",
+    # штатное расписание
+    "positions_count", "payroll_fund", "headcount",
+)
+
+DOC_FACT_KEYS = ("is_policy", "has_mortgage", "has_encumbrance", "is_register_extract",
+                 "construction_unfinished")
+
+DOC_SCHEMA = ('{"document_kind": "строка", "language": "ru|uz-latn|uz-cyrl|en", '
+              '"fields": {"ключ": "значение"}, "facts": {"ключ": true|false}, '
+              '"summary": "одно предложение о документе"}')
+
+
+def prompt_file(language: str = None) -> Path:
+    """Файл промпта по языку документа. Неизвестный язык — русский промпт."""
+    return PROMPTS_DIR / PROMPT_BY_LANG.get((language or "").strip().lower(), "ru.txt")
+
+
+def load_prompt(language: str = None) -> Optional[str]:
+    """Читает промпт с диска. Файла нет — None, вызывающий код обязан это пережить."""
+    try:
+        return prompt_file(language).read_text(encoding="utf-8")
+    except Exception as e:
+        last_error["text"] = "Промпт не прочитан: %s" % type(e).__name__
+        return None
+
+
+SYSTEM_DOCUMENT = ("Ты извлекаешь данные из официальных документов Узбекистана. "
+                   "Отвечаешь только объектом JSON с английскими ключами. "
+                   "Ничего не придумываешь. Персональные данные физических лиц не извлекаешь.")
+
+
+def extract_document(text: str, kind: str = "", language: str = None) -> dict:
+    """
+    Разбор документа ИИ: один и тот же JSON для русского, узбекского и английского документа.
+
+    Возвращает {"ok", "source", "fields", "facts", "document_kind", "language", "summary",
+                "требует_проверки", "reason"}.
+    Без ключа ИИ (enabled() == False) честно отдаёт ok=False и пустые поля: вызывающий код
+    (app/ingest.py) в этом случае остаётся на регулярках и помечает method = "regex".
+    Маскировка персональных данных делается внутри chat() — обойти её нельзя.
+    """
+    empty = {"ok": False, "source": "нет", "fields": {}, "facts": {}, "document_kind": None,
+             "language": language, "summary": None, "требует_проверки": False}
+    if not enabled():
+        return empty | {"reason": status()["reason"]}
+    if not (text or "").strip():
+        return empty | {"reason": "пустой текст документа"}
+    template = load_prompt(language)
+    if not template:
+        return empty | {"reason": "нет файла промпта app/llm_prompts/"}
+    user = (template
+            .replace("{kind}", kind or "не определён")
+            .replace("{language}", language or "не определён")
+            .replace("{schema}", DOC_SCHEMA)
+            .replace("{keys}", ", ".join(DOC_FIELD_KEYS))
+            .replace("{text}", text))
+    answer = chat("разбор документа", SYSTEM_DOCUMENT, user, max_tokens=900)
+    if not answer:
+        return empty | {"reason": last_error["text"] or "ответ не получен"}
+    m = re.search(r"\{.*\}", answer, re.S)
+    if not m:
+        return empty | {"reason": "модель ответила не JSON"}
+    try:
+        data = json.loads(m.group(0))
+    except Exception:
+        return empty | {"reason": "ответ модели не разобрался как JSON"}
+    raw_fields = data.get("fields") if isinstance(data.get("fields"), dict) else {}
+    fields = {k: str(v).strip() for k, v in raw_fields.items()
+              if k in DOC_FIELD_KEYS and v not in (None, "", "нет", "не указано", "-")}
+    raw_facts = data.get("facts") if isinstance(data.get("facts"), dict) else {}
+    facts = {k: bool(v) for k, v in raw_facts.items() if k in DOC_FACT_KEYS}
+    return {"ok": True, "source": "ИИ", "fields": fields, "facts": facts,
+            "document_kind": (data.get("document_kind") or None),
+            "language": data.get("language") or language,
+            "summary": (str(data.get("summary"))[:500] if data.get("summary") else None),
+            "требует_проверки": True,
+            "reason": "Значения предложены ИИ — проверьте по оригиналу документа"}
 
 
 # --------------------------------------------------------------------------- #

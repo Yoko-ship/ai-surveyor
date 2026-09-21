@@ -12,8 +12,10 @@
 Без токена работает «режим браузера»: страница открывается, но пользователь не авторизован —
 вход по логину и паролю на /login остаётся рабочим.
 
-Привязка к пользователям — по docs/Верификация пользователей.md: незнакомый telegram_id
-не пускается внутрь, а создаёт заявку на верификацию, которую подтверждает администратор.
+Привязка к пользователям: незнакомый telegram_id внутрь не пускается — мини-приложение показывает
+ему регистрацию по номеру телефона и коду из чата бота (app/registration.py, решение заказчика
+от 21.09.2026). Заявку «ожидает подтверждения» этот путь больше не создаёт; старый путь проверки
+администратором (app/auth.py, docs/Верификация пользователей.md) остаётся для входа по логину и паролю.
 
 Файлы (фото, документы) мини-приложение шлёт в уже существующие точки:
   POST /requests/{rid}/photos, POST /requests/{rid}/documents/upload — новых не заводим.
@@ -39,6 +41,9 @@ TG_PAGE = ROOT / "app" / "tg.html"
 MAX_AGE_SEC = 24 * 3600          # устаревание initData
 MODE_TG, MODE_BROWSER = "telegram", "браузер"
 ST_OK, ST_NEED, ST_ERR = "ок", "нужна верификация", "ошибка"
+# с 21.09.2026 незнакомый telegram_id не создаёт заявку, а открывает регистрацию
+# по номеру телефона и коду (app/registration.py)
+ST_REG = "нужна регистрация"
 
 
 def bot_token() -> str:
@@ -105,8 +110,8 @@ def _display_name(tg_user: dict) -> str:
 
 def link_or_request(con, tg_user: dict) -> dict:
     """
-    Известный telegram_id — вход; незнакомый — заявка на верификацию (её подтверждает админ,
-    сверяя ФИО и ID агента по реестру, см. docs/Верификация пользователей.md).
+    Известный telegram_id — вход; незнакомый — регистрация в мини-приложении
+    (номер телефона и код из чата бота, app/registration.py). Заявок этот путь не создаёт.
     """
     tg_id = str(tg_user.get("id") or "").strip()
     if not tg_id.isdigit():
@@ -137,23 +142,12 @@ def link_or_request(con, tg_user: dict) -> dict:
             return {"status": ST_OK, "user": auth._public(u), "reason": "", "row": u}
         if u["status"] == auth.STATUS_BLOCKED:
             return {"status": ST_ERR, "user": None, "reason": "Доступ заблокирован администратором"}
-        return {"status": ST_NEED, "user": auth._public(u),
-                "reason": "Заявка уже подана и ждёт подтверждения администратором"}
-    # новая заявка: логин технический, пароль случайный (вход только через Telegram),
-    # роль «агент» — администратор при подтверждении сверит ID агента по реестру
-    login = "tg" + tg_id
-    if db.rows(con, "SELECT 1 FROM users WHERE login=?", login):
-        return {"status": ST_NEED, "user": None, "reason": "Заявка уже подана и ждёт подтверждения"}
-    pw_hash, salt = auth.hash_password(secrets.token_urlsafe(24))
-    con.execute("INSERT INTO users (login, full_name, phone, role, branch, agent_eais_id, password_hash,"
-                " salt, status, telegram_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (login, _display_name(tg_user), "", "агент", "", None, pw_hash, salt,
-                 auth.STATUS_PENDING, tg_id, db.now()))
-    # в журнал — без ФИО: только технический логин и telegram_id (правило проекта № 8)
-    db.audit(con, login, "заявка на доступ из Telegram", "user:" + login, {"telegram_id": tg_id})
-    return {"status": ST_NEED, "user": None,
-            "reason": "Вы впервые вошли из Telegram. Заявка создана — администратор должен подтвердить "
-                      "вас по реестру агентов, после этого вход откроется"}
+        # заявка, поданная по старому пути, достраивается той же формой регистрации
+        return {"status": ST_REG, "user": None, "telegram_id": tg_id,
+                "reason": "Заполните регистрацию: номер телефона, код из чата бота и анкета"}
+    return {"status": ST_REG, "user": None, "telegram_id": tg_id,
+            "reason": "Вы впервые открыли приложение. Зарегистрируйтесь: номер телефона "
+                      "в формате +998XXXXXXXXX, код из чата бота и короткая анкета"}
 
 
 # --------------------------------------------------------------------------- #
@@ -180,6 +174,11 @@ def tg_auth(body: AuthIn, request: Request, response: Response):
         return {"mode": MODE_TG, "status": ST_ERR, "user": None, "pd_mode": pd_mode(),
                 "reason": "Telegram не передал сведения о пользователе"}
     with db.tx() as con:
+        try:
+            from . import tgbot
+            tgbot.remember_owner(con, res["user"])
+        except Exception:
+            pass
         out = link_or_request(con, res["user"])
         if out["status"] == ST_OK:
             tok, _ = auth.create_session(con, out["row"], ip=(request.client.host if request.client else ""),

@@ -3,6 +3,9 @@
 
 Как это работает для заказчика — docs/Telegram мини-апп.md, раздел «Бот».
 Коротко:
+  * Регистрация с 21.09.2026 идёт НЕ в боте, а в мини-приложении: номер телефона + код из чата
+    (app/registration.py). Бот на /start незнакомому человеку отвечает одним сообщением с кнопкой
+    «Открыть приложение» — один путь регистрации и одно место хранения согласия на ПД.
   * Telegram присылает обновления на POST /tg/webhook/{секрет}. Секрет задаётся настройкой
     TG_WEBHOOK_SECRET и ставится вместе с вебхуком скриптом tools/tg_setup.py.
   * Запасной способ для локальной машины (когда адреса из интернета нет) — опрос getUpdates:
@@ -24,6 +27,7 @@ import hashlib
 import hmac
 import json
 import re
+import secrets
 import threading
 import time
 import urllib.error
@@ -35,7 +39,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from . import approvals, auth, db, llm
+from . import approvals, auth, db, llm, outcomes
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
@@ -48,21 +52,27 @@ POLL_TIMEOUT_SEC = 25                 # long polling: сколько Telegram д
 
 NOT_CONNECTED = "Бот не подключён"
 
-# шаги диалога регистрации
-S_CONSENT, S_NAME, S_BRANCH, S_POSITION, S_ROLE, S_AGENT, S_QUESTION = (
-    "согласие", "фио", "филиал", "должность", "роль", "id агента", "вопрос")
-
-ROLE_BUTTONS = [("агент", "Агент"), ("андеррайтер", "Андеррайтер"), ("админ", "Администратор")]
+# Шаг диалога остался один: комментарий к решению «вопрос».
+# Пошаговая регистрация в боте убрана — она живёт в мини-приложении (app/registration.py).
+S_QUESTION = "вопрос"
 
 HELP = ("Что умеет бот:\n"
-        "/start — регистрация или вход\n"
+        "/start — открыть приложение\n"
         "/me — кто я, роль и состояние учётной записи\n"
         "/inbox — запросы, которые ждут моего решения\n"
         "/help — эта подсказка\n"
         "/admin КОД — разовый код первого администратора")
 
+OPEN_APP = ("Откройте приложение кнопкой меню внизу чата — там расчёт, ваши запросы и регистрация. "
+            "При регистрации нужен номер телефона: код придёт сюда же, в этот чат.")
+
 WAIT_MSG = ("Заявка принята и ждёт подтверждения администратора. "
             "Как только вас подтвердят, расчёт и согласование откроются.")
+
+# Вложения к карточке согласующего: явный порог, выше него в чат уходит только ссылка на приложение.
+MAX_ATTACH_FILES = 10                   # не больше десяти файлов на карточку
+MAX_ONE_FILE_BYTES = 10 * 1024 * 1024   # 10 МБ на файл (столько же принимает app/photos.py)
+MAX_ATTACH_BYTES = 25 * 1024 * 1024     # 25 МБ суммарно на один запрос
 
 
 # --------------------------------------------------------------------------- #
@@ -118,65 +128,74 @@ CONSENT_PHONE_FALLBACK = (
     "Передача номера — добровольная, отказ не мешает работе в системе.")
 
 
-CONSENT_VERSION_DEFAULT = "ПД-1"
+CONSENT_VERSION_DEFAULT = "ПД-3"
 CONSENT_MAIN, CONSENT_PHONE = "основное", "телефон"
-CONSENT_HEADING = "текст согласия"          # заголовок раздела 6 в документе юриста
+
+# Заголовки разделов документа юриста (docs/Регистрация и роли.md, раздел 5):
+#   5.1 «Согласие на обработку персональных данных — версия ПД-3 от 21.09.2026»
+#   5.2 «Отдельное согласие на номер телефона»
+# Ищем по смыслу заголовка, а не по номеру: юрист меняет нумерацию, а название — нет.
+CONSENT_HEADINGS = {
+    CONSENT_MAIN: ("согласие на обработку персональных данных",),
+    CONSENT_PHONE: ("согласие на номер телефона", "номер телефона"),
+}
 
 
-def _consent_blocks(text: str) -> list:
-    """Блоки-цитаты («> ...») после заголовка «## ... Текст согласия». Первый — основное
-    согласие, второй — отдельное согласие на номер телефона (раздел 6 документа юриста)."""
-    blocks, cur, started = [], [], False
-    for line in text.splitlines():
-        low = line.strip().lower()
-        if low.startswith("#"):
-            if CONSENT_HEADING in low.replace("*", ""):
-                started, blocks, cur = True, [], []
-                continue
-            if started:                     # следующий раздел — дальше не смотрим
-                break
-        if not started:
-            continue
+def _first_quote_block(lines, from_index: int) -> str:
+    """Первый блок-цитата («> ...») после заголовка. Второй блок («Без согласия доступ невозможен»)
+    в текст согласия не входит — это подпись под кнопкой."""
+    cur, seen = [], False
+    for line in lines[from_index:]:
+        if line.strip().startswith("#") and seen:
+            break
         if line.startswith(">"):
             cur.append(line.lstrip(">").strip().replace("**", ""))
+            seen = True
         elif cur:
-            blocks.append("\n".join(cur).strip())
-            cur = []
-    if cur:
-        blocks.append("\n".join(cur).strip())
-    return [b for b in blocks if b]
+            break
+    return "\n".join(cur).strip()
 
 
-def _consent_version(text: str) -> str:
-    """Версия из заголовка раздела 6: «## 6. Текст согласия — версия ПД-1 от 20.09.2026»."""
-    for line in text.splitlines():
+def _consent_from_doc(text: str, scope: str) -> tuple:
+    """Возвращает (текст, версия) из документа юриста или ('', '')."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
         low = line.strip().lower().replace("*", "")
-        if low.startswith("#") and CONSENT_HEADING in low:
-            m = re.search(r"верси[яи]\s+([^\s,;]+)", line, flags=re.IGNORECASE)
-            if m:
-                return m.group(1).strip(" *.")
-    return ""
+        if not low.startswith("#"):
+            continue
+        if not any(n in low for n in CONSENT_HEADINGS[scope]):
+            continue
+        if scope == CONSENT_MAIN and "телефон" in low:
+            continue                       # 5.2 — это согласие на номер, а не основное
+        body = _first_quote_block(lines, i + 1)
+        if not body:
+            continue
+        m = re.search(r"верси[яи]\s+([^\s,;)]+)", line, flags=re.IGNORECASE) or \
+            re.search(r"верси[яи]\s+([^\s,;)]+)", body, flags=re.IGNORECASE)
+        return body, (m.group(1).strip(" *.") if m else "")
+    return "", ""
 
 
 def consent_text(scope: str = CONSENT_MAIN) -> dict:
     """
-    Текст согласия и его версия из docs/Регистрация и роли.md (раздел 6). Берётся только блок
-    согласия, а не весь документ: человеку в боте уходит ровно тот текст, который утвердил юрист.
-    scope='телефон' — отдельное согласие на номер (второй блок того же раздела).
+    Текст согласия и его версия из docs/Регистрация и роли.md (раздел 5). Берётся только блок
+    согласия, а не весь документ: человек видит ровно тот текст, который утвердил юрист.
+    scope='телефон' — отдельное согласие на номер (раздел 5.2), оно пишется в pd_consents отдельной
+    строкой. Версия и хэш показанного текста — доказательство согласия (ЗРУ-547, ст. 31).
     """
     version = (llm.get("CONSENT_VERSION") or CONSENT_VERSION_DEFAULT).strip()
     if CONSENT_DOC.exists():
         try:
             doc = CONSENT_DOC.read_text(encoding="utf-8")
-            blocks = _consent_blocks(doc)
-            version = _consent_version(doc) or version
-            idx = 1 if scope == CONSENT_PHONE else 0
-            if len(blocks) > idx:
-                body = blocks[idx]
-                return {"text": body[:3500], "version": version, "scope": scope,
+            body, found = _consent_from_doc(doc, scope)
+            if body:
+                # версия общая для обоих согласий: её задаёт раздел 5.1
+                if not found and scope == CONSENT_PHONE:
+                    _, found = _consent_from_doc(doc, CONSENT_MAIN)
+                return {"text": body[:3500], "version": found or version, "scope": scope,
                         "hash": _digest(body), "source": "docs/Регистрация и роли.md"}
-        except Exception:
-            pass
+        except Exception as e:
+            print("текст согласия не разобран, берём запасной:", e)
     body = CONSENT_FALLBACK if scope == CONSENT_MAIN else CONSENT_PHONE_FALLBACK
     return {"text": body, "version": version, "scope": scope, "hash": _digest(body), "source": "заглушка"}
 
@@ -220,8 +239,24 @@ def _deliver(method: str, payload: dict) -> dict:
 
 
 def kb(rows_of_buttons) -> dict:
-    """Клавиатура под сообщением: [[(текст, данные), ...], ...]."""
-    return {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in row] for row in rows_of_buttons]}
+    """Клавиатура под сообщением: [[(текст, данные), ...], ...].
+    Данные, начинающиеся с http, становятся ссылкой, остальные — callback_data."""
+    out = []
+    for row in rows_of_buttons:
+        line = []
+        for text, data in row:
+            line.append({"text": text, "url": data} if str(data).startswith("http")
+                        else {"text": text, "callback_data": data})
+        out.append(line)
+    return {"inline_keyboard": out}
+
+
+def app_link(request_id=None) -> str:
+    """Ссылка «Открыть в приложении». Без настройки SERVER_URL кнопки просто не будет."""
+    base = server_url()
+    if not base:
+        return ""
+    return base + "/tg" + (f"?request={request_id}" if request_id else "")
 
 
 def send(chat_id, text: str, keyboard: Optional[dict] = None, kind: str = "уведомление",
@@ -262,6 +297,98 @@ def _journal_out(con, chat_id, user_id, request_id, kind, ok, error):
                 log(own, "out", kind, chat_id, user_id, ok, error, None, request_id)
     except Exception:
         pass                       # журнал не должен мешать работе бота
+
+
+def _deliver_file(method: str, fields: dict, field: str, filename: str, blob: bytes, mime: str) -> dict:
+    """Отправка файла в Telegram (multipart/form-data, только стандартная библиотека)."""
+    token = bot_token()
+    if not token:
+        return {"ok": False, "description": NOT_CONNECTED}
+    boundary = "----inson" + secrets.token_hex(8)
+    body = bytearray()
+    for k, v in fields.items():
+        body += ('--%s\r\nContent-Disposition: form-data; name="%s"\r\n\r\n%s\r\n'
+                 % (boundary, k, v)).encode("utf-8")
+    body += ('--%s\r\nContent-Disposition: form-data; name="%s"; filename="%s"\r\n'
+             'Content-Type: %s\r\n\r\n' % (boundary, field, filename, mime)).encode("utf-8")
+    body += blob + ("\r\n--%s--\r\n" % boundary).encode("utf-8")
+    req = urllib.request.Request(f"{API}/bot{token}/{method}", data=bytes(body),
+                                 headers={"Content-Type": "multipart/form-data; boundary=" + boundary})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT_SEC * 2) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        try:
+            info = json.loads(e.read().decode("utf-8"))
+        except Exception:
+            info = {}
+        return {"ok": False, "error_code": e.code, "description": info.get("description", f"HTTP {e.code}")}
+    except Exception as e:
+        return {"ok": False, "description": str(e)[:200]}
+
+
+def send_file(chat_id, filename: str, blob: bytes, mime: str, caption: str = "",
+              kind: str = "вложение", con=None, user_id=None, request_id=None) -> dict:
+    """Один файл в чат: картинка уходит как фото, остальное — документом."""
+    if not connected():
+        _journal_out(con, chat_id, user_id, request_id, kind, False, NOT_CONNECTED)
+        return {"ok": False, "reason": NOT_CONNECTED}
+    method, field = ("sendPhoto", "photo") if str(mime).startswith("image/") else ("sendDocument", "document")
+    fields = {"chat_id": str(chat_id)}
+    if caption:
+        fields["caption"] = caption[:1000]
+    res = _deliver_file(method, fields, field, filename, blob, mime)
+    ok = bool(res.get("ok"))
+    _journal_out(con, chat_id, user_id, request_id, kind, ok, None if ok else res.get("description"))
+    return {"ok": ok, "reason": "" if ok else (res.get("description") or "Telegram не принял файл")}
+
+
+def attachments(con, request_id: int) -> dict:
+    """
+    Что можно приложить к карточке: PDF анализа и файлы запроса (фото, техпаспорт, кадастр,
+    загруженные документы). Порог — MAX_ATTACH_FILES / MAX_ONE_FILE_BYTES / MAX_ATTACH_BYTES;
+    не помещаемся — в чат уходит только ссылка на приложение, файлы остаются там.
+    """
+    files, skipped, total = [], [], 0
+    try:
+        from . import exports
+        pdf = exports.build_analysis_pdf(con, request_id)
+        files.append((f"анализ_запроса_{request_id}.pdf", pdf, "application/pdf"))
+        total += len(pdf)
+    except Exception as e:                       # PDF не собрался — карточка всё равно уходит
+        skipped.append("PDF анализа: " + str(e)[:120])
+    rows = db.rows(con, "SELECT filename, path, mime, size_bytes, doc_kind FROM photos"
+                        " WHERE request_id=? ORDER BY id", request_id)
+    rows += [{"filename": d["doc_name"], "path": d["file_path"], "mime": "application/octet-stream",
+              "size_bytes": None, "doc_kind": d["doc_name"]}
+             for d in db.rows(con, "SELECT doc_name, file_path FROM documents"
+                                   " WHERE request_id=? AND file_path IS NOT NULL", request_id)]
+    for r in rows:
+        if len(files) >= MAX_ATTACH_FILES:
+            skipped.append("файлов больше %d" % MAX_ATTACH_FILES)
+            break
+        full = ROOT / str(r["path"] or "")
+        if not full.exists():
+            skipped.append("нет на диске: %s" % (r.get("filename") or full.name))
+            continue
+        blob = full.read_bytes()
+        if len(blob) > MAX_ONE_FILE_BYTES or total + len(blob) > MAX_ATTACH_BYTES:
+            skipped.append("слишком большой: %s" % (r.get("filename") or full.name))
+            continue
+        total += len(blob)
+        files.append((r.get("filename") or full.name, blob, r.get("mime") or "application/octet-stream"))
+    return {"files": files, "skipped": skipped, "total_bytes": total}
+
+
+def send_attachments(con, chat_id, request_id: int, user_id=None) -> dict:
+    """Шлёт вложения по запросу. Ошибка доставки файла не отменяет саму карточку."""
+    att = attachments(con, request_id)
+    sent = 0
+    for name, blob, mime in att["files"]:
+        if send_file(chat_id, name, blob, mime, caption=f"Запрос № {request_id}: {name}",
+                     con=con, user_id=user_id, request_id=request_id).get("ok"):
+            sent += 1
+    return {"sent": sent, "skipped": att["skipped"], "total_bytes": att["total_bytes"]}
 
 
 def edit_card(con, chat_id, message_id, text: str) -> dict:
@@ -345,15 +472,28 @@ def request_card(con, request_id: int) -> str:
         lines.append(f"Ставка: {rate:.3f} %" if rate else "Ставка: не рассчитана")
         lines.append(f"Премия: {money(calc[0].get('premium'))}")
     lines.append(f"Подал: {agent[0]['name'] if agent else 'не указан'}")
+    # вероятность подтверждения и почему — одной строкой, целиком (app/analysis.py)
+    try:
+        prob = outcomes.summary(con, request_id)
+        if prob["ready"]:
+            lines.append("")
+            lines.append(f"Вероятность подтверждения: {prob['probability']} % — {prob['verdict']}")
+            lines.append(prob["summary"])
+    except Exception as e:                  # карточка уходит и без вероятности
+        print("карточка: вероятность не показана:", e)
     if partner:
         lines.append(f"Генеральное соглашение: {partner[0]['partner']}")
     return "\n".join(lines)
 
 
 def decision_keyboard(request_id: int, reviewer_row_id: int) -> dict:
-    return kb([[("Одобрить", f"approve:{request_id}:{reviewer_row_id}"),
-                ("Отклонить", f"reject:{request_id}:{reviewer_row_id}")],
-               [("Вопрос", f"ask:{request_id}:{reviewer_row_id}")]])
+    rows = [[("Подтвердить", f"approve:{request_id}:{reviewer_row_id}"),
+             ("Отклонить", f"reject:{request_id}:{reviewer_row_id}")],
+            [("Вопрос", f"ask:{request_id}:{reviewer_row_id}")]]
+    link = app_link(request_id)
+    if link:
+        rows.append([("Открыть в приложении", link)])
+    return kb(rows)
 
 
 # --------------------------------------------------------------------------- #
@@ -361,15 +501,23 @@ def decision_keyboard(request_id: int, reviewer_row_id: int) -> dict:
 # --------------------------------------------------------------------------- #
 
 def on_assigned(con, request_id: int, user_ids: list):
-    """Назначили согласующих — каждому, у кого есть Telegram, уходит карточка с кнопками."""
+    """Назначили согласующих — каждому, у кого есть Telegram, уходит карточка с кнопками,
+    ссылкой «Открыть в приложении» и вложениями (PDF анализа и файлы запроса)."""
     card = request_card(con, request_id)
+    att = attachments(con, request_id)
+    if att["skipped"]:
+        card += "\n\nНе вложено (смотрите в приложении): " + "; ".join(att["skipped"][:3])
     for row in approvals.reviewers(con, request_id):
         u = db.rows(con, "SELECT * FROM users WHERE id=?", row["user_id"])
         if not u or not u[0].get("telegram_id"):
             continue
-        send(u[0]["telegram_id"], "Вам на согласование:\n\n" + card,
+        chat = u[0]["telegram_id"]
+        send(chat, "Вам на согласование:\n\n" + card,
              decision_keyboard(request_id, row["id"]), kind="уведомление",
              con=con, user_id=u[0]["id"], request_id=request_id)
+        for name, blob, mime in att["files"]:
+            send_file(chat, name, blob, mime, caption=f"Запрос № {request_id}: {name}",
+                      con=con, user_id=u[0]["id"], request_id=request_id)
 
 
 def on_decided(con, request_id: int, user: dict, decision: str, comment: Optional[str], status: str):
@@ -396,23 +544,30 @@ def on_decided(con, request_id: int, user: dict, decision: str, comment: Optiona
 #  Команды
 # --------------------------------------------------------------------------- #
 
+def start_keyboard(request_id=None):
+    link = app_link(request_id)
+    return kb([[("Открыть приложение", link)]]) if link else None
+
+
 def cmd_start(con, tg_id, update_id=None) -> dict:
+    """
+    Регистрация целиком в мини-приложении (решение заказчика 21.09.2026), поэтому /start короткий.
+    Почему так, а не пошаговый диалог в боте: анкета с согласием на ПД, номером телефона и списком
+    должностей должна существовать в одном экземпляре. Два пути означали бы две проверки номера,
+    две записи согласия и два места, где текст согласия может разойтись с документом юриста.
+    """
     u = user_by_tg(con, tg_id)
-    if u and u["status"] == auth.STATUS_ACTIVE:
-        drop_dialog(con, tg_id)
-        send(tg_id, f"Здравствуйте! Вы вошли как {u['role']}. " + HELP, kind="start", con=con, user_id=u["id"])
-        return {"action": "вход", "user_id": u["id"]}
+    drop_dialog(con, tg_id)
     if u and u["status"] == auth.STATUS_BLOCKED:
         send(tg_id, "Доступ закрыт администратором.", kind="отказ", con=con, user_id=u["id"])
         return {"action": "заблокирован", "user_id": u["id"]}
-    if u:
-        send(tg_id, WAIT_MSG, kind="start", con=con, user_id=u["id"])
-        return {"action": "ожидает", "user_id": u["id"]}
-    c = consent_text()
-    set_dialog(con, tg_id, S_CONSENT, {"consent_version": c["version"], "consent_hash": c["hash"]})
-    send(tg_id, c["text"] + "\n\nВерсия текста: " + c["version"],
-         kb([[("Согласен", "consent:ok"), ("Не согласен", "consent:no")]]), kind="start", con=con)
-    return {"action": "согласие", "step": S_CONSENT}
+    if u and u["status"] == auth.STATUS_ACTIVE:
+        send(tg_id, f"Здравствуйте! Вы вошли как {u['role']}. " + OPEN_APP + "\n\n" + HELP,
+             start_keyboard(), kind="start", con=con, user_id=u["id"])
+        return {"action": "вход", "user_id": u["id"]}
+    send(tg_id, "Здравствуйте! " + OPEN_APP, start_keyboard(), kind="start", con=con,
+         user_id=(u or {}).get("id"))
+    return {"action": "регистрация в приложении", "user_id": (u or {}).get("id")}
 
 
 def cmd_me(con, tg_id) -> dict:
@@ -489,101 +644,35 @@ def cmd_admin(con, tg_id, code: str) -> dict:
 
 
 # --------------------------------------------------------------------------- #
-#  Пошаговая регистрация
+#  Диалог в чате: остался один шаг — комментарий к решению «вопрос»
 # --------------------------------------------------------------------------- #
 
-def _ask(con, tg_id, step: str, draft: dict, text: str, keyboard=None):
-    set_dialog(con, tg_id, step, draft)
-    send(tg_id, text, keyboard, kind="команда", con=con)
-
-
 def dialog_text(con, tg_id, text: str) -> dict:
-    """Очередной ответ человека в пошаговом диалоге (регистрация или комментарий к «Вопросу»)."""
+    """Свободный текст в чате. Анкеты в боте больше нет: регистрация — в мини-приложении."""
     d = dialog(con, tg_id)
-    if not d:
-        send(tg_id, "Не понял. " + HELP, kind="команда", con=con)
-        return {"action": "не понял"}
-    step, draft = d["step"], d["draft"]
-    value = (text or "").strip()
-
-    if step == S_QUESTION:                       # комментарий к решению «вопрос»
-        return question_comment(con, tg_id, draft, value)
-
-    if step == S_CONSENT:
-        send(tg_id, "Сначала подтвердите согласие кнопкой ниже.", kind="команда", con=con)
-        return {"action": "ждём согласия"}
-    if not value:
-        send(tg_id, "Пустой ответ — напишите, пожалуйста, текстом.", kind="команда", con=con)
-        return {"action": "пусто"}
-
-    if step == S_NAME:
-        draft["full_name"] = value[:120]
-        _ask(con, tg_id, S_BRANCH, draft, "Филиал (например: Ташкентский городской):")
-        return {"action": "шаг", "step": S_BRANCH}
-    if step == S_BRANCH:
-        draft["branch"] = value[:80]
-        _ask(con, tg_id, S_POSITION, draft, "Должность:")
-        return {"action": "шаг", "step": S_POSITION}
-    if step == S_POSITION:
-        draft["position"] = value[:80]
-        _ask(con, tg_id, S_ROLE, draft, "Выберите роль:",
-             kb([[(title, f"role:{code}")] for code, title in ROLE_BUTTONS]))
-        return {"action": "шаг", "step": S_ROLE}
-    if step == S_ROLE:
-        send(tg_id, "Выберите роль кнопкой ниже.", kind="команда", con=con)
-        return {"action": "ждём роль"}
-    if step == S_AGENT:
-        found = db.rows(con, "SELECT id, status FROM agents WHERE eais_id=?", value)
-        if not found:
-            send(tg_id, "Такого ID агента нет в реестре компании. Проверьте и отправьте ещё раз "
-                        "(ID выдаётся при включении в реестр, Положение № 3845).", kind="команда", con=con)
-            return {"action": "ID не найден"}
-        draft["agent_eais_id"] = value
-        return finish_registration(con, tg_id, draft)
-    send(tg_id, "Не понял. " + HELP, kind="команда", con=con)
+    if d and d["step"] == S_QUESTION:            # комментарий к решению «вопрос»
+        return question_comment(con, tg_id, d["draft"], (text or "").strip())
+    if d:
+        drop_dialog(con, tg_id)
+    send(tg_id, "Не понял. " + HELP, start_keyboard(), kind="команда", con=con)
     return {"action": "не понял"}
 
 
-def finish_registration(con, tg_id, draft: dict) -> dict:
-    """Создаёт заявку в users со статусом «ожидает подтверждения» и записывает согласие на ПД."""
-    login = f"tg{tg_id}"
-    if db.rows(con, "SELECT 1 FROM users WHERE login=?", login):
-        drop_dialog(con, tg_id)
-        send(tg_id, WAIT_MSG, kind="команда", con=con)
-        return {"action": "уже подана"}
-    role = draft.get("role") or "агент"
-    pw_hash, salt = auth.hash_password(hashlib.sha256((login + db.now()).encode()).hexdigest())
-    cur = con.execute("INSERT INTO users (login, full_name, phone, role, branch, position, agent_eais_id,"
-                      " password_hash, salt, status, telegram_id, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-                      (login, draft.get("full_name") or f"Пользователь {tg_id}", "", role,
-                       draft.get("branch") or "", draft.get("position") or "",
-                       draft.get("agent_eais_id") or None, pw_hash, salt, auth.STATUS_PENDING,
-                       str(tg_id), db.now()))
-    uid = cur.lastrowid
-    con.execute("UPDATE pd_consents SET user_id=? WHERE telegram_id=? AND user_id IS NULL", (uid, str(tg_id)))
-    drop_dialog(con, tg_id)
-    # в журнал — без ФИО и должности: только роль и идентификаторы (правило проекта № 8)
-    db.audit(con, login, "заявка на доступ из бота", f"user:{uid}",
-             {"telegram_id": str(tg_id), "role": role, "согласие": draft.get("consent_version")})
-    log(con, "in", "start", tg_id, uid, True, None)
-    send(tg_id, WAIT_MSG, kind="команда", con=con, user_id=uid)
-    notify_admins_new_user(con, uid, role)
-    return {"action": "заявка создана", "user_id": uid, "role": role}
-
-
 def notify_admins_new_user(con, uid: int, role: str):
-    text = (f"Новая заявка на доступ № {uid}.\nРоль по заявке: {role}.\n"
-            "Проверьте человека по реестру и решите:")
-    keyboard = kb([[("Подтвердить как агент", f"uapprove:{uid}:агент")],
-                   [("Подтвердить как андеррайтер", f"uapprove:{uid}:андеррайтер")],
-                   [("Отклонить", f"ureject:{uid}:-")]])
+    """Администраторам — сообщение о новом работнике. Подтверждать его больше не надо:
+    человек активен сразу после регистрации (решение заказчика 21.09.2026)."""
+    u = db.rows(con, "SELECT full_name, department, position FROM users WHERE id=?", uid)
+    who = u[0] if u else {}
+    text = (f"Зарегистрировался работник № {uid}.\n"
+            f"{who.get('full_name') or 'ФИО не указано'}\n"
+            f"Департамент: {who.get('department') or 'не указан'}\n"
+            f"Должность: {who.get('position') or 'не указана'}\n"
+            f"Роль: {role}. Права администратора выдаются в разделе «Пользователи».")
+    link = app_link()
+    keyboard = kb([[("Открыть приложение", link)]]) if link else None
     for a in admins(con):
         send(a["telegram_id"], text, keyboard, kind="уведомление", con=con, user_id=a["id"])
 
-
-# --------------------------------------------------------------------------- #
-#  Нажатия кнопок
-# --------------------------------------------------------------------------- #
 
 def question_comment(con, tg_id, draft: dict, comment: str) -> dict:
     u = user_by_tg(con, tg_id)
@@ -627,43 +716,6 @@ def handle_callback(con, cq: dict, update_id=None) -> dict:
     cq_id = cq.get("id") or ""
     parts = data.split(":")
     action = parts[0] if parts else ""
-
-    if action == "consent":
-        d = dialog(con, tg_id)
-        if parts[1:2] == ["ok"]:
-            draft = (d or {}).get("draft") or {}
-            shown = consent_text()
-            version = draft.get("consent_version") or shown["version"]
-            # хэш именно того текста, который человек видел (раздел 7 документа юриста)
-            text_hash = draft.get("consent_hash") or shown["hash"]
-            con.execute("INSERT INTO pd_consents (user_id, telegram_id, version, channel, created_at,"
-                        " consent_text_hash, scope) VALUES (?,?,?,?,?,?,?)",
-                        (None, str(tg_id), version, "telegram", db.now(), text_hash, CONSENT_MAIN))
-            draft["consent_version"], draft["consent_hash"] = version, text_hash
-            answer_callback(cq_id, "Согласие записано")
-            _ask(con, tg_id, S_NAME, draft, "Фамилия, имя и отчество полностью:")
-            return {"action": "согласие", "version": version}
-        drop_dialog(con, tg_id)
-        answer_callback(cq_id)
-        send(tg_id, "Без согласия доступ к системе невозможен.", kind="отказ", con=con)
-        return {"action": "отказ от согласия"}
-
-    if action == "role":
-        d = dialog(con, tg_id)
-        if not d or d["step"] != S_ROLE:
-            answer_callback(cq_id, "Начните заново: /start")
-            return {"action": "нет диалога"}
-        role = parts[1] if len(parts) > 1 else "агент"
-        if role not in auth.ROLES:
-            answer_callback(cq_id, "Такой роли нет")
-            return {"action": "плохая роль"}
-        draft = d["draft"]
-        draft["role"] = role
-        answer_callback(cq_id)
-        if role == "агент":
-            _ask(con, tg_id, S_AGENT, draft, "Ваш ID агента из реестра компании (ЕАИС):")
-            return {"action": "шаг", "step": S_AGENT}
-        return finish_registration(con, tg_id, draft)
 
     if action in ("uapprove", "ureject"):
         admin = user_by_tg(con, tg_id)
@@ -763,9 +815,25 @@ def handle_message(con, msg: dict, update_id=None) -> dict:
     return dialog_text(con, tg_id, text)
 
 
+def remember_owner(con, frm: dict):
+    """Запоминает чат владельца (username из TG_ADMIN_USERNAME), чтобы система могла писать ему
+    служебные уведомления («работа закончена»). Хранится только telegram_id, один раз, в app_settings."""
+    boot = (llm.get("TG_ADMIN_USERNAME") or "").strip().lstrip("@").lower()
+    uname = ((frm or {}).get("username") or "").strip().lower()
+    tg_id = str((frm or {}).get("id") or "")
+    if not boot or not uname or uname != boot or not tg_id.isdigit():
+        return
+    if (llm.get("TG_OWNER_CHAT_ID") or "") == tg_id:
+        return
+    _setting_set(con, "TG_OWNER_CHAT_ID", tg_id)
+    print(f"бот: чат владельца сохранён, TG_OWNER_CHAT_ID={tg_id}")
+
+
 def handle_update(con, update: dict) -> dict:
     """Разбор одного обновления. Идемпотентность проверяется снаружи (seen_update)."""
     update_id = update.get("update_id")
+    src = update.get("callback_query") or update.get("message") or update.get("edited_message") or {}
+    remember_owner(con, src.get("from") or {})
     if update.get("callback_query"):
         return handle_callback(con, update["callback_query"], update_id)
     msg = update.get("message") or update.get("edited_message")
@@ -877,10 +945,13 @@ def start_polling():
 #  Точки для мини-приложения
 # --------------------------------------------------------------------------- #
 
-NAV_BASE = [("calc", "Расчёт"), ("my-requests", "Мои запросы"), ("photos", "Фото")]
+# «Пользователи» видят все зарегистрированные (решение заказчика 21.09.2026): список открыт,
+# кнопки «Сделать админом» / «Снять админа» показываются только админу (can_manage в /tg/users).
+NAV_BASE = [("calc", "Расчёт"), ("my-requests", "Мои запросы"), ("photos", "Фото"),
+            ("users", "Пользователи")]
 NAV_REVIEWER = [("inbox", "Ждут меня")]
-NAV_ADMIN = [("applications", "Заявки"), ("users", "Пользователи"),
-             ("agreements", "Генеральные соглашения"), ("settings", "Настройки")]
+NAV_ADMIN = [("applications", "Заявки"), ("agreements", "Генеральные соглашения"),
+             ("settings", "Настройки")]
 
 
 def _session_user(request: Request) -> Optional[dict]:
@@ -954,6 +1025,7 @@ def tg_my_requests(request: Request):
                         "premium": calc[0]["premium"] if calc else None,
                         "rate_pct": (calc[0]["applied_rate_pct"] or calc[0]["gross_rate_pct"]) if calc else None,
                         "approval_status": r.get("approval_status"), "partner": r.get("partner"),
+                        "probability": outcomes.brief(con, r["id"]),
                         "reviewers": [{"full_name": x["full_name"], "position": x["position"],
                                        "status": x["status"], "comment": x["comment"],
                                        "decided_at": x["decided_at"]}
