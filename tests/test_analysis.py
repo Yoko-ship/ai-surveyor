@@ -281,6 +281,41 @@ def test_save_and_record():
     print("запись и сверка решения по запросу 777: показывали %d%%, решение «%s»" % (row[0], row[1]))
 
 
+def test_verdict_code():
+    """Код вердикта для перевода на экране: текст сервера не меняется, код — по тем же порогам."""
+    cases = [(95, False, "likely"), (70, False, "good"), (50, False, "any"), (30, False, "rework"),
+             (10, False, "unlikely"), (70, True, "stop")]
+    for v, stop, code in cases:
+        assert A.verdict_code(v, stop) == code, (v, stop)
+    assert A.verdict_text(70) == "Шансы хорошие, но есть замечания"
+    from app import outcomes
+    view = outcomes.view({"probability": 70, "verdict": A.verdict_text(70), "minus": []})
+    assert view["verdict_code"] == "good" and view["verdict"] == "Шансы хорошие, но есть замечания"
+    # мини-апп: фраза по коду + отдельно «Замечаний: N», серверный текст не режется
+    import json as _j, re as _re, shutil, subprocess
+    node = shutil.which("node")
+    if not node:
+        print("  node нет — проверка фразы мини-аппа пропущена")
+        return
+    html = (ROOT / "app" / "tg.html").read_text(encoding="utf-8")
+    funcs = "".join(_re.search(r"function " + n + r"\(p\)\{.*?\n\}", html, _re.S).group(0) + "\n"
+                    for n in ("probLine", "verdictPhrase"))
+    ru = _j.loads((ROOT / "app" / "i18n" / "ru.json").read_text(encoding="utf-8"))
+    ru = {k: v for k, v in ru.items() if k.startswith("tg.prob")}
+    js = ("const D=" + _j.dumps(ru, ensure_ascii=False) + ";function T(k,f,v){let s=D[k]!=null?D[k]:f;"
+          "if(v)for(const x in v)s=String(s).split('{'+x+'}').join(v[x]);return s;}\n" + funcs
+          + "console.log(JSON.stringify([probLine({value:70,verdict:'Шансы хорошие, но есть замечания',"
+            "minus:[1,2]}),probLine({value:70,verdict_code:'good',minus:[1]}),"
+            "probLine({value:5,has_stop:true,minus:[]})]));")
+    out = subprocess.run([node, "-"], input=js, capture_output=True, text=True, encoding="utf-8")
+    lines = _j.loads(out.stdout)
+    assert lines[0] == "Шансы хорошие, но есть замечания. Замечаний: 2", lines
+    assert lines[1] == "Шансы хорошие, но есть замечания. Замечаний: 1", lines
+    assert lines[2].startswith("Почти наверняка вернут"), lines
+    assert not any("есть, замечаний" in x for x in lines), lines
+    print("ок  вердикт по коду:", lines[0])
+
+
 def cleanup():
     if TMP_DB.exists():
         TMP_DB.unlink()
@@ -290,7 +325,7 @@ if __name__ == "__main__":
     for fn in (test_clean_request_high, test_stop_check_caps_at_10, test_below_min_rate_caps_at_10,
                test_missing_documents_lower, test_sum_over_valuation_lowers, test_claims_and_no_franchise,
                test_corridor, test_stat_not_applied_under_20, test_stat_applied_over_20,
-               test_accuracy_reports, test_save_and_record):
+               test_accuracy_reports, test_save_and_record, test_verdict_code):
         fn()
     cleanup()
     print("Все проверки пройдены.")

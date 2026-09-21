@@ -1703,7 +1703,9 @@ function fieldLabel(f){
 /* «protection» у имущества — защита объекта, у транспорта — противоугонная система: ключи разные */
 function fkey(f){ return f.key === "protection" && AN.fields && AN.fields.group === "vehicle" ? "protection_vehicle" : f.key; }
 function optLabel(f, o){ return T("tg.an.o." + fkey(f) + "." + o.code, o.label || o.code); }
-function unitName(u){
+/* сервер может прислать код единицы (unit_code) — тогда подпись по ключу unit.<код> */
+function unitName(u, code){
+  if (code) return T("unit." + code, u || code);
   switch (u) {
     case "сум": return T("common.sum", "сум");
     case "мес.": return T("tg.u.months", "мес.");
@@ -1743,7 +1745,7 @@ function anProducts(){
 function wrapField(f, inner, wide){
   return '<div id="anw-' + esc(f.key) + '"' + (wide ? ' style="grid-column:1/-1"' : "") + ">"
     + '<label class="f" for="anf-' + esc(f.key) + '"><span>' + esc(fieldLabel(f)) + "</span>"
-    + (f.unit ? '<span class="unit">' + esc(unitName(f.unit)) + "</span>" : "")
+    + (f.unit ? '<span class="unit">' + esc(unitName(f.unit, f.unit_code)) + "</span>" : "")
     + (f.required ? '<span class="req">' + esc(T("tg.an.required", "обязательно")) + "</span>" : "") + "</label>"
     + inner + '<span class="ferr" id="ane-' + esc(f.key) + '"></span></div>';
 }
@@ -1785,7 +1787,7 @@ function fieldHtml(f){
   if (f.type === "object") {
     const subs = (f.fields || []).map(s =>
       "<div><label class=\"f\" for=\"" + esc(id + "-" + s.key) + '" style="margin-top:0;font-weight:400">' + esc(subLabel(f.key, s.key))
-      + (s.unit ? ' <span class="unit">' + esc(unitName(s.unit)) + "</span>" : "") + "</label>"
+      + (s.unit ? ' <span class="unit">' + esc(unitName(s.unit, s.unit_code)) + "</span>" : "") + "</label>"
       + (s.type === "text"
         ? '<input id="' + esc(id + "-" + s.key) + '" type="text" autocomplete="off" data-key="' + esc(f.key) + '" data-sub="' + esc(s.key) + '" data-text="1">'
         : inputHtml(f, id + "-" + s.key, s.unit, s.key)) + "</div>").join("");
@@ -2922,7 +2924,7 @@ function paintFactors(cls, keep){
   $("#factors").innerHTML = codes.map(code => {
     const opts = optionsFor(cls, code);
     if (opts.some(o => !o.calibrated)) uncal = true;
-    return '<label class="f" for="f_' + esc(code) + '">' + esc(opts[0].factor_name) + "</label>"
+    return '<label class="f" for="f_' + esc(code) + '">' + esc(T("calc.factor." + code, opts[0].factor_name)) + "</label>"
       + '<select id="f_' + esc(code) + '" data-factor="' + esc(code) + '">'
       + '<option value="">' + esc(T("tg.calc_factor_off", "не учитывать")) + "</option>"
       + opts.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name)
@@ -3112,6 +3114,8 @@ function normProb(raw){
   v = Number(v);
   if (v > 0 && v <= 1) v = v * 100;                    // пришла доля 0..1 — переводим в проценты
   return {value: Math.round(v), verdict: e.verdict || p.verdict || "",
+    verdict_code: e.verdict_code || p.verdict_code || "",
+    has_stop: !!(p.has_stop || (e.minus || []).some(x => x && x.stop)),
     summary: e.summary || p.summary || p.text || "",
     minus: e.minus || [], plus: e.plus || [], how: e.how_to_raise || [],
     calibrated: (e.calibrated != null ? e.calibrated : p.calibrated)};
@@ -3140,9 +3144,25 @@ function probRows(list){
 /* Одна короткая строка под крупной цифрой: вывод без хвоста про замечания + их число.
    Сплошной текст разбора (summary) не выводим — он повторяет списки «Что снижает / Что повысит». */
 function probLine(p){
-  const head = String(p.verdict || "").replace(/[:,—–-]?\s*замечани[а-я]*.*$/i, "").trim();
   const n = (p.minus || []).length;
-  return (head ? head + ", " : "") + T("tg.prob_remarks", "замечаний: {n}", {n: n});
+  return verdictPhrase(p) + ". " + T("tg.prob_remarks_n", "Замечаний: {n}", {n: n});
+}
+/* Серверный текст вердикта не режем: своя фраза по коду (verdict_code); у старых прогнозов кода нет —
+   код по тем же порогам, что app/analysis.py verdict_code(). */
+function verdictPhrase(p){
+  let c = p.verdict_code;
+  if (!c) {
+    const v = Number(p.value);
+    c = p.has_stop ? "stop" : v >= 80 ? "likely" : v >= 60 ? "good" : v >= 40 ? "any" : v >= 20 ? "rework" : "unlikely";
+  }
+  switch (c) {
+    case "stop": return T("tg.prob_v.stop", "Почти наверняка вернут: нарушена норма");
+    case "likely": return T("tg.prob_v.likely", "Скорее всего подтвердят");
+    case "good": return T("tg.prob_v.good", "Шансы хорошие, но есть замечания");
+    case "any": return T("tg.prob_v.any", "Решение может быть любым");
+    case "rework": return T("tg.prob_v.rework", "Скорее вернут на доработку");
+    default: return T("tg.prob_v.unlikely", "Почти наверняка не подтвердят");
+  }
 }
 
 /* Проверка из карточки запроса: сервер хранит код правила и строку «Название: пояснение».

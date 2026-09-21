@@ -419,7 +419,7 @@ async def portfolio_import(file: UploadFile = File(...), sheet: Optional[str] = 
         out = import_file(dest, name, sheet)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    out["stored"] = str(dest.relative_to(ROOT))
+    out["stored"] = db.stored_path(dest)
     return out
 
 

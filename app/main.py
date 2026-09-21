@@ -44,8 +44,10 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from . import access, background, db, web
-from .auth import current_user
+from .auth import current_user, require
 from .engine import Input, calculate
+
+ADMIN = "админ"                 # запись в справочники и финансы — только админ, и в режиме разработчика тоже
 
 web.setup_logging()
 
@@ -436,9 +438,9 @@ async def upload_document(rid: int, doc_name: str, file: UploadFile = File(...))
         with dest.open("wb") as f:
             shutil.copyfileobj(file.file, f)
         con.execute("INSERT INTO documents (request_id, doc_name, file_path, received) VALUES (?,?,?,1)",
-                    (rid, doc_name, str(dest.relative_to(ROOT))))
+                    (rid, doc_name, db.stored_path(dest)))
         db.audit(con, "api", "загружен документ", f"request:{rid}", {"doc": doc_name, "file": file.filename})
-    return {"ok": True, "stored": str(dest.relative_to(ROOT))}
+    return {"ok": True, "stored": db.stored_path(dest)}
 
 
 # Маршрут POST /requests/{rid}/decision убран 20.09.2026. Он менял статус любого запроса по полю
@@ -622,7 +624,7 @@ class SolvencyRow(BaseModel):
 
 
 @app.post("/admin/reserves")
-def add_reserves(rows_in: list[ReserveRow], user: dict = Depends(current_user)):
+def add_reserves(rows_in: list[ReserveRow], user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         for r in rows_in:
             con.execute("INSERT OR REPLACE INTO reserve_reports VALUES (?,?,?,?,?,?,?,?,?,?,?)",
@@ -633,7 +635,7 @@ def add_reserves(rows_in: list[ReserveRow], user: dict = Depends(current_user)):
 
 
 @app.post("/admin/assets")
-def add_assets(rows_in: list[AssetRow], user: dict = Depends(current_user)):
+def add_assets(rows_in: list[AssetRow], user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         for r in rows_in:
             con.execute("INSERT OR REPLACE INTO allocated_assets VALUES (?,?,?,?)",
@@ -643,7 +645,7 @@ def add_assets(rows_in: list[AssetRow], user: dict = Depends(current_user)):
 
 
 @app.put("/admin/solvency")
-def set_solvency(s: SolvencyRow, user: dict = Depends(current_user)):
+def set_solvency(s: SolvencyRow, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO solvency_reports VALUES (?,?,?,?,?,?,?,?,?)",
                     (s.report_date, s.own_funds, s.deductions, s.premiums_12m, s.claims_36m, s.claims_36m_net,
@@ -705,7 +707,7 @@ class Financials(BaseModel):
 
 
 @app.post("/admin/tariff-versions")
-def add_version(v: TariffVersion, user: dict = Depends(current_user)):
+def add_version(v: TariffVersion, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         cur = con.execute("INSERT INTO tariff_versions (level, name, document_ref, effective_from) VALUES (?,?,?,?)",
                           (v.level, v.name, v.document_ref, v.effective_from))
@@ -715,7 +717,7 @@ def add_version(v: TariffVersion, user: dict = Depends(current_user)):
 
 
 @app.post("/admin/min-rates")
-def add_min_rate(m: MinRate, user: dict = Depends(current_user)):
+def add_min_rate(m: MinRate, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         con.execute("INSERT INTO min_rates (tariff_version_id, product_code, class_code, payer_type, min_rate_pct) VALUES (?,?,?,?,?)",
                     (m.tariff_version_id, m.product_code, m.class_code, m.payer_type, m.min_rate_pct))
@@ -725,7 +727,7 @@ def add_min_rate(m: MinRate, user: dict = Depends(current_user)):
 
 
 @app.post("/admin/coefficients")
-def add_coefficient(c: Coefficient, user: dict = Depends(current_user)):
+def add_coefficient(c: Coefficient, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         con.execute("DELETE FROM coefficients WHERE factor_code=? AND option_code=? AND class_code IS ?",
                     (c.factor_code, c.option_code, c.class_code))
@@ -738,7 +740,7 @@ def add_coefficient(c: Coefficient, user: dict = Depends(current_user)):
 
 
 @app.post("/admin/products")
-def add_product(p: Product, user: dict = Depends(current_user)):
+def add_product(p: Product, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO products (code,name,rate_text,commission_text,commission_pct,pricing_mode,is_general,status)"
                     " VALUES (?,?,?,?,?,?,0,'тест')", (p.code, p.name, p.rate_text, p.commission_text, p.commission_pct, p.pricing_mode))
@@ -754,7 +756,7 @@ def add_product(p: Product, user: dict = Depends(current_user)):
 
 
 @app.put("/admin/financials")
-def set_financials(f: Financials, user: dict = Depends(current_user)):
+def set_financials(f: Financials, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO company_financials VALUES (?,?,?,?)",
                     (f.report_date, f.own_funds, f.reserves, f.source))

@@ -256,6 +256,9 @@ def money(x: float) -> str:
     return f"{s} сум"
 
 
+BRV_NOT_PASSED_NOTE = "Размер БРВ не передан — минимальная премия 0,25 БРВ (п. 23 Правил) не проверена"
+
+
 def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
             brv: Optional[float] = None, activity: Optional[dict] = None) -> dict:
     """
@@ -323,7 +326,7 @@ def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
                          f"минимум не применён, вопрос вынесен заказчику "
                          f"(для сведения: {MIN_PREMIUM_BRV} БРВ = {money(min_premium)})")
     else:
-        notes.append("Размер БРВ не передан — минимальная премия 0,25 БРВ (п. 23 Правил) не проверена")
+        notes.append(BRV_NOT_PASSED_NOTE)
 
     final = max(term_premium, min_premium) if min_applied else term_premium
     net = final * NET_SHARE_PCT / 100.0
@@ -1171,6 +1174,14 @@ BRV_MISSING_NOTE = ("Размер БРВ на дату договора не в�
                     "0,25 БРВ (п. 23 Правил) не проверена")
 
 
+def _brv_note(notes: list, brv) -> str:
+    """БРВ нет — одно предупреждение в note; такую же строку из notes убираем, чтобы не было дубля."""
+    if brv:
+        return ""
+    notes[:] = [n for n in notes if n != BRV_NOT_PASSED_NOTE]
+    return BRV_MISSING_NOTE
+
+
 @router.post("/osgor/assess")
 def osgor_assess(body: EmployerIn) -> dict:
     """
@@ -1189,11 +1200,11 @@ def osgor_assess(body: EmployerIn) -> dict:
                         situation=situation, first_month_payroll=body.first_month_payroll)
     finally:
         con.close()
+    result["note"] = _brv_note(result["premium"]["notes"], brv)
     result["explain"] = explain(result)
     result["brv"] = brv
     result["brv_source"] = brv_source
     result["contract_date"] = on
-    result["note"] = "" if brv else BRV_MISSING_NOTE
     result["thresholds"] = {"зелёный": LR_GREEN, "жёлтый": LR_AMBER,
                             "минимум БРВ": MIN_PREMIUM_BRV, "погребение БРВ": BURIAL_MAX_BRV}
     result["market_fallback"] = MARKET_LR_FALLBACK
@@ -1233,7 +1244,7 @@ def osgor_quick(body: QuickIn) -> dict:
         con.close()
     res["brv_source"] = brv_source
     res["contract_date"] = on
-    res["note"] = "" if brv else BRV_MISSING_NOTE
+    res["note"] = _brv_note(res["notes"], brv)
     return res
 
 

@@ -231,13 +231,54 @@ def check_name():
         tgbot._deliver, tgbot.notify_admins_new_user = real
 
 
+# ---------- 6. второй уровень прав: режим разработчика не открывает запись сотруднику ----------
+
+def check_dev_rights():
+    print("6. Режим разработчика с 127.0.0.1: сотрудник — 403 на запись в справочники")
+    os.environ["SURVEYOR_DEV"] = "1"          # guard пропускает локальный запрос — проверяет сам обработчик
+    try:
+        for method, path, body in (("POST", "/admin/coefficients", COEF),
+                                   ("POST", "/admin/min-rates", {"tariff_version_id": 1, "product_code": "0807",
+                                                                 "min_rate_pct": 1}),
+                                   ("POST", "/valuation/norms", {"code": "т", "name": "т", "rate_pct": 1}),
+                                   ("DELETE", "/valuation/norms/тест-нет-такой", None),
+                                   ("POST", "/valuation/settings", {"key": "т", "value": "1"})):
+            st, b = call(method, path, body, who=EMP)
+            ok(f"dev: сотрудник {method} {path} → 403", st == 403, (st, b))
+        st, b = call("POST", "/admin/coefficients", COEF, who=ADM)
+        ok("dev: админ POST /admin/coefficients → 200", st == 200, (st, b))
+        st, b = call("POST", "/admin/coefficients", COEF)
+        ok("dev: без сессии POST /admin/coefficients → 401", st == 401, (st, b))
+    finally:
+        os.environ.pop("SURVEYOR_DEV", None)
+
+
+# ---------- 7. ОСГОР без БРВ: одно предупреждение ----------
+
+def check_brv_single_note():
+    print("7. ОСГОР без БРВ — предупреждение одно")
+    st, b = call("POST", "/osgor/quick", {"okved": "41100", "payroll": 1e9, "contract_date": "2025-06-01"}, who=EMP)
+    dup = [n for n in b.get("notes", []) if "БРВ не передан" in n] if st == 200 else None
+    ok("/osgor/quick: note про БРВ есть, в notes дубля нет", st == 200 and b["brv"] is None and b["note"]
+       and dup == [], (st, b.get("note"), b.get("notes")))
+    st, b = call("POST", "/osgor/assess", {"okved": "41100", "headcount": 10, "payroll_12m": 1e9,
+                                           "contract_date": "2025-06-01"}, who=EMP)
+    notes = b.get("premium", {}).get("notes", []) if st == 200 else None
+    ok("/osgor/assess: note про БРВ есть, в premium.notes дубля нет",
+       st == 200 and b["note"] and not [n for n in notes if "БРВ не передан" in n], (st, b.get("note"), notes))
+    st, b = call("POST", "/osgor/quick", {"okved": "41100", "payroll": 1e9, "brv": 100000}, who=EMP)
+    ok("/osgor/quick с БРВ: note пуст", st == 200 and b["note"] == "", (st, b.get("note")))
+
+
 def main():
     print("Права в мини-приложении (задача 144)")
     setup()
     check_menu()
     check_rights()
+    check_brv_single_note()
     check_brv()
     check_name()
+    check_dev_rights()
     print(f"\nИтого: пройдено {passed}, не пройдено {failed}")
     return 1 if failed else 0
 

@@ -216,14 +216,17 @@ def view(result: dict, row: Optional[dict] = None) -> dict:
     """Единый вид вероятности для API, карточек и выгрузок."""
     row = row or {}
     value = int(round(float(result.get("probability") or 0)))
+    has_stop = any(x.get("stop") for x in (result.get("minus") or []))
     return {"ready": True, "probability": value, "percent": value,
-            "verdict": result.get("verdict"), "summary": result.get("summary"),
+            "verdict": result.get("verdict"),
+            "verdict_code": result.get("verdict_code") or analysis.verdict_code(value, has_stop),
+            "summary": result.get("summary"),
             "minus": result.get("minus") or [], "plus": result.get("plus") or [],
             "how_to_raise": result.get("how_to_raise") or [], "stat": result.get("stat") or {},
             "base": result.get("base"), "cap": result.get("cap"),
             "model_version": result.get("model_version") or analysis.MODEL_VERSION,
             "calibrated": result.get("calibrated", 0),
-            "has_stop": any(x.get("stop") for x in (result.get("minus") or [])),
+            "has_stop": has_stop,
             "note": "оценка экспертная, не калибрована",
             "sent_at": row.get("sent_at"), "decision": row.get("decision"),
             "decided_at": row.get("decided_at"), "decided_by": row.get("decided_by"),
@@ -232,7 +235,7 @@ def view(result: dict, row: Optional[dict] = None) -> dict:
 
 
 def empty(reason: str = "") -> dict:
-    return {"ready": False, "probability": None, "percent": None, "verdict": None,
+    return {"ready": False, "probability": None, "percent": None, "verdict": None, "verdict_code": None,
             "summary": None, "minus": [], "plus": [], "how_to_raise": [], "stat": {},
             "base": None, "cap": None, "model_version": None, "calibrated": 0, "has_stop": False,
             "note": "оценка экспертная, не калибрована", "sent_at": None, "decision": None,
@@ -260,6 +263,7 @@ def brief(con, rid: int) -> dict:
     """Короткий вид для списков («Мои запросы», «Ждут меня»): число, вердикт, одна строка."""
     s = summary(con, rid)
     return {"ready": s["ready"], "probability": s["probability"], "verdict": s["verdict"],
+            "verdict_code": s["verdict_code"],
             "summary": s["summary"] or s["text"], "has_stop": s["has_stop"],
             "model_version": s["model_version"], "calibrated": s["calibrated"],
             "note": s["note"], "decision": s["decision"]}

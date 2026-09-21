@@ -200,7 +200,7 @@ FIELDS = {
         {"key": "deductible", "label": "Франшиза", "type": "object",
          "fields": [{"key": "pct", "type": "number", "unit": "% суммы"}, {"key": "amount", "type": "number", "unit": "сум"}]},
         {"key": "floors", "label": "Этажность", "type": "number", "when": ["8", "9"]},
-        {"key": "area_m2", "label": "Площадь", "type": "number", "unit": "м²", "when": ["8", "9"]},
+        {"key": "area_m2", "label": "Площадь", "type": "number", "unit": "м²", "unit_code": "m2", "when": ["8", "9"]},
         {"key": "fire_station_km", "label": "Расстояние до пожарной части", "type": "number", "unit": "км",
          "when": ["8"]},
         {"key": "compartments", "label": "Противопожарные отсеки: число и стоимость наибольшего", "type": "object",

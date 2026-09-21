@@ -3,7 +3,7 @@
     "lang": "uz",
     "note": "Oʻzbekcha (lotin). Qonun matnidan olingan atamalar — docs/i18n_terms.json; «draft» roʻyxatidagi kalitlar interfeys uchun ishchi tarjima, yurist tasdiqlashi kerak.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1205,
+    "keys": 1213,
     "draft": [
       "calc.address",
       "calc.address_hint",
@@ -1111,7 +1111,15 @@
       "tg.an.o.protection_vehicle.none",
       "tg.an.o.protection_vehicle.alarm",
       "tg.an.o.protection_vehicle.immo",
-      "tg.an.o.protection_vehicle.tracker"
+      "tg.an.o.protection_vehicle.tracker",
+      "tg.prob_remarks_n",
+      "tg.prob_v.stop",
+      "tg.prob_v.likely",
+      "tg.prob_v.good",
+      "tg.prob_v.any",
+      "tg.prob_v.rework",
+      "tg.prob_v.unlikely",
+      "unit.m2"
     ],
     "draft_count": 562,
     "from_terms_count": 98
@@ -2320,5 +2328,13 @@
   "tg.an.o.protection_vehicle.none": "Oʻgʻirlikka qarshi tizim yoʻq",
   "tg.an.o.protection_vehicle.alarm": "Signalizatsiya",
   "tg.an.o.protection_vehicle.immo": "Signalizatsiya va immobilayzer",
-  "tg.an.o.protection_vehicle.tracker": "Sunʼiy yoʻldosh orqali qidiruv"
+  "tg.an.o.protection_vehicle.tracker": "Sunʼiy yoʻldosh orqali qidiruv",
+  "tg.prob_remarks_n": "Eslatmalar: {n}",
+  "tg.prob_v.stop": "Deyarli aniq qaytariladi: meʼyor buzilgan",
+  "tg.prob_v.likely": "Katta ehtimol bilan tasdiqlanadi",
+  "tg.prob_v.good": "Imkoniyat yaxshi, lekin eslatmalar bor",
+  "tg.prob_v.any": "Qaror har qanday boʻlishi mumkin",
+  "tg.prob_v.rework": "Katta ehtimol bilan qayta ishlashga qaytariladi",
+  "tg.prob_v.unlikely": "Deyarli aniq tasdiqlanmaydi",
+  "unit.m2": "m²"
 }

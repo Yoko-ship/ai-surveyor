@@ -101,7 +101,7 @@ def get_norms():
 
 
 @router.post("/valuation/norms")
-def save_norm(n: Norm, user: dict = Depends(auth.current_user)):
+def save_norm(n: Norm, user: dict = Depends(auth.require("админ"))):
     """Создать или изменить норму износа. Правка вручную снимает отметку калибровки."""
     if not (0 <= n.rate_pct <= 100):
         raise HTTPException(400, "Процент износа должен быть от 0 до 100")
@@ -122,7 +122,7 @@ def save_norm(n: Norm, user: dict = Depends(auth.current_user)):
 
 
 @router.delete("/valuation/norms/{code}")
-def delete_norm(code: str, user: dict = Depends(auth.current_user)):
+def delete_norm(code: str, user: dict = Depends(auth.require("админ"))):
     with db.tx() as con:
         if not db.rows(con, "SELECT code FROM depreciation_norms WHERE code=?", code):
             raise HTTPException(404, "Норма не найдена")
@@ -150,7 +150,7 @@ def get_settings():
 
 
 @router.post("/valuation/settings")
-def save_setting(s: Setting, user: dict = Depends(auth.current_user)):
+def save_setting(s: Setting, user: dict = Depends(auth.require("админ"))):
     with db.tx() as con:
         old = db.rows(con, "SELECT * FROM valuation_settings WHERE key=?", s.key)
         if not old and not s.name:

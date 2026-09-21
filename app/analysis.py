@@ -477,11 +477,27 @@ def probability(con=None, *, calc: dict, valuation: dict = None, documents: list
     minus.sort(key=lambda x: x["delta"])
     plus.sort(key=lambda x: -x["delta"])
     verdict = verdict_text(value, bool(stops))
-    out = {"probability": value, "verdict": verdict, "minus": minus, "plus": plus,
+    out = {"probability": value, "verdict": verdict,
+           "verdict_code": verdict_code(value, bool(stops)), "minus": minus, "plus": plus,
            "how_to_raise": how, "stat": stat, "base": BASE, "cap": cap,
            "model_version": MODEL_VERSION, "calibrated": 0}
     out["summary"] = summary_text(out)
     return out
+
+
+def verdict_code(value: int, has_stop: bool = False) -> str:
+    """Код вердикта для перевода на экране; пороги те же, что в verdict_text."""
+    if has_stop:
+        return "stop"
+    if value >= 80:
+        return "likely"
+    if value >= 60:
+        return "good"
+    if value >= 40:
+        return "any"
+    if value >= 20:
+        return "rework"
+    return "unlikely"
 
 
 def verdict_text(value: int, has_stop: bool = False) -> str:

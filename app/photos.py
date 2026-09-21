@@ -115,7 +115,7 @@ def _store(con, rid: int, blob: bytes, client_name: str, who: str, note: str = N
     dest = folder / name
     dest.write_bytes(blob)
 
-    rel = dest.relative_to(ROOT).as_posix()
+    rel = db.stored_path(dest)
     shown = Path(str(client_name or "")).name[:120] or None   # только для показа, путь отрезан
     cur = con.execute("INSERT INTO photos (request_id, path, filename, mime, size_bytes, uploaded_at,"
                       " uploaded_by, note, doc_kind) VALUES (?,?,?,?,?,?,?,?,?)",
@@ -170,7 +170,7 @@ def get_photo(photo_id: int):
         p = _photo(con, photo_id)
     full = ROOT / p["path"]
     # путь из базы всё равно проверяем: файл обязан лежать внутри data/photos
-    if PHOTOS_DIR not in full.resolve().parents or not full.exists():
+    if PHOTOS_DIR.resolve() not in full.resolve().parents or not full.exists():
         raise HTTPException(404, "Файл не найден на диске")
     return FileResponse(full, media_type=p["mime"], filename=p["filename"] or full.name)
 
@@ -181,7 +181,7 @@ def delete_photo(photo_id: int, who: str = "api"):
         p = _photo(con, photo_id)
         full = ROOT / p["path"]
         removed = False
-        if PHOTOS_DIR in full.resolve().parents and full.exists():
+        if PHOTOS_DIR.resolve() in full.resolve().parents and full.exists():
             full.unlink()
             removed = True
         con.execute("DELETE FROM photos WHERE id=?", (photo_id,))

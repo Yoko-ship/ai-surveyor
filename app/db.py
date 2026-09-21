@@ -20,6 +20,17 @@ DATA_DIR = Path(os.environ["STORAGE_DIR"]) if os.environ.get("STORAGE_DIR") else
 DB_PATH = DATA_DIR / "surveyor.db"
 
 
+def stored_path(p) -> str:
+    """Путь файла для записи в базу. Внутри проекта — относительный (как раньше); на постоянном диске
+    сервера (STORAGE_DIR вне проекта, например /srv/storage) — абсолютный. Читатели делают ROOT / путь:
+    для абсолютного пути это даёт сам абсолютный путь, поэтому старые записи и новые читаются одинаково."""
+    p = Path(p)
+    try:
+        return p.relative_to(ROOT).as_posix()
+    except ValueError:
+        return p.resolve().as_posix()
+
+
 def init_storage():
     """На постоянном диске ещё нет базы — переносим собранную при сборке образа (справочники, статистика).
     Если база уже есть, новые справочники образа доводит app/refsync.py после ensure_schema()."""

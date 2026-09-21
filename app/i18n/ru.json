@@ -3,7 +3,7 @@
     "lang": "ru",
     "note": "Русский — исходный язык интерфейса.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1205
+    "keys": 1213
   },
   "calc.address": "Адрес объекта",
   "calc.address_hint": "местонахождение из кадастра; площадки ищут по городу и району",
@@ -1209,5 +1209,13 @@
   "tg.an.o.protection_vehicle.none": "Нет противоугонной системы",
   "tg.an.o.protection_vehicle.alarm": "Сигнализация",
   "tg.an.o.protection_vehicle.immo": "Сигнализация и иммобилайзер",
-  "tg.an.o.protection_vehicle.tracker": "Спутниковый поиск"
+  "tg.an.o.protection_vehicle.tracker": "Спутниковый поиск",
+  "tg.prob_remarks_n": "Замечаний: {n}",
+  "tg.prob_v.stop": "Почти наверняка вернут: нарушена норма",
+  "tg.prob_v.likely": "Скорее всего подтвердят",
+  "tg.prob_v.good": "Шансы хорошие, но есть замечания",
+  "tg.prob_v.any": "Решение может быть любым",
+  "tg.prob_v.rework": "Скорее вернут на доработку",
+  "tg.prob_v.unlikely": "Почти наверняка не подтвердят",
+  "unit.m2": "м²"
 }

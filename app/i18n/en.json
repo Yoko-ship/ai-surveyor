@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1205
+    "keys": 1213
   },
   "calc.address": "Address of the object",
   "calc.address_hint": "location from the cadastre; marketplaces search by city and district",
@@ -1209,5 +1209,13 @@
   "tg.an.o.protection_vehicle.none": "No anti-theft system",
   "tg.an.o.protection_vehicle.alarm": "Alarm",
   "tg.an.o.protection_vehicle.immo": "Alarm and immobilizer",
-  "tg.an.o.protection_vehicle.tracker": "Satellite tracking"
+  "tg.an.o.protection_vehicle.tracker": "Satellite tracking",
+  "tg.prob_remarks_n": "Remarks: {n}",
+  "tg.prob_v.stop": "Almost certainly returned: a rule is breached",
+  "tg.prob_v.likely": "Likely to be approved",
+  "tg.prob_v.good": "Good chances, but there are remarks",
+  "tg.prob_v.any": "The decision could go either way",
+  "tg.prob_v.rework": "Likely to be returned for rework",
+  "tg.prob_v.unlikely": "Almost certainly not approved",
+  "unit.m2": "m²"
 }
