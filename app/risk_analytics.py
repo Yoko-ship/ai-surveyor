@@ -109,7 +109,10 @@ DEFAULT_THRESHOLDS = {
     "source": "экспертная шкала до калибровки по убыткам компании",
     # веса составляющих итогового балла; неприменимые составляющие исключаются, веса нормируются
     "weights": {"rate": 0.25, "mfl_retention": 0.25, "losses": 0.20,
-                "insurance_to_value": 0.10, "seismic": 0.20},
+                "insurance_to_value": 0.10, "seismic": 0.20,
+                # внешняя статистика региона (stat.uz, data.egov.uz; app/risk_stats.py) — задача 22.09.2026;
+                # вес небольшой, нормируется вместе с остальными; нет данных по классу — не учитывается
+                "external_stats": 0.10},
     # границы баллов: < 20 Низкий, < 40 Умеренный, < 60 Повышенный, < 80 Высокий, иначе Критический
     "level_bounds": [20, 40, 60, 80],
     "rate_ratio": [0.8, 2.0],          # техническая ставка / ориентир (минимум или рынок): 0 → 100 баллов
@@ -126,6 +129,10 @@ DEFAULT_THRESHOLDS = {
     "wear_pct_bands": [15, 45],        # износ здания, %: до 15 → «до 10 лет», до 45 → «10–30», выше → «>30»
     "fire_station_far_km": 10,
     "neighbour_gap_m": 12,             # разрыв меньше 12 м — огонь переходит (пример CII)
+    # «Внешняя статистика региона»: отношение показателя региона к республике (на 1 000 жителей или
+    # коэффициент): 0,5 и ниже → 0 баллов, 1,5 и выше → 100, республиканский уровень (1,0) → 50
+    "external_ratio": [0.5, 1.5],
+    "external_volatility_years": 10,   # за сколько лет считается изменчивость сбора урожая (класс 16у)
 }
 
 THRESHOLDS_SQL = """
@@ -456,12 +463,15 @@ def check_thresholds(t: dict) -> list:
         errs.append("веса: допустимы только " + ", ".join(DEFAULT_THRESHOLDS["weights"]))
     if any(not isinstance(x, (int, float)) or x < 0 for x in w.values()) or sum(w.values()) <= 0:
         errs.append("веса должны быть неотрицательными числами с ненулевой суммой")
+    ey = t.get("external_volatility_years")
+    if not isinstance(ey, (int, float)) or isinstance(ey, bool) or ey != int(ey) or not 3 <= ey <= 30:
+        errs.append("external_volatility_years: целое число лет от 3 до 30")
     lb = t.get("level_bounds", [])
     if len(lb) != 4 or any(not isinstance(x, (int, float)) for x in lb) or lb != sorted(lb) \
             or lb[0] <= 0 or lb[-1] >= 100 or len(set(lb)) != 4:
         errs.append("level_bounds: четыре возрастающих числа между 0 и 100")
     for k in ("rate_ratio", "mfl_to_retention", "mfl_pct_of_sum", "loss_ratio", "confidence_bands_pct",
-              "wear_pct_bands"):
+              "wear_pct_bands", "external_ratio"):
         v = t.get(k)
         if not (isinstance(v, list) and len(v) == 2 and all(isinstance(x, (int, float)) for x in v) and v[0] < v[1]):
             errs.append(f"{k}: пара [нижняя, верхняя], нижняя меньше верхней")
@@ -995,8 +1005,12 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
     # ---------- полнота данных ----------
     completeness = _completeness(must, optional, classes, th)
 
+    # ---------- внешняя статистика региона (stat.uz, data.egov.uz) ----------
+    external = _external(con, classes, must.get("region"), th)
+
     # ---------- уровень риска ----------
-    level = _level(th, parts, applied, tech, min_total, mk, scenarios, retention, optional, classes, S, V, premium, T)
+    level = _level(th, parts, applied, tech, min_total, mk, scenarios, retention, optional, classes, S, V, premium, T,
+                   external)
 
     return {
         "ok": True,
@@ -1011,6 +1025,7 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
         "retention": retention,
         "level": level,
         "market": mk,
+        "external_stats": external,
         "method": _method(),
         "thresholds_source": th.get("_source"),
     }
@@ -1181,7 +1196,20 @@ def _completeness(must, optional, classes, th) -> dict:
             "confidence": conf, "what_to_add": add}
 
 
-def _level(th, parts, applied, tech, min_total, mk, scenarios, ret, optional, classes, S, V, premium, T) -> dict:
+def _external(con, classes, region, th) -> dict:
+    """Блок external_stats (app/risk_stats.py). Сбой чтения статистики не должен ронять анализ:
+    тогда составляющая не учитывается, причина — в блоке."""
+    try:
+        from . import risk_stats
+        return risk_stats.external_block(con, classes, region, th)
+    except Exception as e:                                   # таблицы нет, набор не разобрался и т. п.
+        return {"region": region, "classes": list(classes), "indicators": [], "not_found": {},
+                "applicable": False, "points": None, "calibrated": 0,
+                "why": "статистика региона не прочитана (%s: %s) — составляющая не учтена" % (type(e).__name__, e)}
+
+
+def _level(th, parts, applied, tech, min_total, mk, scenarios, ret, optional, classes, S, V, premium, T,
+           external: Optional[dict] = None) -> dict:
     W = th["weights"]
     comps = []
 
@@ -1247,6 +1275,16 @@ def _level(th, parts, applied, tech, min_total, mk, scenarios, ret, optional, cl
                 f"не указана — средний балл {th['unknown_points']}")
     else:
         add("seismic", "Сейсмозона", 0, None, "землетрясение не входит в покрытие класса — не учтено", False)
+    # 6. внешняя статистика региона: регион против республики по открытым данным (calibrated=0)
+    ext = external or {}
+    if ext.get("applicable"):
+        add("external_stats", "Внешняя статистика региона", ext["points"], ext.get("avg_ratio"),
+            ext.get("why", "") + " — экспертная шкала, calibrated=0")
+    else:
+        add("external_stats", "Внешняя статистика региона", 0, None,
+            ext.get("why") or "нет данных внешней статистики — не учтено", False)
+    comps[-1]["calibrated"] = 0
+    comps[-1]["source"] = "stat.uz, data.egov.uz (блок external_stats)"
 
     active = [c for c in comps if c["applicable"] and c["weight"] > 0]
     wsum = sum(c["weight"] for c in active) or 1.0
@@ -1296,6 +1334,10 @@ def _method() -> dict:
             "лимит, таблица линий класса).",
             "Сверх удержания по MFL — требует перестрахования (оценочно).",
             "Уровень риска = взвешенная сумма баллов 0–100 по составляющим; шкала в DEFAULT_THRESHOLDS.",
+            "Внешняя статистика региона (вес 0,10 до нормировки, calibrated=0): по каждому показателю класса "
+            "с разрезом по регионам — отношение «регион / республика» (на 1 000 жителей или коэффициент) → "
+            "0 баллов при 0,5 и ниже, 100 при 1,5 и выше; балл составляющей — среднее. Нет показателей "
+            "с регионами или регион не задан — составляющая не учитывается.",
         ],
         "legal_refs": LEGAL_REFS,
         "source_notes": SOURCE_NOTES,

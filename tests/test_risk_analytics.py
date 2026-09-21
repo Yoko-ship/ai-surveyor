@@ -64,6 +64,11 @@ from app import db, osgor, risk_analytics as ra  # noqa: E402
 from app import capacity as cap  # noqa: E402
 
 AS_OF = date(2026, 9, 21)
+# Контрольные баллы примеров 1–3 посчитаны без составляющей «Внешняя статистика региона» (22.09.2026):
+# её балл зависит от рядов stat.uz, которые обновляются раз в сутки, и контрольный пример не должен
+# «плыть» от свежих данных. Со статистикой (на зафиксированных рядах) те же примеры проверяет
+# tests/test_risk_stats.py — там же видно, как сдвигается уровень риска.
+NO_EXT = {"weights": {"external_stats": 0}}
 
 
 def eq(got, want, what, tol=1.0):
@@ -126,7 +131,7 @@ def test_example1_warehouse_class9():
     with temp_db():
         with db.tx() as con:
             fix_company(con)
-            r = ra.analyze(con, *EX1, thresholds={}, market={"rate_pct": 0.18, "label": "тест"}, as_of=AS_OF)
+            r = ra.analyze(con, *EX1, thresholds=NO_EXT, market={"rate_pct": 0.18, "label": "тест"}, as_of=AS_OF)
     s = r["summary"]
     eq(s["rate_net_pct"], 0.09, "нетто-ставка, %", 1e-6)
     eq(s["rate_technical_pct"], 0.144, "техническая ставка, %", 1e-6)
@@ -157,7 +162,7 @@ def test_example2_production_8_9_seismic():
     with temp_db():
         with db.tx() as con:
             fix_company(con)
-            r = ra.analyze(con, *EX2, thresholds={}, market={"rate_pct": 0.18}, as_of=AS_OF)
+            r = ra.analyze(con, *EX2, thresholds=NO_EXT, market={"rate_pct": 0.18}, as_of=AS_OF)
             lines = cap.retention_table(con, 84e9)
     s = r["summary"]
     p8, p9 = s["parts"]
@@ -197,7 +202,7 @@ def test_example3_special_machinery():
     with temp_db():
         with db.tx() as con:
             fix_company(con)
-            r = ra.analyze(con, *EX3, thresholds={}, market={"rate_pct": 0.70}, as_of=AS_OF)
+            r = ra.analyze(con, *EX3, thresholds=NO_EXT, market={"rate_pct": 0.70}, as_of=AS_OF)
     s = r["summary"]
     eq(s["rate_technical_pct"], 1.458, "техническая ставка, %", 1e-6)
     eq(s["premium"], 17_496_000, "премия")

@@ -885,12 +885,32 @@ EMBED_CSS = ("<style id=\"embed-nav-off\">"
              "</style>")
 
 
+# «Выйти из админки» (22.09.2026): уводит в мини-апп в режиме обычного пользователя.
+# Права не меняет — это только вид; мини-апп по ?mode=user прячет админские разделы и показывает
+# плашку «Вернуться в админку». Единая админка /admin/hub рисует кнопку сама, здесь — /admin и /admin/deploy.
+EXIT_ADMIN_URL = "/tg?mode=user"
+EXIT_ADMIN_PAGES = ("/admin", "/admin/deploy")
+EXIT_ADMIN_CSS = (
+    "<style id=\"exit-admin-css\">#exitAdmin{position:fixed;top:12px;right:16px;z-index:70;display:inline-flex;"
+    "align-items:center;gap:8px;min-height:40px;padding:8px 14px;border-radius:10px;border:1px solid var(--line,#6B7883);"
+    "background:var(--card,#161C21);color:var(--ink,#E6ECF0);font:600 13px Manrope,system-ui,sans-serif;"
+    "text-decoration:none;box-shadow:0 6px 18px rgba(0,0,0,.25)}"
+    "#exitAdmin:hover{background:var(--soft,#1C242B)}#exitAdmin:focus-visible{outline:2px solid #8EA9FF;outline-offset:2px}"
+    "header #exitAdmin{position:static;box-shadow:none;margin-right:14px}"
+    "@media (max-width:600px){#exitAdmin{top:auto;bottom:62px;right:14px}header #exitAdmin{margin:0 14px 0 0}}</style>")
+EXIT_ADMIN_LINK = (f'<a id="exitAdmin" class="btn btn-secondary btn-sm" href="{EXIT_ADMIN_URL}" data-i18n="admin.exit" '
+                   'title="Открыть мини-приложение так, как его видит обычный сотрудник">Выйти из админки</a>')
+EXIT_ADMIN_HTML = EXIT_ADMIN_CSS + EXIT_ADMIN_LINK
+
+
 def page(html: str, active: str = "", embed: bool = False) -> str:
     """Одна раскладка для всех экранов.
     embed=True — отдаём без меню (для iframe админки); иначе подставляем общую рейку
     вместо метки <!--SIDEBAR-->, а страницы со своим <aside> остаются как были."""
     if embed:
         return html + EMBED_CSS
+    if active in EXIT_ADMIN_PAGES:
+        html = html + EXIT_ADMIN_HTML
     if active and "<!--SIDEBAR-->" in html:
         return html.replace("<!--SIDEBAR-->", sidebar(active), 1)
     return html
@@ -932,7 +952,12 @@ def ui(embed: int = 0):
 @app.get("/admin", response_class=HTMLResponse)
 def admin():
     html = web.read_text(ROOT / "app" / "admin.html")
-    return html.replace("<div class=\"wrap\">", sidebar("/admin") + "<div class=\"wrap\">", 1)
+    html = html.replace("<div class=\"wrap\">", sidebar("/admin") + "<div class=\"wrap\">", 1)
+    # в шапке /admin справа уже есть ссылки — кнопку ставим к ним, а не поверх
+    if "<header><h1>Админка сюрвейера</h1><nav>" in html:
+        return EXIT_ADMIN_CSS + html.replace("<header><h1>Админка сюрвейера</h1><nav>",
+                                             "<header><h1>Админка сюрвейера</h1><nav>" + EXIT_ADMIN_LINK, 1)
+    return html + EXIT_ADMIN_HTML
 
 
 ADMIN_HUB = ROOT / "app" / "admin_hub.html"

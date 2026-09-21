@@ -4,6 +4,51 @@
 <title>Портфельный аудит</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
 <style>
+/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
+   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
+   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
+:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
+html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+.btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
+  cursor:pointer;transition:background-color .12s,border-color .12s}
+.btn svg{flex:none;width:18px;height:18px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#111B57}
+.btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
+.btn-success:active:not(:disabled){background:#0E5230}
+.btn-danger,.btn-danger:visited{background:#A4231C;border-color:#A4231C;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-danger:hover:not(:disabled){background:#8F1D17;border-color:#8F1D17;color:#FFFFFF}
+.btn-danger:active:not(:disabled){background:#761712}
+.btn-secondary,.btn-secondary:visited{background:transparent;border-color:var(--btn-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.btn-secondary:hover:not(:disabled){background:var(--btn-hover);color:var(--ink)}
+.btn-secondary:active:not(:disabled){background:var(--btn-hover);border-color:var(--ink)}
+.btn-link,.btn-link:visited{background:transparent;border-color:transparent;padding:10px 4px;font-weight:600;
+  color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.btn-link:hover:not(:disabled){text-decoration-thickness:2px;color:var(--link)}
+.btn-block{display:flex;width:100%}
+.btn-sm{min-height:44px;padding:8px 12px;font-size:13px}
+/* ряд действий: внизу карточки справа; на телефоне — на всю ширину, основная кнопка первой (она первая в разметке) */
+.actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
+@media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
+/* ===== конец ui-kit ===== */
+
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 14px}
+.toolbar .hint{font-size:12px;color:var(--muted)}
+.card.mb{margin-bottom:12px}
+.issues td.lv{white-space:nowrap}
+.lv.e{color:var(--stop);font-weight:700}.lv.w{color:var(--warn);font-weight:700}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,600px),1fr));gap:12px;margin-bottom:12px}
+.bars{display:inline-block;height:6px;border-radius:3px;background:var(--accent-dim);vertical-align:middle;margin-left:6px;min-width:2px}
+tr.pick{cursor:pointer}tr.pick:hover td{background:var(--soft)}tr.cur td{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+details.warns summary{cursor:pointer;color:var(--warn);font-weight:600;font-size:12.5px;margin:8px 0}
+.okline{color:var(--accent);font-weight:700}
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
   --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace}
 *{box-sizing:border-box}html,body{height:100%}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
@@ -50,15 +95,37 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
   <h1>Портфельный аудит <span class="live">массовая проверка</span></h1>
   <div class="sub" id="status">загрузите выгрузку договоров из учётной системы — каждый договор пройдёт через движок</div>
 
+  <div class="toolbar">
+    <a class="btn btn-primary" id="tplRu" href="/portfolio/template.xlsx" download data-i18n="portfolio.template">Скачать шаблон</a>
+    <button class="btn btn-secondary" type="button" id="pickFile" data-i18n="portfolio.upload">Загрузить заполненный</button>
+    <a class="btn btn-link" href="/portfolio/template.xlsx?lang=uz" download>Shablon (o‘zbekcha)</a>
+    <span class="hint">шаблон: листы «Портфель», «Убытки», «Инструкция», «Справочники»; обязательные колонки выделены цветом</span>
+  </div>
   <label class="drop" id="drop">
     <input type="file" id="file" accept=".xlsx,.xlsm">
-    <b>Перетащите сюда Excel-файл или нажмите, чтобы выбрать</b>
-    <span>xlsx · строку заголовков и колонки система находит сама · лист — первый непустой</span>
+    <b>Перетащите сюда заполненный шаблон или выгрузку из учётной системы</b>
+    <span>xlsx · сначала покажем предпросмотр с ошибками по строкам, сохраните после проверки</span>
   </label>
   <div class="row">
     <input type="text" id="sheet" placeholder="Лист (необязательно)" style="width:220px">
-    <select id="batches"><option value="">Прошлые загрузки…</option></select>
     <span class="note" id="msg" style="margin:0"></span>
+  </div>
+
+  <div id="preview"></div>
+
+  <div class="card mb" id="ovCard" style="display:none">
+    <h2 id="ovTitle">Сводка портфеля</h2><p id="ovSub"></p>
+    <div class="tiles" id="ovTiles"></div>
+    <div class="ovgrid">
+      <div><h2 style="font-size:12.5px">По классам</h2><div style="overflow-x:auto"><table id="ovClass"></table></div></div>
+      <div><h2 style="font-size:12.5px">По регионам</h2><div style="overflow-x:auto"><table id="ovRegion"></table></div></div>
+    </div>
+    <p class="note" id="ovNote"></p>
+  </div>
+
+  <div class="card mb">
+    <h2>Загрузки</h2><p>последние 50; нажмите строку, чтобы открыть сводку и проверку договоров</p>
+    <div style="overflow-x:auto"><table id="batches"></table></div>
   </div>
 
   <div id="result" style="display:none">
@@ -81,6 +148,7 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
     <p class="note">Ставки в процентах годовых, суммы в сумах. «Премия по расчёту» — по ставке, которую дал бы движок (техническая, но не ниже минимума); разница со знаком «+» — недополученная премия. Факторы объекта в выгрузке отсутствуют, поэтому приняты типовые (смешанная конструкция, склад, сигнализация, зона 8 баллов, без убытков); франшиза — по колонке файла. Каждое нарушение ссылается на норму: ГК ст. 936/938, Положение 1806 п. 15, тарифная политика.</p>
   </div>
 </main></div>
+<script src="/i18n.js"></script>
 <script>
 const $=s=>document.querySelector(s);
 const fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU");
@@ -129,34 +197,111 @@ function show(d){
     el.innerHTML = x.previous ? `к прошлой загрузке № ${x.previous.id} (${x.previous.imported_at.replace("T"," ")}): новых договоров <b>${x.new}</b>, исчезло <b>${x.gone}</b>, изменились <b>${x.changed}</b>, стали «отклонено» <b class="${x.became_rejected?"pos":""}">${x.became_rejected}</b>` : (x.note||"");
   }).catch(()=>{});
 }
+/* ---------- загрузка: предпросмотр → сохранение ---------- */
+let FILE=null;
+function errText(j,status){
+  const d=j&&j.detail;
+  if(d&&typeof d==="object") return esc(d.message||"")+(d.errors?issuesTable(d.errors):"");
+  return esc(d||("ошибка "+status));
+}
+function issuesTable(list){
+  if(!list.length) return "";
+  return '<div style="overflow-x:auto;max-height:420px;overflow-y:auto;margin-top:8px"><table class="issues"><thead><tr><th>Лист</th><th>Строка</th><th>Колонка</th><th></th><th>Что не так</th></tr></thead><tbody>'+
+    list.map(i=>`<tr><td>${esc(i.sheet)}</td><td class="n">${esc(i.row)}</td><td>${esc(i.column)}</td><td class="lv ${i.level==="ошибка"?"e":"w"}">${esc(i.level)}</td><td>${esc(i.message)}</td></tr>`).join("")+"</tbody></table></div>";
+}
 async function upload(file){
   if(!file) return;
-  $("#msg").className="note"; $("#msg").textContent="проверяю договоры…";
+  FILE=file;
+  $("#msg").className="note"; $("#msg").textContent="читаю файл…";
   const fd=new FormData(); fd.append("file",file);
-  const sheet=$("#sheet").value.trim(); const url="/portfolio/import"+(sheet?"?sheet="+encodeURIComponent(sheet):"");
+  const sheet=$("#sheet").value.trim(); const q=sheet?"?sheet="+encodeURIComponent(sheet):"";
   try{
-    const r=await fetch(url,{method:"POST",body:fd}); const j=await r.json();
-    if(!r.ok){ $("#msg").className="note err"; $("#msg").textContent=j.detail||("ошибка "+r.status); return; }
-    $("#msg").textContent="готово"; show(j); loadBatches(j.batch_id);
+    const r=await fetch("/portfolio/preview"+q,{method:"POST",body:fd}); const j=await r.json();
+    if(!r.ok){ $("#msg").className="note err"; $("#msg").innerHTML=errText(j,r.status); $("#preview").innerHTML=""; return; }
+    $("#msg").textContent="";
+    showPreview(j);
   }catch(e){ $("#msg").className="note err"; $("#msg").textContent="сервер недоступен"; }
 }
+function showPreview(j){
+  const o=j.overview.totals;
+  const head=j.template?`шаблон отчётности · лист «${esc(j.sheet)}»`+(j.claims_sheet?` и «${esc(j.claims_sheet)}» (${j.claims_total} убытков)`:""):`выгрузка учётной системы · лист «${esc(j.sheet)}», заголовки в строке ${j.header_row}`;
+  const state=j.errors_total?`<p class="err">Ошибок: ${j.errors_total}. ${j.template?"Сохранить нельзя — исправьте ячейки в файле и загрузите снова.":"Строки с ошибками сохранятся с пометкой."}</p>`
+    :`<p class="okline">Ошибок нет${j.warnings_total?" · предупреждений "+j.warnings_total+" — сохранить можно":""}.</p>`;
+  $("#preview").innerHTML=`<div class="card mb"><h2>Предпросмотр: ${esc(j.file_name||"")}</h2><p>${head} · договоров ${fmt(j.rows_total)} · страховая сумма ${fmt(o.sum_insured)} · премия ${fmt(o.premium)}</p>`+
+    state+issuesTable(j.errors)+
+    (j.warnings.length?`<details class="warns"><summary>Предупреждения (${j.warnings_total})</summary>${issuesTable(j.warnings)}</details>`:"")+
+    `<div class="actions"><button class="btn btn-primary" type="button" id="doImport"${j.can_import?"":" disabled"}>Сохранить загрузку</button>`+
+    `<button class="btn btn-secondary" type="button" id="noImport">Отменить</button></div><div class="note" id="impMsg"></div></div>`;
+  overviewCard(j.overview,"Сводка по файлу (ещё не сохранено)");
+  $("#noImport").onclick=()=>{ $("#preview").innerHTML=""; FILE=null; $("#file").value=""; };
+  $("#doImport").onclick=doImport;
+}
+async function doImport(){
+  if(!FILE) return;
+  const m=$("#impMsg"); m.className="note"; m.textContent="сохраняю и проверяю договоры движком…";
+  $("#doImport").disabled=true;
+  const fd=new FormData(); fd.append("file",FILE);
+  const sheet=$("#sheet").value.trim(); const q=sheet?"?sheet="+encodeURIComponent(sheet):"";
+  try{
+    const r=await fetch("/portfolio/import"+q,{method:"POST",body:fd}); const j=await r.json();
+    if(!r.ok){ m.className="note err"; m.innerHTML=errText(j,r.status); $("#doImport").disabled=false; return; }
+    $("#preview").innerHTML=""; FILE=null; $("#file").value="";
+    $("#msg").className="note"; $("#msg").textContent="сохранено: загрузка № "+j.batch_id;
+    show(j); overviewCard(j.overview,"Сводка портфеля · загрузка № "+j.batch_id); loadBatches(j.batch_id);
+  }catch(e){ m.className="note err"; m.textContent="сервер недоступен"; $("#doImport").disabled=false; }
+}
+
+/* ---------- сводка портфеля ---------- */
+const pc=n=>n==null?"—":Number(n).toFixed(1).replace(".",",")+"%";
+function ovTable(el,rows,label){
+  const mx=Math.max(1,...rows.map(r=>r.premium||0));
+  el.innerHTML=rows.length?`<thead><tr><th>${label}</th><th>Дог.</th><th>Страх. сумма</th><th>Премия</th><th>Выплаты</th><th>Убыт.</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="n">${fmt(r.contracts)}</td><td class="n">${fmt(r.sum_insured)}</td><td class="n">${fmt(r.premium)}<span class="bars" style="width:${Math.round((r.premium||0)/mx*48)}px"></span></td><td class="n">${fmt(r.claims_paid)}</td><td class="n">${pc(r.loss_ratio)}</td></tr>`).join("")+"</tbody>"
+    :'<tbody><tr><td class="note">нет данных</td></tr></tbody>';
+}
+function overviewCard(ov,title){
+  if(!ov){ $("#ovCard").style.display="none"; return; }
+  const t=ov.totals; $("#ovCard").style.display="";
+  $("#ovTitle").textContent=title;
+  $("#ovSub").textContent="суммы в сумах; убытки — "+ov.claims_source+(t.other_currency?"; договоров в другой валюте: "+t.other_currency+" — в суммы не включены (курса в отчёте нет)":"");
+  const tl=[["Договоров",fmt(t.contracts),""],["Страховая сумма",fmt(t.sum_insured),""],["Премия начисленная",fmt(t.premium),""],
+    ["Премия оплачена",pc(t.paid_share),t.paid_share!=null&&t.paid_share<90?"warn":""],["Убытков",fmt(t.claims),""],
+    ["Выплачено",fmt(t.claims_paid),""],["Убыточность",pc(t.loss_ratio),t.loss_ratio>70?"bad":""]];
+  $("#ovTiles").innerHTML=tl.map(([k,v,c])=>`<div class="tile ${c}"><b>${v}</b><span>${k}</span></div>`).join("");
+  ovTable($("#ovClass"),ov.by_class,"Класс"); ovTable($("#ovRegion"),ov.by_region,"Регион");
+  const st=Object.entries(ov.by_status||{}).map(([k,v])=>k+": "+v).join(", ");
+  const hd=Object.entries(ov.by_holder||{}).map(([k,v])=>k+": "+v).join(", ");
+  $("#ovNote").textContent="Статусы — "+(st||"—")+". Страхователи — "+(hd||"—")+". Убыточность — выплаты к начисленной премии. ФИО страхователей в сводку не попадают.";
+}
+
+/* ---------- прошлые загрузки ---------- */
+let CUR=null;
 async function openBatch(id){
   if(!id) return;
-  const [b,s]=await Promise.all([fetch("/portfolio/batches/"+id).then(r=>r.json()),fetch("/portfolio/batches/"+id+"/summary").then(r=>r.json())]);
+  CUR=+id; paintCur();
+  const [b,s,o]=await Promise.all([fetch("/portfolio/batches/"+id).then(r=>r.json()),fetch("/portfolio/batches/"+id+"/summary").then(r=>r.json()),
+    fetch("/portfolio/batches/"+id+"/overview").then(r=>r.ok?r.json():null).catch(()=>null)]);
   show({batch_id:id,file_name:b.batch.file_name,mapping:b.batch.mapping,unmapped:[],summary:s.summary,rows:b.rows,sheet:null,header_row:null});
+  overviewCard(o&&o.overview&&o.overview.totals.contracts?o.overview:null,"Сводка портфеля · загрузка № "+id);
 }
+function paintCur(){ document.querySelectorAll("#batches tr[data-id]").forEach(tr=>tr.classList.toggle("cur",+tr.dataset.id===CUR)); }
 async function loadBatches(sel){
   const list=await (await fetch("/portfolio/batches")).json();
-  $("#batches").innerHTML='<option value="">Прошлые загрузки…</option>'+list.map(b=>`<option value="${b.id}"${b.id==sel?" selected":""}>№${b.id} · ${b.imported_at.replace("T"," ")} · ${esc(b.file_name)} · ${b.rows_total} дог., стоп ${b.rows_stop}</option>`).join("");
+  $("#batches").innerHTML=list.length?'<thead><tr><th>№</th><th>Когда</th><th>Файл</th><th>Договоров</th><th>Убытков</th><th>Отклонено</th><th>На утв.</th></tr></thead><tbody>'+
+    list.map(b=>`<tr class="pick" data-id="${b.id}"><td class="n">${b.id}</td><td>${esc(b.imported_at.replace("T"," ").slice(0,16))}</td><td>${esc(b.file_name)}</td><td class="n">${fmt(b.rows_total)}</td><td class="n">${fmt(b.claims_rows)}</td><td class="n">${fmt(b.rows_stop)}</td><td class="n">${fmt(b.rows_warn)}</td></tr>`).join("")+"</tbody>"
+    :'<tbody><tr><td class="note">Загрузок ещё не было. Скачайте шаблон, заполните и загрузите.</td></tr></tbody>';
+  if(sel) CUR=+sel; paintCur();
+  return list;
 }
+$("#batches").onclick=e=>{ const tr=e.target.closest("tr[data-id]"); if(tr) openBatch(tr.dataset.id); };
 $("#file").onchange=e=>upload(e.target.files[0]);
+$("#pickFile").onclick=()=>$("#file").click();
 const drop=$("#drop");
 ["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("over")}));
 ["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("over")}));
 drop.addEventListener("drop",e=>upload(e.dataTransfer.files[0]));
-$("#batches").onchange=e=>openBatch(e.target.value);
 $("#filter").onchange=$("#vfilter").onchange=table; $("#q").oninput=table;
-loadBatches();
+loadBatches().then(list=>{ if(list.length) openBatch(list[0].id); });
 </script>
 
 <script src="/theme.js"></script>

@@ -257,10 +257,190 @@ def money(x: float) -> str:
 
 
 BRV_NOT_PASSED_NOTE = "Размер БРВ не передан — минимальная премия 0,25 БРВ (п. 23 Правил) не проверена"
+BRV_MISSING_NOTE = ("Размер БРВ на дату договора не введён администратором — минимальная премия "
+                    "0,25 БРВ (п. 23 Правил) не проверена")
+
+# --- тексты расчёта премии на трёх языках (мини-апп) ----------------------------------------------
+# Русские строки — ровно те, что были до перевода (сверяются тестами побайтно).
+# uz — латиница, апостроф ʻ (U+02BB) как на lex.uz; en — неофициальный перевод (LEGAL_NOTE_EN).
+# Названия вида: uz IFJMS, en EL; слово «ОСГОР/OSGOR» в uz и en не используется.
+PREMIUM_LANGS = ("ru", "uz", "en")
+LEGAL_NOTE_EN = "English wording is an unofficial translation"
+
+_LAW_UZ = "Oʻzbekiston Respublikasining 2009-yil 16-apreldagi OʻRQ-210-son Qonuni"
+_A9_UZ = "VMQ № 177, IFJMS Qoidalari, 9-ilova"
+_LAW_EN = "Law LRU-210 of 16.04.2009"
+_A9_EN = "CM Resolution No. 177, EL Rules, Annex 9"
+ACTS_I18N = {
+    "uz": {
+        "sum": f"{_LAW_UZ}, 10-modda; IFJMS Qoidalari, 21-band (VMQ № 177, 1-ilova)",
+        "formula": f"{_A9_UZ}, III boʻlim, 1–2-bandlar",
+        "base": f"{_A9_UZ}, I boʻlim, 1-band; {_LAW_UZ}, 8-modda",
+        "kst": f"{_A9_UZ}, I boʻlim, 3-band (2025-yil 15-iyuldagi VMQ № 443 tahririda)",
+        "kst_default": f"{_A9_UZ}, I boʻlim, 6-band",
+        "min": "IFJMS Qoidalari, 23-band (2025-yil 15-iyuldagi VMQ № 443 tahririda)",
+        "structure": f"{_A9_UZ}, II boʻlim (2024-yil 30-iyuldagi VMQ № 458 tahririda)",
+        "no_deviation": f"{_LAW_UZ}, 8-modda, 4-qism",
+        "burial": "IFJMS Qoidalari, 43-band; shartnoma shakli, 2-band",
+    },
+    "en": {
+        "sum": f"{_LAW_EN}, art. 10; EL Rules, cl. 21 (CM Resolution No. 177, Annex 1)",
+        "formula": f"{_A9_EN}, sec. III, cl. 1–2",
+        "base": f"{_A9_EN}, sec. I, cl. 1; {_LAW_EN}, art. 8",
+        "kst": f"{_A9_EN}, sec. I, cl. 3 (as amended by CM Resolution No. 443 of 15.07.2025)",
+        "kst_default": f"{_A9_EN}, sec. I, cl. 6",
+        "min": "EL Rules, cl. 23 (as amended by CM Resolution No. 443 of 15.07.2025)",
+        "structure": f"{_A9_EN}, sec. II (as amended by CM Resolution No. 458 of 30.07.2024)",
+        "no_deviation": f"{_LAW_EN}, art. 8(4)",
+        "burial": "EL Rules, cl. 43; contract form, cl. 2",
+    },
+}
+
+# Коды: шаги sum, activity_kst, kst, rate, year, term, min_year, final;
+# примечания min_term, brv_not_passed, no_deviation; note — brv_missing.
+PREMIUM_TEXTS = {
+    "ru": {
+        "sum.step": "страховая сумма", "sum.explain": "годовой фонд оплаты труда всех работников",
+        "activity_kst.step": "вид деятельности и КСТ",
+        "kst.step": "КСТ", "kst.explain": "коэффициент вида деятельности из классификации",
+        "rate.step": "ставка к фонду оплаты труда", "rate.value": "{rate} % в год",
+        "rate.explain": "базовая ставка {base} % × КСТ {kst}",
+        "year.step": "премия за год", "year.explain": "{ss} × {base} × {kst} / 100",
+        "term.step": "пересчёт на срок {days} дн.", "term.explain": "{year} / 365 × {days}",
+        "min_year.step": "минимальная премия",
+        "min_year.applied": "расчётная премия {calc} ниже минимума {minbrv} БРВ ({brv} × {minbrv}) — применён минимум",
+        "min_year.not_applied": "расчётная премия выше минимума, минимум не применяется",
+        "final.step": "премия к уплате",
+        "final.explain": "нетто-часть {net} ({net_pct} %), расходы на ведение дела {expense} ({exp_pct} %)",
+        "note.min_term": ("Минимум {minbrv} БРВ п. 23 Правил установлен для годового договора; "
+                          "для договора на {days} дн. порядок применения минимума в акте не описан — "
+                          "минимум не применён, вопрос вынесен заказчику "
+                          "(для сведения: {minbrv} БРВ = {min})"),
+        "note.brv_not_passed": BRV_NOT_PASSED_NOTE,
+        "note.brv_missing": BRV_MISSING_NOTE,
+        "note.no_deviation": ("Ставка и коэффициенты установлены нормативным актом; отклоняться от них "
+                              "страховщик не вправе — скидок, надбавок и франшизы в ОСГОР нет ({ref})"),
+        "brv_note": "Размер БРВ не введён — его вносит администратор",
+    },
+    "uz": {
+        "sum.step": "sugʻurta summasi", "sum.explain": "barcha xodimlarning yillik mehnatga haq toʻlash fondi",
+        "activity_kst.step": "faoliyat turi va KST",
+        "activity.listed": ("IFUT {okved} boʻyicha faoliyat turi — kasbiy xavf toifasi {cat} (jami {n} ta), "
+                            "KST koeffitsiyenti {kst}"),
+        "activity.not_listed": "Faoliyat turi tasnifda topilmadi, {kst} koeffitsiyenti qoʻllanildi",
+        "match.okved": "IFUT kodi", "match.prefix": "IFUT kodi boshlanishi boʻyicha ({code} → {okved})",
+        "match.none": "faoliyat turi tasnifda topilmadi",
+        "kst.step": "KST", "kst.explain": "tasnifdagi faoliyat turi koeffitsiyenti",
+        "rate.step": "mehnatga haq toʻlash fondiga nisbatan stavka", "rate.value": "yiliga {rate} %",
+        "rate.explain": "bazaviy stavka {base} % × KST {kst}",
+        "year.step": "yillik mukofot", "year.explain": "{ss} × {base} × {kst} / 100",
+        "term.step": "{days} kunlik muddatga qayta hisoblash", "term.explain": "{year} / 365 × {days}",
+        "min_year.step": "minimal mukofot",
+        "min_year.applied": ("hisoblangan mukofot {calc} minimal miqdordan ({minbrv} BHM = {brv} × {minbrv}) "
+                             "past — minimal mukofot qoʻllanildi"),
+        "min_year.not_applied": "hisoblangan mukofot minimal miqdordan yuqori, minimal mukofot qoʻllanilmaydi",
+        "final.step": "toʻlanadigan mukofot",
+        "final.explain": "netto qism {net} ({net_pct} %), ish yuritish xarajatlari {expense} ({exp_pct} %)",
+        "note.min_term": ("IFJMS Qoidalarining 23-bandidagi {minbrv} BHM minimal miqdori yillik shartnoma uchun "
+                          "belgilangan; {days} kunlik shartnomaga uni qoʻllash tartibi hujjatda koʻrsatilmagan — "
+                          "minimal miqdor qoʻllanilmadi, masala buyurtmachiga yuborildi "
+                          "(maʼlumot uchun: {minbrv} BHM = {min})"),
+        "note.brv_not_passed": "BHM miqdori berilmagan — {minbrv} BHM minimal mukofot (IFJMS Qoidalari, 23-band) tekshirilmadi",
+        "note.brv_missing": ("Shartnoma sanasiga BHM miqdori administrator tomonidan kiritilmagan — "
+                             "{minbrv} BHM minimal mukofot (IFJMS Qoidalari, 23-band) tekshirilmadi"),
+        "note.no_deviation": ("Stavka va koeffitsiyentlar normativ hujjat bilan belgilangan; sugʻurtalovchi "
+                              "ulardan chetga chiqishga haqli emas — IFJMSda chegirma, ustama va franshiza yoʻq ({ref})"),
+        "brv.request": "soʻrovda berilgan",
+        "brv.reference": "administrator maʼlumotnomasi: {date} dan amalda ({source})",
+        "brv_note": "BHM miqdori kiritilmagan — uni administrator kiritadi",
+    },
+    "en": {
+        "sum.step": "sum insured", "sum.explain": "annual payroll of all employees",
+        "activity_kst.step": "activity and KST",
+        "activity.listed": "Activity under OKED {okved} — occupational risk category {cat} of {n}, KST coefficient {kst}",
+        "activity.not_listed": "Activity not found in the classification; coefficient {kst} applied",
+        "match.okved": "OKED code", "match.prefix": "OKED code by leading digits ({code} → {okved})",
+        "match.none": "activity not found in the classification",
+        "kst.step": "KST", "kst.explain": "activity coefficient from the classification",
+        "rate.step": "rate to payroll", "rate.value": "{rate}% per year",
+        "rate.explain": "base rate {base}% × KST {kst}",
+        "year.step": "annual premium", "year.explain": "{ss} × {base} × {kst} / 100",
+        "term.step": "pro rata for {days} days", "term.explain": "{year} / 365 × {days}",
+        "min_year.step": "minimum premium",
+        "min_year.applied": ("calculated premium {calc} is below the minimum of {minbrv} BCV "
+                             "({brv} × {minbrv}) — minimum applied"),
+        "min_year.not_applied": "calculated premium is above the minimum; minimum not applied",
+        "final.step": "premium payable",
+        "final.explain": "net part {net} ({net_pct}%), administrative expenses {expense} ({exp_pct}%)",
+        "note.min_term": ("The minimum of {minbrv} BCV (EL Rules, cl. 23) is set for an annual contract; "
+                          "the regulation does not say how to apply it to a {days}-day contract — the minimum "
+                          "is not applied, the question has been referred to the client "
+                          "(for reference: {minbrv} BCV = {min})"),
+        "note.brv_not_passed": "The BCV amount was not provided — the minimum premium of {minbrv} BCV (EL Rules, cl. 23) was not checked",
+        "note.brv_missing": ("The administrator has not entered the BCV for the contract date — the minimum "
+                             "premium of {minbrv} BCV (EL Rules, cl. 23) was not checked"),
+        "note.no_deviation": ("The rate and coefficients are set by regulation; the insurer may not deviate "
+                              "from them — EL insurance has no discounts, loadings or deductibles ({ref})"),
+        "brv.request": "provided in the request",
+        "brv.reference": "administrator reference: in force from {date} ({source})",
+        "brv_note": "The BCV amount is not entered — the administrator enters it",
+    },
+}
+
+
+def premium_lang(lang: Optional[str]) -> str:
+    """ru | uz | en; всё остальное — ru."""
+    lang = str(lang or "").strip().lower()[:2]
+    return lang if lang in PREMIUM_LANGS else "ru"
+
+
+def act_ref(key: str, lang: str = "ru") -> str:
+    """Ссылка на норму на языке ответа; перевода нет — русская (для uz/en таких ключей в расчёте нет)."""
+    return ACTS_I18N.get(lang, {}).get(key) or ACTS[key]
+
+
+def ptext(lang: str, key: str, **kw) -> str:
+    return PREMIUM_TEXTS[lang][key].format(**kw)
+
+
+def money_l(x: float, lang: str = "ru") -> str:
+    """Деньги по локали: ru — как money(); uz «4 114 800 soʻm»; en «UZS 4,114,800». Тийины — если есть."""
+    if lang == "ru":
+        return money(x)
+    x = round(float(x), 2)
+    s = f"{x:,.0f}" if abs(x - round(x)) < 0.005 else f"{x:,.2f}"
+    if lang == "uz":
+        return s.replace(",", " ").replace(".", ",") + " soʻm"   # неразрывный пробел, как в money()
+    return "UZS " + s
+
+
+def num_l(x: float, lang: str = "ru", digits: Optional[int] = None) -> str:
+    """Число в пояснении. ru — как было (точка); uz — запятая; en — точка."""
+    s = str(x) if digits is None else f"{x:.{digits}f}"
+    return s.replace(".", ",") if lang == "uz" else s
+
+
+def activity_l(activity: dict, lang: str, code: str = "") -> dict:
+    """Подбор КСТ на языке ответа: explain, matched_by, legal_ref. Название вида — из справочника как есть."""
+    if lang == "ru":
+        return activity
+    a = dict(activity)
+    k = num_l(a["kst"], lang, 3)
+    if a.get("listed"):
+        a["explain"] = ptext(lang, "activity.listed", okved=a.get("okved", ""), cat=a.get("category"),
+                             n=CATEGORIES, kst=k)
+        a["matched_by"] = (ptext(lang, "match.okved") if not code or a.get("okved") == code
+                           else ptext(lang, "match.prefix", code=code, okved=a.get("okved", "")))
+        a["legal_ref"] = act_ref("kst", lang)
+    else:
+        a["explain"] = ptext(lang, "activity.not_listed", kst=k)
+        a["matched_by"] = ptext(lang, "match.none")
+        a["legal_ref"] = act_ref("kst_default", lang)
+    return a
 
 
 def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
-            brv: Optional[float] = None, activity: Optional[dict] = None) -> dict:
+            brv: Optional[float] = None, activity: Optional[dict] = None, lang: str = "ru") -> dict:
     """
     Премия строго по акту.
 
@@ -279,32 +459,36 @@ def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
     if term_days <= 0 or term_days > YEAR_DAYS:
         raise ValueError("срок договора ОСГОР — от 1 дня до 365 дней (ЗРУ-210 ст. 6 ч. 7)")
 
-    steps, notes = [], []
-    steps.append({"шаг": "страховая сумма", "значение": money(sum_insured),
-                  "пояснение": "годовой фонд оплаты труда всех работников", "норма": ACTS["sum"]})
+    lang = premium_lang(lang)
+    L = lambda key, **kw: ptext(lang, key, **kw)          # noqa: E731
+    M = lambda x: money_l(x, lang)                        # noqa: E731
+    ref = lambda key: act_ref(key, lang)                  # noqa: E731
+    k3, base_s, minbrv = num_l(kst, lang, 3), num_l(BASE_RATE_PCT, lang), num_l(MIN_PREMIUM_BRV, lang)
+
+    steps, notes, note_codes = [], [], []
+
+    def step(code, title, value, explain, norm):
+        steps.append({"шаг": title, "значение": value, "пояснение": explain, "норма": norm, "code": code})
+
+    step("sum", L("sum.step"), M(sum_insured), L("sum.explain"), ref("sum"))
     if activity:
-        steps.append({"шаг": "вид деятельности и КСТ", "значение": f"{kst:.3f}",
-                      "пояснение": activity.get("explain", ""), "норма": activity.get("legal_ref", ACTS["kst"])})
+        act = activity_l(activity, lang, activity.get("okved", ""))
+        step("activity_kst", L("activity_kst.step"), k3, act.get("explain", ""),
+             act.get("legal_ref", ref("kst")))
     else:
-        steps.append({"шаг": "КСТ", "значение": f"{kst:.3f}",
-                      "пояснение": "коэффициент вида деятельности из классификации", "норма": ACTS["kst"]})
+        step("kst", L("kst.step"), k3, L("kst.explain"), ref("kst"))
 
     rate_pct = BASE_RATE_PCT * kst           # ставка в % от ФОТ за год
     base = sum_insured * BASE_RATE_PCT * kst / 100.0
-    steps.append({"шаг": "ставка к фонду оплаты труда",
-                  "значение": f"{rate_pct:.4f} % в год",
-                  "пояснение": f"базовая ставка {BASE_RATE_PCT} % × КСТ {kst:.3f}", "норма": ACTS["base"]})
-    steps.append({"шаг": "премия за год",
-                  "значение": money(base),
-                  "пояснение": f"{money(sum_insured)} × {BASE_RATE_PCT} × {kst:.3f} / 100",
-                  "норма": ACTS["formula"]})
+    step("rate", L("rate.step"), L("rate.value", rate=num_l(rate_pct, lang, 4)),
+         L("rate.explain", base=base_s, kst=k3), ref("base"))
+    step("year", L("year.step"), M(base), L("year.explain", ss=M(sum_insured), base=base_s, kst=k3), ref("formula"))
 
     term_premium = base
     if term_days != YEAR_DAYS:
         term_premium = base / YEAR_DAYS * term_days
-        steps.append({"шаг": f"пересчёт на срок {term_days} дн.",
-                      "значение": money(term_premium),
-                      "пояснение": f"{money(base)} / 365 × {term_days}", "норма": ACTS["formula"]})
+        step("term", L("term.step", days=term_days), M(term_premium),
+             L("term.explain", year=M(base), days=term_days), ref("formula"))
 
     min_premium, min_applied = None, False
     if brv:
@@ -312,37 +496,31 @@ def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
         if term_days == YEAR_DAYS:
             if term_premium < min_premium:
                 min_applied = True
-                steps.append({"шаг": "минимальная премия", "значение": money(min_premium),
-                              "пояснение": f"расчётная премия {money(term_premium)} ниже минимума "
-                                           f"{MIN_PREMIUM_BRV} БРВ ({money(brv)} × {MIN_PREMIUM_BRV}) — "
-                                           f"применён минимум", "норма": ACTS["min"]})
+                step("min_year", L("min_year.step"), M(min_premium),
+                     L("min_year.applied", calc=M(term_premium), minbrv=minbrv, brv=M(brv)), ref("min"))
             else:
-                steps.append({"шаг": "минимальная премия", "значение": money(min_premium),
-                              "пояснение": "расчётная премия выше минимума, минимум не применяется",
-                              "норма": ACTS["min"]})
+                step("min_year", L("min_year.step"), M(min_premium), L("min_year.not_applied"), ref("min"))
         else:
-            notes.append(f"Минимум {MIN_PREMIUM_BRV} БРВ п. 23 Правил установлен для годового договора; "
-                         f"для договора на {term_days} дн. порядок применения минимума в акте не описан — "
-                         f"минимум не применён, вопрос вынесен заказчику "
-                         f"(для сведения: {MIN_PREMIUM_BRV} БРВ = {money(min_premium)})")
+            notes.append(L("note.min_term", minbrv=minbrv, days=term_days, min=M(min_premium)))
+            note_codes.append("min_term")
     else:
-        notes.append(BRV_NOT_PASSED_NOTE)
+        notes.append(L("note.brv_not_passed", minbrv=minbrv))
+        note_codes.append("brv_not_passed")
 
     final = max(term_premium, min_premium) if min_applied else term_premium
     net = final * NET_SHARE_PCT / 100.0
     expense = final * EXPENSE_SHARE_PCT / 100.0
-    steps.append({"шаг": "премия к уплате", "значение": money(final),
-                  "пояснение": f"нетто-часть {money(net)} ({NET_SHARE_PCT:.0f} %), "
-                               f"расходы на ведение дела {money(expense)} ({EXPENSE_SHARE_PCT:.0f} %)",
-                  "норма": ACTS["structure"]})
-    notes.append("Ставка и коэффициенты установлены нормативным актом; отклоняться от них "
-                 "страховщик не вправе — скидок, надбавок и франшизы в ОСГОР нет " + f"({ACTS['no_deviation']})")
+    step("final", L("final.step"), M(final),
+         L("final.explain", net=M(net), net_pct=f"{NET_SHARE_PCT:.0f}", expense=M(expense),
+           exp_pct=f"{EXPENSE_SHARE_PCT:.0f}"), ref("structure"))
+    notes.append(L("note.no_deviation", ref=ref("no_deviation")))
+    note_codes.append("no_deviation")
     return {
         "premium": final, "premium_base": base, "premium_term": term_premium,
         "min_premium": min_premium, "min_applied": min_applied,
         "rate_pct_of_payroll": rate_pct, "kst": kst, "term_days": term_days,
         "sum_insured": float(sum_insured),
-        "net": net, "expense": expense, "steps": steps, "notes": notes,
+        "net": net, "expense": expense, "steps": steps, "notes": notes, "note_codes": note_codes,
     }
 
 
@@ -918,7 +1096,7 @@ def explain(result: dict) -> str:
 
 
 def quick_premium(con: Optional[sqlite3.Connection], okved: str, payroll: float, term_days: int = YEAR_DAYS,
-                  brv: Optional[float] = None, on_date: Optional[str] = None) -> dict:
+                  brv: Optional[float] = None, on_date: Optional[str] = None, lang: str = "ru") -> dict:
     """
     Калькулятор ОСГОР для мини-аппа: ОКЭД + ФОТ за 12 мес. + срок в днях → премия построчно.
     Ничего не считает сам: find_activity() + premium() по акту. БРВ: из параметра, иначе действующий
@@ -927,8 +1105,9 @@ def quick_premium(con: Optional[sqlite3.Connection], okved: str, payroll: float,
     Возврат: {"lines","premium","min_applied","min_premium","kst","activity","brv","brv_source",
               "notes","legal_ref"}.
     """
+    lang = premium_lang(lang)
     activity = find_activity(okved=okved, con=con)
-    brv_source = "передан в запросе" if brv else None
+    brv_source = brv_source_text(lang) if brv else None
     if not brv and con is not None:
         try:
             row = brv_on(con, on_date)
@@ -936,15 +1115,26 @@ def quick_premium(con: Optional[sqlite3.Connection], okved: str, payroll: float,
             row = None
         if row:
             brv = row["value"]
-            brv_source = f"справочник администратора, с {row['effective_from']} ({row['source']})"
-    prem = premium(float(payroll), activity["kst"], term_days=int(term_days), brv=brv, activity=activity)
-    lines = [{"step": s["шаг"], "value": s["значение"], "explain": s["пояснение"], "legal_ref": s["норма"]}
-             for s in prem["steps"]]
-    return {"lines": lines, "premium": round(prem["premium"], 2), "min_applied": prem["min_applied"],
-            "min_premium": prem["min_premium"], "kst": activity["kst"], "activity": activity,
-            "term_days": int(term_days), "sum_insured": prem["sum_insured"],
-            "brv": brv, "brv_source": brv_source, "notes": prem["notes"],
-            "legal_ref": {"формула": ACTS["formula"], "минимум": ACTS["min"], "КСТ": activity["legal_ref"]}}
+            brv_source = (f"справочник администратора, с {row['effective_from']} ({row['source']})"
+                          if lang == "ru" else brv_source_text(lang, row))
+    prem = premium(float(payroll), activity["kst"], term_days=int(term_days), brv=brv, activity=activity,
+                   lang=lang)
+    lines = [{"step": s["шаг"], "value": s["значение"], "explain": s["пояснение"], "legal_ref": s["норма"],
+              "code": s["code"]} for s in prem["steps"]]
+    act = activity_l(activity, lang, "".join(ch for ch in str(okved or "") if ch.isdigit()))
+    if lang == "ru":
+        legal = {"формула": ACTS["formula"], "минимум": ACTS["min"], "КСТ": activity["legal_ref"]}
+    else:
+        # ключи латиницей: в uz/en в ответе не должно быть кириллицы
+        legal = {"formula": act_ref("formula", lang), "min": act_ref("min", lang), "kst": act["legal_ref"]}
+    out = {"lines": lines, "premium": round(prem["premium"], 2), "min_applied": prem["min_applied"],
+           "min_premium": prem["min_premium"], "kst": activity["kst"], "activity": act,
+           "term_days": int(term_days), "sum_insured": prem["sum_insured"],
+           "brv": brv, "brv_source": brv_source, "notes": prem["notes"], "note_codes": prem["note_codes"],
+           "legal_ref": legal, "lang": lang}
+    if lang == "en":
+        out["legal_note_en"] = LEGAL_NOTE_EN
+    return out
 
 
 # ================================================================================================
@@ -1155,31 +1345,42 @@ def _contract_date(value: Optional[str]) -> str:
         raise HTTPException(422, "Дата договора — в формате ГГГГ-ММ-ДД")
 
 
-def _brv_for(con, brv: Optional[float], on: str) -> tuple:
+def brv_source_text(lang: str = "ru", row: Optional[dict] = None) -> str:
+    """Откуда взят БРВ. Текст источника (row['source']) вводит админ — это данные, не переводятся."""
+    if row is None:
+        return "передан в запросе" if lang == "ru" else ptext(lang, "brv.request")
+    if lang == "ru":
+        return f"справочник администратора: действует с {row['effective_from']} ({row['source']})"
+    return ptext(lang, "brv.reference", date=row["effective_from"], source=row["source"])
+
+
+def _brv_for(con, brv: Optional[float], on: str, lang: str = "ru") -> tuple:
     """(размер БРВ или None, откуда взят). Переданный в запросе проверяем как недоверенный ввод."""
     if brv is not None:
         if not isinstance(brv, (int, float)) or not math.isfinite(brv) or brv <= 0 or brv > BRV_MAX:
             raise HTTPException(422, "Размер БРВ — положительное число в сумах")
-        return float(brv), "передан в запросе"
+        return float(brv), brv_source_text(lang)
     try:
         row = brv_on(con, on)
     except Exception:                   # таблицы osgor_brv ещё нет — БРВ не задан
         row = None
     if not row:
         return None, None
-    return row["value"], f"справочник администратора: действует с {row['effective_from']} ({row['source']})"
+    return row["value"], brv_source_text(lang, row)
 
 
-BRV_MISSING_NOTE = ("Размер БРВ на дату договора не введён администратором — минимальная премия "
-                    "0,25 БРВ (п. 23 Правил) не проверена")
-
-
-def _brv_note(notes: list, brv) -> str:
-    """БРВ нет — одно предупреждение в note; такую же строку из notes убираем, чтобы не было дубля."""
+def _brv_note(holder: dict, brv, lang: str = "ru") -> str:
+    """БРВ нет — одно предупреждение в note; такую же строку из notes убираем, чтобы не было дубля.
+    holder — словарь с notes и note_codes (ответ quick или premium из assess)."""
     if brv:
         return ""
-    notes[:] = [n for n in notes if n != BRV_NOT_PASSED_NOTE]
-    return BRV_MISSING_NOTE
+    codes = holder.get("note_codes") or [None] * len(holder["notes"])
+    keep = [i for i, c in enumerate(codes) if c != "brv_not_passed"
+            and holder["notes"][i] != BRV_NOT_PASSED_NOTE]
+    holder["notes"][:] = [holder["notes"][i] for i in keep]
+    if "note_codes" in holder:
+        holder["note_codes"][:] = [codes[i] for i in keep]
+    return ptext(premium_lang(lang), "note.brv_missing", minbrv=num_l(MIN_PREMIUM_BRV, premium_lang(lang)))
 
 
 @router.post("/osgor/assess")
@@ -1200,7 +1401,7 @@ def osgor_assess(body: EmployerIn) -> dict:
                         situation=situation, first_month_payroll=body.first_month_payroll)
     finally:
         con.close()
-    result["note"] = _brv_note(result["premium"]["notes"], brv)
+    result["note"] = _brv_note(result["premium"], brv)
     result["explain"] = explain(result)
     result["brv"] = brv
     result["brv_source"] = brv_source
@@ -1218,14 +1419,17 @@ class QuickIn(BaseModel):
     term_days: int = YEAR_DAYS
     brv: Optional[float] = None                     # пусто — действующий на дату договора
     contract_date: Optional[str] = None             # ГГГГ-ММ-ДД, пусто — сегодня
+    lang: Optional[str] = None                      # ru | uz | en; иначе ru (или ?lang=)
 
 
 PAYROLL_MAX = 1e15                     # защита от опечатки в разрядах, а не норма
 
 
 @router.post("/osgor/quick")
-def osgor_quick(body: QuickIn) -> dict:
-    """ОКЭД + ФОТ + срок → премия построчно (quick_premium). Ничего не сохраняет."""
+def osgor_quick(body: QuickIn, lang: str = "") -> dict:
+    """ОКЭД + ФОТ + срок → премия построчно (quick_premium). Ничего не сохраняет.
+    Язык текстов — lang в теле или ?lang= (ru | uz | en, иначе ru); тело главнее."""
+    lang = premium_lang(body.lang or lang)
     code = "".join(ch for ch in (body.okved or "") if ch.isdigit())
     if not code or len(code) > 6:
         raise HTTPException(422, "Код ОКЭД — от 1 до 6 цифр, например 41100 или 01.11")
@@ -1236,15 +1440,16 @@ def osgor_quick(body: QuickIn) -> dict:
     on = _contract_date(body.contract_date)
     con = db.connect()
     try:
-        brv, brv_source = _brv_for(con, body.brv, on)
-        res = quick_premium(con, code, body.payroll, term_days=body.term_days, brv=brv, on_date=on)
+        brv, brv_source = _brv_for(con, body.brv, on, lang)
+        res = quick_premium(con, code, body.payroll, term_days=body.term_days, brv=brv, on_date=on, lang=lang)
     except ValueError as e:
         raise HTTPException(422, str(e))
     finally:
         con.close()
     res["brv_source"] = brv_source
     res["contract_date"] = on
-    res["note"] = _brv_note(res["notes"], brv)
+    res["note"] = _brv_note(res, brv, lang)
+    res["note_code"] = "brv_missing" if res["note"] else ""
     return res
 
 
@@ -1314,8 +1519,10 @@ def save_brv(con, actor: dict, body: BrvIn) -> dict:
 
 
 @router.get("/osgor/brv")
-def get_brv(on: str = "", user: dict = Depends(auth.current_user)) -> dict:
-    """Действующий размер БРВ (на сегодня или на дату ?on=ГГГГ-ММ-ДД), ближайший будущий и история."""
+def get_brv(on: str = "", lang: str = "", user: dict = Depends(auth.current_user)) -> dict:
+    """Действующий размер БРВ (на сегодня или на дату ?on=ГГГГ-ММ-ДД), ближайший будущий и история.
+    ?lang=uz|en — note и legal_ref на этом языке (по умолчанию ru)."""
+    lang = premium_lang(lang)
     if on:
         try:
             on = date.fromisoformat(on).isoformat()
@@ -1331,8 +1538,9 @@ def get_brv(on: str = "", user: dict = Depends(auth.current_user)) -> dict:
     return {"on": d, "value": current["value"] if current else None, "current": current,
             "next": _brv_row(nxt[0]) if nxt else None, "history": history,
             "can_edit": user["role"] == "админ",
-            "legal_ref": {"минимум": ACTS["min"], "погребение": ACTS["burial"]},
-            "note": "" if current else "Размер БРВ не введён — его вносит администратор"}
+            "legal_ref": ({"минимум": ACTS["min"], "погребение": ACTS["burial"]} if lang == "ru"
+                          else {"min": act_ref("min", lang), "burial": act_ref("burial", lang)}),
+            "note": "" if current else ptext(lang, "brv_note")}
 
 
 @router.put("/osgor/brv")

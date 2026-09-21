@@ -786,6 +786,7 @@ def get_status():
             "Ссылка на набор": d["page"], "Адрес данных": d["data_url"],
             "Периодичность": d["period"], "Единица": d["unit"],
             "Регионы": "да" if d["regions"] else "нет",
+            "Классы": list(d.get("class_codes") or []),
             "Строк в базе": a.get("n", 0),
             "Пустых значений": a.get("empties", 0),
             "Период от": a.get("p_min"), "Период до": a.get("p_max"),
@@ -858,6 +859,34 @@ def get_house_index(region: str = "total", period_from: str = None, period_to: s
             res["Цена на входе"] = base_price
             res["Приведённая цена"] = round(float(base_price) * res["Коэффициент"], 2)
         return res
+
+
+@router.get("/stat/risk-indicators")
+def get_risk_indicators(class_code: str, region: str = None):
+    """
+    Показатели риска класса по региону из открытых данных (app/risk_stats.py): значение, единица,
+    период, изменение к прошлому периоду, на 1 000 жителей, регион против республики, источники.
+    Где у набора нет разреза по регионам — республика с пометкой в scope. Плюс: чего по классу
+    в открытых данных нет и как выглядит составляющая «Внешняя статистика региона» уровня риска.
+    """
+    from . import risk_analytics as ra
+    from . import risk_stats as rs
+    cls = (class_code or "").strip()
+    with db.tx() as con:
+        known = {r["code"] for r in db.rows(con, "SELECT code FROM classes")}
+        if cls not in known:
+            raise HTTPException(404, "класса «%s» нет в справочнике: %s" % (cls, ", ".join(sorted(known))))
+        th = ra.load_thresholds(con)
+        items = rs.risk_indicators(con, cls, region, th)
+        block = rs.external_block(con, [cls], region, th)
+    return {"class_code": cls, "region": region, "region_key": block.get("region_key"),
+            "region_name": block.get("region_name"),
+            "indicators": items, "not_found": rs.NOT_FOUND.get(cls),
+            "component": {"name": "Внешняя статистика региона", "applicable": block["applicable"],
+                          "points": block["points"], "why": block["why"], "scale": block["scale"],
+                          "weight_default": ra.DEFAULT_THRESHOLDS["weights"]["external_stats"],
+                          "weight_current": th["weights"].get("external_stats"), "calibrated": 0},
+            "datasets": ss.datasets_for_class(cls)}
 
 
 @router.get("/stat/catalog")

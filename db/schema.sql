@@ -379,6 +379,56 @@ CREATE TABLE IF NOT EXISTS portfolio_reviews (
 
 CREATE INDEX IF NOT EXISTS ix_portfolio_batch ON portfolio_reviews(batch_id);
 
+-- Портфель по шаблону отчётности (GET /portfolio/template.xlsx, 22.09.2026): все поля договора,
+-- нужные сводке, аналитике риска и резервам. ФИО не храним вовсе; ИНН — только у юрлиц.
+-- Выгрузки старого вида (без шаблона) тоже кладутся сюда — теми полями, что в них нашлись.
+CREATE TABLE IF NOT EXISTS portfolio_contracts (
+    id             INTEGER PRIMARY KEY,
+    batch_id       INTEGER NOT NULL REFERENCES portfolio_batches(id),
+    row_no         INTEGER,                  -- строка в файле
+    external_no    TEXT,                     -- номер договора
+    date_signed    TEXT,                     -- дата заключения, ГГГГ-ММ-ДД
+    date_from      TEXT,
+    date_to        TEXT,
+    product_code   TEXT,
+    class_code     TEXT,                     -- из файла, иначе первый класс продукта по справочнику
+    branch         TEXT,
+    region         TEXT,
+    holder_type    TEXT,                     -- 'юрлицо' | 'физлицо'
+    holder_inn     TEXT,                     -- только для юрлиц; у физлиц всегда NULL
+    object_type    TEXT,
+    sum_insured    REAL,
+    value_amount   REAL,
+    premium        REAL,                     -- начисленная
+    premium_paid   REAL,                     -- оплаченная
+    franchise      REAL,
+    rate_pct       REAL,
+    seismic_zone   INTEGER,
+    currency       TEXT NOT NULL DEFAULT 'UZS',
+    status         TEXT,                     -- 'действует' | 'расторгнут' | 'истёк'
+    claims_count   INTEGER,
+    claims_claimed REAL,
+    claims_paid    REAL,
+    last_loss_date TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_portfolio_contracts_batch ON portfolio_contracts(batch_id);
+
+-- Убытки из листа «Убытки» того же шаблона. Отдельно от claims (там убытки по запросам сюрвейера).
+CREATE TABLE IF NOT EXISTS portfolio_claims (
+    id            INTEGER PRIMARY KEY,
+    batch_id      INTEGER NOT NULL REFERENCES portfolio_batches(id),
+    row_no        INTEGER,
+    contract_no   TEXT NOT NULL,
+    claim_no      TEXT,
+    event_date    TEXT,
+    reported_date TEXT,
+    claimed       REAL,
+    paid          REAL,
+    status        TEXT,                     -- 'заявлен' | 'оплачен' | 'отказ'
+    cause         TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_portfolio_claims_batch ON portfolio_claims(batch_id);
+
 -- ============ КАЛИБРОВКА ТАРИФОВ ============
 
 -- Убытки по договорам: основа для burning cost и частоты (учебник CII M97).

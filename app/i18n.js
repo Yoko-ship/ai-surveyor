@@ -75,29 +75,38 @@
   /* ---------- перевод ---------- */
   /* T("calc.premium_note", "Ставка годовая", {days: 90})
      Второй аргумент — русский текст из кода: он и остаётся, если ключа в словаре нет. */
+  /* Ссылка на другой ключ словаря: "{@osgor.short} — mukofot kalkulyatori". Так название, которое
+     меняет юрист (например ОСГОР на узбекском и английском), правится в одном ключе, а не в каждой подписи.
+     Одна ступень ссылок; ключа нет — ссылка остаётся как есть, чтобы пропуск был виден. */
+  function ref(s) {
+    s = String(s);
+    if (s.indexOf("{@") < 0) return s;
+    return s.replace(/\{@([\w.]+)\}/g, function (m, k) { return (D && D[k] != null) ? String(D[k]) : m; });
+  }
   function T(key, fallback, vars) {
     if (fallback && typeof fallback === "object") { vars = fallback; fallback = null; }
-    var s = (D && D[key] != null) ? D[key] : (fallback != null ? fallback : key);
+    var s = ref((D && D[key] != null) ? D[key] : (fallback != null ? fallback : key));
     if (vars) for (var k in vars) s = String(s).split("{" + k + "}").join(vars[k]);
     return s;
   }
   function paint(root) {
     var box = root || document;
     box.querySelectorAll("[data-i18n]").forEach(function (e) {
-      var v = D[e.dataset.i18n]; if (v != null) e.textContent = v;
+      var v = D[e.dataset.i18n]; if (v != null) e.textContent = ref(v);
     });
     box.querySelectorAll("[data-i18n-placeholder]").forEach(function (e) {
-      var v = D[e.dataset.i18nPlaceholder]; if (v != null) e.placeholder = v;
+      var v = D[e.dataset.i18nPlaceholder]; if (v != null) e.placeholder = ref(v);
     });
     box.querySelectorAll("[data-i18n-title]").forEach(function (e) {
-      var v = D[e.dataset.i18nTitle]; if (v != null) e.title = v;
+      var v = D[e.dataset.i18nTitle]; if (v != null) e.title = ref(v);
     });
     box.querySelectorAll("[data-i18n-aria]").forEach(function (e) {
-      var v = D[e.dataset.i18nAria]; if (v != null) e.setAttribute("aria-label", v);
+      var v = D[e.dataset.i18nAria]; if (v != null) e.setAttribute("aria-label", ref(v));
     });
     document.documentElement.lang = lang;
   }
   window.T = T;
+  window.I18N_REF = ref;
   window.i18nPaint = paint;
   window.I18N_LANG = lang;
   window.I18N_HAS = function (key) { return D[key] != null; };

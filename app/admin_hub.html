@@ -67,6 +67,11 @@ a{color:var(--accent)}
 .rail button u{text-decoration:none}
 .rail button.on{color:var(--accent);box-shadow:inset 2px 0 0 var(--accent);background:color-mix(in srgb,var(--accent) 9%,transparent)}
 .rail button:focus-visible,.menu a:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.rail .exit{margin-top:auto;color:var(--muted);text-decoration:none;display:flex;flex-direction:column;align-items:center;
+  gap:3px;padding:10px 2px;font:600 9px var(--sans);line-height:1.15;text-align:center;border-top:1px solid var(--line)}
+.rail .exit i{font-style:normal;font-size:17px;line-height:1}.rail .exit u{text-decoration:none}
+.rail .exit:hover{color:var(--ink)}.rail .exit:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+#tools{display:flex;gap:8px;align-items:center}
 
 /* --- список разделов группы --- */
 .menu{position:sticky;top:0;height:100vh;overflow-y:auto;border-right:1px solid var(--line);padding:16px 10px 24px;background:var(--card)}
@@ -130,7 +135,7 @@ input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);borde
   <nav class="menu" id="menu" aria-label="Разделы группы"></nav>
   <main id="main">
     <button class="btn btn-secondary back" id="back" type="button">← Разделы группы</button>
-    <div class="head"><div><h1 id="title">Админка</h1><p class="why" id="why"></p></div><div id="tools"></div></div>
+    <div class="head"><div><h1 id="title">Админка</h1><p class="why" id="why"></p></div><div id="tools"><a class="btn btn-secondary btn-sm" id="exitAdmin" href="/tg?mode=user" title="Открыть мини-приложение так, как его видит обычный сотрудник. Права не меняются."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg><span data-i18n="admin.exit">Выйти из админки</span></a></div></div>
     <div id="view"></div>
   </main>
 </div>
@@ -174,9 +179,9 @@ var NAV = [
  {id:"market", icon:"↗", short:"Рынок", title:"Рынок и данные",
   why:"Внешние данные рынка и собственные показатели компании.",
   items:[
-   {id:"stats",     title:"Динамика рынка", kind:"frame", src:"/stats", why:"Готовая страница рыночных отчётов."},
+   {id:"stats",     title:"Динамика рынка", kind:"frame", src:"/stats", why:"Дашборд по отчётам НАПП: премии, выплаты, убыточность, классы, страховщики, регионы. Вкладка «Конструктор» — ряды на выбор."},
    {id:"capacity",  title:"Ёмкость и удержание", kind:"frame", src:"/capacity-page", why:"Готовая страница ёмкости, резервов, активов и маржи."},
-   {id:"portfolio", title:"Портфель", kind:"frame", src:"/portfolio", why:"Готовая страница портфельного аудита."},
+   {id:"portfolio", title:"Портфель", kind:"frame", src:"/portfolio", why:"Шаблон отчётности портфеля в Excel, загрузка с проверкой по строкам, сводка по классам и регионам, аудит ставок."},
    {id:"statagency",title:"Агентство статистики", why:"Состояние наборов stat.uz, их реестр и последние строки рядов."},
    {id:"finance",   title:"Финансы компании", why:"Собственные средства и страховые резервы — от них считается лимит на один риск."}]},
  {id:"knowledge", icon:"§", short:"Знания", title:"Знания и законы",
@@ -981,7 +986,10 @@ function paint_rail() {
   r.innerHTML = '<div class="mark"><b>S</b></div>' + NAV.map(function (g) {
     return '<button type="button" data-g="' + g.id + '"' + (g.id === cur.g ? ' class="on"' : "") +
       ' title="' + esc(g.title) + '"><i aria-hidden="true">' + g.icon + "</i><u>" + esc(g.short) + "</u></button>";
-  }).join("");
+  }).join("") +
+    /* выход в мини-апп обычным пользователем: права не меняются, это только вид (контракт — docs) */
+    '<a class="exit" href="/tg?mode=user" title="Выйти из админки: мини-приложение глазами сотрудника">' +
+    '<i aria-hidden="true">⎋</i><u>' + esc(window.T ? T("admin.exit_short", "Выйти") : "Выйти") + "</u></a>";
   r.onclick = function (e) {
     var b = e.target.closest("button[data-g]"); if (!b) return;
     var g = NAV.filter(function (x) { return x.id === b.dataset.g; })[0];

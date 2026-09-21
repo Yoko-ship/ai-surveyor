@@ -474,6 +474,36 @@ def check_analytics_steps(html):
     print("22. аналитика по шагам: документы, загрузка договора, подстановка сумм, разбор ИИ — ок")
 
 
+def check_compact_and_view(html):
+    """Задача 170: компактная раскладка, режим пользователя для админа, нативные кнопки Telegram."""
+    must = {
+        ".seg{": "нет блока сегментов для связанных значений",
+        '<div class="seg">': "ставки не объединены в сегменты",
+        ".fg>div.half": "короткие поля не стоят по два в ряд",
+        "function isShort(": "шаг 4: короткие поля не отмечаются",
+        ".kpi.hero{grid-column:span 2}": "главная цифра KPI не на две колонки",
+        "@media (max-width:599px){" + chr(10) + "  .tblwrap": "таблицы на телефоне не становятся карточками строк",
+        "function anExtStatsCard(": "нет карточки «Статистика по рискам региона» (external_stats)",
+        '"surveyor_view"': "режим пользователя не помнится в sessionStorage",
+        'q.get("mode") === "user"': "адрес /tg?mode=user не включает режим пользователя",
+        'id="viewToggle"': "нет переключателя «Режим пользователя» в левой панели",
+        'id="viewBack"': "нет плашки «Режим пользователя · Вернуться»",
+        '"/tg/me" + (VIEW_USER ? "?view=user" : "")': "режим пользователя не передаётся серверу (view=user)",
+        "const IS_ADMIN = () => REAL_ADMIN() && !VIEW_USER": "в режиме пользователя админские части не прячутся",
+        "CAN_MANAGE = !!USERS.can_manage && !VIEW_USER": "в режиме пользователя остались кнопки управления людьми",
+        "TG.BackButton": "в мастере нет нативной кнопки «Назад»",
+        "TG.SettingsButton": "нет нативной кнопки настроек",
+        "showProgress": "нижняя кнопка Telegram без прогресса",
+        "selectionChanged": "нет отклика HapticFeedback на выбор",
+        "section_bg_color": "тема Telegram не использует section_bg_color",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "компактная раскладка и режимы: " + "; ".join(miss)
+    # в режиме пользователя меню «Админка» не рисуется: условие — IS_ADMIN(), а не наличие раздела «Настройки»
+    assert "if (IS_ADMIN()) {" + chr(10) + "    const hub" in html, "кнопка «Админка» видна в режиме пользователя"
+    print("23. компактная раскладка, режим пользователя (/tg?mode=user), нативные кнопки Telegram — ок")
+
+
 if __name__ == "__main__":
     with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
         agent_id, uids, prod = setup()
@@ -492,6 +522,7 @@ if __name__ == "__main__":
             # ниже — ожидания к разметке после дизайнера (задача 150)
             check_removed_tabs(html)
             check_analytics_steps(html)
+            check_compact_and_view(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

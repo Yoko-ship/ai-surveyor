@@ -575,3 +575,26 @@ def post_make_admin(uid: int, user: dict = Depends(auth.require(ADMIN))):
 def post_revoke_admin(uid: int, user: dict = Depends(auth.require(ADMIN))):
     with db.tx() as con:
         return set_admin(con, user, uid, False)
+
+
+# ---------- смена имени самим человеком (задача 170) ----------
+
+class NameIn(BaseModel):
+    name: str = ""
+
+
+@router.put("/tg/me/name")
+def put_my_name(body: NameIn, user: dict = Depends(auth.current_user)):
+    """Человек меняет имя, как к нему обращаться (users.full_name). Та же проверка, что в анкете
+    (check_name, от 2 символов), и не длиннее 80 — длинное не обрезаем молча, а просим сократить.
+    Сессия — cookie «sid» или Bearer; без входа 401. В журнал — только факт и user_id, само имя не пишем."""
+    if user.get("status") != auth.STATUS_ACTIVE:
+        raise HTTPException(403, "Учётная запись закрыта — имя поменять нельзя")
+    collapsed = " ".join((body.name or "").split())
+    if len(collapsed) > NAME_MAX:
+        raise HTTPException(422, f"Имя длиннее {NAME_MAX} символов — сократите его")
+    name = check_name(collapsed)
+    with db.tx() as con:
+        con.execute("UPDATE users SET full_name=? WHERE id=?", (name, user["id"]))
+        db.audit(con, user["login"], "имя изменено", f"user:{user['id']}", {"user_id": user["id"]})
+    return {"ok": True, "user_id": user["id"], "name": name}

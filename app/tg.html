@@ -98,7 +98,7 @@ input[type=file]::file-selector-button{font:700 13px var(--sans);min-height:36px
 button{font:inherit;cursor:pointer}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:0 var(--s2)}
 .two>div{min-width:0}
-@media (max-width:420px){.two{grid-template-columns:1fr}}
+@media (max-width:420px){.two:not(.keep){grid-template-columns:1fr}}
 .note{font-size:13px;color:var(--muted)}
 .msg{margin-top:var(--s1);font-size:13px}
 .msg:empty{display:none}
@@ -458,7 +458,7 @@ ul.notes li{margin:2px 0}
 .lines>div{padding:9px 0;border-bottom:1px solid var(--line)}
 .lines>div:last-child{border-bottom:0}
 .lines .top{display:flex;justify-content:space-between;gap:10px}
-.lines .top span{font-weight:700;min-width:0}
+.lines .top span{font-weight:700;min-width:0;flex:1 1 150px}
 .lines .top b{font:600 13px var(--mono);text-align:right;overflow-wrap:anywhere}
 .lines p{margin:3px 0 0;color:var(--muted);font-size:12.5px;overflow-wrap:anywhere}
 .lines small{display:block;color:var(--muted);font-size:11.5px;margin-top:2px}
@@ -473,6 +473,164 @@ ul.notes li{margin:2px 0}
 .tblwrap{overflow-x:auto;margin-top:var(--s2);border:1px solid var(--line);border-radius:10px}
 .inline{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;align-items:end}
 .inline label.f{margin-top:0}
+/* =====================================================================================
+   Компактная раскладка (задача 170): объединённые значения, сетки полей, карточки строк.
+   Шаг сетки отступов — 8/12/16/24 (--s1…--s4). Соседние карточки в ряду одной высоты.
+   ===================================================================================== */
+/* сегменты: несколько связанных значений одним блоком — «Ставка: применённая · техническая · минимум» */
+.seg{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:1px;background:var(--soft);border:1px solid var(--line);
+  border-radius:10px;overflow:hidden;margin-top:var(--s2)}
+.seg>div{min-width:0;padding:8px 12px;box-shadow:-1px 0 0 var(--line),0 -1px 0 var(--line)}
+.seg>div>span{display:block;font-size:11.5px;line-height:1.3;color:var(--muted)}
+.seg>div>b{display:block;font:600 15px/1.3 var(--mono);margin-top:2px;overflow-wrap:anywhere}
+.seg>div>em{display:block;font-style:normal;font-size:11px;color:var(--muted);margin-top:1px;overflow-wrap:anywhere}
+.seg>div.main>b{color:var(--accent)}
+/* на телефоне в сегментах две колонки: последний без пары — на всю ширину, без пустой клетки */
+@media (max-width:599px){.seg{grid-template-columns:repeat(2,minmax(0,1fr))}.seg>div:last-child:nth-child(odd){grid-column:1/-1}}
+.seg-t{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:var(--s2) 0 0;font-size:11.5px;font-weight:800;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.seg-t+.seg{margin-top:6px}
+/* главная цифра и её пояснение в одну строку со значком вердикта */
+.headline{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px}
+.headline .big{margin:0}
+.headline .verdict{align-self:center}
+.headline .sm{font:700 20px/1.2 var(--mono);color:var(--ink)}
+/* пары «метка — значение» в две колонки на широком экране; на телефоне метка над значением */
+.kv.pairs{grid-template-columns:minmax(0,1fr) auto}
+@media (min-width:700px){.kv.pairs{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;column-gap:16px}}
+@media (max-width:599px){
+  .kv.disc,.kv.wrap-b.stack{grid-template-columns:minmax(0,1fr);gap:0}
+  .kv.disc>span,.kv.wrap-b.stack>span{font-size:11.5px;margin-top:8px}
+  .kv.disc>span:first-child,.kv.wrap-b.stack>span:first-child{margin-top:0}
+  .kv.disc>b,.kv.wrap-b.stack>b{text-align:left;max-width:none}}
+@media (min-width:1100px){.kv.disc{grid-template-columns:minmax(110px,170px) minmax(0,1fr) minmax(110px,170px) minmax(0,1fr)}}
+/* мини-поля: метка мелко над значением, 2 колонки даже на телефоне */
+.mini{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px;font-size:13px;margin-top:var(--s1)}
+@media (min-width:700px) and (max-width:999px){.mini.m4{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.mini>div{min-width:0}
+.mini span{display:block;font-size:11px;color:var(--muted);line-height:1.3}
+.mini b{display:block;font-weight:600;overflow-wrap:anywhere;line-height:1.35}
+/* поля формы: 2–3 колонки на компьютере; на телефоне короткие поля (.half) — по два в ряд */
+.fg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 var(--s2);align-items:stretch}
+.fg>div{min-width:0;grid-column:1/-1}
+.fg>div.half{grid-column:auto}
+/* метка растягивается и прижимает текст книзу: поля одного ряда стоят на одной линии, даже если метка в две строки */
+.fg>div,.fgrid>div,.hero2>div{display:flex;flex-direction:column}
+.fg>div>label.f,.fgrid>div>label.f,.hero2>div>label.f{flex:1 0 auto;display:flex;flex-wrap:wrap;align-items:flex-end;align-content:flex-end;column-gap:6px}
+@media (min-width:600px){.fg>div{grid-column:auto}.fg>div.full{grid-column:1/-1}}
+@media (min-width:600px){.fg.c3{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* аналитика, шаг 4: та же логика в сетке .fgrid */
+.fgrid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+.fgrid>div{grid-column:1/-1}
+.fgrid>div.half{grid-column:auto}
+@media (min-width:600px){.fgrid>div{grid-column:auto}}
+@media (min-width:1100px){.fgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.fgrid>div.full{grid-column:1/-1}
+/* шаг 2: обязательные и дополнительные документы — две колонки на широком экране */
+.cols2{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s4)}
+.cols2 .opt-h{margin-top:var(--s3)}
+@media (min-width:900px){.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols2 .opt-h{margin-top:0}}
+.cols2>div{min-width:0}
+/* распознанные поля договора — две колонки строк на широком экране */
+@media (min-width:700px){.pf.two-col{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--s4)}
+  .pf.two-col>div:nth-last-child(2):nth-child(odd){border-bottom:0}}
+/* KPI: главная цифра на 2 колонки, вторичные по одной; ставки — сегментами под ними */
+.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:600px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi.hero{grid-column:span 2}
+.kpi{display:flex;flex-direction:column;justify-content:space-between}
+/* дашборд: карточки одного ряда — одной высоты */
+@media (min-width:1100px){.dash{align-items:stretch}}
+.dash>.card{display:flex;flex-direction:column}
+.dash>.card>.srcbar:last-child,.dash>.card>.warnline:last-child,.dash>.card>p.note.warn:last-child{margin-top:auto;padding-top:var(--s1)}
+/* ряды-карточки: название + вторичное мелко под ним, число справа (вместо узких колонок) */
+.rows>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.rows>div:last-child{border-bottom:0}
+.rows>div>span{min-width:0;overflow-wrap:anywhere}
+.rows>div>span small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+.rows>div>b{font:600 13px var(--mono);text-align:right;white-space:nowrap}
+.rows>div>b small{display:block;font:400 11.5px var(--sans);color:var(--muted);white-space:normal}
+.trend.up{color:var(--warn)}
+@media (min-width:900px){.rows.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--s4)}}.trend.down{color:var(--accent)}
+/* таблицы справочников: на телефоне строки становятся карточками */
+.tbl td small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px;font-family:var(--sans)}
+@media (max-width:599px){
+  .tblwrap{border:0;overflow:visible}
+  .tbl thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tbl,.tbl tbody{display:block}
+  .tbl tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+  .tbl td{border:0;padding:0;width:auto!important}
+  .tbl td:first-child{grid-column:1}
+  .tbl td.act{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+  .tbl td.num{text-align:right}
+  .tbl input{width:88px}
+  .tbl.norms tr{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tbl.norms td:first-child{grid-column:1/-1}
+  .tbl.norms td[data-l]::before{content:attr(data-l);display:block;font-size:11px;color:var(--muted);margin-bottom:2px}
+  .tbl.norms input{width:100%}}
+/* пользователи: компактная карточка */
+.cards.people{grid-template-columns:minmax(0,1fr)}
+@media (min-width:1000px){.cards.people{grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}}
+.cards.people>.card{display:flex;flex-direction:column}
+.cards.people>.card>.actions{margin-top:auto;padding-top:var(--s2)}
+.cards.people .card h2{display:flex;flex-wrap:wrap;align-items:center;gap:4px 0}
+.cards.people .card p.sub{margin-bottom:0}
+/* верхние плашки: «Открыть в Telegram» и «Тестовый сервер» — компактнее */
+.tgopen{padding:10px 12px;gap:8px 12px}
+.tgopen p{font-size:12.5px}
+.banner{padding:8px 12px;font-size:12.5px}
+@media (max-width:599px){.tgopen .btn{width:auto;flex:1 1 auto}}
+/* профиль и режим пользователя в левой панели */
+#side .whoami .who-name{background:none;border:0;padding:0;margin:0;min-height:0;color:var(--ink);-webkit-text-fill-color:var(--ink);
+  font:700 12px/1.4 var(--sans);text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer;text-align:left}
+#side .whoami .who-name:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+#side .whoami .nameform{flex:1 1 100%;display:flex;flex-direction:column;gap:6px}
+#side .whoami .nameform.hidden,#side .whoami label.switch.hidden{display:none}
+#side .whoami .nameform label{font-size:11.5px;color:var(--muted);font-weight:600}
+#side .whoami .nameform div{display:flex;gap:6px}
+#side .whoami .nameform .btn{flex:1 1 0}
+.viewpill{display:flex;width:max-content;max-width:100%;margin:4px 0;white-space:nowrap;align-items:center;gap:4px;font-size:11px;font-weight:800;letter-spacing:.02em;border:1px solid var(--accent-dim);
+  color:var(--accent);border-radius:6px;padding:1px 2px 1px 7px;margin-left:6px;vertical-align:1px}
+.viewpill button{background:none;border:0;padding:2px 6px;min-height:0;font:800 11px/1.2 var(--sans);color:var(--link);-webkit-text-fill-color:var(--link);
+  text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.viewpill button:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+label.switch{display:flex;align-items:center;gap:10px;flex:1 1 100%;min-height:44px;font-size:12.5px;color:var(--ink);cursor:pointer}
+label.switch input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent-color:var(--accent)}
+#setAdmin{align-items:stretch}
+#setAdmin>.card{display:flex;flex-direction:column}
+#setAdmin>.card>.actions{margin-top:auto;padding-top:var(--s2)}
+.profile-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
+.profile-row .btn{min-height:44px}
+@media (max-width:420px){.profile-row{grid-template-columns:minmax(0,1fr)}}
+
+/* ===== Визуальный язык Telegram Mini Apps (задача 170) =====
+   По мотивам TelegramUI — https://github.com/Telegram-Mini-Apps/TelegramUI (MIT License,
+   Copyright (c) 2024 XeleneStudio): Section с заголовком мелким капсом, Cell (значок в плитке слева,
+   заголовок + подзаголовок, значение справа), SegmentedControl вместо набора кнопок-переключателей.
+   Код библиотеки не копировался — разметка и CSS свои; размеры по её системе: радиусы 12/16,
+   отступ 16, текст 17/15/13, высота ячейки 48–64. Цвета — наши (тёмный INSON) или из themeParams
+   Telegram с проверкой контраста (см. applyTheme). */
+.card{border-radius:16px}
+.card h2{font-size:17px;line-height:1.3}
+.kpi,.mkt,.seg,.tip,.upl,.plist,.tblwrap,.drop,.consent,.itv{border-radius:12px}
+.h3,.eyebrow,.seg-t{color:var(--sec-head,var(--muted))}
+/* Cell в меню: значок в плитке, заголовок 15px, высота 48 */
+body.side-open #nav{gap:2px;padding:8px}
+body.side-open #nav button{min-height:48px;border-radius:12px;padding:6px 10px 6px 6px;gap:12px}
+body.side-open #nav button i{width:32px;height:32px;border-radius:9px;background:var(--soft);display:inline-flex;align-items:center;justify-content:center;font-size:16px}
+body.side-open #nav button span{font-size:15px;font-weight:600}
+body.side-open #nav button.on{box-shadow:none;background:rgba(46,211,162,.10)}
+body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+/* SegmentedControl: один трек, выбранный сегмент — светлее */
+.chips{display:flex;flex-wrap:wrap;gap:2px;padding:2px;background:var(--soft);border:1px solid var(--line);border-radius:12px;width:max-content;max-width:100%}
+.chip{min-height:40px;flex:1 1 auto;border:0;border-radius:10px;padding:6px 16px;background:transparent}
+.chip[aria-pressed="true"]{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.35);border:0}
+/* Cell-строки внутри секций: единая высота и отступ, разделитель внутри карточки */
+.rows>div,.drivers>div,.reducers>div,.files div,.pr,.check{min-height:44px;align-items:center}
+.check{align-items:flex-start}
+/* в Telegram основное действие шага и «Назад» — нативные MainButton и BackButton, дубли на странице прячем */
+body.in-tg .tg-main,body.in-tg .tg-back{display:none}
+body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
 </style>
 
 <aside id="side">
@@ -486,7 +644,18 @@ ul.notes li{margin:2px 0}
     <button type="button" data-lang-pick="uz" data-i18n-title="common.lang_uz" title="Oʻzbekcha" lang="uz" aria-pressed="false">UZ</button>
     <button type="button" data-lang-pick="en" data-i18n-title="common.lang_en" title="English" lang="en" aria-pressed="false">EN</button>
   </div>
-  <div class="whoami hidden" id="whoami"><span id="whoText"></span><button type="button" class="btn btn-secondary btn-sm" id="outBtn" data-i18n="common.logout">Выйти</button></div>
+  <div class="whoami hidden" id="whoami"><span id="whoText"></span>
+    <!-- смена имени: нажатие на имя открывает поле (PUT /tg/me/name) -->
+    <div class="nameform hidden" id="whoNameForm">
+      <label for="whoName" data-i18n="tg.reg.name">Имя</label>
+      <input id="whoName" type="text" maxlength="80" autocomplete="name">
+      <div><button type="button" class="btn btn-primary btn-sm" id="whoNameSave" data-i18n="common.save">Сохранить</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="whoNameCancel" data-i18n="common.cancel">Отмена</button></div>
+      <div class="note msg" id="whoNameMsg"></div>
+    </div>
+    <!-- только у администратора: посмотреть приложение глазами обычного пользователя; права не меняются -->
+    <label class="switch hidden" id="viewSwitch"><input type="checkbox" id="viewToggle"><span data-i18n="tg.view.toggle">Режим пользователя</span></label>
+    <button type="button" class="btn btn-secondary btn-sm" id="outBtn" data-i18n="common.logout">Выйти</button></div>
 </aside>
 <div id="scrim"></div>
 
@@ -635,21 +804,24 @@ ul.notes li{margin:2px 0}
       </div>
       <div class="picked" id="osPicked"></div>
       <span class="ferr" id="osQErr"></span>
-      <label class="f" for="osPay" data-i18n="tg.os.payroll">Фонд оплаты труда за год, сум</label>
-      <input id="osPay" type="text" inputmode="numeric" autocomplete="off" placeholder="1 200 000 000">
-      <span class="hint" data-i18n="tg.os.payroll_hint">Это и есть страховая сумма (ЗРУ-210, ст. 10).</span>
-      <span class="ferr" id="osPayErr"></span>
-      <div class="two">
-        <div>
+      <!-- ФОТ на всю ширину; срок и дата — короткие поля, по два в ряд даже на телефоне -->
+      <div class="fg">
+        <div class="full">
+          <label class="f" for="osPay" data-i18n="tg.os.payroll">Фонд оплаты труда за год, сум</label>
+          <input id="osPay" type="text" inputmode="numeric" autocomplete="off" placeholder="1 200 000 000">
+          <span class="hint" data-i18n="tg.os.payroll_hint">Это и есть страховая сумма (ЗРУ-210, ст. 10).</span>
+          <span class="ferr" id="osPayErr"></span>
+        </div>
+        <div class="half">
           <label class="f" for="osDays" data-i18n="calc.term_days">Срок, дней</label>
           <input id="osDays" type="text" inputmode="numeric" value="365">
         </div>
-        <div>
+        <div class="half">
           <label class="f" for="osDate" data-i18n="tg.os.date">Дата договора</label>
           <input id="osDate" type="date">
         </div>
       </div>
-      <div class="actions"><button type="button" class="btn btn-primary" id="osBtn" data-i18n="tg.os.calc">Рассчитать</button></div>
+      <div class="actions"><button type="button" class="btn btn-primary tg-main" id="osBtn" data-i18n="tg.os.calc">Рассчитать</button></div>
       <div class="note msg" id="osMsg"></div>
     </div>
     <div id="osBrvBox"></div>
@@ -667,13 +839,19 @@ ul.notes li{margin:2px 0}
     <div class="card">
       <h2 data-i18n="tg.form_title">Объект и договор</h2>
       <p class="sub" data-i18n="tg.form_hint">Коротко: что страхуем, на какую сумму и на какой срок.</p>
-      <label class="f" for="cls" data-i18n="calc.class">Класс страхования</label>
-      <select id="cls"><option data-i18n="common.loading">загружаю…</option></select>
-      <label class="f" for="prod" data-i18n="calc.product">Продукт</label>
-      <select id="prod"><option data-i18n="calc.class_pick_first">сначала выберите класс</option></select>
-      <label class="f" for="otype" data-i18n="calc.object_type">Тип объекта</label>
-      <input id="otype" type="text" value="Склад" autocomplete="off">
-      <div class="two">
+      <div class="fg">
+        <div>
+          <label class="f" for="cls" data-i18n="calc.class">Класс страхования</label>
+          <select id="cls"><option data-i18n="common.loading">загружаю…</option></select>
+        </div>
+        <div>
+          <label class="f" for="prod" data-i18n="calc.product">Продукт</label>
+          <select id="prod"><option data-i18n="calc.class_pick_first">сначала выберите класс</option></select>
+        </div>
+        <div class="full">
+          <label class="f" for="otype" data-i18n="calc.object_type">Тип объекта</label>
+          <input id="otype" type="text" value="Склад" autocomplete="off">
+        </div>
         <div>
           <label class="f" for="sum" data-i18n="calc.sum_insured_field">Страховая сумма, сум</label>
           <input id="sum" type="text" inputmode="numeric" value="800 000 000">
@@ -682,13 +860,11 @@ ul.notes li{margin:2px 0}
           <label class="f" for="val" data-i18n="calc.value_field">Стоимость объекта, сум</label>
           <input id="val" type="text" inputmode="numeric" value="1 000 000 000">
         </div>
-      </div>
-      <div class="two">
-        <div>
+        <div class="half">
           <label class="f" for="term" data-i18n="calc.term_days">Срок, дней</label>
           <input id="term" type="text" inputmode="numeric" value="365">
         </div>
-        <div>
+        <div class="half">
           <label class="f" for="fr" data-i18n="calc.franchise">Франшиза</label>
           <select id="fr"><option value="" data-i18n="calc.franchise_none">не применяется</option></select>
         </div>
@@ -698,15 +874,17 @@ ul.notes li{margin:2px 0}
     <div class="card" id="factorsCard">
       <h2 data-i18n="calc.factors">Факторы риска</h2>
       <p class="sub" data-i18n="calc.factors_hint">Набор зависит от класса. Пустое поле — фактор не учитывается.</p>
-      <div id="factors"><div class="note" data-i18n="common.loading">загружаю…</div></div>
+      <div id="factors" class="fg"><div class="note full" data-i18n="common.loading">загружаю…</div></div>
     </div>
 
     <div class="card">
       <h2 data-i18n="disclosure.title">Что сказать клиенту</h2>
       <p class="sub" data-i18n="disclosure.legal">Статья 63 Закона о страховой деятельности.</p>
-      <label class="chk" style="margin-top:0"><input type="checkbox" id="disclosure"><span data-i18n="disclosure.done">Клиенту всё рассказал</span></label>
-      <label class="chk"><input type="checkbox" id="paid"><span data-i18n="disclosure.premium_paid">Премия поступила</span></label>
-      <div class="actions"><button type="button" class="btn btn-primary" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button></div>
+      <div class="two keep">
+        <label class="chk" style="margin-top:0"><input type="checkbox" id="disclosure"><span data-i18n="disclosure.done">Клиенту всё рассказал</span></label>
+        <label class="chk" style="margin-top:0"><input type="checkbox" id="paid"><span data-i18n="disclosure.premium_paid">Премия поступила</span></label>
+      </div>
+      <div class="actions"><button type="button" class="btn btn-primary tg-main" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button></div>
       <div class="note msg" id="calcMsg"></div>
     </div>
     </div>
@@ -731,13 +909,19 @@ ul.notes li{margin:2px 0}
     <div class="card">
       <h2 data-i18n="tg.docs_title">Документы объекта</h2>
       <p class="sub" data-i18n="tg.docs_hint">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
-      <label class="f" for="docKind" data-i18n="tg.doc_kind_question">Что за документ</label>
-      <select id="docKind">
-        <option value="техпаспорт" data-i18n="tg.doc_kind_tech">Технический паспорт</option>
-        <option value="кадастр" data-i18n="tg.doc_kind_cadastre">Кадастровые документы</option>
-      </select>
-      <label class="f" for="docFile" data-i18n="tg.doc_file">Файл — PDF или фотография</label>
-      <input type="file" id="docFile" accept="image/*,application/pdf">
+      <div class="fg">
+        <div>
+          <label class="f" for="docKind" data-i18n="tg.doc_kind_question">Что за документ</label>
+          <select id="docKind">
+            <option value="техпаспорт" data-i18n="tg.doc_kind_tech">Технический паспорт</option>
+            <option value="кадастр" data-i18n="tg.doc_kind_cadastre">Кадастровые документы</option>
+          </select>
+        </div>
+        <div>
+          <label class="f" for="docFile" data-i18n="tg.doc_file">Файл — PDF или фотография</label>
+          <input type="file" id="docFile" accept="image/*,application/pdf">
+        </div>
+      </div>
       <div class="note msg" id="docMsg"></div>
       <div class="files" id="docList" style="margin-top:var(--s2)"></div>
     </div>
@@ -749,15 +933,27 @@ ul.notes li{margin:2px 0}
     <div class="sec-head"><div><h1 data-i18n="tg.nav.users">Пользователи</h1>
       <p data-i18n="tg.users_lead2">Кто работает в системе: имя, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p></div>
       <button type="button" class="btn btn-secondary" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
-    <div class="cards" id="usrList"></div>
+    <div class="cards people" id="usrList"></div>
   </section>
 
   <!-- настройки; у админа — ещё «Данные и справочники» -->
   <section id="tab-settings" data-section="settings" class="hidden">
     <div class="sec-head"><div><h1 data-i18n="tg.settings_title">Настройки</h1>
-      <p data-i18n="tg.settings_lead2">Состояние бота Telegram, перенос сервера и — для администратора — данные и справочники.</p></div></div>
+      <p data-i18n="tg.settings_lead3">Профиль — у всех. Бот Telegram, перенос сервера, данные и справочники — у администратора.</p></div></div>
+    <div class="card" id="profileCard">
+      <h2 data-i18n="tg.profile.title">Профиль</h2>
+      <p class="sub" data-i18n="tg.profile.hint">Имя видят коллеги в разделе «Пользователи». Роль и права меняет администратор.</p>
+      <div class="profile-row">
+        <div><label class="f" for="pfName" data-i18n="tg.reg.name">Имя</label>
+          <input id="pfName" type="text" maxlength="80" autocomplete="name"></div>
+        <button type="button" class="btn btn-primary" id="pfSave" data-i18n="tg.profile.save">Сохранить имя</button>
+      </div>
+      <span class="hint" data-i18n="tg.profile.name_hint">Как к вам обращаться — от 2 до 80 символов.</span>
+      <div class="note msg" id="pfMsg"></div>
+      <div class="mini m4" id="pfInfo"></div>
+    </div>
     <div id="admData"></div>
-    <div class="grid2">
+    <div class="grid2" id="setAdmin">
     <div class="card">
       <h2 data-i18n="tg.nav.bot">Бот Telegram</h2>
       <p class="sub" data-i18n="tg.bot_hint">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
@@ -845,11 +1041,15 @@ function applyTheme(){
   if (!TG) return;
   const p = TG.themeParams || {};
   const root = document.documentElement;
-  ["--paper", "--card", "--ink"].forEach(v => root.style.removeProperty(v));
-  const bg = hexColor(p.bg_color), card = hexColor(p.secondary_bg_color), ink = hexColor(p.text_color);
+  ["--paper", "--card", "--ink", "--muted", "--sec-head"].forEach(v => root.style.removeProperty(v));
+  // как в клиенте Telegram: фон страницы — secondary_bg_color, секции (карточки) — section_bg_color
+  const bg = hexColor(p.secondary_bg_color) || hexColor(p.bg_color);
+  const card = hexColor(p.section_bg_color) || hexColor(p.bg_color);
+  const ink = hexColor(p.text_color), hint = hexColor(p.hint_color), head = hexColor(p.section_header_text_color);
   if (!(THEME_URL === "light" || THEME_URL === "dark")) {
     // вне Telegram (обычный браузер) цветов темы нет — остаёмся на своей тёмной теме
-    const light = bg ? luminance(bg) > 0.4 : !!(TG.initData && TG.colorScheme === "light");
+    const base = hexColor(p.bg_color) || bg;
+    const light = base ? luminance(base) > 0.4 : !!(TG.initData && TG.colorScheme === "light");
     root.dataset.theme = light ? "light" : "dark";
   }
   const cs = getComputedStyle(root);
@@ -861,8 +1061,11 @@ function applyTheme(){
   const cardUse = bgOk(card) ? card : ours("--card");
   if (paper !== ours("--paper")) root.style.setProperty("--paper", paper);
   if (cardUse !== ours("--card")) root.style.setProperty("--card", cardUse);
-  // текст Telegram — только если он читается и на фоне страницы, и на фоне карточек
-  if (ink && contrast(ink, paper) >= 4.5 && contrast(ink, cardUse) >= 4.5) root.style.setProperty("--ink", ink);
+  // тексты Telegram — только если читаются и на фоне страницы, и на фоне карточек (WCAG 4,5:1)
+  const reads = x => x && contrast(x, paper) >= 4.5 && contrast(x, cardUse) >= 4.5;
+  if (reads(ink)) root.style.setProperty("--ink", ink);
+  if (reads(hint)) root.style.setProperty("--muted", hint);
+  if (reads(head)) root.style.setProperty("--sec-head", head);
 }
 if (TG) {
   try {
@@ -910,8 +1113,29 @@ try { TOKEN = sessionStorage.getItem("surveyor_token") || null; } catch (e) {}
 function setToken(t){ TOKEN = t || null; try { if (t) sessionStorage.setItem("surveyor_token", t); else sessionStorage.removeItem("surveyor_token"); } catch (e) {} }
 let BOT = null, EAIS = null, STATUS = null;
 let SCREEN = "login";
-const IS_ADMIN = () => !!(ME.user && ME.user.is_admin);
-const CAN = key => (ME.can_edit || []).indexOf(key) >= 0;
+/* Режим пользователя (задача 170): администратор смотрит приложение глазами обычного сотрудника.
+   Включается переключателем в левой панели или адресом /tg?mode=user (кнопка «Выйти из админки» в /admin/hub),
+   помнится в sessionStorage до закрытия вкладки. Права не меняются — сервер проверяет их сам; прячем только
+   админские разделы, формы правки справочников и кнопки управления людьми. */
+const VIEW_KEY = "surveyor_view";
+let VIEW_USER = false;
+(function(){
+  const q = new URLSearchParams(location.search);
+  if (q.get("mode") === "user") {
+    try { sessionStorage.setItem(VIEW_KEY, "user"); } catch (e) {}
+    q.delete("mode");
+    const rest = q.toString();
+    try { history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash); } catch (e) {}
+    VIEW_USER = true;
+  }
+  try { VIEW_USER = VIEW_USER || sessionStorage.getItem(VIEW_KEY) === "user"; } catch (e) {}
+})();
+/* админ на самом деле. При /tg/me?view=user сервер отдаёт role «сотрудник» и is_admin=false,
+   а настоящую роль — в admin_available и real_role (app/tgbot.py, tg_me): по ним и показываем «Вернуться». */
+const REAL_ADMIN = () => !!(ME.user && (ME.admin_available === true || ME.real_role === "админ"
+  || ME.user.is_admin || ME.user.role === "админ"));
+const IS_ADMIN = () => REAL_ADMIN() && !VIEW_USER;
+const CAN = key => !VIEW_USER && (ME.can_edit || []).indexOf(key) >= 0;
 
 function banner(sel, kind, text){
   const el = $(sel);
@@ -922,6 +1146,7 @@ function screen(name){
   SCREEN = name;
   ["login", "wait", "register", "app"].forEach(s => $("#screen-" + s).classList.toggle("hidden", s !== name));
   $("#nav").classList.toggle("hidden", name !== "app" || !$("#nav").querySelector("button"));
+  if (typeof syncTgButtons === "function") syncTgButtons();
 }
 
 /* ---------- «Открыть в Telegram»: только в обычном браузере ---------- */
@@ -980,6 +1205,8 @@ function sectionKeys(){
 function paintNav(items, repaint){
   const nav = $("#nav");
   const list = (items || []).filter(it => document.querySelector('[data-section="' + it.key + '"]'));
+  // «Настройки» с профилем — у всех: сервер отдаёт этот пункт только админу, остальным добавляем сами
+  if (ME.user && !list.some(it => it.key === "settings")) list.push({key: "settings", title: ""});
   nav.classList.toggle("hidden", !list.length);
   if (!list.length) { nav.innerHTML = ""; return; }
   nav.innerHTML = list.map(it => {
@@ -993,7 +1220,7 @@ function paintNav(items, repaint){
   /* «Админка» — переход в общий каркас админки (/admin/hub) в этом же окне: домен тот же,
      вход по cookie сессии, ничего в адрес не подставляем. Признак админа — раздел «Настройки»,
      его сервер отдаёт в меню только админу (app/tgbot.py, NAV_ADMIN). */
-  if (list.some(it => it.key === "settings")) {
+  if (IS_ADMIN()) {
     const hub = T("tg.nav.admin", "Админка");
     nav.insertAdjacentHTML("beforeend",
       '<button type="button" id="navAdmin" title="' + esc(hub) + '">'
@@ -1020,9 +1247,9 @@ function openTab(key){
   });
   markTab(key);
   if (!WIDE.matches) sideOpen(false);          // на телефоне панель закрывается, видно раздел
-  mainButton(key === "calc");
   window.scrollTo(0, 0);
   if (LOADERS[key]) LOADERS[key]();
+  syncTgButtons();
 }
 
 function navBadge(key, n){
@@ -1035,20 +1262,54 @@ function navBadge(key, n){
   btn.title = base + (n ? " (" + n + ")" : "");
 }
 
-/* ---------- главная кнопка Telegram ---------- */
-function mainButton(show){
-  if (!TG || !TG.MainButton) return;
-  try {
-    TG.MainButton.setText(T("tg.calc_button", "Посчитать"));
-    if (show) TG.MainButton.show(); else TG.MainButton.hide();
-  } catch (e) {}
+/* ---------- нативные кнопки Telegram: MainButton, BackButton, SettingsButton, HapticFeedback ---------- */
+/* В Telegram основное действие раздела или шага мастера — нижняя кнопка клиента (MainButton), «Назад» в мастере —
+   BackButton в шапке, «Настройки» (профиль) — SettingsButton в меню мини-аппа. Дубли на странице прячутся
+   классами tg-main / tg-back (body.in-tg). Вне Telegram всё работает кнопками страницы, как раньше.
+   Обработчик у каждой нативной кнопки один; что он делает, решает syncTgButtons() по разделу и шагу. */
+const TGB = {main: null, back: null, busy: false};
+if (IN_TG) document.body.classList.add("in-tg");
+function tgCall(f){ try { f(); } catch (e) { /* старая версия клиента — кнопки страницы остаются */ } }
+function haptic(kind){
+  if (!TG || !TG.HapticFeedback) return;
+  tgCall(() => { if (kind === "select") TG.HapticFeedback.selectionChanged(); else TG.HapticFeedback.notificationOccurred(kind); });
 }
-if (TG && TG.MainButton) {
-  try {
-    TG.MainButton.onClick(() => calculate());
-    TG.MainButton.setText(T("tg.calc_button", "Посчитать"));
-    if (IN_TG) $("#calcBtn").classList.add("hidden");   // в Telegram считает нижняя кнопка клиента
-  } catch (e) {}
+/* нажать кнопку страницы, если она есть и не выключена */
+const pressBtn = sel => () => { const b = $(sel); if (b && !b.disabled) b.click(); };
+function syncTgButtons(){
+  if (!IN_TG) return;
+  let text = null, fn = null, back = null, off = false;
+  if (SCREEN === "app") {
+    if (TAB === "calc") { text = T("tg.calc_button", "Посчитать"); fn = calculate; }
+    else if (TAB === "osgor") { text = T("tg.os.calc", "Рассчитать"); fn = osCalc; }
+    else if (TAB === "analytics" && WZ.step < 5) {
+      const sel = WZ.step === 4 ? "#anGo" : "#wzNext" + WZ.step;
+      const b = $(sel);
+      if (b) { text = b.textContent; fn = pressBtn(sel); off = b.disabled; }
+    }
+    if (TAB === "analytics" && WZ.step > 1) back = () => wzGo(WZ.step - 1);
+  }
+  TGB.main = fn; TGB.back = back;
+  if (TG.MainButton) tgCall(() => {
+    if (!text) { TG.MainButton.hide(); return; }
+    TG.MainButton.setText(text);
+    if (off && !TGB.busy) TG.MainButton.disable(); else TG.MainButton.enable();
+    TG.MainButton.show();
+  });
+  if (TG.BackButton) tgCall(() => { if (back) TG.BackButton.show(); else TG.BackButton.hide(); });
+}
+/* прогресс на нижней кнопке, пока идёт запрос */
+function tgBusy(on){
+  TGB.busy = !!on;
+  if (IN_TG && TG.MainButton) tgCall(() => { if (on) TG.MainButton.showProgress(false); else TG.MainButton.hideProgress(); });
+}
+if (IN_TG) {
+  if (TG.MainButton) tgCall(() => TG.MainButton.onClick(() => { if (TGB.main && !TGB.busy) TGB.main(); }));
+  if (TG.BackButton) tgCall(() => TG.BackButton.onClick(() => { if (TGB.back) TGB.back(); }));
+  if (TG.SettingsButton) tgCall(() => {
+    TG.SettingsButton.onClick(() => { if (SCREEN === "app") openTab("settings"); });
+    TG.SettingsButton.show();
+  });
 }
 
 /* ---------- смена языка: мгновенная перерисовка всего, что видно ---------- */
@@ -1069,7 +1330,7 @@ function repaintCurrent(){
     paintNav(ME.nav || [], true);
     if (TAB && REPAINT[TAB]) REPAINT[TAB]();
   }
-  if (TG && TG.MainButton) { try { TG.MainButton.setText(T("tg.calc_button", "Посчитать")); } catch (e) {} }
+  syncTgButtons();
 }
 window.addEventListener("i18n:changed", repaintCurrent);
 
@@ -1115,9 +1376,65 @@ function roleName(r){
 function paintWho(){
   const u = ME.user;
   if (!u) return;
-  $("#whoText").innerHTML = "<b>" + esc(u.name || u.full_name || "—") + "</b>"
-    + (u.is_admin ? '<span class="adm-badge">' + esc(T("tg.admin_badge", "Админ")) + "</span>" : "")
+  const admin = REAL_ADMIN();
+  $("#whoText").innerHTML = '<button type="button" class="who-name" id="whoNameBtn" title="' + esc(T("tg.profile.rename", "Изменить имя")) + '">'
+    + esc(u.name || u.full_name || "—") + "</button>"
+    + (admin && VIEW_USER
+      ? '<span class="viewpill">' + esc(T("tg.view.pill", "Режим пользователя")) + ' ·<button type="button" id="viewBack">' + esc(T("tg.view.back", "Вернуться")) + "</button></span>"
+      : admin ? '<span class="adm-badge">' + esc(T("tg.admin_badge", "Админ")) + "</span>" : "")
     + " · " + esc(roleName(u.role)) + (u.branch ? " · " + esc(u.branch) : "");
+  $("#whoNameBtn").onclick = () => nameFormOpen(true);
+  if ($("#viewBack")) $("#viewBack").onclick = () => setView(false);
+  $("#viewSwitch").classList.toggle("hidden", !admin);
+  $("#viewToggle").checked = VIEW_USER;
+}
+
+/* ---------- режим пользователя: переключение ---------- */
+async function setView(on){
+  VIEW_USER = !!on;
+  try { if (on) sessionStorage.setItem(VIEW_KEY, "user"); else sessionStorage.removeItem(VIEW_KEY); } catch (e) {}
+  USERS = null;
+  await loadMe();
+}
+$("#viewToggle").onchange = () => setView($("#viewToggle").checked);
+
+/* ---------- смена имени: левая панель и «Настройки → Профиль» ---------- */
+function nameFormOpen(on){
+  $("#whoNameForm").classList.toggle("hidden", !on);
+  $("#whoText").classList.toggle("hidden", !!on);
+  $("#whoNameMsg").innerHTML = "";
+  if (on) { $("#whoName").value = (ME.user && (ME.user.name || ME.user.full_name)) || ""; $("#whoName").focus(); }
+}
+async function saveName(raw, msgSel){
+  const msg = $(msgSel);
+  const name = String(raw || "").replace(/\s+/g, " ").trim();
+  if (name.length < 2) { msg.innerHTML = errHtml(T("tg.reg.name_need", "Напишите имя — как к вам обращаться, не короче 2 символов.")); return false; }
+  if (name.length > 80) { msg.innerHTML = errHtml(T("tg.profile.too_long", "Имя длиннее 80 символов — сократите его.")); return false; }
+  msg.innerHTML = spin(T("common.saving", "сохраняю…"));
+  const r = await api("/tg/me/name", jsonOpts("PUT", {name: name}));
+  if (!r.ok) { msg.innerHTML = errHtml(T("tg.profile.not_saved", "Имя не сохранено: {reason}", {reason: r.error})); return false; }
+  const got = (r.data && r.data.name) || name;
+  ME.user.name = ME.user.full_name = got;
+  if (USERS && USERS.items) USERS.items.forEach(x => { if (x.id === ME.user.id) x.full_name = got; });
+  paintWho();
+  paintProfile();
+  if (TAB === "users") usersRepaint();
+  msg.innerHTML = okHtml(T("tg.profile.saved", "Имя сохранено."));
+  return true;
+}
+$("#whoNameSave").onclick = async () => { if (await saveName($("#whoName").value, "#whoNameMsg")) setTimeout(() => nameFormOpen(false), 900); };
+$("#whoNameCancel").onclick = () => nameFormOpen(false);
+$("#whoName").addEventListener("keydown", e => { if (e.key === "Enter") $("#whoNameSave").click(); if (e.key === "Escape") nameFormOpen(false); });
+$("#pfSave").onclick = () => saveName($("#pfName").value, "#pfMsg");
+$("#pfName").addEventListener("keydown", e => { if (e.key === "Enter") $("#pfSave").click(); });
+function paintProfile(){
+  const u = ME.user;
+  if (!u) return;
+  if (document.activeElement !== $("#pfName")) $("#pfName").value = u.name || u.full_name || "";
+  $("#pfInfo").innerHTML = "<div><span>" + esc(T("tg.profile.role", "Роль")) + "</span><b>" + esc(roleName(u.role)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.branch", "Филиал")) + "</span><b>" + esc(u.branch || "—") + "</b></div>"
+    + "<div><span>" + esc(T("tg.mode", "Режим")) + "</span><b>" + esc(modeName(ME.mode) || T("tg.mode_browser", "браузер")) + "</b></div>"
+    + "<div><span>" + esc(T("tg.profile.view", "Вид")) + "</span><b>" + esc(REAL_ADMIN() && !VIEW_USER ? T("tg.view.admin", "администратор") : T("tg.view.user", "пользователь")) + "</b></div>";
 }
 
 /* ---------- вход ---------- */
@@ -1169,7 +1486,7 @@ function showWait(reason, extra){
 }
 
 async function loadMe(){
-  const r = await api("/tg/me");
+  const r = await api("/tg/me" + (VIEW_USER ? "?view=user" : ""));
   if (!r.ok) {
     $("#mode").textContent = T("tg.server_silent", "сервер не ответил");
     banner("#authWarn", "stop", r.status === 404
@@ -1782,6 +2099,7 @@ function wzPaint(){
   else if (WZ.step === 3) wzStep3(box);
   else if (WZ.step === 4) wzStep4(box);
   else wzStep5(box);
+  if (TAB === "analytics") syncTgButtons();
 }
 function failCard(title, reason, retryId){
   return '<div class="card"><h2>' + esc(title) + '</h2><p class="note err">' + esc(reason) + "</p>"
@@ -1851,6 +2169,7 @@ function wzPick(code){
   const p = ((CAT && CAT.products) || []).filter(x => x.code === code)[0];
   if (!p) return;
   wzSetClass(prodClasses(p), {code: p.code, name: p.name, classes: p.classes || []});
+  haptic("select");
   $("#wzList").querySelectorAll("[data-code]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.code === code)));
   wzPaintPicked();
   const next = $("#wzNext1");
@@ -1864,12 +2183,13 @@ function wzPaintPicked(){
     : cl ? esc(T("tg.an.picked_class", "Продукт не выбран — чек-лист покажем по классу {c}.", {c: cl.code + " · " + cl.name}))
     : esc(T("tg.an.pick_hint", "Выберите продукт из списка или хотя бы класс."));
   const can = !!p || !!cl;
-  $("#wzAct1").innerHTML = '<button type="button" class="btn btn-primary" id="wzNext1"' + (can ? "" : " disabled") + ">"
+  $("#wzAct1").innerHTML = '<button type="button" class="btn btn-primary tg-main" id="wzNext1"' + (can ? "" : " disabled") + ">"
     + esc(p || !cl ? T("tg.an.to_docs", "Дальше: какие нужны документы") : T("tg.an.to_docs_class", "Дальше без продукта")) + "</button>";
   $("#wzNext1").onclick = () => {
     if (!p && cl) wzSetClass(cl.code, null);
     wzGo(2);
   };
+  syncTgButtons();
 }
 
 /* ---------- шаг 2: какие документы нужны ---------- */
@@ -1902,8 +2222,8 @@ function wzStep2(box){
     + '<select id="wzType"><option value="">' + esc(T("tg.an.otype_any", "не важно")) + "</option>"
     + types.map(t => '<option value="' + esc(t) + '">' + esc(t) + "</option>").join("") + "</select>"
     + '<div id="wzDocs" style="margin-top:var(--s3)"></div>'
-    + '<div class="actions"><button type="button" class="btn btn-primary" id="wzNext2">' + esc(T("tg.an.to_contract", "Дальше: загрузить договор")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" id="wzBack2">' + esc(T("common.back", "Назад")) + "</button></div>"
+    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="wzNext2">' + esc(T("tg.an.to_contract", "Дальше: загрузить договор")) + "</button>"
+    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack2">' + esc(T("common.back", "Назад")) + "</button></div>"
     + "</div>";
   const sel = $("#wzType");
   if (WZ.otype && types.indexOf(WZ.otype) < 0) sel.insertAdjacentHTML("beforeend", '<option value="' + esc(WZ.otype) + '">' + esc(WZ.otype) + "</option>");
@@ -1942,11 +2262,14 @@ function wzPaintDocs(){
   const closed = wzClosed();
   const req = d.required || [], opt = d.optional || [];
   const got = req.filter(x => closed[x.doc_name]).length;
-  box.innerHTML = '<div class="h3">' + esc(T("tg.an.docs_required", "Обязательные · {n}", {n: req.length})) + "</div>"
+  // обязательные и дополнительные — рядом на широком экране, друг под другом на телефоне
+  box.innerHTML = '<div class="cols2"><div><div class="h3" style="margin-top:0">' + esc(T("tg.an.docs_required", "Обязательные · {n}", {n: req.length})) + "</div>"
     + (got ? '<p class="note ok" style="margin:2px 0 4px">' + esc(T("tg.an.docs_got_n", "Закрыто файлами: {c} из {n}", {c: got, n: req.length})) + "</p>" : "")
     + (req.length ? req.map(x => docRow(x, closed[x.doc_name] ? "ok" : "warn")).join("") : '<p class="note">' + esc(T("common.none", "нет")) + "</p>")
-    + (opt.length ? '<div class="h3" style="margin-top:var(--s3)">' + esc(T("tg.an.docs_optional", "Дополнительные — по условиям · {n}", {n: opt.length})) + "</div>"
-      + opt.map(x => docRow(x, closed[x.doc_name] ? "ok" : "opt")).join("") : "")
+    + "</div>"
+    + (opt.length ? '<div><div class="h3 opt-h">' + esc(T("tg.an.docs_optional", "Дополнительные — по условиям · {n}", {n: opt.length})) + "</div>"
+      + opt.map(x => docRow(x, closed[x.doc_name] ? "ok" : "opt")).join("") + "</div>" : "")
+    + "</div>"
     + '<p class="note" style="margin-top:var(--s2)">' + esc(d.basis_text || "") + "</p>";
 }
 
@@ -2070,12 +2393,13 @@ function wzPaintUploads(){
   const act = $("#wzAct3");
   if (!act) return;
   act.innerHTML = (WZ.uploads.length
-      ? '<button type="button" class="btn btn-primary" id="wzNext3">' + esc(T("tg.an.to_sums", "Дальше: суммы и объект")) + "</button>"
-      : '<button type="button" class="btn btn-secondary" id="wzNext3">' + esc(T("tg.an.no_contract", "Нет договора — ввести вручную")) + "</button>")
-    + '<button type="button" class="btn btn-secondary" id="wzBack3">' + esc(T("common.back", "Назад")) + "</button>";
+      ? '<button type="button" class="btn btn-primary tg-main" id="wzNext3">' + esc(T("tg.an.to_sums", "Дальше: суммы и объект")) + "</button>"
+      : '<button type="button" class="btn btn-secondary tg-main" id="wzNext3">' + esc(T("tg.an.no_contract", "Нет договора — ввести вручную")) + "</button>")
+    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack3">' + esc(T("common.back", "Назад")) + "</button>";
   $("#wzNext3").disabled = WZ.busyUp > 0;
   $("#wzNext3").onclick = () => wzGo(4);
   $("#wzBack3").onclick = () => wzGo(2);
+  syncTgButtons();
 }
 function upHtml(u, closes){
   const st = upStatus(u.status);
@@ -2091,7 +2415,7 @@ function upHtml(u, closes){
       ? '<div class="itv warn"><div><b>' + esc(T("tg.an.up_scan", "Нужно распознавание: заполните вручную")) + "</b><span>"
         + esc(T("tg.an.up_scan_d", "Это скан без текстового слоя — прочитать его пока нельзя. Суммы и данные объекта введите на следующем шаге.")) + "</span></div></div>" : "")
     + (rows.length
-      ? '<div class="h3">' + esc(T("tg.an.pf_title", "Подставим в форму")) + '</div><div class="pf">'
+      ? '<div class="h3">' + esc(T("tg.an.pf_title", "Подставим в форму")) + '</div><div class="pf two-col">'
         + rows.map(([k, x]) => "<div><span>" + esc(pfLabel(k, x)) + "<small>" + esc(T("tg.an.from_contract", "из договора"))
           + (x.confidence ? " · " + esc(confName(x.confidence)) : "") + (x.found_by ? " · " + esc(T("tg.an.found_by", "строка «{s}»", {s: x.found_by})) : "") + "</small></span>"
           + "<b>" + esc(pfShow(k, x)) + "</b></div>").join("") + "</div>"
@@ -2219,8 +2543,19 @@ function anProducts(){
   const cls = AN.cls.split("/");
   return ((AN.fields && AN.fields.products) || []).filter(p => (p.classes || []).some(c => cls.indexOf(c) >= 0));
 }
+/* короткое поле (срок, год, этажность, сейсмозона, износ…) — на телефоне по два в ряд */
+function isShort(f){ return f.type === "number" && f.unit !== MONEY_UNIT && !f.options; }
+/* короткие поля ставим парами: собираем их подряд, а последнее без пары растягиваем на всю ширину —
+   на телефоне не остаётся половинок с пустым местом рядом */
+function pairShort(list){
+  const shortOnes = list.filter(isShort), rest = list.filter(f => !isShort(f));
+  const odd = shortOnes.length % 2 ? shortOnes[shortOnes.length - 1].key : null;
+  const at = list.findIndex(isShort);
+  const marked = shortOnes.map(f => f.key === odd ? Object.assign({}, f, {lone: true}) : f);
+  return at < 0 ? list : rest.slice(0, at).concat(marked, rest.slice(at));
+}
 function wrapField(f, inner, wide){
-  return '<div id="anw-' + esc(f.key) + '"' + (wide ? ' style="grid-column:1/-1"' : "") + ">"
+  return '<div id="anw-' + esc(f.key) + '"' + (wide ? ' class="full"' : isShort(f) && !f.lone ? ' class="half"' : "") + ">"
     + '<label class="f" for="anf-' + esc(f.key) + '"><span>' + esc(fieldLabel(f)) + "</span>"
     + (f.unit ? '<span class="unit">' + esc(unitName(f.unit, f.unit_code)) + "</span>" : "")
     + (f.required ? '<span class="req">' + esc(T("tg.an.required", "обязательно")) + "</span>" : "") + "</label>"
@@ -2365,12 +2700,12 @@ function wzStep4(box){
     + '<div class="card"><div class="an-head"><h2>' + esc(T("tg.an.data", "Данные объекта")) + "</h2>" + meterHtml(0, "anMeter") + "</div>"
     + '<p class="sub">' + esc(prodLine()) + "</p>"
     + '<div class="h3">' + esc(T("tg.an.must", "Обязательно")) + "</div>"
-    + '<div class="fgrid">' + must.map(fieldHtml).join("") + "</div>"
+    + '<div class="fgrid">' + pairShort(must).map(fieldHtml).join("") + "</div>"
     + '<details class="opt"><summary>' + esc(T("tg.an.optional", "Дополнительно"))
     + " <span>" + esc(T("tg.an.optional_hint", "повышает точность")) + "</span>" + meterHtml(0, "anMeterOpt") + "</summary>"
-    + '<div class="fgrid">' + opt.map(fieldHtml).join("") + "</div></details>"
-    + '<div class="actions"><button type="button" class="btn btn-primary" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" id="wzBack4">' + esc(T("common.back", "Назад")) + "</button></div>"
+    + '<div class="fgrid">' + pairShort(opt).map(fieldHtml).join("") + "</div></details>"
+    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button>"
+    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack4">' + esc(T("common.back", "Назад")) + "</button></div>"
     + '<div class="note msg" id="anMsg"></div></div></div>';
   anRestore(WZ.raw);
   box.querySelectorAll("[data-money]").forEach(el => { if (el.value) groupDigitsLive(el); });
@@ -2478,7 +2813,7 @@ async function analyze(){
   AN.errors = {};
   AN.missing = miss;
   if (miss.length) {
-    AN.msg = {kind: "missing", n: miss.length}; anShowErrors(); anPaintMsg();
+    AN.msg = {kind: "missing", n: miss.length}; anShowErrors(); anPaintMsg(); haptic("error");
     const first = $("#anw-" + miss[0]);
     if (first) first.scrollIntoView({block: "center"});
     return;
@@ -2486,7 +2821,9 @@ async function analyze(){
   body.doc_ids = WZ.uploads.map(u => u.doc_id);
   AN.busy = true; AN.msg = {kind: "busy"}; anPaintMsg();
   $("#anGo").disabled = true;
+  tgBusy(true);
   const r = await api("/analytics/risk", jsonOpts("POST", body));
+  tgBusy(false);
   AN.busy = false;
   if ($("#anGo")) $("#anGo").disabled = false;
   if (!r.ok) {
@@ -2494,7 +2831,7 @@ async function analyze(){
     AN.missing = d.missing || [];
     AN.errors = d.errors || {};
     AN.msg = {kind: "server", text: (d.detail && typeof d.detail === "string") ? d.detail : r.error};
-    anShowErrors(); anPaintMsg();
+    anShowErrors(); anPaintMsg(); haptic("error");
     return;
   }
   AN.msg = null;
@@ -2636,9 +2973,9 @@ function anPaintDash(){
   if (!box || !r) return;
   box.innerHTML = '<div class="dash">'
     + anAiCard(r) + anDocsCard(r)
-    + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anClientCard(r)
+    + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r) + anClientCard(r)
     + "</div>";
-  box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; anPaintScenario(); }; });
+  box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); }; });
   anPaintScenario();
 }
 
@@ -2699,15 +3036,19 @@ function anOverviewCard(r){
   const cls = itv.status === "ok" ? "" : itv.status === "stop" ? "stop" : "warn";
   const parts = s.parts || [];
   return '<div class="card w8"><p class="eyebrow">' + esc(T("tg.an.overview", "Краткий обзор")) + "</p>"
+    // главная цифра на две колонки, суммы — по одной; четыре ставки — одним блоком с сегментами
     + '<div class="kpis">'
     + '<div class="kpi hero"><span>' + esc(T("tg.an.premium", "Страховая премия")) + "</span><b>" + esc(money(s.premium)) + "</b>"
     + "<em>" + esc(T("tg.an.premium_for", "за {n} мес. · ставка {r} годовых", {n: nf(s.term_months || 12, 0), r: pct(s.rate_applied_pct, 4)})) + "</em></div>"
     + '<div class="kpi"><span>' + esc(T("tg.an.sum_insured", "Страховая сумма")) + '</span><b title="' + esc(money(s.sum_insured)) + '">' + esc(compact(s.sum_insured)) + "</b></div>"
     + '<div class="kpi"><span>' + esc(T("tg.an.object_value", "Стоимость имущества")) + '</span><b title="' + esc(money(s.object_value)) + '">' + esc(compact(s.object_value)) + "</b></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span><b>" + esc(pct(s.rate_applied_pct, 4)) + "</b></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.rate_technical", "Ставка техническая")) + "</span><b>" + esc(pct(s.rate_technical_pct, 4)) + "</b></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.rate_net", "Нетто-ставка")) + "</span><b>" + esc(pct(s.rate_net_pct, 4)) + "</b></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span><b>" + esc(pct(s.rate_min_pct, 3)) + "</b></div>"
+    + "</div>"
+    + '<div class="seg-t">' + esc(T("tg.seg.rates", "Ставки, годовых")) + "</div>"
+    + '<div class="seg">'
+    + '<div class="main"><span>' + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span><b>" + esc(pct(s.rate_applied_pct, 4)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.an.rate_technical", "Ставка техническая")) + "</span><b>" + esc(pct(s.rate_technical_pct, 4)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.an.rate_net", "Нетто-ставка")) + "</span><b>" + esc(pct(s.rate_net_pct, 4)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span><b>" + esc(pct(s.rate_min_pct, 3)) + "</b></div>"
     + "</div>"
     + '<div class="itv ' + cls + '"><div><b>' + esc(itv.title || T("tg.an.itv", "Страховая сумма к стоимости")) + "</b><span>"
     + esc([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) + "</span></div></div>"
@@ -2762,7 +3103,7 @@ function anScenariosCard(r){
 }
 
 function kvRows(rows){
-  return '<div class="kv">' + rows.filter(x => x && x[1] != null && x[1] !== "").map(x => "<span>" + esc(x[0]) + "</span><b>" + x[1] + "</b>").join("") + "</div>";
+  return '<div class="kv pairs">' + rows.filter(x => x && x[1] != null && x[1] !== "").map(x => "<span>" + esc(x[0]) + "</span><b>" + x[1] + "</b>").join("") + "</div>";
 }
 function anPaintScenario(){
   const box = $("#anScn");
@@ -2941,6 +3282,66 @@ function anRegionCard(r){
     + "</ul></details></div>";
 }
 
+/* Статистика по рискам региона: блок external_stats из /analytics/risk (статистика агентства по рискам
+   класса и региона). Показываем, только если блок пришёл. Строки: название и период мелко под ним — слева,
+   значение, динамика и «на душу» — справа. Под блоком — ссылки «Читать в источнике». */
+function extItems(r){
+  const x = r.external_stats;
+  if (!x) return [];
+  // сервер (app/risk_stats.external_block) отдаёт показатели в поле indicators
+  const list = Array.isArray(x) ? x : (Array.isArray(x.indicators) ? x.indicators : (Array.isArray(x.items) ? x.items : []));
+  return list.filter(i => i && (i.name || i.value != null));
+}
+function extVal(v, unit){
+  if (v == null || v === "") return "—";
+  const n = Number(v);
+  const t = isNaN(n) ? String(v) : (Math.abs(n) >= 1000 ? fmt(n) : nf(n, Math.abs(n) < 10 && n % 1 ? 2 : 1));
+  return t + (unit ? " " + unit : "");
+}
+function extTrend(t){
+  if (t == null || t === "") return "";
+  const n = Number(t);
+  if (!isNaN(n)) return '<span class="trend ' + (n > 0 ? "up" : n < 0 ? "down" : "") + '">' + (n > 0 ? "↑ +" : n < 0 ? "↓ −" : "") + esc(nf(Math.abs(n), 1)) + "%</span>";
+  return '<span class="trend">' + esc(t) + "</span>";
+}
+function extLevel(l){
+  if (l == null || l === "") return "";
+  // сервер присылает объект {region, country, ratio, diff_pct, text}; число — старый формат
+  const n = Number(typeof l === "object" ? l.ratio : l);
+  return isNaN(n) ? (typeof l === "object" ? "" : String(l)) : T("tg.an.ext_vs_country", "×{v} к стране", {v: nf(n, 2)});
+}
+/* src: ссылка, объект {url, domain, title} или id из market.sources */
+function extSrc(src){
+  const all = (AN.res && AN.res.market && AN.res.market.sources) || [];
+  return (Array.isArray(src) ? src : [src]).map(x => {
+    if (!x) return null;
+    if (typeof x === "object") return x.url ? {url: x.url, domain: x.domain || hostOf(x.url), title: x.title || x.name || ""} : null;
+    if (/^https?:\/\//.test(String(x))) return {url: String(x), domain: hostOf(String(x)), title: ""};
+    return all.filter(s => s.id === x)[0] || null;
+  }).filter(Boolean);
+}
+function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return u; } }
+function anExtStatsCard(r){
+  const items = extItems(r);
+  if (!items.length) return "";
+  const srcs = [];
+  items.forEach(i => extSrc(i.src).forEach(x => srcs.push(x)));
+  return '<div class="card w12"><p class="eyebrow">' + esc(T("tg.an.ext_title", "Статистика по рискам региона")) + "</p>"
+    + '<p class="sub">' + esc(T("tg.an.ext_hint", "Показатели статистического агентства по рискам этого класса в регионе.")) + "</p>"
+    + '<div class="rows split">' + items.map(i => {
+      const under = [i.period ? periodName(i.period) : "", extLevel(i.level_vs_country)].filter(Boolean).join(" · ");
+      const pcv = i.per_1000 != null && i.per_1000 !== "" ? i.per_1000 : i.per_capita;
+      const pc = pcv != null && pcv !== "" ? T("tg.an.ext_per_1000", "на 1 000 жителей: {v}", {v: extVal(pcv, "")}) : "";
+      const tr = extTrend(i.trend_pct != null ? i.trend_pct : i.trend);
+      return "<div><span>" + esc(i.name || "—") + (under ? "<small>" + esc(under) + "</small>" : "") + "</span>"
+        + "<b>" + esc(extVal(i.value, i.unit)) + ((tr || pc) ? "<small>" + tr + (tr && pc ? " · " : "") + esc(pc) + "</small>" : "") + "</b></div>";
+    }).join("") + "</div>"
+    + ((r.external_stats && r.external_stats.applicable === false && r.external_stats.why)
+        ? '<p class="note">' + esc(T("tg.an.ext_not_scored", "В уровень риска не вошло")) + ": " + esc(r.external_stats.why) + "</p>" : "")
+    + anSourcesBar(srcs)
+    + "</div>";
+}
+
 /* Что сказать клиенту — ст. 63 Закона о страховой деятельности */
 function anClientCard(r){
   const s = r.summary || {};
@@ -2964,7 +3365,8 @@ function anClientCard(r){
 /* =====================================================================================
    ОСГОР: калькулятор премии (POST /osgor/quick), подсказка ОКЭД по мере ввода (GET /osgor/activities).
    ===================================================================================== */
-const OS = {items: [], active: -1, open: false, timer: null, picked: null, res: null, err: null, brv: null, brvErr: "", seq: 0, q: null};
+const OS = {items: [], active: -1, open: false, timer: null, picked: null, res: null, err: null, brv: null, brvErr: "", seq: 0, q: null,
+  body: null, calcSeq: 0};
 
 function loadOsgor(){
   if (!$("#osDate").value) $("#osDate").value = new Date().toISOString().slice(0, 10);
@@ -2976,6 +3378,20 @@ function osRepaint(){
   osPaintPicked();
   osPaintResult();
   osPaintBrv();
+  osRelang();
+}
+/* шаги и примечания приходят с сервера на языке запроса: язык сменили — один тихий пересчёт,
+   старый результат остаётся на экране, пока не придёт новый (без мигания) */
+async function osRelang(){
+  if (!OS.res || !OS.body || OS.res.lang === I18N_LANG || OS.relang === I18N_LANG) return;
+  const lang = OS.relang = I18N_LANG;
+  const seq = ++OS.calcSeq;
+  const r = await api("/osgor/quick", jsonOpts("POST", Object.assign({}, OS.body, {lang: lang})));
+  if (OS.relang === lang) OS.relang = null;
+  if (seq !== OS.calcSeq || !r.ok || lang !== I18N_LANG) return;
+  OS.res = r.data;
+  OS.body.lang = lang;
+  osPaintResult();
 }
 
 /* ФОТ с разделителями прямо при вводе; курсор остаётся после той же цифры */
@@ -3032,6 +3448,7 @@ function osPick(i){
   if (!x) return;
   OS.picked = x;
   OS.open = false;
+  haptic("select");
   $("#osQ").value = x.okved + " · " + x.name;
   $("#osQErr").textContent = "";
   osPaintList();
@@ -3067,13 +3484,18 @@ async function osCalc(){
   if (!code) { $("#osQErr").textContent = T("tg.os.need_okved", "Выберите вид деятельности из списка или введите код ОКЭД цифрами."); bad = true; }
   if (pay <= 0) { $("#osPayErr").textContent = T("tg.os.need_payroll", "Укажите фонд оплаты труда за год — это страховая сумма."); bad = true; }
   if (days < 1 || days > 365) { $("#osMsg").innerHTML = errHtml(T("tg.os.days_bad", "Срок — от 1 до 365 дней.")); bad = true; }
-  if (bad) return;
+  if (bad) { haptic("error"); return; }
   $("#osBtn").disabled = true;
+  tgBusy(true);
   $("#osMsg").innerHTML = spin(T("common.calculating", "считаю…"));
-  const body = {okved: code, payroll: pay, term_days: days};
+  const body = {okved: code, payroll: pay, term_days: days, lang: I18N_LANG};
   if ($("#osDate").value) body.contract_date = $("#osDate").value;
+  const seq = ++OS.calcSeq;
   const r = await api("/osgor/quick", jsonOpts("POST", body));
+  tgBusy(false);
   $("#osBtn").disabled = false;
+  if (seq !== OS.calcSeq) return;               // пришёл ответ на устаревший запрос
+  OS.body = r.ok ? body : null;
   if (!r.ok) { OS.res = null; $("#osMsg").innerHTML = errHtml(T("tg.os.failed", "Премия не рассчитана: {reason}", {reason: r.error})); osPaintResult(); return; }
   $("#osMsg").innerHTML = "";
   OS.res = r.data;
@@ -3092,12 +3514,13 @@ function osPaintResult(){
   box.innerHTML = '<div class="card"><p class="eyebrow">' + esc(T("tg.os.premium", "Премия ОСГОР")) + "</p>"
     + '<div class="big">' + esc(money(d.premium)) + "</div>"
     + '<p class="sub">' + esc(T("tg.os.premium_for", "за {n} дн. · страховая сумма {s}", {n: d.term_days, s: money(d.sum_insured)})) + "</p>"
-    + '<div class="kv">'
-    + "<span>" + esc(T("tg.os.activity", "Вид деятельности")) + "</span><b>" + esc((a.okved || "") + " · " + (a.name || "—")) + "</b>"
-    + "<span>" + esc(T("tg.os.category", "Категория риска")) + "</span><b>" + esc(a.category != null ? T("tg.os.cat_of", "{c} из 20", {c: a.category}) : "—") + "</b>"
-    + "<span>" + esc(T("tg.os.kst", "КСТ")) + "</span><b>" + esc(d.kst != null ? nf(d.kst, 3) : "—") + "</b>"
-    + (d.min_applied ? "<span>" + esc(T("tg.os.min", "Минимальная премия")) + "</span><b>" + esc(money(d.min_premium)) + "</b>" : "")
-    + "<span>" + esc(T("tg.os.brv", "БРВ")) + "</span><b>" + esc(d.brv ? money(d.brv) : T("tg.os.brv_none", "не введён")) + "</b>"
+    // вид деятельности — строкой; категория, КСТ, минимум и БРВ — одним блоком с сегментами
+    + '<div class="mini"><div style="grid-column:1/-1"><span>' + esc(T("tg.os.activity", "Вид деятельности")) + "</span><b>" + esc((a.okved || "") + " · " + (a.name || "—")) + "</b></div></div>"
+    + '<div class="seg">'
+    + "<div><span>" + esc(T("tg.os.category", "Категория риска")) + "</span><b>" + esc(a.category != null ? T("tg.os.cat_of", "{c} из 20", {c: a.category}) : "—") + "</b></div>"
+    + "<div><span>" + esc(T("tg.os.kst", "КСТ")) + "</span><b>" + esc(d.kst != null ? nf(d.kst, 3) : "—") + "</b></div>"
+    + (d.min_applied ? "<div><span>" + esc(T("tg.os.min", "Минимальная премия")) + "</span><b>" + esc(money(d.min_premium)) + "</b></div>" : "")
+    + "<div><span>" + esc(T("tg.os.brv", "БРВ")) + "</span><b>" + esc(d.brv ? money(d.brv) : T("tg.os.brv_none", "не введён")) + "</b></div>"
     + "</div>"
     + '<div class="h3">' + esc(T("tg.os.lines", "Расчёт по шагам")) + '</div><div class="lines">'
     + (d.lines || []).map(l => '<div><div class="top"><span>' + esc(l.step) + "</span><b>" + esc(l.value) + "</b></div>"
@@ -3105,6 +3528,7 @@ function osPaintResult(){
     + "</div>"
     + (notes.length ? notes.map(n => '<p class="note warn" style="margin:var(--s2) 0 0">' + esc(n) + "</p>").join("") : "")
     + (d.brv_source ? '<p class="note">' + esc(T("tg.os.brv_source", "БРВ: {s}", {s: d.brv_source})) + "</p>" : "")
+    + (d.legal_note_en ? '<p class="note">' + esc(d.legal_note_en) + "</p>" : "")
     + '<div class="srcbar"><span>' + esc(T("tg.os.legal", "Норма: ПКМ № 177, Правила ОСГОР, прил. 9")) + '</span><a href="https://lex.uz/" target="_blank" rel="noopener">'
     + esc(T("tg.an.read_in", "Читать в источнике {d}", {d: "lex.uz"})) + "</a></div>"
     + "</div>";
@@ -3112,7 +3536,7 @@ function osPaintResult(){
 
 /* ---------- БРВ: значение для всех, форма — только админу ---------- */
 async function osLoadBrv(){
-  const r = await api("/osgor/brv");
+  const r = await api("/osgor/brv?lang=" + encodeURIComponent(I18N_LANG));
   OS.brv = r.ok ? r.data : null;
   OS.brvErr = r.ok ? "" : r.error;
   osPaintBrv();
@@ -3123,12 +3547,13 @@ function brvHtml(prefix){
   if (!b) return '<div class="card"><h2>' + esc(T("tg.os.brv_title", "Базовая расчётная величина (БРВ)")) + '</h2><div class="note">'
     + (OS.brvErr ? errHtml(OS.brvErr) : spin(T("common.loading", "загружаю…"))) + "</div></div>";
   const cur = b.current;
-  const edit = CAN("osgor_brv") || b.can_edit;
+  const edit = !VIEW_USER && (CAN("osgor_brv") || b.can_edit);
   return '<div class="card"><h2>' + esc(T("tg.os.brv_title", "Базовая расчётная величина (БРВ)")) + "</h2>"
     + '<p class="sub">' + esc(T("tg.os.brv_hint", "Нужна для минимальной премии (0,25 БРВ) и выплаты на погребение. Значение вносит администратор.")) + "</p>"
     + (cur
-      ? kvRows([[T("tg.os.brv_now", "Действует сейчас"), esc(money(cur.value))], [T("tg.os.brv_from", "С даты"), esc(dateOnly(cur.effective_from))],
-        [T("common.source", "Источник"), esc(cur.source || "—")]])
+      ? '<div class="seg"><div class="main"><span>' + esc(T("tg.os.brv_now", "Действует сейчас")) + "</span><b>" + esc(money(cur.value)) + "</b></div>"
+        + "<div><span>" + esc(T("tg.os.brv_from", "С даты")) + "</span><b>" + esc(dateOnly(cur.effective_from)) + "</b></div></div>"
+        + '<p class="note" style="margin:6px 0 0">' + esc(T("common.source", "Источник")) + ": " + esc(cur.source || "—") + "</p>"
       : '<p class="note warn">' + esc(T("tg.os.brv_missing", "Размер БРВ ещё не введён — минимальная премия не проверяется.")) + "</p>")
     + (b.next ? '<p class="note">' + esc(T("tg.os.brv_next", "С {d} будет {v}", {d: dateOnly(b.next.effective_from), v: money(b.next.value)})) + "</p>" : "")
     + (edit
@@ -3191,11 +3616,15 @@ function admTabs(){
   return all.filter(x => CAN(x[0]));
 }
 function loadSettings(){
-  loadBot();
+  paintProfile();
+  $("#setAdmin").classList.toggle("hidden", !IS_ADMIN());
+  if (IS_ADMIN()) loadBot();
   admPaint();
 }
 function settingsRepaint(){
-  paintBot();
+  paintProfile();
+  $("#setAdmin").classList.toggle("hidden", !IS_ADMIN());
+  if (IS_ADMIN()) paintBot();
   admPaint();
 }
 function admPaint(){
@@ -3304,12 +3733,14 @@ function admCoefTable(){
   const rows = ADM.coef.filter(c => !q || [c.factor_name, c.option_name, c.class_code, c.factor_code].join(" ").toLowerCase().indexOf(q) >= 0);
   const shown = rows.slice(0, 40);
   $("#coefTbl").innerHTML = '<p class="note">' + esc(T("tg.adm.shown", "Показано {n} из {total}.", {n: shown.length, total: rows.length})) + "</p>"
-    + '<div class="tblwrap"><table class="tbl"><thead><tr><th>' + esc(T("tg.adm.factor", "Фактор")) + "</th><th>" + esc(T("tg.adm.cls", "Класс")) + "</th><th>"
-    + esc(T("tg.adm.option", "Вариант")) + "</th><th>" + esc(T("tg.adm.mult", "Множитель")) + "</th><th></th></tr></thead><tbody>"
-    + shown.map(c => "<tr><td>" + esc(c.factor_name) + "</td><td class=\"n\">" + esc(c.class_code || "—") + "</td><td>" + esc(c.option_name)
-      + (c.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>") + "</td>"
-      + '<td style="width:96px"><input type="text" inputmode="decimal" data-cm="' + c.id + '" value="' + esc(c.multiplier) + '" aria-label="' + esc(T("tg.adm.mult", "Множитель")) + '"></td>'
-      + '<td style="width:1%"><button type="button" class="btn btn-secondary btn-sm" data-cs="' + c.id + '">' + esc(T("common.save", "Сохранить")) + "</button></td></tr>").join("")
+    // три колонки вместо пяти: класс и вариант — мелко под названием фактора
+    + '<div class="tblwrap"><table class="tbl"><thead><tr><th>' + esc(T("tg.adm.factor", "Фактор")) + " · " + esc(T("tg.adm.option", "Вариант")) + "</th><th>"
+    + esc(T("tg.adm.mult", "Множитель")) + "</th><th></th></tr></thead><tbody>"
+    + shown.map(c => "<tr><td>" + esc(c.factor_name)
+      + (c.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>")
+      + "<small>" + esc(T("tg.adm.cls_n", "класс {c}", {c: c.class_code || "—"})) + " · " + esc(c.option_name) + "</small></td>"
+      + '<td class="num" style="width:96px"><input type="text" inputmode="decimal" data-cm="' + c.id + '" value="' + esc(c.multiplier) + '" aria-label="' + esc(T("tg.adm.mult", "Множитель")) + '"></td>'
+      + '<td class="act" style="width:1%"><button type="button" class="btn btn-secondary btn-sm" data-cs="' + c.id + '">' + esc(T("common.save", "Сохранить")) + "</button></td></tr>").join("")
     + "</tbody></table></div>" + '<div class="note msg" id="coefMsg"></div>';
   document.querySelectorAll("[data-cs]").forEach(b => { b.onclick = () => admCoefSave(Number(b.dataset.cs)); });
 }
@@ -3357,10 +3788,11 @@ function admMinTable(){
   const rows = ADM.minr.filter(m => !q || [m.product_code, m.class_code].join(" ").toLowerCase().indexOf(q) >= 0);
   const shown = rows.slice(0, 40);
   $("#mrTbl").innerHTML = '<p class="note">' + esc(T("tg.adm.shown", "Показано {n} из {total}.", {n: shown.length, total: rows.length})) + "</p>"
-    + '<div class="tblwrap"><table class="tbl"><thead><tr><th>' + esc(T("tg.adm.min_prod", "Продукт")) + "</th><th>" + esc(T("tg.adm.cls", "Класс")) + "</th><th>"
-    + esc(T("tg.adm.min_rate", "Минимум, %")) + "</th><th>" + esc(T("tg.adm.min_from", "С даты")) + "</th></tr></thead><tbody>"
-    + shown.map(m => '<tr><td class="n">' + esc(m.product_code) + '</td><td class="n">' + esc(m.class_code || "—") + '</td><td class="n">' + esc(pct(m.min_rate_pct, 3))
-      + '</td><td class="n">' + esc(dateOnly(m.effective_from)) + "</td></tr>").join("") + "</tbody></table></div>";
+    // две колонки: продукт с классом мелко под ним · минимум с датой мелко под ним
+    + '<div class="tblwrap"><table class="tbl"><thead><tr><th>' + esc(T("tg.adm.min_prod", "Продукт")) + "</th><th>"
+    + esc(T("tg.adm.min_rate", "Минимум, %")) + "</th></tr></thead><tbody>"
+    + shown.map(m => '<tr><td class="n">' + esc(m.product_code) + "<small>" + esc(T("tg.adm.cls_n", "класс {c}", {c: m.class_code || "—"})) + "</small></td>"
+      + '<td class="n num">' + esc(pct(m.min_rate_pct, 3)) + "<small>" + esc(T("tg.adm.from_d", "с {d}", {d: dateOnly(m.effective_from)})) + "</small></td></tr>").join("") + "</tbody></table></div>";
 }
 async function admMinSave(){
   const ver = Number($("#mrVer").value), prod = $("#mrProd").value.trim(), cls = $("#mrCls").value.trim(), rate = dec($("#mrRate").value);
@@ -3384,12 +3816,13 @@ async function admNorms(body){
     ADM.norms = r.data || [];
     if (ADM.tab !== "depreciation_norms") return;
   }
-  body.innerHTML = '<div class="tblwrap"><table class="tbl"><thead><tr><th>' + esc(T("common.name", "Название")) + "</th><th>" + esc(T("tg.adm.norm_rate", "Износ в год, %"))
+  body.innerHTML = '<div class="tblwrap"><table class="tbl norms"><thead><tr><th>' + esc(T("common.name", "Название")) + "</th><th>" + esc(T("tg.adm.norm_rate", "Износ в год, %"))
     + "</th><th>" + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + "</th><th></th></tr></thead><tbody>"
-    + ADM.norms.map(n => "<tr><td>" + esc(n.name) + (n.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>") + "</td>"
-      + '<td style="width:90px"><input type="text" inputmode="decimal" data-nr="' + esc(n.code) + '" value="' + esc(n.rate_pct) + '" aria-label="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"></td>'
-      + '<td style="width:90px"><input type="text" inputmode="decimal" data-nm="' + esc(n.code) + '" value="' + esc(n.residual_min_pct == null ? "" : n.residual_min_pct) + '" aria-label="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"></td>'
-      + '<td style="width:1%;white-space:nowrap"><button type="button" class="btn btn-secondary btn-sm" data-ns="' + esc(n.code) + '">' + esc(T("common.save", "Сохранить")) + "</button> "
+    + ADM.norms.map(n => "<tr><td>" + esc(n.name) + (n.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>")
+      + "<small>" + esc(n.code) + "</small></td>"
+      + '<td style="width:90px" data-l="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"><input type="text" inputmode="decimal" data-nr="' + esc(n.code) + '" value="' + esc(n.rate_pct) + '" aria-label="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"></td>'
+      + '<td style="width:90px" data-l="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"><input type="text" inputmode="decimal" data-nm="' + esc(n.code) + '" value="' + esc(n.residual_min_pct == null ? "" : n.residual_min_pct) + '" aria-label="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"></td>'
+      + '<td class="act" style="width:1%;white-space:nowrap"><button type="button" class="btn btn-secondary btn-sm" data-ns="' + esc(n.code) + '">' + esc(T("common.save", "Сохранить")) + "</button> "
       + '<button type="button" class="btn btn-link btn-sm" data-nd="' + esc(n.code) + '">' + esc(T("common.delete", "Удалить")) + "</button></td></tr>").join("")
     + "</tbody></table></div>"
     + '<div class="h3">' + esc(T("tg.adm.norm_add", "Новая норма")) + '</div><div class="inline">'
@@ -3462,7 +3895,7 @@ async function loadRefs(){
 }
 function calcRefsError(){
   $("#cls").innerHTML = "<option>" + esc(T("tg.refs_unavailable", "справочники недоступны")) + "</option>";
-  $("#factors").innerHTML = '<div class="note err">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: REFS_ERR})) + "</div>";
+  $("#factors").innerHTML = '<div class="note err full">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: REFS_ERR})) + "</div>";
 }
 
 function onClass(){
@@ -3495,21 +3928,21 @@ function paintFactors(cls, keep){
   if (keep) $("#fr").value = frWas;
 
   if (!codes.length) {
-    $("#factors").innerHTML = '<div class="note">' + esc(T("tg.calc_no_factors", "Для этого класса факторов в справочнике нет — ставка считается по базовой.")) + "</div>";
+    $("#factors").innerHTML = '<div class="note full">' + esc(T("tg.calc_no_factors", "Для этого класса факторов в справочнике нет — ставка считается по базовой.")) + "</div>";
     return;
   }
   let uncal = false;
   $("#factors").innerHTML = codes.map(code => {
     const opts = optionsFor(cls, code);
     if (opts.some(o => !o.calibrated)) uncal = true;
-    return '<label class="f" for="f_' + esc(code) + '">' + esc(T("calc.factor." + code, opts[0].factor_name)) + "</label>"
+    return '<div><label class="f" for="f_' + esc(code) + '">' + esc(T("calc.factor." + code, opts[0].factor_name)) + "</label>"
       + '<select id="f_' + esc(code) + '" data-factor="' + esc(code) + '">'
       + '<option value="">' + esc(T("tg.calc_factor_off", "не учитывать")) + "</option>"
       + opts.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name)
         + " · ×" + nf(o.multiplier, 2) + (o.calibrated ? "" : " " + T("tg.calc_uncal_short", "(не калибровано)")) + "</option>").join("")
-      + "</select>";
+      + "</select></div>";
   }).join("")
-    + (uncal ? '<div class="note warn" style="margin-top:10px">' + esc(T("tg.calc_uncal", "Коэффициенты помечены «не калибровано»: это экспертные значения, компания их ещё не подтвердила своей статистикой убытков.")) + "</div>" : "");
+    + (uncal ? '<div class="note warn full" style="margin-top:10px">' + esc(T("tg.calc_uncal", "Коэффициенты помечены «не калибровано»: это экспертные значения, компания их ещё не подтвердила своей статистикой убытков.")) + "</div>" : "");
 
   // разумные значения по умолчанию: первый вариант каждого фактора
   $("#factors").querySelectorAll("select").forEach(sel => {
@@ -3561,7 +3994,7 @@ function payload(){
 const DEFAULT_OBJECT = "Склад";           // тип объекта по справочнику сервера (значение, не подпись)
 
 function progress(on){
-  if (TG && TG.MainButton) { try { on ? TG.MainButton.showProgress(true) : TG.MainButton.hideProgress(); } catch (e) {} }
+  tgBusy(on);
   $("#calcBtn").disabled = on;
   $("#calcMsg").innerHTML = on ? spin(T("common.calculating", "считаю…")) : "";
 }
@@ -3573,7 +4006,7 @@ async function calculate(){
   progress(true);
   const r = await api("/calculate", jsonOpts("POST", b));
   progress(false);
-  if (!r.ok) { $("#result").innerHTML = ""; $("#calcMsg").innerHTML = errHtml(T("tg.calc_failed", "Расчёт не выполнен: {reason}", {reason: r.error})); return; }
+  if (!r.ok) { haptic("error"); $("#result").innerHTML = ""; $("#calcMsg").innerHTML = errHtml(T("tg.calc_failed", "Расчёт не выполнен: {reason}", {reason: r.error})); return; }
   LAST = r.data; LAST_BODY = b;
   paintResult(r.data, b);
   if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
@@ -3613,16 +4046,20 @@ function paintResult(j, b){
     '<div class="card">'
     + "<h2>" + esc(T("tg.rate_and_premium", "Ставка и премия")) + "</h2>"
     + '<p class="sub">' + esc(T("tg.calc_rate_note", "Ставка годовая, премия — за {n} дней.", {n: b.term_days})) + "</p>"
-    + '<div class="big">' + pct(r.applied_pct) + "</div>"
-    + '<div class="big" style="font-size:22px">' + esc(money(j.premium)) + "</div>"
-    + '<div style="margin:8px 0 12px"><span class="verdict ' + verdictClass(j.verdict) + '">' + esc(verdictName(j.verdict)) + "</span></div>"
-    + '<div class="kv">'
-    + "<span>" + esc(T("tg.calc_net", "Нетто-ставка")) + "</span><b>" + pct(r.net_pct) + "</b>"
-    + "<span>" + esc(T("tg.calc_risk_load", "Рисковая надбавка")) + "</span><b>" + pct(r.risk_load_pct) + "</b>"
-    + "<span>" + esc(T("tg.calc_cat_load", "Катастрофическая надбавка")) + "</span><b>" + pct(r.cat_load_pct) + "</b>"
-    + "<span>" + esc(T("tg.calc_technical", "Техническая ставка")) + "</span><b>" + pct(r.technical_pct) + "</b>"
-    + "<span>" + esc(T("tg.calc_min", "Минимум по продукту")) + "</span><b>" + pct(r.min_pct) + "</b>"
-    + (j.market && j.market.rate_pct ? "<span>" + esc(T("tg.calc_market", "Рынок, {label}", {label: j.market.label || T("tg.napp", "НАПП")})) + "</span><b>" + pct(j.market.rate_pct) + "</b>" : "")
+    + '<div class="headline"><div class="big">' + pct(r.applied_pct) + '</div><span class="sm">' + esc(money(j.premium)) + "</span>"
+    + '<span class="verdict ' + verdictClass(j.verdict) + '">' + esc(verdictName(j.verdict)) + "</span></div>"
+    // связанные ставки — одним блоком с сегментами, а не шестью строками «метка — значение»
+    + '<div class="seg-t">' + esc(T("tg.seg.rates", "Ставки, годовых")) + "</div>"
+    + '<div class="seg">'
+    + "<div><span>" + esc(T("tg.calc_technical", "Техническая ставка")) + "</span><b>" + pct(r.technical_pct) + "</b></div>"
+    + "<div><span>" + esc(T("tg.calc_min", "Минимум по продукту")) + "</span><b>" + pct(r.min_pct) + "</b></div>"
+    + (j.market && j.market.rate_pct ? "<div><span>" + esc(T("tg.calc_market", "Рынок, {label}", {label: j.market.label || T("tg.napp", "НАПП")})) + "</span><b>" + pct(j.market.rate_pct) + "</b></div>" : "")
+    + "</div>"
+    + '<div class="seg-t">' + esc(T("tg.seg.loads", "Нетто и надбавки")) + "</div>"
+    + '<div class="seg">'
+    + "<div><span>" + esc(T("tg.calc_net", "Нетто-ставка")) + "</span><b>" + pct(r.net_pct) + "</b></div>"
+    + "<div><span>" + esc(T("tg.calc_risk_load", "Рисковая надбавка")) + "</span><b>" + pct(r.risk_load_pct) + "</b></div>"
+    + "<div><span>" + esc(T("tg.calc_cat_load", "Катастрофическая надбавка")) + "</span><b>" + pct(r.cat_load_pct) + "</b></div>"
     + "</div></div>"
 
     + "<div class=\"card\"><h2>" + esc(T("calc.breakdown", "Из чего сложилась ставка")) + '</h2><p class="sub">' + esc(T("calc.breakdown_hint", "Каждый шаг движка по порядку.")) + "</p>"
@@ -3634,13 +4071,14 @@ function paintResult(j, b){
     + "</div>"
 
     + (tips.length ? "<div class=\"card\"><h2>" + esc(T("calc.cheaper", "Как удешевить")) + '</h2><p class="sub">' + esc(T("tg.calc_cheaper_hint", "Что можно изменить в договоре и на сколько это меняет премию.")) + "</p>"
-      + tips.map(t => '<div class="tip"><b>' + esc(t.text) + "</b><span>" + (t.premium_delta > 0 ? "+" : "") + esc(money(t.premium_delta)) + "</span></div>").join("")
+      + '<div class="rows">' + tips.map(t => "<div><span>" + esc(t.text) + '</span><b class="' + (t.premium_delta > 0 ? "up" : "down") + '">'
+        + (t.premium_delta > 0 ? "+" : "") + esc(money(t.premium_delta)) + "</b></div>").join("") + "</div>"
       + "</div>" : "")
 
     + probHtml(probFrom(j))
 
     + "<div class=\"card\"><h2>" + esc(T("disclosure.title", "Что сказать клиенту")) + '</h2><p class="sub">' + esc(T("tg.calc_disclosure_hint", "Обязательное раскрытие по статье 63 Закона о страховой деятельности.")) + "</p>"
-    + '<div class="kv wrap-b">'
+    + '<div class="kv wrap-b stack">'
     + "<span>" + esc(T("disclosure.price", "Цена")) + "</span><b>" + esc(T("tg.calc_price", "{p} за {n} дн.", {p: money(j.premium), n: b.term_days})) + "</b>"
     + "<span>" + esc(T("disclosure.covered", "Покрываемые риски")) + "</span><b>" + esc(perils.length ? T("tg.calc_perils", "{n} по классу {c}", {n: perils.length, c: b.class_code}) : T("tg.calc_perils_rules", "по правилам продукта")) + "</b>"
     + "<span>" + esc(T("disclosure.excluded", "Исключённые риски")) + "</span><b>" + esc(excl.join(", ") || T("common.none", "нет")) + "</b>"
@@ -3650,8 +4088,8 @@ function paintResult(j, b){
     + "</div></div>"
 
     + "<div class=\"card\"><h2>" + esc(T("tg.save_title", "Сохранить запрос")) + '</h2><p class="sub">' + esc(T("tg.save_hint", "После сохранения появится номер, к нему прикрепляются фото и документы.")) + "</p>"
-    + '<label class="f" for="branch">' + esc(T("tg.branch", "Филиал")) + '</label><input id="branch" type="text" placeholder="' + esc(T("tg.branch_ph", "например Чиланзарский")) + '" autocomplete="off">'
-    + '<label class="f" for="holder">' + esc(T("tg.holder", "Страхователь")) + '</label><input id="holder" type="text" placeholder="' + esc(T("tg.holder_ph", "название организации")) + '" autocomplete="off">'
+    + '<div class="fg"><div><label class="f" for="branch">' + esc(T("tg.branch", "Филиал")) + '</label><input id="branch" type="text" placeholder="' + esc(T("tg.branch_ph", "например Чиланзарский")) + '" autocomplete="off"></div>'
+    + '<div><label class="f" for="holder">' + esc(T("tg.holder", "Страхователь")) + '</label><input id="holder" type="text" placeholder="' + esc(T("tg.holder_ph", "название организации")) + '" autocomplete="off"></div></div>'
     + '<div class="actions"><button type="button" class="btn btn-primary" id="saveBtn">' + esc(T("tg.save_title", "Сохранить запрос")) + "</button></div>"
     + '<div class="note msg" id="saveMsg"></div></div>'
 
@@ -3908,7 +4346,7 @@ async function loadUsers(){
 function usersRepaint(){
   if (!USERS) return;
   if (USERS.err) { $("#usrList").innerHTML = '<div class="card"><div class="note err">' + esc(T("tg.list_failed", "Список не загрузился: {reason}", {reason: USERS.err})) + "</div></div>"; return; }
-  CAN_MANAGE = !!USERS.can_manage;
+  CAN_MANAGE = !!USERS.can_manage && !VIEW_USER;
   const items = USERS.items || [];
   $("#usrList").innerHTML = '<p class="count"><b>' + esc(T("tg.users_total", "Всего людей: {n}", {n: USERS.count != null ? USERS.count : items.length})) + "</b>"
     + " · " + esc(CAN_MANAGE
@@ -3933,14 +4371,14 @@ function userCard(u){
   return '<div class="card" id="usr-' + u.id + '"><h2>' + esc(u.full_name || u.login)
     + (u.is_admin ? '<span class="tag">' + esc(T("tg.admin_tag", "админ")) + "</span>" : "")
     + (u.status !== "активен" ? '<span class="tag off">' + esc(statusName(u.status)) + "</span>" : "") + "</h2>"
-    + '<p class="sub">' + esc(u.department || T("tg.dept_unset", "департамент не указан"))
+    // департамент и должность — одной строкой под именем; контакты — мини-полями по два в ряд
+    + '<p class="sub">' + esc([u.department || T("tg.dept_unset", "департамент не указан"), u.position].filter(Boolean).join(" · "))
     + (me ? " · " + esc(T("tg.its_you", "это вы")) : "") + (u.telegram ? " · " + esc(T("tg.telegram_linked", "Telegram привязан")) : "") + "</p>"
-    + '<div class="kv">'
-    + "<span>" + esc(T("tg.reg.pos", "Должность")) + "</span><b>" + esc(u.position || "—") + "</b>"
-    + "<span>" + esc(T("tg.reg.phone", "Телефон")) + "</span><b>" + esc(u.phone || "—") + "</b>"
-    + "<span>" + esc(T("tg.user_email", "Почта")) + "</span><b>" + esc(u.email || "—") + "</b>"
-    + "<span>" + esc(T("tg.user_login_method", "Вход")) + "</span><b>" + esc(loginMethod(u.login_method)) + "</b>"
-    + "<span>" + esc(T("tg.branch", "Филиал")) + "</span><b>" + esc(u.branch || "—") + "</b>"
+    + '<div class="mini m4">'
+    + "<div><span>" + esc(T("tg.reg.phone", "Телефон")) + "</span><b>" + esc(u.phone || "—") + "</b></div>"
+    + "<div><span>" + esc(T("tg.user_email", "Почта")) + "</span><b>" + esc(u.email || "—") + "</b></div>"
+    + "<div><span>" + esc(T("tg.user_login_method", "Вход")) + "</span><b>" + esc(loginMethod(u.login_method)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.branch", "Филиал")) + "</span><b>" + esc(u.branch || "—") + "</b></div>"
     + "</div>"
     + (CAN_MANAGE && !me
       ? '<div class="actions">'

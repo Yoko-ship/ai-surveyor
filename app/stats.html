@@ -4,6 +4,79 @@
 <title>Динамика рынка</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Spline+Sans+Mono:wght@400;600&display=swap">
 <style>
+/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
+   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
+   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
+:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
+html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+.btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
+  cursor:pointer;transition:background-color .12s,border-color .12s}
+.btn svg{flex:none;width:18px;height:18px}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
+.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#111B57}
+.btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
+.btn-success:active:not(:disabled){background:#0E5230}
+.btn-danger,.btn-danger:visited{background:#A4231C;border-color:#A4231C;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-danger:hover:not(:disabled){background:#8F1D17;border-color:#8F1D17;color:#FFFFFF}
+.btn-danger:active:not(:disabled){background:#761712}
+.btn-secondary,.btn-secondary:visited{background:transparent;border-color:var(--btn-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.btn-secondary:hover:not(:disabled){background:var(--btn-hover);color:var(--ink)}
+.btn-secondary:active:not(:disabled){background:var(--btn-hover);border-color:var(--ink)}
+.btn-link,.btn-link:visited{background:transparent;border-color:transparent;padding:10px 4px;font-weight:600;
+  color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:3px}
+.btn-link:hover:not(:disabled){text-decoration-thickness:2px;color:var(--link)}
+.btn-block{display:flex;width:100%}
+.btn-sm{min-height:44px;padding:8px 12px;font-size:13px}
+/* ряд действий: внизу карточки справа; на телефоне — на всю ширину, основная кнопка первой (она первая в разметке) */
+.actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
+@media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
+/* ===== конец ui-kit ===== */
+/* ===== дашборд НАПП ===== */
+.tabs{display:flex;gap:8px;margin:0 0 14px}
+.tabs .btn.on{background:var(--soft);border-color:var(--accent-dim);color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.dfil{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-bottom:12px}
+.dfil label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted);min-width:0;flex:1 1 200px;max-width:340px}
+.dfil select{width:100%;min-height:40px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.kpi span{font-size:11.5px;color:var(--muted);font-weight:600}
+.kpi b{font:600 21px var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi em{font-style:normal;font:600 12px var(--mono)}
+.kpi small{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kpi.me{border-color:var(--accent-dim);box-shadow:inset 3px 0 0 var(--accent)}
+.split{display:inline-block;width:46px;height:6px;border-radius:3px;background:var(--s2);vertical-align:middle;margin-right:6px;overflow:hidden}
+.split i{display:block;height:100%;background:var(--s1)}
+.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dgrid .wide{grid-column:1/-1}
+.dhead{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:flex-start}
+.hb{display:flex;flex-direction:column;gap:7px;margin-top:4px}
+.hr{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr) auto;grid-template-rows:auto auto;column-gap:10px;align-items:center;font-size:12.5px}
+.hr .hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hr .ht{height:10px;border-radius:5px;background:var(--soft);overflow:hidden}
+.hr .ht i{display:block;height:100%;border-radius:5px;background:var(--s1)}
+.hr b{font:600 12px var(--mono);text-align:right;white-space:nowrap}
+.hr small{grid-column:2/4;font-size:11px;color:var(--muted)}
+.hr.hi{background:color-mix(in srgb,var(--accent) 12%,transparent);border-radius:8px;padding:4px 6px;margin:0 -6px;box-shadow:inset 3px 0 0 var(--accent)}
+.hr.hi .hl{font-weight:800}
+.hr.sep{border-top:1px dashed var(--line);padding-top:7px}
+.mix{display:grid;grid-template-columns:minmax(140px,200px) 1fr;gap:14px;align-items:center}
+.donut{max-width:200px}.dn1{font:700 15px var(--mono);fill:var(--ink)}
+.mixl{display:flex;flex-direction:column;gap:5px;font-size:12px;min-width:0}
+.mixl div{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:8px;align-items:center}
+.mixl i{width:10px;height:10px;border-radius:2px}
+.mixl span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mixl b{font:600 12px var(--mono)}
+.mixl .hi span{font-weight:800;color:var(--accent)}
+[hidden]{display:none!important}
+@media (max-width:900px){.dgrid{grid-template-columns:1fr}}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi small{white-space:normal}.mix{grid-template-columns:1fr}.donut{margin:0 auto}.hr{grid-template-columns:minmax(0,44%) minmax(0,1fr) auto}.kpi b{font-size:18px}}
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
   --sans:"Manrope",system-ui,sans-serif;--mono:"Spline Sans Mono",ui-monospace,monospace;
   --s1:#3987e5;--s2:#d95926;--s3:#199e70;--s4:#c98500;--s5:#d55181;--s6:#008300;--s7:#9085e9;--s8:#e66767}
@@ -106,7 +179,7 @@ tfoot td{font-weight:700;border-top:1px solid var(--line);border-bottom:0;paddin
 .srcbar p{margin:0;font-size:12px;line-height:1.5;color:var(--muted);max-width:66ch;flex:1 1 260px}
 .srcbar p b{color:var(--ink);font-weight:600}
 .srcbar .go{display:flex;gap:8px;flex-wrap:wrap;flex:0 0 auto}
-.srcbar .go a{display:inline-flex;align-items:center;gap:8px;background:var(--accent-dim);color:#0F1418;
+.srcbar .go a{max-width:100%;white-space:normal!important;display:inline-flex;align-items:center;gap:8px;background:var(--accent-dim);color:#0F1418;
         border-radius:999px;padding:7px 10px 7px 13px;font-size:12.5px;font-weight:700;text-decoration:none;white-space:nowrap}
 .srcbar .go a:hover{filter:brightness(1.1)}
 .srcbar .go .dom{background:rgba(15,20,24,.18);border-radius:999px;padding:2px 9px;font-family:var(--mono);font-size:11.5px;font-weight:500}
@@ -146,6 +219,51 @@ tfoot td{font-weight:700;border-top:1px solid var(--line);border-bottom:0;paddin
 <main>
   <h1>Динамика рынка <span class="live" id="live">обновляется сам</span></h1>
   <div class="sub" id="status">загрузка…</div>
+
+  <div class="tabs" role="tablist" aria-label="Вид страницы">
+    <button class="btn btn-secondary btn-sm on" type="button" role="tab" id="tbDash" aria-selected="true" aria-controls="tabDash" data-i18n="stats.tab_dash">Дашборд</button>
+    <button class="btn btn-secondary btn-sm" type="button" role="tab" id="tbBuild" aria-selected="false" aria-controls="tabBuilder" data-i18n="stats.tab_builder">Конструктор</button>
+  </div>
+
+  <section id="tabDash" role="tabpanel" aria-labelledby="tbDash">
+    <div class="card dfil">
+      <label>Период<select id="fDate"></select></label>
+      <label>Класс<select id="fCls"><option value="">весь рынок</option></select></label>
+      <label>Регион<select id="fReg"><option value="">вся республика</option></select></label>
+      <span class="note" id="fNote" style="margin:0"></span>
+    </div>
+
+    <div class="kpis" id="kpis"><div class="kpi"><span>считаю…</span></div></div>
+
+    <div class="dgrid">
+      <div class="card wide" id="chDyn">
+        <div class="dhead"><div><h2 id="dynTitle">Премии и выплаты по кварталам</h2><p id="dynSub">млрд сум</p></div>
+          <div class="seg" id="dynSeg"><button data-m="q" class="on" type="button">За квартал</button><button data-m="ytd" type="button">С начала года</button></div></div>
+        <div id="dynBox"></div><div class="srcslot"></div>
+      </div>
+      <div class="card" id="chLoss">
+        <h2>Убыточность по классам</h2><p id="lossSub">выплаты к премиям с начала года</p>
+        <div id="lossBox"></div><div class="srcslot"></div>
+      </div>
+      <div class="card" id="chMix">
+        <h2>Структура по классам</h2><p id="mixSub">доли премий</p>
+        <div id="mixBox"></div><div class="srcslot"></div>
+      </div>
+      <div class="card" id="chTop">
+        <h2>Топ страховщиков по премиям</h2><p id="topSub">доля рынка; INSON выделена</p>
+        <div id="topBox"></div><div class="srcslot"></div>
+      </div>
+      <div class="card" id="chReg">
+        <h2>Регионы: премии и проникновение</h2><p id="regSub">премии с начала года; проникновение — премии к ВРП</p>
+        <div id="regBox"></div><div class="srcslot"></div>
+      </div>
+    </div>
+    <p class="note">Цифры — из квартальных отчётов НАПП (таблица рынка этой страницы), премии и выплаты нарастающим итогом с начала года.
+      По регионам НАПП даёт только итог по всем видам страхования, по страховщикам — общее страхование: суммы разных разрезов между собой не совпадают.
+      Проникновение считает Агентство статистики (ВРП); если ВРП за год ещё не опубликован — в строке прочерк.</p>
+  </section>
+
+  <section id="tabBuilder" role="tabpanel" aria-labelledby="tbBuild" hidden>
 
   <div class="card picker">
     <h2>Что сравниваем</h2><p>Соберите до восьми рядов — классы, регионы и страховщиков вперемешку. Они лягут на одни графики в том порядке, в каком стоят в списке.</p>
@@ -216,8 +334,10 @@ tfoot td{font-weight:700;border-top:1px solid var(--line);border-bottom:0;paddin
   На разной базе и обязательства: лист 3.3 (регионы) и лист 2.3 (компании) на один и тот же срез дают разные итоги,
   поэтому график «Обязательства на дату» между рядами разных видов несопоставим — сравнивать его можно только внутри одного вида.
   Источник — отчёты НАПП.</p>
+  </section>
 </main></div>
 <div class="tip" id="tip"></div>
+<script src="/i18n.js"></script>
 <script>
 const $=s=>document.querySelector(s), fmt=n=>n==null?"—":Math.round(n).toLocaleString("ru-RU"), f1=n=>n==null?"—":n.toFixed(1).replace(".",","), f3=n=>n==null?"—":n.toFixed(3).replace(".",","), fm1=n=>n==null?"—":n.toLocaleString("ru-RU",{minimumFractionDigits:1,maximumFractionDigits:1});
 const tip=$("#tip");
@@ -814,9 +934,255 @@ async function init(){
 }
 $("#refresh").onclick=async()=>{ $("#rmsg").textContent="проверяю сайт НАПП…"; await fetch("/market/refresh",{method:"POST"});
   const poll=setInterval(async()=>{const s=await (await fetch("/market/status")).json();
-    if(!s.running){ clearInterval(poll); $("#rmsg").textContent=(s.log||[]).slice(-1)[0]||"готово"; SERIES={}; RANKED=false; init(); }},2000); };
-init().then(()=>{ const q=new URLSearchParams(location.hash.replace(/^#/,"")).get("q");
-  if(q){ openPan(true); $("#search").value=q; QUERY=q.toLowerCase(); fillGroups(); } });
+    if(!s.running){ clearInterval(poll); $("#rmsg").textContent=(s.log||[]).slice(-1)[0]||"готово"; SERIES={}; RANKED=false; DSH.loading=null; DSH.pen={}; init(); }},2000); };
+/* старт — по вкладке: конструктор поднимается при первом открытии (см. openTab ниже) */
 </script>
+<script>
+/* ===================== Дашборд отчёта НАПП (22.09.2026) =====================
+   Данные — те же точки, что у конструктора: /market/rows, /market/series (кэш SERIES общий),
+   проникновение — /stat/indicators/penetration. Графики — inline SVG и полоски на CSS, без внешних библиотек. */
+const NAPP_URL="https://napp.uz/uz/pages/statistika";
+const DSH={ready:false, loading:null, rows:[], dates:[], labels:{}, mode:"q", pen:{}};
+const isCls=k=>/^cls\d+$/.test(k), isPack=k=>/^cls\d+(_\d+)+$/.test(k);
+const clsNum=k=>+k.slice(3).split("_")[0];
+const at=(k,d)=>(SERIES[k]||[]).find(p=>p.date===d)||null;
+const effYear=d=>d.slice(5)==="01-01"?+d.slice(0,4)-1:+d.slice(0,4);
+function qLabel(d){
+  const m=d.slice(5), y=+d.slice(0,4);
+  return m==="03-31"||m==="04-01"?"I кв. "+y:m==="07-01"?"II кв. "+y:m==="10-01"?"III кв. "+y:m==="01-01"?"IV кв. "+(y-1):d;
+}
+/* млн сум из отчёта → короткая запись с единицей */
+function money(v){
+  if(v==null) return "—";
+  const a=Math.abs(v);
+  if(a>=1e6) return (v/1e6).toLocaleString("ru-RU",{maximumFractionDigits:2})+" трлн";
+  if(a>=1e3) return (v/1e3).toLocaleString("ru-RU",{maximumFractionDigits:1})+" млрд";
+  return v.toLocaleString("ru-RU",{maximumFractionDigits:1})+" млн";
+}
+const pct1=v=>v==null||!isFinite(v)?"—":v.toFixed(1).replace(".",",")+"%";
+function delta(cur,prev,kind){
+  if(cur==null||prev==null||(kind!=="pp"&&!prev)) return '<em class="na" title="нет среза ровно годом раньше">— г/г</em>';
+  const d=(kind==="pp"||kind==="lr")?cur-prev:(cur-prev)/Math.abs(prev)*100;
+  const good=kind==="lr"?d<=0:d>=0;
+  const txt=(d>=0?"+":"")+d.toFixed(1).replace(".",",")+(kind==="pp"||kind==="lr"?" п.п.":"%");
+  return '<em class="'+(good?"up":"down")+'">'+txt+" г/г</em>";
+}
+function srcNapp(d, extra){
+  const p=at("total",d)||{};
+  const links=[{url:NAPP_URL,label:"Отчёты НАПП"}].concat(extra||[]);
+  return srcBar("квартальный отчёт НАПП"+(p.source?" «"+p.source.replace(/_/g," ")+"»":"")+", срез "+d, links, "Источник:");
+}
+/* параллельно, но не больше шести запросов сразу — как браузер и так делает с одним сервером */
+async function pool(keys, fn, n){
+  let i=0; const run=async()=>{ while(i<keys.length){ const k=keys[i++]; try{ await fn(k); }catch(e){ SERIES[k]=SERIES[k]||[]; } } };
+  await Promise.all(Array.from({length:Math.min(n,keys.length)},run));
+}
+
+async function dashLoad(){
+  if(DSH.loading) return DSH.loading;
+  DSH.loading=(async()=>{
+    const [rows, st]=await Promise.all([getJson("/market/rows"), getJson("/market/status")]);
+    DSH.rows=rows;
+    await pool(rows.map(r=>r.row_key), series, 6);
+    DSH.dates=(st.dates||[]).filter(d=>at("total",d)).sort();
+    DSH.dates.forEach(d=>{ DSH.labels[d]=(at("total",d)||{}).label||d; });
+    $("#status").textContent="срезов "+DSH.dates.length+" · "+(DSH.dates[0]||"—")+" … "+(DSH.dates[DSH.dates.length-1]||"—")+
+      " · последняя проверка НАПП: "+(st.last_refresh||"ещё не было")+" · "+st.schedule;
+    const name=k=>(rows.find(r=>r.row_key===k)||{}).row_name||k;
+    $("#fDate").innerHTML=DSH.dates.slice().reverse().map(d=>'<option value="'+d+'">'+esc(DSH.labels[d])+" ("+d+")</option>").join("");
+    const cls=rows.map(r=>r.row_key).filter(isCls).sort((a,b)=>clsNum(a)-clsNum(b));
+    const pk=rows.map(r=>r.row_key).filter(isPack);
+    $("#fCls").innerHTML='<option value="">весь рынок</option><optgroup label="Классы">'+cls.map(k=>'<option value="'+esc(k)+'">'+esc(name(k))+"</option>").join("")+
+      '</optgroup><optgroup label="Пакеты классов">'+pk.map(k=>'<option value="'+esc(k)+'">'+esc(name(k))+"</option>").join("")+"</optgroup>";
+    const regs=rows.filter(r=>r.row_key.indexOf("region:")===0).sort((a,b)=>a.row_name.localeCompare(b.row_name,"ru"));
+    $("#fReg").innerHTML='<option value="">вся республика</option>'+regs.map(r=>'<option value="'+esc(r.row_key)+'">'+esc(r.row_name)+"</option>").join("");
+    DSH.ready=true;
+  })();
+  return DSH.loading;
+}
+async function penetration(year){
+  if(!(year in DSH.pen)){
+    try { DSH.pen[year]=await getJson("/stat/indicators/penetration?year="+year); }
+    catch(e){ DSH.pen[year]={error:e.message}; }
+  }
+  return DSH.pen[year];
+}
+
+/* ---------- отрисовка ---------- */
+async function dashDraw(){
+  const box=$("#kpis");
+  try { await dashLoad(); } catch(e){ box.innerHTML=noData("Данные рынка не загрузились", e.message); return; }
+  if(!DSH.dates.length){ box.innerHTML=noData("Нет срезов отчётности НАПП", "таблица рынка пуста — нажмите «Проверить НАПП сейчас» во вкладке «Конструктор»"); return; }
+  const d=$("#fDate").value||DSH.dates[DSH.dates.length-1], cls=$("#fCls").value, reg=$("#fReg").value;
+  const R=reg||cls||"total";
+  const nm=k=>k==="total"?"весь рынок":(DSH.rows.find(r=>r.row_key===k)||{}).row_name||k;
+  $("#fNote").textContent=reg&&cls?"Разреза «класс × регион» в отчёте НАПП нет: карточки и динамика — по региону.":
+    "Показано: "+nm(R)+" · "+DSH.labels[d];
+  const y0=yearBefore(d);
+  kpis(d,y0,R,nm(R));
+  dyn(d,R,nm(R));
+  lossByClass(d,cls);
+  mix(d,cls);
+  topInsurers(d,y0);
+  regions(d,reg);
+  document.querySelectorAll("#tabDash .srcslot").forEach(el=>{ if(!el.dataset.custom) el.innerHTML=srcNapp(d); });
+}
+
+function kpis(d,y0,R,name){
+  const c=at(R,d)||{}, p=at(R,y0)||{};
+  const lr=c.premiums_ytd?c.payouts_ytd/c.premiums_ytd*100:null, lr0=p.premiums_ytd?p.payouts_ytd/p.premiums_ytd*100:null;
+  const comps=k=>DSH.rows.filter(r=>r.row_key.indexOf("company:")===0).map(r=>at(r.row_key,k)).filter(x=>x&&x.premiums_ytd>0);
+  const cs=comps(d), cs0=comps(y0);
+  const T=at("total",d)||{}, vol=((at("voluntary_general",d)||{}).premiums_ytd||0)+((at("voluntary_life",d)||{}).premiums_ytd||0),
+        man=(at("mandatory",d)||{}).premiums_ytd||0, base=vol+man;
+  const vs=base?vol/base*100:null, ms=base?man/base*100:null;
+  const T0=at("total",y0)||{}, vol0=((at("voluntary_general",y0)||{}).premiums_ytd||0)+((at("voluntary_life",y0)||{}).premiums_ytd||0),
+        man0=(at("mandatory",y0)||{}).premiums_ytd||0, vs0=(vol0+man0)?vol0/(vol0+man0)*100:null;
+  // INSON: место и доля среди страховщиков
+  const rank=list=>{ const s=list.map(x=>x).sort((a,b)=>b.premiums_ytd-a.premiums_ytd); return s; };
+  const me=at("company:INSON AJ",d), me0=at("company:INSON AJ",y0);
+  const sum=cs.reduce((a,x)=>a+x.premiums_ytd,0), sum0=cs0.reduce((a,x)=>a+x.premiums_ytd,0);
+  const share=me&&sum?me.premiums_ytd/sum*100:null, share0=me0&&sum0?me0.premiums_ytd/sum0*100:null;
+  const place=me?rank(cs).indexOf(me)+1:null;
+  const K=[
+    ["Премии с начала года", money(c.premiums_ytd)+" сум", delta(c.premiums_ytd,p.premiums_ytd), name],
+    ["Выплаты с начала года", money(c.payouts_ytd)+" сум", delta(c.payouts_ytd,p.payouts_ytd), name],
+    ["Убыточность", pct1(lr), delta(lr,lr0,"lr"), "выплаты к премиям · "+name],
+    ["Страховщиков с премиями", String(cs.length), cs0.length?'<em class="na">'+(cs.length-cs0.length>=0?"+":"")+(cs.length-cs0.length)+" г/г</em>":"", "по отчёту НАПП на срез"],
+    ["Добровольное / обязательное", pct1(vs)+" / "+pct1(ms), delta(vs,vs0,"pp"),
+      '<span class="split"><i style="width:'+(vs||0)+'%"></i></span>весь рынок'],
+    ["INSON: доля рынка", pct1(share), delta(share,share0,"pp"), place?place+"-е место из "+cs.length:"нет данных на срез"]
+  ];
+  $("#kpis").innerHTML=K.map((k,i)=>'<div class="kpi'+(i===5?" me":"")+'"><span>'+esc(k[0])+"</span><b>"+k[1]+"</b>"+k[2]+"<small>"+k[3]+"</small></div>").join("");
+}
+
+/* столбики: премии и выплаты по кварталам или нарастающим итогом */
+function dyn(d,R,name){
+  const pts=(SERIES[R]||[]).filter(p=>p.date<=d);
+  const q=DSH.mode==="q";
+  $("#dynTitle").textContent=(q?"Премии и выплаты по кварталам":"Премии и выплаты с начала года")+" · "+name;
+  const labs=pts.map(p=>q?qLabel(p.date):p.label);
+  const A=pts.map(p=>q?p.q_premiums:p.premiums_ytd), B=pts.map(p=>q?p.q_payouts:p.payouts_ytd);
+  const flat=A.concat(B).filter(v=>v!=null);
+  $("#dynSub").textContent=q?"прирост нарастающего итога внутри года; пропуск — в отчёте нет предыдущего квартала":"нарастающим итогом, как в отчёте";
+  if(!flat.length){ $("#dynBox").innerHTML=noData("Нет данных","по этому ряду нет точек до выбранного среза"); return; }
+  const mx=Math.max(...flat)*1.12||1, W=640,H=240,L=54,Rr=10,T=12,Bm=40;
+  const n=pts.length, gw=(W-L-Rr)/n, bw=Math.min(22,gw*0.34);
+  const y=v=>T+(1-v/mx)*(H-T-Bm);
+  const u=mx>=2e6?{d:1e6,n:"трлн"}:mx>=2e3?{d:1e3,n:"млрд"}:{d:1,n:"млн"};
+  let s='<svg viewBox="0 0 '+W+" "+H+'" role="img" aria-label="Премии и выплаты">';
+  for(let i=0;i<=4;i++){ const v=mx*i/4; s+='<line x1="'+L+'" x2="'+(W-Rr)+'" y1="'+y(v)+'" y2="'+y(v)+'" stroke="var(--line)"/>'+
+    '<text class="ax" x="'+(L-6)+'" y="'+(y(v)+4)+'" text-anchor="end">'+(v/u.d).toLocaleString("ru-RU",{maximumFractionDigits:v/u.d<10?1:0})+"</text>"; }
+  pts.forEach((p,i)=>{
+    const x0=L+i*gw+gw/2;
+    [[A[i],"var(--s1)",-1],[B[i],"var(--s2)",0]].forEach(([v,c,o])=>{
+      if(v==null){ if(o<0) s+='<text class="ax" x="'+x0+'" y="'+(H-Bm-6)+'" text-anchor="middle">н/д</text>'; return; }
+      s+='<rect x="'+(x0+o*bw)+'" y="'+y(Math.max(v,0))+'" width="'+(bw-1)+'" height="'+Math.max(1,(H-Bm)-y(Math.max(v,0)))+'" rx="2" fill="'+c+'">'+
+        "<title>"+esc(labs[i])+": "+(o<0?"премии ":"выплаты ")+money(v)+" сум</title></rect>";
+    });
+    const lb=labs[i].replace(" кв. ","·").replace(" год","");
+    s+='<text class="ax" x="'+x0+'" y="'+(H-Bm+15)+'" text-anchor="middle">'+esc(lb)+"</text>";
+  });
+  s+="</svg>";
+  $("#dynBox").innerHTML='<div class="legend"><span><i style="background:var(--s1)"></i>Премии</span><span><i style="background:var(--s2)"></i>Выплаты</span><span>ось — '+u.n+" сум</span></div>"+s;
+}
+
+/* горизонтальные полоски на CSS: подписи не сжимаются, на телефоне не мельчат */
+function hbars(rows, opt){
+  const mx=Math.max(opt.min||0,...rows.map(r=>r.v||0))||1;
+  return '<div class="hb">'+rows.map(r=>'<div class="hr'+(r.hi?" hi":"")+(r.sep?" sep":"")+'" title="'+esc(r.title||"")+'"><span class="hl">'+esc(r.label)+"</span>"+
+    '<span class="ht"><i style="width:'+Math.max(1,(r.v||0)/mx*100)+"%;"+(r.color?"background:"+r.color:"")+'"></i></span><b>'+r.text+"</b>"+(r.sub?'<small>'+r.sub+"</small>":"")+"</div>").join("")+"</div>";
+}
+function lossByClass(d,cls){
+  const rows=DSH.rows.filter(r=>isCls(r.row_key)).map(r=>{ const p=at(r.row_key,d)||{};
+    return {k:r.row_key, name:r.row_name.replace(/^Класс\s*/,""), prem:p.premiums_ytd, lr:p.premiums_ytd>0?p.payouts_ytd/p.premiums_ytd*100:null}; })
+    .filter(x=>x.lr!=null).sort((a,b)=>b.lr-a.lr);
+  $("#lossSub").textContent="выплаты к премиям с начала года · "+DSH.labels[d]+" · классы без премий не показаны";
+  $("#lossBox").innerHTML=rows.length?hbars(rows.map(x=>({label:x.name, v:Math.min(x.lr,200), text:pct1(x.lr), hi:x.k===cls,
+    color:x.lr>=70?"var(--stop)":x.lr>=40?"var(--warn)":"var(--accent-dim)", sub:"премии "+money(x.prem), title:x.name})),{min:100})
+    :noData("Нет данных","на этот срез по классам ничего нет");
+}
+function mix(d,cls){
+  const parts=DSH.rows.filter(r=>isCls(r.row_key)||isPack(r.row_key)).map(r=>({k:r.row_key, name:r.row_name, v:(at(r.row_key,d)||{}).premiums_ytd||0}))
+    .filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
+  const tot=parts.reduce((a,x)=>a+x.v,0);
+  if(!tot){ $("#mixBox").innerHTML=noData("Нет данных","на этот срез по классам ничего нет"); return; }
+  const top=parts.slice(0,7), rest=parts.slice(7).reduce((a,x)=>a+x.v,0);
+  if(rest>0) top.push({k:"rest", name:"Прочие классы и пакеты ("+(parts.length-7)+")", v:rest});
+  const PALX=["var(--s1)","var(--s2)","var(--s3)","var(--s4)","var(--s5)","var(--s6)","var(--s7)","var(--muted)"];
+  let a0=-Math.PI/2, s='<svg viewBox="0 0 200 200" class="donut" role="img" aria-label="Структура премий по классам">';
+  top.forEach((x,i)=>{ const a1=a0+x.v/tot*Math.PI*2, big=a1-a0>Math.PI?1:0, r=86, ri=52;
+    const P=(a,rr)=>(100+rr*Math.cos(a)).toFixed(2)+","+(100+rr*Math.sin(a)).toFixed(2);
+    s+='<path d="M'+P(a0,r)+" A"+r+","+r+" 0 "+big+" 1 "+P(a1,r)+" L"+P(a1,ri)+" A"+ri+","+ri+" 0 "+big+" 0 "+P(a0,ri)+'Z" fill="'+PALX[i]+'"'+
+      (x.k===cls?' stroke="var(--ink)" stroke-width="3"':' stroke="var(--card)" stroke-width="1.5"')+"><title>"+esc(x.name)+": "+pct1(x.v/tot*100)+"</title></path>";
+    a0=a1; });
+  s+='<text x="100" y="96" text-anchor="middle" class="dn1">'+money(tot)+'</text><text x="100" y="114" text-anchor="middle" class="ax">сум премий</text></svg>';
+  $("#mixSub").textContent="доли премий с начала года по строкам классов и пакетов (добровольное общее страхование) · "+DSH.labels[d];
+  $("#mixBox").innerHTML='<div class="mix">'+s+'<div class="mixl">'+top.map((x,i)=>'<div class="'+(x.k===cls?"hi":"")+'"><i style="background:'+PALX[i]+'"></i><span>'+
+    esc(x.name.replace(/^Классы?\s*/,""))+"</span><b>"+pct1(x.v/tot*100)+"</b></div>").join("")+"</div></div>";
+}
+function topInsurers(d,y0){
+  const list=DSH.rows.filter(r=>r.row_key.indexOf("company:")===0).map(r=>{ const p=at(r.row_key,d)||{};
+    return {k:r.row_key, name:r.row_name.replace(/"/g,"").replace(/\s+(AJ|AJ QK|MQST AJ|EISK AJ).*$/,"").trim(), prem:p.premiums_ytd||0, pay:p.payouts_ytd||0}; })
+    .filter(x=>x.prem>0).sort((a,b)=>b.prem-a.prem);
+  const sum=list.reduce((a,x)=>a+x.prem,0);
+  if(!sum){ $("#topBox").innerHTML=noData("Нет данных","по страховщикам на этот срез ничего нет"); return; }
+  const me=list.findIndex(x=>x.k==="company:INSON AJ");
+  const rows=list.slice(0,10).map((x,i)=>({x:x,i:i}));
+  if(me>=10) rows.push({x:list[me],i:me,sep:true});
+  $("#topSub").textContent="доля в премиях общего страхования, "+list.length+" компаний с премиями · "+DSH.labels[d]+(me>=0?" · INSON — "+(me+1)+"-е место":"");
+  $("#topBox").innerHTML=hbars(rows.map(r=>({label:(r.i+1)+". "+r.x.name, v:r.x.prem/sum*100, text:pct1(r.x.prem/sum*100), hi:r.x.k==="company:INSON AJ", sep:r.sep,
+    sub:money(r.x.prem)+" · убыт. "+pct1(r.x.pay/r.x.prem*100), color:r.x.k==="company:INSON AJ"?"var(--accent)":"var(--s1)", title:r.x.name})),{});
+}
+async function regions(d,reg){
+  const list=DSH.rows.filter(r=>r.row_key.indexOf("region:")===0).map(r=>({k:r.row_key, name:r.row_name, prem:(at(r.row_key,d)||{}).premiums_ytd||0}))
+    .sort((a,b)=>b.prem-a.prem);
+  const sum=list.reduce((a,x)=>a+x.prem,0);
+  const paint=pen=>{
+    const by={}; ((pen&&pen["Строки"])||[]).forEach(r=>{ by[r.region]=r; });
+    $("#regBox").innerHTML=list.length?hbars(list.map(x=>{ const p=by[x.k];
+      const pv=p&&p["Значение"]!=null?p["Значение"]:null;
+      return {label:x.name, v:x.prem, text:money(x.prem), hi:x.k===reg, color:"var(--s3)",
+        sub:"доля "+pct1(sum?x.prem/sum*100:null)+" · проникновение "+(pv==null?"—":pv.toFixed(2).replace(".",",")+"% ВРП"), title:x.name}; }),{})
+      :noData("Нет данных","по регионам на этот срез ничего нет");
+    const slot=$("#chReg .srcslot"); slot.dataset.custom="1";
+    const links=((pen&&pen["Источники"])||[]).filter(s=>s["Набор"]).map(s=>({url:s["Ссылка"]||"", label:"ВРП (Агентство статистики)"}));
+    slot.innerHTML=srcNapp(d,links)+(pen&&pen["Срез НАПП"]&&pen["Срез НАПП"]!==d?'<p class="note">Проникновение Агентство статистики считает по срезу НАПП '+esc(pen["Срез НАПП"])+
+      (pen["Период ВРП"]?", ВРП — "+esc(pen["Период ВРП"]):"")+".</p>":"")+(pen&&pen.error?'<p class="note">Проникновение не посчитано: '+esc(pen.error)+"</p>":"")+
+      (pen&&pen.fallback?'<p class="note">За '+effYear(d)+' год ВРП ещё не опубликован — проникновение показано за '+pen.fallback+" год.</p>":"")+
+      (pen&&!pen.error&&!has(pen)?'<p class="note">ВРП по регионам в базе Агентства статистики нет — проникновение не посчитано.</p>':"");
+  };
+  paint(null);
+  /* ВРП публикуется с задержкой: нет за год среза — берём прошлый год и так и пишем */
+  let pen=await penetration(effYear(d));
+  function has(x){ return ((x&&x["Строки"])||[]).some(r=>r.region!=="total"&&r["Значение"]!=null); }
+  if(!has(pen)){ const prev=await penetration(effYear(d)-1); if(has(prev)) pen=Object.assign({},prev,{fallback:effYear(d)-1}); }
+  paint(pen);
+}
+
+/* ---------- вкладки ---------- */
+let BUILT=false;
+function openTab(t){
+  const dash=t!=="builder";
+  $("#tabDash").hidden=!dash; $("#tabBuilder").hidden=dash;
+  $("#tbDash").classList.toggle("on",dash); $("#tbBuild").classList.toggle("on",!dash);
+  $("#tbDash").setAttribute("aria-selected",dash); $("#tbBuild").setAttribute("aria-selected",!dash);
+  if(dash){ history.replaceState(null,"","#dash"); dashDraw(); }
+  else if(!BUILT){ BUILT=true; init().then(()=>{ const q=new URLSearchParams(location.hash.replace(/^#/,"")).get("q");
+    if(q){ openPan(true); $("#search").value=q; QUERY=q.toLowerCase(); fillGroups(); } }); }
+  else saveHash();
+}
+$("#tbDash").onclick=()=>openTab("dash");
+$("#tbBuild").onclick=()=>openTab("builder");
+["#fDate","#fCls","#fReg"].forEach(s=>$(s).onchange=dashDraw);
+$("#dynSeg").onclick=e=>{ const b=e.target.closest("button[data-m]"); if(!b||b.dataset.m===DSH.mode) return;
+  DSH.mode=b.dataset.m; $("#dynSeg").querySelectorAll("button").forEach(x=>x.classList.toggle("on",x.dataset.m===DSH.mode)); dashDraw(); };
+(function(){
+  const h=location.hash.replace(/^#/,"");
+  const builder=h==="builder"||/(^|&)(tab|rows|q)=/.test(h)||["cls","region","company"].indexOf(h)>=0;
+  openTab(builder?"builder":"dash");
+})();
+</script>
+
 
 <script src="/theme.js"></script>

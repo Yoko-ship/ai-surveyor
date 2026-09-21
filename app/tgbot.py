@@ -834,26 +834,41 @@ def _mode() -> str:
     return MODE_TG if connected() else MODE_BROWSER
 
 
+def _wants_user_view(request: Request, view: Optional[str]) -> bool:
+    """Режим «как видит сотрудник»: ?view=user или заголовок X-View: user."""
+    return (view or request.headers.get("x-view") or "").strip().lower() == "user"
+
+
 @router.get("/tg/me")
-def tg_me(request: Request):
-    """Кто вошёл, что ему можно и какие разделы показывать. Работает и по cookie-сессии."""
+def tg_me(request: Request, view: Optional[str] = None):
+    """Кто вошёл, что ему можно и какие разделы показывать. Работает и по cookie-сессии.
+
+    ?view=user (или заголовок X-View: user) — кнопка «Выйти из админки» (22.09.2026): ответ собирается
+    так, как его увидел бы «сотрудник» (меню, права, can_edit, role, is_admin). Это только отображение:
+    сессия и права на сервере не меняются, админские API админа по-прежнему пускают.
+    real_role и admin_available — чтобы мини-апп показал «Вернуться в админку»."""
     u = _session_user(request)
+    as_user = _wants_user_view(request, view)
     if not u:
         return {"mode": _mode(), "status": "не вошёл", "user": None, "rights": [], "nav": [],
-                "reason": "Войдите через Telegram или по логину и паролю"}
+                "view": "user" if as_user else "full", "reason": "Войдите через Telegram или по логину и паролю"}
     if u["status"] != auth.STATUS_ACTIVE:
         return {"mode": _mode(), "status": u["status"], "user": None, "rights": [], "nav": [],
-                "reason": WAIT_MSG}
+                "view": "user" if as_user else "full", "reason": WAIT_MSG}
+    shown = dict(u, role=auth.ROLE_EMPLOYEE) if as_user else u
     nav = list(NAV_BASE)
-    if u["role"] == "админ":
+    if shown["role"] == "админ":
         nav += NAV_ADMIN
     # name — то же, что full_name: с 21.09.2026 в анкете одно поле «Имя», хранится в users.full_name
     return {"mode": _mode(), "status": auth.STATUS_ACTIVE,
-            "user": {"id": u["id"], "full_name": u["full_name"], "name": u["full_name"], "role": u["role"],
-                     "branch": u.get("branch"), "status": u["status"], "is_admin": u["role"] == "админ"},
-            "rights": sorted(r for r in auth.PERMISSIONS if auth.can(u, r)),
-            "can_edit": can_edit(u),
-            "nav": [{"key": k, "title": t} for k, t in nav], "reason": ""}
+            "user": {"id": u["id"], "full_name": u["full_name"], "name": u["full_name"], "role": shown["role"],
+                     "branch": u.get("branch"), "status": u["status"], "is_admin": shown["role"] == "админ"},
+            "rights": sorted(r for r in auth.PERMISSIONS if auth.can(shown, r)),
+            "can_edit": can_edit(shown),
+            "nav": [{"key": k, "title": t} for k, t in nav],
+            "view": "user" if as_user else "full", "real_role": u["role"],
+            "admin_available": u["role"] == "админ",
+            "reason": ""}
 
 
 @router.get("/tg/inbox")

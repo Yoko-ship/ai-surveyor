@@ -18,7 +18,8 @@
      (=== "…", case "…") и небольшой явный список исключений ниже;
   5. смена языка без перезагрузки: app/i18n.js шлёт событие i18n:changed, мини-апп его слушает
      и перерисовывает текущий экран (repaintCurrent);
-  6. новые ключи мини-аппа в узбекском словаре отмечены как рабочий перевод (_meta.draft).
+  6. новые ключи мини-аппа в узбекском словаре отмечены как рабочий перевод (_meta.draft) или как официальные (_meta.official);
+  7. ОСГОР в uz и en — из ключей osgor.full / osgor.short (ссылки {@ключ}), без «ОСГОР/OSGOR».
 """
 import json
 import re
@@ -265,15 +266,47 @@ def test_live_switch():
 
 def test_uz_draft():
     draft = set(DICTS["uz"].get("_meta", {}).get("draft") or [])
-    new = [k for k in DICTS["uz"] if re.match(r"tg\.(an|os|adm|reg|rail|err|u)\.", k)]
-    miss = [k for k in new if k not in draft]
-    ok(f"новые ключи мини-аппа ({len(new)}) отмечены в uz как рабочий перевод", new and not miss, miss[:10])
+    # официальные названия, которые подтвердил юрист (ОСГОР — lex.uz, 22.09.2026), в «рабочий перевод» не входят,
+    # но должны быть перечислены явно в _meta.official и существовать в словаре
+    official = set(DICTS["uz"].get("_meta", {}).get("official") or [])
+    new = [k for k in DICTS["uz"] if re.match(r"tg\.(an|os|adm|reg|rail|err|u|seg|view|profile)\.", k)]
+    miss = [k for k in new if k not in draft and k not in official]
+    ok(f"новые ключи мини-аппа ({len(new)}) отмечены в uz как рабочий перевод или как официальные", new and not miss, miss[:10])
+    ok("официальные ключи есть в словаре и не помечены как черновик",
+       official and all(k in DICTS["uz"] for k in official) and not (official & draft), sorted(official & draft))
     meta_ok = all(d.get("_meta", {}).get("keys") == len([k for k in d if not k.startswith("_")]) for d in DICTS.values())
     ok("_meta.keys совпадает с числом ключей", meta_ok)
 
 
+REF = re.compile(r"\{@([\w.]+)\}")
+
+
+def test_osgor_names():
+    """Задача 170: ОСГОР в uz и en — свои названия; правятся в двух ключах osgor.full / osgor.short,
+    остальные подписи ссылаются на них ({@ключ}, разворачивает app/i18n.js)."""
+    ok("app/i18n.js разворачивает ссылки {@ключ} в T() и в data-i18n",
+       "function ref(" in I18N_JS and "ref((D && D[key]" in I18N_JS and "e.textContent = ref(v)" in I18N_JS)
+    bad = [(l, k, r) for l, d in DICTS.items() for k, v in d.items() if not k.startswith("_")
+           for r in REF.findall(str(v)) if r not in d or REF.search(str(d[r]))]
+    ok("каждая ссылка {@ключ} ведёт на существующий ключ без вложенных ссылок", not bad, bad[:5])
+    for lang in ("uz", "en"):
+        d = DICTS[lang]
+        left = [k for k, v in d.items() if not k.startswith("_") and re.search("ОСГОР|OSGOR", str(v))]
+        ok(f"{lang}: «ОСГОР/OSGOR» больше не встречается", not left, left[:5])
+        ok(f"{lang}: меню, вкладка, заголовок и плашка берут название из osgor.*",
+           all("{@osgor." in d[k] for k in ("tg.nav.osgor", "tg.rail.osgor", "tg.os.title", "tg.os.premium")), "")
+    ok("uz: официальные названия (lex.uz)", DICTS["uz"]["osgor.short"] == "IFJMS"
+       and DICTS["uz"]["osgor.full"] == "Ish beruvchining fuqarolik javobgarligini majburiy sugʻurta qilish")
+    ok("en: название помечено как неофициальное", "osgor.full" in (DICTS["en"]["_meta"].get("unofficial") or [])
+       and "unofficial" in DICTS["en"]["_meta"].get("unofficial_note", ""))
+    ok("ru: ОСГОР без изменений", DICTS["ru"]["tg.nav.osgor"] == "ОСГОР" and DICTS["ru"]["osgor.short"] == "ОСГОР")
+    ok("короткое название для меню — не длиннее 12 символов",
+       all(len(DICTS[l]["osgor.short"]) <= 12 for l in DICTS), {l: DICTS[l]["osgor.short"] for l in DICTS})
+
+
 if __name__ == "__main__":
-    for t in (test_same_keys, test_keys_present, test_markup, test_js_literals, test_live_switch, test_uz_draft):
+    for t in (test_same_keys, test_keys_present, test_markup, test_js_literals, test_live_switch, test_uz_draft,
+              test_osgor_names):
         print(t.__name__)
         t()
     print(f"\nпройдено {passed}, не пройдено {failed}")
