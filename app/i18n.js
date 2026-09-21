@@ -103,7 +103,33 @@
   window.I18N_HAS = function (key) { return D[key] != null; };
 
   /* ---------- переключатель ---------- */
+  /* Выбор языка человеком: запоминаем и меняем язык (без перезагрузки при I18N_LIVE). */
+  function pick(l) {
+    l = norm(l);
+    if (!l || l === lang) return;
+    document.cookie = "lang=" + l + ";path=/;max-age=31536000;samesite=lax";
+    try { localStorage.setItem(PICKED, l); } catch (e) {}
+    var q = new URLSearchParams(location.search);
+    q.set("lang", l);
+    if (window.I18N_LIVE) { setLang(l, q); return; }
+    location.search = q.toString();            // перезагрузка: подписи ставит и сервер, и страница
+  }
+  /* Свои кнопки страницы: <button data-lang-pick="uz">. Нажатие ловим здесь, отметку текущего языка ставим тоже здесь. */
+  function markPicks() {
+    document.querySelectorAll(".lang-switch button, [data-lang-pick]").forEach(function (b) {
+      var l = b.getAttribute("data-lang-pick") || b.dataset.lang;
+      b.setAttribute("aria-pressed", l === lang ? "true" : "false");
+    });
+  }
+  document.addEventListener("click", function (e) {
+    var b = e.target && e.target.closest ? e.target.closest("[data-lang-pick]") : null;
+    if (b) pick(b.getAttribute("data-lang-pick"));
+  });
+
+  /* Плавающий переключатель внизу справа. Страница со своим переключателем ставит до подключения
+     window.I18N_NO_FLOAT = true (мини-апп app/tg.html) — тогда плавающего нет. */
   function switcher() {
+    if (window.I18N_NO_FLOAT) return;
     if (document.querySelector(".lang-switch")) return;
     var hasTheme = !!document.querySelector('script[src="/theme.js"]');
     var css = document.createElement("style");
@@ -113,7 +139,9 @@
       "border:1px solid var(--line,#26303A);box-shadow:0 6px 18px rgba(0,0,0,.18)}" +
       ".lang-switch button{font:700 12px/1 Manrope,system-ui,sans-serif;color:var(--muted,#8E9BA6);-webkit-text-fill-color:var(--muted,#8E9BA6);" +
       "background:transparent;border:0;border-radius:999px;padding:6px 9px;min-height:0;width:auto;cursor:pointer}" +
-      ".lang-switch button[aria-pressed=\"true\"]{color:var(--ink,#E6ECF0);-webkit-text-fill-color:var(--ink,#E6ECF0);background:var(--soft,#1C242B)}";
+      ".lang-switch button[aria-pressed=\"true\"]{color:var(--ink,#E6ECF0);-webkit-text-fill-color:var(--ink,#E6ECF0);background:var(--soft,#1C242B)}" +
+      /* место внизу страницы, чтобы последние строки можно было прокрутить выше переключателя */
+      "body::after{content:\"\";display:block;height:calc(56px + env(safe-area-inset-bottom))}";
     document.head.appendChild(css);
 
     var box = document.createElement("div");
@@ -127,15 +155,7 @@
       b.dataset.lang = l;
       b.title = TITLE[l];
       b.setAttribute("aria-pressed", l === lang ? "true" : "false");
-      b.onclick = function () {
-        if (l === lang) return;
-        document.cookie = "lang=" + l + ";path=/;max-age=31536000;samesite=lax";
-        try { localStorage.setItem(PICKED, l); } catch (e) {}
-        var q = new URLSearchParams(location.search);
-        q.set("lang", l);
-        if (window.I18N_LIVE) { setLang(l, q); return; }
-        location.search = q.toString();        // перезагрузка: подписи ставит и сервер, и страница
-      };
+      b.onclick = function () { pick(l); };
       box.appendChild(b);
     });
     document.body.appendChild(box);
@@ -162,12 +182,8 @@
       try { history.replaceState(null, "", location.pathname + "?" + q.toString() + location.hash); } catch (e) {}
       paint();
       var box = document.querySelector(".lang-switch");
-      if (box) {
-        box.setAttribute("aria-label", T("common.lang", "Язык"));
-        box.querySelectorAll("button").forEach(function (b) {
-          b.setAttribute("aria-pressed", b.dataset.lang === l ? "true" : "false");
-        });
-      }
+      if (box) box.setAttribute("aria-label", T("common.lang", "Язык"));
+      markPicks();
       var ev;
       try { ev = new CustomEvent("i18n:changed", {detail: {lang: l}}); }
       catch (e) { ev = document.createEvent("CustomEvent"); ev.initCustomEvent("i18n:changed", false, false, {lang: l}); }
@@ -175,8 +191,9 @@
     });
   }
   window.I18N_SET = function (l) { l = norm(l); if (l && l !== lang) setLang(l, new URLSearchParams(location.search)); };
+  window.I18N_PICK = pick;
 
-  function start() { paint(); switcher(); }
+  function start() { paint(); switcher(); markPicks(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);
   else start();
 })();

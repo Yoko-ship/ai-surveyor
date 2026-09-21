@@ -12,15 +12,20 @@ docs_missing (engine.checklist_items). Разбор файла — ядро app/
 условия договора страхования (ingest.extract_contract_terms).
 
 Хранение: файл — DATA_DIR/analysis/<doc_id>/document.<pdf|docx>, 24 часа; в базе (analysis_docs)
-только вид, язык, статус и замаскированные поля — без текста документа и без ПД. Просроченное
-удаляется при следующей загрузке и фоновой задачей «analysis-cleanup» (app/main.py).
-В журнал пишем id, вид, язык, статус и число полей — без имени файла и значений.
+вид, язык, статус и замаскированные поля — без текста документа и без ПД. Адрес объекта в базу
+попадает только до района/города (плюс ключ региона): улица, дом и квартира отрезаются. Полный
+адрес виден один раз — в ответе на загрузку (файл пользователь загрузил сам); GET отдаёт уже
+сокращённый. Просроченное удаляется при следующей загрузке и фоновой задачей «analysis-cleanup»
+(app/main.py). В журнал пишем id, вид, язык, статус и число полей — без имени файла и значений.
+
+В ответе загрузки: prefill — только поля формы выбранного класса (ra.fields_for), closes — какие
+пункты чек-листа продукта/класса закрывает файл (договор страхования — никаких).
 """
 import json
 import re
 import secrets
 import shutil
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
@@ -266,6 +271,111 @@ def _pf(value, label: str, found_by: str = None, confidence: str = None, **extra
     return out
 
 
+# --- адрес: в базу только регион и район/город ---
+_LOCALITY = re.compile(r"(?:^|\s)(г\.|гор\.|город|шахри|шаҳри|shahri|shahar|область|обл\.|вилояти|viloyati|"
+                       r"viloyat|район|р-н|тумани|туман|tumani|tuman|республика|respublikasi)(?=[\s,.]|$)", re.I)
+# с этого места начинается улица, дом, квартира или махалля — дальше не храним
+_STREET = re.compile(r"(?:^|[\s,])(ул\.|улица|пр\.|пр-т|проспект|пер\.|переулок|проезд|тупик|бульвар|б-р|шоссе|"
+                     r"массив|мкр|микрорайон|квартал|кв\.|дом|д\.|здание|корп|строени|махалл|мфй|mfy|"
+                     r"mahalla|ko'ch|кўча|kucha|uy\b|уй\b|xonadon|street|str\.|house|apt)|\d", re.I)
+
+
+def _region_of(addr: str):
+    name = D.cast("region", str(addr)) if addr else None
+    return mp.resolve_region(name) if name else (None, None)
+
+
+def safe_address(addr: str) -> Optional[str]:
+    """«г. Ташкент, Юнусабадский район, ул. Амира Темура, 1» → «г. Ташкент, Юнусабадский район»."""
+    kept = []
+    for part in re.split(r"[,;\n]", addr or ""):
+        m = _STREET.search(part)
+        head = (part[:m.start()] if m else part).strip(" .-–—")
+        if head and _LOCALITY.search(head):
+            kept.append(head)
+    return ", ".join(kept)[:120] or None
+
+
+def _stored_fields(fields: dict) -> dict:
+    """Поля для базы: адрес сокращён до района/города, ключ региона рядом."""
+    out = dict(fields)
+    a = out.get("address")
+    if a and a.get("value"):
+        key, rname = _region_of(a["value"])
+        out["address"] = {**a, "value": safe_address(str(a["value"])), "street_hidden": True,
+                          "region": {"key": key, "name": rname} if key else None}
+    return out
+
+
+# --- срок страхования: только уверенный разбор ---
+TERM_LABELS = ("срок страхования", "срок действия", "период страхования", "срок договора", "сроком на",
+               "на срок", "заключен на", "заключён на", "действует", "sug'urta muddati", "amal qilish muddati",
+               "суғурта муддати", "амал қилиш муддати", "muddati", "муддати", "period of insurance",
+               "insurance period", "policy period", "term of insurance")
+# сроки уплаты, выплаты и прочие сроки к сроку страхования не относятся
+TERM_EXCLUDE = re.compile(r"(уплат|оплат|рассроч|платеж|платёж|выплат|уведом|рассмотр|претензи|эксплуатац|"
+                          r"стаж|гарант|давност|to'lov|тўлов|payment)", re.I)
+_TERM_MONTHS = re.compile(r"(?<![\d.])(\d{1,2})\s*(?:\([^)]{0,40}\)\s*)?(?:месяц\w*|мес\.?|oy\b|ой\b|months?\b)", re.I)
+_TERM_YEARS = re.compile(r"(?<![\d.])(\d{1,2}|один|одного|bir|one)\s*(?:\([^)]{0,40}\)\s*)?"
+                         r"(?:год\w*|лет\b|yil\w*|йил\w*|years?\b)", re.I)
+_TERM_DAYS = re.compile(r"(?<![\d.])(365|366)\s*(?:\([^)]{0,60}\)\s*)?(?:дн\w*|kun\w*|кун\w*|days?\b)", re.I)
+_DATE = re.compile(r"(?<!\d)(\d{2})\.(\d{2})\.(\d{4})(?!\d)")
+
+
+def _add_months(d: date, n: int) -> date:
+    y, m = divmod(d.month - 1 + n, 12)
+    y, m = d.year + y, m + 1
+    last = (date(y + (m == 12), m % 12 + 1, 1) - timedelta(days=1)).day
+    return date(y, m, min(d.day, last))
+
+
+def _months_between(a: date, b: date) -> Optional[int]:
+    """Целое число месяцев: «с 01.10.2026 по 30.09.2027» и «… по 01.10.2027» → 12; иначе None."""
+    n = (b.year - a.year) * 12 + b.month - a.month
+    for k in (n, n + 1):
+        if 1 <= k <= 60:
+            end = _add_months(a, k)
+            if b in (end, end - timedelta(days=1)):
+                return k
+    return None
+
+
+def contract_term(text: str, tables: list = None) -> tuple:
+    """
+    Срок страхования в месяцах из договора: (значение|None, подпись|None, заметка|None).
+    Берём только строки с подписью срока; разные сроки в документе — не угадываем.
+    """
+    found = []
+    for ln in ingest._lines(text, tables):
+        low = D.norm(ln)
+        label = next((lab for lab in TERM_LABELS if D.norm(lab) in low), None)
+        if not label or TERM_EXCLUDE.search(ln):
+            continue
+        vals = [int(m.group(1)) for m in _TERM_MONTHS.finditer(ln)]
+        for m in _TERM_YEARS.finditer(ln):
+            g = m.group(1).lower()
+            vals.append(12 * (1 if g in ("один", "одного", "bir", "one") else int(g)))
+        vals += [12 for _ in _TERM_DAYS.finditer(ln)]
+        dates = []
+        for d, mth, y in _DATE.findall(ln):
+            try:
+                dates.append(date(int(y), int(mth), int(d)))
+            except ValueError:
+                pass
+        if len(dates) == 2 and dates[0] < dates[1]:
+            k = _months_between(*dates)
+            if k:
+                vals.append(k)
+        found += [(v, label) for v in vals if 1 <= v <= 60]
+    values = sorted({v for v, _ in found})
+    if len(values) == 1:
+        return values[0], found[0][1], None
+    if len(values) > 1:
+        return None, None, ("В договоре указаны разные сроки (%s мес.) — введите срок вручную"
+                            % ", ".join(map(str, values)))
+    return None, None, None
+
+
 def build_prefill(con, fields: dict, class_code: str = "") -> dict:
     """
     Сопоставление полей договора с ключами формы /analytics/risk/fields. Только то, что взято
@@ -305,8 +415,7 @@ def build_prefill(con, fields: dict, class_code: str = "") -> dict:
     # регион: из адреса объекта или графы «регион» — тем же разбором, что у кадастра
     addr = f("address").get("value") or f("region").get("value")
     if addr:
-        name = D.cast("region", str(addr))
-        key, rname = mp.resolve_region(name) if name else (None, None)
+        key, rname = _region_of(addr)
         if key:
             must["region"] = _pf(key, "Регион", f("address").get("found_by") or f("region").get("found_by"),
                                  f("address").get("confidence") or f("region").get("confidence"),
@@ -333,10 +442,14 @@ def build_prefill(con, fields: dict, class_code: str = "") -> dict:
                VEHICLE_WORDS)
     if veh:
         must["vehicle_type"] = _pf(veh, "Тип транспорта")
-    year = f("year").get("value") or f("year_built").get("value") or f("year_of_manufacture").get("value")
-    y = D.cast("year", str(year)) if year else None
+    ykey = next((k for k in ("year", "build_year", "year_built", "year_of_manufacture") if f(k).get("value")), None)
+    y = D.cast("year", str(f(ykey)["value"])) if ykey else None
     if y:
-        must["year"] = _pf(int(y), "Год выпуска или постройки", f("year").get("found_by"))
+        must["year"] = _pf(int(y), "Год выпуска или постройки", f(ykey).get("found_by"))
+    tm = f("term_months").get("value")
+    if isinstance(tm, int) and 1 <= tm <= 60:
+        must["term_months"] = _pf(tm, "Срок страхования", f("term_months").get("found_by"),
+                                  f("term_months").get("confidence"))
 
     # необязательные: площадь и этажность — если их нашёл разбор (кадастр, техпаспорт)
     for key, label, alts in (("area_m2", "Площадь", ("total_area", "area", "usable_area")),
@@ -347,6 +460,16 @@ def build_prefill(con, fields: dict, class_code: str = "") -> dict:
             if num:
                 opt[key] = _pf(float(num), label, f(a).get("found_by"))
                 break
+
+    # в prefill — только поля формы выбранного класса: счётчик «найдено значений» в мини-аппе
+    # считает ключи prefill, лишнее (год для класса 8) давало завышенное число
+    if classes:
+        form = ra.fields_for(class_code)
+        allow_m, allow_o = {x["key"] for x in form["must"]}, {x["key"] for x in form["optional"]}
+        must = {k: v for k, v in must.items() if k in allow_m}
+        opt = {k: v for k, v in opt.items() if k in allow_o}
+    else:
+        must.pop("year", None)                 # без класса неизвестно, есть ли год в форме; в fields он остаётся
     return {"must": must, "optional": opt}, notes
 
 
@@ -383,7 +506,8 @@ def _public(row: dict) -> dict:
             "insurance_contract": data.get("insurance_contract", False),
             "fields": data.get("fields") or {}, "facts": data.get("facts") or {},
             "prefill": data.get("prefill") or {"must": {}, "optional": {}},
-            "notes": data.get("notes") or [], "created_at": row["created_at"],
+            "notes": data.get("notes") or [], "closes": data.get("closes") or [],
+            "closes_basis": data.get("closes_basis"), "created_at": row["created_at"],
             "expires_at": row["expires_at"]}
 
 
@@ -404,9 +528,12 @@ def own_docs(con, user: dict, doc_ids: List[str]) -> List[dict]:
 
 
 @router.post("/analytics/risk/document")
-async def upload_document(file: UploadFile = File(...), class_code: str = "",
-                          user: dict = Depends(auth.current_user)) -> dict:
-    """Один файл до 15 МБ: PDF или DOCX. Запрос не создаётся; через 24 часа файл удаляется."""
+async def upload_document(file: UploadFile = File(...), class_code: str = "", product_code: str = "",
+                          object_type: str = "", user: dict = Depends(auth.current_user)) -> dict:
+    """
+    Один файл до 15 МБ: PDF или DOCX. Запрос не создаётся; через 24 часа файл удаляется.
+    product_code/class_code/object_type — чтобы ответить, какие пункты чек-листа файл закрывает.
+    """
     blob = await file.read(MAX_BYTES + 1)
     if not blob:
         raise HTTPException(400, "Файл пустой")
@@ -441,6 +568,14 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "",
     fields = _fields_dict(core["fields"], terms) if readable else {}
     facts = {f["ключ"]: f["значение"] for f in ingest._mask_deep(core["facts"])}
     insurance = readable and _is_insurance_contract(text)
+    if insurance:                             # срок — только из договора страхования, не аренды и т. п.
+        months, label, term_note = contract_term(text, tables)
+        if months:
+            fields["term_months"] = {"name": "Срок страхования", "value": months, "unit": "мес.",
+                                     "found_by": label, "confidence": "высокая", "method": "regex",
+                                     "source": SOURCE}
+        if term_note:
+            notes.append(term_note)
     # ядро ingest судит о полноте по своим полям; условия договора — тоже поля этого разбора
     if readable and fields and core["kind"]["kind"] != ingest.KIND_OTHER:
         status = ingest.ST_OK
@@ -461,10 +596,19 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "",
             notes.append("Документ не похож на договор страхования — проверьте, тот ли файл загружен")
         if core["ai"].get("ok") is False and core["ai"].get("reason") not in (None, "не запрашивалось"):
             notes.append("ИИ для дораскрытия полей: " + str(core["ai"]["reason"]))
+        closes, basis = [], None
+        if product_code.strip() or class_code.strip():
+            try:
+                need = required_docs(con, product_code[:20], class_code[:20], object_type[:120])
+                names, basis = [d["doc_name"] for d in need["required"]], need["basis_text"]
+                closes = _closes(core["kind"]["kind"], status, bool(insurance), names, set())
+            except HTTPException as e:        # неверный продукт/класс — файл всё равно разобран
+                notes.append("Чек-лист не определён: " + str(e.detail))
         now = datetime.now()
         shown = ingest._mask_str(Path(file.filename or "").name)[:200] or ("document." + fmt)
-        data = {"fields": fields, "facts": facts, "prefill": prefill, "notes": notes,
-                "insurance_contract": bool(insurance), "format": fmt}
+        data = {"fields": _stored_fields(fields), "facts": facts, "prefill": prefill, "notes": notes,
+                "insurance_contract": bool(insurance), "format": fmt, "closes": closes,
+                "closes_basis": basis}
         con.execute("INSERT INTO analysis_docs (id, user_id, filename, mime, size, kind, language, status,"
                     " fields_json, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                     (doc_id, user["id"], shown, MIME[fmt], len(blob), core["kind"]["kind"],
@@ -475,7 +619,11 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "",
                  {"вид": core["kind"]["kind"], "язык": core["lang"]["language"], "статус": status,
                   "полей": len(fields), "подставлено": sorted(prefill["must"])})
         row = db.rows(con, "SELECT * FROM analysis_docs WHERE id=?", doc_id)[0]
-    return _public(row)
+    out = _public(row)
+    if fields.get("address"):                 # полный адрес — только в этом ответе, в базе его нет
+        out["fields"]["address"] = {**out["fields"]["address"], "value": fields["address"].get("value"),
+                                    "shown_once": True}
+    return out
 
 
 @router.get("/analytics/risk/document/{doc_id}")
@@ -498,6 +646,23 @@ def delete_document(doc_id: str, user: dict = Depends(auth.current_user)) -> dic
 # Шаг 5: блок documents в ответе POST /analytics/risk
 # --------------------------------------------------------------------------- #
 
+def _closes(kind: str, status: str, insurance: bool, names: List[str], closed: set) -> List[str]:
+    """
+    Пункты чек-листа (из names), которые закрывает документ этого вида, по docparse.CHECKLIST_MATCH.
+    Уже закрытые (closed) повторно не отдаём; closed пополняется. Договор страхования не закрывает ничего.
+    """
+    if insurance or status not in (ingest.ST_OK, ingest.ST_PARTIAL):
+        return []
+    by_norm = {D.norm(n): n for n in names}
+    out = []
+    for want in D.CHECKLIST_MATCH.get(kind, []):
+        n = by_norm.get(D.norm(want))
+        if n and n not in closed:
+            closed.add(n)
+            out.append(n)
+    return out
+
+
 def documents_block(con, user: Optional[dict], doc_ids: List[str], product_code: str,
                     class_code: str, object_type: str) -> dict:
     """
@@ -512,16 +677,9 @@ def documents_block(con, user: Optional[dict], doc_ids: List[str], product_code:
     names = [d["doc_name"] for d in need["required"]]
     rows = own_docs(con, user, doc_ids) if doc_ids else []
     items, closed = [], set()
-    by_norm = {D.norm(n): n for n in names}
     for r in rows:
         data = json.loads(r["fields_json"] or "{}")
-        closes = []
-        if r["status"] in (ingest.ST_OK, ingest.ST_PARTIAL) and not data.get("insurance_contract"):
-            for want in D.CHECKLIST_MATCH.get(r["kind"], []):
-                n = by_norm.get(D.norm(want))
-                if n and n not in closed:
-                    closed.add(n)
-                    closes.append(n)
+        closes = _closes(r["kind"], r["status"], bool(data.get("insurance_contract")), names, closed)
         items.append({"doc_id": r["id"], "kind": r["kind"], "status": r["status"],
                       "insurance_contract": bool(data.get("insurance_contract")), "closes": closes})
     missing = [n for n in names if n not in closed]

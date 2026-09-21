@@ -239,10 +239,19 @@ def check_upload():
     ok("DOCX: стоимость 5 000 000 000", must.get("object_value", {}).get("value") == 5e9, must)
     ok("DOCX: регион — город Ташкент", must.get("region", {}).get("value") == "region:TOSHKENT SHAHRI",
        must.get("region"))
-    ok("DOCX: тип объекта «Склад», конструкция reinforced, год 2012",
+    ok("DOCX: тип объекта «Склад», конструкция reinforced",
        must.get("object_type", {}).get("value") == "Склад"
-       and must.get("construction", {}).get("value") == "reinforced"
-       and must.get("year", {}).get("value") == 2012, must)
+       and must.get("construction", {}).get("value") == "reinforced", must)
+    ok("класс 8: года в форме нет — в prefill не подставлен, в fields остался",
+       "year" not in must and d.get("fields", {}).get("year", {}).get("value"), (must.get("year"), d.get("fields", {}).get("year")))
+    ok("класс 8: в prefill только поля формы класса (счётчик «найдено значений»)",
+       set(must) <= {"object_type", "sum_insured", "object_value", "region", "term_months", "construction", "activity"}
+       and "vehicle_type" not in must, sorted(must))
+    ok("срок из договора: «12 месяцев» → term_months = 12", must.get("term_months", {}).get("value") == 12,
+       must.get("term_months"))
+    ok("договор страхования пунктов не закрывает: closes пустой", d.get("closes") == [], d.get("closes"))
+    ok("в ответе адрес показан полностью (один раз)",
+       "Амира Темура" in str(d.get("fields", {}).get("address", {}).get("value")), d.get("fields", {}).get("address"))
     ok("DOCX: всё помечено source = договор", must and all(v["source"] == "договор" for v in must.values()))
     ok("DOCX: вид, язык, статус", d.get("kind") and d.get("language") == "ru" and d.get("status"),
        (d.get("kind"), d.get("language"), d.get("status")))
@@ -255,6 +264,19 @@ def check_upload():
     raw = _json.dumps(row, ensure_ascii=False)
     ok("в базе строка есть, срок хранения 24 часа", row and row[0]["expires_at"] > row[0]["created_at"])
     ok("в базе нет ИНН и страхователя", "301234567" not in raw and "Тестовый склад" not in raw)
+    stored = _json.loads(row[0]["fields_json"]) if row else {}
+    addr = stored.get("fields", {}).get("address", {})
+    ok("analysis_docs.fields_json: улицы и дома нет, район и регион есть",
+       "Амира Темура" not in raw and "ул." not in str(addr.get("value"))
+       and addr.get("value") == "г. Ташкент, Юнусабадский район"
+       and (addr.get("region") or {}).get("key") == "region:TOSHKENT SHAHRI", addr)
+    with db.tx() as con:
+        log = _json.dumps(db.rows(con, "SELECT * FROM audit WHERE entity=?", f"analysis_doc:{doc_docx}"),
+                          ensure_ascii=False)
+    ok("в журнале адреса нет", "Амира Темура" not in log and "Юнусабад" not in log, log[:300])
+    st, g = call("GET", f"/analytics/risk/document/{doc_docx}", who=EMP)
+    ok("GET: адрес уже сокращён", st == 200 and "Амира Темура" not in _json.dumps(g, ensure_ascii=False),
+       g.get("fields", {}).get("address") if st == 200 else st)
     ok("файл лежит во временной папке", (analysis_docs.DIR / doc_docx).exists())
 
     st, p = upload(make_pdf([ln.replace("4 200 000 000 сум", "4,2 млрд сум") for ln in CONTRACT_LINES]),
@@ -263,6 +285,8 @@ def check_upload():
     ok("PDF → 200", st == 200, (st, p))
     ok("PDF: «4,2 млрд сум» → 4 200 000 000", pm.get("sum_insured", {}).get("value") == 4.2e9, pm)
     ok("PDF: стоимость 5 000 000 000", pm.get("object_value", {}).get("value") == 5e9, pm)
+
+    check_year_term_closes()
 
     st, s = upload(make_scan_pdf(), "scan.pdf")
     ok("скан без текста → 200, «нужно распознавание», поля пустые",
@@ -286,6 +310,61 @@ def check_upload():
     st, _ = call("GET", "/analytics/risk/document/../../etc", who=EMP)
     ok("мусор вместо id → 404", st == 404, st)
     return doc_docx, p.get("doc_id")
+
+
+VEHICLE_CONTRACT = [
+    "ДОГОВОР СТРАХОВАНИЯ ТРАНСПОРТНОГО СРЕДСТВА № 7/2026",
+    "Объект страхования: легковой автомобиль",
+    "Год выпуска: 2019",
+    "Страховая сумма: 250 000 000 сум",
+    "Срок действия договора: с 01.10.2026 по 30.09.2027",
+]
+TECH_PASSPORT = [
+    "ТЕХНИЧЕСКИЙ ПАСПОРТ ТРАНСПОРТНОГО СРЕДСТВА",
+    "Свидетельство о регистрации транспортного средства",
+    "Марка: Chevrolet",
+    "Модель: Cobalt",
+    "Год выпуска: 2019",
+    "Тип транспортного средства: легковой",
+    "Цвет: белый",
+]
+
+
+def check_year_term_closes():
+    print("3а. Год по форме класса, срок из договора, closes")
+    st, v = upload(make_docx(VEHICLE_CONTRACT), "Договор авто.docx", params={"class_code": "3"})
+    vm = v.get("prefill", {}).get("must", {}) if st == 200 else {}
+    ok("класс 3: год 2019 подставлен", st == 200 and vm.get("year", {}).get("value") == 2019, (st, vm))
+    ok("класс 3: конструкции и деятельности (класс 8/9) в prefill нет",
+       "construction" not in vm and "activity" not in vm, sorted(vm))
+    ok("срок «с 01.10.2026 по 30.09.2027» → 12 месяцев", vm.get("term_months", {}).get("value") == 12,
+       vm.get("term_months"))
+
+    st, n = upload(make_docx(VEHICLE_CONTRACT), "Договор авто.docx")
+    nm = n.get("prefill", {}).get("must", {}) if st == 200 else {}
+    ok("класс не передан: года в prefill нет, в fields есть",
+       st == 200 and "year" not in nm and n["fields"].get("year", {}).get("value"), (st, sorted(nm)))
+    ok("класс не передан: closes пустой", n.get("closes") == [], n.get("closes"))
+
+    one_year = [ln for ln in VEHICLE_CONTRACT if not ln.startswith("Срок")] + ["Договор заключён на 1 год"]
+    st, o = upload(make_docx(one_year), "Договор авто.docx", params={"class_code": "3"})
+    ok("«на 1 год» → 12 месяцев", st == 200 and o["prefill"]["must"].get("term_months", {}).get("value") == 12,
+       o.get("prefill", {}).get("must", {}).get("term_months") if st == 200 else st)
+    two = VEHICLE_CONTRACT + ["Срок страхования: 6 месяцев"]
+    st, t = upload(make_docx(two), "Договор авто.docx", params={"class_code": "3"})
+    ok("разные сроки в договоре → не подставлен, есть заметка",
+       st == 200 and "term_months" not in t["prefill"]["must"] and any("разные сроки" in x for x in t["notes"]),
+       t.get("notes") if st == 200 else st)
+
+    st, p = upload(make_docx(TECH_PASSPORT), "техпаспорт.docx", params={"class_code": "3"})
+    ok("техпаспорт при классе 3 → 200", st == 200, (st, p))
+    ok("техпаспорт при классе 3 закрывает «Технический паспорт и свидетельство о регистрации»",
+       p.get("closes") == ["Технический паспорт и свидетельство о регистрации"], (p.get("kind"), p.get("closes")))
+    st, g = call("GET", f"/analytics/risk/document/{p.get('doc_id')}", who=EMP)
+    ok("closes сохраняется и в GET", st == 200 and g.get("closes") == p.get("closes"), g.get("closes") if st == 200 else st)
+    st, b = upload(make_docx(TECH_PASSPORT), "техпаспорт.docx", params={"product_code": "0807"})
+    ok("техпаспорт при продукте 0807 (класс 8) — пункт своего чек-листа, не пункт класса 3",
+       st == 200 and b.get("closes") == ["Технический паспорт или кадастровые документы"], b.get("closes"))
 
 
 # ---------- 4. анализ с документами ----------
