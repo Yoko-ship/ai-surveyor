@@ -184,6 +184,38 @@ CREATE TABLE IF NOT EXISTS reserve_reports (
     PRIMARY KEY (report_date, scope_type, scope_code)
 );
 
+-- Отчёты о резервах по периодам из админки (app/finance.py): год + квартал или годовая отчётность.
+-- Отдельно от reserve_reports: у Q4 и годового отчёта одна дата 31.12, а ключ там — дата.
+-- Строки не удаляются: замена и удаление меняют status, старая версия остаётся в истории.
+CREATE TABLE IF NOT EXISTS reserve_periods (
+    id               INTEGER PRIMARY KEY,
+    period_year      INTEGER NOT NULL,          -- 2000..2100
+    period_type      TEXT NOT NULL,             -- 'Q1'..'Q4' | 'Y' (годовая отчётность)
+    report_date      TEXT NOT NULL,             -- конец квартала или 31.12 — для совместимости с report_date
+    total            REAL NOT NULL,             -- сумма всех резервов, сум
+    base_premium_12m REAL,                      -- базовая премия за 12 мес. (норма РПНУ ≥ 10%, 1882 п. 23)
+    source           TEXT NOT NULL,             -- 'вручную' | 'файл'
+    file_name        TEXT,
+    status           TEXT NOT NULL DEFAULT 'действует', -- 'действует' | 'заменён' | 'удалён'
+    created_by       TEXT,                      -- логин, не ФИО
+    created_at       TEXT NOT NULL,
+    closed_by        TEXT,                      -- кто заменил или удалил
+    closed_at        TEXT,
+    replaced_by      INTEGER REFERENCES reserve_periods(id)
+);
+-- один действующий отчёт на (год, период); история замен не мешает
+CREATE UNIQUE INDEX IF NOT EXISTS ux_reserve_periods_active ON reserve_periods(period_year, period_type) WHERE status = 'действует';
+CREATE INDEX IF NOT EXISTS ix_reserve_periods_date ON reserve_periods(status, report_date);
+
+-- Строки отчёта: вид резерва (колонки reserve_reports) × учётная группа (1882 п. 10) или вид ОСГО/ОСГОР/ОСГОП
+CREATE TABLE IF NOT EXISTS reserve_period_lines (
+    period_id    INTEGER NOT NULL REFERENCES reserve_periods(id),
+    reserve_code TEXT NOT NULL,                 -- 'rnp' | 'rzu' | 'rpnu' | 'stab' | 'cat_reserve' | 'other'
+    group_code   TEXT NOT NULL DEFAULT '',      -- '1'..'4' для РНП; 'ОСГО' | 'ОСГОР' | 'ОСГОП' для стабилизационных; '' — без группы
+    amount       REAL NOT NULL,                 -- сум, ≥ 0
+    PRIMARY KEY (period_id, reserve_code, group_code)
+);
+
 -- Выделенные активы под резервы (1882, гл. III–IV)
 CREATE TABLE IF NOT EXISTS allocated_assets (
     report_date  TEXT NOT NULL,
@@ -984,3 +1016,33 @@ CREATE TABLE IF NOT EXISTS osgor_activities (
     act_ref   TEXT NOT NULL DEFAULT 'ПКМ № 177, прил. № 9, разд. I, п. 3 (ред. ПКМ № 443 от 15.07.2025)'
 );
 CREATE INDEX IF NOT EXISTS ix_osgor_activities_okved ON osgor_activities(okved);
+
+-- ============ ОСГОР: БАЗОВАЯ РАСЧЁТНАЯ ВЕЛИЧИНА (БРВ) ============
+-- Размер БРВ вводит администратор (PUT /osgor/brv, app/osgor.py): минимум премии 0,25 БРВ
+-- (п. 23 Правил ПКМ № 177), погребение до 3 БРВ (п. 43). Значение не засевается — пока админ
+-- не ввёл, таблица пуста (вопрос 110 заказчику). Строки не правятся и не удаляются: исправление —
+-- новая строка; действует строка с наибольшей effective_from ≤ даты расчёта, при равенстве — последняя
+-- по id (правило 9 CLAUDE.md: старый расчёт воспроизводится по дате).
+CREATE TABLE IF NOT EXISTS osgor_brv (
+    id             INTEGER PRIMARY KEY,
+    value          REAL NOT NULL,             -- сум
+    effective_from TEXT NOT NULL,             -- ГГГГ-ММ-ДД, с какого дня действует
+    source         TEXT NOT NULL,             -- акт (указ/постановление) или ссылка на него
+    note           TEXT,
+    entered_by     TEXT NOT NULL,             -- логин админа
+    entered_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_osgor_brv_date ON osgor_brv(effective_from, id);
+
+-- ============ АНАЛИТИКА РИСКА: ПОРОГИ УРОВНЯ РИСКА ============
+-- app/risk_analytics.py (вкладка «Аналитика» мини-аппа). Правка порогов админом — новая строка,
+-- старые остаются в истории (правило 9: расчёты должны воспроизводиться). Действует последняя по id.
+-- В thresholds_json только отличия от DEFAULT_THRESHOLDS. Шкала экспертная, calibrated = 0.
+CREATE TABLE IF NOT EXISTS risk_thresholds (
+    id              INTEGER PRIMARY KEY,
+    created_at      TEXT NOT NULL,
+    created_by      TEXT,
+    thresholds_json TEXT NOT NULL,
+    calibrated      INTEGER NOT NULL DEFAULT 0,
+    note            TEXT
+);

@@ -15,6 +15,8 @@
   GET  /valuation/norms, /valuation/settings — нормы износа и настройки оценки (POST — правка)
   POST /requests/{id}/decide            — решение назначенного согласующего (app/approvals.py)
   GET  /analytics/summary               — аналитика запросов
+  POST /analytics/risk, GET /analytics/risk/fields, GET|PUT /analytics/risk/thresholds — аналитика риска (app/risk_api.py)
+  GET  /osgor/activities, POST /osgor/quick, /osgor/assess — ОСГОР (app/osgor.py)
   POST /admin/tariff-versions, /admin/min-rates, /admin/coefficients, /admin/products, PUT /admin/financials
   GET  /requests/{id}/explain           — объяснение расчёта клиенту (ИИ, без него — шаблон)
   GET  /llm/status, POST /llm/ping, GET /llm/calls — состояние и журнал обращений к ИИ
@@ -620,33 +622,33 @@ class SolvencyRow(BaseModel):
 
 
 @app.post("/admin/reserves")
-def add_reserves(rows_in: list[ReserveRow]):
+def add_reserves(rows_in: list[ReserveRow], user: dict = Depends(current_user)):
     with db.tx() as con:
         for r in rows_in:
             con.execute("INSERT OR REPLACE INTO reserve_reports VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                         (r.report_date, r.scope_type, r.scope_code, r.rnp, r.rzu, r.rpnu, r.stab, r.cat_reserve,
                          r.other, r.base_premium_12m, r.source))
-        db.audit(con, "admin", "отчёт о резервах", rows_in[0].report_date if rows_in else None, {"rows": len(rows_in)})
+        db.audit(con, user["login"], "отчёт о резервах", rows_in[0].report_date if rows_in else None, {"rows": len(rows_in)})
     return {"ok": True, "rows": len(rows_in)}
 
 
 @app.post("/admin/assets")
-def add_assets(rows_in: list[AssetRow]):
+def add_assets(rows_in: list[AssetRow], user: dict = Depends(current_user)):
     with db.tx() as con:
         for r in rows_in:
             con.execute("INSERT OR REPLACE INTO allocated_assets VALUES (?,?,?,?)",
                         (r.report_date, r.category, r.amount, r.is_liquid))
-        db.audit(con, "admin", "выделенные активы", rows_in[0].report_date if rows_in else None, {"rows": len(rows_in)})
+        db.audit(con, user["login"], "выделенные активы", rows_in[0].report_date if rows_in else None, {"rows": len(rows_in)})
     return {"ok": True, "rows": len(rows_in)}
 
 
 @app.put("/admin/solvency")
-def set_solvency(s: SolvencyRow):
+def set_solvency(s: SolvencyRow, user: dict = Depends(current_user)):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO solvency_reports VALUES (?,?,?,?,?,?,?,?,?)",
                     (s.report_date, s.own_funds, s.deductions, s.premiums_12m, s.claims_36m, s.claims_36m_net,
                      s.min_capital, s.top5_liabilities, s.source))
-        db.audit(con, "admin", "платёжеспособность", s.report_date, s.model_dump())
+        db.audit(con, user["login"], "платёжеспособность", s.report_date, s.model_dump())
     return {"ok": True}
 
 
@@ -703,40 +705,40 @@ class Financials(BaseModel):
 
 
 @app.post("/admin/tariff-versions")
-def add_version(v: TariffVersion):
+def add_version(v: TariffVersion, user: dict = Depends(current_user)):
     with db.tx() as con:
         cur = con.execute("INSERT INTO tariff_versions (level, name, document_ref, effective_from) VALUES (?,?,?,?)",
                           (v.level, v.name, v.document_ref, v.effective_from))
-        db.audit(con, "admin", "новая версия тарифов", f"version:{cur.lastrowid}", v.model_dump())
+        db.audit(con, user["login"], "новая версия тарифов", f"version:{cur.lastrowid}", v.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
         return {"id": cur.lastrowid}
 
 
 @app.post("/admin/min-rates")
-def add_min_rate(m: MinRate):
+def add_min_rate(m: MinRate, user: dict = Depends(current_user)):
     with db.tx() as con:
         con.execute("INSERT INTO min_rates (tariff_version_id, product_code, class_code, payer_type, min_rate_pct) VALUES (?,?,?,?,?)",
                     (m.tariff_version_id, m.product_code, m.class_code, m.payer_type, m.min_rate_pct))
-        db.audit(con, "admin", "минимальная ставка", m.product_code, m.model_dump())
+        db.audit(con, user["login"], "минимальная ставка", m.product_code, m.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True}
 
 
 @app.post("/admin/coefficients")
-def add_coefficient(c: Coefficient):
+def add_coefficient(c: Coefficient, user: dict = Depends(current_user)):
     with db.tx() as con:
         con.execute("DELETE FROM coefficients WHERE factor_code=? AND option_code=? AND class_code IS ?",
                     (c.factor_code, c.option_code, c.class_code))
         con.execute("INSERT INTO coefficients (factor_code,factor_name,class_code,option_code,option_name,multiplier,calibrated,source)"
                     " VALUES (?,?,?,?,?,?,?,?)", (c.factor_code, c.factor_name, c.class_code, c.option_code,
                                                  c.option_name, c.multiplier, c.calibrated, c.source))
-        db.audit(con, "admin", "коэффициент", f"{c.factor_code}/{c.option_code}", c.model_dump())
+        db.audit(con, user["login"], "коэффициент", f"{c.factor_code}/{c.option_code}", c.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True}
 
 
 @app.post("/admin/products")
-def add_product(p: Product):
+def add_product(p: Product, user: dict = Depends(current_user)):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO products (code,name,rate_text,commission_text,commission_pct,pricing_mode,is_general,status)"
                     " VALUES (?,?,?,?,?,?,0,'тест')", (p.code, p.name, p.rate_text, p.commission_text, p.commission_pct, p.pricing_mode))
@@ -746,17 +748,17 @@ def add_product(p: Product):
         if p.min_rate_pct is not None and p.tariff_version_id:
             con.execute("INSERT INTO min_rates (tariff_version_id, product_code, class_code, payer_type, min_rate_pct) VALUES (?,?,?,?,?)",
                         (p.tariff_version_id, p.code, p.classes[0], None, p.min_rate_pct))
-        db.audit(con, "admin", "продукт", p.code, p.model_dump())
+        db.audit(con, user["login"], "продукт", p.code, p.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True, "status": "тест — до утверждения виден только андеррайтеру"}
 
 
 @app.put("/admin/financials")
-def set_financials(f: Financials):
+def set_financials(f: Financials, user: dict = Depends(current_user)):
     with db.tx() as con:
         con.execute("INSERT OR REPLACE INTO company_financials VALUES (?,?,?,?)",
                     (f.report_date, f.own_funds, f.reserves, f.source))
-        db.audit(con, "admin", "финансовые показатели", f.report_date, f.model_dump())
+        db.audit(con, user["login"], "финансовые показатели", f.report_date, f.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True, "risk_limit": 0.2 * (f.own_funds + f.reserves)}
 
@@ -961,7 +963,8 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("tgbot", "tgbot_router"), ("registration", "registration_router"),
                     ("tg_link", "tg_link_router"),
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
-                    ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router")):
+                    ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
+                    ("risk_api", "risk_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

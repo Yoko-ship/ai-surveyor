@@ -363,7 +363,9 @@ def exchange(con, code: str) -> dict:
     full_name = " ".join(x for x in (profile.get("family_name"), profile.get("given_name")) if x) \
         or profile.get("name") or ""
     return {"step": "register", "reg_token": reg_token,
-            "profile": {"full_name": full_name, "email": profile.get("email", ""),
+            # name — подсказка для поля «Имя» анкеты (21.09.2026 вместо ФИО)
+            "profile": {"full_name": full_name, "name": profile.get("given_name") or full_name,
+                        "email": profile.get("email", ""),
                         "given_name": profile.get("given_name", ""),
                         "family_name": profile.get("family_name", "")}}
 
@@ -374,6 +376,7 @@ def exchange(con, code: str) -> dict:
 
 class RegisterIn(BaseModel):
     reg_token: str = ""
+    name: str = ""                      # «Имя» (21.09.2026); full_name — прежнее поле, синоним
     full_name: str = ""
     department: str = ""
     position: str = ""
@@ -390,7 +393,7 @@ def register(con, data: RegisterIn, ip: str = "") -> dict:
     profile = json.loads(row["profile_json"] or "{}")
     sub, email = row["google_sub"], row["email"]
 
-    full_name = registration.check_full_name(data.full_name or profile.get("name") or "")
+    full_name = registration.check_full_name(registration.name_of(data) or profile.get("name") or "")
     department = registration.check_department(data.department)
     position = registration.check_position(data.position, data.position_other)
     registration.check_consent(data.consent)

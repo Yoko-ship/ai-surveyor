@@ -634,12 +634,211 @@ V.market_finance = function (el) {
     '<label>Страховые резервы, сум<input name="reserves" type="number" required></label>' +
     '<label>Источник<input name="source" placeholder="баланс ф.1, отчёт о резервах"></label>' +
     '<button class="btn btn-primary">Сохранить показатели</button></form><div class="msg"></div></div>' +
-    '<div class="card"><h3>Резервы, активы и платёжеспособность</h3>' +
-    '<p class="note">Эти три отчёта сейчас загружаются не через экран: готовой формы для них в системе нет, ' +
-    'а придумывать её мы не стали — вопрос записан в «Открытые вопросы» (№ 158). Как есть они видны на странице ' +
+    '<div id="finRes"><p class="hint">Загружаем отчёты о резервах…</p></div>' +
+    '<div class="card"><h3>Выделенные активы и платёжеспособность</h3>' +
+    '<p class="note">Эти два отчёта пока загружаются не через экран (ответ на вопрос № 158). Как есть они видны на странице ' +
     '<a href="/capacity-page" target="_blank" rel="noopener">«Ёмкость и удержание»</a>.</p></div>';
   bind_forms(el);
+  fin_reserves($("#finRes"));
 };
+
+/* Страховые резервы по периодам (app/finance.py): вручную или файлом Excel, предпросмотр, замена с историей. */
+var FIN = {st: null, preview: null};
+function fin_parse(s) {                      /* «1 250 000,50» → 1250000.5; пусто → null; не число → NaN */
+  s = String(s == null ? "" : s).replace(/[\s  ]/g, "").replace(",", ".");
+  return s === "" ? null : (/^\d+(\.\d+)?$/.test(s) ? Number(s) : NaN);
+}
+function fin_fmt(input) {                    /* разделители тысяч прямо в поле */
+  var v = input.value.replace(/[^\d,.]/g, "").replace(".", ","), p = v.split(",");
+  var int = p[0].replace(/^0+(?=\d)/, "").replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  input.value = p.length > 1 ? int + "," + p.slice(1).join("").slice(0, 2) : int;
+}
+function fin_money(n) { return n == null ? "—" : Number(n).toLocaleString("ru-RU", {maximumFractionDigits: 2}); }
+async function fin_call(path, method, data) {  /* как send, но отдаёт и код ответа: 409 — «заменить?» */
+  var r = await fetch(path, {method: method, headers: {"Content-Type": "application/json", Accept: "application/json"},
+                             body: data ? JSON.stringify(data) : undefined});
+  var b = null; try { b = await r.json(); } catch (e) { b = null; }
+  return {status: r.status, body: b};
+}
+function fin_err(b, status) {
+  var d = b && b.detail;
+  if (d && typeof d === "object") return esc(d.message || "") + (d.errors ? "<ul>" + d.errors.map(function (x) {
+    return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>" : "");
+  return esc(d || ("сервер ответил " + status));
+}
+function fin_period() {
+  var y = Number($("#finYear").value), t = $("#finType").value;
+  if (!Number.isInteger(y) || y < FIN.st.year_min || y > FIN.st.year_max)
+    throw new Error("Год — целое число от " + FIN.st.year_min + " до " + FIN.st.year_max);
+  return {period_year: y, period_type: t};
+}
+async function fin_save(payload, msg) {
+  msg.className = "msg"; msg.textContent = "Сохраняем…";
+  var r = await fin_call("/finance/reserves", "POST", payload);
+  if (r.status === 409 && r.body && r.body.detail && r.body.detail.existing) {
+    var ex = r.body.detail.existing;
+    var ok = window.confirm(r.body.detail.message + "\n\nСейчас сохранено: итог " + fin_money(ex.total) + " сум, внёс " +
+      (ex.created_by || "—") + " " + String(ex.created_at || "").replace("T", " ").slice(0, 16) +
+      ".\nСтарая версия останется в истории.");
+    if (!ok) { msg.textContent = "Не сохранено: оставили прежний отчёт."; return false; }
+    payload.replace = true;
+    r = await fin_call("/finance/reserves", "POST", payload);
+  }
+  if (r.status !== 200) { msg.className = "msg bad"; msg.innerHTML = "Не сохранилось: " + fin_err(r.body, r.status); return false; }
+  msg.textContent = "Сохранено. Итог резервов: " + fin_money(r.body.total) + " сум" + (r.body.replaced ? " (прежняя версия — в истории)." : ".");
+  fin_list();
+  return true;
+}
+async function fin_reserves(box) {
+  try { FIN.st = await api("/finance/reserves/structure"); } catch (e) { box.innerHTML = fail(e); return; }
+  var st = FIN.st, y = new Date().getFullYear();
+  var rows = [];
+  st.kinds.forEach(function (k) {
+    k.groups.forEach(function (g, i) {
+      rows.push("<tr><td>" + (i ? "" : "<b>" + esc(k.label) + '</b><br><span class="hint">' + esc(k.norm) + "</span>") + "</td><td>" +
+        esc(g.code ? g.label : "—") + (g.hint ? '<br><span class="hint">' + esc(g.hint) + "</span>" : "") +
+        '</td><td><input class="fin-amt" inputmode="decimal" autocomplete="off" data-k="' + esc(k.code) + '" data-g="' +
+        esc(g.code) + '" aria-label="' + esc(k.label + " " + (g.code ? g.label : "")) + '" style="text-align:right;font-family:var(--mono)"></td></tr>');
+    });
+  });
+  box.innerHTML = '<div class="card"><h3>Страховые резервы</h3>' +
+    '<p class="note">Состав — по Положению 1882: РНП по учётным группам (п. 10), РЗУ, РПНУ, стабилизационные ОСГО / ОСГОР / ОСГОП, ' +
+    'резерв катастроф, прочие. РПМ компания не ведёт. Один отчёт на период; повторный ввод заменяет прежний, а прежний остаётся в истории. ' +
+    'Последний период берёт страница «Ёмкость и удержание».</p>' +
+    '<form class="f" id="finPer" onsubmit="return false"><label>Год<input id="finYear" type="number" inputmode="numeric" min="' + st.year_min +
+    '" max="' + st.year_max + '" step="1" value="' + y + '" required></label>' +
+    '<label>Период<select id="finType">' + st.periods.map(function (p) {
+      return '<option value="' + esc(p.code) + '">' + esc(p.label) + "</option>"; }).join("") + "</select></label></form>" +
+    '<div class="bar" style="margin-top:12px"><button class="btn btn-primary" type="button" id="finManual">Ввести вручную</button>' +
+    '<button class="btn btn-secondary" type="button" id="finUpload">Загрузить Excel</button>' +
+    '<a class="btn btn-secondary" href="/finance/reserves/template.xlsx" download>Скачать шаблон</a>' +
+    '<input type="file" id="finFile" accept=".xlsx,.xlsm" hidden></div>' +
+    '<div id="finWork"></div></div>' +
+    '<div class="card"><h3>Загруженные периоды</h3><div class="bar"><label style="flex-direction:row;align-items:center;gap:6px">' +
+    '<input type="checkbox" id="finHist" style="width:auto"> показать историю замен и удалений</label></div>' +
+    '<div id="finList"><p class="hint">Загружаем…</p></div><div id="finView"></div></div>';
+
+  $("#finManual").onclick = function () {
+    FIN.preview = null;
+    $("#finWork").innerHTML = '<p class="hint" style="margin-top:12px">Суммы в сумах; пустое поле — резерв не заполнен.</p>' +
+      tbl(["Вид резерва", "Учётная группа / вид", "Сумма, сум"], rows) +
+      '<form class="f" style="margin-top:10px" onsubmit="return false"><label>' + esc(st.base_label) +
+      '<input class="fin-amt" id="finBase" inputmode="decimal" autocomplete="off" style="text-align:right;font-family:var(--mono)"></label></form>' +
+      '<div class="tiles" style="margin-top:10px"><div class="tile"><b id="finTotal">0</b><span>итого резервов, сум</span></div></div>' +
+      '<div class="actions"><button class="btn btn-primary" type="button" id="finSave">Сохранить</button></div><div class="msg" id="finMsg"></div>';
+    var recount = function () {
+      var t = 0, bad = false;
+      document.querySelectorAll("#finWork .fin-amt[data-k]").forEach(function (i) {
+        var v = fin_parse(i.value); if (v == null) return; if (isNaN(v)) bad = true; else t += v; });
+      $("#finTotal").textContent = bad ? "ошибка" : fin_money(t);
+    };
+    /* разделители ставим при выходе из поля, чтобы курсор не прыгал во время набора */
+    $("#finWork").oninput = function (e) { if (e.target.classList.contains("fin-amt")) recount(); };
+    $("#finWork").addEventListener("focusout", function (e) { if (e.target.classList.contains("fin-amt")) fin_fmt(e.target); });
+    $("#finSave").onclick = async function () {
+      var msg = $("#finMsg"), lines = [], bad = [];
+      try {
+        var per = fin_period();
+        document.querySelectorAll("#finWork .fin-amt[data-k]").forEach(function (i) {
+          var v = fin_parse(i.value); if (v == null) return;
+          if (isNaN(v)) bad.push(i.getAttribute("aria-label"));
+          lines.push({reserve_code: i.dataset.k, group_code: i.dataset.g, amount: v});
+        });
+        var base = fin_parse($("#finBase").value);
+        if (bad.length || (base != null && isNaN(base))) throw new Error("не число в полях: " + bad.concat(isNaN(base) ? [st.base_label] : []).join("; "));
+        if (!lines.length) throw new Error("не введено ни одной суммы");
+        if (await fin_save(Object.assign(per, {lines: lines, base_premium_12m: base, source: "вручную"}), msg)) {
+          document.querySelectorAll("#finWork .fin-amt").forEach(function (i) { i.value = ""; }); recount();
+        }
+      } catch (err) { msg.className = "msg bad"; msg.textContent = "Не сохранилось: " + err.message; }
+    };
+  };
+
+  $("#finUpload").onclick = function () { $("#finFile").value = ""; $("#finFile").click(); };
+  $("#finFile").onchange = async function () {
+    var f = this.files[0], w = $("#finWork");
+    if (!f) return;
+    w.innerHTML = '<p class="hint" style="margin-top:12px">Разбираем файл «' + esc(f.name) + "»…</p>";
+    var fd = new FormData(); fd.append("file", f);
+    var r = await fetch("/finance/reserves/parse", {method: "POST", body: fd, headers: {Accept: "application/json"}});
+    var b = null; try { b = await r.json(); } catch (e) { b = null; }
+    if (!r.ok) { w.innerHTML = '<p class="flag" style="margin-top:12px;border-color:var(--stop);color:var(--stop)">Файл не принят: ' + fin_err(b, r.status) + "</p>"; return; }
+    FIN.preview = b;
+    var sums = FIN.st.kinds.map(function (k) { return '<div class="tile"><b>' + fin_money(b.by_kind[k.code]) + "</b><span>" + esc(k.label) + "</span></div>"; });
+    w.innerHTML = '<h3 style="margin-top:14px">Предпросмотр: ' + esc(b.file_name) + ' <span class="hint">(лист «' + esc(b.sheet) + '»)</span></h3>' +
+      '<p class="note">Пока ничего не сохранено. Проверьте, что распознано, и нажмите «Сохранить».</p>' +
+      (b.errors.length ? '<p class="flag" style="border-color:var(--stop);color:var(--stop)">Ошибки — сохранить нельзя, исправьте файл:<br>' +
+        b.errors.map(esc).join("<br>") + "</p>" : "") +
+      (b.warnings.length ? '<p class="flag">Предупреждения:<br>' + b.warnings.map(esc).join("<br>") + "</p>" : "") +
+      tbl(["Вид резерва", "Группа / вид", "Сумма, сум", "Строки файла"], b.lines.map(function (x) {
+        return "<tr><td>" + esc(x.label) + "</td><td>" + esc(x.group_label) + '</td><td class="n">' + fin_money(x.amount) +
+          "</td><td>" + esc(x.rows.join(", ")) + "</td></tr>"; }), "Ничего не распознано") +
+      '<div class="tiles" style="margin-top:10px"><div class="tile"><b>' + fin_money(b.total) + "</b><span>итого резервов, сум</span></div>" +
+      sums.join("") + '<div class="tile"><b>' + fin_money(b.base_premium_12m) + "</b><span>базовая премия за 12 мес.</span></div></div>" +
+      '<div class="actions"><button class="btn btn-primary" type="button" id="finSaveFile"' + (b.errors.length || !b.lines.length ? " disabled" : "") +
+      '>Сохранить</button><button class="btn btn-secondary" type="button" id="finCancel">Отменить</button></div><div class="msg" id="finMsg"></div>';
+    $("#finCancel").onclick = function () { FIN.preview = null; w.innerHTML = ""; };
+    $("#finSaveFile").onclick = async function () {
+      var msg = $("#finMsg");
+      try {
+        var p = FIN.preview, per = fin_period();
+        if (await fin_save(Object.assign(per, {source: "файл", file_name: p.file_name, base_premium_12m: p.base_premium_12m,
+            lines: p.lines.map(function (x) { return {reserve_code: x.reserve_code, group_code: x.group_code, amount: x.amount}; })}), msg))
+          $("#finSaveFile").disabled = true;
+      } catch (err) { msg.className = "msg bad"; msg.textContent = "Не сохранилось: " + err.message; }
+    };
+  };
+  $("#finHist").onchange = fin_list;
+  $("#finManual").onclick();
+  fin_list();
+}
+async function fin_list() {
+  var box = $("#finList"); if (!box) return;
+  try {
+    var d = await api("/finance/reserves" + ($("#finHist").checked ? "?history=1" : ""));
+    box.innerHTML = tbl(["Год", "Период", "Отчётная дата", "Итог, сум", "Источник", "Кто внёс", "Когда", "Состояние", ""],
+      d.items.map(function (p) {
+        var st = p.status === "действует" ? (p.id === d.latest_id ? '<span class="v ok">в расчёте ёмкости</span>' : '<span class="v dim">действует</span>')
+          : '<span class="v warn">' + esc(p.status) + "</span>";
+        return "<tr><td>" + esc(p.period_year) + "</td><td>" + esc(p.period_label) + "</td><td>" + esc(p.report_date) +
+          '</td><td class="n">' + fin_money(p.total) + "</td><td>" + esc(p.source) + (p.file_name ? '<br><span class="hint">' + esc(p.file_name) + "</span>" : "") +
+          "</td><td>" + esc(p.created_by || "—") + "</td><td>" + when(p.created_at) + "</td><td>" + st + "</td><td>" +
+          '<button class="btn btn-secondary btn-sm" type="button" data-fin-open="' + p.id + '">Открыть</button> ' +
+          (p.status === "действует" ? '<button class="btn btn-danger btn-sm" type="button" data-fin-del="' + p.id + '">Удалить</button>' : "") +
+          "</td></tr>"; }), "Отчётов о резервах пока нет");
+    box.onclick = async function (e) {
+      var o = e.target.closest("[data-fin-open]"), x = e.target.closest("[data-fin-del]");
+      if (o) return fin_view(o.dataset.finOpen);
+      if (!x) return;
+      var row = d.items.filter(function (p) { return String(p.id) === x.dataset.finDel; })[0];
+      if (!window.confirm("Удалить отчёт о резервах за " + row.period_label.toLowerCase() + " " + row.period_year +
+          " (итог " + fin_money(row.total) + " сум)?\nЗапись останется в истории и в журнале действий.")) return;
+      var r = await fin_call("/finance/reserves/" + row.id, "DELETE");
+      if (r.status !== 200) { window.alert("Не удалось удалить: " + (r.body && r.body.detail || r.status)); return; }
+      $("#finView").innerHTML = ""; fin_list();
+    };
+  } catch (e) { box.innerHTML = fail(e); }
+}
+async function fin_view(id) {
+  var v = $("#finView"); v.innerHTML = '<p class="hint">Загружаем…</p>';
+  try {
+    var p = await api("/finance/reserves/" + id);
+    v.innerHTML = '<h3 style="margin-top:14px">' + esc(p.period_label) + " " + esc(p.period_year) + " — на " + esc(p.report_date) +
+      ' <span class="v ' + (p.status === "действует" ? "ok" : "warn") + '">' + esc(p.status) + "</span></h3>" +
+      tbl(["Вид резерва", "Группа / вид", "Сумма, сум"], p.lines.map(function (x) {
+        return "<tr><td>" + esc(x.label) + "</td><td>" + esc(x.group_label) + '</td><td class="n">' + fin_money(x.amount) + "</td></tr>"; })) +
+      '<div class="kv" style="margin-top:10px"><span>Итого резервов</span><div>' + fin_money(p.total) + " сум</div>" +
+      "<span>Базовая премия за 12 мес.</span><div>" + fin_money(p.base_premium_12m) + "</div>" +
+      "<span>Источник</span><div>" + esc(p.source) + (p.file_name ? " — " + esc(p.file_name) : "") + "</div>" +
+      "<span>Внёс</span><div>" + esc(p.created_by || "—") + ", " + when(p.created_at) + "</div>" +
+      (p.closed_at ? "<span>" + (p.status === "заменён" ? "Заменил" : "Удалил") + "</span><div>" + esc(p.closed_by || "—") + ", " + when(p.closed_at) + "</div>" : "") +
+      "</div>" + (p.history.length > 1 ? '<p class="note" style="margin-top:10px">Версии этого периода:</p>' +
+      tbl(["Версия", "Итог, сум", "Источник", "Внёс", "Состояние"], p.history.map(function (h) {
+        return '<tr class="pick" data-fin-open="' + h.id + '"><td>№ ' + h.id + '</td><td class="n">' + fin_money(h.total) + "</td><td>" + esc(h.source) +
+          "</td><td>" + esc(h.created_by || "—") + ", " + when(h.created_at) + "</td><td>" + esc(h.status) + "</td></tr>"; })) : "");
+    v.onclick = function (e) { var o = e.target.closest("[data-fin-open]"); if (o) fin_view(o.dataset.finOpen); };
+  } catch (e) { v.innerHTML = fail(e); }
+}
 
 /* --- Знания и законы --- */
 V.knowledge_lawfeed = function (el) { el.innerHTML = frame("/law-feed", "Законодательство"); };

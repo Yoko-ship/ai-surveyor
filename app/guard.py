@@ -19,8 +19,9 @@
      Проверяем адрес из scope["client"] — это реальный собеседник сокета, а не то, что он о себе пишет.
   4. Иначе нужна сессия: cookie «sid» или заголовок Authorization: Bearer <токен>.
      Нет сессии → API отвечает 401 {"detail":"нужен вход"}, страница — редирект на /login?next=…
-  5. Роли: ADMIN_PREFIX и ADMIN_METHOD_PATH — только «админ»; ROLE_PREFIX — перечисленным ролям
-     (портфель, калибровка, ёмкость, аналитика); остальное — любая подтверждённая роль.
+  5. Роли: ADMIN_PREFIX, ADMIN_METHOD_PATH и ADMIN_METHOD_PREFIX — только «админ»; ROLE_PREFIX —
+     перечисленным ролям (портфель, калибровка, ёмкость, аналитика), кроме точных путей ANY_ROLE_EXACT
+     (аналитика риска для мини-приложения); остальное — любая подтверждённая роль.
      Роль «сотрудник» не попадает ни в один из этих разделов: ей открыты только расчёт, тарифы
      и свои запросы (docs/Регистрация и роли.md, раздел 8 и 6.1).
      Точечные проверки внутри модулей (require(...), «решение принимает назначенный», «вижу только
@@ -92,7 +93,13 @@ ADMIN_PREFIX = ("/admin", "/deploy/", "/tasks", "/reports", "/audit", "/users", 
 ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"),
                      ("POST", "/valuation/settings"),
                      ("POST", "/lawwatch/check"),      # внеплановая сверка актов на lex.uz
-                     ("POST", "/market/refresh")}      # перезабор отчётов НАПП
+                     ("POST", "/market/refresh"),      # перезабор отчётов НАПП
+                     # справочники, которые админ правит из мини-приложения (задача 144)
+                     ("PUT", "/osgor/brv"),            # размер БРВ для ОСГОР
+                     ("PUT", "/analytics/risk/thresholds")}   # пороги уровня риска аналитики
+# то же по началу пути: у удаления нормы износа код в адресе (/valuation/norms/{code}),
+# и точное совпадение из ADMIN_METHOD_PATH его не ловило
+ADMIN_METHOD_PREFIX = {("DELETE", "/valuation/norms/")}
 
 # --- разделы, закрытые ролью (таблица прав: docs/Регистрация и роли.md, раздел 8) ---
 # Админ проходит везде (auth.check_role), поэтому в списках его можно не повторять.
@@ -108,6 +115,10 @@ ROLE_PREFIX = (
     ("/capacity-page", ACTUARY),         # та же ёмкость, страницей
     ("/accumulation", ACTUARY),          # накопление сумм против лимита на один риск
 )
+# Исключения из ROLE_PREFIX: аналитика риска открыта любой активной роли (задача 144, мини-приложение).
+# Точные пути, а не префикс: /analytics/summary (сводка по всем запросам компании) остаётся закрытой.
+# Запись порогов закрыта отдельно — ADMIN_METHOD_PATH.
+ANY_ROLE_EXACT = {"/analytics/risk", "/analytics/risk/fields", "/analytics/risk/thresholds"}
 # Утверждение и отклонение расчёта калибровки меняет действующие коэффициенты — это запись
 # в справочники, а она только у администратора (раздел 8, строка «Справочники, тарифы, версии»).
 ADMIN_SUFFIX_UNDER = {"/calibration/runs": ("/approve", "/reject")}
@@ -160,7 +171,10 @@ def is_open(path: str, dev: bool) -> bool:
 
 
 def needs_admin(method: str, path: str) -> bool:
-    if path.startswith(ADMIN_PREFIX) or (method.upper(), path) in ADMIN_METHOD_PATH:
+    m = method.upper()
+    if path.startswith(ADMIN_PREFIX) or (m, path) in ADMIN_METHOD_PATH:
+        return True
+    if any(m == pm and path.startswith(pp) for pm, pp in ADMIN_METHOD_PREFIX):
         return True
     for base, tails in ADMIN_SUFFIX_UNDER.items():     # /calibration/runs/{id}/approve и /reject
         if path.startswith(base + "/") and path.endswith(tails):
@@ -170,6 +184,8 @@ def needs_admin(method: str, path: str) -> bool:
 
 def allowed_roles(path: str):
     """Какие роли пускаем в раздел. None — ограничения по роли нет (нужен только вход)."""
+    if path in ANY_ROLE_EXACT:
+        return None
     for prefix, roles in ROLE_PREFIX:
         if path == prefix or path.startswith(prefix + "/"):
             return roles

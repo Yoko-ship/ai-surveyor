@@ -49,7 +49,8 @@ TG_NEW, TG_ADMIN1, TG_ADMIN2, TG_STRANGER, TG_NOSTART = "9910001", "9910002", "9
 ALL_TG = [TG_NEW, TG_ADMIN1, TG_ADMIN2, TG_STRANGER, TG_NOSTART]
 LOGINS = ["тест-рег-админ1", "тест-рег-админ2", "тест-рег-чужой"]
 PHONE = "+998900000001"                    # вымышленный номер: не принадлежит никому
-PD_NAME = "Регистратов Тест Тестович"
+# с 21.09.2026 в анкете одно поле «Имя»: одного слова достаточно
+PD_NAME = "Регистратов"
 DEPARTMENT = "Тестовый департамент андеррайтинга"
 
 OUT = []                                   # собранные исходящие: (метод, payload)
@@ -292,11 +293,14 @@ def check_register():
     st, b = call("POST", "/tg/register/verify-code", {"initData": init_data(TG_NEW), "phone": PHONE, "code": code})
     assert st == 200 and b["verified"] is True, (st, b)
 
-    form = {"initData": init_data(TG_NEW), "phone": PHONE, "full_name": PD_NAME,
+    form = {"initData": init_data(TG_NEW), "phone": PHONE, "name": PD_NAME,
             "department": DEPARTMENT, "position": "менеджер", "branch": BRANCH,
             "consent": False, "consent_phone": True}
     st, b = call("POST", "/tg/register/submit", form)
     assert st == 422 and "согласия" in b["detail"], (st, b)         # без согласия — отказ
+
+    st, b = call("POST", "/tg/register/submit", form | {"consent": True, "name": "  Ж  "})
+    assert st == 422 and "имя" in b["detail"].lower(), (st, b)      # имя короче 2 символов — отказ
 
     form["consent"] = True
     st, b = call("POST", "/tg/register/submit", form)

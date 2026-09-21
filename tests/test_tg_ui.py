@@ -39,11 +39,12 @@ PEOPLE = [("тест-ui-агент", "агент", EAIS), ("тест-ui-анде
 TOKENS = {}
 
 # разделы, которые сервер раздаёт по ролям (app/tgbot.py: NAV_BASE / NAV_REVIEWER / NAV_ADMIN)
-NAV_KEYS = ["calc", "my-requests", "photos", "inbox", "applications", "users", "agreements", "settings"]
+# задача 144: «Аналитика» и «ОСГОР» добавлены, «Мои запросы» из меню убраны (точка /tg/my-requests осталась)
+NAV_KEYS = ["analytics", "calc", "osgor", "photos", "inbox", "applications", "users", "agreements", "settings"]
 # «Пользователи» открыты всем зарегистрированным (решение заказчика 21.09.2026)
 NAV_BY_ROLE = {
-    "агент": {"calc", "my-requests", "photos", "users"},
-    "андеррайтер": {"calc", "my-requests", "photos", "users", "inbox"},
+    "агент": {"analytics", "calc", "osgor", "photos", "users"},
+    "андеррайтер": {"analytics", "calc", "osgor", "photos", "users", "inbox"},
     "админ": set(NAV_KEYS),
 }
 

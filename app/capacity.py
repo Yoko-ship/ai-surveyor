@@ -4,7 +4,7 @@
 чего нет — честно помечает и включает в список запроса данных.
 Нормы: Положение 1806 (пп. 6–16), Положение 1882 (пп. 23, 33, 38, 40, 41).
 """
-from . import db
+from . import db, finance
 
 LEGAL_SHARE_PER_RISK = 0.20        # 1806 п. 15
 LEGAL_TOP5_SHARE = 2.00            # 1806 п. 16
@@ -37,6 +37,13 @@ def capacity(con) -> dict:
     fin = _latest(con, "company_financials")
     own = solv["own_funds"] if solv else (fin["own_funds"] if fin else None)
     res_rows = db.rows(con, "SELECT * FROM reserve_reports WHERE report_date=(SELECT MAX(report_date) FROM reserve_reports)")
+    # отчёты из админки (год + квартал/год, app/finance.py) важнее строк /admin/reserves на ту же или более раннюю дату
+    period, period_rows = finance.latest_reserve_rows(con)
+    out["reserves_period"] = None
+    if period and (not res_rows or period["report_date"] >= res_rows[0]["report_date"]):
+        res_rows = period_rows
+        out["reserves_period"] = {k: period[k] for k in ("id", "period_year", "period_type", "period_label",
+                                                          "report_date", "total", "source", "created_at")}
     total_row = next((r for r in res_rows if r["scope_type"] == "итого"), None)
     reserves = None
     if total_row:

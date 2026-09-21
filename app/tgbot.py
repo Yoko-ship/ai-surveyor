@@ -63,7 +63,8 @@ HELP = ("Что умеет бот:\n"
         "/help — эта подсказка\n"
         "/admin КОД — разовый код первого администратора")
 
-OPEN_APP = ("Откройте приложение кнопкой меню внизу чата — там расчёт, ваши запросы и регистрация. "
+OPEN_APP = ("Откройте приложение кнопкой «Открыть приложение» ниже или кнопкой меню внизу чата — "
+            "оно откроется прямо в Telegram: аналитика рисков, расчёт, ОСГОР и регистрация. "
             "При регистрации нужен номер телефона: код придёт сюда же, в этот чат.")
 
 WAIT_MSG = ("Заявка принята и ждёт подтверждения администратора. "
@@ -245,10 +246,24 @@ def kb(rows_of_buttons) -> dict:
     for row in rows_of_buttons:
         line = []
         for text, data in row:
-            line.append({"text": text, "url": data} if str(data).startswith("http")
-                        else {"text": text, "callback_data": data})
+            if _is_app_url(data):
+                # своё приложение — кнопкой мини-аппа: откроется внутри Telegram, а не в браузере как сайт
+                line.append({"text": text, "web_app": {"url": data}})
+            elif str(data).startswith("http"):
+                line.append({"text": text, "url": data})
+            else:
+                line.append({"text": text, "callback_data": data})
         out.append(line)
     return {"inline_keyboard": out}
+
+
+def _is_app_url(data) -> bool:
+    """Ссылка на наш мини-апп (SERVER_URL/tg…) по https — такие кнопки делаем web_app.
+    Telegram открывает web_app-кнопки только по https, поэтому http (локальный сервер) остаётся ссылкой."""
+    base = server_url()
+    d = str(data or "")
+    return bool(base) and d.startswith("https://") and (d == base + "/tg" or d.startswith(base + "/tg?")
+                                                        or d.startswith(base + "/tg#"))
 
 
 def app_link(request_id=None) -> str:
@@ -1001,8 +1016,28 @@ def start_polling():
 
 # «Пользователи» видят все зарегистрированные (решение заказчика 21.09.2026): список открыт,
 # кнопки «Сделать админом» / «Снять админа» показываются только админу (can_manage в /tg/users).
-NAV_BASE = [("calc", "Расчёт"), ("my-requests", "Мои запросы"), ("photos", "Фото"),
+# Меню 21.09.2026 (задача 144): «Аналитика» первой, «ОСГОР» после «Расчёта»; «Мои запросы» из меню
+# убраны, но точка /tg/my-requests и данные запросов остаются.
+NAV_BASE = [("analytics", "Аналитика"), ("calc", "Расчёт"), ("osgor", "ОСГОР"), ("photos", "Фото"),
             ("users", "Пользователи")]
+
+# Справочники, которые админ правит из мини-приложения: ключ → метод, путь чтения и записи.
+# Остальным ролям can_edit пуст. Чек-листов здесь нет: API их правки нет.
+EDITABLE = [
+    {"key": "coefficients", "title": "Коэффициенты", "read": "GET /reference/coefficients",
+     "write": "POST /admin/coefficients"},
+    {"key": "min_rates", "title": "Минимальные ставки", "read": "GET /reference/min_rates",
+     "write": "POST /admin/min-rates"},
+    {"key": "depreciation_norms", "title": "Нормы износа", "read": "GET /valuation/norms",
+     "write": "POST /valuation/norms"},
+    {"key": "osgor_brv", "title": "БРВ для ОСГОР", "read": "GET /osgor/brv", "write": "PUT /osgor/brv"},
+    {"key": "risk_thresholds", "title": "Пороги уровня риска", "read": "GET /analytics/risk/thresholds",
+     "write": "PUT /analytics/risk/thresholds"},
+]
+
+
+def can_edit(u: dict) -> list:
+    return [e["key"] for e in EDITABLE] if u.get("role") == "админ" else []
 NAV_REVIEWER = [("inbox", "Ждут меня")]
 NAV_ADMIN = [("applications", "Заявки"), ("agreements", "Генеральные соглашения"),
              ("settings", "Настройки")]
@@ -1033,10 +1068,12 @@ def tg_me(request: Request):
         nav += NAV_REVIEWER
     if u["role"] == "админ":
         nav += NAV_ADMIN
+    # name — то же, что full_name: с 21.09.2026 в анкете одно поле «Имя», хранится в users.full_name
     return {"mode": _mode(), "status": auth.STATUS_ACTIVE,
-            "user": {"id": u["id"], "full_name": u["full_name"], "role": u["role"],
-                     "branch": u.get("branch"), "status": u["status"]},
+            "user": {"id": u["id"], "full_name": u["full_name"], "name": u["full_name"], "role": u["role"],
+                     "branch": u.get("branch"), "status": u["status"], "is_admin": u["role"] == "админ"},
             "rights": sorted(r for r in auth.PERMISSIONS if auth.can(u, r)),
+            "can_edit": can_edit(u),
             "nav": [{"key": k, "title": t} for k, t in nav], "reason": ""}
 
 

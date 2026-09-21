@@ -15,7 +15,8 @@
   3а. Вход из обычного браузера (app/tg_link.py) приходит сюда же, но с link_id вместо initData:
      шаги 2 и 3 пропускаются — Telegram подтверждён тем, что человек отправил код боту,
      и второй код, теперь на телефон, спрашивать не за чем.
-  4. POST /tg/register/submit — анкета: ФИО, департамент, должность, согласия на обработку ПД.
+  4. POST /tg/register/submit — анкета: имя (как человек хочет, чтобы к нему обращались; поле name,
+     прежнее full_name принимается как синоним), департамент, должность, согласия на обработку ПД.
      Пользователь становится активным СРАЗУ, роль «сотрудник»: расчёт, свои запросы, фото и документы,
      отправка на согласование. Подтверждение администратором по этому пути не требуется.
 
@@ -161,7 +162,8 @@ class SubmitIn(BaseModel):
     link_id: str = ""                    # вход из браузера по коду боту (app/tg_link.py)
     phone: str = ""
     code: str = ""                       # можно прислать код ещё раз — проверка та же
-    full_name: str = ""
+    name: str = ""                       # «Имя» — как человек хочет, чтобы к нему обращались (21.09.2026)
+    full_name: str = ""                  # прежнее поле «ФИО»: принимаем как синоним name для старых форм
     department: str = ""
     position: str = ""
     position_other: str = ""             # если выбрано «другое»
@@ -291,15 +293,28 @@ def check_code(con, tg_id: str, phone: str, code: str) -> dict:
 # --------------------------------------------------------------------------- #
 
 # Проверки анкеты вынесены в отдельные функции: та же анкета заполняется и после входа
-# через Google (app/google_auth.py). Требования к ФИО, департаменту, должности и согласию
+# через Google (app/google_auth.py). Требования к имени, департаменту, должности и согласию
 # должны совпадать дословно — поэтому один источник правды, а не две копии.
 
+NAME_MIN = 2
+NAME_MAX = 80
+
+
 def check_full_name(raw: str) -> str:
-    """ФИО одной строкой: минимум фамилия и имя. Возвращает нормализованное значение."""
-    full_name = " ".join((raw or "").split())
-    if len(full_name) < 5 or " " not in full_name:
-        raise HTTPException(422, "Укажите фамилию, имя и отчество полностью")
-    return full_name
+    """Имя, как человек хочет, чтобы к нему обращались (решение заказчика 21.09.2026: вместо ФИО).
+    От 2 символов после схлопывания пробелов. Имя функции прежнее — её зовёт и app/google_auth.py."""
+    name = " ".join((raw or "").split())
+    if len(name) < NAME_MIN:
+        raise HTTPException(422, "Укажите имя — как к вам обращаться (не короче 2 символов)")
+    return name[:NAME_MAX]
+
+
+check_name = check_full_name
+
+
+def name_of(data) -> str:
+    """name из новой формы, full_name — из старой. Хранится в users.full_name."""
+    return (getattr(data, "name", "") or "").strip() or (getattr(data, "full_name", "") or "")
 
 
 def check_department(raw: str) -> str:
@@ -360,7 +375,7 @@ def register(con, tg_id: str, data: SubmitIn, via_link: bool = False) -> dict:
         if not hmac.compare_digest(row["phone_hash"], _digest(phone)):
             raise HTTPException(400, "Номер не совпадает с подтверждённым — получите код на нужный номер")
 
-    full_name = check_full_name(data.full_name)
+    full_name = check_full_name(name_of(data))
     department = check_department(data.department)
     position = _position(data)
     check_consent(data.consent)

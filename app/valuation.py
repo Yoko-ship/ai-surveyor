@@ -23,10 +23,10 @@ import json
 from datetime import date, datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from . import db
+from . import auth, db
 
 try:                                    # адаптеры площадок пишет статистик; их может ещё не быть
     from . import valuation_sources as vs
@@ -101,7 +101,7 @@ def get_norms():
 
 
 @router.post("/valuation/norms")
-def save_norm(n: Norm, who: str = "админ"):
+def save_norm(n: Norm, user: dict = Depends(auth.current_user)):
     """Создать или изменить норму износа. Правка вручную снимает отметку калибровки."""
     if not (0 <= n.rate_pct <= 100):
         raise HTTPException(400, "Процент износа должен быть от 0 до 100")
@@ -115,19 +115,19 @@ def save_norm(n: Norm, who: str = "админ"):
                          residual_min_pct=excluded.residual_min_pct, calibrated=excluded.calibrated,
                          source=excluded.source, note=excluded.note""",
                     (n.code, n.name, n.rate_pct, n.residual_min_pct, int(n.calibrated), n.source, n.note))
-        db.audit(con, who, "изменена норма износа" if old else "добавлена норма износа",
+        db.audit(con, user["login"], "изменена норма износа" if old else "добавлена норма износа",
                  f"depreciation_norms:{n.code}",
                  {"было": old[0]["rate_pct"] if old else None, "стало": n.rate_pct})
     return {"ok": True, "code": n.code}
 
 
 @router.delete("/valuation/norms/{code}")
-def delete_norm(code: str, who: str = "админ"):
+def delete_norm(code: str, user: dict = Depends(auth.current_user)):
     with db.tx() as con:
         if not db.rows(con, "SELECT code FROM depreciation_norms WHERE code=?", code):
             raise HTTPException(404, "Норма не найдена")
         con.execute("DELETE FROM depreciation_norms WHERE code=?", (code,))
-        db.audit(con, who, "удалена норма износа", f"depreciation_norms:{code}")
+        db.audit(con, user["login"], "удалена норма износа", f"depreciation_norms:{code}")
     return {"ok": True, "code": code}
 
 
@@ -150,7 +150,7 @@ def get_settings():
 
 
 @router.post("/valuation/settings")
-def save_setting(s: Setting, who: str = "админ"):
+def save_setting(s: Setting, user: dict = Depends(auth.current_user)):
     with db.tx() as con:
         old = db.rows(con, "SELECT * FROM valuation_settings WHERE key=?", s.key)
         if not old and not s.name:
@@ -163,7 +163,7 @@ def save_setting(s: Setting, who: str = "админ"):
                          source=excluded.source, note=excluded.note""",
                     (s.key, str(s.value), name, s.unit or (old[0]["unit"] if old else None),
                      int(s.calibrated), s.source, s.note))
-        db.audit(con, who, "изменена настройка оценки", f"valuation_settings:{s.key}",
+        db.audit(con, user["login"], "изменена настройка оценки", f"valuation_settings:{s.key}",
                  {"было": old[0]["value"] if old else None, "стало": str(s.value)})
     return {"ok": True, "key": s.key}
 

@@ -407,6 +407,13 @@ def invalidate_reference() -> None:
         _ref_cache.clear()
 
 
+def reference_generation() -> int:
+    """Номер поколения справочников: растёт при каждом сбросе кэша (правка админа, refsync).
+    Модули со своим кэшем в памяти (app/osgor.py — поиск видов деятельности) сверяются с ним."""
+    with _ref_lock:
+        return _ref_generation[0]
+
+
 def reference_changed(con=None) -> None:
     """Справочники изменились: сбросить кэш сейчас и ещё раз после фиксации транзакции
     (иначе параллельный расчёт успеет закэшировать старые данные до commit)."""

@@ -11,7 +11,11 @@
      * ставит тексты по data-i18n / data-i18n-placeholder / data-i18n-title;
      * даёт T("ключ", "русский запасной текст", {подстановки}) для подписей, которые рисует JS,
        и i18nPaint(узел) — позвать после перерисовки куска страницы;
-     * рисует переключатель RU / UZ / EN рядом с переключателем темы.
+     * рисует переключатель RU / UZ / EN рядом с переключателем темы;
+     * страница, которая до подключения поставила window.I18N_LIVE = true (мини-апп app/tg.html),
+       меняет язык БЕЗ перезагрузки: словарь подменяется, тексты по data-i18n ставятся заново,
+       а на window уходит событие "i18n:changed" ({detail: {lang}}) — по нему страница перерисовывает
+       то, что рисует сама. Остальные страницы по-прежнему перезагружаются.
 
    Ничего не ломается, если словарь не пришёл: на странице остаётся русский текст.
    Для русского языка запрос вообще не делается — страницы написаны по-русски.                */
@@ -59,7 +63,7 @@
   }
   function fetchLater(l) {                // словарь мог обновиться — тихо обновляем кэш
     fetch("/i18n/" + l + ".json").then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (j) { if (j) { cachePut(l, j); D = j; paint(); } })
+      .then(function (j) { if (j) { cachePut(l, j); if (l === lang) { D = j; paint(); } } })
       .catch(function () {});
   }
   if (lang !== "ru") {
@@ -87,6 +91,9 @@
     });
     box.querySelectorAll("[data-i18n-title]").forEach(function (e) {
       var v = D[e.dataset.i18nTitle]; if (v != null) e.title = v;
+    });
+    box.querySelectorAll("[data-i18n-aria]").forEach(function (e) {
+      var v = D[e.dataset.i18nAria]; if (v != null) e.setAttribute("aria-label", v);
     });
     document.documentElement.lang = lang;
   }
@@ -117,6 +124,7 @@
       var b = document.createElement("button");
       b.type = "button";
       b.textContent = SHORT[l];
+      b.dataset.lang = l;
       b.title = TITLE[l];
       b.setAttribute("aria-pressed", l === lang ? "true" : "false");
       b.onclick = function () {
@@ -125,12 +133,48 @@
         try { localStorage.setItem(PICKED, l); } catch (e) {}
         var q = new URLSearchParams(location.search);
         q.set("lang", l);
+        if (window.I18N_LIVE) { setLang(l, q); return; }
         location.search = q.toString();        // перезагрузка: подписи ставит и сервер, и страница
       };
       box.appendChild(b);
     });
     document.body.appendChild(box);
   }
+
+  /* Смена языка без перезагрузки (window.I18N_LIVE). Русский словарь тоже берём с сервера:
+     подписи по data-i18n уже могли стать узбекскими, и вернуть их можно только по словарю. */
+  var switching = 0;
+  function loadDict(l) {
+    var c = cacheGet(l);
+    if (c) { fetchLater(l); return Promise.resolve(c); }
+    return fetch("/i18n/" + l + ".json").then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { if (j) cachePut(l, j); return j; })
+      .catch(function () { return null; });
+  }
+  function setLang(l, q) {
+    var my = ++switching;
+    loadDict(l).then(function (dict) {
+      if (my !== switching) return;            // пока грузили, человек выбрал другой язык
+      if (!dict && l !== "ru") return;         // словарь не пришёл — остаёмся на прежнем языке целиком
+      D = dict || {};
+      lang = l;
+      window.I18N_LANG = l;
+      try { history.replaceState(null, "", location.pathname + "?" + q.toString() + location.hash); } catch (e) {}
+      paint();
+      var box = document.querySelector(".lang-switch");
+      if (box) {
+        box.setAttribute("aria-label", T("common.lang", "Язык"));
+        box.querySelectorAll("button").forEach(function (b) {
+          b.setAttribute("aria-pressed", b.dataset.lang === l ? "true" : "false");
+        });
+      }
+      var ev;
+      try { ev = new CustomEvent("i18n:changed", {detail: {lang: l}}); }
+      catch (e) { ev = document.createEvent("CustomEvent"); ev.initCustomEvent("i18n:changed", false, false, {lang: l}); }
+      window.dispatchEvent(ev);
+    });
+  }
+  window.I18N_SET = function (l) { l = norm(l); if (l && l !== lang) setLang(l, new URLSearchParams(location.search)); };
 
   function start() { paint(); switcher(); }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);

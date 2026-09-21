@@ -914,6 +914,36 @@ def explain(result: dict) -> str:
     return "\n".join(lines)
 
 
+def quick_premium(con: Optional[sqlite3.Connection], okved: str, payroll: float, term_days: int = YEAR_DAYS,
+                  brv: Optional[float] = None, on_date: Optional[str] = None) -> dict:
+    """
+    Калькулятор ОСГОР для мини-аппа: ОКЭД + ФОТ за 12 мес. + срок в днях → премия построчно.
+    Ничего не считает сам: find_activity() + premium() по акту. БРВ: из параметра, иначе действующий
+    размер из справочника администратора (brv_on, таблица osgor_brv); нет ни того, ни другого —
+    минимум 0,25 БРВ не проверяется, об этом строка в notes.
+    Возврат: {"lines","premium","min_applied","min_premium","kst","activity","brv","brv_source",
+              "notes","legal_ref"}.
+    """
+    activity = find_activity(okved=okved, con=con)
+    brv_source = "передан в запросе" if brv else None
+    if not brv and con is not None:
+        try:
+            row = brv_on(con, on_date)
+        except Exception:               # таблицы osgor_brv ещё нет — БРВ не задан
+            row = None
+        if row:
+            brv = row["value"]
+            brv_source = f"справочник администратора, с {row['effective_from']} ({row['source']})"
+    prem = premium(float(payroll), activity["kst"], term_days=int(term_days), brv=brv, activity=activity)
+    lines = [{"step": s["шаг"], "value": s["значение"], "explain": s["пояснение"], "legal_ref": s["норма"]}
+             for s in prem["steps"]]
+    return {"lines": lines, "premium": round(prem["premium"], 2), "min_applied": prem["min_applied"],
+            "min_premium": prem["min_premium"], "kst": activity["kst"], "activity": activity,
+            "term_days": int(term_days), "sum_insured": prem["sum_insured"],
+            "brv": brv, "brv_source": brv_source, "notes": prem["notes"],
+            "legal_ref": {"формула": ACTS["formula"], "минимум": ACTS["min"], "КСТ": activity["legal_ref"]}}
+
+
 # ================================================================================================
 # 9. Вход по сети: экран агента (/ui) считает ОСГОР здесь
 # ================================================================================================
@@ -961,35 +991,184 @@ class EmployerIn(BaseModel):
     declared_sum: Optional[float] = None            # страховая сумма из заявления
     situation: str = "работает больше года"
     first_month_payroll: Optional[float] = None
+    contract_date: Optional[str] = None             # ГГГГ-ММ-ДД: по ней берётся БРВ, пусто — сегодня
+
+
+# --- поиск по классификации: индекс в памяти -----------------------------------------------------
+# 934 строки держим в памяти; индекс пересобирается, когда меняется поколение справочников
+# (db.reference_changed при правке админа, db.invalidate_reference после refsync) или файл базы
+# (тесты подменяют db.DB_PATH), и не реже раза в ACT_INDEX_TTL_SEC — на случай правки базы мимо сервера.
+import math                            # noqa: E402
+import re                              # noqa: E402
+import threading                       # noqa: E402
+import time                            # noqa: E402
+from datetime import date              # noqa: E402
+
+from fastapi import HTTPException      # noqa: E402
+
+ACT_INDEX_TTL_SEC = 600
+ACT_LIMIT_MAX = 100
+_act_index = {"key": None, "at": 0.0, "items": []}
+_act_lock = threading.Lock()
+_WORD = re.compile(r"[0-9a-zа-яўқғҳ]+")
+_CODE_ONLY = re.compile(r"[\d.\s\-]+")
+# узбекская латиница и русская транслитерация → кириллица: агент может набрать «stroit» или «qurilish».
+# Названия в классификации русские; узбекских названий в акте нет — если появятся в базе
+# (колонка name_uz), они попадут в индекс тем же путём.
+_LAT2CYR = [("o'", "о"), ("g'", "г"), ("sh", "ш"), ("ch", "ч"), ("zh", "ж"), ("kh", "х"), ("ts", "ц"),
+            ("yo", "е"), ("yu", "ю"), ("ya", "я"), ("a", "а"), ("b", "б"), ("c", "ц"), ("d", "д"),
+            ("e", "е"), ("f", "ф"), ("g", "г"), ("h", "х"), ("i", "и"), ("j", "ж"), ("k", "к"), ("l", "л"),
+            ("m", "м"), ("n", "н"), ("o", "о"), ("p", "п"), ("q", "к"), ("r", "р"), ("s", "с"), ("t", "т"),
+            ("u", "у"), ("v", "в"), ("w", "в"), ("x", "х"), ("y", "й"), ("z", "з")]
+_APOS = "‘’ʻʼ`´′"
+
+
+def _qnorm(s: str) -> str:
+    s = str(s or "").lower().replace("ё", "е")
+    for a in _APOS:
+        s = s.replace(a, "'")
+    return s
+
+
+def _lat2cyr(word: str) -> str:
+    out, i = [], 0
+    while i < len(word):
+        for lat, cyr in _LAT2CYR:
+            if word.startswith(lat, i):
+                out.append(cyr)
+                i += len(lat)
+                break
+        else:
+            out.append(word[i])
+            i += 1
+    return "".join(out)
+
+
+def invalidate_activities() -> None:
+    with _act_lock:
+        _act_index["key"] = None
+
+
+def activity_index() -> list:
+    """Классификация с разобранными словами названий; кэш в памяти."""
+    key = (str(db.DB_PATH), db.reference_generation())
+    now_t = time.monotonic()
+    with _act_lock:
+        if _act_index["key"] == key and now_t - _act_index["at"] < ACT_INDEX_TTL_SEC:
+            return _act_index["items"]
+    con = db.connect()
+    try:
+        acts = load_activities(con)
+        try:
+            extra = {r[0]: r[1] for r in con.execute("SELECT no, name_uz FROM osgor_activities").fetchall()}
+        except sqlite3.Error:
+            extra = {}                  # колонки name_uz нет — ищем по русскому названию
+    finally:
+        con.close()
+    items = []
+    for a in acts:
+        text = _qnorm(a["name"] + " " + (extra.get(a["no"]) or ""))
+        items.append({**a, "_words": _WORD.findall(text.replace("'", ""))})
+    with _act_lock:
+        _act_index.update(key=key, at=now_t, items=items)
+    return items
+
+
+def _public_act(a: dict) -> dict:
+    return {"okved": a["okved"], "name": a["name"], "category": a["category"], "kst": a["kst"], "no": a["no"]}
+
+
+def search_activities(q: str = "", limit: int = 20) -> dict:
+    """
+    Поиск по коду ОКЭД (начало кода: «01.11», «0111») и по словам названия (по началу слов,
+    регистр не важен, латиница переводится в кириллицу). Все слова запроса должны найтись.
+    Пустой запрос — первые позиции классификации.
+    """
+    acts = activity_index()
+    limit = max(1, min(int(limit or 20), ACT_LIMIT_MAX))
+    q = _qnorm(q).strip()
+    if not q:
+        return {"items": [_public_act(a) for a in acts[:limit]], "found": len(acts), "how": "первые позиции"}
+    if _CODE_ONLY.fullmatch(q):
+        code, words = "".join(ch for ch in q if ch.isdigit()), []
+    else:
+        toks = _WORD.findall(q.replace("'", ""))
+        code = "".join(t for t in toks if t.isdigit())
+        words = [t for t in toks if not t.isdigit()]
+    variants = [[w, _lat2cyr(w)] if re.search(r"[a-z]", w) else [w] for w in words]
+
+    def word_hit(a) -> Optional[int]:
+        # позиция слова названия, с которого начинается первое слово запроса; None — не подошло
+        first = None
+        for vs in variants:
+            pos = next((i for i, w in enumerate(a["_words"]) if any(w.startswith(v) for v in vs)), None)
+            if pos is None:
+                return None
+            first = pos if first is None else first
+        return first or 0
+
+    found = []
+    for a in acts:
+        if code and not a["okved"].startswith(code):
+            continue
+        pos = word_hit(a) if variants else 0
+        if pos is None:
+            continue
+        found.append((0 if a["okved"] == code else 1, pos, len(a["_words"]), a["okved"], a))
+    how = "код ОКЭД" if code and not words else ("слова названия" if words and not code else "код и слова")
+    if not found and variants:
+        # по началу слов пусто — пробуем вхождение в середине слова («монтаж» в «электромонтажные»)
+        for a in acts:
+            if code and not a["okved"].startswith(code):
+                continue
+            text = " ".join(a["_words"])
+            if all(any(v in text for v in vs) for vs in variants):
+                found.append((1, 99, len(a["_words"]), a["okved"], a))
+        how += ", часть слова"
+    found.sort(key=lambda x: x[:4])
+    return {"items": [_public_act(x[4]) for x in found[:limit]], "found": len(found), "how": how}
 
 
 @router.get("/osgor/activities")
 def osgor_activities(q: str = "", limit: int = 20) -> dict:
     """
     Подсказка по классификации видов деятельности (934 позиции, прил. № 9, разд. I, п. 3).
-    Ищет по коду ОКЭД и по наименованию; без запроса отдаёт только размер справочника.
+    items — до limit (по умолчанию 20) вариантов {okved, name, category, kst, no}.
     """
-    con = db.connect()
+    if len(q) > 200:
+        raise HTTPException(422, "Запрос слишком длинный")
+    res = search_activities(q, limit)
+    return {"total": len(activity_index()), "q": q, **res, "kst_min": KST_MIN, "kst_max": KST_MAX,
+            "categories": CATEGORIES, "legal_ref": ACTS["kst"], "not_listed_kst": KST_NOT_LISTED}
+
+
+def _contract_date(value: Optional[str]) -> str:
+    """Дата договора ГГГГ-ММ-ДД (по ней берётся БРВ); пусто — сегодня."""
+    if not value:
+        return date.today().isoformat()
     try:
-        acts = load_activities(con)
-    finally:
-        con.close()
-    text = _norm(q)
-    digits = "".join(ch for ch in q if ch.isdigit())
-    if not text and not digits:
-        return {"total": len(acts), "items": [], "kst_min": KST_MIN, "kst_max": KST_MAX,
-                "categories": CATEGORIES, "legal_ref": ACTS["kst"]}
-    found = []
-    for a in acts:
-        by_code = digits and a["okved"].startswith(digits)
-        by_name = text and text in _norm(a["name"])
-        if by_code or by_name:
-            found.append(a)
-    # сначала совпадения по коду и более опасные категории: агент чаще ошибается в меньшую сторону
-    found.sort(key=lambda a: (0 if digits and a["okved"].startswith(digits) else 1, -a["kst"]))
-    return {"total": len(acts), "found": len(found), "items": found[:max(1, min(limit, 100))],
-            "kst_min": KST_MIN, "kst_max": KST_MAX, "categories": CATEGORIES,
-            "legal_ref": ACTS["kst"], "not_listed_kst": KST_NOT_LISTED}
+        return date.fromisoformat(str(value).strip()).isoformat()
+    except ValueError:
+        raise HTTPException(422, "Дата договора — в формате ГГГГ-ММ-ДД")
+
+
+def _brv_for(con, brv: Optional[float], on: str) -> tuple:
+    """(размер БРВ или None, откуда взят). Переданный в запросе проверяем как недоверенный ввод."""
+    if brv is not None:
+        if not isinstance(brv, (int, float)) or not math.isfinite(brv) or brv <= 0 or brv > BRV_MAX:
+            raise HTTPException(422, "Размер БРВ — положительное число в сумах")
+        return float(brv), "передан в запросе"
+    try:
+        row = brv_on(con, on)
+    except Exception:                   # таблицы osgor_brv ещё нет — БРВ не задан
+        row = None
+    if not row:
+        return None, None
+    return row["value"], f"справочник администратора: действует с {row['effective_from']} ({row['source']})"
+
+
+BRV_MISSING_NOTE = ("Размер БРВ на дату договора не введён администратором — минимальная премия "
+                    "0,25 БРВ (п. 23 Правил) не проверена")
 
 
 @router.post("/osgor/assess")
@@ -997,19 +1176,155 @@ def osgor_assess(body: EmployerIn) -> dict:
     """
     Премия по акту, оценка риска, решение, мероприятия, документы и проверки OSGOR-01…13.
     Отказа в этом виде нет: договор публичный (ЗРУ-210 ст. 6 ч. 1).
+    БРВ не передан — берётся действующий на дату договора из справочника администратора.
     """
     fields = {f: getattr(body, f) for f in Employer.__dataclass_fields__}
     emp = Employer(**fields)
     situation = body.situation if body.situation in SITUATIONS else SITUATIONS[0]
+    on = _contract_date(body.contract_date)
     con = db.connect()
     try:
-        result = assess(emp, brv=body.brv, con=con, declared_sum=body.declared_sum,
+        brv, brv_source = _brv_for(con, body.brv, on)
+        result = assess(emp, brv=brv, con=con, declared_sum=body.declared_sum,
                         situation=situation, first_month_payroll=body.first_month_payroll)
     finally:
         con.close()
     result["explain"] = explain(result)
-    result["brv"] = body.brv
+    result["brv"] = brv
+    result["brv_source"] = brv_source
+    result["contract_date"] = on
+    result["note"] = "" if brv else BRV_MISSING_NOTE
     result["thresholds"] = {"зелёный": LR_GREEN, "жёлтый": LR_AMBER,
                             "минимум БРВ": MIN_PREMIUM_BRV, "погребение БРВ": BURIAL_MAX_BRV}
     result["market_fallback"] = MARKET_LR_FALLBACK
     return result
+
+
+class QuickIn(BaseModel):
+    """Калькулятор ОСГОР мини-аппа."""
+    okved: str
+    payroll: float                                  # ФОТ за 12 месяцев = страховая сумма, сум
+    term_days: int = YEAR_DAYS
+    brv: Optional[float] = None                     # пусто — действующий на дату договора
+    contract_date: Optional[str] = None             # ГГГГ-ММ-ДД, пусто — сегодня
+
+
+PAYROLL_MAX = 1e15                     # защита от опечатки в разрядах, а не норма
+
+
+@router.post("/osgor/quick")
+def osgor_quick(body: QuickIn) -> dict:
+    """ОКЭД + ФОТ + срок → премия построчно (quick_premium). Ничего не сохраняет."""
+    code = "".join(ch for ch in (body.okved or "") if ch.isdigit())
+    if not code or len(code) > 6:
+        raise HTTPException(422, "Код ОКЭД — от 1 до 6 цифр, например 41100 или 01.11")
+    if not math.isfinite(body.payroll) or body.payroll <= 0 or body.payroll > PAYROLL_MAX:
+        raise HTTPException(422, "Фонд оплаты труда за 12 месяцев — положительное число в сумах")
+    if not 1 <= body.term_days <= YEAR_DAYS:
+        raise HTTPException(422, "Срок договора ОСГОР — от 1 до 365 дней (ЗРУ-210 ст. 6 ч. 7)")
+    on = _contract_date(body.contract_date)
+    con = db.connect()
+    try:
+        brv, brv_source = _brv_for(con, body.brv, on)
+        res = quick_premium(con, code, body.payroll, term_days=body.term_days, brv=brv, on_date=on)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+    finally:
+        con.close()
+    res["brv_source"] = brv_source
+    res["contract_date"] = on
+    res["note"] = "" if brv else BRV_MISSING_NOTE
+    return res
+
+
+# ================================================================================================
+# 10. Размер БРВ — справочник администратора (задача 144)
+# ================================================================================================
+# Значение в коде не зашито и не засевается: пока админ не ввёл, GET отвечает value = null
+# (вопрос 110 заказчику). Версии по дате вступления в силу — правило 9 CLAUDE.md, таблица osgor_brv.
+# Запись закрыта для не-админов дважды: guard (ADMIN_METHOD_PATH) и require(ADMIN) здесь.
+import math                            # noqa: E402
+from datetime import date              # noqa: E402
+
+from fastapi import Depends, HTTPException    # noqa: E402
+
+from . import auth                     # noqa: E402
+
+BRV_MAX = 100_000_000                  # защита от опечатки в разрядах, а не норма
+
+
+class BrvIn(BaseModel):
+    value: float
+    effective_from: str                 # ГГГГ-ММ-ДД
+    source: str                         # акт, которым установлен размер, или ссылка на него
+    note: str = ""
+
+
+def _brv_row(r: Optional[dict]) -> Optional[dict]:
+    if not r:
+        return None
+    return {k: r[k] for k in ("id", "value", "effective_from", "source", "note", "entered_by", "entered_at")}
+
+
+def brv_on(con, on_date: Optional[str] = None) -> Optional[dict]:
+    """Действующий на дату размер БРВ или None, если админ его ещё не вводил."""
+    d = on_date or date.today().isoformat()
+    rows = db.rows(con, "SELECT * FROM osgor_brv WHERE effective_from <= ?"
+                        " ORDER BY effective_from DESC, id DESC LIMIT 1", d)
+    return _brv_row(rows[0] if rows else None)
+
+
+def check_brv(body: BrvIn) -> dict:
+    """Недоверенный ввод: число, дата, источник. Ошибка — 422 с понятным текстом."""
+    v = body.value
+    if not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0 or v > BRV_MAX:
+        raise HTTPException(422, "Размер БРВ — положительное число в сумах")
+    try:
+        d = date.fromisoformat((body.effective_from or "").strip())
+    except ValueError:
+        raise HTTPException(422, "Дата вступления в силу — в формате ГГГГ-ММ-ДД")
+    source = " ".join((body.source or "").split())
+    if len(source) < 3:
+        raise HTTPException(422, "Укажите источник: акт, которым установлен размер БРВ, или ссылку на него")
+    return {"value": float(v), "effective_from": d.isoformat(), "source": source[:500],
+            "note": " ".join((body.note or "").split())[:500]}
+
+
+def save_brv(con, actor: dict, body: BrvIn) -> dict:
+    data = check_brv(body)
+    before = brv_on(con, data["effective_from"])
+    cur = con.execute("INSERT INTO osgor_brv (value, effective_from, source, note, entered_by, entered_at)"
+                      " VALUES (?,?,?,?,?,?)",
+                      (data["value"], data["effective_from"], data["source"], data["note"] or None,
+                       actor["login"], db.now()))
+    db.audit(con, actor["login"], "размер БРВ", f"osgor_brv:{cur.lastrowid}",
+             {"было на эту дату": before["value"] if before else None} | data)
+    return {"ok": True, "id": cur.lastrowid, **data}
+
+
+@router.get("/osgor/brv")
+def get_brv(on: str = "", user: dict = Depends(auth.current_user)) -> dict:
+    """Действующий размер БРВ (на сегодня или на дату ?on=ГГГГ-ММ-ДД), ближайший будущий и история."""
+    if on:
+        try:
+            on = date.fromisoformat(on).isoformat()
+        except ValueError:
+            raise HTTPException(422, "Дата — в формате ГГГГ-ММ-ДД")
+    with db.tx() as con:
+        current = brv_on(con, on or None)
+        d = on or date.today().isoformat()
+        nxt = db.rows(con, "SELECT * FROM osgor_brv WHERE effective_from > ?"
+                           " ORDER BY effective_from, id DESC LIMIT 1", d)
+        history = [_brv_row(r) for r in db.rows(con, "SELECT * FROM osgor_brv"
+                                                     " ORDER BY effective_from DESC, id DESC")]
+    return {"on": d, "value": current["value"] if current else None, "current": current,
+            "next": _brv_row(nxt[0]) if nxt else None, "history": history,
+            "can_edit": user["role"] == "админ",
+            "legal_ref": {"минимум": ACTS["min"], "погребение": ACTS["burial"]},
+            "note": "" if current else "Размер БРВ не введён — его вносит администратор"}
+
+
+@router.put("/osgor/brv")
+def put_brv(body: BrvIn, user: dict = Depends(auth.require("админ"))) -> dict:
+    with db.tx() as con:
+        return save_brv(con, user, body)
