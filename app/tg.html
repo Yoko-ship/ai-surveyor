@@ -161,11 +161,12 @@ a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;tex
 .tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;border:1px solid var(--accent-dim);
   color:var(--accent);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px}
 .tag.off{border-color:var(--line);color:var(--muted)}
-/* кнопка «Войти через Telegram»: фирменный голубой Telegram, белые текст и самолётик — одинаково в обеих темах */
+/* кнопка «Войти через Telegram»: синий INSON (#1D2C8F), белые текст и самолётик, контраст 12:1 — одинаково в обеих темах */
 .tgbtn{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;height:48px;min-height:48px;
-  padding:0 14px;background:#2AABEE;border:1px solid #2AABEE;border-radius:10px;color:#FFFFFF;
-  font:700 15px/1 var(--sans);cursor:pointer}
-.tgbtn:hover:not(:disabled){background:#229ED9;border-color:#229ED9}
+  padding:0 14px;background:#1D2C8F;border:1px solid #4A5BC4;border-radius:10px;color:#FFFFFF;
+  font:700 15px/1 var(--sans);cursor:pointer;-webkit-text-fill-color:#FFFFFF}
+.tgbtn span{color:#FFFFFF}
+.tgbtn:hover:not(:disabled){background:#16236F;border-color:#6B7BD6}
 .tgbtn:focus-visible{outline:2px solid #FFFFFF;outline-offset:-4px}
 .tgbtn:disabled{opacity:.6;cursor:default}
 .tgbtn svg{flex:none;width:19px;height:19px;color:#FFFFFF}
