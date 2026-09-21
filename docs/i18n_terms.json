@@ -1,0 +1,218 @@
+{
+  "meta": {
+    "version": "1.0",
+    "updated": "2026-09-20",
+    "note": "Узбекские термины взяты из официальных узбекских редакций актов на lex.uz. Латиница — транслитерация кириллического текста акта, кроме подписей полей бланка полиса ОСГО (ПКМ № 141), напечатанного сразу на латинице. Английский нормой РУз не закреплён — рабочий перевод для интерфейса.",
+    "sources": {
+      "ЗРУ-730": "ЗРУ-730 от 23.11.2021 «О страховой деятельности», в ред. ЗРУ-1154 от 22.06.2026; lex.uz/ru/docs/5739120, lex.uz/uz/docs/5739117",
+      "ГК": "Гражданский кодекс РУз, часть вторая, глава 52, ст. 914-961; lex.uz/ru/docs/180550, lex.uz/uz/docs/180552",
+      "ПКМ 141": "ПКМ № 141 от 24.06.2008 (Правила и бланки полиса ОСГО владельцев ТС); lex.uz/ru/docs/1366341, lex.uz/uz/docs/1366339",
+      "ПКМ 177": "ПКМ № 177 от 24.06.2009 (Правила ОСГО работодателя); lex.uz/ru/docs/1493387, lex.uz/uz/docs/1493389",
+      "ЗРУ-803": "ЗРУ-803 от 28.11.2022 «О государственной регистрации прав на недвижимое имущество»; lex.uz/ru/docs/6297082, lex.uz/uz/docs/6297080",
+      "ПКМ 683": "ПКМ № 683 от 31.08.2017 (госрегистрация ТС); lex.uz/ru/docs/3334128, lex.uz/uz/docs/3334124",
+      "ЕНСО 3487": "Единый национальный стандарт оценки, рег. № 3487 от 28.12.2023; lex.uz/ru/docs/6720238, lex.uz/uz/docs/6720235"
+    }
+  },
+  "normalization": {
+    "steps": [
+      "Unicode NFC, затем lowercase",
+      "удалить все варианты апострофа: U+02BB, U+02BC, U+2018, U+2019, U+0027, U+0060, U+00B4, U+02B9 (oʻ->o, gʻ->g, maʼlumot->malumot)",
+      "кириллицу транслитерировать в латиницу по таблице cyrl_to_latn",
+      "свернуть различия: x->h, ts->s, начальное ye->e, w->v",
+      "дефисы, точки, запятые, № и повторяющиеся пробелы -> один пробел; обрезать края",
+      "сравнение — поиск подстроки; тип документа признаётся при совпадении не менее двух разных маркеров"
+    ],
+    "apostrophes": ["ʻ", "ʼ", "‘", "’", "'", "`", "´", "ʹ"],
+    "cyrl_to_latn": {
+      "а": "a", "б": "b", "в": "v", "г": "g", "ғ": "g", "д": "d", "е": "e", "ё": "yo",
+      "ж": "j", "з": "z", "и": "i", "й": "y", "к": "k", "қ": "q", "л": "l", "м": "m",
+      "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ў": "o",
+      "ф": "f", "х": "x", "ҳ": "h", "ц": "ts", "ч": "ch", "ш": "sh", "ъ": "", "ь": "",
+      "э": "e", "ю": "yu", "я": "ya"
+    },
+    "examples": {
+      "sugurta polisi": ["Sugʻurta polisi", "Sug'urta polisi", "Sug‘urta polisi", "Суғурта полиси", "sugurta polisi"],
+      "kochirma": ["Koʻchirma", "ko'chirma", "kochirma", "кўчирма"],
+      "tehnik pasport": ["Texnik pasport", "техник паспорт", "tehnik pasport"]
+    }
+  },
+  "terms": [
+    {"key": "insurance", "ru": "страхование", "uz": "sugʻurta", "uz_cyrl": "суғурта", "en": "insurance", "source": "ЗРУ-730 ст. 3"},
+    {"key": "insurance_activity", "ru": "страховая деятельность", "uz": "sugʻurta faoliyati", "uz_cyrl": "суғурта фаолияти", "en": "insurance activity", "source": "ЗРУ-730 ст. 3"},
+    {"key": "insurer", "ru": "страховщик", "uz": "sugʻurtalovchi", "uz_cyrl": "суғурталовчи", "en": "insurer", "source": "ЗРУ-730 ст. 13; ГК ст. 925"},
+    {"key": "policyholder", "ru": "страхователь", "uz": "sugʻurta qildiruvchi", "uz_cyrl": "суғурта қилдирувчи", "en": "policyholder", "source": "ЗРУ-730 ст. 32 ч. 2"},
+    {"key": "insured_person", "ru": "застрахованное лицо", "uz": "sugʻurtalangan shaxs", "uz_cyrl": "суғурталанган шахс", "en": "insured person", "source": "ЗРУ-730 ст. 32 ч. 4"},
+    {"key": "beneficiary", "ru": "выгодоприобретатель", "uz": "naf oluvchi", "uz_cyrl": "наф олувчи", "en": "beneficiary", "source": "ЗРУ-730 ст. 32 ч. 6"},
+    {"key": "insurance_contract", "ru": "договор страхования", "uz": "sugʻurta shartnomasi", "uz_cyrl": "суғурта шартномаси", "en": "contract of insurance", "source": "ЗРУ-730 ст. 29; ГК ст. 927"},
+    {"key": "policy", "ru": "страховой полис", "uz": "sugʻurta polisi", "uz_cyrl": "суғурта полиси", "en": "insurance policy", "source": "ЗРУ-730 ст. 33-1 (введена ЗРУ-1154 от 22.06.2026)"},
+    {"key": "insurance_rules", "ru": "правила страхования", "uz": "sugʻurta qoidalari", "uz_cyrl": "суғурта қоидалари", "en": "policy conditions", "source": "ЗРУ-730 ст. 30"},
+    {"key": "sum_insured", "ru": "страховая сумма", "uz": "sugʻurta summasi", "uz_cyrl": "суғурта суммаси", "en": "sum insured", "source": "ЗРУ-730 ст. 3; ГК ст. 934"},
+    {"key": "insurable_value", "ru": "страховая стоимость", "uz": "sugʻurta qiymati", "uz_cyrl": "суғурта қиймати", "en": "insurable value", "source": "ЗРУ-730 ст. 3; ГК ст. 935"},
+    {"key": "premium", "ru": "страховая премия", "uz": "sugʻurta mukofoti", "uz_cyrl": "суғурта мукофоти", "en": "premium", "source": "ЗРУ-730 ст. 3, 33; ГК ст. 942"},
+    {"key": "instalment", "ru": "страховой взнос", "uz": "sugʻurta badali", "uz_cyrl": "суғурта бадали", "en": "premium instalment", "source": "ЗРУ-730 ст. 3"},
+    {"key": "tariff", "ru": "страховой тариф (ставка)", "uz": "sugʻurta tarifi", "uz_cyrl": "суғурта тарифи", "en": "premium rate", "source": "ЗРУ-730 ст. 3, 33"},
+    {"key": "franchise", "ru": "франшиза", "uz": "franshiza", "uz_cyrl": "франшиза", "en": "deductible (franchise)", "source": "ЗРУ-730 ст. 3, 29 ч. 3-4"},
+    {"key": "franchise_conditional", "ru": "условная франшиза", "uz": "shartli franshiza", "uz_cyrl": "шартли франшиза", "en": "conditional franchise", "source": "ЗРУ-730 ст. 29 ч. 4"},
+    {"key": "franchise_unconditional", "ru": "безусловная франшиза", "uz": "shartsiz franshiza", "uz_cyrl": "шартсиз франшиза", "en": "unconditional deductible", "source": "ЗРУ-730 ст. 29 ч. 4"},
+    {"key": "insured_event", "ru": "страховой случай", "uz": "sugʻurta hodisasi", "uz_cyrl": "суғурта ҳодисаси", "en": "insured event", "source": "ЗРУ-730 ст. 29, 34; ГК ст. 929"},
+    {"key": "risk", "ru": "страховой риск", "uz": "sugʻurta tavakkalchiligi", "uz_cyrl": "суғурта таваккалчилиги", "en": "risk", "source": "ЗРУ-730 ст. 3"},
+    {"key": "risk_gk", "ru": "страховой риск (термин ГК)", "uz": "sugʻurta xavfi", "uz_cyrl": "суғурта хавфи", "en": "risk", "source": "ГК ст. 932, 935, 949"},
+    {"key": "indemnity", "ru": "страховое возмещение (страховая выплата)", "uz": "sugʻurta tovoni (sugʻurta toʻlovi)", "uz_cyrl": "суғурта товони (суғурта тўлови)", "en": "indemnity / claim payment", "source": "ЗРУ-730 ст. 3, 34"},
+    {"key": "subject_matter", "ru": "объект страхования", "uz": "sugʻurta obyekti", "uz_cyrl": "суғурта объекти", "en": "subject matter of insurance", "source": "ЗРУ-730 ст. 11; ГК ст. 917"},
+    {"key": "period_of_insurance", "ru": "срок (период) страхования", "uz": "sugʻurta polisining amal qilish muddati", "uz_cyrl": "суғурта полисининг амал қилиш муддати", "en": "period of insurance", "source": "ПКМ 141, прил. 1 (бланк полиса); ГК ст. 947"},
+    {"key": "branch", "ru": "отрасль страхования (жизнь / общее)", "uz": "sugʻurta sohasi (hayotni sugʻurta qilish / umumiy sugʻurta)", "uz_cyrl": "суғурта соҳаси (ҳаётни суғурта қилиш / умумий суғурта)", "en": "class of business (life / general)", "source": "ЗРУ-730 ст. 6 ч. 1"},
+    {"key": "class", "ru": "класс (вид) страхования", "uz": "sugʻurta turi (klassi)", "uz_cyrl": "суғурта тури (класси)", "en": "class of insurance", "source": "ЗРУ-730 ст. 3, 6 ч. 2"},
+    {"key": "compulsory", "ru": "обязательное страхование", "uz": "majburiy sugʻurta", "uz_cyrl": "мажбурий суғурта", "en": "compulsory insurance", "source": "ЗРУ-730 ст. 7; ГК ст. 914, 922"},
+    {"key": "voluntary", "ru": "добровольное страхование", "uz": "ixtiyoriy sugʻurta", "uz_cyrl": "ихтиёрий суғурта", "en": "voluntary insurance", "source": "ЗРУ-730 ст. 7; ГК ст. 914"},
+    {"key": "property_insurance", "ru": "имущественное страхование", "uz": "mulkiy sugʻurta", "uz_cyrl": "мулкий суғурта", "en": "property insurance", "source": "ГК ст. 915; ЗРУ-730 ст. 11"},
+    {"key": "personal_insurance", "ru": "личное страхование", "uz": "shaxsiy sugʻurta", "uz_cyrl": "шахсий суғурта", "en": "personal insurance", "source": "ГК ст. 921"},
+    {"key": "liability_insurance", "ru": "страхование ответственности", "uz": "javobgarlikni sugʻurta qilish", "uz_cyrl": "жавобгарликни суғурта қилиш", "en": "liability insurance", "source": "ЗРУ-730 ст. 6; ГК ст. 918-919"},
+    {"key": "agent", "ru": "страховой агент", "uz": "sugʻurta agenti", "uz_cyrl": "суғурта агенти", "en": "insurance agent", "source": "ЗРУ-730 ст. 18 (в ред. ЗРУ-1154)"},
+    {"key": "broker", "ru": "страховой брокер", "uz": "sugʻurta brokeri", "uz_cyrl": "суғурта брокери", "en": "insurance broker", "source": "ЗРУ-730 ст. 15"},
+    {"key": "adjuster", "ru": "аджастер", "uz": "adjaster", "uz_cyrl": "аджастер", "en": "adjuster", "source": "ЗРУ-730 ст. 20"},
+    {"key": "actuary", "ru": "актуарий", "uz": "aktuariy", "uz_cyrl": "актуарий", "en": "actuary", "source": "ЗРУ-730 ст. 22"},
+    {"key": "surveyor", "ru": "страховой сюрвейер", "uz": "sugʻurta syurveyeri", "uz_cyrl": "суғурта сюрвейери", "en": "insurance surveyor", "source": "ЗРУ-730 ст. 24 (дополнена ЗРУ-1154)"},
+    {"key": "assistance", "ru": "ассистанс", "uz": "assistans", "uz_cyrl": "ассистанс", "en": "assistance", "source": "ЗРУ-730 ст. 26"},
+    {"key": "underwriter", "ru": "андеррайтер", "uz": "anderrayter", "uz_cyrl": "андеррайтер", "en": "underwriter", "source": "практика, нормой не закреплён"},
+    {"key": "reinsurance", "ru": "перестрахование", "uz": "qayta sugʻurta", "uz_cyrl": "қайта суғурта", "en": "reinsurance", "source": "ЗРУ-730 ст. 3; ГК ст. 959"},
+    {"key": "reinsurer", "ru": "перестраховщик", "uz": "qayta sugʻurtalovchi", "uz_cyrl": "қайта суғурталовчи", "en": "reinsurer", "source": "ЗРУ-730 ст. 3"},
+    {"key": "coinsurance", "ru": "сострахование (совместное страхование)", "uz": "birgalikda sugʻurta qilish", "uz_cyrl": "биргаликда суғурта қилиш", "en": "coinsurance", "source": "ГК ст. 941; ЗРУ-730 ст. 9"},
+    {"key": "reserves", "ru": "страховые резервы", "uz": "sugʻurta zaxiralari", "uz_cyrl": "суғурта захиралари", "en": "technical reserves", "source": "ЗРУ-730 ст. 49"},
+    {"key": "underinsurance", "ru": "неполное имущественное страхование (недострахование)", "uz": "toʻliq boʻlmagan mulkiy sugʻurta", "uz_cyrl": "тўлиқ бўлмаган мулкий суғурта", "en": "underinsurance", "source": "ГК ст. 936 (в ред. ЗРУ-1154)"},
+    {"key": "additional_insurance", "ru": "дополнительное имущественное страхование", "uz": "qoʻshimcha mulkiy sugʻurta", "uz_cyrl": "қўшимча мулкий суғурта", "en": "top-up insurance", "source": "ГК ст. 937"},
+    {"key": "double_insurance", "ru": "двойное страхование", "uz": "qoʻshaloq sugʻurta", "uz_cyrl": "қўшалоқ суғурта", "en": "double insurance", "source": "ГК ст. 939"},
+    {"key": "subrogation", "ru": "суброгация", "uz": "subrogatsiya", "uz_cyrl": "суброгация", "en": "subrogation", "source": "ГК ст. 957; ПКМ 177 разд. XII"},
+    {"key": "proposal", "ru": "заявление на страхование (заявление-анкета)", "uz": "ariza (ariza-anketa)", "uz_cyrl": "ариза (ариза-анкета)", "en": "proposal form", "source": "ГК ст. 927 ч. 3; ПКМ 141 (ariza-anketa)"},
+    {"key": "survey", "ru": "осмотр (обследование) объекта", "uz": "koʻzdan kechirish va tekshirish", "uz_cyrl": "кўздан кечириш ва текшириш", "en": "survey", "source": "ЗРУ-730 ст. 24 абз. 2; ГК ст. 932"},
+    {"key": "survey_report", "ru": "акт осмотра", "uz": "koʻzdan kechirganlik dalolatnomasi", "uz_cyrl": "кўздан кечирганлик далолатномаси", "en": "survey report", "source": "ЕНСО 3487 (акт осмотра технического состояния объекта оценки)"},
+    {"key": "surveyor_opinion", "ru": "заключение сюрвейера по объекту", "uz": "sugʻurta obyekti boʻyicha xulosa", "uz_cyrl": "суғурта объекти бўйича хулоса", "en": "surveyor's report", "source": "ЗРУ-730 ст. 24 абз. 4"},
+    {"key": "insurance_secret", "ru": "страховая тайна", "uz": "sugʻurta siri", "uz_cyrl": "суғурта сири", "en": "insurance secrecy", "source": "ГК ст. 933"},
+    {"key": "material_terms", "ru": "существенные условия договора", "uz": "shartnomaning muhim shartlari", "uz_cyrl": "шартноманинг муҳим шартлари", "en": "material terms", "source": "ГК ст. 929"},
+    {"key": "authorized_body", "ru": "уполномоченный государственный орган", "uz": "vakolatli davlat organi", "uz_cyrl": "ваколатли давлат органи", "en": "authorised state body", "source": "ЗРУ-730 ст. 29 ч. 6"}
+  ],
+  "doc_kinds": [
+    {
+      "kind": "техпаспорт",
+      "title": {"ru": "Техпаспорт / свидетельство о регистрации ТС", "uz-latn": "Texnik pasport / roʻyxatdan oʻtganlik guvohnomasi", "uz-cyrl": "Техник паспорт / рўйхатдан ўтганлик гувоҳномаси", "en": "Vehicle registration certificate"},
+      "source": "ПКМ 683; ПКМ 141 (перечень документов к договору)",
+      "markers": {
+        "ru": ["технический паспорт", "счет-справка", "свидетельство о регистрации автомототранспортного средства", "государственный регистрационный номерной знак", "грнз", "марка и модель", "номер кузова", "номер двигателя", "номер шасси", "год выпуска", "полная масса", "категория транспортного средства"],
+        "uz-latn": ["texnik pasport", "transport vositasining texnik pasporti", "schyot-maʼlumotnomasi", "roʻyxatdan oʻtganlik guvohnomasi", "avtomototransport vositasi", "davlat raqami belgisi", "markasi va modeli", "kuzov raqami", "dvigatel raqami", "shassi (rama) raqami", "ishlab chiqarilgan yili", "toʻliq vazni", "yuksiz vazni"],
+        "uz-cyrl": ["техник паспорт", "транспорт воситасининг техник паспорти", "счёт-маълумотномаси", "рўйхатдан ўтганлик гувоҳномаси", "автомототранспорт воситаси", "давлат рақами белгиси", "маркаси ва модели", "кузов рақами", "двигатель рақами", "шасси (рама) рақами", "ишлаб чиқарилган йили", "тўлиқ вазни"],
+        "en": ["vehicle registration certificate", "technical passport", "make and model", "vin", "chassis number", "engine number", "year of manufacture", "plate number"]
+      }
+    },
+    {
+      "kind": "кадастровый документ",
+      "title": {"ru": "Кадастровый паспорт / выписка из госреестра недвижимости", "uz-latn": "Kadastr pasporti / davlat reyestridan koʻchirma", "uz-cyrl": "Кадастр паспорти / давлат реестридан кўчирма", "en": "Cadastral passport / extract from the state register"},
+      "source": "ЗРУ-803 ст. 3, 17-18, 29",
+      "markers": {
+        "ru": ["кадастровый паспорт", "кадастровое дело недвижимого имущества", "выписка из государственного реестра", "кадастровый номер", "палата государственных кадастров", "агентство по кадастру", "общая площадь", "правоустанавливающий документ", "обременение", "ипотека", "правообладатель"],
+        "uz-latn": ["kadastr pasporti", "koʻchmas mulkning kadastr yigʻmajildi", "davlat reyestridan koʻchirma", "kadastr raqami", "davlat kadastrlari palatasi", "kadastr agentligi", "umumiy maydon", "huquqni belgilovchi hujjat", "cheklov", "ipoteka", "huquq egasi", "koʻchmas mulk"],
+        "uz-cyrl": ["кадастр паспорти", "кўчмас мулкнинг кадастр йиғмажилди", "давлат реестридан кўчирма", "кадастр рақами", "давлат кадастрлари палатаси", "кадастр агентлиги", "умумий майдон", "ҳуқуқ эгаси", "чеклов", "ипотека", "кўчмас мулк"],
+        "en": ["cadastral passport", "extract from the state register", "cadastral number", "title document", "encumbrance", "total area", "right holder"]
+      }
+    },
+    {
+      "kind": "отчёт оценщика",
+      "title": {"ru": "Отчёт об оценке", "uz-latn": "Baholash toʻgʻrisidagi hisobot", "uz-cyrl": "Баҳолаш тўғрисидаги ҳисобот", "en": "Valuation report"},
+      "source": "ЕНСО 3487 разд. V (МБС № 4); Закон об оценочной деятельности № 811-I",
+      "markers": {
+        "ru": ["отчет об оценке", "объект оценки", "дата оценки", "рыночная стоимость", "оценочная организация", "оценщик", "сравнительный подход", "затратный подход", "доходный подход", "акт осмотра технического состояния", "итоговая величина стоимости"],
+        "uz-latn": ["baholash toʻgʻrisidagi hisobot", "baholash hisoboti", "baholash obyekti", "baholash sanasi", "bozor qiymati", "baholovchi tashkilot", "baholovchi", "qiyosiy yondashuv", "xarajat yondashuvi", "daromad yondashuvi", "koʻzdan kechirganlik dalolatnomasi"],
+        "uz-cyrl": ["баҳолаш тўғрисидаги ҳисобот", "баҳолаш объекти", "баҳолаш санаси", "бозор қиймати", "баҳоловчи ташкилот", "баҳоловчи", "қиёсий ёндашув", "харажат ёндашуви", "даромад ёндашуви", "кўздан кечирганлик далолатномаси"],
+        "en": ["valuation report", "subject of valuation", "valuation date", "market value", "appraiser", "cost approach", "income approach", "comparative approach"]
+      }
+    },
+    {
+      "kind": "договор",
+      "title": {"ru": "Договор", "uz-latn": "Shartnoma", "uz-cyrl": "Шартнома", "en": "Contract"},
+      "source": "структура по ГК; формулировки разделов — типовые договоры в приложениях к ПКМ 177",
+      "markers": {
+        "ru": ["договор", "стороны", "предмет договора", "реквизиты сторон", "права и обязанности сторон", "срок действия договора", "ответственность сторон", "порядок разрешения споров", "заключительные положения", "подписи сторон"],
+        "uz-latn": ["shartnoma", "tomonlar", "shartnomaning predmeti", "tomonlarning rekvizitlari", "tomonlarning huquq va majburiyatlari", "shartnomaning amal qilish muddati", "tomonlarning javobgarligi", "nizolarni hal etish tartibi", "yakuniy qoidalar", "imzolar"],
+        "uz-cyrl": ["шартнома", "томонлар", "шартноманинг предмети", "томонларнинг реквизитлари", "томонларнинг ҳуқуқ ва мажбуриятлари", "шартноманинг амал қилиш муддати", "томонларнинг жавобгарлиги", "низоларни ҳал этиш тартиби", "якуний қоидалар"],
+        "en": ["agreement", "contract", "parties", "subject of the contract", "term of the contract", "liability of the parties", "dispute resolution", "signatures"]
+      }
+    },
+    {
+      "kind": "страховой полис",
+      "title": {"ru": "Страховой полис", "uz-latn": "Sugʻurta polisi", "uz-cyrl": "Суғурта полиси", "en": "Insurance policy"},
+      "source": "ЗРУ-730 ст. 33-1; бланки — приложения 1-2 к Правилам, утв. ПКМ 141",
+      "markers": {
+        "ru": ["страховой полис", "серия", "номер полиса", "период действия страхового полиса", "страховщик", "страхователь", "страховая сумма", "страховая премия", "страховой случай", "скидка по страховой премии"],
+        "uz-latn": ["sugʻurta polisi", "seriya", "sugʻurta polisining amal qilish muddati", "sugʻurtalovchi", "sugʻurta qildiruvchi", "sugʻurta summasi", "sugʻurta mukofoti", "sugʻurta hodisasi", "sugʻurta mukofoti boʻyicha siylov", "yagona avtomatlashtirilgan axborot tizimi"],
+        "uz-cyrl": ["суғурта полиси", "серия", "суғурта полисининг амал қилиш муддати", "суғурталовчи", "суғурта қилдирувчи", "суғурта суммаси", "суғурта мукофоти", "суғурта ҳодисаси"],
+        "en": ["insurance policy", "policy number", "period of insurance", "sum insured", "premium", "insured event"]
+      }
+    },
+    {
+      "kind": "выписка",
+      "title": {"ru": "Выписка (банковская / из реестра)", "uz-latn": "Koʻchirma", "uz-cyrl": "Кўчирма", "en": "Statement / extract"},
+      "source": "выписка из госреестра — ЗРУ-803 ст. 29; банковская выписка — практика, нормой не закреплена",
+      "markers": {
+        "ru": ["выписка", "выписка по счету", "лицевой счет", "расчетный счет", "обороты", "остаток на счете", "мфо", "дата операции", "назначение платежа", "выписка из государственного реестра", "выписка из протокола"],
+        "uz-latn": ["koʻchirma", "hisobvaraqdan koʻchirma", "hisob raqami", "qoldiq", "aylanma", "toʻlov maqsadi", "amaliyot sanasi", "davlat reyestridan koʻchirma", "bayonnomadan koʻchirma"],
+        "uz-cyrl": ["кўчирма", "ҳисобварақдан кўчирма", "ҳисоб рақами", "қолдиқ", "айланма", "тўлов мақсади", "амалиёт санаси", "давлат реестридан кўчирма", "баённомадан кўчирма"],
+        "en": ["statement", "bank statement", "account number", "balance", "turnover", "extract from register"]
+      }
+    },
+    {
+      "kind": "штатное расписание",
+      "title": {"ru": "Штатное расписание / данные о персонале", "uz-latn": "Shtat jadvali", "uz-cyrl": "Штат жадвали", "en": "Staffing table"},
+      "source": "«бир йиллик иш ҳақи» — ПКМ 177 пп. 21-22; сам термин «штат жадвали» — практика, нормой не закреплён",
+      "markers": {
+        "ru": ["штатное расписание", "численность работников", "должность", "оклад", "тарифная ставка", "фонд оплаты труда", "годовая заработная плата", "табельный номер", "структурное подразделение"],
+        "uz-latn": ["shtat jadvali", "xodimlar soni", "lavozim", "lavozim maoshi", "tarif stavkasi", "mehnatga haq toʻlash fondi", "yillik ish haqi", "tabel raqami", "tarkibiy boʻlinma"],
+        "uz-cyrl": ["штат жадвали", "ходимлар сони", "лавозим", "лавозим маоши", "тариф ставкаси", "меҳнатга ҳақ тўлаш фонди", "йиллик иш ҳақи", "табель рақами", "таркибий бўлинма"],
+        "en": ["staffing table", "headcount", "position", "salary", "payroll fund", "annual wages"]
+      }
+    },
+    {
+      "kind": "прочее",
+      "title": {"ru": "Прочее (тип не определён)", "uz-latn": "Boshqa hujjat", "uz-cyrl": "Бошқа ҳужжат", "en": "Other"},
+      "source": "практика",
+      "markers": {"ru": [], "uz-latn": [], "uz-cyrl": [], "en": []}
+    }
+  ],
+  "fields": [
+    {"key": "make_model", "en_label": "Brand and model", "source": "ПКМ 141 (бланк полиса); ПКМ 683", "labels": {"ru": ["марка и модель", "марка, модель", "марка"], "uz-latn": ["markasi va modeli", "marka-rusumi", "marka va model", "rusumi"], "uz-cyrl": ["маркаси ва модели", "русуми", "марка ва модель"], "en": ["brand and model", "make and model", "model"]}},
+    {"key": "year_of_manufacture", "en_label": "Year of manufacture", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["год выпуска", "год изготовления"], "uz-latn": ["ishlab chiqarilgan yili", "ishlab chiqarilgan yil"], "uz-cyrl": ["ишлаб чиқарилган йили", "ишлаб чиқарилган йил"], "en": ["year of manufacture", "year of production"]}},
+    {"key": "engine_no", "en_label": "Engine number", "source": "ПКМ 141 (бланк полиса); ПКМ 683", "labels": {"ru": ["номер двигателя"], "uz-latn": ["dvigatel raqami"], "uz-cyrl": ["двигатель рақами"], "en": ["engine number"]}},
+    {"key": "vin_chassis", "en_label": "VIN / chassis number", "source": "ПКМ 141 (бланк полиса); ПКМ 683", "labels": {"ru": ["номер кузова (шасси)", "номер кузова", "номер шасси", "vin"], "uz-latn": ["kuzov (shassi) raqami", "kuzov raqami", "shassi raqami", "rama raqami"], "uz-cyrl": ["кузов (шасси) рақами", "кузов рақами", "шасси рақами", "рама рақами"], "en": ["vin", "chassis number", "body number"]}},
+    {"key": "plate_no", "en_label": "Registration plate number", "source": "ПКМ 141 (бланк полиса); ПКМ 683", "labels": {"ru": ["государственный регистрационный номер", "госномер", "грнз"], "uz-latn": ["davlat raqami belgisi", "davlat raqami"], "uz-cyrl": ["давлат рақами белгиси", "давлат рақами"], "en": ["registration plate number", "plate number"]}},
+    {"key": "vehicle_category", "en_label": "Vehicle category", "source": "ПКМ 683", "labels": {"ru": ["категория транспортного средства", "тип транспортного средства"], "uz-latn": ["transport vositasining turi", "transport vositasining toifasi"], "uz-cyrl": ["транспорт воситасининг тури", "транспорт воситасининг тоифаси"], "en": ["vehicle category", "vehicle type"]}},
+    {"key": "gross_weight", "en_label": "Gross weight", "source": "ПКМ 683", "labels": {"ru": ["полная масса", "разрешенная максимальная масса"], "uz-latn": ["toʻliq vazni"], "uz-cyrl": ["тўлиқ вазни"], "en": ["gross weight"]}},
+    {"key": "seats", "en_label": "Number of seats", "source": "ПКМ 683", "labels": {"ru": ["количество мест", "число посадочных мест"], "uz-latn": ["oʻrindiqlar soni"], "uz-cyrl": ["ўриндиқлар сони"], "en": ["number of seats"]}},
+    {"key": "cadastral_no", "en_label": "Cadastral number", "source": "ЗРУ-803 ст. 3", "labels": {"ru": ["кадастровый номер"], "uz-latn": ["kadastr raqami"], "uz-cyrl": ["кадастр рақами"], "en": ["cadastral number"]}},
+    {"key": "total_area", "en_label": "Total area", "source": "ЕНСО 3487; ЗРУ-803", "labels": {"ru": ["общая площадь", "площадь"], "uz-latn": ["umumiy maydon", "maydoni"], "uz-cyrl": ["умумий майдон", "майдони"], "en": ["total area", "area"]}},
+    {"key": "usable_area", "en_label": "Usable area", "source": "ЕНСО 3487", "labels": {"ru": ["полезная площадь", "жилая площадь"], "uz-latn": ["foydali maydon", "turar joy maydoni"], "uz-cyrl": ["фойдали майдон", "турар жой майдони"], "en": ["usable area", "living area"]}},
+    {"key": "land_area", "en_label": "Land plot area", "source": "ЗРУ-803 гл. 6", "labels": {"ru": ["площадь земельного участка", "земельный участок"], "uz-latn": ["yer uchastkasining maydoni", "yer uchastkasi"], "uz-cyrl": ["ер участкасининг майдони", "ер участкаси"], "en": ["land plot area"]}},
+    {"key": "year_built", "en_label": "Year built", "source": "ЕНСО 3487", "labels": {"ru": ["год постройки", "год ввода в эксплуатацию"], "uz-latn": ["qurilgan yili", "ishga tushgan yili"], "uz-cyrl": ["қурилган йили", "ишга тушган йили"], "en": ["year built", "year of construction"]}},
+    {"key": "address", "en_label": "Address", "source": "ЕНСО 3487; ПКМ 141 (бланк полиса)", "labels": {"ru": ["адрес", "место нахождения", "почтовый адрес"], "uz-latn": ["manzil", "joylashgan joyi", "pochta manzili"], "uz-cyrl": ["манзил", "жойлашган жойи", "почта манзили"], "en": ["address", "location"]}},
+    {"key": "right_holder", "en_label": "Right holder", "source": "ЗРУ-803 ст. 29", "labels": {"ru": ["правообладатель", "собственник"], "uz-latn": ["huquq egasi", "mulkdor"], "uz-cyrl": ["ҳуқуқ эгаси", "мулкдор"], "en": ["right holder", "owner"]}},
+    {"key": "encumbrance", "en_label": "Encumbrances", "source": "ЗРУ-803 ст. 29", "labels": {"ru": ["обременения", "ограничения", "залог", "ипотека"], "uz-latn": ["cheklovlar", "garov", "ipoteka"], "uz-cyrl": ["чекловлар", "гаров", "ипотека"], "en": ["encumbrances", "restrictions", "mortgage"]}},
+    {"key": "appraised_value", "en_label": "Appraised value", "source": "ЕНСО 3487", "labels": {"ru": ["оценочная стоимость", "итоговая величина стоимости", "стоимость объекта оценки"], "uz-latn": ["baholangan qiymat", "baholash obyektining qiymati", "yakuniy qiymat"], "uz-cyrl": ["баҳоланган қиймат", "баҳолаш объектининг қиймати", "якуний қиймат"], "en": ["appraised value", "assessed value"]}},
+    {"key": "market_value", "en_label": "Market value", "source": "ЕНСО 3487", "labels": {"ru": ["рыночная стоимость"], "uz-latn": ["bozor qiymati"], "uz-cyrl": ["бозор қиймати"], "en": ["market value"]}},
+    {"key": "book_value", "en_label": "Book value", "source": "ЕНСО 3487", "labels": {"ru": ["балансовая стоимость", "остаточная стоимость"], "uz-latn": ["balans qiymati", "qoldiq qiymati"], "uz-cyrl": ["баланс қиймати", "қолдиқ қиймати"], "en": ["book value", "residual value"]}},
+    {"key": "valuation_date", "en_label": "Valuation date", "source": "ЕНСО 3487", "labels": {"ru": ["дата оценки"], "uz-latn": ["baholash sanasi"], "uz-cyrl": ["баҳолаш санаси"], "en": ["valuation date"]}},
+    {"key": "date", "en_label": "Date", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["дата"], "uz-latn": ["sana"], "uz-cyrl": ["сана"], "en": ["date"]}},
+    {"key": "amount", "en_label": "Amount", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["сумма", "цифрами", "прописью"], "uz-latn": ["summa", "son bilan", "soʻz bilan"], "uz-cyrl": ["сумма", "сон билан", "сўз билан"], "en": ["amount", "in figures", "in words"]}},
+    {"key": "currency", "en_label": "Currency", "source": "ЗРУ-730 ст. 3", "labels": {"ru": ["валюта", "национальная валюта", "иностранная валюта"], "uz-latn": ["valyuta", "milliy valyuta", "chet el valyutasi"], "uz-cyrl": ["валюта", "миллий валюта", "чет эл валютаси"], "en": ["currency"]}},
+    {"key": "headcount", "en_label": "Headcount", "source": "практика (штатное расписание)", "labels": {"ru": ["численность работников", "количество работников", "штатная численность"], "uz-latn": ["xodimlar soni", "ishchilar soni"], "uz-cyrl": ["ходимлар сони", "ишчилар сони"], "en": ["headcount", "number of employees"]}},
+    {"key": "payroll_fund", "en_label": "Payroll fund", "source": "ПКМ 177 пп. 21-22 («барча ходимларининг бир йиллик иш ҳақи»)", "labels": {"ru": ["фонд оплаты труда", "годовая заработная плата", "фот", "средняя месячная заработная плата"], "uz-latn": ["mehnatga haq toʻlash fondi", "yillik ish haqi", "oʻrtacha oylik ish haqi"], "uz-cyrl": ["меҳнатга ҳақ тўлаш фонди", "йиллик иш ҳақи", "ўртача ойлик иш ҳақи"], "en": ["payroll fund", "annual wages", "average monthly wage"]}},
+    {"key": "org_name", "en_label": "Full name and details", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["полное наименование и реквизиты", "наименование организации", "реквизиты"], "uz-latn": ["toʻliq nomi va rekvizitlari", "tashkilot nomi", "rekvizitlari"], "uz-cyrl": ["тўлиқ номи ва реквизитлари", "ташкилот номи", "реквизитлари"], "en": ["full name and details", "company name"]}},
+    {"key": "person_name", "en_label": "Full name", "source": "ПКМ 141 (бланк полиса); ЗРУ-803 ст. 29", "labels": {"ru": ["ф.и.о.", "фамилия, имя, отчество", "фамилия"], "uz-latn": ["f.i.sh.", "familiya, ism, otasining ismi", "familiyasi"], "uz-cyrl": ["ф.и.о.", "фамилия, исм, отасининг исми", "фамилияси"], "en": ["full name", "surname, name, patronymic"]}},
+    {"key": "tin", "en_label": "Taxpayer ID", "source": "ЗРУ-803 ст. 29", "labels": {"ru": ["инн", "идентификационный номер налогоплательщика", "стир", "пинфл"], "uz-latn": ["stir", "soliq toʻlovchining identifikatsiya raqami", "jshshir"], "uz-cyrl": ["стир", "солиқ тўловчининг идентификация рақами", "жшшир"], "en": ["taxpayer id", "tin"]}},
+    {"key": "phone", "en_label": "Phone number", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["номер телефона", "телефон"], "uz-latn": ["telefon raqami", "telefon"], "uz-cyrl": ["телефон рақами", "телефон"], "en": ["phone number"]}},
+    {"key": "policy_series_no", "en_label": "Policy series and number", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["серия", "номер полиса", "серия и номер"], "uz-latn": ["seriya", "polis raqami", "seriya va raqam"], "uz-cyrl": ["серия", "полис рақами", "серия ва рақам"], "en": ["series", "policy number"]}},
+    {"key": "period_from", "en_label": "Valid from", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["с", "начало действия", "дата начала"], "uz-latn": ["dan", "boshlanish sanasi"], "uz-cyrl": ["дан", "бошланиш санаси"], "en": ["valid from", "from"]}},
+    {"key": "period_to", "en_label": "Valid to", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["по", "окончание действия", "дата окончания"], "uz-latn": ["gacha", "tugash sanasi"], "uz-cyrl": ["гача", "тугаш санаси"], "en": ["valid to", "until"]}},
+    {"key": "activity_type", "en_label": "Type of activity", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["вид деятельности"], "uz-latn": ["faoliyat turi"], "uz-cyrl": ["фаолият тури"], "en": ["type of activity"]}},
+    {"key": "drivers_allowed", "en_label": "Drivers permitted", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["лица, допущенные к управлению", "водители"], "uz-latn": ["boshqarishga qoʻyilgan shaxslar", "haydovchilar"], "uz-cyrl": ["бошқаришга қўйилган шахслар", "ҳайдовчилар"], "en": ["drivers permitted"]}},
+    {"key": "driving_licence", "en_label": "Driving licence", "source": "ПКМ 141 (бланк полиса); ПКМ 683", "labels": {"ru": ["водительское удостоверение"], "uz-latn": ["haydovchilik guvohnomasi"], "uz-cyrl": ["ҳайдовчилик гувоҳномаси"], "en": ["driving licence"]}},
+    {"key": "discount", "en_label": "Premium discount", "source": "ПКМ 141 (бланк полиса)", "labels": {"ru": ["скидка по страховой премии", "скидка"], "uz-latn": ["sugʻurta mukofoti boʻyicha siylov", "siylov"], "uz-cyrl": ["суғурта мукофоти бўйича сийлов", "сийлов"], "en": ["premium discount"]}},
+    {"key": "bank_account", "en_label": "Bank account", "source": "практика, нормой не закреплён", "labels": {"ru": ["расчетный счет", "лицевой счет", "номер счета"], "uz-latn": ["hisob raqami", "hisobvaraq raqami"], "uz-cyrl": ["ҳисоб рақами", "ҳисобварақ рақами"], "en": ["bank account", "account number"]}},
+    {"key": "passport_id", "en_label": "Passport / ID card", "source": "ПКМ 683", "labels": {"ru": ["паспорт", "id-карта", "биометрический паспорт"], "uz-latn": ["pasport", "id-karta", "biometrik pasport"], "uz-cyrl": ["паспорт", "ид-карта", "биометрик паспорт"], "en": ["passport", "id card"]}}
+  ]
+}

@@ -53,6 +53,7 @@ SETTING_WINDOW = "market_window_months"        # окно свежести об�
 SETTING_BARGAIN = "bargain_discount_pct"       # скидка на торг: объявление — цена предложения
 SETTING_MILEAGE_SENS = "mileage_sensitivity"   # чувствительность стоимости к отклонению пробега
 SETTING_MILEAGE_LIMIT = "mileage_adj_limit_pct"  # предел поправки по пробегу вверх и вниз
+SETTING_EH_NORM = "annual_engine_hours_norm"   # нормативная наработка спецтехники за год, моточасы
 SETTING_FX_SOURCE = "fx_source"                # откуда берём курс доллара для цен в у.е.
 SETTING_FX_MANUAL = "fx_rate_manual"           # ручной курс заказчика (пусто — берём курс ЦБ РУз)
 
@@ -65,6 +66,10 @@ SETTING_DEFAULTS = {
     SETTING_BARGAIN: 5.0,
     SETTING_MILEAGE_SENS: 0.15,
     SETTING_MILEAGE_LIMIT: 15.0,
+    # Спецтехника ходит не по километрам, а по моточасам. 1500 моточасов в год — экспертный
+    # ориентир односменной работы (примерно 8 часов × 190 рабочих дней с поправкой на простои),
+    # calibrated = 0: своей статистики по парку у компании ещё нет, цифру надо подтвердить.
+    SETTING_EH_NORM: 1500.0,
 }
 
 # Курс валюты. Часть объявлений (avtoelon.uz и др.) публикуется в у.е. — без курса такие цены
@@ -519,6 +524,10 @@ def collect_market(object_type: str, params: dict, as_of, rate: float = None) ->
     if vs is None:
         return [{"source": "площадки объявлений", "status": "источник недоступен",
                  "reason": "модуль адаптеров app/valuation_sources.py недоступен"}]
+    if object_type == OBJECT_SPECIAL:
+        # раздел спецтехники на avtoelon.uz в реестре адаптеров статистика пока не заведён,
+        # поэтому опрашиваем его здесь (проверено живым запросом 21.09.2026, см. SPEC_SECTIONS)
+        return [fetch_avtoelon_special(params or {}, as_of, rate)]
     try:
         return vs.fetch_all(object_type, params or {}, as_of, rate)
     except TypeError:                   # старый адаптер без параметра курса
@@ -526,6 +535,127 @@ def collect_market(object_type: str, params: dict, as_of, rate: float = None) ->
     except Exception as e:              # сеть не должна ронять оценку
         return [{"source": "площадки объявлений", "status": "источник недоступен",
                  "reason": f"сбой опроса площадок ({type(e).__name__}: {e})"}]
+
+
+# ---------- спецтехника: раздел объявлений avtoelon.uz ----------
+#
+# Проверено живым запросом 21.09.2026: у avtoelon.uz есть отдельный раздел
+# https://avtoelon.uz/spectehnika/ (robots.txt его не запрещает), выдача отдаётся готовым HTML
+# в том же виде, что и раздел легковых: рядом с карточкой лежит JSON listing.items.push
+# с ценой (unitPrice, по умолчанию в у.е.), городом, маркой и датой последнего обновления.
+# Ограничения те же, что у легковых: дата — это lastUpdate, а не дата публикации; наработка
+# моточасов в выдаче не публикуется, поэтому отобрать «похожие по наработке» машины нельзя.
+
+OBJECT_SPECIAL = "спецтехника"
+
+# подтип (как в app/vehicle_class.py и в справочнике base_rates) → путь раздела на сайте
+SPEC_SECTIONS = {
+    "экскаватор": "gruzovaja-tehnika/ekskavator",
+    "экскаватор-погрузчик": "gruzovaja-tehnika/ekskavatory-pogruzchiky",
+    "бульдозер": "gruzovaja-tehnika/buldozer",
+    "автокран": "gruzovaja-tehnika/avtokran",
+    "кран-манипулятор": "gruzovaja-tehnika/manipulyatory",
+    "автовышка": "gruzovaja-tehnika/avtovyshky",
+    "бетононасос": "gruzovaja-tehnika/betononasos",
+    "бетоносмеситель": "gruzovaja-tehnika/betonovoz-ili-betonsmestitel",
+    "погрузчик фронтальный": "gruzovaja-tehnika/kovshovyiy-pogruzchik",
+    "погрузчик вилочный": "gruzovaja-tehnika/vilochnyiy-pogruzchik",
+    "грейдер": "gruzovaja-tehnika/greidery",
+    "каток": "gruzovaja-tehnika/katky",
+    "асфальтоукладчик": "gruzovaja-tehnika/asfaltoukladchiky",
+    "буровая установка": "gruzovaja-tehnika/burovoe-oborudovanie",
+    "трактор": "gruzovaja-tehnika/traktor",
+    "мини-трактор": "gruzovaja-tehnika/mini-traktor",
+    "комбайн": "gruzovaja-tehnika/kombayn",
+    "косилка": "gruzovaja-tehnika/kosilka",
+    "сеялка": "gruzovaja-tehnika/seyalka",
+    "борона": "gruzovaja-tehnika/borona",
+    "самосвал": "gruzoviki/samosval",
+    "тягач": "gruzoviki/tyagach",
+    "прицеп": "gruzoviki/pritsep",
+    "полуприцеп": "gruzoviki/polu-pritsep",
+    "автобус": "avtobusy/avtobus",
+    "микроавтобус": "avtobusy/mikroavtobus",
+    "эвакуатор": "gruzovaja-tehnika/evakuator-manipulyator",
+    "мусоровоз": "gruzovaja-tehnika/musorovozy",
+}
+
+SPEC_BASE_URL = "https://avtoelon.uz/spectehnika/"
+
+
+def spec_section(subtype: str) -> Optional[str]:
+    """Подтип машины → путь раздела на avtoelon.uz. Незнакомый подтип — None, раздел не гадаем."""
+    s = (subtype or "").strip().lower()
+    if not s:
+        return None
+    if s in SPEC_SECTIONS:
+        return SPEC_SECTIONS[s]
+    for name, path in SPEC_SECTIONS.items():       # «экскаватор гусеничный» → «экскаватор»
+        if name in s:
+            return path
+    return None
+
+
+def fetch_avtoelon_special(params: dict, as_of, rate: float = None) -> dict:
+    """
+    Объявления по спецтехнике с avtoelon.uz.
+
+    params: подтип (subtype) — обязателен, марка (brand), регион (region), год (year).
+    Разбор выдачи берём у статистика (app/valuation_sources), потому что разметка страницы
+    у раздела спецтехники та же, что у легковых. Результат — такой же словарь источника,
+    как у остальных адаптеров: агрегатор market_aggregate его понимает без изменений.
+    """
+    as_of = to_date(as_of) or date.today()
+    base = {"source": "avtoelon.uz — спецтехника", "status": "источник недоступен",
+            "url": SPEC_BASE_URL, "ads_count": 0, "prices": [], "samples": [],
+            "limitations": [], "fetched_at": datetime.now().isoformat(timespec="seconds")}
+    if vs is None:
+        base["reason"] = "модуль адаптеров app/valuation_sources.py недоступен"
+        return base
+    subtype = (params.get("subtype") or params.get("подтип") or params.get("тип") or "")
+    path = spec_section(subtype)
+    if not path:
+        base["reason"] = ("подтип машины не указан или не найден в разделах сайта "
+                          "(«%s») — раздел выдумывать нельзя" % (subtype or "не указан"))
+        return base
+
+    res = vs._new("avtoelon.uz — спецтехника")
+    parts = [SPEC_BASE_URL.rstrip("/"), path]
+    brand = vs._slug(params.get("марка") or params.get("brand") or "")
+    if brand:
+        parts.append(brand)
+    region = (params.get("регион") or params.get("region") or "").strip().lower()
+    city = vs.AVTOELON_CITIES.get(region)
+    if region and not city:
+        res.limitations.append("Регион «%s» не найден в справочнике слагов сайта — "
+                               "поиск выполнен без фильтра по региону." % region)
+    if city:
+        parts.append(city)
+    url = "/".join(parts) + "/"
+    res.url = url
+    try:
+        allowed, why = vs.robots_check(url)
+        if not allowed:
+            res.status = vs.STATUS_ROBOTS
+            res.reason = why
+            return res.to_dict()
+        html = vs._http_get(url)
+        rows = vs._parse_avtoelon(html, as_of, rate, params, res)
+    except Exception as e:                       # сеть и разметка не должны ронять оценку
+        res.reason = "не удалось загрузить выдачу (%s: %s)" % (type(e).__name__, e)
+        return res.to_dict()
+    res.limitations.append("Дата у объявления — дата последнего обновления (lastUpdate); "
+                           "дату первой публикации выдача avtoelon.uz не отдаёт.")
+    res.limitations.append("Наработка моточасов в выдаче не публикуется — отбор по ней "
+                           "не выполнялся; сравнение идёт по подтипу, марке и году.")
+    if brand:
+        res.limitations.append("Отбор по марке сделан адресом раздела сайта: «%s»." % brand)
+    vs._finish(res, rows, rate)
+    if res.status == vs.STATUS_EMPTY:
+        res.reason = ("объявлений по подтипу «%s», подходящих по параметрам и обновлённых "
+                      "не раньше %s, не найдено"
+                      % (subtype, vs.window_start(as_of).isoformat()))
+    return res.to_dict()
 
 
 def stat_agency_sources(con, object_type: str, params: dict) -> list:
@@ -578,19 +708,26 @@ def find_dealer(brand: str) -> Optional[dict]:
             "brand": r.get("марка")}
 
 
-def dealer_letter(params: dict, as_of=None) -> dict:
+def dealer_letter(params: dict, as_of=None, object_type: str = "авто") -> dict:
     """
     Текст запроса официальному дилеру. Цен дилера система не придумывает:
     письмо уходит человеку, ответ возвращается в оценку руками.
+
+    object_type = «спецтехника» меняет только формулировки: вместо VIN и пробега
+    спрашиваются заводской номер и наработка моточасов, вместо комплектации — исполнение.
     """
     p = params or {}
     as_of = to_date(as_of) or date.today()
+    special = (object_type == OBJECT_SPECIAL)
     brand = p.get("brand") or p.get("марка") or DEALER_UNKNOWN
     model = p.get("model") or p.get("модель") or DEALER_UNKNOWN
     year = p.get("year") or p.get("год") or DEALER_UNKNOWN
-    vin = p.get("vin") or ""
+    vin = p.get("vin") or p.get("заводской_номер") or ""
     trim = p.get("trim") or p.get("комплектация") or DEALER_UNKNOWN
     mileage = p.get("mileage_km") or p.get("пробег")
+    hours = p.get("engine_hours") or p.get("моточасы") or p.get("наработка")
+    if special:
+        return _special_dealer_letter(p, as_of, brand, model, year, vin, hours)
     dealer = find_dealer(brand)
     to = (dealer or {}).get("name") or DEALER_UNKNOWN
     email = ((dealer or {}).get("email") or (dealer or {}).get("form")
@@ -637,6 +774,60 @@ def dealer_letter(params: dict, as_of=None) -> dict:
             "text": text, "note": note}
 
 
+def _special_dealer_letter(p: dict, as_of, brand, model, year, serial, hours) -> dict:
+    """
+    Письмо официальному представителю марки спецтехники.
+
+    Справочник data/dealers_uz.json сейчас заполнен только по легковым маркам: официальных
+    представителей Caterpillar, Komatsu, XCMG, SANY, JCB в нём нет, и придумывать их нельзя.
+    Поэтому адресат остаётся «уточнить у заказчика», пока сведения не подтверждены
+    (что проверено и что нет — в docs/Спецтехника — справочники для базы.md).
+    """
+    subtype = p.get("subtype") or p.get("подтип") or p.get("тип") or "спецтехника"
+    dealer = find_dealer(brand)
+    to = (dealer or {}).get("name") or DEALER_UNKNOWN
+    email = ((dealer or {}).get("email") or (dealer or {}).get("form")
+             or (dealer or {}).get("site") or DEALER_UNKNOWN)
+    phone = (dealer or {}).get("phone")
+    text = (
+        "Кому: %s\n"
+        "Адрес: %s\n"
+        "Тема: запрос стоимости спецтехники %s %s для целей страхования\n\n"
+        "Уважаемые коллеги!\n\n"
+        "Страховая организация АО «INSON» принимает на страхование самоходную машину и "
+        "определяет её страховую стоимость на дату %s.\n\n"
+        "Сведения о машине:\n"
+        "  вид техники: %s\n"
+        "  марка: %s\n"
+        "  модель: %s\n"
+        "  год выпуска: %s\n"
+        "  заводской номер (номер рамы): %s\n"
+        "%s"
+        "\nПросим сообщить:\n"
+        "  1) текущую цену новой машины этой модели и исполнения (или ближайшего аналога, "
+        "если модель снята с производства);\n"
+        "  2) ориентировочную цену такой машины, бывшей в эксплуатации, с указанным годом "
+        "выпуска и наработкой;\n"
+        "  3) стоимость основных узлов (двигатель, гидравлика, рабочее оборудование) — "
+        "она нужна для оценки частичного повреждения;\n"
+        "  4) дату, на которую действительны указанные цены.\n\n"
+        "Ответ просим дать письменно: он будет приложен к расчёту страховой стоимости.\n\n"
+        "С уважением,\nандеррайтинг АО «INSON»"
+    ) % (to, email, brand, model, as_of.strftime("%d.%m.%Y"), subtype, brand, model, year,
+         serial or "не указан",
+         ("  наработка: %s моточасов\n" % hours) if hours else "")
+    if phone:
+        text += "\nТелефон представителя по справочнику: %s" % phone
+    note = ("" if dealer else
+            "Официальный представитель марки спецтехники в справочнике data/dealers_uz.json "
+            "не найден: справочник заполнен только по легковым маркам. Адресата вписывает "
+            "сотрудник — адрес система не придумывает.")
+    return {"to": to, "email": email, "phone": phone, "site": (dealer or {}).get("site"),
+            "checked": (dealer or {}).get("checked"),
+            "dealer_found": bool(dealer), "as_of": as_of.isoformat(),
+            "object_type": OBJECT_SPECIAL, "text": text, "note": note}
+
+
 # ---------- шаг 3: износ ----------
 
 def mileage_factor(fact_km: Optional[float], years: float, norm_km: float,
@@ -664,6 +855,39 @@ def mileage_factor(fact_km: Optional[float], years: float, norm_km: float,
             "capped": abs(raw - k) > 1e-9, "limit_pct": limit_pct, "sensitivity": sensitivity,
             "reason": ("пробег %s км против норматива %s км (%+.1f%%)"
                        % (format(float(fact_km), ",.0f").replace(",", " "),
+                          format(expected, ",.0f").replace(",", " "), dev * 100))}
+
+
+def engine_hours_factor(fact_hours: Optional[float], years: float, norm_hours: float,
+                        sensitivity: float, limit_pct: float) -> dict:
+    """
+    Поправка по наработке для спецтехники — то же, что поправка по пробегу у автомобилей,
+    только мерой служат моточасы: у экскаватора и погрузчика одометра нет, износ считает
+    счётчик наработки (экспертная шкала, calibrated = 0).
+
+        ожидаемая наработка = норматив за год × число лет
+        отклонение = (фактическая − ожидаемая) / ожидаемая
+        коэффициент = 1 − чувствительность × отклонение, но не выходя за ±предел
+
+    Норматив (1500 моточасов в год), чувствительность и предел — те же настройки, что у авто,
+    отдельной статистики по спецтехнике у компании нет. Двойная наработка против норматива
+    даёт −15% стоимости, нулевая — +15%; дальше коэффициент не двигается, потому что
+    наработка не заменяет осмотр машины.
+    """
+    if fact_hours is None or years <= 0 or norm_hours <= 0:
+        return {"k": 1.0, "expected_hours": None, "deviation_pct": None, "capped": False,
+                "reason": "наработка моточасов не указана или неприменима — "
+                          "поправка не применяется"}
+    expected = norm_hours * years
+    dev = (float(fact_hours) - expected) / expected
+    lo, hi = 1 - limit_pct / 100, 1 + limit_pct / 100
+    raw = 1 - sensitivity * dev
+    k = min(hi, max(lo, raw))
+    return {"k": round(k, 4), "expected_hours": round(expected),
+            "deviation_pct": round(dev * 100, 1),
+            "capped": abs(raw - k) > 1e-9, "limit_pct": limit_pct, "sensitivity": sensitivity,
+            "reason": ("наработка %s моточасов против норматива %s (%+.1f%%)"
+                       % (format(float(fact_hours), ",.0f").replace(",", " "),
                           format(expected, ",.0f").replace(",", " "), dev * 100))}
 
 
@@ -796,7 +1020,7 @@ CALIBRATION_PLAN = (
 def settings_block(con) -> dict:
     """Все настройки методики одним куском — чтобы объяснение показывало, откуда каждая цифра."""
     keys = [SETTING_SPREAD, SETTING_MILEAGE, SETTING_MIN_ADS, SETTING_WINDOW,
-            SETTING_BARGAIN, SETTING_MILEAGE_SENS, SETTING_MILEAGE_LIMIT]
+            SETTING_BARGAIN, SETTING_MILEAGE_SENS, SETTING_MILEAGE_LIMIT, SETTING_EH_NORM]
     return {k: num_setting(con, k) for k in keys}
 
 
@@ -804,15 +1028,22 @@ def estimate_value(con, *, object_type: str, params: dict = None, as_of=None,
                    declared_value: float = None, norm_code: str = None,
                    initial_value: float = None, commissioned_at=None,
                    mileage_km: float = None, use_market: bool = True,
-                   sources: list = None) -> dict:
+                   sources: list = None, engine_hours: float = None) -> dict:
     """
-    Полная оценка: рынок → (для авто) письмо дилеру → износ → сверка с ценой агента.
+    Полная оценка: рынок → (авто и спецтехника) письмо дилеру → износ → сверка с ценой агента.
     Возвращает словарь, готовый к сохранению в valuations (шаг сохранения — отдельно).
+
+    Спецтехника (object_type = «спецтехника») считается так же, как авто, с двумя отличиями:
+    объявления берутся из раздела spectehnika на avtoelon.uz, а вместо пробега работает
+    наработка моточасов (engine_hours).
     """
     params = dict(params or {})
     as_of = to_date(as_of) or date.today()
     if mileage_km is None:
         mileage_km = params.get("mileage_km") or params.get("пробег")
+    if engine_hours is None:
+        engine_hours = (params.get("engine_hours") or params.get("моточасы")
+                        or params.get("наработка"))
     st = settings_block(con)
     lines = []
     expert = []
@@ -866,8 +1097,8 @@ def estimate_value(con, *, object_type: str, params: dict = None, as_of=None,
 
     # ---- шаг 2: письмо дилеру (только авто и только если рынка нет)
     letter = None
-    if (market is None or not market["enough"]) and object_type == "авто":
-        letter = dealer_letter(params, as_of)
+    if (market is None or not market["enough"]) and object_type in ("авто", OBJECT_SPECIAL):
+        letter = dealer_letter(params, as_of, object_type=object_type)
         lines.append("Шаг 2. Рынка нет — подготовлен запрос официальному дилеру: адресат «%s». %s"
                      % (letter["to"], letter["note"] or
                         "Ответ дилера вносится в оценку вручную, цены система не придумывает."))
@@ -879,7 +1110,13 @@ def estimate_value(con, *, object_type: str, params: dict = None, as_of=None,
         if norm_code and initial_value and commissioned_at:
             norm = norm_by_code(con, norm_code)
             years = years_between(commissioned_at, as_of)
-            if object_type == "авто" and mileage_km is not None:
+            if object_type == OBJECT_SPECIAL:
+                # у спецтехники одометра нет: износ измеряется счётчиком наработки
+                mil = engine_hours_factor(float(engine_hours) if engine_hours is not None else None,
+                                          years, st[SETTING_EH_NORM]["value"],
+                                          st[SETTING_MILEAGE_SENS]["value"],
+                                          st[SETTING_MILEAGE_LIMIT]["value"])
+            elif object_type == "авто" and mileage_km is not None:
                 mil = mileage_factor(float(mileage_km), years, st[SETTING_MILEAGE]["value"],
                                      st[SETTING_MILEAGE_SENS]["value"],
                                      st[SETTING_MILEAGE_LIMIT]["value"])
@@ -900,15 +1137,17 @@ def estimate_value(con, *, object_type: str, params: dict = None, as_of=None,
                             dep["years"], norm["rate_pct"], dep["years"], dep["wear_pct"]))
             lines.append("  %s сум × (1 − %.4f) = %s сум."
                          % (_sum(dep["initial"]), dep["wear_pct"] / 100, _sum(dep["linear"])))
+            mil_name = "наработке" if object_type == OBJECT_SPECIAL else "пробегу"
             if mil["k"] != 1.0:
-                lines.append("  поправка по пробегу: %s → коэффициент %.4f; %s × %.4f = %s сум."
+                lines.append("  поправка по " + mil_name + ": %s → коэффициент %.4f; "
+                             "%s × %.4f = %s сум."
                              % (mil["reason"], mil["k"], _sum(dep["linear"]), mil["k"],
                                 _sum(dep["adjusted"])))
                 if mil.get("capped"):
                     lines.append("  поправка упёрлась в предел ±%g%% (экспертно, calibrated = 0)."
                                  % mil["limit_pct"])
             else:
-                lines.append("  поправка по пробегу не применялась: %s." % mil["reason"])
+                lines.append("  поправка по " + mil_name + " не применялась: %s." % mil["reason"])
             lines.append("  остаточный минимум %g%% от первоначальной = %s сум (экспертно, "
                          "calibrated = %d)." % (norm["residual_min_pct"] or 0, _sum(dep["floor"]),
                                                 norm["calibrated"]))

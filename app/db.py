@@ -72,16 +72,30 @@ ADDED_COLUMNS = {
         # итог коллективного согласования: 'не требуется'|'на согласовании'|'согласован'|'отклонён'
         ("approval_status", "TEXT NOT NULL DEFAULT 'не требуется'"),
         ("general_agreement_id", "INTEGER"),   # по какому генеральному соглашению идёт запрос
+        # кто подал запрос из приложения: у роли «сотрудник» нет ID агента в ЕАИС,
+        # поэтому связь «человек — свой запрос» держим напрямую (app/registration.py)
+        ("created_by_user_id", "INTEGER"),
     ],
     "users": [
         ("telegram_id", "TEXT"),               # вход из мини-приложения Telegram (app/telegram.py)
-        ("position", "TEXT"),                  # должность со слов человека (регистрация в боте, app/tgbot.py)
+        ("position", "TEXT"),                  # должность со слов человека (регистрация, app/registration.py)
+        ("department", "TEXT"),                # департамент со слов человека (свободный текст с подсказками)
+        ("google_sub", "TEXT"),                # вход через Google: вечный идентификатор аккаунта (app/google_auth.py)
+        ("email", "TEXT"),                     # рабочая почта из аккаунта Google (проверена самим Google)
     ],
     "pd_consents": [
         # обязательные поля из раздела 7 docs/Регистрация и роли.md
         ("consent_text_hash", "TEXT"),                       # хэш показанного текста
         ("scope", "TEXT NOT NULL DEFAULT 'основное'"),       # 'основное' | 'телефон'
         ("revoked_at", "TEXT"),                              # отзыв — заполнением даты, строку не удаляем
+    ],
+    "reg_codes": [
+        # защита кода регистрации от перебора (раздел 7 docs/Регистрация и роли.md)
+        ("salt", "TEXT"),
+        ("sent_total", "INTEGER NOT NULL DEFAULT 0"),
+        ("first_sent_at", "TEXT"),
+        ("exhausted", "INTEGER NOT NULL DEFAULT 0"),
+        ("blocked_until", "TEXT"),
     ],
     "rules": [
         # LAWWATCH-01 (app/lawwatch.py): изменился акт — правила, которые на него ссылаются,
@@ -90,12 +104,74 @@ ADDED_COLUMNS = {
         ("review_reason", "TEXT"),
         ("review_since", "TEXT"),
     ],
+    "decision_outcomes": [
+        # состав полей модуля вероятности (app/analysis.py, SCHEMA_SQL) плюс result_json:
+        # база, заведённая до подключения модуля, доводится без пересоздания
+        ("product_code", "TEXT"),
+        ("branch", "TEXT"),
+        ("class_code", "TEXT"),
+        ("verdict", "TEXT"),
+        ("factors_json", "TEXT"),
+        ("decision", "TEXT"),
+        ("decided_at", "TEXT"),
+        ("decided_by", "TEXT"),
+        ("comment", "TEXT"),
+        ("result_json", "TEXT"),
+    ],
 }
+
+
+def _old_decision_outcomes(con):
+    """
+    Первая версия decision_outcomes (created_at NOT NULL, probability 0..1, explanation,
+    fact_decision) несовместима с модулем вероятности: ALTER TABLE в SQLite не снимает
+    NOT NULL с created_at, поэтому таблицу переименовываем, а данные переносит
+    _carry_decision_outcomes() уже после schema.sql.
+    """
+    try:
+        cols = {r[1] for r in con.execute("PRAGMA table_info(decision_outcomes)")}
+    except Exception:
+        return False
+    if not cols or "sent_at" in cols:          # таблицы нет или она уже новая
+        return False
+    con.execute("DROP TABLE IF EXISTS decision_outcomes_old")
+    con.execute("ALTER TABLE decision_outcomes RENAME TO decision_outcomes_old")
+    # имя индекса занято старой таблицей — иначе CREATE INDEX IF NOT EXISTS из schema.sql промолчит
+    con.execute("DROP INDEX IF EXISTS ix_decision_outcomes_request")
+    con.execute("DROP INDEX IF EXISTS ix_decision_outcomes_scope")
+    return True
+
+
+def _carry_decision_outcomes(con):
+    """Переносит прогнозы из старой таблицы в новую: вероятность 0..1 → проценты, факт → decision."""
+    try:
+        cols = {r[1] for r in con.execute("PRAGMA table_info(decision_outcomes_old)")}
+    except Exception:
+        return 0
+    if not cols:
+        return 0
+    moved = 0
+    names = [r[1] for r in con.execute("PRAGMA table_info(decision_outcomes_old)")]
+    for row in con.execute("SELECT * FROM decision_outcomes_old ORDER BY id").fetchall():
+        r = dict(zip(names, tuple(row)))     # соединение может быть без row_factory (tools/db_build.py)
+        p = r.get("probability")
+        con.execute("INSERT INTO decision_outcomes (request_id, calculation_id, probability, verdict,"
+                    " factors_json, model_version, sent_at, decision, decided_at, result_json)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (r.get("request_id"), r.get("calculation_id"),
+                     float(p) * 100 if p is not None else 0.0, None, r.get("explanation"),
+                     r.get("model_version"), r.get("created_at") or now(),
+                     r.get("fact_decision"), r.get("fact_at"), None))
+        moved += 1
+    con.execute("DROP TABLE decision_outcomes_old")
+    return moved
 
 
 def migrate(con):
     """Добавляет недостающие колонки. Идемпотентно: повторный запуск ничего не делает."""
     added = []
+    if _old_decision_outcomes(con):
+        added.append("decision_outcomes: старая таблица переименована, строки переносятся")
     for table, cols in ADDED_COLUMNS.items():
         try:
             have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
@@ -116,6 +192,7 @@ def ensure_schema():
         # иначе не создаются
         migrate(con)
         con.executescript(SCHEMA.read_text(encoding="utf-8"))
+        _carry_decision_outcomes(con)       # строки старой decision_outcomes — в новую
 
 
 def now() -> str:

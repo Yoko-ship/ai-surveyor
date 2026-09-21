@@ -27,6 +27,13 @@ KEYS = [
     (r"^Klasslar bo.yicha ixtiyoriy.*umumiy", "voluntary_general", "Добровольное, общее страхование"),
     (r"^Klasslar bo.yicha ixtiyoriy.*hayot", "voluntary_life", "Добровольное, страхование жизни"),
     (r"^qurilish-montaj", "cmr_mandatory", "СМР обязательное"),
+    # ОСГОР — обязательное страхование гражданской ответственности работодателя (ЗРУ-616, ПКМ-573).
+    # В отчёте НАПП это две отдельные строки внутри блока «Majburiy sug'urta»; аннуитетная идёт первой,
+    # поэтому её образец должен стоять выше общего — иначе общий перехватит обе.
+    (r"^ish beruvchining fuqarolik javobgarligi \(annuitet\)", "osgor_annuity",
+     "ОСГОР — аннуитеты (обязательное страхование ГО работодателя, выплаты рентой)"),
+    (r"^ish beruvchining fuqarolik javobgarligi\s*$", "osgor",
+     "ОСГОР — ГО работодателя (обязательное)"),
     (r"^transport vositalari egalarining fuqarolik javobgarligi", "osago", "ОСАГО — ГО владельцев транспортных средств (обязательное)"),
     (r"^(\d+)-klass", None, None),                 # cls<N>
     (r"^\"?([\d,]+) klasslar", None, None),        # пакет классов: cls8_9, cls8_9_13
@@ -318,8 +325,81 @@ def refresh():
     return log
 
 
+# ---------------------------------------------------------------------------
+# Выгрузка по ОСГОР: деньги (лист 1.4) + число договоров (лист 1.5)
+# ---------------------------------------------------------------------------
+# Числа договоров в market_stats не хранятся (в таблице только премии, выплаты и
+# обязательства), поэтому лист 1.5 читается отдельно и отдаётся файлом для заказчика.
+OSGOR_ROWS = {"osgor": "ОСГОР — ГО работодателя (обязательное)",
+              "osgor_annuity": "ОСГОР — аннуитеты"}
+
+
+def contracts_15():
+    """Число договоров по строкам ОСГОР из листа 1.5: {(ключ, дата): (действующие, новые)}."""
+    out = {}
+    for f in sorted(PARSED.glob("*/1.5.csv")):
+        rows = list(csv.reader(open(f, encoding="utf-8-sig")))
+        hdr_i, cols = find_header(rows)
+        if hdr_i is None:
+            continue
+        sub = rows[hdr_i + 1]                      # подзаголовок: «действующие» / «новые»
+        for r in rows[hdr_i + 2:]:
+            n = (r[0] or "").strip().lower()
+            if not n.startswith("ish beruvchining"):
+                continue
+            key = "osgor_annuity" if "annuitet" in n else "osgor"
+            for j in cols:
+                d = DATE_RE.match(rows[hdr_i][j]).group(1)
+                v = num(r[j]) if j < len(r) else None
+                if v is None:
+                    continue
+                act, new = out.get((key, d), (None, None))
+                if "Amalda" in (sub[j] if j < len(sub) else ""):
+                    act = int(v)
+                else:
+                    new = int(v)
+                out[(key, d)] = (act, new)
+    return out
+
+
+def osgor_csv():
+    """docs/ОСГОР — статистика рынка (НАПП).csv: по срезам, деньги + договоры + убыточность."""
+    con = sqlite3.connect(DB)
+    money = {(r[1], r[0]): r[2:] for r in con.execute(
+        "SELECT report_date, row_key, premiums_ytd, payouts_ytd, liabilities, source_file "
+        "FROM market_stats WHERE row_key IN ('osgor','osgor_annuity')")}
+    con.close()
+    cnt = contracts_15()
+    path = ROOT / "docs" / "ОСГОР — статистика рынка (НАПП).csv"
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        w = csv.writer(f, delimiter=";")
+        w.writerow(["ряд", "строка отчёта", "дата среза", "период (нарастающим итогом)",
+                    "премии, млн сум", "выплаты, млн сум", "страховые обязательства, млн сум",
+                    "убыточность, % (выплаты/премии)", "договоров действующих на дату, шт.",
+                    "договоров заключено за период, шт.", "источник (разобранный отчёт)"])
+        period = {"03-31": "3 мес.", "04-01": "3 мес.", "07-01": "6 мес.",
+                  "10-01": "9 мес.", "01-01": "12 мес. (год завершён)"}
+        for key, name in OSGOR_ROWS.items():
+            for (k, d), (prem, pay, liab, src) in sorted(money.items()):
+                if k != key:
+                    continue
+                yr = int(d[:4]) - 1 if d[5:] == "01-01" else int(d[:4])
+                act, new = cnt.get((key, d), (None, None))
+                lr = (pay / prem * 100) if prem else None
+                w.writerow([key, name, d, f"{yr}, {period.get(d[5:], d)}",
+                            f"{prem:.3f}" if prem is not None else "",
+                            f"{pay:.3f}" if pay is not None else "",
+                            f"{liab:.3f}" if liab is not None else "",
+                            f"{lr:.3f}" if lr is not None else "",
+                            act if act is not None else "",
+                            new if new is not None else "", src])
+    return path
+
+
 if __name__ == "__main__":
-    if "--refresh" in sys.argv:
+    if "--osgor" in sys.argv:
+        print("Файл по ОСГОР:", osgor_csv())
+    elif "--refresh" in sys.argv:
         print("\n".join(refresh()))
     else:
         n, dates = build()

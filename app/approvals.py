@@ -1,5 +1,5 @@
 """
-Коллективное согласование запросов: один запрос рассматривают 2–3 человека.
+Коллективное согласование запросов: один запрос рассматривают от одного до трёх человек.
 
 Зачем: по генеральному соглашению (например, с Asia Alliance Bank) запрос уходит не одному
 андеррайтеру, а сразу нескольким людям, которых выбирает сам пользователь. Компании нужно
@@ -7,7 +7,9 @@
 
 Права (обхода входа в модуле нет, тесты заводят настоящие сессии):
     решение              — вошедший пользователь, назначенный согласующим по этому запросу;
-    состав согласующих   — вошедший работник компании; агент — только по своему запросу;
+    состав согласующих   — вошедший работник компании; агент и сотрудник — только по своему запросу;
+    своя очередь         — вошедший; чужая очередь — только админ;
+    общая лента и список «на согласовании» — андеррайтер, актуарий, админ;
     генеральные соглашения — админ.
 
 Итоговый статус запроса (requests.approval_status):
@@ -23,13 +25,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
-from . import db
+from . import access, db
 from .auth import current_user, require
 
 ROOT = Path(__file__).resolve().parent.parent
 router = APIRouter()
 
-MIN_REVIEWERS, MAX_REVIEWERS = 2, 3
+# От одного до трёх рассматривающих (решение заказчика 21.09.2026: раньше было «не меньше двух»).
+MIN_REVIEWERS, MAX_REVIEWERS = 1, 3
 DECISIONS = ("одобрил", "отклонил", "вопрос")
 WAITING = "ожидает"
 
@@ -71,7 +74,7 @@ def _notify(hook: str, *args):
         print("уведомление в Telegram не ушло:", e)
 
 
-def recalc(con, request_id: int) -> str:
+def recalc(con, request_id: int, decided_by: Optional[str] = None, comment: Optional[str] = None) -> str:
     """Пересчитывает итоговый статус согласования запроса и сохраняет его."""
     rows = db.rows(con, "SELECT status FROM request_reviewers WHERE request_id=?", request_id)
     if not rows:
@@ -83,6 +86,10 @@ def recalc(con, request_id: int) -> str:
     else:
         status = IN_REVIEW
     con.execute("UPDATE requests SET approval_status=? WHERE id=?", (status, request_id))
+    if status in (APPROVED, REJECTED):
+        # факт решения — рядом с прогнозом вероятности, чтобы одно сверялось с другим
+        from . import outcomes
+        outcomes.record_fact(con, request_id, status, decided_by=decided_by, comment=comment)
     return status
 
 
@@ -127,15 +134,17 @@ def default_reviewers(con, agreement_id: int) -> list:
 
 
 def initiator_user_ids(con, request_id: int) -> set:
-    """Кто подал запрос: в requests хранится только agent_id, сверяем с людьми по ID агента в ЕАИС."""
+    """Кто подал запрос: прямая связь requests.created_by_user_id (роль «сотрудник» не привязана
+    к ЕАИС) плюс старая связь через ID агента в ЕАИС."""
     r = _request(con, request_id)
+    out = {r["created_by_user_id"]} if r.get("created_by_user_id") else set()
     aid = r.get("agent_id")
     if not aid:
-        return set()
+        return out
     a = db.rows(con, "SELECT eais_id FROM agents WHERE id=?", aid)
     if not a or not a[0]["eais_id"]:
-        return set()
-    return {u["id"] for u in db.rows(con, "SELECT id FROM users WHERE agent_eais_id=?", a[0]["eais_id"])}
+        return out
+    return out | {u["id"] for u in db.rows(con, "SELECT id FROM users WHERE agent_eais_id=?", a[0]["eais_id"])}
 
 
 def assign(con, request_id: int, user_ids: List[int], who: Optional[str] = None,
@@ -180,10 +189,23 @@ def assign(con, request_id: int, user_ids: List[int], who: Optional[str] = None,
     if agreement_id is not None:
         con.execute("UPDATE requests SET general_agreement_id=? WHERE id=?", (agreement_id, request_id))
     status = recalc(con, request_id)
+    # запрос уходит на согласование — считаем вероятность подтверждения и кладём её рядом
+    # с расчётом (app/outcomes.py → app/analysis.py). Не получилось — согласование не срываем.
+    prob = None
+    try:
+        from . import outcomes
+        if outcomes.compute_and_save(con, request_id):
+            prob = outcomes.summary(con, request_id)
+    except Exception as e:
+        print("вероятность подтверждения не рассчитана:", e)
+        db.audit(con, who or "system", "вероятность не рассчитана", f"request:{request_id}",
+                 {"ошибка": str(e)})
     db.audit(con, who or "system", "назначены согласующие", f"request:{request_id}",
              {"было": [o["user_id"] for o in old], "стало": ids, "генсоглашение": agreement_id})
     _notify("on_assigned", con, request_id, ids)
-    return {"request_id": request_id, "approval_status": status, "reviewers": reviewers(con, request_id)}
+    from . import outcomes
+    return {"request_id": request_id, "approval_status": status, "reviewers": reviewers(con, request_id),
+            "probability": prob or outcomes.empty("вероятность рассчитать не удалось")}
 
 
 def reviewers(con, request_id: int) -> list:
@@ -203,7 +225,7 @@ def decide(con, request_id: int, who: str, decision: str, comment: Optional[str]
     before = row[0]["status"]
     con.execute("UPDATE request_reviewers SET status=?, comment=?, decided_at=? WHERE id=?",
                 (decision, comment, db.now(), row[0]["id"]))
-    status = recalc(con, request_id)
+    status = recalc(con, request_id, decided_by=u["login"], comment=comment)
     db.audit(con, u["login"], "решение по согласованию", f"request:{request_id}",
              {"было": before, "стало": decision, "комментарий": comment, "итог": status})
     _notify("on_decided", con, request_id, u, decision, comment, status)
@@ -234,6 +256,9 @@ def inbox(con, who: str) -> list:
                             LEFT JOIN general_agreements g ON g.id = r.general_agreement_id
                             WHERE rr.user_id=? AND rr.status=?
                             ORDER BY rr.assigned_at""", u["id"], WAITING)
+    from . import outcomes
+    for it in items:                        # короткий вид: число, вердикт и одна строка «почему»
+        it["probability"] = outcomes.brief(con, it["request_id"])
     return items
 
 
@@ -271,30 +296,73 @@ def post_decide(request_id: int, body: DecisionIn, user: dict = Depends(current_
         return decide(con, request_id, user["login"], body.decision, body.comment)
 
 
-@router.get("/requests/{request_id}/approvals")
-def get_approvals(request_id: int):
+@router.get("/requests/{request_id}/reviewer-candidates")
+def get_reviewer_candidates(request_id: int, user: dict = Depends(current_user)):
+    """Кого можно выбрать рассматривающими по этому запросу: действующие администраторы
+    (ФИО, должность, департамент). Есть генеральное соглашение по продукту — его состав
+    приходит отмеченным заранее."""
     with db.tx() as con:
         r = _request(con, request_id)
+        initiators = initiator_user_ids(con, request_id)
+        items = [{"id": u["id"], "full_name": u["full_name"], "position": u.get("position") or u["role"],
+                  "department": u.get("department") or "", "branch": u.get("branch") or "",
+                  "telegram": bool(u.get("telegram_id"))}
+                 for u in db.rows(con, "SELECT * FROM users WHERE role='админ' AND status='активен'"
+                                       " ORDER BY full_name")
+                 if u["id"] not in initiators]
+        agreement, preset = None, []
+        aid = r.get("general_agreement_id")
+        if not aid and r.get("product_code"):
+            found = db.rows(con, "SELECT id FROM general_agreements WHERE product_code=? AND status='действует'"
+                                 " ORDER BY id LIMIT 1", r["product_code"])
+            aid = found[0]["id"] if found else None
+        if aid:
+            a = db.rows(con, "SELECT id, partner FROM general_agreements WHERE id=?", aid)
+            if a:
+                agreement = a[0]
+                known = {i["id"] for i in items}
+                preset = [uid for uid in default_reviewers(con, aid) if uid in known]
+        return {"request_id": request_id, "min": MIN_REVIEWERS, "max": MAX_REVIEWERS,
+                "general_agreement": agreement, "preselected": preset, "items": items}
+
+
+@router.get("/requests/{request_id}/approvals")
+def get_approvals(request_id: int, user: dict = Depends(current_user)):
+    """Состав согласующих и их решения. Посторонний получает 404: сам факт существования чужого
+    запроса — уже сведения, составляющие тайну страхования (docs/Регистрация и роли.md, 6.1 п. 2)."""
+    with db.tx() as con:
+        access.ensure_can_open(con, user, request_id)
+        r = _request(con, request_id)
+        from . import outcomes
         return {"request_id": request_id, "approval_status": r.get("approval_status") or NOT_REQUIRED,
                 "general_agreement_id": r.get("general_agreement_id"),
-                "reviewers": reviewers(con, request_id)}
+                "reviewers": reviewers(con, request_id),
+                "probability": outcomes.summary(con, request_id)}
 
 
 @router.get("/approvals/inbox")
-def get_inbox(user: str):
+def get_inbox(user: str = "", me: dict = Depends(current_user)):
+    """Очередь конкретного человека. Чужую очередь видит только администратор: в карточках
+    есть сведения о страхователе (ЗРУ-730, ст. 62)."""
     with db.tx() as con:
-        return {"user": user, "items": inbox(con, user)}
+        target = _user_by_who(con, user) if user else me
+        if not target:
+            raise HTTPException(404, "Пользователь не найден")
+        if target["id"] != me["id"] and me["role"] != "админ":
+            raise HTTPException(403, "Чужую очередь согласования смотреть нельзя")
+        return {"user": target["login"], "items": inbox(con, target["login"])}
 
 
 @router.get("/approvals/feed")
-def get_feed(limit: int = 50):
+def get_feed(limit: int = 50, user: dict = Depends(require("андеррайтер", "актуарий", "админ"))):
+    """Общая лента решений: закрыта для ролей «сотрудник» и «агент» — они видят только свои запросы."""
     with db.tx() as con:
         pending = db.rows(con, "SELECT COUNT(*) n FROM requests WHERE approval_status=?", IN_REVIEW)
         return {"pending_requests": pending[0]["n"] if pending else 0, "items": feed(con, max(1, min(limit, 500)))}
 
 
 @router.get("/approvals/pending")
-def get_pending():
+def get_pending(user: dict = Depends(require("андеррайтер", "актуарий", "админ"))):
     """Все запросы на согласовании и сколько человек ещё не ответили (для экрана /approvals)."""
     with db.tx() as con:
         items = db.rows(con, """SELECT r.id, r.external_no, r.branch, r.product_code,
@@ -307,7 +375,8 @@ def get_pending():
 
 
 @router.get("/general-agreements")
-def get_agreements():
+def get_agreements(user: dict = Depends(require("админ"))):
+    """Генеральные соглашения — раздел администратора (docs/Регистрация и роли.md, раздел 8)."""
     with db.tx() as con:
         out = db.rows(con, "SELECT * FROM general_agreements ORDER BY partner, id")
     for a in out:

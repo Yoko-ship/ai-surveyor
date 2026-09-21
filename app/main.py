@@ -6,14 +6,14 @@
   GET  /reference/{products|classes|perils|coefficients|checklists|rules}
   POST /calculate                       — расчёт без сохранения (для форм и проверок «на лету»)
   POST /requests                        — запрос от филиала: сохранить, посчитать, вернуть карточку
-  GET  /requests, GET /requests/{id}    — список и карточка
+  GET  /requests, GET /requests/{id}    — список и карточка (сотрудник и агент видят только свои)
   POST /requests/{id}/documents         — загрузить документ
   POST /requests/{id}/photos            — фото объекта; GET /requests/{id}/photos, GET/DELETE /photos/{id}
   POST /requests/{id}/documents/upload  — техпаспорт или кадастр (PDF/фото), сразу разбирается
   POST /documents/parse                 — разбор загруженного документа; GET /requests/{id}/documents/fields
   GET  /requests/{id}/checklist         — чек-лист документов: что получено
   GET  /valuation/norms, /valuation/settings — нормы износа и настройки оценки (POST — правка)
-  POST /requests/{id}/decision          — решение андеррайтера
+  POST /requests/{id}/decide            — решение назначенного согласующего (app/approvals.py)
   GET  /analytics/summary               — аналитика запросов
   POST /admin/tariff-versions, /admin/min-rates, /admin/coefficients, /admin/products, PUT /admin/financials
   GET  /requests/{id}/explain           — объяснение расчёта клиенту (ИИ, без него — шаблон)
@@ -37,11 +37,12 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
-from . import db
+from . import access, db
+from .auth import current_user
 from .engine import Input, calculate
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -180,12 +181,6 @@ class RequestIn(CalcIn):
     term_to: Optional[str] = None
 
 
-class Decision(BaseModel):
-    who: str
-    decision: str                              # 'утверждено' | 'отклонено' | 'на доработку'
-    comment: str = ""
-
-
 def to_input(con, c: CalcIn) -> Input:
     pcs = db.rows(con, "SELECT class_code FROM product_classes WHERE product_code=? ORDER BY part_no", c.product_code)
     if not pcs:
@@ -242,15 +237,50 @@ def reference(name: str):
 
 # ---------- расчёт ----------
 
+def _probability(con, inp, result: dict, body) -> dict:
+    """
+    Вероятность подтверждения к итогу расчёта (app/analysis.py). Ничего не сохраняет:
+    запись появляется, когда запрос уходит на согласование (app/approvals.assign).
+    Ошибка модуля расчёт не отменяет — она идёт в журнал.
+    """
+    from . import analysis, outcomes
+    try:
+        res = analysis.probability(
+            con, calc=result, valuation=inp.valuation, documents=None, history=None,
+            context={"product_code": body.product_code, "branch": getattr(body, "branch", None),
+                     "class_code": inp.class_code, "sum_insured": body.sum_insured,
+                     "factors": body.factors or {},
+                     "franchise": (body.factors or {}).get("franchise")})
+        return outcomes.view(res)
+    except Exception as e:
+        db.audit(con, "api", "вероятность не рассчитана", None, {"ошибка": str(e)})
+        return outcomes.empty("модуль вероятности вернул ошибку")
+
+
 @app.post("/calculate")
 def calc(body: CalcIn):
     with db.tx() as con:
         ref = db.load_reference(con)
-        return calculate(ref, to_input(con, body))
+        inp = to_input(con, body)
+        result = calculate(ref, inp)
+        return {**result, "probability": _probability(con, inp, result, body)}
 
 
 @app.post("/requests")
-def create_request(body: RequestIn):
+def create_request(body: RequestIn, request: Request = None):
+    # кто подал: берём вошедшего из сессии. Нужен роли «сотрудник» — у неё нет ID агента в ЕАИС,
+    # а «свои запросы» и доступ к выгрузкам определяются именно по автору.
+    author_id = None
+    if request is not None:
+        try:
+            from . import auth as _auth
+            u = request.scope.get("surveyor_user")
+            if u is None:
+                with db.tx() as _c:
+                    u = _auth.session_user(_c, _auth.request_token(request))
+            author_id = (u or {}).get("id")
+        except Exception as e:                 # вход не обязателен для расчёта — ошибку не глотаем молча
+            print("создание запроса: автор не определён:", e)
     with db.tx() as con:
         ref = db.load_reference(con)
         inp = to_input(con, body)
@@ -260,10 +290,10 @@ def create_request(body: RequestIn):
             a = db.rows(con, "SELECT id FROM agents WHERE eais_id=?", body.agent_eais_id)
             agent_id = a[0]["id"] if a else None
         cur = con.execute(
-            "INSERT INTO requests (external_no, branch, product_code, policyholder, beneficiary, agent_id, created_at, status)"
-            " VALUES (?,?,?,?,?,?,?,?)",
+            "INSERT INTO requests (external_no, branch, product_code, policyholder, beneficiary, agent_id,"
+            " created_by_user_id, created_at, status) VALUES (?,?,?,?,?,?,?,?,?)",
             (body.external_no, body.branch, body.product_code, body.policyholder, body.beneficiary, agent_id,
-             db.now(), "посчитан"))
+             author_id, db.now(), "посчитан"))
         rid = cur.lastrowid
         cur = con.execute(
             "INSERT INTO objects (request_id, object_type, address, region, seismic_zone, value_amount, sum_insured, franchise, attributes)"
@@ -272,7 +302,14 @@ def create_request(body: RequestIn):
              body.factors.get("franchise"), json.dumps({"factors": body.factors, "term_from": body.term_from,
                                                         "term_to": body.term_to, "insured_person": body.insured_person,
                                                         "credit": body.credit.model_dump() if body.credit else None,
-                                                        "premium_paid": body.premium_paid}, ensure_ascii=False)))
+                                                        "premium_paid": body.premium_paid,
+                                                        # условия расчёта: без них запрос не пересчитать
+                                                        # тем же движком (app/outcomes.py)
+                                                        "term_days": body.term_days,
+                                                        "payer_type": body.payer_type,
+                                                        "takaful": body.takaful,
+                                                        "disclosure_done": body.disclosure_done,
+                                                        "object_key": body.object_key}, ensure_ascii=False)))
         oid = cur.lastrowid
         for p in result["perils_included"]:
             con.execute("INSERT INTO object_perils VALUES (?,?,1)", (oid, p))
@@ -296,15 +333,21 @@ def create_request(body: RequestIn):
             con.execute("INSERT INTO recommendations (calculation_id, kind, text, premium_delta) VALUES (?,?,?,?)",
                         (cid, t["kind"], t["text"], t["premium_delta"]))
         db.audit(con, body.branch or "api", "создан запрос", f"request:{rid}", {"verdict": result["verdict"]})
-        return {"request_id": rid, "calculation_id": cid, **result}
+        return {"request_id": rid, "calculation_id": cid, **result,
+                "probability": _probability(con, inp, result, body)}
 
 
 @app.get("/requests")
-def list_requests(status: Optional[str] = None, branch: Optional[str] = None, limit: int = 100):
+def list_requests(status: Optional[str] = None, branch: Optional[str] = None, limit: int = 100,
+                  user: dict = Depends(current_user)):
+    """Список запросов. Кто не видит всё (сотрудник, агент) — получает только свои: фильтр стоит
+    в SQL, чтобы чужая строка не попадала в выборку вообще (docs/Регистрация и роли.md, 6.1 п. 1)."""
     sql = """SELECT r.id, r.external_no, r.branch, r.product_code, r.policyholder, r.created_at, r.status,
                     c.applied_rate_pct, c.gross_rate_pct, c.min_rate_pct, c.premium, c.verdict
              FROM requests r LEFT JOIN calculations c ON c.request_id = r.id WHERE 1=1"""
     args = []
+    if not access.sees_all(user):
+        sql += access.own_requests_where("r"); args += access.own_requests_args(user)
     if status:
         sql += " AND r.status=?"; args.append(status)
     if branch:
@@ -325,13 +368,17 @@ def _card(con, rid: int) -> dict:
     recs = db.rows(con, "SELECT kind, text, premium_delta FROM recommendations WHERE calculation_id=?",
                    calc[0]["id"]) if calc else []
     docs = db.rows(con, "SELECT id, doc_name, received, file_path FROM documents WHERE request_id=?", rid)
+    from . import outcomes
     return {"request": req[0], "object": obj[0] if obj else None, "calculation": calc[0] if calc else None,
-            "checks": checks, "recommendations": recs, "documents": docs}
+            "checks": checks, "recommendations": recs, "documents": docs,
+            "probability": outcomes.summary(con, rid)}
 
 
 @app.get("/requests/{rid}")
-def get_request(rid: int):
+def get_request(rid: int, user: dict = Depends(current_user)):
+    """Чужой запрос для сотрудника и агента не существует: 404, а не 403 (6.1 п. 2)."""
     with db.tx() as con:
+        access.ensure_can_open(con, user, rid)
         return _card(con, rid)
 
 
@@ -350,13 +397,10 @@ async def upload_document(rid: int, doc_name: str, file: UploadFile = File(...))
     return {"ok": True, "stored": str(dest.relative_to(ROOT))}
 
 
-@app.post("/requests/{rid}/decision")
-def decide(rid: int, d: Decision):
-    with db.tx() as con:
-        _card(con, rid)
-        con.execute("UPDATE requests SET status=? WHERE id=?", (d.decision, rid))
-        db.audit(con, d.who, "решение андеррайтера", f"request:{rid}", {"decision": d.decision, "comment": d.comment})
-    return {"ok": True, "status": d.decision}
+# Маршрут POST /requests/{rid}/decision убран 20.09.2026. Он менял статус любого запроса по полю
+# «who» из тела — без входа под этим человеком, без роли и без проверки участия, в обход модуля
+# согласования (app/approvals.py): решение не попадало ни в request_reviewers, ни в decision_outcomes.
+# Решение принимает назначенный согласующий: POST /requests/{id}/decide.
 
 
 # ---------- аналитика ----------
@@ -678,29 +722,95 @@ def audit_log(limit: int = 200):
 
 # ---------- экраны ----------
 
-SIDEBAR_ITEMS = [("/", "Главная"), ("/ui", "Новый расчёт"), ("/admin", "Запросы и админка"), ("/portfolio", "Портфель"),
-                 ("/approvals", "Согласования"), ("/tasks-page", "Задачи команде"), ("/reports-page", "Ежедневный доклад"),
-                 ("/stats", "Динамика рынка"), ("/capacity-page", "Ёмкость и удержание"), ("/calibration", "Калибровка"),
-                 ("/graph", "Паутина знаний"), ("/law-feed", "Законодательство"), ("/office", "Офис агентов"),
-                 ("/admin/deploy", "Запуск и обслуживание"), ("/docs", "API")]
+# разделы бокового меню: адрес, полное название, значок и короткая подпись для узкой рейки
+SIDEBAR_ITEMS = [("/", "Главная", "⌂", "Главная"), ("/ui", "Новый расчёт", "₌", "Расчёт"),
+                 ("/admin", "Запросы и админка", "❑", "Запросы"), ("/portfolio", "Портфель", "▤", "Портфель"),
+                 ("/approvals", "Согласования", "✓", "Согл."), ("/tasks-page", "Задачи команде", "✎", "Задачи"),
+                 ("/reports-page", "Ежедневный доклад", "▦", "Доклад"), ("/stats", "Динамика рынка", "↗", "Рынок"),
+                 ("/capacity-page", "Ёмкость и удержание", "◍", "Ёмкость"), ("/calibration", "Калибровка", "⚖", "Калибр."),
+                 ("/graph", "Паутина знаний", "◈", "Паутина"), ("/law-feed", "Законодательство", "§", "Закон"),
+                 ("/office", "Офис агентов", "◉", "Офис"),
+                 ("/admin/deploy", "Запуск и обслуживание", "⚙", "Запуск"), ("/docs", "API", "⌨", "API")]
+
+# Одна раскладка для всех страниц: слева узкая рейка со значками, по «гамбургеру» — панель с названиями.
+# Ту же логику повторяет мини-приложение app/tg.html (там свой файл, отдельно от сервера).
+SIDEBAR_CSS = """<style>
+:root{--sb-paper:#0F1418;--sb-line:#26303A;--sb-muted:#8E9BA6;--sb-accent:#2ED3A2;--sb-dim:#1E8F70;--sb-rail:60px;--sb-wide:240px}
+#side{position:fixed;left:0;top:0;bottom:0;z-index:60;width:calc(var(--sb-rail) + env(safe-area-inset-left));
+  background:var(--sb-paper);border-right:1px solid var(--sb-line);display:flex;flex-direction:column;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:calc(env(safe-area-inset-top) + 6px) 0 calc(env(safe-area-inset-bottom) + 12px) env(safe-area-inset-left);
+  font:14px Manrope,system-ui,sans-serif;transition:width .16s ease}
+body.side-open #side{width:calc(var(--sb-wide) + env(safe-area-inset-left));box-shadow:0 0 44px rgba(0,0,0,.45)}
+body.side-wide #side{box-shadow:none}
+#sbScrim{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .16s}
+body.side-open:not(.side-wide) #sbScrim{opacity:1;pointer-events:auto}
+body.side-wide #sbScrim{display:none}
+#side .burger{background:none;border:0;width:100%;min-height:48px;padding:0;color:var(--sb-muted);cursor:pointer;
+  display:flex;align-items:center;gap:12px;font:700 12.5px Manrope,system-ui,sans-serif;text-align:left}
+#side .burger i{font-style:normal;font-size:20px;line-height:1;flex:none;width:var(--sb-rail);text-align:center}
+#side .burger span{display:none}
+body.side-open #side .burger span{display:block}
+body.side-wide #side .burger{display:none}
+#side .brand{display:flex;align-items:center;gap:12px;min-height:46px;color:#E6ECF0;padding:0}
+#side .brand i{font-style:normal;flex:none;width:var(--sb-rail);display:grid;place-items:center}
+#side .brand i b{width:32px;height:32px;border-radius:50%;background:var(--sb-dim);display:grid;place-items:center;
+  font-weight:800;color:#0F1418;font-size:14px}
+#side .brand div{display:none;min-width:0}
+body.side-open #side .brand div{display:block}
+#side .brand-logo{display:inline-flex;align-items:baseline;font:800 20px/1 Manrope,system-ui,sans-serif;letter-spacing:-.02em}
+#side .brand-logo b{color:#8EA9FF} #side .brand-logo b + b{color:#3FBE74}
+#side .brand-sub{display:block;font:600 10.5px Manrope,system-ui,sans-serif;color:var(--sb-muted);margin-top:3px;white-space:nowrap}
+#sb{display:flex;flex-direction:column;gap:2px;padding:8px 0}
+#sb a{position:relative;color:var(--sb-muted);text-decoration:none;min-height:52px;padding:6px 1px;font-weight:600;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;line-height:1.1;text-align:center}
+#sb a i{font-style:normal;font-size:18px;line-height:1}
+#sb a u{text-decoration:none;font-size:9.5px;max-width:var(--sb-rail);padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#sb a span{display:none;font-size:13.5px}
+#sb a.on{color:var(--sb-accent);background:rgba(46,211,162,.10);box-shadow:inset 3px 0 0 var(--sb-accent)}
+#sb a:focus-visible,#side .burger:focus-visible{outline:2px solid var(--sb-accent);outline-offset:-2px}
+body.side-open #sb a{flex-direction:row;justify-content:flex-start;gap:12px;min-height:48px;padding:6px 12px 6px 0;text-align:left}
+body.side-open #sb a i{flex:none;width:var(--sb-rail);text-align:center}
+body.side-open #sb a u{display:none}
+body.side-open #sb a span{display:block;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body{padding-left:calc(var(--sb-rail) + env(safe-area-inset-left)) !important;padding-right:env(safe-area-inset-right)}
+body.side-wide{padding-left:calc(var(--sb-wide) + env(safe-area-inset-left)) !important}
+</style>"""
+
+SIDEBAR_JS = """<script>
+(function(){
+  var wide = window.matchMedia("(min-width:900px)");
+  var burger = document.getElementById("burger"), scrim = document.getElementById("sbScrim");
+  function open(on){
+    document.body.classList.toggle("side-open", !!on);
+    burger.setAttribute("aria-expanded", on ? "true" : "false");
+  }
+  function sync(){ document.body.classList.toggle("side-wide", wide.matches); open(wide.matches); }
+  if (wide.addEventListener) wide.addEventListener("change", sync); else wide.addListener(sync);
+  sync();
+  burger.addEventListener("click", function(){ open(!document.body.classList.contains("side-open")); });
+  scrim.addEventListener("click", function(){ if (!wide.matches) open(false); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape" && !wide.matches) open(false); });
+})();
+</script>"""
 
 
 def sidebar(active: str) -> str:
-    links = "".join(f'<a href="{h}"{" class=on" if h == active else ""}>{t}</a>' for h, t in SIDEBAR_ITEMS)
-    return f"""<style>
-    :root{{--sb-paper:#0F1418;--sb-line:#26303A;--sb-muted:#8E9BA6;--sb-accent:#2ED3A2;--sb-dim:#1E8F70}}
-    #sb{{position:fixed;left:0;top:0;bottom:0;width:220px;background:var(--sb-paper);border-right:1px solid var(--sb-line);
-        padding:18px 12px;display:flex;flex-direction:column;gap:4px;font:14px Manrope,system-ui,sans-serif;z-index:50;overflow-y:auto}}
-    #sb .brand{{display:flex;align-items:center;gap:10px;padding:6px 8px 18px;color:#E6ECF0}}
-    #sb .brand i{{width:34px;height:34px;border-radius:50%;background:var(--sb-dim);display:grid;place-items:center;font-weight:800;color:#0F1418;font-style:normal}}
-    #sb .brand b{{display:block;font-size:15px}} #sb .brand span{{font-size:11px;color:var(--sb-muted)}}
-    #sb a{{color:var(--sb-muted);text-decoration:none;padding:9px 12px;border-radius:10px;font-weight:600;font-size:13.5px}}
-    #sb a.on{{color:var(--sb-accent);border:1px solid var(--sb-dim);background:rgba(46,211,162,.08)}}
-    body{{padding-left:220px !important}}
-    @media (max-width:760px){{#sb{{position:static;width:auto;flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--sb-line);padding:10px}}
-      #sb .brand{{display:none}} body{{padding-left:0 !important}}}}
-    </style>
-    <nav id="sb"><div class="brand"><i>S</i><div><b>Сюрвейер</b><span>INSON</span></div></div>{links}</nav>"""
+    links = "".join(
+        f'<a href="{h}"{" class=on" if h == active else ""} title="{t}"'
+        f'{" aria-current=page" if h == active else ""}>'
+        f'<i aria-hidden="true">{ico}</i><u>{short}</u><span>{t}</span></a>'
+        for h, t, ico, short in SIDEBAR_ITEMS)
+    return (SIDEBAR_CSS
+            + '<aside id="side">'
+              '<button class="burger" id="burger" type="button" aria-controls="sb" aria-expanded="false">'
+              '<i aria-hidden="true">&#9776;</i><span>Свернуть меню</span></button>'
+              '<div class="brand"><i aria-hidden="true"><b>S</b></i>'
+              '<div><span class="brand-logo"><b>INS</b><b>ON</b></span>'
+              '<span class="brand-sub">Сюрвейер</span></div></div>'
+              f'<nav id="sb" aria-label="Разделы">{links}</nav></aside>'
+              '<div id="sbScrim"></div>'
+            + SIDEBAR_JS)
 
 
 # Мост UI_BRIDGE убран 20.09.2026: экран /ui (docs/agent_ui.html) сам показывает рынок,
@@ -741,15 +851,24 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("history", "history_router"), ("auth", "auth_router"), ("team", "team_router"),
                     ("knowledge", "knowledge_router"), ("office_api", "office_router"),
                     ("photos", "photos_router"), ("valuation", "valuation_router"),
-                    ("docparse", "docparse_router"), ("statagency", "statagency_router"),
+                    ("docparse", "docparse_router"), ("ingest", "ingest_router"),
+                    ("statagency", "statagency_router"),
                     ("approvals", "approvals_router"), ("lawwatch", "lawwatch_router"),
                     ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router"),
-                    ("tgbot", "tgbot_router")):
+                    ("tgbot", "tgbot_router"), ("registration", "registration_router"),
+                    ("exports", "exports_router"), ("i18n", "i18n_router"),
+                    ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)
     except Exception as _e:  # модуль ещё не готов — сервер всё равно поднимается
         print(f"модуль {_mod} не подключён: {_e}")
+
+
+# Вход через Google (app/google_auth.py): подключаем рядом с остальными входами.
+from . import google_auth  # noqa: E402
+
+app.include_router(google_auth.router)
 
 
 # Единый вход: всё, кроме белого списка, требует сессии (app/guard.py).

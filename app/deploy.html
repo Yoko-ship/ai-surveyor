@@ -102,6 +102,13 @@ dialog .foot{display:flex;gap:8px;justify-content:flex-end;padding:12px 20px;bor
       <input id="api_key" type="password" placeholder="вставьте новый ключ, чтобы заменить" autocomplete="new-password">
       <label class="f" for="telegram_bot_token">Токен бота Telegram <span class="mask" id="tokMask"></span></label>
       <input id="telegram_bot_token" type="password" placeholder="токен от @BotFather" autocomplete="new-password">
+      <label class="f" for="google_client_id">Вход через Google: идентификатор приложения <span class="mask" id="gidMask"></span></label>
+      <input id="google_client_id" type="text" placeholder="что-то вида 1234...apps.googleusercontent.com" autocomplete="off">
+      <label class="f" for="google_client_secret">Вход через Google: секрет приложения <span class="mask" id="gsecMask"></span></label>
+      <input id="google_client_secret" type="password" placeholder="вставьте новый секрет, чтобы заменить" autocomplete="new-password">
+      <label class="f" for="google_allowed_domains">Вход через Google: кому разрешён вход</label>
+      <input id="google_allowed_domains" type="text" placeholder="домены почты через запятую, например insuranceon.uz" autocomplete="off">
+      <p class="note">Оба поля Google берутся в Google Cloud Console — как их получить, написано в <code>docs/Вход через Google.md</code>. Домены почты: пусто — оставить как есть, знак «-» — очистить список и пускать любой аккаунт Google.</p>
       <label class="f" for="server_url">Адрес сервера — по нему открывается мини-апп</label>
       <input id="server_url" type="text" placeholder="https://..." autocomplete="off">
       <label class="f" for="pd_mode">Режим персональных данных</label>
@@ -279,6 +286,10 @@ async function loadSettings(){
   $("#keyMask").textContent = km ? "· сейчас " + km : "· не задан";
   const tm = maskOf(s, ["telegram_bot_token_mask", "telegram_bot_token_masked", "telegram_bot_token"]);
   $("#tokMask").textContent = tm ? "· сейчас " + tm : "· не задан";
+  const gm = maskOf(s, ["google_client_id_mask", "google_client_id_masked", "google_client_id"]);
+  $("#gidMask").textContent = gm ? "· сейчас " + gm : "· не задан";
+  $("#gsecMask").textContent = s.google_client_secret_set ? "· задан" : "· не задан";
+  $("#google_allowed_domains").value = s.google_allowed_domains || "";
 }
 
 async function save(){
@@ -288,6 +299,9 @@ async function save(){
     model: $("#model").value.trim(),
     api_key: $("#api_key").value.trim(),
     telegram_bot_token: $("#telegram_bot_token").value.trim(),
+    google_client_id: $("#google_client_id").value.trim(),
+    google_client_secret: $("#google_client_secret").value.trim(),
+    google_allowed_domains: $("#google_allowed_domains").value.trim(),
     pd_mode: $("#pd_mode").value,
     server_url: $("#server_url").value.trim()
   };
@@ -308,6 +322,8 @@ async function save(){
   $("#saveMsg").innerHTML = '<span class="ok">сохранено</span>';
   $("#api_key").value = "";
   $("#telegram_bot_token").value = "";
+  $("#google_client_id").value = "";
+  $("#google_client_secret").value = "";
   await loadSettings();
   await loadStatus();
 }

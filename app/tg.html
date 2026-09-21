@@ -6,14 +6,13 @@
 <style>
 :root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
   --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
-  --nav:72px}
+  --rail:60px;--side:248px}
 *{box-sizing:border-box}
 html,body{height:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden}
-.wrap{max-width:520px;margin:0 auto;padding:14px 16px calc(var(--nav) + 24px)}
-header{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
-header b{font-size:17px;font-weight:800}
-header span{font-size:11.5px;color:var(--muted)}
+body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;
+  padding-left:calc(var(--rail) + env(safe-area-inset-left));padding-right:env(safe-area-inset-right)}
+body.side-wide{padding-left:calc(var(--side) + env(safe-area-inset-left))}
+.wrap{max-width:520px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 24px)}
 .whoami{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:12px;color:var(--muted)}
 .whoami b{color:var(--ink);font-weight:700}
 .whoami button{width:auto;min-height:32px;padding:4px 12px;font-size:12px;background:transparent;border-radius:9px}
@@ -87,48 +86,124 @@ button:disabled{opacity:.5}
 .files{font-size:12.5px}
 .files div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line)}
 .files div:last-child{border-bottom:0}
-nav{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(var(--cols,4),1fr);background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);max-width:520px;margin:0 auto}
-nav button{background:none;border:0;border-radius:0;min-height:var(--nav);padding:10px 2px;color:var(--muted);font-size:11.5px;font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;line-height:1.15;text-align:center}
-nav.many button{font-size:10px;padding:10px 1px}
-nav button i{font-style:normal;font-size:17px;line-height:1}
-nav.many button i{font-size:15px}
-nav button.on{color:var(--accent)}
-nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px;font:700 10px var(--mono)}
+/* ---------- меню слева: узкая рейка, раскрывается в панель ---------- */
+#side{position:fixed;left:0;top:0;bottom:0;z-index:60;width:calc(var(--rail) + env(safe-area-inset-left));
+  background:var(--card);border-right:1px solid var(--line);display:flex;flex-direction:column;
+  overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  padding:calc(env(safe-area-inset-top) + 6px) 0 calc(env(safe-area-inset-bottom) + 12px) env(safe-area-inset-left);
+  transition:width .16s ease}
+body.side-open #side{width:calc(var(--side) + env(safe-area-inset-left));box-shadow:0 0 44px rgba(0,0,0,.45)}
+body.side-wide #side{box-shadow:none}
+#scrim{position:fixed;inset:0;z-index:55;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .16s}
+body.side-open:not(.side-wide) #scrim{opacity:1;pointer-events:auto}
+body.side-wide #scrim{display:none}
+#side .burger{background:none;border:0;border-radius:0;width:100%;min-height:48px;padding:0;color:var(--muted);
+  display:flex;align-items:center;gap:12px;font-size:12.5px;font-weight:700;text-align:left}
+#side .burger i{font-style:normal;font-size:20px;line-height:1;flex:none;width:var(--rail);text-align:center}
+#side .burger span{display:none}
+body.side-open #side .burger span{display:block}
+body.side-wide #side .burger{display:none}
+#side .brand{display:flex;align-items:center;gap:12px;min-height:46px;color:var(--ink)}
+#side .brand i{font-style:normal;flex:none;width:var(--rail);text-align:center;font:800 15px/1 var(--sans);letter-spacing:-.02em}
+#side .brand i b{color:#8EA9FF} #side .brand i b + b{color:#3FBE74}
+#side .brand div{display:none;min-width:0}
+body.side-open #side .brand div{display:block}
+#side .brand b.t{display:block;font-size:13.5px;white-space:nowrap}
+#side .brand span{display:block;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav{display:flex;flex-direction:column;gap:2px;padding:8px 0;flex:1 1 auto}
+#nav.hidden{display:none}
+#nav button{position:relative;background:none;border:0;border-radius:0;width:100%;min-height:52px;padding:6px 1px;
+  color:var(--muted);font-weight:600;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;line-height:1.1;text-align:center}
+#nav button i{font-style:normal;font-size:18px;line-height:1}
+#nav button u{text-decoration:none;font-size:9.5px;max-width:var(--rail);padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#nav button span{display:none;font-size:13.5px}
+#nav button.on{color:var(--accent);background:rgba(46,211,162,.10);box-shadow:inset 3px 0 0 var(--accent)}
+#nav cite{position:absolute;top:5px;right:8px;font:700 10px var(--mono);font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px}
+#nav cite:empty{display:none}
+body.side-open #nav button{flex-direction:row;justify-content:flex-start;gap:12px;min-height:48px;padding:6px 12px 6px 0;text-align:left}
+body.side-open #nav button i{flex:none;width:var(--rail);text-align:center}
+body.side-open #nav button u{display:none}
+body.side-open #nav button span{display:block;flex:1 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.side-open #nav cite{display:none}   /* в раскрытой панели счётчик стоит внутри названия */
+#nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radius:8px;padding:0 5px;font:700 10px var(--mono)}
+#side .whoami{display:none;margin:0;padding:12px 12px 0;border-top:1px solid var(--line)}
+body.side-open #side .whoami{display:flex;flex-wrap:wrap;gap:8px}
+body.side-open #side .whoami.hidden{display:none}
+#side .whoami button{flex:none}
+#nav button:focus-visible,#side .burger:focus-visible,#side .whoami button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+/* шаги регистрации */
+.step{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.step i{font-style:normal;flex:none;width:24px;height:24px;border-radius:50%;border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font:700 12px var(--mono);color:var(--muted)}
+.step.on i{border-color:var(--accent-dim);color:var(--accent)}
+.step.done i{background:var(--accent-dim);border-color:var(--accent-dim);color:#0F1418}
+.step b{font-size:13px}
+.consent{border:1px solid var(--line);border-radius:11px;padding:10px 12px;margin-top:10px;font-size:12px;
+  color:var(--muted);max-height:168px;overflow:auto;white-space:pre-wrap}
+.consent em{font-style:normal;display:block;margin-top:8px;color:var(--ink);font-size:11.5px}
+label.chk{display:flex;gap:10px;align-items:flex-start;margin:12px 0 0;color:var(--ink);font-size:13px}
+label.chk input{width:20px;height:20px;min-height:20px;flex:none;margin-top:1px;accent-color:var(--accent)}
+/* вероятность подтверждения */
+.prob{font:700 34px/1.1 var(--mono);margin:2px 0 2px}
+.prob.low{color:var(--stop)}.prob.mid{color:var(--warn)}.prob.high{color:var(--accent)}
+.pr{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.pr:last-child{border-bottom:0}
+.pr b{font-family:var(--mono);font-weight:600;white-space:nowrap;color:var(--muted)}
+.pr.stop b{color:var(--stop);white-space:normal;text-align:right;max-width:42%}
+.pr .norm{display:block;color:var(--muted);font-size:11px;margin-top:2px}
+.h3{margin:12px 0 2px;font-size:12px;color:var(--muted);font-weight:700}
+/* строка выгрузок */
+a.btn,.row button.btn{display:flex;align-items:center;justify-content:center;text-decoration:none;text-align:center;
+  background:var(--soft);border:1px solid var(--line);border-radius:11px;min-height:46px;padding:11px 12px;
+  color:var(--ink);font-weight:700;width:auto;flex:1 1 30%;min-width:96px}
+.tag{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.04em;border:1px solid var(--accent-dim);
+  color:var(--accent);border-radius:6px;padding:1px 7px;margin-left:6px;vertical-align:1px}
+.tag.off{border-color:var(--line);color:var(--muted)}
+/* кнопка Google: фирменный вид, одинаковый в тёмной и светлой теме */
+.gbtn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;height:48px;min-height:48px;
+  padding:0 14px;background:#FFFFFF;border:1px solid #DADCE0;border-radius:10px;color:#1F1F1F;
+  font:700 15px/1 var(--sans);cursor:pointer;transition:border-color .12s,box-shadow .12s,background .12s}
+.gbtn svg{flex:none;width:18px;height:18px}
+.gbtn:hover:not(:disabled){border-color:#C6C9CE;box-shadow:0 1px 4px rgba(0,0,0,.28)}
+.gbtn:active:not(:disabled){background:#F5F5F5}
+.gbtn:disabled{opacity:.55;cursor:default}
+.gbtn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hidden{display:none}
 .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px}
 @keyframes s{to{transform:rotate(360deg)}}
 </style>
 
-<div class="wrap">
-  <header>
-    <b>Сюрвейер INSON</b>
-    <span id="mode">подключаюсь…</span>
-  </header>
+<aside id="side">
+  <button class="burger" id="burger" type="button" aria-controls="nav" aria-expanded="false">
+    <i aria-hidden="true">&#9776;</i><span>Свернуть меню</span></button>
+  <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
+    <div><b class="t">Сюрвейер INSON</b><span id="mode">подключаюсь&#8230;</span></div></div>
+  <nav id="nav" class="hidden" aria-label="Разделы"></nav>
   <div class="whoami hidden" id="whoami"><span id="whoText"></span><button class="ghost" id="outBtn">Выйти</button></div>
+</aside>
+<div id="scrim"></div>
 
+<div class="wrap">
   <div class="banner" id="pdWarn">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
   <div class="banner hidden" id="authWarn"></div>
 
-  <!-- ---------- вход по логину и паролю (режим «браузер») ---------- -->
+  <!-- ---------- вход рабочей почтой (режим «браузер») ---------- -->
   <div id="screen-login" class="hidden">
     <div class="card">
       <h2>Вход</h2>
-      <p class="sub">Telegram не открыт — входим по логину и паролю, как на рабочем компьютере.</p>
-      <label class="f" for="lgLogin">Логин</label>
-      <input id="lgLogin" type="text" autocomplete="username" autocapitalize="off" spellcheck="false">
-      <label class="f" for="lgPass">Пароль</label>
-      <input id="lgPass" type="password" autocomplete="current-password">
-      <div id="codeBox" class="hidden">
-        <label class="f" for="lgCode">Код из Telegram</label>
-        <input id="lgCode" type="text" inputmode="numeric" autocomplete="one-time-code">
-      </div>
-      <button class="go" id="lgBtn" style="margin-top:12px">Войти</button>
-      <div class="note" id="lgMsg" style="margin-top:8px"></div>
+      <p class="sub">Telegram не открыт. Войдите рабочей почтой — той же, с которой работаете в компании.</p>
+      <button type="button" class="gbtn" id="gBtn" disabled><svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg><span>Продолжить с Google</span></button>
+      <div class="note" id="gMsg" style="margin-top:8px"></div>
+      <p class="note" id="gOff" style="margin-top:8px;display:none">Вход через Google не настроен</p>
+      <p class="note" id="gHint" style="margin-top:4px;font-size:11.5px;display:none"></p>
+      <p class="note" style="margin-top:10px">Внутри Telegram вход происходит автоматически.</p>
+      <p class="note" style="margin-top:8px;font-size:11.5px"><a href="/login" style="color:var(--muted)">Служебный вход</a></p>
     </div>
     <div class="card">
       <h2>Ещё нет доступа</h2>
-      <p class="sub">Заявку подают на странице входа сайта: там же указывают ID агента из ЕАИС. Доступ открывает администратор.</p>
-      <a href="/login" style="color:var(--accent)">Открыть страницу заявки</a>
+      <p class="sub">Доступ открывается сам при первом входе с рабочей почты: анкету о себе заполняют один раз, и вы сразу работаете — ждать подтверждения не нужно.</p>
+      <p class="note">Агенту нужна отдельная заявка с ID агента из ЕАИС (Положение № 3845, п. 4): её подают на странице <a href="/login" style="color:var(--accent)">служебного входа</a>.</p>
     </div>
   </div>
 
@@ -140,6 +215,73 @@ nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radi
       <div class="kv" id="waitKv"></div>
       <p class="note" style="margin-top:12px">Администратор сверит вас с реестром агентов компании (Положение № 3845, п. 4). Пока этого нет, разделы приложения не открываются — так сведения о страхователях не попадают к непроверенному человеку (ЗРУ‑730, ст. 62).</p>
       <button class="ghost" id="waitAgain" style="margin-top:12px">Проверить ещё раз</button>
+    </div>
+  </div>
+
+  <!-- ---------- регистрация в мини-приложении ---------- -->
+  <div id="screen-register" class="hidden">
+    <div class="card">
+      <h2>Регистрация</h2>
+      <p class="sub" id="regWhy">Вы впервые открыли приложение.</p>
+      <p class="note" id="regHow">Три шага: номер телефона, код из чата бота, короткая анкета. После анкеты вы сразу войдёте — ждать подтверждения не нужно.</p>
+    </div>
+
+    <!-- шаг 1: номер телефона -->
+    <div class="card" id="regStep1">
+      <div class="step on"><i>1</i><b>Номер телефона</b></div>
+      <p class="sub">Код придёт в ваш чат с ботом. Бот должен быть запущен — иначе сообщение не дойдёт.</p>
+      <label class="f" for="regPhone">Номер в формате +998XXXXXXXXX</label>
+      <input id="regPhone" type="tel" inputmode="tel" autocomplete="tel" value="+998" maxlength="13">
+      <div class="consent" id="regConsentPhone">загружаю текст согласия…</div>
+      <label class="chk"><input type="checkbox" id="regPhoneOk"><span id="regPhoneOkText">Согласен на обработку номера телефона</span></label>
+      <button class="go" id="regSend" style="margin-top:12px">Получить код</button>
+      <div class="note" id="regSendMsg" style="margin-top:8px"></div>
+    </div>
+
+    <!-- шаг 2: код -->
+    <div class="card hidden" id="regStep2">
+      <div class="step on"><i>2</i><b>Код из чата бота</b></div>
+      <p class="sub">Шесть цифр из последнего сообщения бота.</p>
+      <label class="f" for="regCode">Код</label>
+      <input id="regCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <div class="note" id="regTries" style="margin-top:8px"></div>
+      <button class="go" id="regCheck" style="margin-top:12px">Проверить код</button>
+      <button class="ghost" id="regResend" style="margin-top:8px">Отправить код заново</button>
+      <div class="note" id="regCodeMsg" style="margin-top:8px"></div>
+    </div>
+
+    <!-- шаг 3: анкета -->
+    <div class="card hidden" id="regStep3">
+      <div class="step on" id="regStep3Head"><i>3</i><b>О себе</b></div>
+      <p class="sub">Эти сведения увидят коллеги в разделе «Пользователи».</p>
+      <p class="note hidden" id="regGoogleWho"></p>
+      <label class="f" for="regName">Фамилия, имя и отчество</label>
+      <input id="regName" type="text" autocomplete="name" placeholder="Иванов Иван Иванович">
+      <label class="f" for="regDept">Департамент</label>
+      <input id="regDept" type="text" list="regDeptList" autocomplete="off" placeholder="например Департамент андеррайтинга">
+      <datalist id="regDeptList"></datalist>
+      <label class="f" for="regPos">Должность</label>
+      <select id="regPos"><option value="">загружаю…</option></select>
+      <div id="regPosOtherBox" class="hidden">
+        <label class="f" for="regPosOther">Напишите должность</label>
+        <input id="regPosOther" type="text" autocomplete="off">
+      </div>
+      <div id="regBranchBox">
+        <label class="f" for="regBranch">Филиал (можно оставить пустым)</label>
+        <input id="regBranch" type="text" autocomplete="off" placeholder="например Чиланзарский">
+      </div>
+      <div id="regPhoneOptBox" class="hidden">
+        <label class="f" for="regPhoneOpt">Телефон — необязательно</label>
+        <input id="regPhoneOpt" type="tel" inputmode="tel" autocomplete="tel" placeholder="+998901234567">
+        <div id="regPhoneConsentBox" class="hidden">
+          <div class="consent" id="regConsentPhoneOpt">загружаю текст согласия…</div>
+          <label class="chk"><input type="checkbox" id="regPhoneOptOk"><span id="regPhoneOptOkText">Согласен на обработку номера телефона</span></label>
+        </div>
+      </div>
+      <div class="consent" id="regConsentMain">загружаю текст согласия…</div>
+      <label class="chk"><input type="checkbox" id="regMainOk"><span id="regMainOkText">Согласен на обработку персональных данных</span></label>
+      <button class="go" id="regSubmit" style="margin-top:12px">Зарегистрироваться</button>
+      <div class="note" id="regSubmitMsg" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -262,7 +404,7 @@ nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radi
   <section id="tab-users" data-section="users" class="hidden">
     <div class="card">
       <h2>Пользователи</h2>
-      <p class="sub">Блокировка закрывает доступ сразу и завершает все сессии человека.</p>
+      <p class="sub">Кто работает в системе: ФИО, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p>
       <button class="ghost" id="usrReload">Обновить список</button>
     </div>
     <div id="usrList"></div>
@@ -283,7 +425,7 @@ nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radi
         <option value="действует">действует</option>
         <option value="закрыто">закрыто</option>
       </select>
-      <label class="f">Согласующие по умолчанию — от 2 до 3 человек</label>
+      <label class="f">Согласующие по умолчанию — от 1 до 3 человек</label>
       <div class="pick" id="agPick"><div class="note" style="padding:10px 12px">загружаю…</div></div>
       <label class="f" for="agTerms">Условия коротко</label>
       <textarea id="agTerms" placeholder="что за соглашение и на что оно влияет"></textarea>
@@ -311,7 +453,6 @@ nav button em{font-style:normal;background:var(--stop);color:#0F1418;border-radi
   </div>
 </div>
 
-<nav id="nav" class="hidden"></nav>
 
 <script>
 const $ = s => document.querySelector(s);
@@ -387,14 +528,33 @@ function banner(sel, kind, text){
   el.textContent = text;
 }
 function screen(name){
-  ["login", "wait", "app"].forEach(s => $("#screen-" + s).classList.toggle("hidden", s !== name));
-  $("#nav").classList.toggle("hidden", name !== "app");
+  ["login", "wait", "register", "app"].forEach(s => $("#screen-" + s).classList.toggle("hidden", s !== name));
+  $("#nav").classList.toggle("hidden", name !== "app" || !$("#nav").querySelector("button"));
 }
 
-/* ---------- нижняя навигация: рисуется по ответу сервера ---------- */
+/* ---------- меню слева: рейка и раскрытая панель ---------- */
+const WIDE = window.matchMedia("(min-width:900px)");
+function sideOpen(on){
+  document.body.classList.toggle("side-open", !!on);
+  $("#burger").setAttribute("aria-expanded", on ? "true" : "false");
+}
+function sideSync(){
+  document.body.classList.toggle("side-wide", WIDE.matches);
+  if (WIDE.matches) sideOpen(true); else sideOpen(false);
+}
+if (WIDE.addEventListener) WIDE.addEventListener("change", sideSync); else WIDE.addListener(sideSync);
+sideSync();
+$("#burger").onclick = () => sideOpen(!document.body.classList.contains("side-open"));
+$("#scrim").onclick = () => { if (!WIDE.matches) sideOpen(false); };
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !WIDE.matches) sideOpen(false); });
+
+/* ---------- разделы меню: рисуются по ответу сервера ---------- */
 const NAV_ICON = {calc: "₌", "my-requests": "❑", photos: "▣", inbox: "◈", applications: "✎",
   users: "◍", agreements: "§", settings: "⚙"};
 const NAV_SHORT = {"my-requests": "Мои запросы", agreements: "Соглашения", photos: "Фото"};
+// короткие подписи для узкой рейки — иначе слово не помещается
+const NAV_RAIL = {calc: "Расчёт", "my-requests": "Запросы", photos: "Фото", inbox: "Ждут",
+  applications: "Заявки", users: "Люди", agreements: "Генсогл.", settings: "Настр."};
 const LOADERS = {"my-requests": loadMine, inbox: loadInbox, applications: loadApplications,
   users: loadUsers, agreements: loadAgreementsTab, settings: loadBot};
 let TAB = null;
@@ -406,12 +566,15 @@ function sectionKeys(){
 function paintNav(items){
   const nav = $("#nav");
   const list = (items || []).filter(it => document.querySelector('[data-section="' + it.key + '"]'));
+  nav.classList.toggle("hidden", !list.length);
   if (!list.length) { nav.innerHTML = ""; return; }
-  nav.innerHTML = list.map(it =>
-    '<button data-tab="' + esc(it.key) + '"><i>' + esc(NAV_ICON[it.key] || "•") + "</i><span>"
-    + esc(NAV_SHORT[it.key] || it.title || it.key) + "</span></button>").join("");
-  nav.style.setProperty("--cols", list.length);
-  nav.classList.toggle("many", list.length > 5);
+  nav.innerHTML = list.map(it => {
+    const full = NAV_SHORT[it.key] || it.title || it.key;
+    return '<button type="button" data-tab="' + esc(it.key) + '" title="' + esc(full) + '">'
+      + "<i aria-hidden=\"true\">" + esc(NAV_ICON[it.key] || "•") + "</i>"
+      + "<u>" + esc(NAV_RAIL[it.key] || full) + "</u>"
+      + "<span>" + esc(full) + "</span><cite></cite></button>";
+  }).join("");
   nav.querySelectorAll("button").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
   openTab(list.some(it => it.key === TAB) ? TAB : list[0].key);
 }
@@ -421,17 +584,24 @@ function openTab(key){
   sectionKeys().forEach(k => {
     document.querySelector('[data-section="' + k + '"]').classList.toggle("hidden", k !== key);
   });
-  $("#nav").querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.tab === key));
+  $("#nav").querySelectorAll("button").forEach(b => {
+    const on = b.dataset.tab === key;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-current", on ? "page" : "false");
+  });
+  if (!WIDE.matches) sideOpen(false);          // на телефоне панель закрывается, видно раздел
   mainButton(key === "calc");
   window.scrollTo(0, 0);
   if (LOADERS[key]) LOADERS[key]();
 }
 
 function navBadge(key, n){
-  const b = $("#nav").querySelector('[data-tab="' + key + '"] span');
-  if (!b) return;
+  const btn = $("#nav").querySelector('[data-tab="' + key + '"]');
+  if (!btn) return;
   const base = NAV_SHORT[key] || (ME.nav.filter(x => x.key === key)[0] || {}).title || key;
-  b.innerHTML = esc(base) + (n ? ' <em>' + n + "</em>" : "");
+  btn.querySelector("span").innerHTML = esc(base) + (n ? ' <em>' + n + "</em>" : "");
+  btn.querySelector("cite").textContent = n ? String(n) : "";   // счётчик виден и на узкой рейке
+  btn.title = base + (n ? " (" + n + ")" : "");
 }
 
 /* ---------- главная кнопка Telegram ---------- */
@@ -458,11 +628,16 @@ async function boot(){
     $("#mode").textContent = st.data.mode || "браузер";
     if (st.data.pd_mode === "prod") $("#pdWarn").classList.add("hidden");
   }
+  if (!IN_TG) {
+    if (googlePending()) return;             // анкету начали на /login — доводим здесь
+    if (await googleReturn()) return;        // вернулись от Google с одноразовым кодом
+  }
   if (IN_TG) {
     const a = await api("/tg/auth", {method: "POST", headers: {"Content-Type": "application/json"},
       body: JSON.stringify({initData: TG.initData})});
     const s = a.ok && a.data ? a.data.status : "";
     if (a.ok && a.data && a.data.token) setToken(a.data.token);
+    if (s === "нужна регистрация") { showRegister(a.data.reason); return; }
     if (s === "нужна верификация") { showWait(a.data.reason); return; }
     if (s === "ошибка") {
       banner("#authWarn", "stop", "Вход через Telegram не выполнен: " + (a.data.reason || "причина не указана"));
@@ -486,9 +661,10 @@ async function loadMe(){
   if (!r.ok) {
     $("#mode").textContent = "сервер не ответил";
     banner("#authWarn", "stop", r.status === 404
-      ? "Сервер ещё не отдаёт разделы по ролям — его нужно перезапустить. Вход по логину и паролю уже работает."
+      ? "Сервер ещё не отдаёт разделы по ролям — его нужно перезапустить. Вход через Google уже работает."
       : "Сервер не сказал, кто вы: " + r.error + ". Обновите страницу.");
     screen("login");
+    googleStatus();          // кнопка Google включается только после ответа сервера о настройке
     return;
   }
   ME = r.data || ME;
@@ -499,8 +675,9 @@ async function loadMe(){
     $("#authWarn").classList.add("hidden");
     $("#whoami").classList.add("hidden");
     screen("login");
-    $("#lgMsg").innerHTML = ME.mode === "telegram"
-      ? '<span class="note">Telegram не передал вход. Войдите по логину и паролю.</span>' : "";
+    $("#gMsg").innerHTML = ME.mode === "telegram"
+      ? '<span class="note">Telegram не передал вход. Войдите рабочей почтой.</span>' : "";
+    googleStatus();
     return;
   }
   if (!u) {                                   // заявка подана, но ещё не подтверждена
@@ -522,42 +699,72 @@ async function loadMe(){
   }
 }
 
-async function login(){
-  const lg = $("#lgLogin").value.trim(), pw = $("#lgPass").value, code = $("#lgCode").value.trim();
-  if (!lg || !pw) { $("#lgMsg").innerHTML = '<span class="err">Введите логин и пароль.</span>'; return; }
-  $("#lgBtn").disabled = true;
-  $("#lgMsg").innerHTML = '<span class="spin"></span> проверяю…';
-  let r;
-  if (!$("#codeBox").classList.contains("hidden") && code) {
-    r = await api("/auth/verify-code", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({login: lg, code: code})});
-  } else {
-    r = await api("/auth/login", {method: "POST", headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({login: lg, password: pw})});
-  }
-  $("#lgBtn").disabled = false;
-  if (!r.ok) {
-    // «заявка не подтверждена» — это не ошибка ввода, а отдельный экран ожидания
-    if (r.status === 403 && /подтвержден/i.test(r.error)) { showWait(r.error, "ожидает подтверждения"); return; }
-    $("#lgMsg").innerHTML = '<span class="err">' + esc(r.error) + "</span>";
-    return;
-  }
-  if (r.data && r.data.step === "code") {
-    $("#codeBox").classList.remove("hidden");
-    $("#lgBtn").textContent = "Подтвердить код";
-    $("#lgMsg").innerHTML = '<span class="warn">Код отправлен: ' + esc(r.data.delivery || "—")
-      + ". Он действует " + esc(r.data.valid_minutes || 5) + " минут."
-      + (r.data.dev_code ? " Код для проверки: " + esc(r.data.dev_code) : "") + "</span>";
-    return;
-  }
-  if (r.data && r.data.token) setToken(r.data.token);
-  $("#lgMsg").innerHTML = '<span class="ok">Вошли.</span>';
-  $("#lgPass").value = "";
-  await loadMe();
+/* ---------- вход через Google ---------- */
+let GOOGLE_READY = null;          // null — ещё не спрашивали, true/false — ответ сервера
+
+async function googleStatus(){
+  // кэшируем только положительный ответ: «не настроено» и ошибку сети надо перепроверять,
+  // иначе кнопка останется серой до перезагрузки страницы
+  if (GOOGLE_READY === true) return true;
+  const r = await api("/auth/google/status");
+  const d = (r.ok && r.data) || {};
+  GOOGLE_READY = (r.ok && d.configured) ? true : null;   // null — спросим ещё раз при следующем показе
+  const ready = GOOGLE_READY === true;
+  $("#gBtn").disabled = !ready;
+  $("#gOff").style.display = ready ? "none" : "block";
+  const hint = ready ? "" : (d.hint || d.message || (r.ok ? "" : r.error) || "");
+  $("#gHint").textContent = hint;
+  $("#gHint").style.display = hint ? "block" : "none";
+  if (!ready && d.message) $("#gOff").textContent = d.message;
+  if (!ready && !r.ok) $("#gOff").textContent = "Сервер не ответил про вход через Google. Обновите страницу.";
+  return ready;
 }
-$("#lgBtn").onclick = login;
-$("#lgPass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
-$("#lgCode").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+
+$("#gBtn").onclick = () => {
+  if ($("#gBtn").disabled) return;
+  $("#gMsg").innerHTML = '<span class="spin"></span> открываю вход Google…';
+  location.href = "/auth/google?next=" + encodeURIComponent(location.pathname);
+};
+
+/* Вернулись от Google: код из адреса меняем на сессию и сразу убираем из истории. */
+async function googleReturn(){
+  const q = new URLSearchParams(location.search);
+  const code = q.get("auth");
+  if (!code) return false;
+  q.delete("auth");
+  const rest = q.toString();
+  history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash);
+  screen("login");
+  $("#gMsg").innerHTML = '<span class="spin"></span> заканчиваю вход…';
+  const r = await api("/auth/google/exchange", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({code: code})});
+  if (!r.ok) {
+    // «заявка не подтверждена» — это не ошибка входа, а отдельный экран ожидания
+    if (r.status === 403 && /подтвержден/i.test(r.error)) { showWait(r.error, "ожидает подтверждения"); return true; }
+    $("#gMsg").innerHTML = '<span class="err">' + esc(r.error) + ' Нажмите «Продолжить с Google» ещё раз.</span>';
+    googleStatus();
+    return true;
+  }
+  const d = r.data || {};
+  if (d.step === "register") { showGoogleRegister(d.reg_token, d.profile || {}); return true; }
+  if (d.token) setToken(d.token);
+  $("#gMsg").innerHTML = '<span class="ok">Вошли.</span>';
+  await loadMe();
+  return true;
+}
+
+/* Код обменяли на странице /login, а анкета живёт здесь — забираем её из сессии вкладки. */
+function googlePending(){
+  let raw = null;
+  try { raw = sessionStorage.getItem("surveyor_google_reg"); sessionStorage.removeItem("surveyor_google_reg"); } catch (e) {}
+  if (!raw) return false;
+  try {
+    const j = JSON.parse(raw);
+    if (j && j.reg_token) { showGoogleRegister(j.reg_token, j.profile || {}); return true; }
+  } catch (e) {}
+  return false;
+}
+
 $("#waitAgain").onclick = loadMe;
 $("#outBtn").onclick = async () => {
   await api("/auth/logout", {method: "POST"}); setToken(null);
@@ -565,7 +772,246 @@ $("#outBtn").onclick = async () => {
   RID = null;
   screen("login");
   $("#whoami").classList.add("hidden");
+  GOOGLE_READY = null;     // спрашиваем настройку заново: сессии больше нет, экран входа новый
+  googleStatus();
 };
+
+/* ---------- регистрация: номер → код → анкета ---------- */
+const REG = {phone: "", code: "", other: "другое", tries: null, timer: null, left: 0,
+  google: false, regToken: "", email: ""};
+
+function initData(){ return TG && TG.initData ? TG.initData : ""; }
+
+function regMsg(sel, kind, text){
+  $(sel).innerHTML = text ? '<span class="' + kind + '">' + esc(text) + "</span>" : "";
+}
+
+function regStep(n){
+  $("#regStep2").classList.toggle("hidden", n < 2);
+  $("#regStep3").classList.toggle("hidden", n < 3);
+  $("#regStep1").querySelector(".step").className = "step" + (n > 1 ? " done" : " on");
+  if (n >= 2) $("#regStep2").querySelector(".step").className = "step" + (n > 2 ? " done" : " on");
+}
+
+function showRegister(reason){
+  REG.google = false;
+  $("#whoami").classList.add("hidden");
+  $("#authWarn").classList.add("hidden");
+  if (reason) $("#regWhy").textContent = reason;
+  $("#regHow").textContent = "Три шага: номер телефона, код из чата бота, короткая анкета."
+    + " После анкеты вы сразу войдёте — ждать подтверждения не нужно.";
+  $("#regStep1").classList.remove("hidden");
+  $("#regStep3Head").innerHTML = "<i>3</i><b>О себе</b>";
+  $("#regGoogleWho").classList.add("hidden");
+  $("#regBranchBox").classList.remove("hidden");
+  $("#regPhoneOptBox").classList.add("hidden");
+  screen("register");
+  regStep(1);
+  loadConsent("телефон", "#regConsentPhone", "#regPhoneOkText",
+    "Согласен на обработку номера телефона");
+  loadRegForm();
+}
+
+/* Первый вход через Google: номер и код не нужны — остаётся одна анкета о себе. */
+function showGoogleRegister(regToken, profile){
+  REG.google = true;
+  REG.regToken = regToken || "";
+  REG.email = (profile && profile.email) || "";
+  $("#whoami").classList.add("hidden");
+  $("#authWarn").classList.add("hidden");
+  $("#regWhy").textContent = "Вы впервые входите рабочей почтой.";
+  $("#regHow").textContent = "Один шаг: короткая анкета о себе. Её заполняют один раз,"
+    + " после неё вы сразу войдёте — ждать подтверждения не нужно.";
+  $("#regStep1").classList.add("hidden");
+  $("#regStep2").classList.add("hidden");
+  $("#regStep3").classList.remove("hidden");
+  $("#regStep3Head").innerHTML = "<i>1</i><b>О себе</b>";
+  $("#regGoogleWho").textContent = "Вы вошли через Google: " + (REG.email || "почта не пришла");
+  $("#regGoogleWho").classList.remove("hidden");
+  $("#regBranchBox").classList.add("hidden");
+  $("#regPhoneOptBox").classList.remove("hidden");
+  $("#regName").value = (profile && profile.full_name) || "";
+  $("#regPhoneOpt").value = "";
+  $("#regPhoneOptOk").checked = false;
+  regPhoneConsentToggle();
+  loadConsent("телефон", "#regConsentPhoneOpt", "#regPhoneOptOkText",
+    "Согласен на обработку номера телефона");
+  regMsg("#regSubmitMsg", "note", "");
+  screen("register");
+  loadRegForm();
+  $("#regName").focus();
+}
+
+/* анкета: согласие, должности и департаменты — одинаково для обоих входов */
+function loadRegForm(){
+  loadConsent("основное", "#regConsentMain", "#regMainOkText",
+    "Согласен на обработку персональных данных");
+  api("/tg/register/positions").then(r => {
+    if (!r.ok) { $("#regPos").innerHTML = '<option value="">список должностей не загрузился</option>'; return; }
+    REG.other = r.data.other || "другое";
+    $("#regPos").innerHTML = '<option value="">выберите должность</option>'
+      + (r.data.items || []).map(x => '<option value="' + esc(x) + '">' + esc(x) + "</option>").join("");
+  });
+  api("/tg/register/departments").then(r => {
+    if (!r.ok) return;
+    $("#regDeptList").innerHTML = (r.data.items || []).map(x => '<option value="' + esc(x) + '">').join("");
+  });
+}
+
+/* Текст согласия только с сервера: в странице его нет (версия согласия меняется юристом). */
+async function loadConsent(scope, box, labelSel, fallbackLabel){
+  const r = await api("/tg/consent?scope=" + encodeURIComponent(scope));
+  if (!r.ok) {
+    $(box).innerHTML = '<span class="err">Текст согласия не загрузился: ' + esc(r.error)
+      + ". Без него регистрировать нельзя — обновите страницу.</span>";
+    return;
+  }
+  $(box).innerHTML = esc(r.data.text || "")
+    + '<em>Версия согласия: ' + esc(r.data.version || "—") + " · источник: " + esc(r.data.source || "—") + "</em>";
+  $(labelSel).textContent = fallbackLabel + " (версия " + (r.data.version || "—") + ")";
+}
+
+/* номер сам собирается в +998XXXXXXXXX, курсор держится в конце */
+$("#regPhone").addEventListener("input", () => {
+  const el = $("#regPhone");
+  const digits = el.value.replace(/\D/g, "").replace(/^998/, "").slice(0, 9);
+  el.value = "+998" + digits;
+});
+
+function regCountdown(sec){
+  clearInterval(REG.timer);
+  REG.left = sec;
+  const tick = () => {
+    const b = $("#regSend"), a = $("#regResend");
+    if (REG.left <= 0) {
+      clearInterval(REG.timer);
+      b.disabled = false; a.disabled = false;
+      b.textContent = "Получить код"; a.textContent = "Отправить код заново";
+      return;
+    }
+    const t = String(Math.floor(REG.left / 60)).padStart(2, "0") + ":" + String(REG.left % 60).padStart(2, "0");
+    b.disabled = true; a.disabled = true;
+    b.textContent = "Новый код через " + t;
+    a.textContent = "Отправить код заново — через " + t;
+    REG.left -= 1;
+  };
+  tick();
+  REG.timer = setInterval(tick, 1000);
+}
+
+async function regSendCode(){
+  const phone = $("#regPhone").value.trim();
+  if (!/^\+998\d{9}$/.test(phone)) {
+    regMsg("#regSendMsg", "err", "Номер вводится как +998 и девять цифр, например +998901234567.");
+    return;
+  }
+  if (!$("#regPhoneOk").checked) {
+    regMsg("#regSendMsg", "err", "Отметьте согласие на обработку номера — без него код не отправляем.");
+    return;
+  }
+  $("#regSend").disabled = true;
+  $("#regSendMsg").innerHTML = '<span class="spin"></span> отправляю код…';
+  const r = await api("/tg/register/send-code", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({initData: initData(), phone: phone})});
+  if (!r.ok) {
+    $("#regSend").disabled = false;
+    regMsg("#regSendMsg", "err", r.error);          // текст ровно тот, что прислал сервер
+    regMsg("#regCodeMsg", "err", r.error);
+    return;
+  }
+  REG.phone = phone;
+  REG.tries = r.data.attempts_left != null ? r.data.attempts_left : null;
+  regMsg("#regSendMsg", "ok", r.data.message || "Код отправлен вам в чат с ботом.");
+  $("#regTries").textContent = REG.tries != null ? "Осталось попыток ввода: " + REG.tries : "";
+  regMsg("#regCodeMsg", "note", "");
+  regStep(2);
+  regCountdown(r.data.resend_after_sec || 60);
+  $("#regCode").focus();
+}
+
+async function regCheckCode(){
+  const code = $("#regCode").value.replace(/\D/g, "");
+  if (code.length !== 6) { regMsg("#regCodeMsg", "err", "Код — шесть цифр из сообщения бота."); return; }
+  $("#regCheck").disabled = true;
+  $("#regCodeMsg").innerHTML = '<span class="spin"></span> проверяю код…';
+  const r = await api("/tg/register/verify-code", {method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({initData: initData(), phone: REG.phone, code: code})});
+  $("#regCheck").disabled = false;
+  if (!r.ok) {
+    regMsg("#regCodeMsg", "err", r.error);          // «Осталось попыток: N» приходит с сервера
+    const m = /Осталось попыток:\s*(\d+)/.exec(r.error || "");
+    if (m) { REG.tries = Number(m[1]); $("#regTries").textContent = "Осталось попыток ввода: " + m[1]; }
+    return;
+  }
+  REG.code = code;
+  regMsg("#regCodeMsg", "ok", "Номер подтверждён. На анкету есть "
+    + (r.data.form_minutes || 30) + " минут.");
+  $("#regTries").textContent = "";
+  regStep(3);
+  $("#regName").focus();
+}
+
+/* согласие на номер нужно, только если номер написали: пусто — прячем */
+function regPhoneConsentToggle(){
+  const filled = $("#regPhoneOpt").value.trim() !== "";
+  $("#regPhoneConsentBox").classList.toggle("hidden", !filled);
+  if (!filled) $("#regPhoneOptOk").checked = false;
+}
+$("#regPhoneOpt").addEventListener("input", regPhoneConsentToggle);
+
+$("#regPos").onchange = () => {
+  $("#regPosOtherBox").classList.toggle("hidden", $("#regPos").value !== REG.other);
+};
+
+async function regSubmit(){
+  const body = REG.google
+    ? {reg_token: REG.regToken,
+       full_name: $("#regName").value.trim(), department: $("#regDept").value.trim(),
+       position: $("#regPos").value, position_other: $("#regPosOther").value.trim(),
+       phone: $("#regPhoneOpt").value.trim(), consent: $("#regMainOk").checked,
+       consent_phone: $("#regPhoneOptOk").checked}
+    : {initData: initData(), phone: REG.phone, code: REG.code,
+       full_name: $("#regName").value.trim(), department: $("#regDept").value.trim(),
+       position: $("#regPos").value, position_other: $("#regPosOther").value.trim(),
+       branch: $("#regBranch").value.trim(), consent: $("#regMainOk").checked,
+       consent_phone: $("#regPhoneOk").checked};
+  if (!body.full_name || body.full_name.split(" ").length < 2) {
+    regMsg("#regSubmitMsg", "err", "Напишите фамилию, имя и отчество полностью."); return;
+  }
+  if (!body.department) { regMsg("#regSubmitMsg", "err", "Укажите департамент."); return; }
+  if (!body.position) { regMsg("#regSubmitMsg", "err", "Выберите должность из списка."); return; }
+  if (body.position === REG.other && !body.position_other) {
+    regMsg("#regSubmitMsg", "err", "Выбрано «другое» — напишите должность."); return;
+  }
+  if (!body.consent) {
+    regMsg("#regSubmitMsg", "err", "Отметьте согласие на обработку персональных данных."); return;
+  }
+  if (REG.google && body.phone && !/^\+998\d{9}$/.test(body.phone)) {
+    regMsg("#regSubmitMsg", "err", "Телефон можно не указывать. Если указываете — как +998 и девять цифр.");
+    return;
+  }
+  if (REG.google && body.phone && !body.consent_phone) {
+    regMsg("#regSubmitMsg", "err", "Номер телефона можно не указывать."
+      + " Если указываете — отметьте согласие на обработку номера.");
+    return;
+  }
+  $("#regSubmit").disabled = true;
+  $("#regSubmitMsg").innerHTML = '<span class="spin"></span> регистрирую…';
+  const r = await api(REG.google ? "/auth/google/register" : "/tg/register/submit",
+    {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+  $("#regSubmit").disabled = false;
+  if (!r.ok) { regMsg("#regSubmitMsg", "err", r.error); return; }
+  if (r.data && r.data.token) setToken(r.data.token);   // токен так же, как после /tg/auth
+  clearInterval(REG.timer);
+  regMsg("#regSubmitMsg", "ok", "Готово. Вы вошли как " + (r.data.role || "сотрудник") + ".");
+  await loadMe();
+}
+
+$("#regSend").onclick = regSendCode;
+$("#regResend").onclick = regSendCode;
+$("#regCheck").onclick = regCheckCode;
+$("#regSubmit").onclick = regSubmit;
+$("#regCode").addEventListener("keydown", e => { if (e.key === "Enter") regCheckCode(); });
 
 /* ---------- справочники ---------- */
 let CLASSES = [], PRODUCTS = [], COEFS = [], REFS_DONE = false;
@@ -728,6 +1174,8 @@ function paintResult(j, b){
       + tips.map(t => '<div class="tip"><b>' + esc(t.text) + "</b><span>" + (t.premium_delta > 0 ? "+" : "") + fmt(t.premium_delta) + " сум</span></div>").join("")
       + "</div>" : "")
 
+    + probHtml(probFrom(j))
+
     + '<div class="card"><h2>Что сказать клиенту</h2><p class="sub">Обязательное раскрытие по статье 63 Закона о страховой деятельности.</p>'
     + '<div class="kv">'
     + "<span>Цена</span><b>" + fmt(j.premium) + " сум за " + esc(b.term_days) + " дн.</b>"
@@ -744,7 +1192,7 @@ function paintResult(j, b){
     + '<button class="go" id="saveBtn" style="margin-top:12px">Сохранить запрос</button>'
     + '<div class="note" id="saveMsg" style="margin-top:8px"></div></div>'
 
-    + '<div id="approvalBox"></div>';
+    + '<div id="approvalBox"></div><div id="exportBox"></div>';
 
   $("#saveBtn").onclick = saveRequest;
   if (!canSave()) {
@@ -757,6 +1205,164 @@ function canSave(){ return !!(ME.user && ME.status === "активен"); }
 function excluded(j, b){
   const step = (j.explanation || []).filter(x => x.excluded && x.excluded.length)[0];
   return step ? step.excluded : [];
+}
+
+/* ---------- вероятность подтверждения ---------- */
+/* Структура от актуария: {probability, verdict, summary, minus:[{text, delta, norm, stop}],
+   plus:[...], how_to_raise:[...], calibrated}. Поля может не быть — тогда честно говорим,
+   что числа ещё нет, и ничего не придумываем. */
+function normProb(raw){
+  if (raw == null) return null;
+  let p = (typeof raw === "number") ? {probability: raw} : raw;
+  if (typeof p !== "object") return null;
+  if (p.ready === false) return null;
+  let e = p;
+  // разбор может прийти вложенным объектом или строкой JSON — берём то, что есть
+  ["result_json", "explanation", "factors_json"].forEach(k => {
+    if (e !== p) return;
+    const v = p[k];
+    if (v && typeof v === "object") e = v;
+    else if (typeof v === "string" && v) { try { e = JSON.parse(v); } catch (err) {} }
+  });
+  let v = (p.percent != null) ? p.percent : (e.probability != null ? e.probability : p.probability);
+  if (v == null || isNaN(Number(v))) return null;
+  v = Number(v);
+  if (v > 0 && v <= 1) v = v * 100;                    // пришла доля 0..1 — переводим в проценты
+  return {value: Math.round(v), verdict: e.verdict || p.verdict || "",
+    summary: e.summary || p.summary || p.text || "",
+    minus: e.minus || [], plus: e.plus || [], how: e.how_to_raise || [],
+    calibrated: (e.calibrated != null ? e.calibrated : p.calibrated)};
+}
+
+/* ключи ответа сервера ещё уточняются — берём первый, который пришёл */
+function probFrom(src){
+  if (!src || typeof src !== "object") return null;
+  if (src.result_json || src.explanation || src.factors_json) return src;   // строка прогноза целиком
+  const keys = ["probability", "probability_block", "analysis", "prediction"];
+  for (let i = 0; i < keys.length; i++) if (src[keys[i]] != null) return src[keys[i]];
+  return null;
+}
+
+function probRows(list){
+  if (!list || !list.length) return '<div class="note">пусто</div>';
+  return list.map(x => {
+    const stop = !!x.stop;
+    const d = (x.delta == null) ? "" : (Number(x.delta) > 0 ? "+" : "−") + Math.abs(Number(x.delta));
+    return '<div class="pr' + (stop ? " stop" : "") + '"><span>' + esc(x.text || "—")
+      + (x.norm ? '<span class="norm">' + esc(x.norm) + "</span>" : "") + "</span><b>"
+      + (stop ? "жёсткое нарушение" : esc(d)) + "</b></div>";
+  }).join("");
+}
+
+function probHtml(raw){
+  const p = normProb(raw);
+  if (!p) {
+    return '<div class="card"><h2>Вероятность подтверждения</h2>'
+      + '<div class="note">Вероятность ещё не рассчитана. Как только модуль анализа её посчитает, число появится здесь.</div></div>';
+  }
+  const cls = p.value >= 70 ? "high" : p.value >= 40 ? "mid" : "low";
+  return '<div class="card"><h2>Вероятность подтверждения</h2>'
+    + '<div class="prob ' + cls + '">~' + p.value + "%</div>"
+    + (p.verdict ? '<p class="sub">' + esc(p.verdict) + "</p>" : "")
+    + (p.summary ? '<p class="note" style="color:var(--ink)">' + esc(p.summary) + "</p>" : "")
+    + '<div class="h3">Что снижает</div>' + probRows(p.minus)
+    + '<div class="h3">Что повысит</div>' + probRows(p.how.length ? p.how : p.plus)
+    + (p.calibrated ? ""
+      : '<div class="note warn" style="margin-top:10px">Оценка экспертная, пока не калибрована: веса правил компания ещё не подтвердила своей статистикой решений.</div>')
+    + "</div>";
+}
+
+/* ---------- выгрузка анализа ---------- */
+function exportsHtml(rid){
+  return '<div class="card" id="exp-' + rid + '"><h2>Выгрузка анализа</h2>'
+    + '<p class="sub">Запрос № ' + rid + ": расчёт, проверки, вероятность подтверждения и участники — одним файлом.</p>"
+    + '<div class="row">'
+    + '<button class="btn" data-dl="' + rid + '" data-fmt="pdf">Скачать PDF</button>'
+    + '<button class="btn" data-dl="' + rid + '" data-fmt="xlsx">Скачать XLSX</button>'
+    + '<button class="ghost" data-tgsend="' + rid + '">Прислать в Telegram</button>'
+    + "</div>"
+    + '<p class="note" style="margin-top:8px">Третья кнопка нужна потому, что во встроенном браузере Telegram скачивание файла часто не срабатывает: бот пришлёт оба файла прямо в чат.</p>'
+    + '<div class="note" id="expm-' + rid + '" style="margin-top:8px"></div></div>';
+}
+
+function bindExports(root){
+  (root || document).querySelectorAll("[data-tgsend]").forEach(b => {
+    b.onclick = () => sendToTelegram(b.dataset.tgsend);
+  });
+  (root || document).querySelectorAll("[data-dl]").forEach(b => {
+    b.onclick = () => downloadAnalysis(b.dataset.dl, b.dataset.fmt);
+  });
+}
+
+/* Имя файла берём из заголовка Content-Disposition, если сервер его прислал. */
+function cdName(cd){
+  if (!cd) return "";
+  let m = /filename\*=UTF-8''([^;]+)/i.exec(cd);
+  if (m) { try { return decodeURIComponent(m[1].trim().replace(/^"|"$/g, "")); } catch (e) {} }
+  m = /filename="?([^";]+)"?/i.exec(cd);
+  return m ? m[1].trim() : "";
+}
+
+/* Сохраняем полученный файл. Встроенный браузер Telegram это часто запрещает — тогда false. */
+function saveBlob(blob, name){
+  try {
+    const a = document.createElement("a");
+    if (typeof a.download !== "string") return false;
+    const url = URL.createObjectURL(blob);
+    a.href = url; a.download = name; a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+    return true;
+  } catch (e) { return false; }
+}
+
+/* Файл забираем запросом с заголовком Authorization: сессия мини-аппа держится на токене
+   (встроенный браузер Telegram может не хранить cookie), а по простой ссылке <a href>
+   заголовок не уходит и единый вход app/guard.py ответил бы 401. */
+async function downloadAnalysis(rid, fmt){
+  const msg = $("#expm-" + rid);
+  const hint = " Нажмите «Прислать в Telegram» — бот пришлёт файл прямо в чат.";
+  msg.innerHTML = '<span class="spin"></span> готовлю ' + esc((fmt || "").toUpperCase()) + "…";
+  let r;
+  try {
+    r = await fetch("/requests/" + rid + "/analysis." + fmt,
+                    TOKEN ? {headers: {Authorization: "Bearer " + TOKEN}} : {});
+  } catch (e) {
+    msg.innerHTML = '<span class="err">Сервер не отвечает, файл не скачался. Повторите позже.</span>';
+    return;
+  }
+  if (!r.ok) {
+    let j = null;
+    try { j = await r.json(); } catch (e) { j = null; }
+    const d = j && (j.detail || j.error);
+    const text = typeof d === "string" && /[А-Яа-я]/.test(d) ? d
+      : r.status === 401 ? "вы не вошли или сессия закончилась — войдите заново"
+      : r.status === 403 ? "у вас нет доступа к этому запросу"
+      : why(r.status, j);
+    msg.innerHTML = '<span class="err">Файл не скачался: ' + esc(text) + ".</span>";
+    return;
+  }
+  const blob = await r.blob();
+  const name = cdName(r.headers.get("Content-Disposition")) || "Анализ запроса " + rid + "." + fmt;
+  if (!saveBlob(blob, name)) {
+    msg.innerHTML = '<span class="err">Встроенный браузер Telegram не дал сохранить файл.' + hint + "</span>";
+    return;
+  }
+  msg.innerHTML = '<span class="ok">Файл «' + esc(name) + "» сохранён — ищите его в загрузках.</span>"
+    + '<br><span class="note">Если файла в загрузках нет, нажмите «Прислать в Telegram».</span>';
+}
+
+async function sendToTelegram(rid){
+  const msg = $("#expm-" + rid);
+  msg.innerHTML = '<span class="spin"></span> прошу бота прислать файлы…';
+  const r = await api("/requests/" + rid + "/analysis/send-telegram?format=both", {method: "POST"});
+  if (!r.ok) { msg.innerHTML = '<span class="err">' + esc(r.error) + "</span>"; return; }
+  const sent = (r.data.sent || []).join(", ");
+  const errs = (r.data.errors || []).join("; ");
+  msg.innerHTML = '<span class="ok">Отправлено в чат: ' + esc(sent || "—") + "</span>"
+    + (errs ? ' <span class="err">Не ушло: ' + esc(errs) + "</span>" : "");
 }
 
 async function saveRequest(){
@@ -775,6 +1381,8 @@ async function saveRequest(){
   loadPhotos();
   loadDocs();
   paintApprovalBox();
+  $("#exportBox").innerHTML = exportsHtml(RID);
+  bindExports($("#exportBox"));
 }
 
 /* ---------- отправка на согласование (прямо из расчёта) ---------- */
@@ -801,33 +1409,60 @@ function picked(id){
   return Array.prototype.slice.call(document.querySelectorAll('input[name="' + id + '"]:checked')).map(x => Number(x.value));
 }
 
+let CAND = {min: 1, max: 3, items: [], agreement: null};
+
+/* Кого можно выбрать — спрашиваем у сервера по этому запросу: он уже убрал автора
+   и подставил состав из генерального соглашения. */
 async function paintApprovalBox(){
   const box = $("#approvalBox");
   if (!box || !RID) return;
-  box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2><div class="note"><span class="spin"></span> загружаю списки…</div></div>';
-  const errs = await loadPickLists();
-  const agr = AGREEMENTS.filter(a => a.status !== "закрыто");
+  box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2><div class="note"><span class="spin"></span> загружаю список…</div></div>';
+  const r = await api("/requests/" + RID + "/reviewer-candidates");
+  if (!r.ok) {
+    box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2><div class="note err">Список не загрузился: '
+      + esc(r.error) + "</div></div>";
+    return;
+  }
+  CAND = {min: r.data.min || 1, max: r.data.max || 3, items: r.data.items || [],
+    agreement: r.data.general_agreement || null};
+  const pre = r.data.preselected || [];
   box.innerHTML = '<div class="card"><h2>Отправить на согласование</h2>'
-    + '<p class="sub">Запрос № ' + RID + " рассматривают от 2 до 3 работников компании. Себя выбрать нельзя — решение по своему запросу не принимают.</p>"
-    + '<label class="f" for="agrSel">Генеральное соглашение</label>'
-    + '<select id="agrSel"><option value="">без соглашения — выбираю людей сам</option>'
-    + agr.map(a => '<option value="' + a.id + '">' + esc(a.partner) + (a.product_code ? " · продукт " + esc(a.product_code) : "")
-      + " · " + esc(a.status || "") + "</option>").join("") + "</select>"
-    + '<label class="f">Кто согласует</label>'
-    + '<div class="pick" id="revPick">' + pickHtml("rev", []) + "</div>"
+    + '<p class="sub">Запрос № ' + RID + " рассматривают от " + CAND.min + " до " + CAND.max
+    + " администраторов. Себя выбрать нельзя — решение по своему запросу не принимают.</p>"
+    + (CAND.agreement
+      ? '<p class="note ok">Состав подставлен из генерального соглашения «' + esc(CAND.agreement.partner)
+        + "». Его можно изменить.</p>" : "")
+    + '<div class="pick" id="revPick">' + candHtml(pre) + "</div>"
+    + '<div class="note" id="revCount" style="margin-top:8px"></div>'
     + '<button class="go" id="sendRev" style="margin-top:12px">Отправить на согласование</button>'
-    + '<div class="note" id="revMsg" style="margin-top:8px">' + esc(errs.colErr ? "Список работников не загрузился: " + errs.colErr : "") + "</div>"
+    + '<div class="note" id="revMsg" style="margin-top:8px"></div>'
     + "</div>";
-
-  $("#agrSel").onchange = () => {
-    const a = AGREEMENTS.filter(x => String(x.id) === $("#agrSel").value)[0];
-    const ids = a ? matchReviewers(a.default_reviewers || []) : [];
-    $("#revPick").innerHTML = pickHtml("rev", ids);
-    $("#revMsg").innerHTML = !a ? ""
-      : (ids.length ? '<span class="ok">Согласующие подставлены из соглашения «' + esc(a.partner) + "». Их можно изменить.</span>"
-        : '<span class="warn">В соглашении «' + esc(a.partner) + "» согласующие по умолчанию не заданы — выберите людей сами.</span>");
-  };
+  $("#revPick").querySelectorAll('input[name="rev"]').forEach(i => { i.onchange = revCount; });
   $("#sendRev").onclick = sendReviewers;
+  revCount();
+}
+
+function candHtml(pre){
+  if (!CAND.items.length) {
+    return '<div class="note" style="padding:10px 12px">Администраторов, которым можно отдать этот запрос, сейчас нет. Обратитесь к администратору системы.</div>';
+  }
+  const on = pre || [];
+  return CAND.items.map(c =>
+    '<label><input type="checkbox" name="rev" value="' + c.id + '"'
+    + (on.indexOf(c.id) >= 0 ? " checked" : "") + "><span>" + esc(c.full_name)
+    + '<br><span class="r">' + esc(c.position || "должность не указана")
+    + (c.department ? " · " + esc(c.department) : "")
+    + (c.branch ? " · " + esc(c.branch) : "") + "</span></span></label>").join("");
+}
+
+function revCount(){
+  const n = picked("rev").length;
+  const ok = n >= CAND.min && n <= CAND.max;
+  const c = $("#revCount");
+  if (c) c.innerHTML = '<span class="' + (ok ? "ok" : "warn") + '">Выбрано ' + n + " из " + CAND.max + "</span>"
+    + (ok ? "" : ' <span class="note">— нужно от ' + CAND.min + " до " + CAND.max + " человек</span>");
+  const b = $("#sendRev");
+  if (b) b.disabled = !ok;
 }
 
 function matchReviewers(list){
@@ -842,9 +1477,10 @@ function matchReviewers(list){
 
 async function sendReviewers(){
   const ids = picked("rev");
-  const agrId = $("#agrSel").value ? Number($("#agrSel").value) : null;
-  if (ids.length < 2 || ids.length > 3) {
-    $("#revMsg").innerHTML = '<span class="err">Выберите от 2 до 3 человек: сейчас отмечено ' + ids.length + ".</span>";
+  const agrId = CAND.agreement ? CAND.agreement.id : null;
+  if (ids.length < CAND.min || ids.length > CAND.max) {
+    $("#revMsg").innerHTML = '<span class="err">Выберите от ' + CAND.min + " до " + CAND.max
+      + " человек: сейчас отмечено " + ids.length + ".</span>";
     return;
   }
   $("#sendRev").disabled = true;
@@ -874,6 +1510,7 @@ async function loadMine(){
     return;
   }
   $("#myList").innerHTML = items.map(mineCard).join("");
+  bindExports($("#myList"));
 }
 
 function mineCard(q){
@@ -897,7 +1534,9 @@ function mineCard(q){
           + (x.decided_at ? " · " + esc(when(x.decided_at)) : " · решения ещё нет") + "</div>"
           + (x.comment ? '<div class="meta">« ' + esc(x.comment) + " »</div>" : "") + "</div>").join("") + "</div>"
       : '<div class="note">Согласующие не назначены.</div>')
-    + "</div>";
+    + "</div>"
+    + probHtml(probFrom(q))
+    + exportsHtml(q.id);
 }
 $("#myReload").onclick = loadMine;
 
@@ -915,7 +1554,9 @@ async function loadInbox(){
       const b = document.querySelector('[data-dec="' + d + '"][data-rid="' + it.request_id + '"]');
       if (b) b.onclick = () => decide(it.request_id, d);
     });
+    loadInboxDetail(it.request_id);
   });
+  bindExports($("#inboxList"));
 }
 
 function inboxCard(it){
@@ -926,23 +1567,59 @@ function inboxCard(it){
     + (it.partner ? " · " + esc(it.partner) : "") + "</p>"
     + '<div class="kv"><span>Вы в очереди</span><b>' + esc(it.order_no || "—") + "</b>"
     + "<span>Назначено</span><b>" + esc(when(it.assigned_at) || "—") + "</b></div>"
-    + '<label class="f" for="cm-' + it.request_id + '">Комментарий — обязателен, если отклоняете или задаёте вопрос</label>'
-    + '<textarea id="cm-' + it.request_id + '" placeholder="что именно не так и что нужно исправить"></textarea>'
+    + '<label class="f" for="cm-' + it.request_id + '">Примечание (необязательно)</label>'
+    + '<textarea id="cm-' + it.request_id + '" placeholder="можно не заполнять; если отклоняете — напишите, что исправить"></textarea>'
     + '<div class="row" style="margin-top:10px">'
-    + '<button class="go" data-dec="одобрил" data-rid="' + it.request_id + '">Одобрить</button>'
+    + '<button class="go" data-dec="одобрил" data-rid="' + it.request_id + '">Подтвердить</button>'
     + '<button class="no" data-dec="отклонил" data-rid="' + it.request_id + '">Отклонить</button>'
-    + '<button class="ghost" data-dec="вопрос" data-rid="' + it.request_id + '">Вопрос</button>'
+    + '<button class="ghost" data-dec="вопрос" data-rid="' + it.request_id + '">Задать вопрос</button>'
     + "</div>"
-    + '<div class="note" id="dm-' + it.request_id + '" style="margin-top:8px"></div></div>';
+    + '<div class="note" id="dm-' + it.request_id + '" style="margin-top:8px"></div></div>'
+    + '<div id="det-' + it.request_id + '"><div class="card"><div class="note"><span class="spin"></span> загружаю расчёт, анализ и документы…</div></div></div>'
+    + exportsHtml(it.request_id);
+}
+
+/* Расчёт, анализ и документы по запросу — чтобы решать, не выходя из карточки. */
+async function loadInboxDetail(rid){
+  const box = $("#det-" + rid);
+  if (!box) return;
+  const r = await api("/requests/" + rid);
+  if (!r.ok) {
+    box.innerHTML = '<div class="card"><div class="note err">Расчёт не загрузился: ' + esc(r.error) + "</div></div>";
+    return;
+  }
+  const d = r.data || {};
+  const c = d.calculation || {};
+  const o = d.object || {};
+  const docs = d.documents || [];
+  box.innerHTML = '<div class="card"><h2>Расчёт</h2>'
+    + '<p class="sub">' + esc(o.object_type || "объект не указан")
+    + (d.request && d.request.term_days ? " · срок " + esc(d.request.term_days) + " дн." : "") + "</p>"
+    + '<div class="kv">'
+    + "<span>Ставка</span><b>" + pct(c.applied_rate_pct != null ? c.applied_rate_pct : c.gross_rate_pct) + "</b>"
+    + "<span>Премия</span><b>" + fmt(c.premium) + "</b>"
+    + "<span>Страховая сумма</span><b>" + fmt(o.sum_insured) + "</b>"
+    + "<span>Стоимость объекта</span><b>" + fmt(o.value_amount) + "</b>"
+    + "<span>Вердикт движка</span><b>" + esc(c.verdict || "—") + "</b>"
+    + "</div></div>"
+    + '<div class="card"><h2>Проверки</h2><p class="sub">Каждая ссылается на норму.</p>'
+    + ((d.checks || []).length
+      ? (d.checks || []).map(x => '<div class="check ' + (x.status === "ok" ? "ok" : x.status === "stop" ? "stop" : "warn")
+        + '"><i></i><div><b>' + esc(x.rule_code || "проверка") + "</b><span>" + esc(x.detail || "") + "</span></div></div>").join("")
+      : '<div class="note">Проверок по этому расчёту нет.</div>')
+    + "</div>"
+    + probHtml(probFrom(d) || probFrom(d.request || {}) || probFrom(c))
+    + '<div class="card"><h2>Документы</h2>'
+    + (docs.length
+      ? '<div class="files">' + docs.map(x => "<div><span>" + esc(x.doc_name || "документ") + "</span><b>"
+        + (x.received ? "получен" : "нет") + "</b></div>").join("") + "</div>"
+      : '<div class="note">Документы к запросу не приложены.</div>')
+    + "</div>";
 }
 
 async function decide(rid, decision){
   const cm = ($("#cm-" + rid) ? $("#cm-" + rid).value.trim() : "");
   const msg = $("#dm-" + rid);
-  if (decision !== "одобрил" && !cm) {
-    msg.innerHTML = '<span class="err">Напишите в комментарии, что не так: агент должен понять, что исправить.</span>';
-    return;
-  }
   msg.innerHTML = '<span class="spin"></span> записываю решение…';
   const r = await api("/requests/" + rid + "/decide", {method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify({decision: decision, comment: cm || null})});
@@ -1001,24 +1678,66 @@ async function appDecide(uid, what){
 }
 $("#appReload").onclick = loadApplications;
 
-/* ---------- пользователи (админ) ---------- */
+/* ---------- пользователи (список видят все вошедшие) ---------- */
+let CAN_MANAGE = false;
+
 async function loadUsers(){
   $("#usrList").innerHTML = '<div class="card"><div class="note"><span class="spin"></span> загружаю…</div></div>';
-  const r = await api("/auth/users");
+  const r = await api("/tg/users");
   if (!r.ok) { $("#usrList").innerHTML = '<div class="card"><div class="note err">Список не загрузился: ' + esc(r.error) + "</div></div>"; return; }
-  const items = r.data || [];
-  $("#usrList").innerHTML = '<div class="card"><h2>Всего людей: ' + items.length + "</h2>"
-    + '<p class="sub">Заблокированные остаются в базе — так сохраняется история их решений.</p></div>'
-    + items.map(u => '<div class="card" id="usr-' + u.id + '"><h2>' + esc(u.full_name) + "</h2>"
-      + '<p class="sub">' + esc(u.login) + (u.telegram ? " · Telegram привязан" : "") + "</p>"
-      + '<div class="kv"><span>Роль</span><b>' + esc(u.role) + "</b>"
-      + "<span>Статус</span><b>" + esc(u.status) + "</b>"
-      + "<span>Филиал</span><b>" + esc(u.branch || "—") + "</b>"
-      + "<span>Последний вход</span><b>" + esc(when(u.last_login) || "—") + "</b></div>"
-      + (u.status === "активен" && !(ME.user && ME.user.id === u.id)
-        ? '<button class="no" data-block="' + u.id + '" style="margin-top:10px">Заблокировать</button>' : "")
-      + '<div class="note" id="um-' + u.id + '" style="margin-top:8px"></div></div>').join("");
+  CAN_MANAGE = !!r.data.can_manage;
+  const items = r.data.items || [];
+  $("#usrList").innerHTML = '<div class="card"><h2>Всего людей: ' + (r.data.count != null ? r.data.count : items.length) + "</h2>"
+    + '<p class="sub">' + (CAN_MANAGE
+      ? "Вы администратор: можете выдать и снять права администратора. Заблокированные остаются в базе — так сохраняется история их решений."
+      : "Права администратора выдаёт и снимает администратор системы.") + "</p></div>"
+    + items.map(userCard).join("");
+  bindUsers();
+}
+
+function userCard(u){
+  const me = ME.user && ME.user.id === u.id;
+  return '<div class="card" id="usr-' + u.id + '"><h2>' + esc(u.full_name || u.login)
+    + (u.is_admin ? '<span class="tag">админ</span>' : "")
+    + (u.status !== "активен" ? '<span class="tag off">' + esc(u.status) + "</span>" : "") + "</h2>"
+    + '<p class="sub">' + esc(u.department || "департамент не указан")
+    + (me ? " · это вы" : "") + (u.telegram ? " · Telegram привязан" : "") + "</p>"
+    + '<div class="kv">'
+    + "<span>Должность</span><b>" + esc(u.position || "—") + "</b>"
+    + "<span>Телефон</span><b>" + esc(u.phone || "—") + "</b>"
+    + "<span>Филиал</span><b>" + esc(u.branch || "—") + "</b>"
+    + "</div>"
+    + (CAN_MANAGE && !me
+      ? '<div class="row" style="margin-top:10px">'
+        + (u.is_admin
+          ? '<button class="no" data-revoke="' + u.id + '">Снять админа</button>'
+          : '<button class="go" data-make="' + u.id + '">Сделать админом</button>')
+        + (u.status === "активен" ? '<button class="ghost" data-block="' + u.id + '">Заблокировать</button>' : "")
+        + "</div>" : "")
+    + '<div class="note" id="um-' + u.id + '" style="margin-top:8px"></div></div>';
+}
+
+function bindUsers(){
+  document.querySelectorAll("[data-make]").forEach(b => { b.onclick = () => setAdmin(b.dataset.make, true); });
+  document.querySelectorAll("[data-revoke]").forEach(b => { b.onclick = () => setAdmin(b.dataset.revoke, false); });
   document.querySelectorAll("[data-block]").forEach(b => { b.onclick = () => blockUser(b.dataset.block); });
+}
+
+/* карточка перерисовывается на месте: список не дёргается и не прокручивается заново */
+async function setAdmin(uid, make){
+  const msg = $("#um-" + uid);
+  msg.innerHTML = '<span class="spin"></span> ' + (make ? "выдаю права…" : "снимаю права…");
+  const r = await api("/tg/users/" + uid + "/" + (make ? "make-admin" : "revoke-admin"), {method: "POST"});
+  if (!r.ok) { msg.innerHTML = '<span class="err">' + esc(r.error) + "</span>"; return; }
+  const got = await api("/tg/users");
+  if (!got.ok) { msg.innerHTML = '<span class="ok">Готово. Обновите список.</span>'; return; }
+  const u = (got.data.items || []).filter(x => x.id === Number(uid))[0];
+  const card = $("#usr-" + uid);
+  if (u && card) {
+    card.outerHTML = userCard(u);
+    bindUsers();
+    $("#um-" + uid).innerHTML = '<span class="ok">' + (make ? "Права администратора выданы." : "Права администратора сняты.") + "</span>";
+  }
 }
 
 async function blockUser(uid){
@@ -1055,8 +1774,8 @@ $("#agSave").onclick = async () => {
   const partner = $("#agPartner").value.trim();
   if (!partner) { $("#agMsg").innerHTML = '<span class="err">Укажите партнёра — без него соглашение не опознать.</span>'; return; }
   const ids = picked("agrev");
-  if (ids.length && (ids.length < 2 || ids.length > 3)) {
-    $("#agMsg").innerHTML = '<span class="err">Согласующих по умолчанию должно быть от 2 до 3 либо ни одного.</span>';
+  if (ids.length > 3) {
+    $("#agMsg").innerHTML = '<span class="err">Согласующих по умолчанию — не больше трёх либо ни одного.</span>';
     return;
   }
   $("#agSave").disabled = true;

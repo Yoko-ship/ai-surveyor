@@ -3525,7 +3525,11 @@
    "antitheft",
    "drivers",
    "loss_history",
-   "franchise"
+   "franchise",
+   "engine_hours",
+   "spec_site",
+   "spec_operator",
+   "spec_guard"
   ],
   "7": [
    "cargo_mode",
@@ -5375,6 +5379,213 @@
    "option_name": "2% страховой суммы",
    "multiplier": 0.75,
    "calibrated": 0
+  },
+  {
+   "factor_code": "engine_hours",
+   "factor_name": "Наработка, моточасов",
+   "class_code": "3",
+   "option_code": "eh_na",
+   "option_name": "Не применимо (автомобиль, счётчика нет)",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "engine_hours",
+   "factor_name": "Наработка, моточасов",
+   "class_code": "3",
+   "option_code": "eh_low",
+   "option_name": "До 2 000",
+   "multiplier": 0.95,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "engine_hours",
+   "factor_name": "Наработка, моточасов",
+   "class_code": "3",
+   "option_code": "eh_mid",
+   "option_name": "2 000–6 000",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "engine_hours",
+   "factor_name": "Наработка, моточасов",
+   "class_code": "3",
+   "option_code": "eh_high",
+   "option_name": "6 000–12 000",
+   "multiplier": 1.15,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "engine_hours",
+   "factor_name": "Наработка, моточасов",
+   "class_code": "3",
+   "option_code": "eh_max",
+   "option_name": "Свыше 12 000",
+   "multiplier": 1.3,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "veh_age",
+   "factor_name": "Возраст ТС",
+   "class_code": "3",
+   "option_code": "a15",
+   "option_name": "8–15 лет",
+   "multiplier": 1.2,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "veh_age",
+   "factor_name": "Возраст ТС",
+   "class_code": "3",
+   "option_code": "a15p",
+   "option_name": "Старше 15 лет",
+   "multiplier": 1.4,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_na",
+   "option_name": "Не применимо (обычный автотранспорт)",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_quarry",
+   "option_name": "Карьер, шахта, рудник",
+   "multiplier": 1.45,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_road",
+   "option_name": "Дорожные работы в полосе движения",
+   "multiplier": 1.25,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_build",
+   "option_name": "Строительная площадка",
+   "multiplier": 1.15,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_agro",
+   "option_name": "Сельское хозяйство, поле",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_site",
+   "factor_name": "Условия эксплуатации",
+   "class_code": "3",
+   "option_code": "site_wh",
+   "option_name": "Склад, закрытое помещение, площадка предприятия",
+   "multiplier": 0.85,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_operator",
+   "factor_name": "Кто управляет машиной",
+   "class_code": "3",
+   "option_code": "op_na",
+   "option_name": "Не применимо (обычный автотранспорт)",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_operator",
+   "factor_name": "Кто управляет машиной",
+   "class_code": "3",
+   "option_code": "op_staff",
+   "option_name": "Штатный оператор с удостоверением тракториста-машиниста",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_operator",
+   "factor_name": "Кто управляет машиной",
+   "class_code": "3",
+   "option_code": "op_rent_crew",
+   "option_name": "Передаётся в аренду с экипажем",
+   "multiplier": 1.1,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_operator",
+   "factor_name": "Кто управляет машиной",
+   "class_code": "3",
+   "option_code": "op_rent",
+   "option_name": "Передаётся в аренду без экипажа",
+   "multiplier": 1.3,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_operator",
+   "factor_name": "Кто управляет машиной",
+   "class_code": "3",
+   "option_code": "op_unknown",
+   "option_name": "Круг операторов не определён",
+   "multiplier": 1.15,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_guard",
+   "factor_name": "Охрана и контроль на площадке",
+   "class_code": "3",
+   "option_code": "guard_na",
+   "option_name": "Не применимо (обычный автотранспорт)",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_guard",
+   "factor_name": "Охрана и контроль на площадке",
+   "class_code": "3",
+   "option_code": "guard_full",
+   "option_name": "Огороженная площадка, охрана и видеонаблюдение",
+   "multiplier": 0.9,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_guard",
+   "factor_name": "Охрана и контроль на площадке",
+   "class_code": "3",
+   "option_code": "guard_gps",
+   "option_name": "Спутниковый мониторинг и блокировка двигателя",
+   "multiplier": 0.95,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_guard",
+   "factor_name": "Охрана и контроль на площадке",
+   "class_code": "3",
+   "option_code": "guard_watch",
+   "option_name": "Сторож без технических средств",
+   "multiplier": 1.0,
+   "calibrated": 0
+  },
+  {
+   "factor_code": "spec_guard",
+   "factor_name": "Охрана и контроль на площадке",
+   "class_code": "3",
+   "option_code": "guard_none",
+   "option_name": "Машина остаётся на объекте без охраны",
+   "multiplier": 1.25,
+   "calibrated": 0
   }
  ],
  "base_rates": [
@@ -5493,6 +5704,102 @@
    "calibrated": 0
   },
   {
+   "class_code": "3",
+   "object_type": "Спецтехника — экскаватор",
+   "net_rate_pct": 0.75,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — экскаватор-погрузчик",
+   "net_rate_pct": 0.75,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — бульдозер",
+   "net_rate_pct": 0.7,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — погрузчик фронтальный",
+   "net_rate_pct": 0.75,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — погрузчик вилочный",
+   "net_rate_pct": 0.55,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — телескопический погрузчик",
+   "net_rate_pct": 0.8,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — автокран",
+   "net_rate_pct": 0.95,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — кран гусеничный",
+   "net_rate_pct": 0.9,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — автовышка",
+   "net_rate_pct": 0.85,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — бетононасос",
+   "net_rate_pct": 1.0,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — автобетоносмеситель",
+   "net_rate_pct": 0.8,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — буровая установка",
+   "net_rate_pct": 1.0,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — дорожная (каток, грейдер, асфальтоукладчик)",
+   "net_rate_pct": 0.8,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — трактор",
+   "net_rate_pct": 0.6,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Спецтехника — комбайн",
+   "net_rate_pct": 0.8,
+   "calibrated": 0
+  },
+  {
+   "class_code": "3",
+   "object_type": "Прицеп и полуприцеп",
+   "net_rate_pct": 0.45,
+   "calibrated": 0
+  },
+  {
    "class_code": "4",
    "object_type": "Подвижной состав",
    "net_rate_pct": 0.2,
@@ -5553,6 +5860,12 @@
    "calibrated": 0
   },
   {
+   "class_code": "8",
+   "object_type": "Машины и оборудование",
+   "net_rate_pct": 0.2,
+   "calibrated": 0
+  },
+  {
    "class_code": "9",
    "object_type": "Склад",
    "net_rate_pct": 0.1,
@@ -5586,6 +5899,12 @@
    "class_code": "9",
    "object_type": "Гостиница",
    "net_rate_pct": 0.1,
+   "calibrated": 0
+  },
+  {
+   "class_code": "9",
+   "object_type": "Машины и оборудование",
+   "net_rate_pct": 0.15,
    "calibrated": 0
   }
  ],
@@ -5902,6 +6221,181 @@
    "doc_name": "Инвентаризационная опись товара",
    "required": 0,
    "condition": "Товар в обороте"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Заявление на страхование",
+   "required": 1,
+   "condition": "п. 12 Правил ПКМ № 177"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Свидетельство о государственной регистрации (для работодателя-физлица — копия паспорта)",
+   "required": 1,
+   "condition": "п. 12 Правил ПКМ № 177"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Штатное расписание",
+   "required": 1,
+   "condition": "подтверждение численности работников"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Справка о фонде оплаты труда за 12 месяцев (или за срок деятельности)",
+   "required": 1,
+   "condition": "страховая сумма — ЗРУ-210 ст. 10, п. 21 Правил"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Сведения о видах деятельности с кодами ОКЭД (IFUT)",
+   "required": 1,
+   "condition": "подбор КСТ — прил. № 9, разд. I, п. 3"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Сведения о несчастных случаях за 3 года, акты по форме Н-1",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18, п. 30 Правил"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Материалы аттестации рабочих мест по условиям труда",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Приказ о назначении ответственного за охрану труда / положение о службе охраны труда",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Журналы инструктажей и протоколы проверки знаний по охране труда",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Ведомости выдачи средств индивидуальной защиты",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18"
+  },
+  {
+   "scope_type": "продукт",
+   "scope_code": "1323",
+   "doc_name": "Предписания инспекции труда и отчёт об их выполнении",
+   "required": 0,
+   "condition": "оценка риска — ЗРУ-210 ст. 18"
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Оборудование",
+   "doc_name": "Техническое свидетельство Узагроинспекции (техник гувоҳнома)",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Оборудование",
+   "doc_name": "Инвентарная карточка или справка по основным средствам",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Оборудование",
+   "doc_name": "Фотографии оборудования и заводской таблички",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Технический паспорт Узагроинспекции или свидетельство о регистрации СБДД",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Паспорт самоходной машины (заводской паспорт изготовителя)",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Акт осмотра машины с подписью представителя страховщика",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Фотографии машины с четырёх сторон, а также номеров рамы (шасси) и двигателя",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Показания счётчика наработки (фото счётчика моточасов)",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Документ о стоимости: счёт поставщика, договор купли-продажи или отчёт оценщика",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Справка об убытках за 3 года",
+   "required": 1,
+   "condition": null
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Договор аренды или лизинга",
+   "required": 0,
+   "condition": "Машина передаётся в аренду либо находится в лизинге"
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Удостоверение тракториста-машиниста оператора",
+   "required": 0,
+   "condition": "Класс 3, самоходная машина"
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Полис ОСГО",
+   "required": 0,
+   "condition": "Конструктивная скорость выше 20 км/ч (ЗРУ-155 ст. 6)"
+  },
+  {
+   "scope_type": "тип_объекта",
+   "scope_code": "Спецтехника",
+   "doc_name": "Документ о месте стоянки и охране площадки",
+   "required": 0,
+   "condition": "Выбран вариант охраны лучше «сторож»"
   }
  ],
  "rules": [
@@ -6044,6 +6538,97 @@
    "severity": "предупреждение",
    "legal_ref": "Закон о персональных данных, ст. 18, 19",
    "description": "Хранить можно только характеристики объекта и цену; ФИО, телефон, профиль и фото продавца не сохраняются, данные обезличиваются."
+  },
+  {
+   "code": "OSGOR-01",
+   "name": "Страховая сумма = годовой ФОТ всех работников",
+   "severity": "стоп",
+   "legal_ref": "ЗРУ-210 ст. 10; п. 21 Правил ПКМ № 177",
+   "description": "Страховая сумма по ОСГОР — годовой фонд оплаты труда всех работников, а не лимит на человека. Новый работодатель — зарплата за первый месяц × 12; деятельность меньше года — ФОТ за срок деятельности."
+  },
+  {
+   "code": "OSGOR-02",
+   "name": "Тариф считается только по формуле акта",
+   "severity": "стоп",
+   "legal_ref": "Прил. № 9 к Правилам ПКМ № 177, разд. I и III; ЗРУ-210 ст. 8 ч. 4",
+   "description": "ПР = СС × 0,1 × КСТ / 100; для срока меньше года × Д / 365. Скидок, надбавок, франшизы и вилки ставки в этом виде нет."
+  },
+  {
+   "code": "OSGOR-03",
+   "name": "КСТ берётся по коду ОКЭД из классификации",
+   "severity": "стоп",
+   "legal_ref": "Прил. № 9 к Правилам ПКМ № 177, разд. I, п. 3 (ред. ПКМ № 443 от 15.07.2025)",
+   "description": "Коэффициент берётся из перечня 934 видов деятельности (20 категорий, КСТ 0,571…7,714). Агенту показываются категория, КСТ и наименование вида деятельности из перечня."
+  },
+  {
+   "code": "OSGOR-04",
+   "name": "Вид деятельности не найден — КСТ 3,400",
+   "severity": "подсказка",
+   "legal_ref": "Прил. № 9 к Правилам ПКМ № 177, разд. I, п. 6",
+   "description": "Если кода ОКЭД нет в классификации, применяется коэффициент 3,400; сначала проверить правильность кода в заявлении."
+  },
+  {
+   "code": "OSGOR-05",
+   "name": "Минимальная премия по годовому договору",
+   "severity": "стоп",
+   "legal_ref": "П. 23 Правил ПКМ № 177 (ред. ПКМ № 443 от 15.07.2025)",
+   "description": "Премия по годовому договору не может быть меньше 0,25 БРВ на дату заключения договора."
+  },
+  {
+   "code": "OSGOR-06",
+   "name": "Срок договора — один год или срок деятельности",
+   "severity": "стоп",
+   "legal_ref": "ЗРУ-210 ст. 6 ч. 7; п. 9 Правил ПКМ № 177",
+   "description": "Договор заключается на год; более короткий срок допустим, только если деятельность работодателя короче года."
+  },
+  {
+   "code": "OSGOR-07",
+   "name": "Покрытие начинается после оплаты премии",
+   "severity": "предупреждение",
+   "legal_ref": "Форма договора (прил. № 1 к Правилам), п. 5; п. 26 Правил ПКМ № 177",
+   "description": "Ответственность страховщика начинается с 00:00 дня, следующего за днём поступления премии на расчётный счёт. Премия уплачивается единовременно в течение 5 рабочих дней."
+  },
+  {
+   "code": "OSGOR-08",
+   "name": "Расходы на погребение — отдельной строкой, не более 3 БРВ",
+   "severity": "предупреждение",
+   "legal_ref": "П. 43 Правил ПКМ № 177; форма договора, п. 2",
+   "description": "В договоре указывается отдельная сумма расходов на погребение, не более 3 БРВ на день смерти."
+  },
+  {
+   "code": "OSGOR-09",
+   "name": "После выплаты страховая сумма уменьшается, нужна доплата премии",
+   "severity": "предупреждение",
+   "legal_ref": "ЗРУ-210 ст. 10 ч. 3; п. 27 Правил ПКМ № 177",
+   "description": "После выплаты остаток страховой суммы уменьшается на выплаченное возмещение; работодатель доплачивает премию пропорционально выплате и остатку срока в течение 7 рабочих дней."
+  },
+  {
+   "code": "OSGOR-10",
+   "name": "Изменился ФОТ или вид деятельности — допсоглашение",
+   "severity": "предупреждение",
+   "legal_ref": "ЗРУ-210 ст. 10 ч. 2 (ред. ЗРУ-1154); пп. 22, 29 Правил ПКМ № 177",
+   "description": "Работодатель уведомляет страховщика в 5 рабочих дней; премия пересчитывается пропорционально остатку срока по тарифу на дату заключения договора."
+  },
+  {
+   "code": "OSGOR-11",
+   "name": "Нет договора ОСГОР — административный штраф",
+   "severity": "подсказка",
+   "legal_ref": "КоАО ст. 49² (ред. ЗРУ-586 от 03.12.2019)",
+   "description": "Штраф на должностное лицо 10–15 БРВ, повторно в течение года — 15–30 БРВ; на граждан 7–10 и 10–15 БРВ."
+  },
+  {
+   "code": "OSGOR-12",
+   "name": "Запрет двойного покрытия за счёт бюджета",
+   "severity": "предупреждение",
+   "legal_ref": "ЗРУ-210 ст. 4 ч. 2 (ред. ЗРУ-1154 от 22.06.2026)",
+   "description": "Нельзя за счёт бюджетных средств страховать по ОСГОР работников, для которых предусмотрено обязательное государственное страхование жизни и здоровья."
+  },
+  {
+   "code": "OSGOR-13",
+   "name": "Выплаты дольше года — только через аннуитет",
+   "severity": "подсказка",
+   "legal_ref": "ЗРУ-210 ст. 14, ст. 15; пп. 49–50 Правил ПКМ № 177",
+   "description": "Возмещение на срок более одного года оформляется трёхсторонним договором аннуитетов со страховщиком жизни."
   }
  ],
  "financials": {
@@ -6059,6 +6644,14 @@
    "document_ref": "Приказ №54-П от 23.09.2025",
    "effective_from": "2025-09-23",
    "effective_to": null
+  },
+  {
+   "level": "регулятор",
+   "name": "Страховые тарифы ОСГОР (ПКМ № 177, прил. № 9)",
+   "document_ref": "ПКМ № 177 от 24.06.2009 в ред. ПКМ № 443 от 15.07.2025",
+   "effective_from": "2025-07-15",
+   "effective_to": null
   }
- ]
+ ],
+ "settings": {}
 }

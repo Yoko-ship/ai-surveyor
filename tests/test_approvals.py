@@ -106,6 +106,7 @@ def setup():
 def teardown(rid):
     with db.tx() as con:
         con.execute("DELETE FROM request_reviewers WHERE request_id=?", (rid,))
+        con.execute("DELETE FROM decision_outcomes WHERE request_id=?", (rid,))
         approvals.recalc(con, rid)          # состава больше нет — статус обязан стать «не требуется»
         con.execute("DELETE FROM requests WHERE id=?", (rid,))
         for login in LOGINS:
@@ -143,16 +144,18 @@ def run(rid, uids):
     assert st == 200, (st, b)               # агент, подавший запрос, состав назначает
     print("0. без входа — 401, чужая роль и чужой запрос — 403 — ок")
 
-    # 1. состав: строго 2–3 активных человека
+    # 1. состав: от 1 до 3 активных человек (с 21.09.2026 одного рассматривающего достаточно)
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0]]}, who=boss)
-    assert st == 400 and "от 2 до 3" in b["detail"], (st, b)
+    assert st == 200 and len(b["reviewers"]) == 1, (st, b)
+    st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": []}, who=boss)
+    assert st == 400 and "от 1 до 3" in b["detail"], (st, b)
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0], uids[1], uids[1], uids[3], 999999]}, who=boss)
     assert st == 400, (st, b)                                  # четверо после снятия дублей
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0], uids[2]]}, who=boss)
     assert st == 400 and "не активен" in b["detail"], (st, b)
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0], 999999]}, who=boss)
     assert st == 400 and "не найден" in b["detail"], (st, b)
-    print("1. валидация состава (2–3, активные, существующие) — ок")
+    print("1. валидация состава (1–3, активные, существующие) — ок")
 
     # 1а. правовые ограничения на состав
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0], uids[5]]}, who=boss)
@@ -201,11 +204,14 @@ def run(rid, uids):
     print(f"5. в audit записано решений: {n}, авторы — {', '.join(sorted(actors))} — ок")
 
     # 5. просмотр, входящие, лента
-    st, v = call("GET", f"/requests/{rid}/approvals")
+    st, v = call("GET", f"/requests/{rid}/approvals", who=boss)
     assert st == 200 and v["approval_status"] == "отклонён" and len(v["reviewers"]) == 2, v
-    st, inb = call("GET", "/approvals/inbox", params={"user": LOGINS[0]})
+    st, inb = call("GET", "/approvals/inbox", params={"user": LOGINS[0]}, who=LOGINS[0])
     assert st == 200 and all(i["request_id"] != rid for i in inb["items"]), inb
-    st, feed = call("GET", "/approvals/feed", params={"limit": 20})
+    # чужую очередь смотреть нельзя (ЗРУ-730 ст. 62): только свою или админскую
+    st, b = call("GET", "/approvals/inbox", params={"user": LOGINS[1]}, who=LOGINS[0])
+    assert st == 403, (st, b)
+    st, feed = call("GET", "/approvals/feed", params={"limit": 20}, who=boss)
     mine = [i for i in feed["items"] if i["request_id"] == rid]
     assert st == 200 and len(mine) == 2, feed
     assert {i["decision"] for i in mine} == {"одобрил", "отклонил"}, mine
@@ -214,21 +220,21 @@ def run(rid, uids):
 
     # 6. переназначение состава сбрасывает решения
     call("POST", f"/requests/{rid}/reviewers", {"user_ids": [uids[0], uids[1]]}, who=boss)
-    st, inb = call("GET", "/approvals/inbox", params={"user": LOGINS[1]})
+    st, inb = call("GET", "/approvals/inbox", params={"user": LOGINS[1]}, who=LOGINS[1])
     assert any(i["request_id"] == rid for i in inb["items"]), inb
-    st, v = call("GET", f"/requests/{rid}/approvals")
+    st, v = call("GET", f"/requests/{rid}/approvals", who=boss)
     assert v["approval_status"] == "на согласовании", v
     print("7. переназначение состава сбрасывает решения — ок")
 
     # 6а. список «все запросы на согласовании» одним запросом
-    st, pend = call("GET", "/approvals/pending")
+    st, pend = call("GET", "/approvals/pending", who=boss)
     row = [p for p in pend["items"] if p["id"] == rid]
     assert st == 200 and row and row[0]["total"] == 2 and row[0]["waiting"] == 2, (st, pend)
     assert pend["count"] == len(pend["items"]), pend
     print(f"7а. /approvals/pending: ждут решения {pend['count']} запросов, по нашему осталось {row[0]['waiting']} из 2 — ок")
 
     # 7. генеральные соглашения
-    st, lst = call("GET", "/general-agreements")
+    st, lst = call("GET", "/general-agreements", who=admin)
     aab = [a for a in lst if a["partner"] == "Asia Alliance Bank"]
     assert st == 200 and aab, lst
     assert aab[0]["status"] == "черновик" and aab[0]["default_reviewers"] == [] and not aab[0]["terms"], aab[0]
@@ -238,7 +244,7 @@ def run(rid, uids):
     assert st == 200, (st, made)
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [], "general_agreement_id": made["id"]}, who=boss)
     assert st == 200 and [x["user_id"] for x in b["reviewers"]] == [uids[0], uids[1]], (st, b)
-    st, v = call("GET", f"/requests/{rid}/approvals")
+    st, v = call("GET", f"/requests/{rid}/approvals", who=boss)
     assert v["general_agreement_id"] == made["id"], v
     st, b = call("POST", f"/requests/{rid}/reviewers", {"user_ids": [], "general_agreement_id": aab[0]["id"]}, who=boss)
     assert st == 400 and "вручную" in b["detail"], (st, b)     # у Asia Alliance Bank состава нет — не выдумываем

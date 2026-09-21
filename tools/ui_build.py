@@ -23,6 +23,18 @@ def rows(con, sql, *a):
     return [dict(r) for r in con.execute(sql, a)]
 
 
+def settings(con, keys) -> dict:
+    """Значения из app_settings по списку ключей. Нет таблицы или ключа — пустой словарь."""
+    out = {}
+    try:
+        for r in rows(con, "SELECT key, value FROM app_settings"):
+            if r["key"] in keys:
+                out[r["key"]] = r["value"]
+    except sqlite3.Error:
+        pass
+    return out
+
+
 def export() -> dict:
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
@@ -75,6 +87,9 @@ def export() -> dict:
         "financials": (rows(con, "SELECT report_date, own_funds, reserves, source FROM company_financials"
                                  " ORDER BY report_date DESC LIMIT 1") or [None])[0],
         "tariff_versions": rows(con, "SELECT level, name, document_ref, effective_from, effective_to FROM tariff_versions"),
+        # общие настройки: экрану ОСГОР нужен размер БРВ (минимальная премия 0,25 БРВ, п. 23 Правил).
+        # Пока заказчик его не назвал, ключа в базе нет и экран спрашивает БРВ у агента.
+        "settings": settings(con, ("BRV",)),
     }
     con.close()
     return data

@@ -128,6 +128,9 @@ class SettingsIn(BaseModel):
     model: str = ""
     api_key: str = ""
     telegram_bot_token: str = ""
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_allowed_domains: str = ""      # "-" = очистить список (пускать любой аккаунт Google)
     pd_mode: str = ""
     server_url: str = ""
     confirm: bool = False          # нужен только для смены режима персональных данных
@@ -141,10 +144,18 @@ def settings_view() -> dict:
             "api_key_set": bool(llm.api_key()),
             "telegram_bot_token": llm.mask_key(llm.get("TELEGRAM_BOT_TOKEN")),
             "telegram_bot_token_set": bool(llm.get("TELEGRAM_BOT_TOKEN")),
+            # вход через Google: идентификатор — маской, секрет наружу не отдаём вовсе,
+            # список доменов не секрет и показывается целиком
+            "google_client_id": llm.mask_key(llm.get("GOOGLE_CLIENT_ID")),
+            "google_client_id_set": bool(llm.get("GOOGLE_CLIENT_ID")),
+            "google_client_secret_set": bool(llm.get("GOOGLE_CLIENT_SECRET")),
+            "google_allowed_domains": llm.get("GOOGLE_ALLOWED_DOMAINS"),
             "pd_mode": llm.get("PD_MODE"),
             "server_url": llm.get("SERVER_URL"),
             "providers": [{"code": k, "name": v["name"]} for k, v in llm.PROVIDERS.items()],
-            "hint": "Пустое поле означает «не менять». Ключи показываются только маской."}
+            "hint": "Пустое поле означает «не менять». Ключи показываются только маской. "
+                    "Чтобы очистить список доменов почты для входа через Google (пускать любой "
+                    "аккаунт), впишите в это поле знак «-»."}
 
 
 @router.get("/deploy/settings")
@@ -164,15 +175,30 @@ def post_settings(body: SettingsIn):
     provider = (body.provider or "").strip().lower()
     if provider and provider not in llm.PROVIDERS:
         raise HTTPException(400, "Провайдер бывает только: " + ", ".join(llm.PROVIDERS))
+    # список доменов почты для входа через Google: пустое поле = не менять (общее правило),
+    # знак «-» = очистить список, то есть пускать любой аккаунт Google
+    domains = (body.google_allowed_domains or "").strip()
+    cleared = domains == "-"
+    if cleared:
+        domains = ""
+        with db.tx() as con:
+            con.execute("DELETE FROM app_settings WHERE key=?", ("GOOGLE_ALLOWED_DOMAINS",))
+            db.audit(con, "админ", "изменены настройки", "app_settings",
+                     {"keys": ["GOOGLE_ALLOWED_DOMAINS"], "действие": "очищен список доменов"})
     changed = llm.set_many({
         "LLM_PROVIDER": provider,
         "LLM_BASE_URL": body.base_url,
         "LLM_MODEL": body.model,
         "LLM_API_KEY": body.api_key,
         "TELEGRAM_BOT_TOKEN": body.telegram_bot_token,
+        "GOOGLE_CLIENT_ID": body.google_client_id,
+        "GOOGLE_CLIENT_SECRET": body.google_client_secret,
+        "GOOGLE_ALLOWED_DOMAINS": domains,
         "PD_MODE": pd_mode,
         "SERVER_URL": body.server_url,
     })
+    if cleared and "GOOGLE_ALLOWED_DOMAINS" not in changed:
+        changed.append("GOOGLE_ALLOWED_DOMAINS")
     return {"ok": True, "changed": changed, "settings": settings_view()}
 
 

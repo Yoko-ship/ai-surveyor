@@ -13,7 +13,9 @@
   - имя: клиентское имя не используем как имя файла (в нём бывают '..' и разделители пути) —
     генерируем своё, клиентское сохраняем отдельным полем только для показа.
 """
+import io
 import secrets
+import zipfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -21,7 +23,8 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 from . import db
-from .docparse import ALL_KINDS, DOC_KINDS, KIND_PHOTO as DEFAULT_KIND, mark_received, parse_photo
+from .docparse import (ALL_KINDS, DOC_KINDS, KIND_OTHER, KIND_PHOTO as DEFAULT_KIND,
+                       mark_received, parse_photo)
 
 ROOT = Path(__file__).resolve().parent.parent
 PHOTOS_DIR = db.DATA_DIR / "photos"
@@ -29,9 +32,11 @@ router = APIRouter()
 
 MAX_BYTES = 10 * 1024 * 1024          # ~10 МБ на файл
 ALLOWED = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
-# PDF принимаем только как документ (техпаспорт, кадастр), фотографией объекта он быть не может
+# PDF, DOCX и XLSX принимаем только как документ, фотографией объекта они быть не могут
 PDF_MIME = "application/pdf"
-DOC_ALLOWED = dict(ALLOWED, **{PDF_MIME: ".pdf"})
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+DOC_ALLOWED = dict(ALLOWED, **{PDF_MIME: ".pdf", DOCX_MIME: ".docx", XLSX_MIME: ".xlsx"})
 
 # Сигнатуры: определяем формат по содержимому, а не по тому, что сказал клиент.
 MAGIC = (
@@ -39,9 +44,19 @@ MAGIC = (
     (b"\x89PNG\r\n\x1a\n", "image/png"),
 )
 
+# Старый формат Word и Excel (OLE2): принять не можем, но обязаны объяснить, что делать.
+OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
+OLD_OFFICE_MIME = "application/x-ole-storage"
+OLD_OFFICE_HINT = ("Формат .doc (.xls) не поддерживается. Откройте файл в Word (Excel) "
+                   "и сохраните как .docx (.xlsx).")
+
 
 def sniff_mime(blob: bytes) -> Optional[str]:
-    """Тип картинки по первым байтам. None — формат не из разрешённых."""
+    """
+    Тип файла по первым байтам. None — формат не из разрешённых.
+    DOCX и XLSX — оба ZIP (PK\\x03\\x04), различаем по содержимому архива:
+    word/document.xml → документ Word, xl/workbook.xml → книга Excel.
+    """
     for sig, mime in MAGIC:
         if blob.startswith(sig):
             return mime
@@ -50,6 +65,19 @@ def sniff_mime(blob: bytes) -> Optional[str]:
         return "image/webp"
     if blob[:5] == b"%PDF-":
         return PDF_MIME
+    if blob.startswith(OLE_SIGNATURE):
+        return OLD_OFFICE_MIME          # распознаём, чтобы отказать по-человечески
+    if blob[:4] == b"PK\x03\x04":
+        try:
+            with zipfile.ZipFile(io.BytesIO(blob)) as z:
+                names = set(z.namelist())
+        except Exception:
+            return None
+        if "word/document.xml" in names:
+            return DOCX_MIME
+        if "xl/workbook.xml" in names or any(n.startswith("xl/") for n in names):
+            return XLSX_MIME
+        return None
     return None
 
 
@@ -71,6 +99,10 @@ def _store(con, rid: int, blob: bytes, client_name: str, who: str, note: str = N
                  {"filename": client_name, "size_bytes": len(blob), "limit": MAX_BYTES})
         raise HTTPException(413, f"Файл больше {MAX_BYTES // (1024 * 1024)} МБ")
     mime = sniff_mime(blob)
+    if mime == OLD_OFFICE_MIME:
+        db.audit(con, who, "файл отклонён: старый формат Office", f"request:{rid}",
+                 {"doc_kind": doc_kind, "mime": mime})
+        raise HTTPException(415, OLD_OFFICE_HINT)
     if mime not in allowed:
         db.audit(con, who, "файл отклонён: формат", f"request:{rid}",
                  {"filename": client_name, "doc_kind": doc_kind, "mime": mime})
@@ -166,18 +198,20 @@ def delete_photo(photo_id: int, who: str = "api"):
 
 
 @router.post("/requests/{rid}/documents/upload")
-async def upload_document_file(rid: int, request: Request, doc_kind: str,
+async def upload_document_file(rid: int, request: Request, doc_kind: str = None,
                                files: List[UploadFile] = File(None), who: str = "api",
                                note: str = None, parse: bool = True,
                                with_reg_no: bool = False):
     """
-    Загрузка документа объекта: PDF или фотография.
-      doc_kind — 'техпаспорт' или 'кадастр'.
+    Загрузка документа объекта: PDF, DOCX, XLSX или фотография.
+      doc_kind — необязателен. Не указан — ставим «прочее», а настоящий вид определяет
+      app/ingest.py по содержимому файла.
     Способы те же, что у фотографий: multipart (поле files) или сырое тело с X-Filename.
     После загрузки документ разбирается, из него берутся характеристики объекта.
     """
-    if doc_kind not in DOC_KINDS:
-        raise HTTPException(400, "doc_kind: " + ", ".join(DOC_KINDS))
+    doc_kind = doc_kind or KIND_OTHER
+    if doc_kind not in ALL_KINDS or doc_kind == DEFAULT_KIND:
+        raise HTTPException(400, "doc_kind: " + ", ".join(k for k in ALL_KINDS if k != DEFAULT_KIND))
     saved = []
     with db.tx() as con:
         _check_request(con, rid)
@@ -192,9 +226,14 @@ async def upload_document_file(rid: int, request: Request, doc_kind: str,
             blobs.append((body, request.headers.get("X-Filename", "")))
         for blob, fname in blobs:
             rec = _store(con, rid, blob, fname, who, note, doc_kind)
-            if parse:
+            if parse and doc_kind in DOC_KINDS:
                 rec["разбор"] = parse_photo(con, rec["id"], doc_kind, who=who,
                                             with_reg_no=with_reg_no)
+            elif parse:
+                # остальные виды (и файлы без указанного вида) разбирает app/ingest.py:
+                # он сам определяет язык и вид документа по содержимому
+                from . import ingest
+                rec["разбор"] = ingest.ingest_file(con, rec["id"], who=who)
             else:
                 rec["чек_лист"] = mark_received(con, rid, doc_kind, rec["path"], None, who)
             saved.append(rec)

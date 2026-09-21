@@ -44,8 +44,17 @@ LAWYER_NOTE = ROOT / "docs" / "Документы объекта — поля д
 KIND_PHOTO = "фото объекта"
 KIND_PASSPORT = "техпаспорт"
 KIND_CADASTRE = "кадастр"
-DOC_KINDS = (KIND_PASSPORT, KIND_CADASTRE)          # виды, которые разбираем
-ALL_KINDS = (KIND_PHOTO,) + DOC_KINDS
+# Виды, добавленные для приёма документов (app/ingest.py, задача заказчика 21.09.2026).
+# Подписей полей в docparse для них нет — их разбирает ingest по словарям аналитика;
+# здесь они нужны, чтобы файл можно было загрузить и отметить в чек-листе.
+KIND_VALUATION = "отчёт оценщика"
+KIND_CONTRACT = "договор"
+KIND_STATEMENT = "выписка"
+KIND_STAFF = "штатное расписание"
+KIND_OTHER = "прочее"
+EXTRA_KINDS = (KIND_VALUATION, KIND_CONTRACT, KIND_STATEMENT, KIND_STAFF, KIND_OTHER)
+DOC_KINDS = (KIND_PASSPORT, KIND_CADASTRE)          # виды, для которых есть подписи полей здесь
+ALL_KINDS = (KIND_PHOTO,) + DOC_KINDS + EXTRA_KINDS
 
 # Статусы разбора
 ST_OK = "разобран"
@@ -75,8 +84,10 @@ FIELDS = {
     KIND_PASSPORT: [
         {"key": "brand", "name": "Марка", "type": "text", "to_valuation": "марка",
          "norm": TP_683 + "; " + TP_141,
-         "labels": ["марка и модель", "марка", "markasi va modeli", "markasi", "rusumi",
-                    "маркаси ва модели", "маркаси"]},
+         "labels": ["марка и модель", "марка, модель", "марка", "markasi va modeli",
+                    "marka va model", "marka-rusumi", "markasi", "rusumi",
+                    "маркаси ва модели", "марка ва модель", "маркаси", "русуми",
+                    "brand and model", "make and model"]},
         {"key": "model", "name": "Модель, модификация", "type": "text", "to_valuation": "модель",
          "norm": TP_683,
          "labels": ["модель и модификация", "модель, модификация", "модель", "модели",
@@ -84,105 +95,137 @@ FIELDS = {
         {"key": "year", "name": "Год выпуска", "type": "year", "to_valuation": "год",
          "norm": TP_141,
          "labels": ["год выпуска", "год изготовления", "дата выпуска",
-                    "ishlab chiqarilgan yili", "chiqarilgan yili",
-                    "ишлаб чикарилган йили", "чикарилган йили"]},
+                    "ishlab chiqarilgan yili", "ishlab chiqarilgan yil", "chiqarilgan yili",
+                    "ишлаб чиқарилган йили", "ишлаб чиқарилган йил",
+                    "ишлаб чикарилган йили", "чикарилган йили",
+                    "year of manufacture", "year of production"]},
         {"key": "vehicle_type", "name": "Тип транспортного средства", "type": "text",
          "to_valuation": None, "norm": TP_683,
-         "labels": ["тип транспортного средства", "тип тс", "тип", "tipi", "типи"]},
+         "labels": ["тип транспортного средства", "категория транспортного средства", "тип тс",
+                    "тип", "transport vositasining turi", "transport vositasining toifasi",
+                    "tipi", "транспорт воситасининг тури", "транспорт воситасининг тоифаси",
+                    "типи", "vehicle category", "vehicle type"]},
         {"key": "body_no", "name": "Номер кузова", "type": "vin", "to_valuation": None,
          "norm": TP_683 + "; " + TP_141,
          "labels": ["номер кузова (шасси)", "номер кузова", "kuzov (shassi) raqami",
-                    "kuzov raqami", "кузов раками"]},
+                    "kuzov raqami", "кузов (шасси) рақами", "кузов рақами", "кузов раками",
+                    "body number"]},
         # Отдельной графы VIN в ПКМ № 683 нет (там «идентификационные номера кузова, шасси
         # и двигателя»); VIN назван только в ЕНСО — открытый вопрос из заметки юриста.
         {"key": "vin", "name": "Идентификационный номер (VIN)", "type": "vin",
          "to_valuation": "vin", "norm": TP_ENSO,
          "labels": ["идентификационный номер (vin)", "идентификационный номер", "vin-код", "vin",
-                    "identifikatsiya raqami", "идентификация раками"]},
+                    "identifikatsiya raqami", "vin-kod", "идентификация рақами",
+                    "идентификация раками", "vin number"]},
         {"key": "chassis_no", "name": "Номер шасси (рамы)", "type": "vin", "to_valuation": None,
          "norm": TP_683,
          "labels": ["номер шасси (рамы)", "номер шасси", "номер рамы",
-                    "shassi (rama) raqami", "shassi raqami", "шасси (рама) раками"]},
+                    "shassi (rama) raqami", "shassi raqami", "rama raqami",
+                    "шасси (рама) рақами", "шасси рақами", "шасси (рама) раками",
+                    "chassis number"]},
         {"key": "engine_no", "name": "Номер двигателя", "type": "vin", "to_valuation": None,
          "norm": TP_683 + "; " + TP_141,
-         "labels": ["номер двигателя", "dvigatel raqami", "двигатель раками"]},
+         "labels": ["номер двигателя", "dvigatel raqami", "двигатель рақами",
+                    "двигатель раками", "engine number"]},
         {"key": "color", "name": "Цвет", "type": "text", "to_valuation": None,
          "norm": "ПКМ № 683, п. 53",
-         "labels": ["цвет окраски", "цвет", "rangi", "ранги"]},
+         "labels": ["цвет окраски", "цвет", "rangi", "bo'yog'i rangi", "ранги", "colour", "color"]},
         {"key": "seats", "name": "Число сидений", "type": "int", "to_valuation": None,
          "norm": TP_683,
-         "labels": ["количество сидений", "число сидений", "o'rindiqlar soni", "уриндиклар сони"]},
+         "labels": ["количество сидений", "число сидений", "количество мест",
+                    "число посадочных мест", "o'rindiqlar soni", "o'tirg'ichlar soni",
+                    "ўриндиқлар сони", "уриндиклар сони", "number of seats"]},
         # ЕНСО объём двигателя требует, а в перечне ПКМ № 683 его нет — открытый вопрос
         {"key": "engine_cc", "name": "Рабочий объём двигателя, см³", "type": "number",
          "to_valuation": None, "norm": TP_ENSO,
          "labels": ["рабочий объём двигателя", "рабочий объем двигателя", "объём двигателя",
-                    "объем двигателя", "dvigatel hajmi", "двигатель хажми"]},
+                    "объем двигателя", "dvigatel hajmi", "dvigatel ish hajmi",
+                    "двигатель ҳажми", "двигатель хажми",
+                    "engine capacity", "engine displacement"]},
         # Такой графы нормативные акты не называют. Берём, только если она есть в бланке;
         # из государственного номера регион НЕ выводим — это догадка, а не данные документа.
         {"key": "region", "name": "Регион учёта", "type": "region", "to_valuation": "регион",
          "norm": None,
          "labels": ["регион регистрации", "место регистрации", "регион", "область",
-                    "viloyat", "вилоят"]},
+                    "ro'yxatga olingan joyi", "viloyat", "viloyati",
+                    "рўйхатга олинган жойи", "вилоят", "вилояти",
+                    "region of registration", "region"]},
     ],
     KIND_CADASTRE: [
         {"key": "cadastre_no", "name": "Кадастровый номер", "type": "text", "to_valuation": None,
          "norm": KAD_803,
-         "labels": ["кадастровый номер", "кадастровый №", "kadastr raqami", "кадастр раками"]},
+         "labels": ["кадастровый номер", "кадастровый №", "kadastr raqami", "кадастр рақами",
+                    "кадастр раками", "cadastral number"]},
         {"key": "address", "name": "Местонахождение объекта", "type": "text",
          "to_valuation": "адрес", "norm": KAD_803 + "; " + KAD_FORM,
-         "labels": ["адрес объекта", "местонахождение", "местоположение", "адрес",
-                    "obyekt manzili", "joylashgan joyi", "joylashgan yeri", "manzili",
-                    "объект манзили", "жойлашган жойи", "манзили"]},
+         "labels": ["адрес объекта", "местонахождение", "место нахождения", "местоположение",
+                    "почтовый адрес", "адрес",
+                    "obyekt manzili", "joylashgan joyi", "joylashgan yeri", "pochta manzili",
+                    "manzili", "manzil",
+                    "объект манзили", "жойлашган жойи", "почта манзили", "манзили", "манзил",
+                    "object address", "address", "location"]},
         {"key": "region", "name": "Регион", "type": "region", "to_valuation": "регион",
          "norm": None,
-         "labels": ["регион", "область", "район", "viloyat", "tuman", "вилоят", "туман"]},
+         "labels": ["регион", "область", "район", "viloyat", "viloyati", "tuman", "tumani",
+                    "вилоят", "вилояти", "туман", "тумани", "region", "district"]},
         {"key": "object_kind", "name": "Вид объекта недвижимости", "type": "text",
          "to_valuation": "тип", "norm": KAD_FORM,
          "labels": ["вид объекта недвижимости", "наименование объекта недвижимости",
                     "наименование объекта", "вид объекта", "тип объекта", "назначение",
                     "ko'chmas mulk obyekti turi", "ko'chmas mulk obyektining nomi",
-                    "obyekt turi", "кучмас мулк объекти тури", "объект тури"]},
+                    "obyekt turi", "кўчмас мулк объекти тури", "кучмас мулк объекти тури",
+                    "объект тури", "type of real estate object", "property type"]},
         {"key": "area_m2", "name": "Площадь зданий и сооружений, кв. м", "type": "area",
          "to_valuation": "площадь", "norm": KAD_FORM,
          "labels": ["площадь зданий и сооружений", "общая площадь", "площадь объекта",
-                    "площадь, кв. м", "площадь", "umumiy maydoni",
+                    "площадь, кв. м", "площадь", "umumiy maydoni", "umumiy maydon",
                     "bino va inshootlar maydoni", "maydoni, kv.m", "maydoni",
-                    "умумий майдони", "бино ва иншоотлар майдони", "майдони"]},
+                    "умумий майдони", "умумий майдон", "бино ва иншоотлар майдони", "майдони",
+                    "total area", "area"]},
         {"key": "land_area_ha", "name": "Площадь земельного участка, га", "type": "number",
          "to_valuation": None, "norm": KAD_FORM,
          "labels": ["площадь земельного участка", "площадь участка", "площадь, га",
-                    "yer uchastkasi maydoni", "maydoni, ga", "майдони, га"]},
+                    "yer uchastkasi maydoni", "yer uchastkasining maydoni", "maydoni, ga",
+                    "ер участкасининг майдони", "майдони, га", "land plot area"]},
         {"key": "right_kind", "name": "Вид права", "type": "text", "to_valuation": None,
          "norm": KAD_803,
-         "labels": ["вид права", "huquq turi", "хукук тури"]},
+         "labels": ["вид права", "huquq turi", "ҳуқуқ тури", "хукук тури", "type of right"]},
         # DOC-KAD-02: кадастровая стоимость не равна страховой — в оценку её не подставляем
         {"key": "cadastral_value", "name": "Кадастровая стоимость, тыс. сум", "type": "number",
          "to_valuation": None, "norm": KAD_803,
-         "labels": ["кадастровая стоимость", "kadastr bahosi", "кадастр бахоси"]},
+         "labels": ["кадастровая стоимость", "kadastr bahosi", "kadastr qiymati",
+                    "кадастр баҳоси", "кадастр бахоси", "cadastral value"]},
         {"key": "encumbrance", "name": "Запрет, арест, ограничения", "type": "text",
          "to_valuation": None, "norm": KAD_803,
          "labels": ["наличие запрета, ареста или ограничений", "ограничения", "обременения",
                     "арест", "taqiq, xatlov yoki cheklovlar mavjudligi", "cheklovlar",
-                    "такик, хатлов ёки чекловлар мавжудлиги"]},
+                    "тақиқ, хатлов ёки чекловлар мавжудлиги", "чекловлар",
+                    "такик, хатлов ёки чекловлар мавжудлиги",
+                    "encumbrances", "restrictions"]},
         {"key": "mortgage", "name": "Сведения об ипотеке", "type": "text", "to_valuation": None,
          "norm": KAD_803,
-         "labels": ["сведения об ипотеке", "ипотека", "ipoteka"]},
+         "labels": ["сведения об ипотеке", "ипотека", "ipoteka", "ipoteka to'g'risida ma'lumot",
+                    "ипотека тўғрисида маълумот", "mortgage"]},
         # Числа комнат в госреестре нет (ЗРУ-803, ст. 23): бывает в плане-экспликации
         # кадастрового дела — берём, если встретилось.
         {"key": "rooms", "name": "Число комнат", "type": "int", "to_valuation": "комнаты",
          "norm": None,
-         "labels": ["число комнат", "количество комнат", "комнат", "xonalar soni", "хоналар сони"]},
+         "labels": ["число комнат", "количество комнат", "комнат", "xonalar soni",
+                    "хоналар сони", "number of rooms"]},
         # Года ввода в эксплуатацию в реестре нет (ЗРУ-803, ст. 23; ЕНСО, п. 592)
         {"key": "build_year", "name": "Год постройки", "type": "year", "to_valuation": "год",
          "norm": None,
          "labels": ["год постройки", "год ввода в эксплуатацию", "qurilgan yili",
-                    "foydalanishga topshirilgan yili", "курилган йили"]},
+                    "foydalanishga topshirilgan yili", "ishga tushgan yili",
+                    "қурилган йили", "ишга тушган йили", "курилган йили",
+                    "year built", "year of construction"]},
         {"key": "floors", "name": "Этажность", "type": "int", "to_valuation": None, "norm": None,
          "labels": ["этажность", "число этажей", "количество этажей", "qavatlar soni",
-                    "каватлар сони"]},
+                    "қаватлар сони", "каватлар сони", "number of floors"]},
         {"key": "walls", "name": "Материал стен", "type": "text", "to_valuation": None,
          "norm": None,
-         "labels": ["материал стен", "стены", "devor materiali", "девор материали"]},
+         "labels": ["материал стен", "стены", "devor materiali", "девор материали",
+                    "wall material"]},
     ],
 }
 
@@ -217,7 +260,9 @@ REG_NO_FIELD = {
     "labels": ["государственный регистрационный номер", "регистрационный номерной знак",
                "государственный номер", "гос. номер", "госномер", "грнз",
                "davlat raqami belgisi", "davlat raqami", "ro'drb",
-               "давлат раками белгиси", "давлат раками"],
+               "давлат рақами белгиси", "давлат рақами",
+               "давлат раками белгиси", "давлат раками",
+               "registration plate number", "plate number"],
 }
 REG_NO_WHY = ("не извлекается по умолчанию: государственный номер косвенно идентифицирует "
               "владельца, а для оценки достаточно марки, года выпуска и VIN (ЗРУ-547, ст. 10). "
@@ -272,11 +317,56 @@ PERSONAL_LABELS = [
     "паспорт", "серия паспорта", "номер паспорта", "id-карт", "пинфл", "жшшир",
     "инн", "стир", "дата рождения", "место рождения",
     "адрес собственника", "адрес владельца", "место жительства", "прописка", "подпись",
+    # стороны договора и анкеты: значение такой строки — данные человека
+    "страхователь", "застрахованный", "застрахованное лицо", "выгодоприобретатель",
+    "заявитель", "гражданин", "гражданка", "потерпевший", "водитель", "доверенность",
     "familiyasi", "ismi", "otasining ismi", "f.i.sh", "fish", "egasi", "mulkdor",
     "huquq egasi", "huquqdagi ulushi", "pasport", "jshshir", "stir",
     "tug'ilgan sanasi", "yashash manzili", "imzo",
+    "sug'urta qildiruvchi", "sugurta qildiruvchi", "sug'urtalangan shaxs", "naf oluvchi",
+    "fuqaro", "ariza beruvchi", "haydovchi", "ishonchnoma",
     "фамилияси", "исми", "отасининг исми", "эгаси", "мулкдор", "хукук эгаси",
-    "паспорти", "яшаш манзили", "имзо",
+    "ҳуқуқ эгаси", "ҳуқуқдаги улуши", "туғилган санаси", "паспорти", "яшаш манзили", "имзо",
+    "суғурта қилдирувчи", "сугурта килдирувчи", "суғурталанган шахс", "наф олувчи",
+    "фуқаро", "ариза берувчи", "ҳайдовчи", "ишончнома",
+    # английские подписи: в переводных бланках и в штатных расписаниях на английском
+    "full name", "surname", "first name", "patronymic", "employee name", "owner",
+    "right holder", "passport", "id card", "date of birth", "place of birth",
+    "residence address", "home address", "signature", "taxpayer id",
+    "policyholder", "insured person", "beneficiary", "applicant", "driver",
+    "power of attorney",
+]
+
+# Подписи адреса ЧЕЛОВЕКА. Отдельный список: адрес объекта — характеристика имущества,
+# он нужен для оценки (см. шапку модуля), поэтому строку с адресом бросаем только тогда,
+# когда в ней нет признака объекта (OBJECT_LABELS ниже).
+PERSONAL_ADDR_LABELS = [
+    "адрес проживания", "адрес регистрации", "адрес прописки", "домашний адрес",
+    "фактический адрес", "адрес места жительства", "место проживания", "место регистрации",
+    "проживает по адресу", "зарегистрирован по адресу", "постоянное место жительства",
+    "почтовый адрес заявителя", "контактный адрес", "адрес физического лица",
+    "yashash joyi", "yashash manzil", "doimiy yashash manzili", "turar joy manzili",
+    "ro'yxatdan o'tgan manzil", "ro'yxatga olingan manzil", "haqiqiy manzil",
+    "uy manzili", "shaxsiy manzil", "manzilda yashaydi",
+    "яшаш жойи", "яшаш манзил", "доимий яшаш манзили", "турар жой манзили",
+    "рўйхатдан ўтган манзил", "руйхатдан утган манзил", "ҳақиқий манзил",
+    "уй манзили", "шахсий манзил", "манзилда яшайди",
+    "residential address", "registered address", "home address", "place of residence",
+    "address of residence", "permanent address", "actual address", "personal address",
+]
+
+# Признаки того, что строка описывает ОБЪЕКТ, а не человека: адрес объекта сохраняем
+# (ЗРУ-803, ст. 23 — местонахождение объекта входит в сведения госреестра).
+OBJECT_LABELS = [
+    "объект", "объекта", "объекти", "имущества", "имущество", "недвижимост", "здания", "здание",
+    "строения", "помещения", "квартиры", "земельного участка", "местонахождение",
+    "местоположение", "место нахождения", "страхования",
+    "obyekt", "ob'ekt", "mulk", "ko'chmas mulk", "bino", "inshoot", "joylashgan", "joylashuvi",
+    "yer uchastkasi", "sug'urta obyekti",
+    "объект манзили", "кўчмас мулк", "кучмас мулк", "бино", "иншоот", "жойлашган",
+    "ер участкаси", "суғурта объекти",
+    "object", "property", "real estate", "building", "premises", "location", "land plot",
+    "insured object",
 ]
 
 # --------------------------------------------------------------------------- #
@@ -317,7 +407,13 @@ REGIONS = {
 
 
 def norm(text: str) -> str:
-    """Текст к единому виду для сравнения подписей: нижний регистр, один апостроф, без ё."""
+    """
+    Текст к единому виду для сравнения подписей: нижний регистр, один апостроф, без ё.
+
+    Поведение этой функции намеренно НЕ меняется: на него опираются словари определения языка
+    (docs/ingest_dicts.json, токены «[a-zа-яўқғҳ']+» — кириллица и апостроф обязаны сохраниться).
+    Свёртка узбекской латиницы и кириллицы сделана отдельной функцией fold() ниже.
+    """
     t = (text or "").lower().replace("ё", "е")
     for a in APOSTROPHES:
         t = t.replace(a, "'")
@@ -325,23 +421,249 @@ def norm(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
+# --------------------------------------------------------------------------- #
+# Свёртка написаний: узбекская латиница ↔ кириллица ↔ русский
+# Правило и таблица — docs/i18n_terms.json → normalization (заметка юриста).
+# Зачем: «Sugʻurta polisi», «Sug'urta polisi», «Суғурта полиси» и «sugurta polisi» — одно и то же.
+# --------------------------------------------------------------------------- #
+CYRL_TO_LATN = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "ғ": "g", "д": "d", "е": "e", "ж": "j",
+    "з": "z", "и": "i", "й": "y", "к": "k", "қ": "q", "л": "l", "м": "m", "н": "n",
+    "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ў": "o", "ф": "f",
+    "х": "x", "ҳ": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sh", "ъ": "", "ь": "",
+    "э": "e", "ю": "yu", "я": "ya",
+    # ё в таблице нет: его раньше сворачивает norm() в «е» (русские «всё» и «все» — одно слово)
+}
+FOLD_PUNCT = "-—–.,;:№()[]{}/\\\"«»|_"
+
+# --------------------------------------------------------------------------- #
+# Английские слова из-под узбекских правил свёртки выводим: иначе year→ear, owner→ovner,
+# costs→coss, tax→tah. Решение принимается ПО СЛОВУ, а не по всему тексту: в двуязычном бланке
+# английская подпись должна свернуться одинаково и в документе, и в маркере словаря — иначе
+# совпадения потеряются. Безопасная часть свёртки (регистр, апострофы, знаки) применяется всегда.
+# --------------------------------------------------------------------------- #
+EN_WORDS = {
+    # служебные и частые
+    "the", "and", "for", "of", "in", "on", "at", "by", "to", "from", "with", "without", "per",
+    "is", "are", "was", "were", "be", "as", "or", "not", "no", "this", "that", "each", "all",
+    "new", "old", "own", "other", "than", "then", "when", "where", "which", "who", "how",
+    # документ, страхование, имущество
+    "owner", "owners", "ownership", "year", "years", "yearly", "yield", "date", "dated",
+    "name", "surname", "address", "passport", "phone", "number", "no", "code", "type", "kind",
+    "document", "documents", "certificate", "registration", "report", "valuation", "appraisal",
+    "contract", "agreement", "policy", "insurance", "insured", "insurer", "premium", "rate",
+    "sum", "amount", "total", "subtotal", "cost", "costs", "price", "prices", "value", "values",
+    "currency", "bank", "account", "payment", "payments", "tax", "taxes", "vat", "salary",
+    "wage", "wages", "staff", "employee", "employees", "position", "positions", "department",
+    "headcount", "list", "table", "sheet", "page", "note", "notes", "comment", "comments",
+    "vehicle", "car", "make", "model", "brand", "engine", "power", "colour", "color", "body",
+    "chassis", "seats", "weight", "capacity", "manufacture", "manufactured", "manufacturer",
+    "production", "property", "building", "buildings", "construction", "area", "floor", "floors",
+    "rooms", "room", "apartment", "house", "land", "plot", "wall", "walls", "roof", "window",
+    "windows", "warehouse", "works", "work", "width", "height", "expiry", "expires", "issued",
+    "issue", "valid", "until", "since", "term", "period", "start", "end", "limit", "excess",
+    "deductible", "risk", "risks", "object", "objects", "extract", "register", "cadastre",
+    "cadastral", "state", "republic", "region", "district", "city", "street", "unit", "units",
+    "quantity", "index", "max", "min", "next", "text", "example", "exchange", "extension",
+    "annex", "appendix", "signature", "stamp", "director", "manager", "company", "branch",
+}
+# окончания, которых в узбекской латинице практически не бывает
+EN_SUFFIX = ("tion", "sion", "ment", "ance", "ence", "ture", "ity", "ness", "able", "ible",
+             "ship", "ing", "ly", "ful", "ous")
+
+
+def _is_english_word(w: str) -> bool:
+    if not w or not w.isascii() or not w.isalpha():
+        return False
+    if w in EN_WORDS:
+        return True
+    if w.endswith("s") and w[:-1] in EN_WORDS:
+        return True
+    return len(w) >= 5 and w.endswith(EN_SUFFIX)
+
+
+_WORD_RX = re.compile(r"[a-z0-9']+")
+
+
+def _english_flags(src: str, lang: str = None) -> List[bool]:
+    """Для каждой позиции строки: относится ли она к английскому слову (узбекские правила — мимо)."""
+    if lang:
+        return [lang == "en"] * len(src)
+    flags = [False] * len(src)
+    for m in _WORD_RX.finditer(src):
+        if _is_english_word(m.group(0).replace("'", "")):
+            for i in range(m.start(), m.end()):
+                flags[i] = True
+    return flags
+
+
+def fold_map(text: str, lang: str = None):
+    """
+    Свёрнутый текст и карта «позиция в свёрнутом → позиция в исходном».
+    Карта нужна, чтобы после совпадения подписи взять значение из ИСХОДНОЙ строки: свёртка
+    меняет длину (ц→ts, ъ→пусто), поэтому считать смещение по свёрнутому тексту нельзя.
+
+    lang: "en" — узбекские правила не применять совсем; другой язык — применять ко всему;
+    не указан — решаем по каждому слову (см. _english_flags).
+    """
+    src = norm(text)                       # нижний регистр, ё→е, один апостроф
+    en_src = _english_flags(src, lang)
+    buf, idx, en = [], [], []
+    for i, ch in enumerate(src):
+        if ch == "'":                      # апостроф убираем совсем: oʻ → o, maʼlumot → malumot
+            continue
+        for c in CYRL_TO_LATN.get(ch, ch):
+            buf.append(c)
+            idx.append(i)
+            en.append(en_src[i])
+    # свёртка различий латиницы: x→h, ts→s, начальное ye→e, w→v (только для неанглийских слов)
+    buf2, idx2, i = [], [], 0
+    while i < len(buf):
+        c = buf[i]
+        if en[i]:
+            buf2.append(c); idx2.append(idx[i]); i += 1
+        elif c == "x":
+            buf2.append("h"); idx2.append(idx[i]); i += 1
+        elif c == "w":
+            buf2.append("v"); idx2.append(idx[i]); i += 1
+        elif c == "t" and i + 1 < len(buf) and buf[i + 1] == "s":
+            buf2.append("s"); idx2.append(idx[i]); i += 2
+        elif (c == "y" and i + 1 < len(buf) and buf[i + 1] == "e"
+              and (i == 0 or not buf[i - 1].isalnum())):
+            buf2.append("e"); idx2.append(idx[i]); i += 2
+        else:
+            buf2.append(c); idx2.append(idx[i]); i += 1
+    # знаки препинания и повторяющиеся пробелы → один пробел
+    out, oidx, space = [], [], True
+    for c, k in zip(buf2, idx2):
+        if c in FOLD_PUNCT or c.isspace():
+            if not space:
+                out.append(" "); oidx.append(k); space = True
+            continue
+        out.append(c); oidx.append(k); space = False
+    while out and out[-1] == " ":
+        out.pop(); oidx.pop()
+    return "".join(out), oidx
+
+
+def fold(text: str, lang: str = None) -> str:
+    """Свёрнутое написание строки — для сравнения подписей и маркеров на четырёх написаниях."""
+    return fold_map(text, lang)[0]
+
+
 def _normalize_labels():
     """Подписи в таблицах пишутся людьми — приводим их к тому же виду, что и текст документа."""
     for lst in FIELDS.values():
         for f in lst:
             f["labels"] = [norm(x) for x in f["labels"]]
+            f["folded"] = sorted({fold(x) for x in f["labels"] if fold(x)}, key=len, reverse=True)
     REG_NO_FIELD["labels"] = [norm(x) for x in REG_NO_FIELD["labels"]]
+    REG_NO_FIELD["folded"] = sorted({fold(x) for x in REG_NO_FIELD["labels"] if fold(x)},
+                                    key=len, reverse=True)
 
 
 _normalize_labels()
 PERSONAL_LABELS = [norm(x) for x in PERSONAL_LABELS]
+# свёрнутые подписи ПД: короткие выбрасываем — «инн» → «inn» совпал бы внутри обычных слов
+PERSONAL_FOLDED = sorted({fold(x) for x in PERSONAL_LABELS if len(fold(x)) >= 4},
+                         key=len, reverse=True)
+PERSONAL_ADDR_LABELS = [norm(x) for x in PERSONAL_ADDR_LABELS]
+PERSONAL_ADDR_FOLDED = sorted({fold(x) for x in PERSONAL_ADDR_LABELS if len(fold(x)) >= 4},
+                              key=len, reverse=True)
+OBJECT_LABELS = [norm(x) for x in OBJECT_LABELS]
+OBJECT_FOLDED = sorted({fold(x) for x in OBJECT_LABELS if len(fold(x)) >= 4},
+                       key=len, reverse=True)
 REGIONS = {norm(k): v for k, v in REGIONS.items()}
+REGIONS_FOLDED = {fold(k): v for k, v in REGIONS.items() if fold(k)}
+
+
+# Без разделителя подпись и значение стоят через пробел («Адрес проживания Самарканд
+# улица Беруни здание 44») — так часто отдаёт текст из PDF. Подписью считаем первые слова.
+LABEL_WORDS = 3
+LABEL_LINE_WORDS = 5             # короткая строка без цифр — это сама подпись, а не подпись+значение
+
+
+def label_part(line: str) -> str:
+    """
+    Подпись строки — текст до «:» или до « | ». Признак объекта ищем только в ней:
+    в узбекских адресах слова «здание», «квартира», «помещения», bino стоят в самом
+    адресе проживания и иначе отменяли бы персональную проверку.
+
+    Разделителя нет — берём первые LABEL_WORDS слов: иначе «здание» из значения
+    («Адрес проживания Самарканд улица Беруни здание 44») отменяло бы персональную
+    проверку. Короткая строка без цифр — это подпись бланка целиком («Location of
+    the property»), её не режем.
+    """
+    s = line or ""
+    cuts = [p for p in (s.find(":"), s.find(" | ")) if p >= 0]
+    if cuts:
+        return s[:min(cuts)]
+    words = s.split()
+    if len(words) <= LABEL_LINE_WORDS and not any(c.isdigit() for c in s):
+        return s
+    return " ".join(words[:LABEL_WORDS])
+
+
+def is_object_label(line: str) -> bool:
+    """Подпись строки описывает объект (имущество), а не человека."""
+    head = label_part(line)
+    n = norm(head)
+    if any(p in n for p in OBJECT_LABELS):
+        return True
+    return any(p in fold(head) for p in OBJECT_FOLDED)
 
 
 def is_personal_label(line: str) -> bool:
     """Строка подписана как персональные данные — значение из неё не берём (PD-01)."""
     n = norm(line)
-    return any(p in n for p in PERSONAL_LABELS)
+    f = fold(line)                       # второй заход: другое написание той же подписи
+    if any(p in n for p in PERSONAL_LABELS) or any(p in f for p in PERSONAL_FOLDED):
+        return True
+    # адрес: подпись человека («адрес проживания») отбрасываем, подпись объекта
+    # («местонахождение объекта») оставляем — это характеристика имущества
+    if any(p in n for p in PERSONAL_ADDR_LABELS) or any(p in f for p in PERSONAL_ADDR_FOLDED):
+        return not is_object_label(line)
+    return False
+
+
+# Остаток подписи, попавший в значение: «Местонахождение объекта: г. Ташкент» → подпись
+# совпала только словом «местонахождение», и в хвосте остаётся «объекта: ».
+_TAIL_LABEL = re.compile(r"^[^\d:|\n]{1,40}:\s*")
+
+# Слова, которыми продолжается подпись и которые иначе попадают в начало значения
+# («Местонахождение объекта Ташкент …» → в адресе оставалось «объекта Ташкент …»).
+# Режем не больше TAIL_LABEL_MAX таких слов подряд и только там, где двоеточия в строке нет.
+# Двух не хватало: «Location of the property / Tashkent…» — хвост «of the property» из трёх
+# слов, и в адрес попадало значение «property». Если хвост срезан весь, значение пустое —
+# find_field возьмёт его со следующей строки (уверенность «средняя»).
+TAIL_LABEL_MAX = 4
+TAIL_LABEL_WORDS = {"объекта", "объекти", "обьекта", "объекту", "страхования", "имущества",
+                    "недвижимости", "здания", "жительства", "проживания", "регистрации",
+                    "obyekti", "obyektining", "manzili", "joyi", "sugurta", "sug'urta",
+                    "mulki", "property", "object", "address", "of", "the",
+                    "insured", "застрахованного", "страхуемого", "sugurtalangan"}
+
+
+def cut_tail(tail: str) -> str:
+    """
+    Чистит хвост строки после подписи: в строке таблицы берёт следующую ячейку,
+    в обычной строке отбрасывает остаток подписи до двоеточия. Цифры до двоеточия
+    не трогаем — это время («10:09») или кадастровый номер.
+    """
+    t = tail or ""
+    if " | " in t:
+        return t.split(" | ", 1)[1].strip()
+    out = _TAIL_LABEL.sub("", t, count=1)
+    if ":" in t:
+        return out
+    # разделителя нет: остаток подписи стоит перед значением через пробел
+    # («Местонахождение объекта Ташкент …» → подпись совпала словом «местонахождение»)
+    words = out.split()
+    cut = 0
+    while (cut < len(words) and cut < TAIL_LABEL_MAX
+           and norm(words[cut]).strip(",.") in TAIL_LABEL_WORDS):
+        cut += 1
+    return " ".join(words[cut:]) if cut else out
 
 
 # --------------------------------------------------------------------------- #
@@ -404,10 +726,20 @@ def cast(kind: str, raw: str) -> Optional[str]:
         val = float(m.group(1).replace(",", "."))
         return str(val) if 1 <= val <= 1_000_000 else None
     if kind == "region":
-        n = norm(v)
-        for key, name in REGIONS.items():
-            if key in n:
-                return name
+        # порядок словаря значения не имеет: берём совпадение, которое стоит раньше в строке,
+        # а при равном положении — самое длинное. Иначе «город Самарканд, улица Навои»
+        # давал бы Навоийскую область, и территориальный коэффициент был бы чужим
+        best = None
+        for text, table in ((norm(v), REGIONS), (fold(v), REGIONS_FOLDED)):
+            for key, name in table.items():
+                pos = text.find(key)
+                if pos < 0:
+                    continue
+                cand = (pos, -len(key), name)
+                if best is None or cand[:2] < best[:2]:
+                    best = cand
+            if best is not None:
+                return best[2]            # нашли в обычном написании — свёрнутое не нужно
         return None
     if kind == "vin":
         m = re.search(r"\b([A-HJ-NPR-Z0-9]{9,17})\b", v.upper())
@@ -418,24 +750,57 @@ def cast(kind: str, raw: str) -> Optional[str]:
     return v or None
 
 
+def _tail_after_label(line: str, labels: List[str], folded: bool) -> Optional[tuple]:
+    """Хвост строки после подписи. folded=True — сравнение по свёрнутому написанию (fold)."""
+    if folded:
+        n, idx = fold_map(line)
+    else:
+        n, idx = norm(line), None
+    for lab in labels:
+        if not lab:
+            continue
+        hit = n.startswith(lab) or f" {lab}" in n or (not folded and f"{lab}:" in n)
+        if not hit:
+            continue
+        end = n.find(lab) + len(lab)
+        if idx is not None:                         # свёртка меняет длину — идём по карте позиций
+            pos = (idx[end - 1] + 1) if end - 1 < len(idx) else len(line)
+        else:
+            pos = end                               # прежнее поведение: смещение по norm()
+        tail = line[pos:] if pos <= len(line) else ""
+        return lab, tail
+    return None
+
+
+# публичное имя для app/ingest.py: тот же поиск хвоста строки после подписи
+tail_after_label = _tail_after_label
+
+
 def find_field(lines: List[str], field: dict) -> Optional[dict]:
     """
     Ищет значение поля по подписям. Значение берём справа от подписи (после двоеточия),
     а если справа пусто — со следующей непустой строки (в бланках так свёрстаны таблицы).
     Уверенность: «высокая» — значение на той же строке, что и подпись;
     «средняя» — значение взято со следующей строки.
+
+    Два прохода: сначала по norm() (как было), затем по fold() — он ловит то же самое поле,
+    написанное иначе: «Sugʻurta», «Sug'urta», «Суғурта», «sugurta» (docs/i18n_terms.json).
     """
     labels = sorted(field["labels"], key=len, reverse=True)
-    for i, line in enumerate(lines):
-        if is_personal_label(line):                 # строка про человека — пропускаем целиком
+    folded_labels = field.get("folded") or []
+    for use_fold in (False, True):
+        use = folded_labels if use_fold else labels
+        if not use:
             continue
-        n = norm(line)
-        for lab in labels:
-            if not (n.startswith(lab) or f" {lab}" in n or f"{lab}:" in n):
+        for i, line in enumerate(lines):
+            if is_personal_label(line):             # строка про человека — пропускаем целиком
                 continue
-            pos = n.find(lab) + len(lab)            # отрезаем подпись и всё, что было слева
-            tail = line[pos:] if pos <= len(line) else ""
+            got = _tail_after_label(line, use, use_fold)
+            if not got:
+                continue
+            lab, tail = got
             tail = SEP.sub("", tail, count=1) if SEP.match(tail) else tail
+            tail = cut_tail(tail)
             val = cast(field["type"], tail)
             if val:
                 return {"value": val, "label": lab, "confidence": "высокая", "line": i}
@@ -623,6 +988,16 @@ CHECKLIST_MATCH = {
     KIND_CADASTRE: ["технический паспорт или кадастровые документы",
                     "документ о праве на объект"],
     KIND_PHOTO: ["фотографии объекта", "фотографии с четырёх сторон и фото одометра"],
+    # виды из app/ingest.py: формулировки берутся из справочника checklists, если они там есть;
+    # нет подходящего пункта — mark_received честно вернёт «не отмечен» и причину
+    KIND_VALUATION: ["отчёт об оценке", "отчет об оценке", "отчёт оценщика",
+                     "документ о стоимости объекта"],
+    KIND_CONTRACT: ["договор", "договор купли-продажи", "правоустанавливающий документ",
+                    "документ о праве на объект"],
+    KIND_STATEMENT: ["выписка", "выписка из государственного реестра",
+                     "банковская выписка", "документ о праве на объект"],
+    KIND_STAFF: ["штатное расписание", "сведения о численности работников"],
+    KIND_OTHER: [],
 }
 
 

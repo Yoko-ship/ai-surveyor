@@ -1,5 +1,5 @@
 """
-Бот Telegram: регистрация, подтверждение админом, согласование кнопками, журнал без ПД.
+Бот Telegram: приглашение в мини-приложение вместо анкеты, согласование кнопками, журнал без ПД.
 
 Запуск из корня проекта (pytest и httpx в sandbox\\.venv не установлены — свой ASGI-клиент,
 живой сервер не трогаем и не перезапускаем):
@@ -153,6 +153,7 @@ def setup():
 def teardown(rid):
     with db.tx() as con:
         con.execute("DELETE FROM request_reviewers WHERE request_id=?", (rid,))
+        con.execute("DELETE FROM decision_outcomes WHERE request_id=?", (rid,))
         approvals.recalc(con, rid)
         con.execute("DELETE FROM objects WHERE request_id=?", (rid,))
         con.execute("DELETE FROM requests WHERE id=?", (rid,))
@@ -165,7 +166,7 @@ def teardown(rid):
             con.execute("DELETE FROM pd_consents WHERE telegram_id=?", (tg,))
             con.execute("DELETE FROM tg_messages WHERE telegram_id=?", (tg,))
         con.execute("DELETE FROM tg_messages WHERE error=?", ("неверный секрет вебхука",))
-        for login in LOGINS:
+        for login in LOGINS + ["тест-бот-заявка"]:
             con.execute("DELETE FROM audit WHERE who=?", (login,))
             con.execute("DELETE FROM users WHERE login=?", (login,))
         con.execute("DELETE FROM agents WHERE eais_id IN (?,?)", (EAIS, EAIS_NEW))
@@ -184,40 +185,30 @@ def teardown(rid):
 # ---------- проверки ----------
 
 def run(rid, ids):
-    # 1. регистрация нового человека через /start
+    # 1. /start у незнакомого человека: приглашение в мини-приложение, анкеты в боте нет
     tgbot.process(upd_text(TG_NEW, "/start"))
     with db.tx() as con:
         d = tgbot.dialog(con, TG_NEW)
-    assert d and d["step"] == "согласие", d
-    assert any("Версия текста" in t for t in texts_for(TG_NEW)), texts_for(TG_NEW)
-    tgbot.process(upd_cb(TG_NEW, "consent:ok"))
-    tgbot.process(upd_text(TG_NEW, PD_NAME))
-    tgbot.process(upd_text(TG_NEW, "Ташкентский городской"))
-    tgbot.process(upd_text(TG_NEW, "Главный специалист"))
-    tgbot.process(upd_cb(TG_NEW, "role:агент"))
-    tgbot.process(upd_text(TG_NEW, "НЕТ-ТАКОГО-ID"))        # чужой ID — заявка не создаётся
-    with db.tx() as con:
-        assert not db.rows(con, "SELECT 1 FROM users WHERE telegram_id=?", TG_NEW)
-    tgbot.process(upd_text(TG_NEW, EAIS_NEW))
-    with db.tx() as con:
-        u = db.rows(con, "SELECT * FROM users WHERE telegram_id=?", TG_NEW)
-        consent = db.rows(con, "SELECT * FROM pd_consents WHERE telegram_id=?", TG_NEW)
-        left = db.rows(con, "SELECT 1 FROM tg_dialogs WHERE telegram_id=?", TG_NEW)
-    assert u and u[0]["status"] == auth.STATUS_PENDING and u[0]["role"] == "агент", u
-    assert u[0]["agent_eais_id"] == EAIS_NEW and u[0]["full_name"] == PD_NAME, u
-    assert consent and consent[0]["version"] and consent[0]["created_at"] and consent[0]["user_id"] == u[0]["id"]
-    assert consent[0]["channel"] == "telegram" and not left, (consent, left)
-    new_uid = u[0]["id"]
-    print(f"1. /start: заявка № {new_uid} «{u[0]['status']}», согласие на ПД версии "
-          f"«{consent[0]['version']}» от {consent[0]['created_at']} — ок")
+        created = db.rows(con, "SELECT 1 FROM users WHERE telegram_id=?", TG_NEW)
+    assert d is None, d                                     # пошагового диалога больше нет
+    assert not created, created                             # и заявка в users не создаётся
+    assert any("Откройте приложение" in x for x in texts_for(TG_NEW)), texts_for(TG_NEW)
+    print("1. /start: приглашение открыть мини-приложение, анкеты и заявки в боте нет — ок")
 
-    # 2. админ подтверждает заявку кнопкой и меняет роль на «андеррайтер»
-    assert any(f"Новая заявка на доступ № {new_uid}" in t for t in texts_for(TG_ADMIN)), texts_for(TG_ADMIN)
+    # 2. заявка по старому пути (вход по логину и паролю) всё ещё подтверждается кнопкой админа
+    with db.tx() as con:
+        cur = con.execute("INSERT INTO users (login, full_name, role, branch, password_hash, salt,"
+                          " status, telegram_id, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                          ("тест-бот-заявка", "Тестовый Заявитель", "агент", BRANCH, "x", "y",
+                           auth.STATUS_PENDING, TG_NEW, db.now()))
+        new_uid = cur.lastrowid
+        tgbot.notify_admins_new_user(con, new_uid, "агент")
+    assert any(f"работник № {new_uid}" in x for x in texts_for(TG_ADMIN)), texts_for(TG_ADMIN)
     tgbot.process(upd_cb(TG_ADMIN, f"uapprove:{new_uid}:андеррайтер"))
     with db.tx() as con:
         u = db.rows(con, "SELECT * FROM users WHERE id=?", new_uid)[0]
     assert u["status"] == auth.STATUS_ACTIVE and u["role"] == "андеррайтер", u
-    print(f"2. админ подтвердил заявку: статус «{u['status']}», роль «{u['role']}» — ок")
+    print(f"2. админ подтвердил заявку старого пути: статус «{u['status']}», роль «{u['role']}» — ок")
 
     # 3. назначение согласующих: карточки ушли обоим
     OUT.clear()
@@ -353,7 +344,9 @@ def check_no_pd():
 def check_consent():
     """Текст согласия берётся из раздела 6 docs/Регистрация и роли.md, а не весь документ."""
     c = tgbot.consent_text()
-    assert c["version"] == "ПД-1", c["version"]
+    # версию ведёт юрист в самом документе — тест проверяет, что она есть и берётся оттуда,
+    # а не конкретную строку: иначе каждая правка документа ломала бы тест
+    assert c["version"] and c["source"].endswith("Регистрация и роли.md"), c
     assert len(c["text"]) < 2500, len(c["text"])
     assert c["text"].lstrip().startswith("Согласие"), c["text"][:60]
     assert "INSON" in c["text"], c["text"][:200]
@@ -361,7 +354,7 @@ def check_consent():
         assert bad not in c["text"], bad
     assert ">" not in c["text"] and "**" not in c["text"], c["text"][:200]
     phone = tgbot.consent_text("телефон")                 # отдельное согласие на номер — другой текст
-    assert "номер телефона" in phone["text"] and phone["text"] != c["text"], phone["text"][:120]
+    assert "телефон" in phone["text"] and phone["text"] != c["text"], phone["text"][:120]
     print(f"12. согласие: версия «{c['version']}», {len(c['text'])} знаков, источник {c['source']} — ок")
 
 

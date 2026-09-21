@@ -8,8 +8,9 @@
   2) испорченная подпись, подмена поля и чужой токен — не проходят;
   3) устаревший auth_date (больше суток) — не проходит;
   4) без токена бота — честный режим «браузер», сервер не падает;
-  5) незнакомый telegram_id создаёт заявку на верификацию, а не пускает внутрь;
-  6) повторный вход тем же telegram_id новую заявку не плодит.
+  5) незнакомый telegram_id внутрь не пускается, а получает «нужна регистрация»
+     (анкета в мини-приложении, app/registration.py) — заявка в users при этом НЕ создаётся;
+  6) повторный вход тем же telegram_id ничего не плодит.
 Все записи, созданные тестом в базе, удаляются в конце.
 """
 import hashlib
@@ -79,18 +80,32 @@ def test_no_token_and_garbage():
     assert not tg.check_init_data("мусор без подписи", TOKEN)["ok"]
 
 
-def test_unknown_id_creates_request():
+def test_unknown_id_needs_registration():
+    """Незнакомый telegram_id: анкета в мини-приложении, а не заявка админу."""
     with db.tx() as con:
+        con.execute("DELETE FROM users WHERE telegram_id=?", (TG_ID,))
         out = tg.link_or_request(con, {"id": int(TG_ID), "first_name": "Тест", "last_name": "Тестов"})
         MADE_LOGINS.append("tg" + TG_ID)
-        assert out["status"] == tg.ST_NEED, out
-        row = db.rows(con, "SELECT status, telegram_id FROM users WHERE login=?", "tg" + TG_ID)
-        assert row and row[0]["status"] == "ожидает подтверждения", row
-        # повторный вход новую заявку не создаёт
-        again = tg.link_or_request(con, {"id": int(TG_ID), "first_name": "Тест"})
-        assert again["status"] == tg.ST_NEED, again
+        assert out["status"] == tg.ST_REG, out
+        assert out["telegram_id"] == TG_ID and "+998" in out["reason"], out
+        # пользователь не заводится: пока человек не заполнил анкету, его в системе нет
         n = con.execute("SELECT COUNT(*) FROM users WHERE telegram_id=?", (TG_ID,)).fetchone()[0]
-        assert n == 1, n
+        assert n == 0, n
+        again = tg.link_or_request(con, {"id": int(TG_ID), "first_name": "Тест"})
+        assert again["status"] == tg.ST_REG, again
+
+
+def test_pending_user_goes_to_registration():
+    """Заявка, поданная по старому пути, достраивается той же анкетой."""
+    with db.tx() as con:
+        con.execute("DELETE FROM users WHERE telegram_id=?", (TG_ID,))
+        con.execute("INSERT INTO users (login, full_name, role, password_hash, salt, status, telegram_id,"
+                    " created_at) VALUES (?,?,?,?,?,?,?,?)",
+                    ("tg" + TG_ID, "Тест Тестов", "агент", "x", "y", "ожидает подтверждения",
+                     TG_ID, db.now()))
+        MADE_LOGINS.append("tg" + TG_ID)
+        out = tg.link_or_request(con, {"id": int(TG_ID), "first_name": "Тест"})
+        assert out["status"] == tg.ST_REG, out
 
 
 def test_bad_user_id():

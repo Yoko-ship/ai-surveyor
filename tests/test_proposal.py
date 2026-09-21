@@ -1,7 +1,8 @@
 """
 Проверка модуля «Предложение клиенту». Запуск из корня проекта:
   set PYTHONIOENCODING=utf-8 && sandbox\.venv\Scripts\python.exe tests\test_proposal.py
-Создаёт запрос в базе, строит PDF, сохраняет в sandbox\proposal_test.pdf и читает текст обратно.
+Создаёт запрос, строит PDF, сохраняет в sandbox\proposal_test.pdf и читает текст обратно.
+Запрос создаётся во ВРЕМЕННОЙ копии базы (tests/tmpdb.py) — рабочая data/surveyor.db не меняется.
 """
 import sys
 from pathlib import Path
@@ -10,7 +11,9 @@ import pymupdf
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from tmpdb import temp_db                          # noqa: E402  (tests/tmpdb.py)
 from app.main import RequestIn, create_request     # noqa: E402
 from app.proposal import build_proposal            # noqa: E402
 
@@ -19,6 +22,11 @@ OUT = ROOT / "sandbox" / "proposal_test.pdf"
 
 def test_proposal_pdf():
     """Склад 4,2 млрд, сумма 4 млрд (неполное страхование), часть документов не собрана."""
+    with temp_db():
+        _proposal_checks()
+
+
+def _proposal_checks():
     body = RequestIn(product_code="0807", class_code="8", object_type="Склад",
                      value_amount=4.2e9, sum_insured=4.0e9, term_days=365,
                      factors={"construction": "wood", "activity": "warehouse", "protection": "none",

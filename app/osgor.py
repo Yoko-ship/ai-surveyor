@@ -1,0 +1,1015 @@
+"""
+ОСГОР — обязательное страхование гражданской ответственности работодателя.
+Продукт компании **1323**, класс 13. Режим ценообразования — «нормативный акт».
+
+Два разных предмета, которые нельзя путать:
+
+1. **Премия.** Считается строго по акту и никак иначе: ПР = СС × ТБ × КСТ / 100,
+   ТБ = 0,1 % годовых, КСТ — коэффициент вида деятельности из классификации (934 позиции,
+   20 категорий профессионального риска). Отклоняться от базовой ставки и коэффициентов
+   страховщик не вправе (ЗРУ-210 ст. 8 ч. 4) — вилки ставки, франшизы, бонус-малуса в этом
+   виде нет. Всё, что модуль делает с ценой, — подбирает КСТ, считает по формуле, применяет
+   минимум 0,25 БРВ и пересчитывает на срок менее года.
+
+2. **Оценка риска работодателя.** Нужна не для цены, а для решения «как принимать риск»:
+   какие предупредительные мероприятия предписать, какие документы затребовать, нужно ли
+   выносить договор на андеррайтера, как планировать резерв по ст. 22 ЗРУ-210. Право на оценку
+   риска и на выдачу рекомендаций прямо дано страховщику (ЗРУ-210 ст. 18; п. 30 Правил).
+   Отказать работодателю нельзя — договор публичный (ЗРУ-210 ст. 6 ч. 1; п. 11 Правил),
+   поэтому решений всего три: принять / принять с мероприятиями / передать андеррайтеру.
+
+Все числа модели убыточности — **экспертные** (`calibrated = 0`): разреза по частоте случаев и
+по компаниям в отчётах НАПП нет, выгрузки компании по ОСГОР нет. Источник каждого числа указан
+рядом с ним в EXPERT_SOURCES. Единственный фактический ориентир — убыточность рынка по ОСГОР из
+`market_stats` (ряды `osgor`, `osgor_annuity`).
+
+Нормы: ЗРУ-210 от 16.04.2009; Правила и тарифы — приложения № 1 и № 9 к ПКМ № 177 от 24.06.2009
+(в ред. ПКМ № 458 от 30.07.2024, № 443 от 15.07.2025, № 709 от 07.11.2025); КоАО ст. 49².
+Разбор актов — docs/ОСГОР — оценка риска.md.
+
+Модуль работает и без базы: классификация читается из CSV
+library/05_Методология/ОСГОР — классификация видов деятельности и коэффициенты КСТ (ПКМ 177, прил. 9).csv,
+если таблицы osgor_activities ещё нет.
+"""
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Optional
+import csv
+import sqlite3
+
+ROOT = Path(__file__).resolve().parent.parent
+ACTIVITIES_CSV = (ROOT / "library" / "05_Методология" /
+                  "ОСГОР — классификация видов деятельности и коэффициенты КСТ (ПКМ 177, прил. 9).csv")
+
+PRODUCT_CODE = "1323"
+CLASS_CODE = "13"
+
+# --- числа из нормативного акта (не экспертные, менять только вслед за актом) --------------------
+BASE_RATE_PCT = 0.1          # ТБ, % годовых от страховой суммы — прил. № 9, разд. I, п. 1; ЗРУ-210 ст. 8
+KST_NOT_LISTED = 3.400       # вид деятельности не найден в классификации — прил. № 9, разд. I, п. 6
+MIN_PREMIUM_BRV = 0.25       # минимальная премия по годовому договору — п. 23 Правил (ред. ПКМ № 443)
+NET_SHARE_PCT = 75.0         # нетто-ставка в брутто-ставке — прил. № 9, разд. II (ред. ПКМ № 458)
+EXPENSE_SHARE_PCT = 25.0     # расходы на ведение дела
+BURIAL_MAX_BRV = 3           # расходы на погребение — п. 43 Правил
+YEAR_DAYS = 365
+KST_MIN, KST_MAX = 0.571, 7.714
+CATEGORIES = 20
+
+ACTS = {
+    "sum": "ЗРУ-210 ст. 10; п. 21 Правил (прил. № 1 к ПКМ № 177)",
+    "formula": "Прил. № 9 к Правилам, разд. III, пп. 1–2",
+    "base": "Прил. № 9 к Правилам, разд. I, п. 1; ЗРУ-210 ст. 8",
+    "kst": "Прил. № 9 к Правилам, разд. I, п. 3 (ред. ПКМ № 443 от 15.07.2025)",
+    "kst_default": "Прил. № 9 к Правилам, разд. I, п. 6",
+    "min": "П. 23 Правил (ред. ПКМ № 443 от 15.07.2025)",
+    "structure": "Прил. № 9 к Правилам, разд. II (ред. ПКМ № 458 от 30.07.2024)",
+    "term": "ЗРУ-210 ст. 6 ч. 7; п. 9 Правил",
+    "cover_start": "Форма договора (прил. № 1 к Правилам), п. 5; п. 26 Правил",
+    "after_payout": "ЗРУ-210 ст. 10 ч. 3; п. 27 Правил",
+    "payroll_change": "ЗРУ-210 ст. 10 ч. 2 (ред. ЗРУ-1154); п. 22 Правил",
+    "public": "ЗРУ-210 ст. 6 ч. 1; п. 11 Правил (ред. ПКМ № 458)",
+    "no_deviation": "ЗРУ-210 ст. 8 ч. 4",
+    "survey_right": "ЗРУ-210 ст. 18; п. 30 Правил",
+    "burial": "П. 43 Правил; форма договора, п. 2",
+    "double": "ЗРУ-210 ст. 4 ч. 2 (ред. ЗРУ-1154 от 22.06.2026)",
+    "annuity": "ЗРУ-210 ст. 14, ст. 15; пп. 49–50 Правил",
+    "koao": "КоАО ст. 49² (ред. ЗРУ-586 от 03.12.2019)",
+    "reserve": "ЗРУ-210 ст. 22",
+}
+
+# --- экспертные величины модели убыточности (все calibrated = 0) --------------------------------
+# Ни одно из этих чисел не взято из статистики компании или из отчётов НАПП: разреза по частоте
+# несчастных случаев и по компаниям в отчётности регулятора нет. Это рабочие ориентиры для
+# решения «как принимать риск», их надо заменить на расчётные, как только появятся выгрузки.
+EXPERT_SOURCES = {
+    "base_frequency": "порядок величины: учтённые несчастные случаи на производстве в стране "
+                      "к численности занятых по найму; в отчётах НАПП частоты нет",
+    "severity_share": "ожидаемая доля тяжёлых и смертельных случаев принята по практике "
+                      "расследования несчастных случаев (форма Н-1); данных компании нет",
+    "modifiers": "множители условий труда и организации охраны труда — экспертные, "
+                 "по составу факторов из ЗРУ-210 ст. 18 и аттестации рабочих мест",
+    "credibility": "полное доверие собственной статистике при 5 ожидаемых случаях за 3 года "
+                   "(частичное доверие по корню) — экспертный порог",
+    "cap": "итоговое отклонение от рынка ограничено четырьмя рыночными убыточностями: "
+           "при такой малой статистике более резкие выводы недостоверны",
+    "anchor": "уровень убыточности задан рынком (отчёты НАПП), а не моделью: тариф установлен "
+              "государством, поэтому средняя выплата выводится из рыночной убыточности и "
+              "ожидаемой частоты, а не подбирается экспертно",
+}
+BASE_FREQ_AT_KST_DEFAULT = 0.0003   # случаев на одного работника в год при КСТ = 3,400
+CREDIBILITY_FULL_CLAIMS = 5.0       # ожидаемых случаев за 3 года для полного доверия своей статистике
+FREQ_REL_MIN, FREQ_REL_MAX = 0.3, 6.0   # пределы отношения «своя частота / ожидаемая»
+TOTAL_FACTOR_MIN, TOTAL_FACTOR_MAX = 0.5, 4.0
+HARMFUL_LOAD = 0.5                  # доля вредных условий: +50 % к убыточности при 100 %
+DANGEROUS_LOAD = 1.0                # доля опасных условий: +100 % при 100 %
+MGMT_LOADS = {                      # организация охраны труда
+    "no_safety_service": (1.15, "нет службы (специалиста) по охране труда"),
+    "no_training": (1.10, "нет обучения и проверки знаний по охране труда"),
+    "no_ppe": (1.15, "средства индивидуальной защиты выдаются не всем / не по нормам"),
+    "open_orders": (1.20, "есть невыполненные предписания инспекции труда"),
+    "wage_arrears": (1.10, "задолженность по заработной плате"),
+}
+SEVERE_SHARE_BENCHMARK = 0.15       # ожидаемая доля тяжёлых и смертельных в общем числе случаев
+LR_GREEN, LR_AMBER = 0.60, 1.00     # пороги решения по ожидаемой убыточности
+
+# --- решения ------------------------------------------------------------------------------------
+DECISION_ACCEPT = "принять"
+DECISION_MEASURES = "принять с предупредительными мероприятиями"
+DECISION_UNDERWRITER = "передать андеррайтеру"
+
+
+# ================================================================================================
+# 1. Классификация видов деятельности и подбор КСТ
+# ================================================================================================
+def _num(text: str) -> float:
+    return float(str(text).replace(" ", "").replace(" ", "").replace(",", "."))
+
+
+def load_activities(con: Optional[sqlite3.Connection] = None) -> list:
+    """
+    Классификация 934 видов деятельности (прил. № 9, разд. I, п. 3).
+    Сначала таблица osgor_activities, если она уже есть в базе; иначе — CSV библиотеки.
+    Возврат: [{"no","category","kst","okved","name"}].
+    """
+    if con is not None:
+        try:
+            rows = con.execute(
+                "SELECT no, category, kst, okved, name FROM osgor_activities ORDER BY no"
+            ).fetchall()
+            if rows:
+                return [{"no": int(r[0]), "category": int(r[1]), "kst": float(r[2]),
+                         "okved": str(r[3] or ""), "name": str(r[4] or "")} for r in rows]
+        except sqlite3.Error:
+            pass  # таблицы ещё нет — разработчик добавит её следующим шагом
+    out = []
+    with open(ACTIVITIES_CSV, encoding="utf-8-sig", newline="") as f:
+        for row in csv.DictReader(f, delimiter=";"):
+            out.append({
+                "no": int(_num(row["№"])),
+                "category": int(_num(row["категория_проф_риска"])),
+                "kst": _num(row["КСТ"]),
+                "okved": (row["код_ОКЭД_IFUT"] or "").strip(),
+                "name": (row["вид_деятельности"] or "").strip(),
+            })
+    return out
+
+
+def _norm(s: str) -> str:
+    return " ".join(str(s or "").lower().replace("ё", "е").split())
+
+
+def find_activity(okved: Optional[str] = None, name: Optional[str] = None,
+                  activities: Optional[list] = None, con: Optional[sqlite3.Connection] = None) -> dict:
+    """
+    Подбор позиции классификации по коду ОКЭД (IFUT) или по наименованию вида деятельности.
+    Возврат: {"kst","category","okved","name","matched_by","listed","explain","legal_ref"}.
+    Код не найден → КСТ 3,400 (прил. № 9, разд. I, п. 6), listed = False.
+    """
+    acts = activities if activities is not None else load_activities(con)
+    code = "".join(ch for ch in str(okved or "") if ch.isdigit())
+    if code:
+        for a in acts:
+            if a["okved"] == code:
+                return _matched(a, "код ОКЭД")
+        # код мог быть дан подробнее, чем в перечне (например, 5 знаков против 4) или наоборот
+        by_prefix = [a for a in acts if a["okved"] and (code.startswith(a["okved"]) or a["okved"].startswith(code))]
+        if by_prefix:
+            a = max(by_prefix, key=lambda x: (len(x["okved"]), x["kst"]))
+            return _matched(a, f"код ОКЭД по совпадению начала ({code} → {a['okved']})")
+    if name:
+        n = _norm(name)
+        for a in acts:
+            if _norm(a["name"]) == n:
+                return _matched(a, "наименование вида деятельности")
+        found = [a for a in acts if n and (n in _norm(a["name"]) or _norm(a["name"]) in n)]
+        if len(found) == 1:
+            return _matched(found[0], "наименование (частичное совпадение)")
+        if len(found) > 1:
+            a = max(found, key=lambda x: x["kst"])
+            return _matched(a, f"наименование (подошло {len(found)} позиций, взята наибольшая категория)")
+    return {
+        "kst": KST_NOT_LISTED, "category": None, "okved": code or "", "name": name or "",
+        "matched_by": "вид деятельности в классификации не найден", "listed": False,
+        "explain": f"Вид деятельности в классификации не найден, применён коэффициент {KST_NOT_LISTED:.3f}",
+        "legal_ref": ACTS["kst_default"],
+    }
+
+
+def _matched(a: dict, how: str) -> dict:
+    return {
+        "kst": a["kst"], "category": a["category"], "okved": a["okved"], "name": a["name"],
+        "matched_by": how, "listed": True,
+        "explain": (f"Вид деятельности «{a['name']}» (ОКЭД {a['okved']}) — категория профессионального "
+                    f"риска {a['category']} из {CATEGORIES}, коэффициент КСТ {a['kst']:.3f}"),
+        "legal_ref": ACTS["kst"],
+    }
+
+
+def pick_kst(candidates: list, activities: Optional[list] = None,
+             con: Optional[sqlite3.Connection] = None) -> dict:
+    """
+    Несколько видов деятельности у одного работодателя. В акте порядок выбора не описан
+    (см. вопрос заказчику), поэтому здесь осознанно берётся **наибольший** КСТ — вариант,
+    при котором премия не занижена, а покрытие не оспаривается. Решение помечается как
+    «правило компании, а не нормы».
+    """
+    acts = activities if activities is not None else load_activities(con)
+    found = [find_activity(okved=c.get("okved"), name=c.get("name"), activities=acts) for c in candidates]
+    best = max(found, key=lambda x: x["kst"])
+    if len(found) > 1:
+        best = dict(best)
+        best["explain"] += (f". У работодателя {len(found)} видов деятельности; в акте порядок выбора "
+                            f"коэффициента при нескольких видах не описан — взят наибольший КСТ")
+        best["all"] = found
+        best["rule_source"] = "решение компании (в акте не урегулировано)"
+    return best
+
+
+# ================================================================================================
+# 2. Страховая сумма и премия
+# ================================================================================================
+def insured_sum(payroll_12m: Optional[float] = None, first_month_payroll: Optional[float] = None,
+                payroll_for_period: Optional[float] = None, situation: str = "работает больше года") -> dict:
+    """
+    Страховая сумма = годовой фонд оплаты труда всех работников (ЗРУ-210 ст. 10; п. 21 Правил).
+    Лимита «на одного работника» в ОСГОР нет, БРВ и МРЗП как страховая сумма не применяются.
+    """
+    if situation == "начинает деятельность":
+        if first_month_payroll is None:
+            raise ValueError("для нового работодателя нужна зарплата всех работников за первый месяц")
+        value, how = first_month_payroll * 12, "зарплата всех работников за первый месяц × 12"
+    elif situation == "деятельность меньше года":
+        if payroll_for_period is None:
+            raise ValueError("нужен фонд оплаты труда за срок деятельности")
+        value, how = payroll_for_period, "зарплата всех работников за срок деятельности"
+    else:
+        if payroll_12m is None:
+            raise ValueError("нужен фонд оплаты труда за предыдущие 12 месяцев")
+        value, how = payroll_12m, "зарплата всех работников за 12 месяцев до месяца заключения договора"
+    return {"sum_insured": float(value), "how": how, "legal_ref": ACTS["sum"],
+            "explain": f"Страховая сумма — {how}: {money(value)}"}
+
+
+def money(x: float) -> str:
+    """Сумма в сумах для текста агенту: 19 200 000,00 сум."""
+    s = f"{x:,.2f}".replace(",", " ").replace(".", ",")
+    return f"{s} сум"
+
+
+def premium(sum_insured: float, kst: float, term_days: int = YEAR_DAYS,
+            brv: Optional[float] = None, activity: Optional[dict] = None) -> dict:
+    """
+    Премия строго по акту.
+
+      договор на год:      ПР = СС × ТБ × КСТ / 100
+      договор меньше года: ПР = СС × ТБ × КСТ / 100 / 365 × Д
+      минимум по годовому договору: 0,25 БРВ (п. 23 Правил)
+
+    Возврат: {"premium","premium_base","premium_term","min_premium","min_applied",
+              "rate_pct_of_payroll","net","expense","steps"[], "notes"[]}.
+    Каждый шаг в steps — {"шаг","значение","пояснение","норма"}.
+    """
+    if sum_insured is None or sum_insured < 0:
+        raise ValueError("страховая сумма не задана")
+    if not (KST_MIN <= kst <= KST_MAX or abs(kst - KST_NOT_LISTED) < 1e-9):
+        raise ValueError(f"КСТ {kst} вне диапазона акта {KST_MIN}…{KST_MAX} и не равен {KST_NOT_LISTED}")
+    if term_days <= 0 or term_days > YEAR_DAYS:
+        raise ValueError("срок договора ОСГОР — от 1 дня до 365 дней (ЗРУ-210 ст. 6 ч. 7)")
+
+    steps, notes = [], []
+    steps.append({"шаг": "страховая сумма", "значение": money(sum_insured),
+                  "пояснение": "годовой фонд оплаты труда всех работников", "норма": ACTS["sum"]})
+    if activity:
+        steps.append({"шаг": "вид деятельности и КСТ", "значение": f"{kst:.3f}",
+                      "пояснение": activity.get("explain", ""), "норма": activity.get("legal_ref", ACTS["kst"])})
+    else:
+        steps.append({"шаг": "КСТ", "значение": f"{kst:.3f}",
+                      "пояснение": "коэффициент вида деятельности из классификации", "норма": ACTS["kst"]})
+
+    rate_pct = BASE_RATE_PCT * kst           # ставка в % от ФОТ за год
+    base = sum_insured * BASE_RATE_PCT * kst / 100.0
+    steps.append({"шаг": "ставка к фонду оплаты труда",
+                  "значение": f"{rate_pct:.4f} % в год",
+                  "пояснение": f"базовая ставка {BASE_RATE_PCT} % × КСТ {kst:.3f}", "норма": ACTS["base"]})
+    steps.append({"шаг": "премия за год",
+                  "значение": money(base),
+                  "пояснение": f"{money(sum_insured)} × {BASE_RATE_PCT} × {kst:.3f} / 100",
+                  "норма": ACTS["formula"]})
+
+    term_premium = base
+    if term_days != YEAR_DAYS:
+        term_premium = base / YEAR_DAYS * term_days
+        steps.append({"шаг": f"пересчёт на срок {term_days} дн.",
+                      "значение": money(term_premium),
+                      "пояснение": f"{money(base)} / 365 × {term_days}", "норма": ACTS["formula"]})
+
+    min_premium, min_applied = None, False
+    if brv:
+        min_premium = MIN_PREMIUM_BRV * brv
+        if term_days == YEAR_DAYS:
+            if term_premium < min_premium:
+                min_applied = True
+                steps.append({"шаг": "минимальная премия", "значение": money(min_premium),
+                              "пояснение": f"расчётная премия {money(term_premium)} ниже минимума "
+                                           f"{MIN_PREMIUM_BRV} БРВ ({money(brv)} × {MIN_PREMIUM_BRV}) — "
+                                           f"применён минимум", "норма": ACTS["min"]})
+            else:
+                steps.append({"шаг": "минимальная премия", "значение": money(min_premium),
+                              "пояснение": "расчётная премия выше минимума, минимум не применяется",
+                              "норма": ACTS["min"]})
+        else:
+            notes.append(f"Минимум {MIN_PREMIUM_BRV} БРВ п. 23 Правил установлен для годового договора; "
+                         f"для договора на {term_days} дн. порядок применения минимума в акте не описан — "
+                         f"минимум не применён, вопрос вынесен заказчику "
+                         f"(для сведения: {MIN_PREMIUM_BRV} БРВ = {money(min_premium)})")
+    else:
+        notes.append("Размер БРВ не передан — минимальная премия 0,25 БРВ (п. 23 Правил) не проверена")
+
+    final = max(term_premium, min_premium) if min_applied else term_premium
+    net = final * NET_SHARE_PCT / 100.0
+    expense = final * EXPENSE_SHARE_PCT / 100.0
+    steps.append({"шаг": "премия к уплате", "значение": money(final),
+                  "пояснение": f"нетто-часть {money(net)} ({NET_SHARE_PCT:.0f} %), "
+                               f"расходы на ведение дела {money(expense)} ({EXPENSE_SHARE_PCT:.0f} %)",
+                  "норма": ACTS["structure"]})
+    notes.append("Ставка и коэффициенты установлены нормативным актом; отклоняться от них "
+                 "страховщик не вправе — скидок, надбавок и франшизы в ОСГОР нет " + f"({ACTS['no_deviation']})")
+    return {
+        "premium": final, "premium_base": base, "premium_term": term_premium,
+        "min_premium": min_premium, "min_applied": min_applied,
+        "rate_pct_of_payroll": rate_pct, "kst": kst, "term_days": term_days,
+        "sum_insured": float(sum_insured),
+        "net": net, "expense": expense, "steps": steps, "notes": notes,
+    }
+
+
+def premium_after_payout(sum_insured: float, kst: float, paid_amount: float,
+                         days_left: int, previous_payouts: float = 0.0) -> dict:
+    """
+    После выплаты страховая сумма уменьшается на выплаченное возмещение, а работодатель
+    в течение 7 рабочих дней доплачивает премию пропорционально выплате и остатку срока
+    (ЗРУ-210 ст. 10 ч. 3; п. 27 Правил). Покрытие «восстанавливается» только за доплату.
+    """
+    remaining_before = max(sum_insured - previous_payouts, 0.0)
+    paid = min(paid_amount, remaining_before)
+    restored = paid                                   # восстанавливаемая часть страховой суммы
+    extra = restored * BASE_RATE_PCT * kst / 100.0 / YEAR_DAYS * max(days_left, 0)
+    remaining_after = max(remaining_before - paid, 0.0)
+    steps = [
+        {"шаг": "остаток страховой суммы до выплаты", "значение": money(remaining_before),
+         "пояснение": f"страховая сумма {money(sum_insured)} минус ранее выплаченное "
+                      f"{money(previous_payouts)}", "норма": ACTS["after_payout"]},
+        {"шаг": "выплата", "значение": money(paid),
+         "пояснение": "в пределах остатка страховой суммы (ЗРУ-210 ст. 12; п. 41 Правил)",
+         "норма": ACTS["after_payout"]},
+        {"шаг": "остаток страховой суммы после выплаты", "значение": money(remaining_after),
+         "пояснение": "покрытие уменьшилось на выплаченное возмещение", "норма": ACTS["after_payout"]},
+        {"шаг": "доплата премии", "значение": money(extra),
+         "пояснение": f"{money(restored)} × {BASE_RATE_PCT} × {kst:.3f} / 100 / 365 × {days_left} дн. "
+                      f"— срок уплаты 7 рабочих дней", "норма": ACTS["after_payout"]},
+    ]
+    return {"paid": paid, "remaining_before": remaining_before, "remaining_after": remaining_after,
+            "extra_premium": extra, "days_left": days_left, "deadline_working_days": 7, "steps": steps}
+
+
+def premium_after_payroll_change(old_sum: float, new_sum: float, kst: float, days_left: int) -> dict:
+    """
+    Изменился фонд оплаты труда — письменное допсоглашение, премия пересчитывается
+    пропорционально оставшемуся периоду и по тарифу на дату заключения договора
+    (ЗРУ-210 ст. 10 ч. 2 в ред. ЗРУ-1154; п. 22 Правил). Уведомить — 5 рабочих дней.
+    """
+    delta = new_sum - old_sum
+    extra = delta * BASE_RATE_PCT * kst / 100.0 / YEAR_DAYS * max(days_left, 0)
+    return {
+        "delta_sum": delta, "extra_premium": extra, "days_left": days_left,
+        "direction": "доплата" if extra >= 0 else "возврат",
+        "legal_ref": ACTS["payroll_change"],
+        "steps": [{"шаг": "изменение страховой суммы", "значение": money(delta),
+                   "пояснение": f"было {money(old_sum)}, стало {money(new_sum)}",
+                   "норма": ACTS["payroll_change"]},
+                  {"шаг": "перерасчёт премии", "значение": money(extra),
+                   "пояснение": f"{money(delta)} × {BASE_RATE_PCT} × {kst:.3f} / 100 / 365 × {days_left} дн.",
+                   "норма": ACTS["payroll_change"]}],
+    }
+
+
+# ================================================================================================
+# 3. Ориентир по рынку (market_stats, ряды osgor и osgor_annuity)
+# ================================================================================================
+def market_reference(con: Optional[sqlite3.Connection] = None, row_key: str = "osgor") -> dict:
+    """
+    Убыточность рынка по ОСГОР из отчётов НАПП. Берутся годовые срезы (01.01), то есть итог
+    завершённого года. Разреза по компаниям и по частоте случаев в отчётности регулятора нет —
+    ничего сверх этого модуль о рынке не утверждает.
+    """
+    empty = {"loss_ratio": None, "years": [], "source": "отчёты НАПП, таблица market_stats",
+             "note": "данных нет"}
+    if con is None:
+        return empty
+    try:
+        rows = con.execute(
+            "SELECT report_date, premiums_ytd, payouts_ytd, liabilities, source_file FROM market_stats "
+            "WHERE row_key = ? AND report_date LIKE '%-01-01' ORDER BY report_date DESC", (row_key,)
+        ).fetchall()
+    except sqlite3.Error:
+        return empty
+    years = []
+    for r in rows:
+        prem, pay = r[1] or 0.0, r[2] or 0.0
+        years.append({"as_of": r[0], "year": int(r[0][:4]) - 1,
+                      "premiums_mln": prem, "payouts_mln": pay,
+                      "loss_ratio": (pay / prem) if prem else None, "source_file": r[4]})
+    if not years:
+        return empty
+    return {"loss_ratio": years[0]["loss_ratio"], "year": years[0]["year"], "years": years,
+            "source": "отчёты НАПП (лист 1.4), таблица market_stats, ряд " + row_key,
+            "note": "по компаниям и по частоте случаев разреза в отчётах НАПП нет"}
+
+
+MARKET_LR_FALLBACK = 0.474   # итог 2025 года по ОСГОР: 135 434,461 / 285 879,358 млн сум
+
+
+# ================================================================================================
+# 4. Оценка риска работодателя
+# ================================================================================================
+@dataclass
+class Employer:
+    """Анкета работодателя для оценки риска (не для цены — цену меняет только акт)."""
+    name: str = ""
+    okved: str = ""
+    activity_name: str = ""
+    headcount: int = 0                      # численность работников
+    payroll_12m: float = 0.0                # годовой ФОТ всех работников = страховая сумма
+    share_harmful: float = 0.0              # доля работников во вредных условиях по аттестации, 0…1
+    share_dangerous: float = 0.0            # доля работников в опасных условиях, 0…1
+    attestation_done: bool = True           # аттестация рабочих мест проведена
+    accidents_3y: int = 0                   # несчастных случаев за 3 года (все)
+    severe_3y: int = 0                      # из них тяжёлых
+    fatal_3y: int = 0                       # из них смертельных
+    payouts_3y: float = 0.0                 # выплачено/возмещено за 3 года, сум (если известно)
+    safety_service: bool = True             # служба или специалист по охране труда
+    training_done: bool = True              # обучение и проверка знаний по охране труда
+    ppe_provided: bool = True               # СИЗ по нормам
+    labour_inspection_orders: int = 0       # невыполненные предписания инспекции труда
+    wage_arrears: bool = False              # задолженность по заработной плате
+    budget_funded: bool = False             # финансируется из бюджета (ЗРУ-210 ст. 4 ч. 2)
+    state_insured_staff: bool = False       # есть работники с обязательным госстрахованием жизни и здоровья
+    term_days: int = YEAR_DAYS
+    activity_shorter_than_year: bool = False
+    premium_paid: bool = False
+    burial_amount: Optional[float] = None   # расходы на погребение, указанные в договоре
+    docs_received: list = field(default_factory=list)
+    notes: str = ""
+
+
+def risk_assessment(emp: Employer, kst: float, premium_amount: float,
+                    market: Optional[dict] = None) -> dict:
+    """
+    Ожидаемая убыточность договора. Уровень задаёт рынок (убыточность ОСГОР из отчётов НАПП),
+    а модель только отклоняет его от рынка по свойствам конкретного работодателя:
+
+        ожидаемая убыточность = убыточность рынка × множитель, где
+        множитель = [ доверие × (своя частота / ожидаемая) + (1 − доверие) × (условия труда ×
+                      организация охраны труда) ] × тяжесть
+
+    Собственная частота уже вбирает в себя и условия труда, и порядок на производстве, поэтому
+    априорные множители применяются только к той части, которой собственная статистика не покрывает
+    (иначе одно и то же считалось бы дважды). Итоговый множитель ограничен сверху и снизу.
+
+    Отдельно даётся тот же результат в деньгах: ожидаемые выплаты за год, ожидаемое число случаев
+    и вытекающая из них средняя выплата — чтобы андеррайтер мог проверить правдоподобие.
+    Выплаты ограничены страховой суммой (ЗРУ-210 ст. 12; п. 41 Правил).
+
+    Все множители экспертные (calibrated = 0), источники — в EXPERT_SOURCES.
+    """
+    market = market or {}
+    market_lr = market.get("loss_ratio") or MARKET_LR_FALLBACK
+    headcount = max(int(emp.headcount or 0), 0)
+    payroll = float(emp.payroll_12m or 0.0)
+    avg_salary = (payroll / headcount) if headcount else 0.0
+
+    # --- частота ---------------------------------------------------------------------------
+    exp_freq = BASE_FREQ_AT_KST_DEFAULT * (kst / KST_NOT_LISTED)      # ожидаемая частота по категории
+    exposure = headcount * 3                                          # человеко-лет за 3 года
+    own_freq = (emp.accidents_3y / exposure) if exposure else None
+    expected_claims_3y = exp_freq * exposure
+    z = min(1.0, (expected_claims_3y / CREDIBILITY_FULL_CLAIMS) ** 0.5) if expected_claims_3y > 0 else 0.0
+    if own_freq is None or exp_freq <= 0:
+        freq_rel, z = 1.0, 0.0
+    else:
+        freq_rel = min(max(own_freq / exp_freq, FREQ_REL_MIN), FREQ_REL_MAX)
+
+    # --- условия труда ---------------------------------------------------------------------
+    cond_factor = 1.0 + HARMFUL_LOAD * float(emp.share_harmful or 0) + \
+        DANGEROUS_LOAD * float(emp.share_dangerous or 0)
+    if not emp.attestation_done:
+        cond_factor *= 1.10   # аттестация не проведена — доли условий труда не подтверждены
+
+    # --- организация охраны труда ------------------------------------------------------------
+    mgmt_factor, mgmt_items = 1.0, []
+    flags = {
+        "no_safety_service": not emp.safety_service,
+        "no_training": not emp.training_done,
+        "no_ppe": not emp.ppe_provided,
+        "open_orders": (emp.labour_inspection_orders or 0) > 0,
+        "wage_arrears": bool(emp.wage_arrears),
+    }
+    for key, on in flags.items():
+        mult, text = MGMT_LOADS[key]
+        if on:
+            mgmt_factor *= mult
+            mgmt_items.append({"фактор": text, "множитель": mult})
+
+    # --- тяжесть ------------------------------------------------------------------------------
+    severe_share = ((emp.severe_3y + emp.fatal_3y) / emp.accidents_3y) if emp.accidents_3y else None
+    if severe_share is None:
+        sev_factor = 1.0
+    else:
+        sev_factor = 1.0 + 0.5 * (severe_share - SEVERE_SHARE_BENCHMARK) / SEVERE_SHARE_BENCHMARK
+        sev_factor = min(max(sev_factor, 0.8), 1.6)
+
+    # --- сборка множителя ----------------------------------------------------------------------
+    a_priori = cond_factor * mgmt_factor
+    blended = z * freq_rel + (1 - z) * a_priori           # своя статистика против априорных признаков
+    total = blended * sev_factor
+    capped = min(max(total, TOTAL_FACTOR_MIN), TOTAL_FACTOR_MAX)
+    lr_top = market_lr * capped
+
+    # --- то же в деньгах -------------------------------------------------------------------------
+    expected_loss = min(lr_top * premium_amount, payroll) if premium_amount else 0.0
+    claims_year = exp_freq * blended * headcount          # ожидаемое число случаев в год
+    implied_claim = (expected_loss / claims_year) if claims_year > 0 else None
+
+    lines = [
+        f"Ориентир рынка по ОСГОР: убыточность {market_lr * 100:.1f} %"
+        + (f" (итог {market['year']} года, отчёты НАПП)" if market.get("year") else " (итог 2025 года, отчёты НАПП)"),
+        f"Собственная частота: {emp.accidents_3y} случ. за 3 года на {headcount} работников "
+        f"= {(own_freq or 0) * 1000:.2f} на 1000 работников в год; "
+        f"ожидаемая по категории (КСТ {kst:.3f}) — {exp_freq * 1000:.2f} на 1000; "
+        f"отношение {freq_rel:.2f}, доверие собственным данным {z * 100:.0f} %",
+        f"Условия труда: вредные {float(emp.share_harmful or 0) * 100:.0f} %, "
+        f"опасные {float(emp.share_dangerous or 0) * 100:.0f} %"
+        + ("" if emp.attestation_done else ", аттестация рабочих мест не проведена")
+        + f" → множитель {cond_factor:.2f}",
+        ("Организация охраны труда: " + "; ".join(i["фактор"] for i in mgmt_items)
+         + f" → множитель {mgmt_factor:.2f}") if mgmt_items
+        else "Организация охраны труда: замечаний нет → множитель 1,00",
+        (f"Тяжесть: тяжёлых и смертельных {severe_share * 100:.0f} % от всех случаев "
+         f"(ориентир {SEVERE_SHARE_BENCHMARK * 100:.0f} %) → множитель {sev_factor:.2f}")
+        if severe_share is not None else "Тяжесть: случаев не было, множитель 1,00",
+        f"Множитель к рынку: {z * 100:.0f} % × {freq_rel:.2f} (своя частота) + "
+        f"{(1 - z) * 100:.0f} % × {a_priori:.2f} (условия и охрана труда) = {blended:.2f}; "
+        f"× тяжесть {sev_factor:.2f} = {total:.2f}"
+        + (f" → ограничен {capped:.2f}" if abs(capped - total) > 1e-9 else ""),
+        f"Ожидаемая убыточность договора: {market_lr * 100:.1f} % × {capped:.2f} = {lr_top * 100:.1f} %",
+        f"В деньгах: премия {money(premium_amount)} → ожидаемые выплаты {money(expected_loss)} в год; "
+        f"ожидается {claims_year:.2f} случ. в год"
+        + (f", то есть около {money(implied_claim)} на случай "
+           f"(средняя годовая зарплата работника {money(avg_salary)}) — проверьте правдоподобие"
+           if implied_claim else ""),
+    ]
+    return {
+        "market_loss_ratio": market_lr,
+        "expected_loss_ratio": lr_top,
+        "total_factor": capped,
+        "expected_loss_amount": expected_loss,
+        "expected_claims_per_year": claims_year,
+        "implied_average_claim": implied_claim,
+        "average_salary": avg_salary,
+        "own_frequency": own_freq,
+        "expected_frequency": exp_freq,
+        "credibility": z,
+        "factors": {"своя частота (отношение)": freq_rel, "условия труда": cond_factor,
+                    "охрана труда": mgmt_factor, "тяжесть": sev_factor,
+                    "итоговый множитель": capped},
+        "mgmt_items": mgmt_items,
+        "calibrated": 0,
+        "sources": EXPERT_SOURCES,
+        "explain": lines,
+        "legal_ref": ACTS["survey_right"],
+    }
+
+
+# ================================================================================================
+# 5. Проверки OSGOR-01 … OSGOR-13
+# ================================================================================================
+def checks(emp: Employer, activity: dict, prem: dict, brv: Optional[float] = None,
+           declared_sum: Optional[float] = None) -> list:
+    """
+    Правила из раздела 8 заметки юриста. Возврат: [{"code","severity","text","legal_ref"}].
+    severity: 'стоп' | 'предупреждение' | 'подсказка'.
+    """
+    out = []
+
+    def add(code, severity, text, ref):
+        out.append({"code": code, "severity": severity, "text": text, "legal_ref": ref})
+
+    ss = prem["sum_insured"]
+    # OSGOR-01 страховая сумма = годовой ФОТ
+    if declared_sum is not None and abs(declared_sum - ss) > 0.5:
+        add("OSGOR-01", "стоп",
+            f"Страховая сумма в заявлении {money(declared_sum)} не равна годовому фонду оплаты труда "
+            f"{money(ss)}. Страховая сумма по ОСГОР — это годовой ФОТ всех работников, "
+            f"а не лимит на человека", ACTS["sum"])
+    else:
+        add("OSGOR-01", "подсказка",
+            f"Страховая сумма — годовой фонд оплаты труда всех работников: {money(ss)}", ACTS["sum"])
+
+    # OSGOR-02 тариф только по формуле акта
+    add("OSGOR-02", "подсказка",
+        f"Ставка установлена ПКМ № 177: базовая {BASE_RATE_PCT} % × коэффициент вида деятельности "
+        f"{prem['kst']:.3f} = {prem['rate_pct_of_payroll']:.4f} % от ФОТ. Своей вилки у страховщика нет",
+        ACTS["no_deviation"])
+
+    # OSGOR-03 / OSGOR-04 КСТ из классификации
+    if activity.get("listed"):
+        add("OSGOR-03", "подсказка",
+            f"{activity['explain']} (подбор: {activity['matched_by']})", ACTS["kst"])
+    else:
+        add("OSGOR-04", "подсказка",
+            f"Вид деятельности в классификации не найден, применён средний коэффициент "
+            f"{KST_NOT_LISTED:.3f}. Проверьте код ОКЭД в заявлении", ACTS["kst_default"])
+    if activity.get("all") and len(activity["all"]) > 1:
+        add("OSGOR-03", "предупреждение",
+            "У работодателя несколько видов деятельности; в акте порядок выбора коэффициента "
+            "не описан — применён наибольший КСТ. Проверьте фактический основной вид деятельности",
+            ACTS["kst"])
+
+    # OSGOR-05 минимальная премия
+    if brv:
+        if prem["min_applied"]:
+            add("OSGOR-05", "стоп",
+                f"Расчётная премия {money(prem['premium_term'])} ниже минимума по годовому договору "
+                f"{MIN_PREMIUM_BRV} БРВ = {money(prem['min_premium'])}; к уплате {money(prem['premium'])}",
+                ACTS["min"])
+        elif prem["term_days"] != YEAR_DAYS:
+            add("OSGOR-05", "подсказка",
+                f"Минимум {MIN_PREMIUM_BRV} БРВ установлен для годового договора; порядок применения "
+                f"к договору на {prem['term_days']} дн. в акте не описан — минимум не применён", ACTS["min"])
+    else:
+        add("OSGOR-05", "предупреждение",
+            "Размер БРВ не задан — минимальная премия 0,25 БРВ не проверена", ACTS["min"])
+
+    # OSGOR-06 срок договора
+    if prem["term_days"] == YEAR_DAYS:
+        add("OSGOR-06", "подсказка", "Договор заключается на один год", ACTS["term"])
+    elif emp.activity_shorter_than_year:
+        add("OSGOR-06", "подсказка",
+            f"Срок договора {prem['term_days']} дн. — по сроку деятельности работодателя", ACTS["term"])
+    else:
+        add("OSGOR-06", "стоп",
+            f"Договор ОСГОР заключается на год; срок {prem['term_days']} дн. допустим, только если "
+            f"деятельность работодателя короче года — подтвердите документами", ACTS["term"])
+
+    # OSGOR-07 покрытие после оплаты
+    add("OSGOR-07", "предупреждение" if not emp.premium_paid else "подсказка",
+        "Ответственность страховщика начинается с 00:00 дня, следующего за днём поступления премии "
+        "на расчётный счёт; премия уплачивается единовременно в течение 5 рабочих дней",
+        ACTS["cover_start"])
+
+    # OSGOR-08 погребение
+    if brv:
+        limit = BURIAL_MAX_BRV * brv
+        if emp.burial_amount is None:
+            add("OSGOR-08", "предупреждение",
+                f"В договоре указать расходы на погребение отдельной суммой, не более "
+                f"{BURIAL_MAX_BRV} БРВ = {money(limit)}", ACTS["burial"])
+        elif emp.burial_amount > limit + 0.5:
+            add("OSGOR-08", "стоп",
+                f"Расходы на погребение {money(emp.burial_amount)} выше предела "
+                f"{BURIAL_MAX_BRV} БРВ = {money(limit)}", ACTS["burial"])
+    else:
+        add("OSGOR-08", "предупреждение",
+            f"Расходы на погребение указываются отдельной строкой, не более {BURIAL_MAX_BRV} БРВ",
+            ACTS["burial"])
+
+    # OSGOR-09 после выплаты
+    add("OSGOR-09", "предупреждение",
+        "После выплаты возмещения страховая сумма уменьшается; работодатель обязан доплатить премию "
+        "в течение 7 рабочих дней, иначе покрытие останется урезанным", ACTS["after_payout"])
+
+    # OSGOR-10 изменение ФОТ или вида деятельности
+    add("OSGOR-10", "предупреждение",
+        "Изменение фонда оплаты труда или вида деятельности — уведомление в 5 рабочих дней, "
+        "допсоглашение и перерасчёт премии пропорционально остатку срока", ACTS["payroll_change"])
+
+    # OSGOR-11 штраф за отсутствие договора
+    add("OSGOR-11", "подсказка",
+        "Без договора ОСГОР: штраф 10–15 БРВ на должностное лицо, повторно в течение года — 15–30 БРВ",
+        ACTS["koao"])
+
+    # OSGOR-12 двойное покрытие за счёт бюджета
+    if emp.budget_funded and emp.state_insured_staff:
+        add("OSGOR-12", "стоп",
+            "Работников, для которых предусмотрено обязательное государственное страхование жизни "
+            "и здоровья, нельзя одновременно страховать по ОСГОР за счёт бюджетных средств — "
+            "исключить их из расчёта ФОТ", ACTS["double"])
+    elif emp.budget_funded:
+        add("OSGOR-12", "предупреждение",
+            "Работодатель финансируется из бюджета: проверьте, нет ли работников с обязательным "
+            "государственным страхованием жизни и здоровья", ACTS["double"])
+
+    # OSGOR-13 аннуитет
+    add("OSGOR-13", "подсказка",
+        "Возмещение на срок более одного года оформляется трёхсторонним договором аннуитетов "
+        "со страховщиком жизни", ACTS["annuity"])
+    return out
+
+
+# ================================================================================================
+# 6. Предупредительные мероприятия и документы
+# ================================================================================================
+def preventive_measures(emp: Employer, assessment: dict) -> list:
+    """
+    Предписания по охране труда — в формате таблицы preventive_measures
+    (code, trigger_kind, trigger_key, measure, why, deadline_days, mandatory).
+    Эффект на цену нулевой (тариф нормативный); эффект — на ожидаемые выплаты.
+    """
+    out = []
+
+    def add(code, trigger_key, trigger_val, measure, why, days, mandatory=False):
+        out.append({"code": code, "class_code": CLASS_CODE, "trigger_kind": "factor",
+                    "trigger_key": trigger_key, "trigger_val": trigger_val, "measure": measure,
+                    "why": why, "deadline_days": days, "mandatory": mandatory})
+
+    if not emp.safety_service:
+        add("OSGOR-M01", "safety_service", "none",
+            "Назначить приказом ответственного за охрану труда (при численности от 50 работников — "
+            "создать службу охраны труда)",
+            "Без ответственного никто не отвечает за инструктажи, расследование и устранение причин — "
+            "случаи повторяются", 30, mandatory=True)
+    if not emp.training_done:
+        add("OSGOR-M02", "training", "none",
+            "Провести обучение и проверку знаний по охране труда, оформить протоколы и журналы инструктажей",
+            "Большая часть травм — от незнания порядка работ и отсутствия инструктажа на рабочем месте", 45)
+    if not emp.ppe_provided:
+        add("OSGOR-M03", "ppe", "none",
+            "Обеспечить работников средствами индивидуальной защиты по нормам и вести ведомости выдачи",
+            "СИЗ напрямую снижают тяжесть травмы: та же авария даёт лёгкое повреждение вместо инвалидности",
+            30, mandatory=True)
+    if not emp.attestation_done:
+        add("OSGOR-M04", "attestation", "none",
+            "Провести аттестацию рабочих мест по условиям труда",
+            "Без аттестации неизвестно, сколько людей работает во вредных и опасных условиях, "
+            "и нечем подтвердить профзаболевание", 90, mandatory=True)
+    if (emp.labour_inspection_orders or 0) > 0:
+        add("OSGOR-M05", "inspection", "orders",
+            f"Выполнить предписания инспекции труда ({emp.labour_inspection_orders} шт.) "
+            f"и представить отчёт об устранении",
+            "Невыполненное предписание — это уже выявленное государством нарушение, "
+            "по которому случай считается предсказуемым", 60, mandatory=True)
+    if float(emp.share_dangerous or 0) > 0.2:
+        add("OSGOR-M06", "dangerous_conditions", ">20%",
+            "План мероприятий по снижению опасных факторов: ограждения, блокировки, наряд-допуск "
+            "на работы повышенной опасности",
+            "Доля работников в опасных условиях выше пятой части — основной источник тяжёлых травм", 90)
+    if float(emp.share_harmful or 0) > 0.3:
+        add("OSGOR-M07", "harmful_conditions", ">30%",
+            "Периодические медицинские осмотры работников вредных профессий, учёт результатов",
+            "Профзаболевание выявляется поздно и оплачивается долго — осмотры позволяют увести "
+            "работника с вредного участка до стойкой утраты трудоспособности", 90)
+    if emp.fatal_3y > 0:
+        add("OSGOR-M08", "fatal_accidents", ">0",
+            "Представить акты расследования по форме Н-1 по смертельным случаям и документы "
+            "об устранении причин",
+            "Смертельный случай даёт длительные выплаты иждивенцам через аннуитет — "
+            "нужна уверенность, что причина устранена", 30, mandatory=True)
+    if emp.wage_arrears:
+        add("OSGOR-M09", "wage_arrears", "yes",
+            "Представить справку о погашении задолженности по заработной плате",
+            "Задолженность по зарплате — риск неуплаты премии в 5 рабочих дней, а без оплаты "
+            "покрытие не начинается", 30)
+    if assessment.get("expected_loss_ratio", 0) > LR_AMBER:
+        add("OSGOR-M10", "loss_ratio", ">100%",
+            "Совместный осмотр производства с инженером по охране труда страховщика и согласованная "
+            "программа мероприятий на год",
+            "Ожидаемые выплаты выше премии — без вмешательства договор будет убыточным, "
+            "а работники продолжат травмироваться", 45)
+    return out
+
+
+DOCS_ALWAYS = [
+    ("заявление на страхование", "п. 12 Правил"),
+    ("свидетельство о государственной регистрации (для физлица — копия паспорта)", "п. 12 Правил"),
+    ("штатное расписание", "подтверждение численности работников"),
+    ("справка о фонде оплаты труда за 12 месяцев (или за срок деятельности)", "ЗРУ-210 ст. 10; п. 21 Правил"),
+    ("сведения о видах деятельности с кодами ОКЭД (IFUT)", "прил. № 9, разд. I, п. 3"),
+]
+DOCS_RISK = [
+    ("сведения о несчастных случаях за 3 года, акты по форме Н-1", "оценка риска — ЗРУ-210 ст. 18"),
+    ("материалы аттестации рабочих мест по условиям труда", "оценка риска — ЗРУ-210 ст. 18"),
+    ("приказ о назначении ответственного за охрану труда / положение о службе охраны труда",
+     "оценка риска — ЗРУ-210 ст. 18"),
+    ("журналы инструктажей и протоколы проверки знаний по охране труда", "оценка риска — ЗРУ-210 ст. 18"),
+    ("ведомости выдачи средств индивидуальной защиты", "оценка риска — ЗРУ-210 ст. 18"),
+    ("предписания инспекции труда и отчёт об их выполнении", "оценка риска — ЗРУ-210 ст. 18"),
+]
+
+
+def checklist(emp: Employer) -> list:
+    """
+    Документы. Важно: требовать документы сверх перечня ст. 13 ЗРУ-210 (п. 34 Правил) при
+    урегулировании убытка запрещено, а вот при заключении договора страховщик вправе оценивать
+    риск (ст. 18) — поэтому «для оценки риска» документы помечены как необязательные.
+    """
+    got = {str(d).lower() for d in (emp.docs_received or [])}
+    out = []
+    for name, ref in DOCS_ALWAYS:
+        out.append({"doc_name": name, "required": 1, "legal_ref": ref,
+                    "received": any(name.lower()[:18] in g for g in got)})
+    for name, ref in DOCS_RISK:
+        out.append({"doc_name": name, "required": 0, "legal_ref": ref,
+                    "received": any(name.lower()[:18] in g for g in got)})
+    return out
+
+
+# ================================================================================================
+# 7. Решение
+# ================================================================================================
+def decision(emp: Employer, assessment: dict, checks_list: list, measures: list) -> dict:
+    """
+    Отказать работодателю нельзя: договор публичный (ЗРУ-210 ст. 6 ч. 1; п. 11 Правил),
+    а страхование обязательно (ст. 17). Поэтому решений три:
+      принять / принять с предупредительными мероприятиями / передать андеррайтеру.
+    """
+    reasons, level = [], DECISION_ACCEPT
+    lr = assessment.get("expected_loss_ratio") or 0.0
+    stops = [c for c in checks_list if c["severity"] == "стоп"]
+
+    if lr > LR_AMBER:
+        level = DECISION_UNDERWRITER
+        reasons.append(f"ожидаемая убыточность {lr * 100:.0f} % выше 100 %: выплаты ожидаются больше премии, "
+                       f"а тариф изменить нельзя")
+    elif lr > LR_GREEN:
+        level = DECISION_MEASURES
+        reasons.append(f"ожидаемая убыточность {lr * 100:.0f} % выше ориентира {LR_GREEN * 100:.0f} % "
+                       f"(рынок — {assessment.get('market_loss_ratio', 0) * 100:.1f} %)")
+    if emp.fatal_3y > 0:
+        level = DECISION_UNDERWRITER
+        reasons.append(f"смертельных случаев за 3 года: {emp.fatal_3y} — вероятны длительные выплаты "
+                       f"через аннуитет (пп. 49–50 Правил)")
+    if stops:
+        level = DECISION_UNDERWRITER
+        reasons.append("есть нарушения-«стоп»: " + "; ".join(f"{c['code']} {c['text']}" for c in stops))
+    if any(m.get("mandatory") for m in measures) and level == DECISION_ACCEPT:
+        level = DECISION_MEASURES
+        reasons.append("есть обязательные предупредительные мероприятия по охране труда")
+    if emp.wage_arrears:
+        reasons.append("задолженность по заработной плате: риск неуплаты премии в 5 рабочих дней, "
+                       "до оплаты покрытие не начинается (п. 26 Правил)")
+        if level == DECISION_ACCEPT:
+            level = DECISION_MEASURES
+    if not reasons:
+        reasons.append(f"ожидаемая убыточность {lr * 100:.0f} % не выше ориентира, нарушений нет")
+
+    return {"decision": level, "reasons": reasons,
+            "note": "Отказ по ОСГОР невозможен: договор публичный, страховщик не вправе отказать "
+                    "работодателю, подавшему заявление и документы",
+            "legal_ref": ACTS["public"]}
+
+
+# ================================================================================================
+# 8. Сквозной расчёт
+# ================================================================================================
+def assess(emp: Employer, brv: Optional[float] = None, con: Optional[sqlite3.Connection] = None,
+           declared_sum: Optional[float] = None, activities: Optional[list] = None,
+           situation: str = "работает больше года", first_month_payroll: Optional[float] = None) -> dict:
+    """Премия по акту + оценка риска + проверки + мероприятия + документы + решение."""
+    activity = find_activity(okved=emp.okved, name=emp.activity_name, activities=activities, con=con)
+    ss = insured_sum(payroll_12m=emp.payroll_12m, first_month_payroll=first_month_payroll,
+                     payroll_for_period=emp.payroll_12m, situation=situation)
+    prem = premium(ss["sum_insured"], activity["kst"], term_days=emp.term_days,
+                   brv=brv, activity=activity)
+    market = market_reference(con)
+    assessment = risk_assessment(emp, activity["kst"], prem["premium"], market)
+    ch = checks(emp, activity, prem, brv=brv, declared_sum=declared_sum)
+    measures = preventive_measures(emp, assessment)
+    docs = checklist(emp)
+    dec = decision(emp, assessment, ch, measures)
+    return {"product_code": PRODUCT_CODE, "class_code": CLASS_CODE,
+            "activity": activity, "insured_sum": ss, "premium": prem, "market": market,
+            "assessment": assessment, "checks": ch, "measures": measures,
+            "checklist": docs, "decision": dec}
+
+
+def explain(result: dict) -> str:
+    """Построчное объяснение для агента: премия по шагам, затем оценка риска и решение."""
+    lines = [f"ОСГОР, продукт {result['product_code']}, класс {result['class_code']}", "", "Премия:"]
+    for s in result["premium"]["steps"]:
+        lines.append(f"  {s['шаг']}: {s['значение']} — {s['пояснение']} [{s['норма']}]")
+    for n in result["premium"]["notes"]:
+        lines.append(f"  * {n}")
+    lines += ["", "Оценка риска (экспертная, calibrated = 0):"]
+    lines += [f"  {t}" for t in result["assessment"]["explain"]]
+    lines += ["", f"Решение: {result['decision']['decision']}"]
+    lines += [f"  — {r}" for r in result["decision"]["reasons"]]
+    if result["measures"]:
+        lines += ["", "Предупредительные мероприятия:"]
+        lines += [f"  {m['measure']} (срок {m['deadline_days']} дн."
+                  + (", условие договора" if m.get("mandatory") else "") + f") — {m['why']}"
+                  for m in result["measures"]]
+    stops = [c for c in result["checks"] if c["severity"] == "стоп"]
+    if stops:
+        lines += ["", "Стоп-проверки:"] + [f"  {c['code']}: {c['text']} [{c['legal_ref']}]" for c in stops]
+    return "\n".join(lines)
+
+
+# ================================================================================================
+# 9. Вход по сети: экран агента (/ui) считает ОСГОР здесь
+# ================================================================================================
+# Роутер ничего не считает сам: он принимает анкету работодателя, вызывает assess() и отдаёт
+# результат как есть. Размер БРВ в системе не задан (вопрос заказчику) — его передаёт экран.
+from fastapi import APIRouter          # noqa: E402
+from pydantic import BaseModel         # noqa: E402
+
+from . import db                       # noqa: E402
+
+router = APIRouter()
+
+SITUATIONS = ("работает больше года", "деятельность меньше года", "начинает деятельность")
+
+
+class EmployerIn(BaseModel):
+    """Анкета работодателя с экрана агента."""
+    name: str = ""
+    okved: str = ""
+    activity_name: str = ""
+    headcount: int = 0
+    payroll_12m: float = 0.0
+    share_harmful: float = 0.0
+    share_dangerous: float = 0.0
+    attestation_done: bool = True
+    accidents_3y: int = 0
+    severe_3y: int = 0
+    fatal_3y: int = 0
+    payouts_3y: float = 0.0
+    safety_service: bool = True
+    training_done: bool = True
+    ppe_provided: bool = True
+    labour_inspection_orders: int = 0
+    wage_arrears: bool = False
+    budget_funded: bool = False
+    state_insured_staff: bool = False
+    term_days: int = YEAR_DAYS
+    activity_shorter_than_year: bool = False
+    premium_paid: bool = False
+    burial_amount: Optional[float] = None
+    docs_received: list = []
+    notes: str = ""
+    # что не относится к самому работодателю
+    brv: Optional[float] = None                     # размер БРВ на день заключения договора
+    declared_sum: Optional[float] = None            # страховая сумма из заявления
+    situation: str = "работает больше года"
+    first_month_payroll: Optional[float] = None
+
+
+@router.get("/osgor/activities")
+def osgor_activities(q: str = "", limit: int = 20) -> dict:
+    """
+    Подсказка по классификации видов деятельности (934 позиции, прил. № 9, разд. I, п. 3).
+    Ищет по коду ОКЭД и по наименованию; без запроса отдаёт только размер справочника.
+    """
+    con = db.connect()
+    try:
+        acts = load_activities(con)
+    finally:
+        con.close()
+    text = _norm(q)
+    digits = "".join(ch for ch in q if ch.isdigit())
+    if not text and not digits:
+        return {"total": len(acts), "items": [], "kst_min": KST_MIN, "kst_max": KST_MAX,
+                "categories": CATEGORIES, "legal_ref": ACTS["kst"]}
+    found = []
+    for a in acts:
+        by_code = digits and a["okved"].startswith(digits)
+        by_name = text and text in _norm(a["name"])
+        if by_code or by_name:
+            found.append(a)
+    # сначала совпадения по коду и более опасные категории: агент чаще ошибается в меньшую сторону
+    found.sort(key=lambda a: (0 if digits and a["okved"].startswith(digits) else 1, -a["kst"]))
+    return {"total": len(acts), "found": len(found), "items": found[:max(1, min(limit, 100))],
+            "kst_min": KST_MIN, "kst_max": KST_MAX, "categories": CATEGORIES,
+            "legal_ref": ACTS["kst"], "not_listed_kst": KST_NOT_LISTED}
+
+
+@router.post("/osgor/assess")
+def osgor_assess(body: EmployerIn) -> dict:
+    """
+    Премия по акту, оценка риска, решение, мероприятия, документы и проверки OSGOR-01…13.
+    Отказа в этом виде нет: договор публичный (ЗРУ-210 ст. 6 ч. 1).
+    """
+    fields = {f: getattr(body, f) for f in Employer.__dataclass_fields__}
+    emp = Employer(**fields)
+    situation = body.situation if body.situation in SITUATIONS else SITUATIONS[0]
+    con = db.connect()
+    try:
+        result = assess(emp, brv=body.brv, con=con, declared_sum=body.declared_sum,
+                        situation=situation, first_month_payroll=body.first_month_payroll)
+    finally:
+        con.close()
+    result["explain"] = explain(result)
+    result["brv"] = body.brv
+    result["thresholds"] = {"зелёный": LR_GREEN, "жёлтый": LR_AMBER,
+                            "минимум БРВ": MIN_PREMIUM_BRV, "погребение БРВ": BURIAL_MAX_BRV}
+    result["market_fallback"] = MARKET_LR_FALLBACK
+    return result

@@ -217,6 +217,72 @@ def test_engine_uses_valuation():
     print("движок: сумма 120 млн против оценки 100 млн → предупреждение sum_vs_valuation выдано")
 
 
+# ---------- спецтехника (добавлено вместе с app/vehicle_class.py) ----------
+
+def test_spec_section_lookup():
+    """Подтип машины → раздел avtoelon.uz; незнакомый подтип раздел не выдумывает."""
+    assert V.spec_section("экскаватор") == "gruzovaja-tehnika/ekskavator"
+    assert V.spec_section("экскаватор гусеничный") == "gruzovaja-tehnika/ekskavator"
+    assert V.spec_section("погрузчик вилочный") == "gruzovaja-tehnika/vilochnyiy-pogruzchik"
+    assert V.spec_section("подводная лодка") is None
+    assert V.spec_section("") is None
+
+
+def test_spec_source_without_subtype_is_honest():
+    """Без подтипа адаптер не ходит в сеть и честно говорит, почему ничего не нашёл."""
+    r = V.fetch_avtoelon_special({"марка": "JCB"}, date(2026, 9, 21), rate=12000.0)
+    assert r["status"] == "источник недоступен"
+    assert "подтип" in r["reason"]
+    assert r["ads_count"] == 0
+
+
+def test_engine_hours_factor():
+    """9000 моточасов за 3 года при норме 1500 в год — это двойная наработка: −15% стоимости."""
+    f = V.engine_hours_factor(9000, 3.0, 1500, 0.15, 15)
+    assert f["expected_hours"] == 4500 and f["deviation_pct"] == 100.0
+    assert f["k"] == 0.85
+    f0 = V.engine_hours_factor(0, 3.0, 1500, 0.15, 15)
+    assert f0["k"] == 1.15                      # почти новая машина: плюс 15%, дальше предел
+    fn = V.engine_hours_factor(None, 3.0, 1500, 0.15, 15)
+    assert fn["k"] == 1.0 and "не указана" in fn["reason"]
+    print("наработка 9000 моточасов за 3 года: коэффициент", f["k"])
+
+
+def test_special_equipment_depreciation_path():
+    """
+    Экскаватор 2019 года, 4200 моточасов, первоначально 1,2 млрд сум, оценка на 21.09.2026.
+
+    Рынок не опрашиваем (use_market=False): проверяем ветку износа по норме «прочие
+    транспортные средства» (20% в год) с поправкой по наработке вместо пробега.
+    """
+    with db.tx() as con:
+        out = V.estimate_value(con, object_type="спецтехника",
+                               params={"subtype": "экскаватор", "марка": "JCB", "модель": "JS 220",
+                                       "год": 2019, "моточасы": 4200},
+                               as_of="2026-09-21", norm_code="vehicles_other",
+                               initial_value=1_200_000_000, commissioned_at="2019-09-21",
+                               use_market=False, declared_value=300_000_000)
+    dep = out["explanation"]["depreciation"]
+    assert out["method"] == "износ"
+    assert dep["wear_pct"] == 100.0                      # 20% × 7 лет — списан полностью
+    assert dep["value"] == dep["floor"] == 240_000_000   # остаточный минимум 20%
+    assert "наработк" in dep["mileage"]["reason"]        # поправка считалась по моточасам
+    assert out["explanation"]["dealer_letter"]["to"]      # письмо представителю подготовлено
+    assert any("наработке" in ln or "наработка" in ln for ln in out["explanation"]["lines"])
+    print("экскаватор 2019 г.:", f"{dep['value']:,.0f}".replace(",", " "), "сум по износу")
+
+
+def test_special_dealer_letter_has_no_invented_address():
+    """Представителя марки спецтехники в справочнике нет — адрес не придумывается."""
+    letter = V.dealer_letter({"марка": "Caterpillar", "модель": "320D", "год": 2018,
+                              "моточасы": 7000, "подтип": "экскаватор"},
+                             "2026-09-21", object_type="спецтехника")
+    assert letter["to"] == V.DEALER_UNKNOWN
+    assert letter["dealer_found"] is False
+    assert "моточасов" in letter["text"]
+    assert "не найден" in letter["note"]
+
+
 def cleanup():
     if not MADE:
         return

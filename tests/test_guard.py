@@ -30,7 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 # сам guard включаем принудительно: режим разработчика проверяем точечно, ниже
 os.environ.pop("SURVEYOR_DEV", None)
 
-from app import auth, db, guard   # noqa: E402
+from app import auth, db, guard, llm   # noqa: E402
 from app.main import app          # noqa: E402
 
 PREFIX = "тест-guard-"
@@ -225,6 +225,10 @@ def check_bootstrap_empty():
     shutil.copy2(db.ROOT / "data" / "surveyor.db", tmp)
     original = db.DB_PATH
     db.DB_PATH = tmp
+    # проверяем именно пустой сервер: файлы .env / .secrets.env администратора и окружение
+    # на время отключаем, иначе заданный там ADMIN_BOOTSTRAP_CODE подменит сгенерированный
+    env_files, env_code = llm.ENV_FILES, os.environ.pop("ADMIN_BOOTSTRAP_CODE", None)
+    llm.ENV_FILES = ()
     try:
         with db.tx() as con:
             con.execute("DELETE FROM login_codes")
@@ -253,6 +257,9 @@ def check_bootstrap_empty():
         ok("код одноразовый: после использования не работает", st == 403)
     finally:
         db.DB_PATH = original
+        llm.ENV_FILES = env_files
+        if env_code is not None:
+            os.environ["ADMIN_BOOTSTRAP_CODE"] = env_code
         try:
             tmp.unlink()
             tmp.parent.rmdir()

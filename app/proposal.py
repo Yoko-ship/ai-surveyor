@@ -78,6 +78,8 @@ class _Pdf:
         self.page = None
         self.writers = {}
         self.y = 0.0
+        # подпись внизу страницы: у предложения клиенту и у анализа запроса она разная
+        self.footer = "СО АО «INSON» — Предложение по страхованию"
         self.new_page()
 
     # страницы
@@ -214,7 +216,7 @@ class _Pdf:
             s = f"Страница {i} из {n}"
             w = self.regular.text_length(s, fontsize=8)
             tw.append((A4_W - MARGIN - w, A4_H - MARGIN + 6), s, font=self.regular, fontsize=8)
-            tw.append((MARGIN, A4_H - MARGIN + 6), "СО АО «INSON» — Предложение по страхованию", font=self.regular, fontsize=8)
+            tw.append((MARGIN, A4_H - MARGIN + 6), self.footer, font=self.regular, fontsize=8)
             tw.write_text(page, color=GRAY)
         self.doc.subset_fonts()                 # встраиваем только использованные глифы (~1 МБ → ~100 КБ)
         return self.doc.tobytes(garbage=3, deflate=True)

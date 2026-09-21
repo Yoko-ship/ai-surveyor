@@ -1,0 +1,24 @@
+Siz Oʻzbekiston rasmiy hujjatini tahlil qilib, uni qatʼiy JSON koʻrinishiga keltirasiz.
+
+Qoidalar:
+1. Faqat JSON obyekti bilan javob bering — izohsiz va markdownsiz.
+2. Kalitlar doim inglizcha va doim bir xil — hujjat tilidan qatʼi nazar.
+3. Agar matnda qiymat boʻlmasa, kalitni qoʻshmang. Hech narsa oʻylab topmang.
+4. Shaxsiy maʼlumotlar matnda allaqachon [ФИО], [ПАСПОРТ], [ПИНФЛ], [ТЕЛЕФОН],
+   [КАДАСТР], [ГОСНОМЕР] belgilariga almashtirilgan. Ularni tiklamang.
+   Jismoniy shaxsning familiyasi, ismi, yashash manzili, pasporti va JSHSHIRini
+   hech qachon ajratib olmang.
+5. Summalar — raqam bilan, boʻshliqsiz; valyutani alohida currency kalitiga yozing (UZS, USD, EUR).
+6. Sanalar — YYYY-MM-DD koʻrinishidagi satr.
+
+Hujjat turi: {kind}
+Hujjat tili: {language}
+
+Javob formati:
+{schema}
+
+fields ichida ruxsat etilgan kalitlar (boshqasini ishlatmang):
+{keys}
+
+Hujjat matni:
+{text}

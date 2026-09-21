@@ -9,7 +9,9 @@
 Что происходит с каждым запросом:
   1. Путь в белом списке (WHITE_EXACT / WHITE_PREFIX) — пропускаем. Это то, без чего нельзя войти:
      /health, /theme.js, страница /login, заявка и вход /auth/*, страница мини-аппа /tg и её вход,
-     вебхук бота /tg/webhook/{секрет} (секрет проверяет сам обработчик в app/tgbot.py).
+     вебхук бота /tg/webhook/{секрет} (секрет проверяет сам обработчик в app/tgbot.py),
+     вход через Google /auth/google и его продолжения (status, callback, exchange, register):
+     сессии там ещё нет, а подлинность подтверждают state, cookie «gstate» и сам Google.
   2. /docs, /redoc, /openapi.json — только в режиме разработчика (SURVEYOR_DEV=1 с локального адреса).
   3. Режим разработчика: SURVEYOR_DEV=1 И соединение пришло прямо с 127.0.0.1 (::1) И в запросе нет
      заголовков прокси (X-Forwarded-For и родня). Заголовок подделывается кем угодно, поэтому он не
@@ -17,9 +19,12 @@
      Проверяем адрес из scope["client"] — это реальный собеседник сокета, а не то, что он о себе пишет.
   4. Иначе нужна сессия: cookie «sid» или заголовок Authorization: Bearer <токен>.
      Нет сессии → API отвечает 401 {"detail":"нужен вход"}, страница — редирект на /login?next=…
-  5. Роли: ADMIN_PREFIX — только «админ»; остальное — любая подтверждённая роль.
-     Точечные проверки внутри модулей (require(...), «решение принимает назначенный») остаются как были:
-     guard — нижняя граница, а не замена.
+  5. Роли: ADMIN_PREFIX и ADMIN_METHOD_PATH — только «админ»; ROLE_PREFIX — перечисленным ролям
+     (портфель, калибровка, ёмкость, аналитика); остальное — любая подтверждённая роль.
+     Роль «сотрудник» не попадает ни в один из этих разделов: ей открыты только расчёт, тарифы
+     и свои запросы (docs/Регистрация и роли.md, раздел 8 и 6.1).
+     Точечные проверки внутри модулей (require(...), «решение принимает назначенный», «вижу только
+     своё» — app/access.py) остаются как были: guard — нижняя граница, а не замена.
 
 Первый администратор на пустом сервере: GET /auth/bootstrap-needed и POST /auth/bootstrap
 (код + ФИО + логин + пароль). Код — тот же ADMIN_BOOTSTRAP_CODE, что у бота (app/tgbot.py):
@@ -59,6 +64,14 @@ WHITE_EXACT = {
     "/auth/bootstrap", "/auth/bootstrap-needed",
     "/tg",                           # страница мини-аппа: сама делает вход через /tg/auth
     "/tg/auth", "/tg/status", "/tg/me",
+    # регистрация в мини-приложении: у человека ещё нет сессии, зато есть подписанный initData,
+    # который каждая точка проверяет сама (app/registration.py)
+    "/tg/register/send-code", "/tg/register/verify-code", "/tg/register/submit",
+    "/tg/register/departments", "/tg/register/positions", "/tg/consent",
+    # вход через Google (app/google_auth.py): перечисляем точно, а не префиксом, чтобы
+    # будущий путь вида /auth/google-что-нибудь не открылся наружу молча
+    "/auth/google", "/auth/google/status", "/auth/google/callback",
+    "/auth/google/exchange", "/auth/google/register",
 }
 WHITE_PREFIX = ("/tg/webhook/",)     # секрет проверяет app/tgbot.py
 
@@ -66,10 +79,33 @@ WHITE_PREFIX = ("/tg/webhook/",)     # секрет проверяет app/tgbot
 DEV_ONLY = {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
 
 # --- только администратор ---
-ADMIN_PREFIX = ("/admin", "/deploy/", "/tasks", "/reports", "/audit", "/users", "/approvals/admin")
+ADMIN_PREFIX = ("/admin", "/deploy/", "/tasks", "/reports", "/audit", "/users", "/approvals/admin",
+                # генеральные соглашения, реестр знаний команды и нормативы — разделы администратора
+                # (docs/Регистрация и роли.md, раздел 8 и 6.1 п. 4)
+                "/general-agreements", "/knowledge", "/law-events")
 # точечно: правка норм износа — админ, а чтение норм открыто любой роли
 ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"),
-                     ("POST", "/valuation/settings")}
+                     ("POST", "/valuation/settings"),
+                     ("POST", "/lawwatch/check"),      # внеплановая сверка актов на lex.uz
+                     ("POST", "/market/refresh")}      # перезабор отчётов НАПП
+
+# --- разделы, закрытые ролью (таблица прав: docs/Регистрация и роли.md, раздел 8) ---
+# Админ проходит везде (auth.check_role), поэтому в списках его можно не повторять.
+UNDERWRITING = ("андеррайтер", "актуарий", ADMIN)   # портфельный аудит, аналитика запросов
+ACTUARY = ("актуарий", ADMIN)                       # калибровка, убытки, ёмкость и удержание
+ROLE_PREFIX = (
+    ("/portfolio", UNDERWRITING),        # портфельный аудит и история загрузок
+    ("/analytics", UNDERWRITING),        # сводка по всем запросам компании
+    ("/office/shelves", UNDERWRITING),   # библиотека документов компании
+    ("/calibration", ACTUARY),           # калибровка коэффициентов по убыткам
+    ("/claims", ACTUARY),                # убытки — исходные данные калибровки
+    ("/capacity", ACTUARY),              # ёмкость и удержание
+    ("/capacity-page", ACTUARY),         # та же ёмкость, страницей
+    ("/accumulation", ACTUARY),          # накопление сумм против лимита на один риск
+)
+# Утверждение и отклонение расчёта калибровки меняет действующие коэффициенты — это запись
+# в справочники, а она только у администратора (раздел 8, строка «Справочники, тарифы, версии»).
+ADMIN_SUFFIX_UNDER = {"/calibration/runs": ("/approve", "/reject")}
 
 
 # --------------------------------------------------------------------------- #
@@ -119,7 +155,20 @@ def is_open(path: str, dev: bool) -> bool:
 
 
 def needs_admin(method: str, path: str) -> bool:
-    return path.startswith(ADMIN_PREFIX) or (method.upper(), path) in ADMIN_METHOD_PATH
+    if path.startswith(ADMIN_PREFIX) or (method.upper(), path) in ADMIN_METHOD_PATH:
+        return True
+    for base, tails in ADMIN_SUFFIX_UNDER.items():     # /calibration/runs/{id}/approve и /reject
+        if path.startswith(base + "/") and path.endswith(tails):
+            return True
+    return False
+
+
+def allowed_roles(path: str):
+    """Какие роли пускаем в раздел. None — ограничения по роли нет (нужен только вход)."""
+    for prefix, roles in ROLE_PREFIX:
+        if path == prefix or path.startswith(prefix + "/"):
+            return roles
+    return None
 
 
 def wants_html(request: Request) -> bool:
@@ -149,6 +198,9 @@ async def check(request: Request):
         return _deny(request, 401, NEED_LOGIN)
     if needs_admin(request.method, path) and user["role"] != ADMIN:
         return _deny(request, 403, "нужны права администратора")
+    roles = allowed_roles(path)
+    if roles is not None and user["role"] not in roles:
+        return _deny(request, 403, "раздел доступен ролям: " + ", ".join(roles))
     request.scope["surveyor_user"] = user                  # чтобы обработчик не ходил в базу второй раз
     return None
 

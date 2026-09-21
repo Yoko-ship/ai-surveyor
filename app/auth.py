@@ -56,7 +56,11 @@ from . import db
 ROOT = Path(__file__).resolve().parent.parent
 router = APIRouter()
 
-ROLES = ("агент", "андеррайтер", "актуарий", "админ")
+# «сотрудник» — роль по умолчанию при самостоятельной регистрации в мини-приложении
+# (задача заказчика от 21.09.2026): расчёт, свои запросы, фото и документы, отправка на согласование.
+# Чужих запросов, портфеля, журнала, справочников и копий базы не видит.
+ROLES = ("сотрудник", "агент", "андеррайтер", "актуарий", "админ")
+ROLE_EMPLOYEE = "сотрудник"
 STATUS_PENDING, STATUS_ACTIVE, STATUS_BLOCKED = "ожидает подтверждения", "активен", "заблокирован"
 
 PBKDF2_ITERATIONS = 200_000
@@ -67,8 +71,8 @@ COOKIE = "sid"
 
 # право -> роли, которым оно дано (админ имеет всё)
 PERMISSIONS = {
-    "расчёт": {"агент", "андеррайтер", "актуарий", "админ"},
-    "свои запросы": {"агент", "андеррайтер", "актуарий", "админ"},
+    "расчёт": {"сотрудник", "агент", "андеррайтер", "актуарий", "админ"},
+    "свои запросы": {"сотрудник", "агент", "андеррайтер", "актуарий", "админ"},
     "все запросы": {"андеррайтер", "актуарий", "админ"},
     "решение": {"андеррайтер", "админ"},
     "портфель": {"андеррайтер", "актуарий", "админ"},
@@ -145,6 +149,7 @@ def send_code(user: dict, code: str) -> Optional[str]:
 
 def _public(u: dict) -> dict:
     return {k: u.get(k) for k in ("id", "login", "full_name", "phone", "role", "branch", "agent_eais_id",
+                                  "position", "department",
                                   "status", "created_at", "approved_by", "approved_at", "last_login")
             } | {"telegram": bool(u.get("telegram_id"))}
 
@@ -159,6 +164,15 @@ def _user_by_id(con, uid: int) -> dict:
     if not r:
         raise HTTPException(404, "Пользователь не найден")
     return r[0]
+
+
+def user_by_google_sub(con, google_sub: str) -> Optional[dict]:
+    """Учётная запись, привязанная к аккаунту Google (app/google_auth.py). sub — вечный
+    идентификатор аккаунта у Google: почту человек может сменить, sub — нет."""
+    if not google_sub:
+        return None
+    r = db.rows(con, "SELECT * FROM users WHERE google_sub=?", str(google_sub))
+    return r[0] if r else None
 
 
 def registry_entry(con, eais_id: str) -> Optional[dict]:
@@ -357,6 +371,11 @@ def check_role(user: dict, roles: tuple) -> dict:
 def _set_cookie(response: Response, token: str):
     # secure=True включить, когда сервер выйдет за https
     response.set_cookie(COOKIE, token, max_age=SESSION_HOURS * 3600, httponly=True, samesite="lax", path="/")
+
+
+def set_session_cookie(response: Response, token: str):
+    """Публичное имя _set_cookie: cookie «sid» ставят и другие модули входа (app/google_auth.py)."""
+    _set_cookie(response, token)
 
 
 def bearer_token(request: Request) -> Optional[str]:

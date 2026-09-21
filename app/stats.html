@@ -467,10 +467,13 @@ async function draw(){
 }
 
 /* ---------- выбор рядов: конструктор ---------- */
+/* Строки-итоги отчёта НАПП (лист 1.4): весь рынок, обязательное/добровольное и отдельные
+   обязательные виды, которые НАПП показывает строкой внутри блока «Majburiy sug‘urta». */
+const TOT_KEYS=["total","mandatory","voluntary_general","voluntary_life","osago","cmr_mandatory","osgor","osgor_annuity"];
 const GROUPS=[
   {id:"cls",  name:"Классы",         test:k=>k.indexOf("cls")===0 && k.indexOf("_")<0},
   {id:"pack", name:"Пакеты классов", test:k=>k.indexOf("cls")===0 && k.indexOf("_")>=0},
-  {id:"tot",  name:"Итоги рынка",    test:k=>k==="total"||k==="mandatory"||k.indexOf("voluntary_")===0||k==="osago"||k==="cmr_mandatory"},
+  {id:"tot",  name:"Итоги рынка",    test:k=>TOT_KEYS.indexOf(k)>=0},
   {id:"reg",  name:"Регионы",        test:k=>k.indexOf("region:")===0},
   {id:"co",   name:"Страховщики",    test:k=>k.indexOf("company:")===0},
   {id:"stat", name:"Агентство статистики", test:isStat}
@@ -791,7 +794,7 @@ async function init(){
   // порядок списка: одиночные классы по номеру → пакеты классов → итоги рынка; регионы и компании — по алфавиту
   const rank=k=>{ if(k.startsWith("cls")){ const n=k.slice(3).split("_"); return n.length===1?[0,+n[0]]:[1,+n[0],+(n[1]||0)]; }
     if(isStat(k)) return [4,0];
-    if(k==="total") return [2,0]; if(k==="mandatory"||k==="voluntary_general"||k==="voluntary_life"||k==="osago"||k==="cmr_mandatory") return [2,1]; return [3,0]; };
+    if(k==="total") return [2,0]; if(TOT_KEYS.indexOf(k)>=0) return [2,1]; return [3,0]; };
   ROWS.sort((a,b)=>{ const x=rank(a.row_key), y=rank(b.row_key); for(let i=0;i<Math.max(x.length,y.length);i++){ const d=(x[i]||0)-(y[i]||0); if(d) return d; } return a.row_name.localeCompare(b.row_name,"ru"); });
   const h=readHash();
   if(h&&h.tab) MODE=h.tab;

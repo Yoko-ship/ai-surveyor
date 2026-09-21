@@ -225,8 +225,14 @@ CREATE TABLE IF NOT EXISTS requests (
     policyholder  TEXT,
     beneficiary   TEXT,
     agent_id      INTEGER REFERENCES agents(id),
+    created_by_user_id INTEGER REFERENCES users(id),   -- кто подал запрос из приложения (роль «сотрудник» не привязана к ЕАИС)
     created_at    TEXT NOT NULL,
-    status        TEXT NOT NULL DEFAULT 'новый'
+    status        TEXT NOT NULL DEFAULT 'новый',
+    -- коллективное согласование (app/approvals.py): 'не требуется'|'на согласовании'|'согласован'|'отклонён'
+    approval_status TEXT NOT NULL DEFAULT 'не требуется',
+    -- по какому генеральному соглашению идёт запрос; без REFERENCES: general_agreements
+    -- описана ниже по файлу, а PostgreSQL ссылку вперёд при CREATE TABLE не примет
+    general_agreement_id INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS objects (
@@ -394,7 +400,10 @@ CREATE TABLE IF NOT EXISTS users (
     salt          TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'ожидает подтверждения', -- | 'активен' | 'заблокирован'
     telegram_id   TEXT,                            -- если задан — при входе нужен код из Telegram
-    position      TEXT,                            -- должность со слов самого человека (регистрация в боте)
+    position      TEXT,                            -- должность со слов самого человека (регистрация в мини-приложении)
+    department    TEXT,                            -- департамент со слов самого человека (свободный текст с подсказками)
+    google_sub    TEXT,                            -- вход через Google: вечный идентификатор аккаунта (app/google_auth.py)
+    email         TEXT,                            -- почта из аккаунта Google (адрес подтверждён самим Google)
     created_at    TEXT NOT NULL,
     approved_by   TEXT,                            -- логин админа, подтвердившего заявку
     approved_at   TEXT,
@@ -423,6 +432,42 @@ CREATE TABLE IF NOT EXISTS login_codes (
 
 CREATE INDEX IF NOT EXISTS ix_sessions_user ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS ix_login_codes_user ON login_codes(user_id);
+-- один аккаунт Google — одна учётная запись. Частичный индекс: пустой google_sub у всех,
+-- кто входит по паролю или через Telegram, уникальности не мешает.
+-- Синтаксис общий для SQLite и PostgreSQL.
+CREATE UNIQUE INDEX IF NOT EXISTS ux_users_google_sub ON users(google_sub) WHERE google_sub IS NOT NULL;
+
+-- ---------------------------------------------------------------------------
+-- Вход через Google (app/google_auth.py, OAuth 2.0 + PKCE).
+-- Начатые входы: state живёт 10 минут и гасится при первом же возврате от Google.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS google_oauth_states (
+    state         TEXT PRIMARY KEY,           -- 32 случайных байта, он же лежит в cookie «gstate»
+    code_verifier TEXT NOT NULL,              -- секрет PKCE: Google получит только его отпечаток
+    next_url      TEXT,                       -- куда вернуть человека после входа (только свой путь)
+    created_at    TEXT NOT NULL,
+    expires_at    TEXT NOT NULL,              -- 10 минут
+    ip            TEXT
+);
+
+-- Одноразовые коды после возврата от Google: код обмена (2 минуты) и ключ анкеты (30 минут).
+-- В базе только отпечаток sha256 — из таблицы код не восстановить.
+CREATE TABLE IF NOT EXISTS google_login_codes (
+    id            INTEGER PRIMARY KEY,
+    kind          TEXT NOT NULL,              -- 'обмен' | 'анкета'
+    code_hash     TEXT NOT NULL,              -- sha256 от выданного кода
+    google_sub    TEXT NOT NULL,
+    email         TEXT,
+    profile_json  TEXT,                       -- имя и фамилия из аккаунта — подставляются в анкету
+    user_id       INTEGER REFERENCES users(id),   -- заполнен, если учётная запись уже есть
+    session_token TEXT,                       -- сессия, созданная в callback: отдаётся на обмене
+    created_at    TEXT NOT NULL,
+    expires_at    TEXT NOT NULL,
+    used_at       TEXT,                       -- сгорел при первом использовании
+    ip            TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_google_login_codes_hash ON google_login_codes(code_hash);
 
 CREATE INDEX IF NOT EXISTS ix_requests_created ON requests(created_at);
 CREATE INDEX IF NOT EXISTS ix_calc_request ON calculations(request_id);
@@ -789,3 +834,112 @@ CREATE TABLE IF NOT EXISTS pd_consents (
 );
 
 CREATE INDEX IF NOT EXISTS ix_pd_consents_tg ON pd_consents(telegram_id, id);
+
+-- ---------------------------------------------------------------------------
+-- Регистрация в мини-приложении по номеру телефона и коду из чата бота
+-- (задача заказчика от 21.09.2026). Телефон здесь НЕ хранится: только его отпечаток —
+-- нужен, чтобы на шаге проверки кода убедиться, что номер тот же. Сам номер живёт
+-- единственный раз — в users.phone. Код тоже хранится только отпечатком.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS reg_codes (
+    id           INTEGER PRIMARY KEY,
+    telegram_id  TEXT NOT NULL,
+    phone_hash   TEXT NOT NULL,              -- sha256 от нормализованного номера
+    code_hash    TEXT NOT NULL,              -- sha256 от кода, индивидуальной соли и telegram_id
+    salt         TEXT,                       -- своя соль на каждый код: 6 цифр по общему хэшу перебираются мгновенно
+    created_at   TEXT NOT NULL,              -- момент последней отправки (ограничение «не чаще раза в минуту»)
+    expires_at   TEXT NOT NULL,              -- 10 минут с момента отправки
+    attempts     INTEGER NOT NULL DEFAULT 0, -- неверных попыток; после 5 код сгорает
+    verified_at  TEXT,                       -- код подтверждён, анкету можно отправлять
+    -- защита от перебора (раздел 7 docs/Регистрация и роли.md)
+    sent_total   INTEGER NOT NULL DEFAULT 0, -- сколько кодов выдано за сутки на этот telegram_id
+    first_sent_at TEXT,                      -- начало суточного окна
+    exhausted    INTEGER NOT NULL DEFAULT 0, -- сколько раз подряд исчерпаны попытки
+    blocked_until TEXT                       -- после второй исчерпанной серии — пауза 15 минут
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_reg_codes_tg ON reg_codes(telegram_id);
+
+-- ---------------------------------------------------------------------------
+-- Вероятность подтверждения запроса и то, чем дело кончилось на самом деле.
+-- Одна таблица на прогноз и на факт: пишет её модуль app/analysis.py (актуарий),
+-- читают app/outcomes.py, карточки и выгрузки. Состав полей — как в analysis.SCHEMA_SQL,
+-- добавлена только result_json (полный ответ модуля: summary и «что повысит»).
+-- probability хранится в процентах, 0..100 — ровно то число, что видел человек.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS decision_outcomes (
+    id             INTEGER PRIMARY KEY,
+    request_id     INTEGER REFERENCES requests(id),      -- по какому запросу
+    calculation_id INTEGER REFERENCES calculations(id),  -- какой расчёт показывали
+    product_code   TEXT,                     -- продукт на момент отправки (разрез статистики)
+    branch         TEXT,                     -- филиал (второй разрез)
+    class_code     TEXT,
+    probability    REAL NOT NULL,            -- 0..100 — что показали человеку
+    verdict        TEXT,                     -- вердикт движка тогда же
+    factors_json   TEXT,                     -- JSON: минусы и плюсы, как их посчитали
+    model_version  TEXT,                     -- версия правил (сейчас 'prob-1')
+    sent_at        TEXT NOT NULL,            -- когда запрос ушёл на согласование
+    decision       TEXT,                     -- факт: 'согласован' | 'отклонён' | NULL пока нет
+    decided_at     TEXT,
+    decided_by     TEXT,
+    comment        TEXT,
+    result_json    TEXT                      -- полный ответ модуля: summary, how_to_raise, stat
+);
+
+CREATE INDEX IF NOT EXISTS ix_decision_outcomes_request ON decision_outcomes(request_id);
+CREATE INDEX IF NOT EXISTS ix_decision_outcomes_scope
+    ON decision_outcomes(product_code, branch, decision);
+
+-- ---------------------------------------------------------------------------
+-- Единое представление загруженного документа (app/ingest.py, задача заказчика 21.09.2026).
+-- Любой файл (PDF, DOCX, XLSX) превращается в структуру: нормализованный текст, таблицы,
+-- поля и факты. Остальные модули читают ЭТУ таблицу, а не сырой файл.
+-- Сам файл лежит в photos (photo_id) — здесь дублируется только путь и имя для показа.
+-- Персональные данные (ЗРУ-547, правило PD-01) в text/fields/facts не попадают:
+-- ФИО, адрес физлица, паспорт и ПИНФЛ отбрасываются на этапе извлечения.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS document_extracts (
+    id          INTEGER PRIMARY KEY,
+    request_id  INTEGER NOT NULL REFERENCES requests(id),
+    -- ON DELETE CASCADE: удалили файл в photos — представление уходит вместе с ним,
+    -- иначе удаление фото упиралось бы во внешний ключ
+    photo_id    INTEGER REFERENCES photos(id) ON DELETE CASCADE,
+    file        TEXT,                            -- относительный путь: data/photos/12/ab12cd.docx
+    filename    TEXT,                            -- как файл назывался у агента (только для показа)
+    mime        TEXT,
+    -- 'техпаспорт' | 'кадастр' | 'отчёт оценщика' | 'договор' | 'выписка' |
+    -- 'штатное расписание' | 'прочее'
+    kind        TEXT,
+    kind_confidence  REAL,
+    -- 'ru' | 'uz-latn' | 'uz-cyrl' | 'en' | 'mixed' | NULL (не определён)
+    language    TEXT,
+    language_confidence REAL,
+    -- 'разобран' | 'частично' | 'нужно распознавание' | 'не поддерживается' | 'ошибка'
+    status      TEXT NOT NULL,
+    text        TEXT,                            -- нормализованный текст документа
+    tables      TEXT,                            -- JSON: [{"name":..., "rows":[[...]]}]
+    fields      TEXT,                            -- JSON: [{"key","name","value","method",...}]
+    facts       TEXT,                            -- JSON: [{"key","value","source"}]
+    confidence  REAL,
+    method      TEXT,                            -- 'regex' | 'llm' | 'manual'
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_document_extracts_request ON document_extracts(request_id, id);
+CREATE INDEX IF NOT EXISTS ix_document_extracts_kind ON document_extracts(kind, id);
+
+-- ============ ОСГОР: КЛАССИФИКАЦИЯ ВИДОВ ДЕЯТЕЛЬНОСТИ ============
+-- Классификация видов деятельности работодателя и коэффициенты страховых тарифов (КСТ).
+-- Прил. № 9 к Правилам ПКМ № 177, разд. I, п. 3 (ред. ПКМ № 443 от 15.07.2025): 934 вида
+-- деятельности, 20 категорий профессионального риска, КСТ от 0,571 до 7,714.
+-- Вид деятельности вне перечня → КСТ 3,400 (разд. I, п. 6), отдельной строкой не хранится.
+CREATE TABLE IF NOT EXISTS osgor_activities (
+    no        INTEGER PRIMARY KEY,       -- № позиции в перечне, 1..934
+    category  INTEGER NOT NULL,          -- категория профессионального риска, 1..20
+    kst       REAL NOT NULL,             -- коэффициент страхового тарифа
+    okved     TEXT,                      -- код ОКЭД (IFUT)
+    name      TEXT NOT NULL,             -- наименование вида деятельности
+    act_ref   TEXT NOT NULL DEFAULT 'ПКМ № 177, прил. № 9, разд. I, п. 3 (ред. ПКМ № 443 от 15.07.2025)'
+);
+CREATE INDEX IF NOT EXISTS ix_osgor_activities_okved ON osgor_activities(okved);

@@ -4,15 +4,18 @@
     python tools\db_build.py
     sandbox\.venv\Scripts\python.exe tests\test_portfolio.py
 Без pytest: обычные assert. Функции модуля вызываются напрямую, сервер не нужен.
+Загрузка идёт во ВРЕМЕННУЮ копию базы (tests/tmpdb.py) — рабочая data/surveyor.db не меняется.
 """
 import sys
 import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import openpyxl  # noqa: E402
 
+from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
 from app import db  # noqa: E402
 from app import portfolio as pf  # noqa: E402
 
@@ -51,7 +54,7 @@ def make_xlsx(folder: Path) -> Path:
 
 
 def test_mapping_and_review():
-    with tempfile.TemporaryDirectory() as tmp:
+    with temp_db(), tempfile.TemporaryDirectory() as tmp:
         path = make_xlsx(Path(tmp))
         sh = pf.read_sheet(path)
         assert sh["header_row"] == 3, sh["header_row"]
@@ -105,7 +108,7 @@ def test_mapping_and_review():
 
 def test_missing_column_message():
     """Без колонки со страховой суммой — понятная ошибка по-русски."""
-    with tempfile.TemporaryDirectory() as tmp:
+    with temp_db(), tempfile.TemporaryDirectory() as tmp:
         wb = openpyxl.Workbook()
         ws = wb.active
         ws.append(["Договор №", "Страхователь", "Премия"])

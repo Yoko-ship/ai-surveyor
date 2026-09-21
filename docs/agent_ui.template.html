@@ -30,7 +30,7 @@ h1{font-size:23px;font-weight:800;letter-spacing:-.02em;margin:0}
 header p{margin:4px 0 0;color:var(--muted);font-size:13.5px;max-width:62ch}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:18px;align-items:start}
-@media (max-width:980px){.grid{grid-template-columns:1fr}}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}   /* 0 — чтобы карточки не растягивали страницу вбок на телефоне */
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}
 .card + .card{margin-top:14px}
 .card h2{font-size:17px;font-weight:700;margin:0 0 3px}
@@ -203,6 +203,18 @@ details.card[open] > summary{margin-bottom:14px}
 .switch input{width:auto;accent-color:var(--accent)}
 .foot{margin-top:16px;font-size:12px;color:var(--muted)}
 .pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);background:color-mix(in srgb,var(--warn) 14%,transparent);border-radius:5px;padding:2px 7px}
+/* переключатель группы объекта и подсказки справочника */
+.seg{display:inline-flex;align-items:center;border:1px solid var(--line);background:var(--card);border-radius:999px;
+     padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.seg.on{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.segs{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.hits{border:1px solid var(--line);border-radius:11px;margin-top:9px;max-height:240px;overflow:auto}
+.hits button{display:flex;gap:10px;align-items:baseline;width:100%;text-align:left;background:transparent;border:0;
+             border-bottom:1px solid var(--line);padding:9px 12px;cursor:pointer;font-size:14px}
+.hits button:hover{background:var(--accent-soft)}
+.hits button i{font-family:var(--mono);font-style:normal;color:var(--muted);font-size:12.5px;flex:none;width:52px}
+.hits button span{flex:1}
+.hits button u{text-decoration:none;font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
 @media (max-width:560px){
   .wrap{padding-inline:14px}
   .card{padding:16px}
@@ -260,6 +272,17 @@ const NEG_MODE = {"по согласованию":"ставка по согла�
                   "генеральный договор":"ставка по генеральному договору"};
 const REASONS = ["Конкурентное предложение", "Решение центрального офиса", "Требование банка",
                  "Пролонгация на прежних условиях", "Иная причина"];
+const OSGOR = "1323";                                    // ОСГОР: тариф установлен ПКМ № 177
+// группы и документы — те же слова, что в app/vehicle_class.py
+const VEH_GROUPS = ["легковой", "грузовой", "автобус", "прицеп", "спецтехника самоходная",
+                    "спецтехника на шасси грузовика", "прицепное (навесное) оборудование"];
+const VEH_DOCS = ["документа нет", "свидетельство СБДД", "техпаспорт Узагроинспекции",
+                  "техническое свидетельство", "регистрация иного органа"];
+const SPEC_GROUPS = ["спецтехника самоходная", "спецтехника на шасси грузовика"];
+const LEX = {zru155:"https://lex.uz/ru/docs/1342476", pkm141:"https://lex.uz/ru/docs/1366341",
+             pkm683:"https://lex.uz/ru/docs/3334128", pkm170:"https://lex.uz/ru/docs/6448097",
+             pkm172:"https://lex.uz/ru/docs/5953887", zru210:"https://lex.uz/ru/docs/1471201",
+             pkm177:"https://lex.uz/ru/docs/1493387", napp:"https://napp.uz/uz/pages/statistika"};
 
 const classTitle = c => "Класс " + c + " — " + (CLASS[c]?.name || "без названия");
 const firstClass = p => (p.classes && p.classes[0]) || "8";
@@ -337,11 +360,24 @@ const S = {
   norms: null, normsError: "",
   // согласование: кто рассмотрит запрос (2–3 человека) и по какому генеральному соглашению он идёт
   rev: {users: [], agreements: [], me: null, agreement: "", picked: [], note: "", error: "", loaded: false},
+  // «Что это?»: карточка объекта для классификатора транспорта и спецтехники
+  veh: {on:false, type_text:"", doc_kind:"документа нет", plate:"", brand:"", model:"",
+        self_propelled:"", max_speed_kmh:"", place:"", region:"г. Ташкент", group:"",
+        hours:"", year:"", operator:"", guard:"", busy:false, error:"", result:null},
+  // ОСГОР: анкета работодателя. Доли условий труда агент вводит в процентах.
+  osg: {okved:"", activity_name:"", kst:null, category:null, q:"", hits:null, hitsNote:"",
+        headcount:"", payroll_12m:"", term_days:365, declared_sum:"",
+        share_harmful:"", share_dangerous:"", attestation_done:true,
+        accidents_3y:"", severe_3y:"", fatal_3y:"", safety_service:true, training_done:true,
+        ppe_provided:true, labour_inspection_orders:"", wage_arrears:false, budget_funded:false,
+        brv:(D.settings && D.settings.BRV) || "", busy:false, error:"", result:null},
   pick: false, query: "", last: null, source: "server"
 };
 
 function selectProduct(code){
   const p = PROD[code]; if (!p) return;
+  const b = document.getElementById("toContract");
+  if (b && code !== OSGOR){ b.disabled = false; b.textContent = "В договор"; b.title = ""; }
   const cls = firstClass(p);
   S.product = code; S.class_code = cls; S.pick = false;
   S.factors = defaultFactors(cls);
@@ -461,6 +497,7 @@ function requestBody(){
 let timer = null, seq = 0;
 function schedule(ms = 220){ clearTimeout(timer); timer = setTimeout(calc, ms); }
 async function calc(){
+  if (S.product === OSGOR) return runOsgor();      // премия по акту, другой расчёт
   const n = ++seq;
   try {
     const r = await fetch("/calculate", {method:"POST", headers:{"Content-Type":"application/json"},
@@ -550,6 +587,9 @@ function cardObject(){
         <em>${credit ? "не больше необеспеченной части и половины кредита" : "равна стоимости — выплата будет полной"}</em></label>
       <label class="f"><span>Срок, дней</span><input type="number" data-k="term" value="${S.term}" min="1" max="1825"></label>
     </div>
+    ${cls !== "3" && !S.veh.on ? `<p class="hint" style="margin:12px 0 0">Объект — транспорт, спецтехника
+      или навесное оборудование? <button type="button" class="seg" id="vehOn">Проверить, что это</button>
+      Ошибка «оборудование вместо спецтехники» меняет ставку в разы.</p>` : ""}
     ${credit ? `<div class="row" style="margin-top:14px">
       <label class="f"><span>Сумма кредита, сум</span>
         <input type="number" data-k="credit.loan" value="${S.credit.loan}" step="1000000"></label>
@@ -1294,11 +1334,539 @@ async function sendReviewers(rid){
   } catch (e){ return "состав не назначен — сервер не ответил"; }
 }
 
+
+/* ---------- «Что это?»: транспорт или спецтехника ----------
+   Считает сервер (app/vehicle_class.py): класс страхования определяет регистрационный
+   документ, а не название в заявке. Браузер только показывает разбор. */
+const VEH_PLACES = ["", "стройка", "дорожные работы", "карьер или рудник", "шахта",
+                    "сельское поле", "склад и территория предприятия", "дороги общего пользования"];
+const VEH_OPERATORS = ["", "штатный, удостоверение тракториста-машиниста есть",
+                       "штатный, удостоверения нет", "привлечённый по договору подряда",
+                       "кто работает на машине — неизвестно"];
+const VEH_GUARD = ["", "охрана и ограждение площадки", "только ограждение",
+                   "открытая площадка без охраны", "ночует в боксе или гараже"];
+const YES_NO = {"": "— не указано —", "да": "да", "нет": "нет"};
+
+const vehShown = () => S.class_code === "3" || S.veh.on;
+const vehGroup = () => S.veh.result?.result?.group || S.veh.group || "";
+const vehIsSpec = () => SPEC_GROUPS.includes(vehGroup());
+
+function cardVehicle(){
+  const v = S.veh;
+  const opt = (arr, cur, label) => arr.map(x =>
+    `<option value="${esc(x)}"${x===cur?" selected":""}>${esc(label ? label(x) : (x || "— не указано —"))}</option>`).join("");
+  const txt = (k, title, hint, type) => `<label class="f"><span>${title}</span>
+    <input data-vh="${esc(k)}"${type?` type="${type}"`:""} value="${esc(v[k] ?? "")}">
+    ${hint?`<em>${hint}</em>`:""}</label>`;
+  const found = v.result?.result?.group || "";
+  const groups = ["", ...VEH_GROUPS].map(g =>
+    `<button type="button" class="seg${g===v.group?" on":""}" data-vgroup="${esc(g)}">${
+      esc(g || (found ? "система определила: " + found : "определит система"))}</button>`).join("");
+  return `<section class="card" id="vehCard">
+    <h2>Что это?</h2>
+    <p class="sub">Спецтехника и обычный транспорт стоят в разы по-разному, а класс страхования
+      определяет регистрационный документ. Заполните марку, модель и документ — система скажет,
+      что это за объект, каким продуктом его страховать и нужен ли полис ОСГО.</p>
+    <div class="row">
+      ${txt("brand", "Марка", "Chevrolet, КАМАЗ, XCMG, МТЗ")}
+      ${txt("model", "Модель", "Cobalt, 65115, XE215C")}
+      ${txt("type_text", "Тип из регистрационного документа", "как написано в документе: «экскаватор», «грузовой», «автокран»")}
+      <label class="f"><span>Регистрационный документ</span>
+        <select data-vh="doc_kind">${opt(VEH_DOCS, v.doc_kind)}</select>
+        <em>свидетельство СБДД или техпаспорт Узагроинспекции — класс 3; техническое свидетельство — классы 8/9</em></label>
+      ${txt("plate", "Государственный номер", "ГРНЗ или ДРБ из документа")}
+      ${txt("max_speed_kmh", "Конструктивная скорость, км/ч", "по паспорту машины; от неё зависит ОСГО (порог 20 км/ч)", "number")}
+      <label class="f"><span>Машина едет сама</span>
+        <select data-vh="self_propelled">${opt(["", "да", "нет"], v.self_propelled, x => YES_NO[x])}</select></label>
+      <label class="f"><span>Где работает</span>
+        <select data-vh="place">${opt(VEH_PLACES, v.place)}</select>
+        <em>карьер и шахта регистрируются по-разному — класс решит андеррайтер</em></label>
+      ${txt("region", "Регион", "в Ташкенте коэффициент территории ОСГО 1,2")}
+    </div>
+    <p class="hint" style="margin:14px 0 0">Группа объекта</p>
+    <div class="segs">${groups}</div>
+    <p class="hint" style="margin:8px 0 0">Система определяет группу по документу, марке и модели.
+      Если знаете точно — поставьте сами: тогда разбор пойдёт от вашего выбора.</p>
+    ${vehIsSpec() ? specQuestions() : ""}
+    ${v.error ? `<div class="note bad">${esc(v.error)}</div>` : ""}
+    <div id="vehResult">${v.result ? vehResultHtml(v.result) : ""}</div>
+  </section>`;
+}
+
+// свой набор вопросов по спецтехнике. Те, под которые в справочнике есть коэффициент,
+// меняют ставку; остальные пока только записываются — так и написано на экране.
+function specQuestions(){
+  const v = S.veh;
+  const f = (code, title, hint) => {
+    const opts = optionsOf("3", code);
+    if (!opts.length) return "";
+    return `<label class="f"><span>${title}</span>
+      <select data-factor="${code}">${opts.map(c =>
+        `<option value="${esc(c.option_code)}"${c.option_code===S.factors[code]?" selected":""}>${esc(c.option_name)}</option>`).join("")}</select>
+      ${hint?`<em>${hint}</em>`:""}</label>`;
+  };
+  const noRate = "в ставку пока не входит: коэффициента по спецтехнике в справочнике нет";
+  return `<h2 style="margin-top:22px;font-size:17px">Вопросы по спецтехнике</h2>
+    <p class="sub">Для спецтехники спрашиваем не то же, что для легковой машины.</p>
+    <div class="row">
+      <label class="f"><span>Наработка, моточасов</span>
+        <input type="number" data-vh="hours" value="${esc(v.hours)}"><em>${noRate}</em></label>
+      <label class="f"><span>Год выпуска</span>
+        <input type="number" data-vh="year" value="${esc(v.year)}" min="1970" max="2030">
+        <em>возраст подставится в фактор «Возраст машины» — он ставку меняет</em></label>
+      <label class="f"><span>Кто работает на машине</span>
+        <select data-vh="operator">${VEH_OPERATORS.map(x =>
+          `<option value="${esc(x)}"${x===v.operator?" selected":""}>${esc(x || "— не указано —")}</option>`).join("")}</select>
+        <em>${noRate}</em></label>
+      <label class="f"><span>Охрана площадки</span>
+        <select data-vh="guard">${VEH_GUARD.map(x =>
+          `<option value="${esc(x)}"${x===v.guard?" selected":""}>${esc(x || "— не указано —")}</option>`).join("")}</select>
+        <em>${noRate}; защита от угона считается отдельным фактором</em></label>
+      ${f("loss_history", "История убытков", "за прошлые годы по этой машине")}
+      ${f("franchise", "Франшиза", "часть убытка, которую клиент берёт на себя")}
+    </div>
+    <p class="hint" style="margin:10px 0 0">Условия эксплуатации берутся из поля «Где работает» выше.
+      Моточасы, оператор и охрана площадки в тариф пока не входят — коэффициентов по спецтехнике
+      в справочнике нет, это вопрос к заказчику.</p>`;
+}
+
+function repaintVeh(){
+  const box = document.getElementById("vehCard");
+  if (!box) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = cardVehicle();
+  box.replaceWith(tmp.firstElementChild);
+}
+// результат перерисовываем отдельно: поля ввода и курсор не трогаем
+function repaintVehResult(){
+  const box = document.getElementById("vehResult");
+  if (box) box.innerHTML = S.veh.result ? vehResultHtml(S.veh.result) : "";
+  const err = document.querySelector("#vehCard .note.bad");
+  if (err && !S.veh.error) err.remove();
+}
+
+function vehBody(){
+  const v = S.veh;
+  const num = x => { const n = Number(String(x).replace(",", ".")); return x === "" || x == null || isNaN(n) ? null : n; };
+  const tri = x => x === "да" ? true : x === "нет" ? false : null;
+  return {type_text: v.type_text, doc_kind: v.doc_kind, plate: v.plate, brand: v.brand, model: v.model,
+          self_propelled: tri(v.self_propelled), max_speed_kmh: num(v.max_speed_kmh),
+          place: v.place, purpose: "", region: v.region,
+          on_truck_chassis: v.group === "спецтехника на шасси грузовика" ? true : null,
+          takaful: /такафул/i.test(PROD[S.product]?.name || ""), group: v.group || null};
+}
+
+let vehTimer = null;
+function scheduleVeh(ms = 350){ clearTimeout(vehTimer); vehTimer = setTimeout(runVeh, ms); }
+
+async function runVeh(){
+  const v = S.veh;
+  const known = [v.brand, v.model, v.type_text].some(x => String(x).trim());
+  if (!known && !v.group){ v.result = null; repaintVehResult(); return; }
+  try {
+    const r = await fetch("/vehicle/classify", {method:"POST", headers:{"Content-Type":"application/json"},
+                                                body: JSON.stringify(vehBody())});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 404 ? "404" : (j.detail || r.status));
+    const wasSpec = vehIsSpec();
+    v.result = j; v.error = "";
+    if (wasSpec !== SPEC_GROUPS.includes(j.result?.group || "")) repaintVeh();
+    else repaintVehResult();
+  } catch (e) {
+    v.result = null;
+    v.error = String(e.message) === "404"
+      ? "Сервер не знает про классификатор техники: открыт старый экран или сервер работает на старой версии. Перезапустите сервер."
+      : "Сервер не разобрал карточку объекта: " + esc(String(e.message)) + ". Повторите позже.";
+    repaintVeh();
+  }
+}
+
+// год выпуска → возраст машины: фактор veh_age есть в справочнике, он ставку меняет
+function syncVehYear(){
+  const y = Number(S.veh.year);
+  if (!y || y < 1970 || y > 2100 || S.class_code !== "3") return;
+  const age = new Date().getFullYear() - y;
+  const code = age <= 3 ? "a3" : age <= 7 ? "a7" : "a7p";
+  if (optionsOf("3", "veh_age").some(c => c.option_code === code) && S.factors.veh_age !== code){
+    S.factors.veh_age = code;
+    const sel = document.querySelector('select[data-factor="veh_age"]');
+    if (sel) sel.value = code;
+    schedule(0);
+  }
+}
+
+function vehResultHtml(j){
+  const r = j.result, o = r.osgo || {};
+  const kv = (k, val) => `<div><span>${k}</span><span class="v">${val}</span></div>`;
+  const pct = x => x == null ? "—" : String(x).replace(".", ",") + "%";
+  const lvl = x => x === "стоп" ? "stop" : x === "предупреждение" ? "warn" : "ok";
+  let h = "";
+  if (j.conflict) h += `<div class="note bad">${esc(j.conflict)}</div>`;
+  h += `<h2 style="margin-top:22px">${esc(r.group || "Группа не определена")}${r.subtype ? " · " + esc(r.subtype) : ""}</h2>
+    <p class="sub">Класс ${esc(r.class_code || "не определён")}${r.class_name ? " — " + esc(r.class_name) : ""} ·
+      уверенность ${esc(r.confidence)}${j.manual_group && !j.conflict ? " · группу выбрал агент" : ""}</p>
+    <div class="wf">
+      ${kv("Документ", esc(r.document.human))}
+      ${kv("Госномер", r.document.plate ? "указан" : "не указан")}
+      ${kv("Класс подтверждён документом", r.class_confirmed ? "да" : "нет")}
+    </div>
+    <p class="hint" style="margin:8px 0 0">${esc(r.class_basis)}</p>`;
+
+  if (r.dual_nature) h += `<div class="note"><b>Машина двойной природы.</b> ${esc(r.dual_nature.text)}
+    <br>Шасси: класс ${esc(r.dual_nature.chassis.class_code)} — ${esc(r.dual_nature.chassis.basis)}.
+    <br>Надстройка: класс ${esc(r.dual_nature.superstructure.class_code)} — ${esc(r.dual_nature.superstructure.what)}.</div>`;
+
+  h += `<h2 style="margin-top:22px;font-size:17px">ОСГО владельцев транспортных средств</h2>
+    <div class="wf">
+      ${kv("Полис нужен", o.required === true ? "да" : o.required === false ? "нет" : "не определено")}
+      ${kv("Базовая ставка Тб", pct(o.base_rate_pct) + (o.row ? " · " + esc(o.row) : ""))}
+      ${kv("Коэффициент территории", o.kt == null ? "—" : String(o.kt).replace(".", ","))}
+      ${kv("Ставка с территорией", pct(o.rate_pct))}
+      ${kv("Продукт", o.product ? esc(o.product[0] + " · " + o.product[1]) : "—")}
+    </div>
+    <p class="hint" style="margin:8px 0 0">${esc(o.reason || "")}</p>`;
+  if (r.extra_cover) h += `<div class="note">${esc(r.extra_cover.why)}. Предложите общую гражданскую
+    ответственность: ${esc(r.extra_cover.product[1])}.</div>`;
+
+  if ((r.products || []).length) h += `<h2 style="margin-top:22px;font-size:17px">Чем страховать</h2>
+    <div class="hits">${r.products.map(p => PROD[p.code]
+      ? `<button type="button" data-vprod="${esc(p.code)}"><i>${esc(p.code)}</i>
+           <span>${esc(p.name)}<br><span class="hint">${esc(p.note || "")}</span></span>
+           <u>${p.rate_pct ? "мин " + pct(p.rate_pct) : "минимум в справочнике"}</u></button>`
+      : `<button type="button" disabled><i>${esc(p.code)}</i><span>${esc(p.name)}</span>
+           <u>нет в справочнике</u></button>`).join("")}</div>
+    <p class="hint" style="margin:8px 0 0">Нажмите на продукт — он подставится в расчёт слева.</p>`;
+
+  if ((r.rules || []).length) h += `<h2 style="margin-top:22px;font-size:17px">Что проверить</h2>` +
+    r.rules.map(x => `<div class="chk ${lvl(x.level)}"><i class="dot"></i><div>
+      <div class="t">${esc(x.code)} · ${esc(x.title)}</div>
+      <div class="d">${esc(x.text)}<br>${esc(x.norm)}</div></div></div>`).join("");
+
+  if ((r.ask || []).length) h += `<h2 style="margin-top:22px;font-size:17px">Что уточнить у клиента</h2>
+    <ul class="hint" style="margin:0;padding-left:18px">${r.ask.map(a => `<li>${esc(a)}</li>`).join("")}</ul>`;
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Как система это решила</h2>
+    <pre class="steps">${esc(j.explain || "")}</pre>`;
+  if (!r.calibrated) h += `<div class="note"><span class="pill">не откалибровано</span>
+    Ставки продуктов спецтехники и имущества — из тарифной политики компании, а не из своей статистики.
+    Базовые ставки ОСГО — из ПКМ № 141, это норма.</div>`;
+  h += srcBar("Разбор подготовлен системой по действующим актам: это не текст акта. "
+    + "Регистрация — ПКМ № 683 и ПКМ № 170, ОСГО — ЗРУ-155 и ПКМ № 141 (прил. № 5 п. 1 в ред. ПКМ № 458).",
+    [{url: LEX.zru155, label: "Читать в источнике", domain: "lex.uz · ЗРУ-155"},
+     {url: LEX.pkm141, label: "Читать в источнике", domain: "lex.uz · ПКМ 141"},
+     {url: LEX.pkm683, label: "Читать в источнике", domain: "lex.uz · ПКМ 683"},
+     {url: LEX.pkm170, label: "Читать в источнике", domain: "lex.uz · ПКМ 170"}]);
+  return h;
+}
+
+/* ---------- ОСГОР: обязательное страхование ответственности работодателя ----------
+   Премию считает сервер строго по ПКМ № 177: ПР = СС × 0,1 % × КСТ / 100, минимум 0,25 БРВ.
+   Вилки ставки, скидок и франшизы в этом виде нет (ЗРУ-210 ст. 8 ч. 4). */
+const osgNum = x => { const n = Number(String(x).replace(",", ".")); return x === "" || x == null || isNaN(n) ? null : n; };
+
+function cardOsgor(){
+  const g = S.osg;
+  const num = (k, title, hint, step) => `<label class="f"><span>${title}</span>
+    <input type="number" data-og="${k}" value="${esc(g[k] ?? "")}"${step?` step="${step}"`:""}>
+    ${hint?`<em>${hint}</em>`:""}</label>`;
+  const sw = (k, title, hint) => `<div class="f"><label class="switch">
+    <input type="checkbox" data-og="${k}"${g[k]?" checked":""}><span>${title}</span></label>
+    ${hint?`<em>${hint}</em>`:""}</div>`;
+  return `<section class="card" id="osgCard">
+    <h2>Работодатель</h2>
+    <p class="sub">Продукт 1323, класс 13. Ставку и коэффициенты установило государство:
+      0,1 % годовых от фонда оплаты труда × коэффициент вида деятельности. Своей вилки у страховщика нет,
+      отказать работодателю нельзя — договор публичный.</p>
+
+    <label class="f"><span>Вид деятельности или код ОКЭД</span>
+      <input id="osgQ" value="${esc(g.q)}" placeholder="например: строительство зданий или 41200" autocomplete="off">
+      <em>справочник из 934 видов, 20 категорий профессионального риска (прил. № 9 к ПКМ № 177)</em></label>
+    <div id="osgHits">${osgHitsHtml()}</div>
+    ${g.okved || g.activity_name ? `<div class="note good" style="margin-top:12px">
+      Выбрано: <b>${esc(g.activity_name || "вид не назван")}</b>${g.okved ? " · ОКЭД " + esc(g.okved) : ""}${
+        g.kst ? " · категория " + esc(String(g.category)) + " из 20 · КСТ " + String(g.kst).replace(".", ",") : ""}</div>` : ""}
+
+    <div class="row" style="margin-top:14px">
+      ${num("headcount", "Численность работников", "всех, кто по трудовому договору")}
+      ${num("payroll_12m", "Фонд оплаты труда за 12 месяцев, сум", "это и есть страховая сумма (ЗРУ-210 ст. 10)", "1000000")}
+      ${num("term_days", "Срок договора, дней", "365 — обычный договор; меньше года — только если работодатель работает меньше года")}
+      ${num("declared_sum", "Страховая сумма из заявления, сум", "если заявлена другая — система об этом скажет", "1000000")}
+      ${num("share_harmful", "Доля во вредных условиях, %", "по аттестации рабочих мест")}
+      ${num("share_dangerous", "Доля в опасных условиях, %", "по аттестации рабочих мест")}
+      ${num("accidents_3y", "Несчастных случаев за 3 года", "все учтённые случаи")}
+      ${num("severe_3y", "Из них тяжёлых")}
+      ${num("fatal_3y", "Из них смертельных", "каждый смертельный случай уходит андеррайтеру")}
+      ${num("labour_inspection_orders", "Невыполненных предписаний инспекции труда", "штук")}
+      ${num("brv", "Размер БРВ, сум", "на день заключения договора; на нём стоит минимум 0,25 БРВ", "1000")}
+    </div>
+    <div class="row" style="margin-top:14px">
+      ${sw("attestation_done", "Аттестация рабочих мест проведена")}
+      ${sw("safety_service", "Есть служба или специалист по охране труда")}
+      ${sw("training_done", "Обучение и проверка знаний проведены")}
+      ${sw("ppe_provided", "СИЗ выдаются по нормам")}
+      ${sw("wage_arrears", "Есть задолженность по заработной плате", "без уплаты премии покрытие не начинается")}
+      ${sw("budget_funded", "Финансируется из бюджета", "проверим двойное покрытие с госстрахованием")}
+    </div>
+    ${g.brv ? "" : `<div class="note">Размер БРВ в системе не задан — мы его запросили у заказчика.
+      Пока поле пустое, минимальная премия 0,25 БРВ и предел расходов на погребение 3 БРВ не проверяются.</div>`}
+    ${g.error ? `<div class="note bad">${esc(g.error)}</div>` : ""}
+    <div id="osgResult">${g.result ? osgResultHtml(g.result) : ""}</div>
+  </section>`;
+}
+
+function osgHitsHtml(){
+  const g = S.osg;
+  if (g.hitsNote) return `<p class="hint" style="margin:8px 0 0">${esc(g.hitsNote)}</p>`;
+  if (!g.hits || !g.hits.length) return "";
+  return `<div class="hits">${g.hits.map(a =>
+    `<button type="button" data-act="${esc(a.okved)}" data-actname="${esc(a.name)}"
+       data-kst="${a.kst}" data-cat="${a.category}">
+       <i>${esc(a.okved)}</i><span>${esc(a.name)}</span>
+       <u>кат. ${esc(String(a.category))} · КСТ ${String(a.kst).replace(".", ",")}</u></button>`).join("")}</div>`;
+}
+
+function repaintOsgHits(){
+  const box = document.getElementById("osgHits");
+  if (box) box.innerHTML = osgHitsHtml();
+}
+function repaintOsgor(){
+  const box = document.getElementById("osgCard");
+  if (!box) return;
+  const tmp = document.createElement("div"); tmp.innerHTML = cardOsgor();
+  box.replaceWith(tmp.firstElementChild);
+}
+function repaintOsgResult(){
+  const box = document.getElementById("osgResult");
+  if (box) box.innerHTML = S.osg.result ? osgResultHtml(S.osg.result) : "";
+}
+
+let actTimer = null;
+function scheduleActs(){ clearTimeout(actTimer); actTimer = setTimeout(loadActivities, 320); }
+async function loadActivities(){
+  const g = S.osg, q = g.q.trim();
+  if (q.length < 2){ g.hits = null; g.hitsNote = ""; repaintOsgHits(); return; }
+  try {
+    const r = await fetch("/osgor/activities?limit=12&q=" + encodeURIComponent(q));
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    g.hits = j.items || [];
+    g.hitsNote = g.hits.length ? "" : `В классификации такого вида нет. Если он там и не найдётся,
+      применяется коэффициент ${String(j.not_listed_kst ?? "").replace(".", ",")} (прил. № 9, разд. I, п. 6) —
+      проверьте код ОКЭД в заявлении.`;
+  } catch (e) {
+    g.hits = null;
+    g.hitsNote = String(e.message) === "404"
+      ? "Сервер не знает про справочник ОСГОР: перезапустите сервер, код уже готов."
+      : "Справочник видов деятельности не загрузился — сервер не ответил.";
+  }
+  repaintOsgHits();
+}
+
+let osgTimer = null;
+function scheduleOsgor(ms = 350){ clearTimeout(osgTimer); osgTimer = setTimeout(runOsgor, ms); }
+
+function osgBody(){
+  const g = S.osg;
+  const int0 = k => Math.max(0, Math.round(osgNum(g[k]) || 0));
+  const share = k => Math.min(1, Math.max(0, (osgNum(g[k]) || 0) / 100));
+  return {okved: String(g.okved || ""), activity_name: String(g.activity_name || ""),
+          headcount: int0("headcount"), payroll_12m: osgNum(g.payroll_12m) || 0,
+          share_harmful: share("share_harmful"), share_dangerous: share("share_dangerous"),
+          attestation_done: !!g.attestation_done, accidents_3y: int0("accidents_3y"),
+          severe_3y: int0("severe_3y"), fatal_3y: int0("fatal_3y"),
+          safety_service: !!g.safety_service, training_done: !!g.training_done,
+          ppe_provided: !!g.ppe_provided, labour_inspection_orders: int0("labour_inspection_orders"),
+          wage_arrears: !!g.wage_arrears, budget_funded: !!g.budget_funded,
+          term_days: Math.min(365, Math.max(1, int0("term_days") || 365)),
+          activity_shorter_than_year: (osgNum(g.term_days) || 365) < 365,
+          premium_paid: S.premiumPaid, docs_received: [...S.docs],
+          brv: osgNum(g.brv), declared_sum: osgNum(g.declared_sum)};
+}
+
+async function runOsgor(){
+  const g = S.osg;
+  if (!(osgNum(g.payroll_12m) > 0)){
+    g.result = null; g.error = ""; repaintOsgResult(); paintOsgorEmpty(); return;
+  }
+  try {
+    const r = await fetch("/osgor/assess", {method:"POST", headers:{"Content-Type":"application/json"},
+                                            body: JSON.stringify(osgBody())});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(r.status === 404 ? "404" : (j.detail || r.status));
+    g.result = j; g.error = "";
+    g.kst = j.activity?.kst ?? null; g.category = j.activity?.category ?? null;
+    repaintOsgResult(); paintOsgorSummary(j);
+  } catch (e) {
+    g.result = null;
+    g.error = String(e.message) === "404"
+      ? "Сервер не знает про расчёт ОСГОР: открыт старый экран или сервер работает на старой версии. Перезапустите сервер."
+      : "Сервер не посчитал ОСГОР: " + String(e.message) + ". Повторите позже.";
+    repaintOsgor(); paintOsgorEmpty();
+  }
+}
+
+function osgResultHtml(j){
+  const p = j.premium, a = j.assessment, d = j.decision;
+  const kv = (k, v) => `<div><span>${k}</span><span class="v">${v}</span></div>`;
+  const lvl = x => x === "стоп" ? "stop" : x === "предупреждение" ? "warn" : "ok";
+  const sum = x => x == null ? "—" : fmt(x) + " сум";
+  const step = s => `<div class="measure"><b>${esc(s["шаг"])}</b>
+    <span class="lbl">${esc(s["значение"])}</span><small>${esc(s["пояснение"])} · ${esc(s["норма"])}</small></div>`;
+  let h = `<h2 style="margin-top:22px">Премия: <span class="big">${sum(p.premium)}</span></h2>
+    <p class="sub">Ставка ${String(p.rate_pct_of_payroll.toFixed(4)).replace(".", ",")} % от годового фонда
+      оплаты труда · КСТ ${String(p.kst).replace(".", ",")} · срок ${p.term_days} дн.</p>
+    ${p.steps.map(step).join("")}
+    ${(p.notes || []).map(n => `<div class="note">${esc(n)}</div>`).join("")}`;
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Оценка риска</h2>
+    <p class="sub">На цену она не влияет — тариф установлен актом. Она отвечает на другой вопрос:
+      как принимать этот риск и что предписать работодателю.</p>
+    <div class="wf">
+      ${kv("Убыточность рынка по ОСГОР", (a.market_loss_ratio * 100).toFixed(1).replace(".", ",") + "%")}
+      ${kv("Ожидаемая убыточность договора", (a.expected_loss_ratio * 100).toFixed(1).replace(".", ",") + "%")}
+      ${kv("Итоговый множитель к рынку", a.total_factor.toFixed(2).replace(".", ","))}
+      ${kv("Ожидаемые выплаты за год", sum(a.expected_loss_amount))}
+      ${kv("Ожидается случаев в год", a.expected_claims_per_year.toFixed(2).replace(".", ","))}
+    </div>
+    <pre class="steps" style="margin-top:12px">${esc((a.explain || []).join("\n"))}</pre>
+    <div class="note"><span class="pill">не откалибровано</span> Множители оценки риска экспертные:
+      разреза по частоте несчастных случаев в отчётах НАПП нет, выгрузки компании по ОСГОР нет.</div>`;
+
+  h += srcBar("Уровень убыточности взят из отчётов НАПП (рынок по ОСГОР), остальное — модель системы. "
+    + "Итог 2025 года: выплаты 135 434,5 млн сум к премиям 285 879,4 млн сум = 47,4 %.",
+    [{url: LEX.napp, label: "Читать в источнике", domain: "napp.uz"}]);
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Решение: ${esc(d.decision)}</h2>
+    <ul class="hint" style="margin:0;padding-left:18px">${d.reasons.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    <p class="hint" style="margin:8px 0 0">${esc(d.note)} (${esc(d.legal_ref)})</p>`;
+
+  if ((j.measures || []).length) h += `<h2 style="margin-top:22px;font-size:17px">Предупредительные мероприятия</h2>`
+    + j.measures.map(m => `<div class="measure"><b>${esc(m.measure)}</b>
+        <span class="lbl ${m.mandatory?"must":""}">${m.mandatory ? "условие договора · " + m.deadline_days + " дн."
+          : "рекомендация · " + m.deadline_days + " дн."}</span>
+        <small>${esc(m.why)}</small></div>`).join("");
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Проверки</h2>` + j.checks.map(c =>
+    `<div class="chk ${lvl(c.severity)}"><i class="dot"></i><div><div class="t">${esc(c.code)}</div>
+      <div class="d">${esc(c.text)}<br>${esc(c.legal_ref)}</div></div></div>`).join("");
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Документы</h2><div class="docs">`
+    + j.checklist.map(x => `<div class="doc"><span style="flex:1">${esc(x.doc_name)}
+        <span class="hint">— ${esc(x.legal_ref)}</span></span>
+        <span class="lbl ${x.required?"req":""}">${x.required ? "обязателен" : "для оценки риска"}</span></div>`).join("")
+    + `</div>
+    <p class="hint" style="margin:8px 0 0">При убытке требовать документы сверх перечня ст. 13 ЗРУ-210 нельзя;
+      документы «для оценки риска» собираются при заключении договора (ст. 18).</p>`;
+
+  h += `<h2 style="margin-top:22px;font-size:17px">Что сказать клиенту</h2>
+    <p class="sub">Обязательное раскрытие по статье 63 Закона о страховой деятельности.</p>
+    <div class="wf">
+      ${kv("Цена", sum(p.premium) + " за " + p.term_days + " дн.")}
+      ${kv("Покрыто", "вред жизни и здоровью работника от трудового увечья, профзаболевания или иного "
+        + "повреждения здоровья при исполнении трудовых обязанностей в период действия договора")}
+      ${kv("Не покрыто", "моральный вред (п. 7 Правил); вред сверх страховой суммы (ЗРУ-210 ст. 12); "
+        + "пересмотр размера вреда после окончания срока договора (п. 45); доплата при повышении МРЗП (п. 44)")}
+      ${kv("Если ФОТ занижен", "страховая сумма — это годовой фонд оплаты труда; занизили ФОТ — "
+        + "занизили и предел выплат, разницу доплачивает работодатель")}
+      ${kv("После выплаты", "страховая сумма уменьшается, премия доплачивается в 7 рабочих дней (п. 27 Правил)")}
+      ${kv("Возврат премии", "при досрочном прекращении — пропорционально выплаченному возмещению и "
+        + "оставшимся дням (пп. 19–20 Правил); при расторжении из-за отказа от доплаты премия не возвращается (п. 18)")}
+      ${kv("Претензии", "решение и выплата — 10 рабочих дней с даты подачи всех документов, "
+        + "мотивированный отказ — 15 рабочих дней (пп. 37, 40 Правил)")}
+    </div>
+    <label class="switch" style="margin-top:14px"><input type="checkbox" data-k="disclosure"${S.disclosure?" checked":""}>
+      <span>Клиенту всё рассказал</span></label>
+    <label class="switch" style="margin-top:10px"><input type="checkbox" data-k="premiumPaid"${S.premiumPaid?" checked":""}>
+      <span>Премия поступила</span></label>`;
+
+  h += srcBar("Премия рассчитана системой строго по акту: базовая ставка 0,1 % и коэффициенты видов "
+    + "деятельности — приложение № 9 к ПКМ № 177 (ред. ПКМ № 443 от 15.07.2025); обязанность страховать "
+    + "и страховая сумма — ЗРУ-210.",
+    [{url: LEX.zru210, label: "Читать в источнике", domain: "lex.uz · ЗРУ-210"},
+     {url: LEX.pkm177, label: "Читать в источнике", domain: "lex.uz · ПКМ 177"}]);
+  return h;
+}
+
+/* панель справа для ОСГОР: та же вёрстка, но показывает не вилку ставки,
+   а premium по акту и ожидаемую убыточность — вилки в этом виде нет */
+function paintOsgorEmpty(){
+  document.getElementById("premium").textContent = "—";
+  document.getElementById("rate").textContent = "—";
+  document.getElementById("rateNote").textContent = "введите фонд оплаты труда";
+  document.getElementById("fill").style.width = "0";
+  document.getElementById("market").textContent = "";
+  document.getElementById("wf").innerHTML = "";
+  document.getElementById("checks").innerHTML = "";
+  document.getElementById("tips").innerHTML =
+    `<p class="hint" style="margin:0">Цену по ОСГОР изменить нельзя: ставку и коэффициенты установило государство.</p>`;
+  document.getElementById("msec").hidden = true;
+  const v = document.getElementById("verdict");
+  v.className = "verdict"; v.textContent = "";
+  osgorActions();
+}
+
+function osgorActions(){
+  const b = document.getElementById("toContract");
+  if (!b) return;
+  b.disabled = true;
+  b.textContent = "ОСГОР в договор пока не уходит";
+  b.title = "Форма запроса рассчитана на вилку ставки; для ОСГОР сохранение расчёта ещё не подключено.";
+}
+
+function paintOsgorSummary(j){
+  const p = j.premium, a = j.assessment, d = j.decision;
+  document.getElementById("premium").innerHTML = fmt(p.premium) + ' <small>сум</small>';
+  document.getElementById("rate").textContent = p.rate_pct_of_payroll.toFixed(4).replace(".", ",") + "%";
+  document.getElementById("rateNote").textContent = "от фонда оплаты труда, по ПКМ № 177"
+    + (p.min_applied ? " · поднята до минимума 0,25 БРВ" : "");
+  const lr = a.expected_loss_ratio * 100;
+  document.getElementById("fill").style.width = Math.min(100, lr / 1.5) + "%";
+  document.getElementById("mMin").textContent = "рынок " + (a.market_loss_ratio * 100).toFixed(1).replace(".", ",") + "%";
+  document.getElementById("mTech").textContent = "ожидаем " + lr.toFixed(0) + "%";
+  document.getElementById("mMax").textContent = "порог 100%";
+  document.getElementById("market").innerHTML =
+    `Шкала показывает не ставку, а ожидаемую убыточность договора: вилки ставки в ОСГОР нет.`;
+
+  const v = document.getElementById("verdict");
+  const worst = d.decision === "принять" ? "ok" : d.decision === "передать андеррайтеру" ? "stop" : "warn";
+  v.className = "verdict " + worst;
+  v.textContent = d.decision === "принять" ? "Принять: замечаний нет"
+    : d.decision === "передать андеррайтеру" ? "Передать андеррайтеру" : "Принять с мероприятиями";
+
+  document.getElementById("wf").innerHTML = p.steps.map(s =>
+    `<div><span>${esc(s["шаг"])}</span><span class="v">${esc(s["значение"])}</span></div>`).join("")
+    + `<div class="total"><span>Ожидаемая убыточность</span><span class="v ${lr > 100 ? "up" : "down"}">`
+    + lr.toFixed(0) + `%</span></div>`;
+
+  document.getElementById("checks").innerHTML = j.checks.map(c => {
+    const st = c.severity === "стоп" ? "stop" : c.severity === "предупреждение" ? "warn" : "ok";
+    return `<div class="chk ${st}"><i class="dot"></i><div><div class="t">${esc(c.code)}</div>`
+      + `<div class="d">${esc(c.text)}</div></div></div>`;
+  }).join("");
+
+  document.getElementById("tips").innerHTML =
+    `<p class="hint" style="margin:0">Цену по ОСГОР изменить нельзя: базовая ставка 0,1 % и коэффициент
+      вида деятельности установлены ПКМ № 177, отступать от них страховщик не вправе (ЗРУ-210 ст. 8 ч. 4).
+      Снизить можно только ожидаемые выплаты — мероприятиями ниже.</p>`;
+
+  const ms = j.measures || [];
+  document.getElementById("msec").hidden = !ms.length;
+  document.getElementById("measures").innerHTML = ms.map(m =>
+    `<div class="measure"><b>${esc(m.measure)}</b>`
+    + `<span class="lbl ${m.mandatory?"must":""}">${m.mandatory ? "условие договора · " + m.deadline_days + " дн." : "рекомендация"}</span>`
+    + `<small>${esc(m.why)}</small></div>`).join("");
+  osgorActions();
+}
+
 function paintForm(){
-  document.getElementById("panes").innerHTML =
-    cardProduct() + cardObject() + cardFactors() + cardPerils() + cardValue() + cardPhoto() + cardDocs()
-    + cardResult() + cardReviewers() + cardManual();
+  // ОСГОР считается по нормативному акту: вилки ставки, рисков и франшизы у него нет,
+  // поэтому вместо обычной формы показываем анкету работодателя
+  document.getElementById("panes").innerHTML = S.product === OSGOR
+    ? cardProduct() + cardOsgor() + cardReviewers()
+    : cardProduct() + cardObject() + (vehShown() ? cardVehicle() : "") + cardFactors() + cardPerils()
+      + cardValue() + cardPhoto() + cardDocs() + cardResult() + cardReviewers() + cardManual();
   paintReviewers();
+  if (S.product === OSGOR){ loadActivities(); if (S.osg.result) paintOsgorSummary(S.osg.result); }
+  else if (vehShown() && !S.veh.result) scheduleVeh(0);
   if (S.last) paintResultCard(S.last);
   const fin = D.financials;
   document.getElementById("foot").innerHTML =
@@ -1463,6 +2031,13 @@ document.addEventListener("input", e => {
   if (t.id === "manualComment"){ S.manual.comment = t.value; return; }
   // поля оценки стоимости: запоминаем, но форму не перерисовываем — курсор остаётся в поле
   if (t.dataset.v){ S.val[t.dataset.v] = t.value; dropDocMark(t.dataset.v); return; }
+  if (t.id === "osgQ"){ S.osg.q = t.value; scheduleActs(); return; }
+  if (t.dataset.og){ S.osg[t.dataset.og] = t.value; scheduleOsgor(); return; }
+  if (t.dataset.vh){
+    S.veh[t.dataset.vh] = t.value;
+    if (t.dataset.vh === "year") syncVehYear();
+    scheduleVeh(); return;
+  }
   const k = t.dataset.k;
   if (k && t.type !== "checkbox"){
     setPath(k, t.type === "number" ? Number(t.value) : t.value);
@@ -1471,6 +2046,9 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
+  if (t.type === "checkbox" && t.dataset.og){ S.osg[t.dataset.og] = t.checked; scheduleOsgor(); return; }
+  if (t.dataset.og){ S.osg[t.dataset.og] = t.value; scheduleOsgor(); return; }
+  if (t.dataset.vh){ S.veh[t.dataset.vh] = t.value; scheduleVeh(0); return; }
   if (t.dataset.factor){ S.factors[t.dataset.factor] = t.value; schedule(0); return; }
   if (t.dataset.peril){ t.checked ? S.perils.add(t.dataset.peril) : S.perils.delete(t.dataset.peril); schedule(0); return; }
   if (t.dataset.doc){ t.checked ? S.docs.add(t.dataset.doc) : S.docs.delete(t.dataset.doc); schedule(0); return; }
@@ -1512,6 +2090,19 @@ document.addEventListener("click", e => {
   const b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.prod){ selectProduct(b.dataset.prod); return; }
+  if (b.dataset.vprod){ selectProduct(b.dataset.vprod); return; }
+  if (b.dataset.vgroup !== undefined){
+    S.veh.group = b.dataset.vgroup;
+    repaintVeh(); runVeh(); return;
+  }
+  if (b.id === "vehOn"){ S.veh.on = true; paintForm(); scheduleVeh(0); return; }
+  if (b.dataset.act !== undefined){
+    const g = S.osg;
+    g.okved = b.dataset.act; g.activity_name = b.dataset.actname;
+    g.kst = Number(b.dataset.kst); g.category = Number(b.dataset.cat);
+    g.q = b.dataset.actname; g.hits = null; g.hitsNote = "";
+    repaintOsgor(); runOsgor(); return;
+  }
   if (b.id === "pickToggle"){ S.pick = !S.pick; paintForm();
     if (S.pick) document.getElementById("pquery")?.focus(); return; }
   if (b.id === "photoRun"){ analyzePhotos(); return; }

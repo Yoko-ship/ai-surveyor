@@ -10,11 +10,13 @@
 
 Что создаётся
   • три работника (вход по логину и паролю, пароли печатаются один раз при запуске):
-      демо-агент            — Тестов Агент Агентович (роль «агент», есть запись в реестре агентов)
-      демо-андеррайтер-1    — Проверкин Андеррайтер Первый (роль «андеррайтер»)
-      демо-андеррайтер-2    — Сверкина Андеррайтер Вторая (роль «андеррайтер»)
+      демо-сотрудник        — Тестов Сотрудник Сотрудникович (роль «сотрудник»: расчёт, свои запросы,
+                              отправка на согласование; он же указан автором демо-запроса)
+      демо-админ-1          — Проверкин Админ Первый (роль «админ», решает по запросам)
+      демо-админ-2          — Сверкина Админ Вторая (роль «админ»)
+    Телефоны вымышленные и заведомо нерабочие: +998 00 000-00-0X (кода оператора «00» не существует).
     telegram_id не задаётся: у вымышленных людей его нет, вход — через браузер.
-  • одно генеральное соглашение «Тестовый банк» с этими двумя андеррайтерами в составе по умолчанию;
+  • одно генеральное соглашение «Тестовый банк» с этими двумя администраторами в составе по умолчанию;
   • один запрос: Chevrolet Cobalt 2021, г. Ташкент, КАСКО «Premium» 0311, страховая сумма
     103 478 017 сум, применённая ставка 2,000 %, премия 2 069 560 сум (цифры взяты из демо-аналитики
     docs/analytics_demo.html, раздел «Итог одним взглядом» и «2. Из чего сложилась ставка»).
@@ -61,11 +63,15 @@ EXTERNAL_NO = "ДЕМО-0311-001"
 PRODUCT = "0311"
 CLASS_CODE = "3"
 
-# Вымышленные работники: (логин, ФИО, роль)
+# Вымышленные работники: (логин, ФИО, роль, департамент, должность, телефон).
+# Телефоны заведомо нерабочие: код оператора «00» в Узбекистане не выдаётся, задеть никого нельзя.
 PEOPLE = [
-    (LOGIN_PREFIX + "агент", "Тестов Агент Агентович", "агент"),
-    (LOGIN_PREFIX + "андеррайтер-1", "Проверкин Андеррайтер Первый", "андеррайтер"),
-    (LOGIN_PREFIX + "андеррайтер-2", "Сверкина Андеррайтер Вторая", "андеррайтер"),
+    (LOGIN_PREFIX + "сотрудник", "Тестов Сотрудник Сотрудникович", "сотрудник",
+     "Демонстрационный департамент", "менеджер", "+998000000001"),
+    (LOGIN_PREFIX + "админ-1", "Проверкин Админ Первый", "админ",
+     "Демонстрационный департамент", "заместитель директора", "+998000000002"),
+    (LOGIN_PREFIX + "админ-2", "Сверкина Админ Вторая", "админ",
+     "Демонстрационный департамент", "директор", "+998000000003"),
 ]
 
 # Объект показа — из docs/analytics_demo.html (данные сняты 20.09.2026):
@@ -131,14 +137,16 @@ def seed(db, auth, approvals, main_mod):
             fail("Отказ: демо-данные уже созданы. Сначала уберите их: --yes --clean")
         ts = db.now()
         uids = {}
-        for login, full_name, role in PEOPLE:
+        for login, full_name, role, department, position, phone in PEOPLE:
             pwd = secrets.token_urlsafe(9)
             passwords[login] = pwd
             pw_hash, salt = auth.hash_password(pwd)
             cur = con.execute(
-                "INSERT INTO users (login, full_name, role, branch, agent_eais_id, password_hash, salt, status,"
-                " created_at, approved_by, approved_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                (login, full_name, role, BRANCH, EAIS_ID if role == "агент" else None,
+                "INSERT INTO users (login, full_name, phone, role, branch, department, position,"
+                " agent_eais_id, password_hash, salt, status, created_at, approved_by, approved_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (login, full_name, phone, role, BRANCH, department, position,
+                 EAIS_ID if role == "агент" else None,
                  pw_hash, salt, "активен", ts, "демо-данные", ts))
             uids[login] = cur.lastrowid
         # запись в реестре агентов: без неё не работает связь «кто подал запрос»
@@ -162,6 +170,8 @@ def seed(db, auth, approvals, main_mod):
     rid = res["request_id"]
 
     with db.tx() as con:
+        # автор запроса — демо-сотрудник: у роли «сотрудник» нет ID агента в ЕАИС, связь прямая
+        con.execute("UPDATE requests SET created_by_user_id=? WHERE id=?", (uids[PEOPLE[0][0]], rid))
         out = approvals.assign(con, rid, [uids[PEOPLE[1][0]], uids[PEOPLE[2][0]]],
                                who=PEOPLE[0][0], agreement_id=ga)
 
@@ -175,9 +185,21 @@ def seed(db, auth, approvals, main_mod):
           f"минимум политики {res['rates']['min_pct']:.3f} %; вердикт: {res['verdict']}")
     print(f"    состояние согласования: {out['approval_status']}; согласующие: "
           + ", ".join(f"{r['full_name']} ({r['status']})" for r in out["reviewers"]))
+    print(f"    выгрузки анализа: GET /requests/{rid}/analysis.pdf и /requests/{rid}/analysis.xlsx")
+    prob = out.get("probability") or {}
+    if prob.get("ready"):
+        print(f"    вероятность подтверждения: {prob['probability']} % — {prob['verdict']} "
+              f"(методика {prob['model_version']}, оценка экспертная, не калибрована)")
+        for x in prob["minus"][:3]:
+            mark = "жёсткое нарушение нормы" if x.get("stop") else f"−{abs(x['delta'])} п.п."
+            print(f"      снижает: {x['text']} ({mark})")
+        for x in prob["how_to_raise"][:3]:
+            print(f"      повысит: {x['text']}")
+    else:
+        print("    вероятность подтверждения не рассчиталась: " + (prob.get("text") or "причина в журнале"))
     print("\n  Входы (пароли показываются ОДИН раз, сохраните их сейчас):")
-    for login, full_name, role in PEOPLE:
-        print(f"    {login:<22} {passwords[login]:<14} {role:<12} {full_name}")
+    for login, full_name, role, department, position, phone in PEOPLE:
+        print(f"    {login:<22} {passwords[login]:<14} {role:<12} {full_name} · {position} · {phone}")
     print("\n  Убрать демо-данные: python tools/demo_seed.py --yes --clean")
 
 
@@ -193,6 +215,10 @@ def clean(db, approvals):
         n = {"запросы": len(rids), "люди": len(uids)}
         for rid in rids:
             con.execute("DELETE FROM request_reviewers WHERE request_id=?", (rid,))
+            try:
+                con.execute("DELETE FROM decision_outcomes WHERE request_id=?", (rid,))
+            except Exception:
+                pass
             con.execute("DELETE FROM check_results WHERE calculation_id IN"
                         " (SELECT id FROM calculations WHERE request_id=?)", (rid,))
             con.execute("DELETE FROM recommendations WHERE calculation_id IN"
@@ -210,6 +236,7 @@ def clean(db, approvals):
             con.execute("DELETE FROM audit WHERE entity=?", (f"request:{rid}",))
         for uid in uids:
             con.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+            con.execute("UPDATE requests SET created_by_user_id=NULL WHERE created_by_user_id=?", (uid,))
             try:
                 con.execute("DELETE FROM login_codes WHERE user_id=?", (uid,))
             except Exception:
