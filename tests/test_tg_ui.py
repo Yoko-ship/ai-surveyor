@@ -223,15 +223,15 @@ def check_guest_screen(uids, html):
     left = [k for k in gone if k in html]
     assert not left, "в мини-аппе осталась регистрация или вход: " + ", ".join(left)
 
-    # гостю — имя «Гость» и ссылка на вход для администратора из login_url
-    must = {'id="adminLogin"': "нет ссылки «Вход для администратора»",
-            "Вход для администратора": "нет подписи ссылки входа для администратора",
+    # гостю — имя «Гость» и кнопка «Запросить доступ в админку» (вместо ссылки на вход)
+    must = {'id="askAdm"': "нет кнопки «Запросить доступ в админку»",
+            "Запросить доступ в админку": "нет подписи кнопки запроса доступа",
             'T("tg.guest", "Гость")': "в левой панели не написано «Гость»",
-            "ME.login_url": "ссылка входа не берётся из /tg/me (login_url)",
+            "ME.login_url": "вход не берётся из /tg/me (login_url)",
             "const IS_GUEST = () => !ME.user": "страница не отличает гостя от вошедшего"}
     miss = [why for key, why in must.items() if key not in html]
     assert not miss, "гостевой режим: " + "; ".join(miss)
-    print("5. регистрации и экранов входа нет, гостю — «Гость» и вход для администратора — ок")
+    print("5. регистрации и экранов входа нет, гостю — «Гость» и запрос доступа в админку — ок")
 
 
 def check_guest_photos(html):
@@ -576,15 +576,58 @@ def check_cover(html):
     # мини-апп отдаётся сервером вместе с картинками: адрес /static открыт до входа
     from app import guard
     assert any(x == "/static/" for x in guard.WHITE_PREFIX), "/static/ закрыт — картинки не загрузятся гостю"
-    # карточка «Способы входа»: Telegram, Google и кнопка привязки
-    for key, why in {'id="links"': "нет карточки способов входа",
-                     '"/auth/links"': "не запрашивается состав способов входа",
-                     "/auth/link/google/start": "нет запроса на привязку Google",
-                     "/auth/google?link=1": "нет запасного пути привязки Google"}.items():
-        assert key in html, "способы входа: " + why
     print(f"25. обложка: {len(names)} адресов картинок, все фоны {total // 1024} КБ"
           f" (телефонные {small // 1024} КБ),"
-          f" lazy, бережный режим, «Способы входа» — ок")
+          f" lazy, бережный режим — ок")
+
+
+def check_login_links(html):
+    """Карточка «Способы входа» (задача 236): живые данные, привязка, отвязка, подпись зачем."""
+    must = {
+        'id="links"': "нет карточки способов входа",
+        '"/auth/links"': "состав способов входа не запрашивается",
+        "/auth/link/google/start": "нет запроса на привязку Google",
+        "/auth/google?link=1": "нет запасного пути привязки Google",
+        "/auth/link/telegram/start": "нет привязки Telegram кодом боту",
+        "/auth/tg-link/status?link_id=": "код боту не опрашивается",
+        'id="lnBindTg"': "нет кнопки «Привязать Telegram»",
+        'id="lnTgOff"': "нет кнопки «Отвязать» у Telegram",
+        'id="lnGoOff"': "нет кнопки «Отвязать» у Google",
+        '"/auth/link/" + p': "отвязка не ходит в DELETE /auth/link/{provider}",
+        "canUnlink": "кнопка «Отвязать» показывается без разрешения сервера (can_unlink)",
+        'q.get("link")': "ответ Google (?link=ok / ?link=error) не разбирается",
+        'T("tg.links.google_err"': "ошибка привязки Google не показывается текстом",
+        'data-i18n="tg.links.why"': "нет подписи «второй способ входа — тот же профиль»",
+        "const show = !!ME.user;": "карточка видна не всем вошедшим, а только админу",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "способы входа: " + "; ".join(miss)
+    # разрешение на отвязку берётся у сервера, а не выдумывается страницей
+    assert "LINKS.can_unlink" in html, "can_unlink не читается из ответа сервера"
+    print("26. способы входа: Telegram и Google, привязка, отвязка по can_unlink, ошибки словами — ок")
+
+
+def check_admin_request(html):
+    """Запрос доступа в админку (задача 236): кнопка гостю, статус, блок владельца."""
+    must = {
+        'id="askAdm"': "нет кнопки «Запросить доступ в админку»",
+        'data-i18n="tg.adminreq.ask"': "у кнопки запроса нет подписи из словаря",
+        '"/auth/admin-request"': "запрос не уходит на сервер",
+        "initData: (TG && TG.initData)": "внутри Telegram запрос идёт без подписанных данных",
+        "if (d.token) setToken(d.token)": "токен нового профиля не сохраняется",
+        'location.href = (ME.login_url || "/login?next=/tg")': "в браузере гость не отправляется на вход",
+        'T("tg.adminreq.wait"': "статус «ждите подтверждения» не показывается",
+        'st === "отклонён"': "отказ владельца не показывается",
+        'id="admReqs"': "нет блока «Доступ в админку» в «Пользователях»",
+        "USERS.is_owner": "блок запросов показывается не только владельцу",
+        "USERS.admin_requests": "список запросов не берётся из /tg/users",
+        '"/auth/admin-request/" + rid': "решение владельца не уходит по адресу запроса",
+        '(yes ? "approve" : "reject")': "нет кнопок «Подтвердить» и «Отклонить»",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "запрос доступа в админку: " + "; ".join(miss)
+    assert 'id="adminLogin"' not in html, "осталась старая ссылка «Вход для администратора»"
+    print("27. запрос доступа в админку: кнопка гостю, статус, блок владельца — ок")
 
 
 if __name__ == "__main__":
@@ -608,6 +651,8 @@ if __name__ == "__main__":
             check_compact_and_view(html)
             check_legal_tab(html)
             check_cover(html)
+            check_login_links(html)
+            check_admin_request(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

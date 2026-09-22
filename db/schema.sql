@@ -1178,3 +1178,44 @@ CREATE TABLE IF NOT EXISTS legal_questions (
     found      INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS ix_legal_questions_hash ON legal_questions(q_hash);
+
+-- ---------------------------------------------------------------------------
+-- Способы входа в один профиль (задача заказчика 23.09.2026, «как на daykon.uz»).
+-- Профиль (users) один, а войти в него можно любым привязанным способом: Telegram или Google.
+-- Столбцы users.telegram_id / users.google_sub остаются зеркалом последней привязки — на них
+-- опирается старый код входа; список способов ведётся здесь.
+-- external_id: telegram_id для Telegram, sub аккаунта для Google (почту человек может сменить,
+-- sub — нет). display — что показать человеку: «@username» или почта; это не ключ входа.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS login_links (
+    id            INTEGER PRIMARY KEY,
+    user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    provider      TEXT NOT NULL,             -- 'telegram' | 'google'
+    external_id   TEXT NOT NULL,             -- telegram_id | google sub
+    display       TEXT,                      -- '@username' | почта — только для показа
+    linked_at     TEXT NOT NULL,
+    last_login_at TEXT
+);
+-- один аккаунт провайдера — не больше чем в одном профиле (иначе «второй способ входа»
+-- уводил бы в чужой профиль); и не больше одного аккаунта каждого провайдера на профиль
+CREATE UNIQUE INDEX IF NOT EXISTS ux_login_links_external ON login_links(provider, external_id);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_login_links_user ON login_links(user_id, provider);
+
+-- ---------------------------------------------------------------------------
+-- Запросы доступа в админку (уточнение заказчика 23.09.2026: «только мне придёт запрос,
+-- и я подтверждаю»). Сотрудник нажимает кнопку — владелец подтверждает в Telegram или в
+-- разделе «Пользователи». Автоматически админом не становится никто.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS admin_requests (
+    id         INTEGER PRIMARY KEY,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status     TEXT NOT NULL DEFAULT 'ожидает',   -- 'ожидает' | 'подтверждён' | 'отклонён'
+    created_at TEXT NOT NULL,
+    decided_at TEXT,
+    decided_by TEXT,                               -- логин владельца, принявшего решение
+    note       TEXT
+);
+-- второй раз «ожидает» на того же человека не создаётся (повторный запрос не дублирует)
+CREATE UNIQUE INDEX IF NOT EXISTS ux_admin_requests_pending ON admin_requests(user_id)
+    WHERE status = 'ожидает';
+CREATE INDEX IF NOT EXISTS ix_admin_requests_status ON admin_requests(status);

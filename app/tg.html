@@ -835,6 +835,18 @@ body:not(.side-open) .links{display:none}
 .links .row b{display:block;margin-top:2px;font:600 13px/1.35 var(--sans);color:var(--ink);overflow-wrap:anywhere}
 .links .row b.off{font-weight:400;color:var(--muted)}
 .links .btn{width:100%;margin-top:4px}
+.links .row .un{margin-top:3px;padding:0;border:0;background:none;color:var(--muted);cursor:pointer;
+  font:600 11px/1.2 var(--sans);letter-spacing:.03em;text-decoration:underline}
+.links .row .un:hover{color:var(--accent)}
+.links .why{margin:8px 0 0;font:400 11px/1.4 var(--sans);color:var(--muted)}
+.links .lncode{margin:8px 0 0;padding:6px 8px;border:1px dashed var(--line);border-radius:8px;background:var(--card);
+  font:600 18px/1.2 var(--mono);letter-spacing:.12em;text-align:center;color:var(--accent)}
+.links .lnhow{margin:6px 0 0;font:400 11px/1.4 var(--sans);color:var(--muted)}
+/* запрос доступа в админку: строка в левой панели и блок владельца в «Пользователях» */
+.askadm{margin-top:6px}
+.askadm .btn{width:100%}
+.askadm .note{margin-top:4px;font:400 11px/1.4 var(--sans);color:var(--muted)}
+.reqs .ways{margin:2px 0 0;font:400 13px/1.4 var(--sans);color:var(--muted);overflow-wrap:anywhere}
 
 </style>
 
@@ -844,15 +856,30 @@ body:not(.side-open) .links{display:none}
   <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
     <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode"></span></div></div>
   <nav id="nav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
-  <!-- Способы входа: как этот человек попадает в приложение. Данные: GET /auth/links
-       (telegram: username, id; google: email или пусто). Привязка Google — POST /auth/link/google/start → {url};
-       пока сервер этого не умеет, кнопка ведёт на /auth/google?link=1. Видна только вошедшему администратору. -->
+  <!-- Способы входа: как этот человек попадает в приложение. Данные: GET /auth/links →
+       {links:[{provider,title,display,…}], can_link, can_unlink, google:{configured,message,hint}}.
+       Привязка Google — POST /auth/link/google/start → {url} (возврат на /tg?link=ok|error);
+       привязка Telegram — POST /auth/link/telegram/start → код боту с опросом /auth/tg-link/status.
+       Видна каждому вошедшему: второй способ входа нужен не только администратору. -->
   <div class="links hidden" id="links">
     <h3 data-i18n="tg.links.title">Способы входа</h3>
-    <div class="row"><span data-i18n="tg.links.tg">Telegram</span><b id="lnTg">—</b></div>
-    <div class="row"><span data-i18n="tg.links.google">Google</span><b id="lnGo">—</b></div>
-    <button type="button" class="btn btn-secondary btn-sm" id="lnBind" data-i18n="tg.links.bind_google">Привязать Google</button>
+    <div class="row"><span data-i18n="tg.links.tg">Telegram</span><b id="lnTg">—</b>
+      <button type="button" class="un hidden" id="lnTgOff" data-i18n="tg.links.unbind">Отвязать</button></div>
+    <div class="row"><span data-i18n="tg.links.google">Google</span><b id="lnGo">—</b>
+      <button type="button" class="un hidden" id="lnGoOff" data-i18n="tg.links.unbind">Отвязать</button></div>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="lnBind" data-i18n="tg.links.bind_google">Привязать Google</button>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="lnBindTg" data-i18n="tg.links.bind_tg">Привязать Telegram</button>
+    <div class="lncode hidden" id="lnCode"></div>
+    <p class="lnhow hidden" id="lnHow"></p>
+    <a class="btn btn-secondary btn-sm hidden" id="lnOpenBot" href="#" target="_blank" rel="noopener" data-i18n="tg.links.open_bot">Открыть бота</a>
+    <p class="why" data-i18n="tg.links.why">Второй способ входа: с нового устройства вы попадёте в этот же профиль.</p>
     <div class="note msg" id="lnMsg"></div>
+  </div>
+  <!-- запрос доступа в админку: гостю и обычному сотруднику. Роль выдаёт только владелец -->
+  <div class="links askadm hidden" id="askAdmBox">
+    <h3 data-i18n="tg.adminreq.title">Доступ в админку</h3>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="askAdm" data-i18n="tg.adminreq.ask">Запросить доступ в админку</button>
+    <div class="note msg" id="askMsg"></div>
   </div>
   <div id="sideLang" role="group" data-i18n-aria="common.lang" aria-label="Язык">
     <button type="button" data-lang-pick="ru" data-i18n-title="common.lang_ru" title="Русский" lang="ru" aria-pressed="false">RU</button>
@@ -860,8 +887,6 @@ body:not(.side-open) .links{display:none}
     <button type="button" data-lang-pick="en" data-i18n-title="common.lang_en" title="English" lang="en" aria-pressed="false">EN</button>
   </div>
   <div class="whoami hidden" id="whoami"><span id="whoText"></span>
-    <!-- гость: вход нужен только администратору — ссылка ведёт на /login и возвращает сюда -->
-    <a class="btn btn-link btn-sm hidden" id="adminLogin" href="/login?next=/tg" data-i18n="tg.admin_login">Вход для администратора</a>
     <!-- смена имени: нажатие на имя открывает поле (PUT /tg/me/name) -->
     <div class="nameform hidden" id="whoNameForm">
       <label for="whoName" data-i18n="tg.reg.name">Имя</label>
@@ -1068,6 +1093,8 @@ body:not(.side-open) .links{display:none}
     <div class="sec-head"><div><h1 data-i18n="tg.nav.users">Пользователи</h1>
       <p data-i18n="tg.users_lead2">Кто работает в системе: имя, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p></div>
       <button type="button" class="btn btn-secondary" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
+    <!-- «Запросы доступа» видит только владелец: те же кнопки, что приходят ему в Telegram -->
+    <div class="cards reqs" id="admReqs"></div>
     <div class="cards people" id="usrList"></div>
   </section>
 
@@ -1530,17 +1557,13 @@ function roleName(r){
 function paintWho(){
   const u = ME.user;
   if (!u) {
-    // гость: имени нет и менять нечего — только ссылка на вход для администратора
+    // гость: имени нет и менять нечего — вместо ссылки входа кнопка «Запросить доступ в админку»
     $("#whoText").textContent = T("tg.guest", "Гость");
-    $("#adminLogin").href = ME.login_url || "/login?next=/tg";
-    $("#adminLogin").textContent = T("tg.admin_login", "Вход для администратора");
-    $("#adminLogin").classList.remove("hidden");
     $("#outBtn").classList.add("hidden");
     $("#viewSwitch").classList.add("hidden");
     nameFormOpen(false);
     return;
   }
-  $("#adminLogin").classList.add("hidden");
   $("#outBtn").classList.remove("hidden");
   const admin = REAL_ADMIN();
   $("#whoText").innerHTML = '<button type="button" class="who-name" id="whoNameBtn" title="' + esc(T("tg.profile.rename", "Изменить имя")) + '">'
@@ -1646,6 +1669,7 @@ async function loadMe(){
   $("#whoami").classList.remove("hidden");
   paintWho();
   if (typeof loadLinks === "function") loadLinks();
+  if (typeof loadAdminReq === "function") loadAdminReq();
   screen("app");
   paintNav((ME.nav && ME.nav.length ? ME.nav : GUEST_NAV));
   if (ME.user) {
@@ -3852,6 +3876,7 @@ async function loadUsers(){
 }
 function usersRepaint(){
   if (!USERS) return;
+  admReqsPaint();                 // блок «Доступ в админку» — только у владельца
   if (USERS.err) { $("#usrList").innerHTML = '<div class="card"><div class="note err">' + esc(T("tg.list_failed", "Список не загрузился: {reason}", {reason: USERS.err})) + "</div></div>"; return; }
   CAN_MANAGE = !!USERS.can_manage && !VIEW_USER;
   const items = USERS.items || [];
@@ -4149,48 +4174,253 @@ function cvGoHash(){
   mark.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); coverShow(true); } };
 })();
 
-/* ---------- Способы входа (левая панель, только у вошедшего администратора) ---------- */
-/* Данные: GET /auth/links → {telegram:{username, id, linked}, google:{email, linked}}.
-   Привязка: POST /auth/link/google/start → {url} — переходим по нему. Пока сервер этих точек
-   не отдаёт, показываем то, что знаем из /tg/me, а кнопка ведёт на /auth/google?link=1. */
+/* ---------- Способы входа (левая панель, у каждого вошедшего) ---------- */
+/* Данные: GET /auth/links → {links:[{provider, title, display, external_id_masked, …}],
+   can_link, can_unlink, google:{configured, message, hint}, profile}.
+   Привязать Google — POST /auth/link/google/start → {url}; Google возвращает на /tg?link=ok
+   или /tg?link=error&reason=… — показываем словами.
+   Привязать Telegram — POST /auth/link/telegram/start → код боту, дальше опрос
+   GET /auth/tg-link/status?link_id=… (тот же порядок, что на экране входа по коду).
+   «Отвязать» показываем, только если сервер разрешил (can_unlink): последний способ входа
+   отнимать нельзя — человек потеряет вход. */
 let LINKS = null;
+const LN = {id: "", timer: null, until: 0, note: null};
+
 function linkRow(sel, text, off){
   const b = $(sel);
   b.textContent = text;
   b.classList.toggle("off", !!off);
 }
+const linkOf = p => ((LINKS && LINKS.links) || []).filter(x => x.provider === p)[0] || null;
+const canLink = p => ((LINKS && LINKS.can_link) || []).indexOf(p) >= 0;
+const canUnlink = p => ((LINKS && LINKS.can_unlink) || []).indexOf(p) >= 0;
+
 function paintLinks(){
-  const show = !!(ME.user && IS_ADMIN());
+  const show = !!ME.user;
   $("#links").classList.toggle("hidden", !show);
+  paintAskAdmin();
   if (!show) return;
-  const L = LINKS || {};
-  const tg = L.telegram || {};
-  const u = ME.user || {};
-  const name = tg.username || u.tg_username || u.username || "";
-  const id = tg.id || tg.telegram_id || u.telegram_id || "";
-  const parts = [];
-  if (name) parts.push("@" + String(name).replace(/^@/, ""));
-  if (id) parts.push("ID " + id);
-  linkRow("#lnTg", parts.length ? parts.join(" · ") : T("tg.links.none", "не привязан"), !parts.length);
-  const g = L.google || {};
-  const mail = g.email || g.mail || "";
-  linkRow("#lnGo", mail || T("tg.links.none", "не привязан"), !mail);
-  $("#lnBind").classList.toggle("hidden", !!mail);
+  const none = T("tg.links.none", "не привязан");
+  const tg = linkOf("telegram"), go = linkOf("google");
+  linkRow("#lnTg", tg ? (tg.display || tg.external_id_masked || "") : none, !tg);
+  linkRow("#lnGo", go ? (go.display || go.external_id_masked || "") : none, !go);
+  $("#lnTgOff").textContent = $("#lnGoOff").textContent = T("tg.links.unbind", "Отвязать");
+  $("#lnTgOff").classList.toggle("hidden", !canUnlink("telegram"));
+  $("#lnGoOff").classList.toggle("hidden", !canUnlink("google"));
+  const g = (LINKS && LINKS.google) || {};
+  const gOff = canLink("google") && g.configured === false;
+  $("#lnBind").textContent = T("tg.links.bind_google", "Привязать Google");
+  $("#lnBind").classList.toggle("hidden", !canLink("google"));
+  $("#lnBind").disabled = gOff;
+  $("#lnBindTg").textContent = T("tg.links.bind_tg", "Привязать Telegram");
+  $("#lnBindTg").classList.toggle("hidden", !canLink("telegram"));
+  // «Google не настроен» — не ошибка человека, а состояние сервера: говорим спокойно, без красного
+  $("#lnMsg").innerHTML = LN.note ? LN.note()
+    : gOff ? esc([g.message, g.hint].filter(Boolean).join(" ")) : "";
+}
+function lnCodeHide(){
+  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.add("hidden"));
 }
 async function loadLinks(){
-  if (!(ME.user && IS_ADMIN())) { paintLinks(); return; }
+  if (!ME.user) { LINKS = null; paintLinks(); return; }
   const r = await api("/auth/links");
-  LINKS = r.ok ? (r.data || {}) : null;     // точки ещё нет — рисуем по данным /tg/me
+  LINKS = r.ok ? (r.data || {}) : null;
+  if (!r.ok) LN.note = () => errHtml(T("tg.links.load_fail", "Способы входа не загрузились: {reason}", {reason: r.error}));
   paintLinks();
 }
+
+/* вернулись от Google: /tg?link=ok или /tg?link=error&reason=… — говорим словами и чистим адрес */
+(function(){
+  const q = new URLSearchParams(location.search), v = q.get("link");
+  if (!v) return;
+  const reason = q.get("reason") || "";
+  LN.note = v === "ok"
+    ? () => okHtml(T("tg.links.google_done", "Google привязан."))
+    : () => errHtml(T("tg.links.google_err", "Google не привязан: {reason}", {reason: reason}));
+  q.delete("link");
+  q.delete("reason");
+  const rest = q.toString();
+  try { history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash); } catch (e) {}
+})();
+
 $("#lnBind").onclick = async () => {
   const btn = $("#lnBind");
   btn.disabled = true;
-  $("#lnMsg").textContent = "";
+  LN.note = () => spin(T("tg.links.google_open", "открываю вход Google…"));
+  paintLinks();
   const r = await api("/auth/link/google/start", jsonOpts("POST", {}));
   if (r.ok && r.data && r.data.url) { location.href = r.data.url; return; }
+  btn.disabled = false;
+  if (r.error) {
+    LN.note = () => errHtml(T("tg.links.google_fail", "Google не открылся: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
   location.href = "/auth/google?link=1";    // запасной путь: обычный вход через Google с признаком привязки
 };
+
+/* --- привязка Telegram: код боту и опрос, как на экране входа --- */
+function lnStop(){ if (LN.timer) { clearInterval(LN.timer); LN.timer = null; } }
+function lnLeft(){
+  const s = Math.max(0, Math.round((LN.until - Date.now()) / 1000));
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function lnWait(){
+  LN.note = () => okHtml(T("tg.links.wait", "Жду сообщение боту — код действует {left}", {left: lnLeft()}));
+  paintLinks();
+}
+$("#lnBindTg").onclick = async () => {
+  const btn = $("#lnBindTg");
+  btn.disabled = true;
+  LN.note = () => spin(T("tg.links.code_wait", "готовлю код…"));
+  paintLinks();
+  const r = await api("/auth/link/telegram/start", jsonOpts("POST", {}));
+  btn.disabled = false;
+  if (!r.ok) {
+    LN.note = () => errHtml(T("tg.links.code_fail", "Код не выдан: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
+  const d = r.data || {};
+  LN.id = d.link_id || "";
+  LN.until = Date.now() + (d.expires_in || 600) * 1000;
+  $("#lnCode").textContent = d.code || "";
+  $("#lnHow").textContent = T("tg.links.how", "Отправьте этот код боту {bot} — и Telegram станет вторым входом.",
+                              {bot: d.bot || botName()});
+  $("#lnOpenBot").href = d.link || ("https://t.me/" + encodeURIComponent(botName()));
+  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.remove("hidden"));
+  lnStop();
+  LN.timer = setInterval(lnPoll, (d.poll_seconds || 2) * 1000);
+  lnWait();
+};
+async function lnPoll(){
+  if (!LN.id) { lnStop(); return; }
+  const r = await api("/auth/tg-link/status?link_id=" + encodeURIComponent(LN.id));
+  if (!r.ok) return;                        // сеть моргнула — ждём следующую попытку
+  const d = r.data || {};
+  if (d.status === "ожидание") { lnWait(); return; }
+  lnStop();
+  LN.id = "";
+  lnCodeHide();
+  if (d.status === "привязано") {
+    LN.note = () => okHtml(T("tg.links.tg_linked", "Telegram привязан: {who}", {who: d.display || ""}));
+    await loadLinks();
+    return;
+  }
+  LN.note = () => errHtml(T("tg.links.link_fail", "Привязка не удалась: {reason}", {reason: d.reason || ""}));
+  paintLinks();
+}
+
+async function lnUnbind(p){
+  LN.note = () => spin(T("tg.links.unbinding", "отвязываю…"));
+  paintLinks();
+  const r = await api("/auth/link/" + p, {method: "DELETE"});
+  if (!r.ok) {
+    LN.note = () => errHtml(T("tg.links.unbind_fail", "Не отвязали: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
+  LN.note = () => okHtml(T("tg.links.unbind_done", "Способ входа отвязан. Вход остался по второму способу."));
+  await loadLinks();
+}
+$("#lnTgOff").onclick = () => lnUnbind("telegram");
+$("#lnGoOff").onclick = () => lnUnbind("google");
+
+/* ---------- Доступ в админку: запрос владельцу ---------- */
+/* Админом никто не становится сам. Гость внутри Telegram: POST /auth/admin-request {initData} —
+   сервер проверяет подпись, заводит профиль «сотрудник» и ставит запрос владельцу, токен сессии
+   запоминаем через setToken. Гость в браузере: уходим на /login — там вход Telegram или Google
+   одним кликом, а после входа эта же кнопка ждёт на месте.
+   Свой статус — GET /auth/admin-request: ожидает / подтверждён / отклонён / нет. */
+let ADMREQ = null, ASK_NOTE = null;
+
+function paintAskAdmin(){
+  const show = !(ME.user && REAL_ADMIN());  // у администратора просить нечего
+  $("#askAdmBox").classList.toggle("hidden", !show);
+  if (!show) return;
+  const st = (ADMREQ && ADMREQ.status) || "";
+  const wait = st === "ожидает";
+  $("#askAdm").textContent = T("tg.adminreq.ask", "Запросить доступ в админку");
+  $("#askAdm").classList.toggle("hidden", wait);
+  $("#askMsg").innerHTML = ASK_NOTE ? ASK_NOTE()
+    : wait ? okHtml(T("tg.adminreq.wait", "Запрос отправлен владельцу — ждите подтверждения в Telegram."))
+    : st === "отклонён" ? errHtml(T("tg.adminreq.no", "Владелец доступ не открыл. Напишите ему, если это ошибка."))
+    : "";
+}
+async function loadAdminReq(){
+  if (!ME.user) { ADMREQ = null; paintAskAdmin(); return; }
+  const r = await api("/auth/admin-request");
+  ADMREQ = r.ok ? (r.data || null) : null;
+  paintAskAdmin();
+}
+$("#askAdm").onclick = async () => {
+  const btn = $("#askAdm");
+  if (!ME.user && !IN_TG) {                 // в браузере сначала вход: /login, оттуда вернёмся сюда
+    ASK_NOTE = () => spin(T("tg.adminreq.to_login", "открываю вход…"));
+    paintAskAdmin();
+    location.href = (ME.login_url || "/login?next=/tg");
+    return;
+  }
+  btn.disabled = true;
+  ASK_NOTE = () => spin(T("tg.adminreq.sending", "отправляю запрос…"));
+  paintAskAdmin();
+  const r = await api("/auth/admin-request", jsonOpts("POST", ME.user ? {} : {initData: (TG && TG.initData) || ""}));
+  btn.disabled = false;
+  if (!r.ok) {
+    ASK_NOTE = () => errHtml(T("tg.adminreq.fail", "Запрос не отправлен: {reason}", {reason: r.error}));
+    paintAskAdmin();
+    return;
+  }
+  const d = r.data || {};
+  if (d.token) setToken(d.token);           // гость мини-аппа: профиль только что заведён
+  ADMREQ = {status: d.status || "", request_id: d.request_id};
+  ASK_NOTE = d.already_admin
+    ? () => okHtml(T("tg.adminreq.already", "Доступ в админку уже открыт."))
+    : () => okHtml(T("tg.adminreq.sent", "Запрос отправлен владельцу — ждите подтверждения в Telegram."));
+  if (d.token) await loadMe(); else paintAskAdmin();
+};
+
+/* ---------- запросы доступа в «Пользователях»: их видит только владелец ---------- */
+const REQ_MSG = {};
+function admReqsPaint(){
+  const box = $("#admReqs");
+  if (!(USERS && USERS.is_owner) || VIEW_USER) { box.innerHTML = ""; return; }
+  const items = USERS.admin_requests || [];
+  box.innerHTML = '<div class="card"><h2>' + esc(T("tg.adminreq.title", "Доступ в админку")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.adminreq.lead", "Эти люди просят открыть им админку. Те же кнопки приходят вам в Telegram.")) + "</p>"
+    + (items.length ? "" : '<div class="note">' + esc(T("tg.adminreq.none", "Новых запросов нет.")) + "</div>")
+    + "</div>" + items.map(admReqCard).join("");
+  bindAdmReqs();
+}
+function wayName(w){
+  const title = w.provider === "google" ? T("tg.links.google", "Google") : T("tg.links.tg", "Telegram");
+  return title + " — " + (w.display || "");
+}
+function admReqCard(r){
+  const m = REQ_MSG[r.id];
+  return '<div class="card" id="areq-' + r.id + '"><h2>' + esc(r.name || "") + "</h2>"
+    + '<p class="ways">' + esc((r.ways || []).map(wayName).join(" · ")) + "</p>"
+    + '<p class="sub">' + esc(when(r.created_at) || "") + "</p>"
+    + '<div class="actions">'
+    + '<button type="button" class="btn btn-primary" data-areq-ok="' + r.id + '">' + esc(T("tg.adminreq.approve", "Подтвердить")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-areq-no="' + r.id + '">' + esc(T("tg.adminreq.reject", "Отклонить")) + "</button>"
+    + "</div>"
+    + '<div class="note msg" id="areqm-' + r.id + '">' + (m ? m() : "") + "</div></div>";
+}
+function bindAdmReqs(){
+  document.querySelectorAll("[data-areq-ok]").forEach(b => { b.onclick = () => admReqDecide(b.dataset.areqOk, true); });
+  document.querySelectorAll("[data-areq-no]").forEach(b => { b.onclick = () => admReqDecide(b.dataset.areqNo, false); });
+}
+async function admReqDecide(rid, yes){
+  const msg = $("#areqm-" + rid);
+  msg.innerHTML = spin(T("tg.adminreq.deciding", "решаю…"));
+  const r = await api("/auth/admin-request/" + rid + "/" + (yes ? "approve" : "reject"), {method: "POST"});
+  if (!r.ok) { msg.innerHTML = errHtml(T("tg.adminreq.decide_fail", "Не получилось: {reason}", {reason: r.error})); return; }
+  REQ_MSG[rid] = yes
+    ? () => okHtml(T("tg.adminreq.approved", "Доступ в админку открыт."))
+    : () => okHtml(T("tg.adminreq.rejected", "Запрос отклонён."));
+  await loadUsers();
+}
 
 boot();
 </script>
