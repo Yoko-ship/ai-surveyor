@@ -1462,7 +1462,7 @@ def osgor_quick(body: QuickIn, lang: str = "") -> dict:
 import math                            # noqa: E402
 from datetime import date              # noqa: E402
 
-from fastapi import Depends, HTTPException    # noqa: E402
+from fastapi import Depends, HTTPException, Request    # noqa: E402
 
 from . import auth                     # noqa: E402
 
@@ -1519,7 +1519,7 @@ def save_brv(con, actor: dict, body: BrvIn) -> dict:
 
 
 @router.get("/osgor/brv")
-def get_brv(on: str = "", lang: str = "", user: dict = Depends(auth.current_user)) -> dict:
+def get_brv(request: Request, on: str = "", lang: str = "") -> dict:
     """Действующий размер БРВ (на сегодня или на дату ?on=ГГГГ-ММ-ДД), ближайший будущий и история.
     ?lang=uz|en — note и legal_ref на этом языке (по умолчанию ru)."""
     lang = premium_lang(lang)
@@ -1537,7 +1537,7 @@ def get_brv(on: str = "", lang: str = "", user: dict = Depends(auth.current_user
                                                      " ORDER BY effective_from DESC, id DESC")]
     return {"on": d, "value": current["value"] if current else None, "current": current,
             "next": _brv_row(nxt[0]) if nxt else None, "history": history,
-            "can_edit": user["role"] == "админ",
+            "can_edit": (auth.optional_user(request) or {}).get("role") == "админ",
             "legal_ref": ({"минимум": ACTS["min"], "погребение": ACTS["burial"]} if lang == "ru"
                           else {"min": act_ref("min", lang), "burial": act_ref("burial", lang)}),
             "note": "" if current else ptext(lang, "brv_note")}

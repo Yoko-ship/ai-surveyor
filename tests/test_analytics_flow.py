@@ -173,8 +173,9 @@ def setup():
 
 def check_menu():
     print("1. Меню мини-аппа без «Ждут меня», «Заявок», «Соглашений»")
-    for who, want in ((EMP, ["analytics", "calc", "osgor", "photos", "users"]),
-                      (ADM, ["analytics", "calc", "osgor", "photos", "users", "settings"])):
+    # 22.09.2026: добавлена вкладка «Юрист»; у админа — «Настройки» и «Админка»
+    for who, want in ((EMP, ["analytics", "calc", "osgor", "legal", "photos", "users"]),
+                      (ADM, ["analytics", "calc", "osgor", "legal", "photos", "users", "settings"])):
         st, me = call("GET", "/tg/me", who=who)
         keys = [n["key"] for n in me.get("nav", [])] if st == 200 else []
         ok(f"{PEOPLE[who]}: меню {', '.join(want)}", keys == want, keys)
@@ -225,7 +226,8 @@ def check_docs():
     st, _ = call("GET", "/analytics/risk/docs", params={"product_code": "9999999"}, who=EMP)
     ok("неизвестный продукт → 404", st == 404, st)
     st, _ = call("GET", "/analytics/risk/docs", params={"product_code": "0807"})
-    ok("без входа → 401", st == 401, st)
+    # 22.09.2026: приложение открыто для всех, чтение чек-листа входа не требует
+    ok("без входа → 200 (гость)", st == 200, st)
 
 
 # ---------- 3. загрузка договора ----------

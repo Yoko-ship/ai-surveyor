@@ -1097,6 +1097,16 @@ CREATE TABLE IF NOT EXISTS risk_thresholds (
     note            TEXT
 );
 
+-- ============ АНАЛИТИКА РИСКА: ПОСЛЕДНИЙ ВЫБОР ФОРМЫ ============
+-- Быстрый режим (22.09.2026): форма запоминает выбор пользователя — класс, продукт, тип объекта,
+-- регион, срок, конструкция, деятельность, тип ТС, защита, сейсмозона (ra.LAST_ALLOWED).
+-- Ни страховых сумм, ни персональных данных здесь нет; читает и пишет только сам пользователь.
+CREATE TABLE IF NOT EXISTS risk_last_input (
+    user_id    INTEGER PRIMARY KEY,
+    updated_at TEXT NOT NULL,
+    data_json  TEXT NOT NULL
+);
+
 -- ============ АНАЛИТИКА РИСКА: ДОГОВОР ДЛЯ АНАЛИЗА ============
 -- app/analysis_docs.py (задача 150): договор, загруженный во вкладке «Аналитика» без запроса.
 -- id — случайный токен (не подбирается перебором), доступ только владельцу (user_id).
@@ -1117,3 +1127,51 @@ CREATE TABLE IF NOT EXISTS analysis_docs (
     expires_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_analysis_docs_user ON analysis_docs(user_id, expires_at);
+
+-- ============ ЮРИДИЧЕСКИЕ ОТВЕТЫ (app/legal.py) ============
+-- Поисковый индекс по библиотеке законодательства, заметкам проекта и правилам движка.
+-- FTS5: полнотекстовый поиск встроен в SQLite, отдельных пакетов не нужно. Токенайзер unicode61
+-- с remove_diacritics 2 — узбекская латиница с диакритикой (gʻ, sh, oʻ) ищется как без неё;
+-- апострофы (ʻ ‘ ’ ʼ ` ') модуль снимает и при индексации, и в запросе, поэтому «sugʻurta»,
+-- «sug'urta» и «sugurta» дают один результат.
+-- Индексируемые колонки: act, unit, title, text. Остальные — UNINDEXED (только фильтр и выдача).
+-- Таблица пересобирается целиком (app/legal.reindex), поэтому DROP/CREATE здесь не нужен.
+CREATE VIRTUAL TABLE IF NOT EXISTS legal_chunks USING fts5(
+    act,                    -- «ГК РУз глава 52 Страхование»
+    act_code UNINDEXED,     -- слаг акта: gk_ruz_glava_52
+    language UNINDEXED,     -- ru | uz | en
+    unit,                   -- «ст. 938» | «п. 4» | «modda 938»
+    title,                  -- заголовок статьи/пункта
+    text,                   -- текст для поиска: апострофы сняты
+    raw UNINDEXED,          -- он же как есть — из него берётся цитата для человека
+    url UNINDEXED,          -- ссылка на источник (lex.uz), если известна
+    path UNINDEXED,         -- файл-источник относительно корня проекта
+    official UNINDEXED,     -- 1 — официальный текст, 0 — перевод/заметка
+    tokenize = 'unicode61 remove_diacritics 2'
+);
+
+-- Какие файлы уже в индексе: пересобираем только при изменении mtime/размера.
+CREATE TABLE IF NOT EXISTS legal_files (
+    path       TEXT PRIMARY KEY,
+    mtime      REAL NOT NULL,
+    size       INTEGER NOT NULL,
+    language   TEXT,
+    act        TEXT,
+    act_code   TEXT,
+    chunks     INTEGER NOT NULL DEFAULT 0,
+    indexed_at TEXT NOT NULL
+);
+
+-- Журнал вопросов: САМ ТЕКСТ ВОПРОСА НЕ ХРАНИМ (в нём могут быть персональные данные) —
+-- только отпечаток, чтобы видеть частые вопросы без ответа и пополнять ими FAQ.
+CREATE TABLE IF NOT EXISTS legal_questions (
+    id         INTEGER PRIMARY KEY,
+    created_at TEXT NOT NULL,
+    lang       TEXT NOT NULL,
+    q_hash     TEXT NOT NULL,
+    source     TEXT NOT NULL,          -- faq | passages | none
+    confidence REAL,
+    took_ms    INTEGER,
+    found      INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_legal_questions_hash ON legal_questions(q_hash);

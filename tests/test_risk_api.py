@@ -195,7 +195,8 @@ def check_analyze():
     st, b = call("POST", "/analytics/risk", {"must": {**WAREHOUSE["must"], "class_code": "99"}}, who=EMP)
     ok("нет такого класса → 422 errors.class_code", st == 422 and "class_code" in b["errors"], b)
     st, b = call("POST", "/analytics/risk", WAREHOUSE)
-    ok("без входа → 401", st == 401, st)
+    # 22.09.2026: анализ риска открыт гостю (лимит обращений — app/guest.py)
+    ok("без входа → 200 (гость)", st == 200, st)
 
 
 # ---------- 3. пороги ----------

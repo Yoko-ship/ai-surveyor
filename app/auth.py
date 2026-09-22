@@ -413,6 +413,22 @@ def current_user(request: Request, response: Response) -> dict:
     return u
 
 
+def optional_user(request: Request) -> Optional[dict]:
+    """Тот же вошедший, что и current_user, но без 401: None — гость (решение заказчика 22.09.2026)."""
+    u = request.scope.get("surveyor_user")
+    if u is not None:
+        return u
+    token = request_token(request)
+    if not token:
+        return None
+    try:
+        with db.tx() as con:
+            return session_user(con, token)
+    except Exception as e:
+        print("auth: сессию проверить не удалось:", e)
+        return None
+
+
 def require(*roles: str):
     """Фабрика зависимостей: require('андеррайтер', 'актуарий'). Админ проходит всегда."""
     def dep(user: dict = Depends(current_user)) -> dict:

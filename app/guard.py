@@ -1,5 +1,14 @@
 """
-Единый вход в систему: без сессии сервер наружу ничего не отдаёт.
+Единый вход в систему.
+
+С 22.09.2026 (решение заказчика) мини-приложение открыто для всех: чтение справочников,
+аналитика риска, расчёт, ОСГОР и юридические ответы работают без входа — их адреса перечислены
+в GUEST_* ниже. Вход нужен только администратору: всё изменяющее (справочники, БРВ, пороги,
+/admin*, /deploy/*, /tasks*, /audit, /users, финансы, портфель, refresh) по-прежнему закрыто.
+Для гостя заводится анонимный guest_id (cookie «gid», 24 часа, app/guest.py): по нему видны
+его собственные загруженные файлы и считается лимит обращений (429 при превышении).
+
+Всё остальное без сессии сервер наружу не отдаёт.
 
 Подключение (app/main.py):
 
@@ -17,6 +26,8 @@
      заголовков прокси (X-Forwarded-For и родня). Заголовок подделывается кем угодно, поэтому он не
      разрешает доступ, а наоборот — запрещает обход: на Railway запрос всегда идёт через прокси.
      Проверяем адрес из scope["client"] — это реальный собеседник сокета, а не то, что он о себе пишет.
+  3а. Гостевой режим: guest_allowed(метод, путь) — адрес из списков GUEST_GET/POST/PUT/DELETE.
+     Сессии не требуется, но считается лимит обращений (guest_limit → 429).
   4. Иначе нужна сессия: cookie «sid» или заголовок Authorization: Bearer <токен>.
      Нет сессии → API отвечает 401 {"detail":"нужен вход"}, страница — редирект на /login?next=…
   5. Роли: ADMIN_PREFIX, ADMIN_METHOD_PATH и ADMIN_METHOD_PREFIX — только «админ»; ROLE_PREFIX —
@@ -45,7 +56,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
-from . import auth, db, llm
+from . import auth, db, guest, llm
 
 router = APIRouter()
 
@@ -81,6 +92,42 @@ WHITE_EXACT = {
 # до входа: на /login и на экране заявки мини-аппа
 WHITE_PREFIX = ("/tg/webhook/", "/i18n/")     # секрет вебхука проверяет app/tgbot.py
 
+# --------------------------------------------------------------------------- #
+#  Гостевой режим (решение заказчика 22.09.2026): приложение открыто для всех
+# --------------------------------------------------------------------------- #
+# Ниже — ровно те адреса, которые работают без входа. Перечисляем методом и точным путём,
+# а не префиксом: новый путь вида /analytics/risk-что-нибудь не должен открыться наружу молча.
+# Всё изменяющее (справочники, БРВ, пороги, админка, задачи, журнал, пользователи, финансы,
+# портфель, refresh) в этих списках отсутствует — значит, требует сессии администратора.
+GUEST_GET_EXACT = {
+    "/tg/me", "/tg/status", "/tg/bot-status",
+    "/osgor/activities", "/osgor/brv",                 # БРВ читают все, правит PUT только админ
+    "/legal/faq", "/legal/acts",
+    "/valuation/norms",                                # нормы износа: чтение открыто, запись — админ
+    "/market/rows", "/market/series", "/market/status",
+    "/stat/indicators", "/stat/risk-indicators",
+    "/analytics/risk/fields", "/analytics/risk/thresholds", "/analytics/risk/docs",
+    "/analytics/risk/presets", "/analytics/risk/last",
+    "/analytics/risk/documents",       # свои файлы для анализа: вкладка «Фото» гостя
+}
+GUEST_GET_PREFIX = ("/reference/", "/stat/indicators/", "/analytics/risk/document/")
+GUEST_POST_EXACT = {"/calculate", "/osgor/quick", "/osgor/assess", "/legal/ask",
+                    "/analytics/risk", "/analytics/risk/document"}
+GUEST_PUT_EXACT = {"/analytics/risk/last"}             # свой последний выбор формы, без сумм и ПД
+GUEST_DELETE_PREFIX = ("/analytics/risk/document/",)   # удалить свой файл раньше срока
+
+# какие обращения гостя считаем (app/guest.py): бакет -> (метод, путь)
+GUEST_BUCKET = {
+    ("POST", "/analytics/risk"): "analysis",
+    ("POST", "/calculate"): "analysis",
+    ("POST", "/osgor/quick"): "analysis",
+    ("POST", "/osgor/assess"): "analysis",
+    ("POST", "/analytics/risk/document"): "upload",
+    ("POST", "/legal/ask"): "legal",
+}
+# страницы, на которых гостю выдаётся cookie заранее: файл он загрузит уже с ней
+GUEST_COOKIE_PATHS = {"/tg", "/tg/me", "/tg/auth", "/tg/status"}
+
 # --- только в режиме разработчика ---
 DEV_ONLY = {"/docs", "/redoc", "/openapi.json", "/docs/oauth2-redirect"}
 
@@ -96,7 +143,8 @@ ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"
                      ("POST", "/market/refresh"),      # перезабор отчётов НАПП
                      # справочники, которые админ правит из мини-приложения (задача 144)
                      ("PUT", "/osgor/brv"),            # размер БРВ для ОСГОР
-                     ("PUT", "/analytics/risk/thresholds")}   # пороги уровня риска аналитики
+                     ("PUT", "/analytics/risk/thresholds"),   # пороги уровня риска аналитики
+                     ("POST", "/legal/reindex")}       # пересборка индекса законодательства (app/legal.py)
 # то же по началу пути: у удаления нормы износа код в адресе (/valuation/norms/{code}),
 # и точное совпадение из ADMIN_METHOD_PATH его не ловило
 ADMIN_METHOD_PREFIX = {("DELETE", "/valuation/norms/")}
@@ -120,7 +168,13 @@ ROLE_PREFIX = (
 # Запись порогов закрыта отдельно — ADMIN_METHOD_PATH.
 ANY_ROLE_EXACT = {"/analytics/risk", "/analytics/risk/fields", "/analytics/risk/thresholds",
                   # задача 150: документы по продукту и договор для анализа (только свой — проверяет модуль)
-                  "/analytics/risk/docs", "/analytics/risk/document"}
+                  "/analytics/risk/docs", "/analytics/risk/document",
+                  # быстрый режим (22.09.2026): пресеты и последний выбор формы — любой активной роли
+                  "/analytics/risk/presets", "/analytics/risk/last",
+    "/analytics/risk/documents",       # свои файлы для анализа: вкладка «Фото» гостя
+                  # юридические ответы (app/legal.py): читать может любой вошедший, включая сотрудника;
+                  # перечисляем точно — пересборка индекса /legal/reindex закрыта администратором
+                  "/legal/ask", "/legal/faq", "/legal/acts"}
 ANY_ROLE_PREFIX = ("/analytics/risk/document/",)
 # Утверждение и отклонение расчёта калибровки меняет действующие коэффициенты — это запись
 # в справочники, а она только у администратора (раздел 8, строка «Справочники, тарифы, версии»).
@@ -173,6 +227,37 @@ def is_open(path: str, dev: bool) -> bool:
     return dev and path in DEV_ONLY
 
 
+def guest_allowed(method: str, path: str) -> bool:
+    """Открыт ли адрес без входа. Метод важен: GET /osgor/brv — всем, PUT — администратору."""
+    m = method.upper()
+    if m in ("GET", "HEAD"):
+        return path in GUEST_GET_EXACT or path.startswith(GUEST_GET_PREFIX)
+    if m == "POST":
+        return path in GUEST_POST_EXACT
+    if m == "PUT":
+        return path in GUEST_PUT_EXACT
+    if m == "DELETE":
+        return path.startswith(GUEST_DELETE_PREFIX)
+    return False
+
+
+def guest_limit(request: Request, method: str, path: str, gid: str):
+    """Ограничение злоупотреблений для гостя. Вернёт готовый 429 или None."""
+    bucket = GUEST_BUCKET.get((method.upper(), path))
+    if not bucket:
+        return None
+    key = gid or client_host(request)          # нет cookie — считаем по адресу соединения
+    res = guest.hit(bucket, key)
+    if res["ok"]:
+        return None
+    # в журнал — только хэш ключа и счётчик: ни guest_id, ни IP в открытом виде
+    print("guard: лимит гостя", bucket, guest.short(key), res["count"], "/", res["limit"], flush=True)
+    return JSONResponse({"detail": guest.message(bucket, res["limit"]),
+                         "limit": res["limit"], "window_hours": 1,
+                         "retry_after_sec": res["retry_after"], "guest": True},
+                        status_code=429, headers={"Retry-After": str(res["retry_after"])})
+
+
 def needs_admin(method: str, path: str) -> bool:
     m = method.upper()
     if path.startswith(ADMIN_PREFIX) or (m, path) in ADMIN_METHOD_PATH:
@@ -219,6 +304,9 @@ async def check(request: Request):
         return _deny(request, 404, "страница недоступна")
     user = await run_in_threadpool(user_of, request)
     if not user:
+        # гостевой режим: приложение открыто для чтения и расчёта, менять данные нельзя
+        if guest_allowed(request.method, path):
+            return guest_limit(request, request.method, path, request.scope.get("surveyor_guest") or "")
         return _deny(request, 401, NEED_LOGIN)
     if needs_admin(request.method, path) and user["role"] != ADMIN:
         return _deny(request, 403, "нужны права администратора")
@@ -243,11 +331,30 @@ class GuardMiddleware:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
-        denied = await check(Request(scope, receive))
+        request = Request(scope, receive)
+        path = request.url.path.rstrip("/") or "/"
+        # анонимный guest_id: нужен до обработчика (по нему ищутся «мои» загруженные файлы)
+        gid = guest.from_request(request)
+        fresh = ""
+        if not gid and (guest_allowed(request.method, path) or path in GUEST_COOKIE_PATHS):
+            gid = fresh = guest.new_id()
+        if gid:
+            scope["surveyor_guest"] = gid
+        denied = await check(request)
+        target = send
+        if fresh:
+            secure = guest.cookie_secure()
+
+            async def target(msg, _send=send, _gid=fresh, _secure=secure):
+                if msg["type"] == "http.response.start":
+                    msg = dict(msg)
+                    msg["headers"] = list(msg.get("headers") or []) + [
+                        (b"set-cookie", guest.cookie_header(_gid, _secure))]
+                await _send(msg)
         if denied is not None:
-            await denied(scope, receive, send)
+            await denied(scope, receive, target)
             return
-        await self.app(scope, receive, send)
+        await self.app(scope, receive, target)
 
 
 def install(app):

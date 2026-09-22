@@ -41,12 +41,13 @@ TOKENS = {}
 # разделы, которые сервер раздаёт по ролям (app/tgbot.py: NAV_BASE / NAV_ADMIN)
 # задача 144: «Аналитика» и «ОСГОР» добавлены, «Мои запросы» из меню убраны (точка /tg/my-requests осталась)
 # задача 150: «Ждут меня», «Заявки», «Генеральные соглашения» убраны из меню для всех ролей
-NAV_KEYS = ["analytics", "calc", "osgor", "photos", "users", "settings"]
+# 22.09.2026: «Юрист» для всех, «Админка» — только админу
+NAV_KEYS = ["analytics", "calc", "osgor", "legal", "photos", "users", "settings"]
 REMOVED_KEYS = ["inbox", "applications", "agreements"]
 # «Пользователи» открыты всем зарегистрированным (решение заказчика 21.09.2026)
 NAV_BY_ROLE = {
-    "агент": {"analytics", "calc", "osgor", "photos", "users"},
-    "андеррайтер": {"analytics", "calc", "osgor", "photos", "users"},
+    "агент": {"analytics", "calc", "osgor", "legal", "photos", "users"},
+    "андеррайтер": {"analytics", "calc", "osgor", "legal", "photos", "users"},
     "админ": set(NAV_KEYS),
 }
 
@@ -186,33 +187,64 @@ def check_nav_by_role():
         assert keys <= set(NAV_KEYS), (role, keys)
         print(f"   {role}: {len(keys)} разделов — {', '.join(n['title'] for n in me['nav'])}")
     st, me = call("GET", "/tg/me")
-    assert st == 200 and me["status"] == "не вошёл" and me["nav"] == [], me
-    print("4. /tg/me отдаёт разный nav по ролям, без входа — пустой — ок")
+    # 22.09.2026: без входа — гостевое меню без «Пользователей», а не пустое
+    assert st == 200 and me["status"] == "гость" and me["mode"] == "guest", me
+    assert [n["key"] for n in me["nav"]] == ["analytics", "calc", "osgor", "legal", "photos"], me
+    print("4. /tg/me отдаёт разный nav по ролям, без входа — гостевое меню — ок")
     for login, _role, _eais in PEOPLE:
         _st, me = call("GET", "/tg/me", who=login)
         assert not {n["key"] for n in me["nav"]} & set(REMOVED_KEYS), me["nav"]
     print("4a. «Ждут меня», «Заявки», «Соглашения» сервер не отдаёт ни одной роли — ок")
 
 
-def check_wait_screen(uids, html):
-    """Статус не «активен» — ни разделов, ни сведений о человеке; на странице только экран ожидания."""
+def check_guest_screen(uids, html):
+    """Регистрации нет: неподтверждённая запись видит приложение как гость, экранов входа на странице нет."""
     login = "тест-ui-андер"
     with db.tx() as con:
         con.execute("UPDATE users SET status=? WHERE id=?", ("ожидает подтверждения", uids[login]))
     st, me = call("GET", "/tg/me", who=login)
-    # вход по паролю: сервер отказывает понятной фразой, страница показывает её на экране ожидания
-    pw_hash, salt = auth.hash_password("проверка-пароля-1")
-    with db.tx() as con:
-        con.execute("UPDATE users SET password_hash=?, salt=? WHERE id=?", (pw_hash, salt, uids[login]))
-    st2, lg = call("POST", "/auth/login", {"login": login, "password": "проверка-пароля-1"})
     with db.tx() as con:
         con.execute("UPDATE users SET status=? WHERE id=?", ("активен", uids[login]))
+    assert st == 200 and me["user"] is None and me["status"] == "гость", me
 
-    assert st == 200 and me["nav"] == [] and me["user"] is None, me
-    assert st2 == 403 and "подтверждена" in lg["detail"], (st2, lg)
-    assert "screen-wait" in html and "function showWait(" in html, "нет экрана ожидания"
-    assert "showWait(r.error" in html, "отказ входа не ведёт на экран ожидания"
-    print(f"5. неподтверждённый человек: разделов нет, вход закрыт — «{lg['detail']}» — ок")
+    # ни экранов входа и ожидания, ни кода регистрации на странице
+    gone = ['id="screen-login"', 'id="screen-wait"', 'id="screen-register"', "function showWait(",
+            "function showRegister(", "/tg/register/send-code", "/tg/register/verify-code",
+            "/tg/register/submit", "/tg/consent?scope=", "/tg/register/positions",
+            "/auth/tg-link/start", "/auth/google/exchange", "Получить код", "Зарегистрироваться",
+            "Продолжить с Google", "Войти через Telegram", "нужна регистрация", "tg.wait_title"]
+    left = [k for k in gone if k in html]
+    assert not left, "в мини-аппе осталась регистрация или вход: " + ", ".join(left)
+
+    # гостю — имя «Гость» и ссылка на вход для администратора из login_url
+    must = {'id="adminLogin"': "нет ссылки «Вход для администратора»",
+            "Вход для администратора": "нет подписи ссылки входа для администратора",
+            'T("tg.guest", "Гость")': "в левой панели не написано «Гость»",
+            "ME.login_url": "ссылка входа не берётся из /tg/me (login_url)",
+            "const IS_GUEST = () => !ME.user": "страница не отличает гостя от вошедшего"}
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "гостевой режим: " + "; ".join(miss)
+    print("5. регистрации и экранов входа нет, гостю — «Гость» и вход для администратора — ок")
+
+
+def check_guest_photos(html):
+    """Вкладка «Фото» у гостя: свои файлы анализа, загрузка, удаление, срок хранения 24 часа."""
+    must = {'id="gdocCard"': "нет карточки файлов гостя",
+            '"/analytics/risk/documents"': "список своих файлов не запрашивается",
+            '"/analytics/risk/document", {method: "POST"': "нет загрузки файла гостем",
+            '"/analytics/risk/document/" + encodeURIComponent(id), {method: "DELETE"}': "нет удаления файла",
+            "tg.gdoc_ttl": "не сказано, что файлы хранятся 24 часа",
+            "function loadPhotosTab(": "вкладка «Фото» не различает гостя и вошедшего",
+            'errHtml(r.error)': "отказ сервера (429) показывается не его словами"}
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "вкладка «Фото» у гостя: " + "; ".join(miss)
+    # гостевое меню сервера рисуется целиком
+    st, me = call("GET", "/tg/me")
+    keys = [n["key"] for n in me["nav"]]
+    assert keys == ["analytics", "calc", "osgor", "legal", "photos"], me
+    assert all(f'data-section="{k}"' in html for k in keys), "не все разделы гостя есть в разметке"
+    assert "const GUEST_NAV = [" in html, "нет запасного меню гостя, если сервер не ответил"
+    print("5a. вкладка «Фото» гостя: свои файлы, загрузка, удаление, 24 часа — ок")
 
 
 def check_flow(uids, prod):
@@ -293,37 +325,6 @@ def check_flow(uids, prod):
     return rid
 
 
-def check_register_markup(html):
-    """Экран регистрации: три шага, текст согласия только с сервера, чужих текстов ошибок нет."""
-    must = {
-        'id="screen-register"': "нет экрана регистрации",
-        "function showRegister(": "нет функции показа регистрации",
-        '"нужна регистрация"': "статус «нужна регистрация» от /tg/auth не обрабатывается",
-        'id="regStep1"': "нет шага 1 (номер телефона)",
-        'id="regStep2"': "нет шага 2 (код)",
-        'id="regStep3"': "нет шага 3 (анкета)",
-        "/tg/consent?scope=": "текст согласия не берётся с сервера",
-        "/tg/register/positions": "список должностей не запрашивается",
-        "/tg/register/departments": "подсказки по департаменту не запрашиваются",
-        "/tg/register/send-code": "нет запроса кода",
-        "/tg/register/verify-code": "нет проверки кода",
-        "/tg/register/submit": "нет отправки анкеты",
-        "regCountdown(": "нет обратного отсчёта до повторной отправки",
-        "Отправить код заново": "нет ссылки повторной отправки",
-        "Осталось попыток ввода": "не показан счётчик попыток",
-        'id="regPosOtherBox"': "нет поля для должности «другое»",
-        "Версия согласия:": "версия согласия не показывается",
-    }
-    missing = [why for key, why in must.items() if key not in html]
-    assert not missing, "экран регистрации: " + "; ".join(missing)
-    # согласие ПД-2 в разметку не зашито: показываем ровно то, что пришло с сервера
-    assert "consent_text" not in html and "персональных данных в соответствии со статьёй" not in html,         "текст согласия зашит в страницу"
-    # ошибки 409/429/422 показываем словами сервера
-    assert "regMsg(\"#regSendMsg\", \"err\", r.error)" in html, "текст ошибки отправки кода придуман страницей"
-    assert "regMsg(\"#regCodeMsg\", \"err\", r.error)" in html, "текст ошибки проверки кода придуман страницей"
-    print("15. экран регистрации: три шага, согласие и должности с сервера, ошибки — словами сервера — ок")
-
-
 def check_ui_blocks(html):
     """Пользователи, вероятность подтверждения, выгрузки и выбор согласующих — в разметке."""
     users = ["/tg/users", "can_manage", "Сделать админом", "Снять админа", "make-admin", "revoke-admin"]
@@ -381,22 +382,6 @@ def check_ui_blocks(html):
     assert st == 200 and with_req == html, "GET /tg?request=123 отдаёт не ту же страницу"
     print("16. «Пользователи», вероятность, выгрузки — в разметке; блока согласования и карточки решения нет,"
           " ?request= игнорируется — ок")
-
-
-def check_register_api():
-    """Точки регистрации отвечают без сессии: текст согласия, должности, департаменты."""
-    for scope in ("основное", "телефон"):
-        st, c = call("GET", "/tg/consent", params={"scope": scope})
-        assert st == 200 and c.get("text") and c.get("version") and c.get("hash"), (scope, st, c)
-        assert c["scope"] == scope, c
-    st, p = call("GET", "/tg/register/positions")
-    assert st == 200 and p["items"] and p["other"] in p["items"], (st, p)
-    st, d = call("GET", "/tg/register/departments")
-    assert st == 200 and isinstance(d["items"], list), (st, d)
-    st, bad = call("GET", "/tg/consent", params={"scope": "выдумка"})
-    assert st == 422, (st, bad)
-    print(f"17. согласие (версия {c['version']}), {len(p['items'])} должностей и подсказки по департаментам"
-          " отдаются без входа — ок")
 
 
 def check_users_api(uids):
@@ -504,6 +489,59 @@ def check_compact_and_view(html):
     print("23. компактная раскладка, режим пользователя (/tg?mode=user), нативные кнопки Telegram — ок")
 
 
+def check_legal_tab(html):
+    """Вкладка «Юрист» (заказчик 22.09.2026): мгновенный ответ по закону на трёх языках."""
+    must = {
+        'id="tab-legal"': "нет раздела «Юрист»",
+        'data-section="legal"': "раздел «Юрист» не подключён к меню",
+        '"/legal/faq?lang="': "частые вопросы не запрашиваются на языке интерфейса",
+        '"/legal/ask"': "вопрос не отправляется в POST /legal/ask",
+        '{q: text, lang: I18N_LANG, ai: false}': "в запросе нет языка вопроса или выключенного ИИ",
+        "function lgRepaint(": "при смене языка раздел «Юрист» не перерисовывается",
+        "legal: lgRepaint": "раздел «Юрист» не в списке перерисовки языков",
+        "legal: loadLegal": "раздел «Юрист» не в списке загрузчиков",
+        'T("tg.nav.legal"': "название вкладки не берётся из словаря",
+        "lgskel": "ответ появляется без скелетона",
+        "tg.lg.read_source": "нет кнопки «Читать в источнике lex.uz»",
+        "c.official": "не показано, официальный текст или перевод",
+        "took_ms": "не показано время ответа",
+        "tg.lg.related": "похожие вопросы не показываются",
+        '"surveyor_legal"': "история вопросов сессии не сохраняется",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "вкладка «Юрист»: " + "; ".join(miss)
+    # ИИ не изображаем: текст ИИ показываем только при ai.status === "ok"
+    assert 'ai === "ok"' in html, "ответ ИИ показывается без проверки ai.status"
+    print("24. вкладка «Юрист»: /legal/faq, /legal/ask, цитаты с источником, история сессии — ок")
+
+
+def check_quick_mode(html):
+    """Быстрый режим аналитики (заказчик 22.09.2026): плитки, четыре поля, подстановки по умолчанию."""
+    must = {
+        'mode: "quick"': "быстрый режим не включён по умолчанию",
+        'body.mode = WZ.mode': "режим не уходит в POST /analytics/risk",
+        '"/analytics/risk/presets"': "плитки готовых объектов не запрашиваются",
+        '"/analytics/risk/last"': "последние значения формы не восстанавливаются",
+        '&mode=quick': "поля не запрашиваются в быстром режиме",
+        "will_assume": "не показано, что система подставит по умолчанию",
+        "assumptions": "в итоге не показаны подстановки",
+        "must_full": "остальные поля не берутся из must_full",
+        "function wzQuick(": "нет экрана быстрого анализа",
+        'class="tiles"': "нет плиток объектов",
+        'class="qadd"': "нет кнопок «+млн», «+млрд», «= стоимости»",
+        'inputmode="numeric"': "суммы без цифровой клавиатуры",
+        'class="segsel"': "нет сегментных переключателей вместо списков",
+        "opts5.length <= 5": "сегменты не ограничены пятью вариантами",
+        'T("tg.an.mode_full"': "нет переключателя «Подробный режим»",
+        'T("tg.an.mode_quick"': "из подробного режима не вернуться в быстрый",
+        'T("tg.an.refine"': "нет раскрытия «Уточнить данные»",
+        "anSaveLast": "последние значения не сохраняются после анализа",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "быстрый режим аналитики: " + "; ".join(miss)
+    print("25. быстрый режим: пресеты, четыре поля, подстановки, подробный режим — ок")
+
+
 if __name__ == "__main__":
     with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
         agent_id, uids, prod = setup()
@@ -511,11 +549,10 @@ if __name__ == "__main__":
         try:
             html = check_page()
             check_nav_by_role()
-            check_wait_screen(uids, html)
+            check_guest_screen(uids, html)
+            check_guest_photos(html)
             rid = check_flow(uids, prod)
-            check_register_markup(html)
             check_ui_blocks(html)
-            check_register_api()
             check_users_api(uids)
             check_candidates_and_exports(rid, uids)
             check_ui_kit(html)
@@ -523,6 +560,8 @@ if __name__ == "__main__":
             check_removed_tabs(html)
             check_analytics_steps(html)
             check_compact_and_view(html)
+            check_legal_tab(html)
+            check_quick_mode(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

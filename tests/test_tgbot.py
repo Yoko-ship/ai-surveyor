@@ -195,7 +195,7 @@ def run(rid, ids):
         created = db.rows(con, "SELECT 1 FROM users WHERE telegram_id=?", TG_NEW)
     assert d is None, d                                     # пошагового диалога больше нет
     assert not created, created                             # и заявка в users не создаётся
-    assert any("Откройте приложение" in x for x in texts_for(TG_NEW)), texts_for(TG_NEW)
+    assert any("Приложение открыто для всех" in x for x in texts_for(TG_NEW)), texts_for(TG_NEW)
     print("1. /start: приглашение открыть мини-приложение, анкеты и заявки в боте нет — ок")
 
     # 2. заявка по старому пути (вход по логину и паролю) всё ещё подтверждается кнопкой админа
@@ -288,9 +288,11 @@ def run(rid, ids):
     assert len(texts_for(TG_ADMIN)) == 1, texts_for(TG_ADMIN)
     print("8. вебхук: чужой секрет — 403, верный — 200; повтор update_id обработан один раз — ок")
 
-    # 10. точки мини-аппа (без входа — 401, /tg/me отвечает «не вошёл»)
+    # 10. точки мини-аппа (без входа /tg/me отвечает «гость» — приложение открыто, 22.09.2026;
+    #     личные точки — «Ждут меня» и «Мои запросы» — по-прежнему требуют входа)
     st, me = call("GET", "/tg/me")
-    assert st == 200 and me["status"] == "не вошёл" and me["mode"] in ("telegram", "браузер"), me
+    assert st == 200 and me["status"] == "гость" and me["mode"] == "guest", me
+    assert me["tg_mode"] in ("telegram", "браузер") and me["user"] is None, me
     st, _ = call("GET", "/tg/inbox")
     assert st == 401, st
     st, _ = call("GET", "/tg/my-requests")

@@ -34,6 +34,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlencode
 
+from fastapi import HTTPException
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Тест ходит в приложение напрямую с адреса 127.0.0.1 (см. tests/test_tgbot.py).
@@ -285,7 +287,28 @@ def check_no_start():
     print("4. бот не может написать: честная ошибка «нажмите Start», код не заводится — ок")
 
 
+def submit_form(form: dict):
+    """
+    Анкета в обход HTTP: с 22.09.2026 маршрут POST /tg/register/submit отключён (410),
+    приложение открыто для всех. Сам код регистрации остался — он создаёт администратору
+    учётные записи и проверяется здесь напрямую (registration.who_registers + register).
+    """
+    body = registration.SubmitIn(**form)
+    try:
+        with db.tx() as con:
+            who = registration.who_registers(con, body)
+            out = registration.register(con, who["telegram_id"], body, via_link=who["via_link"])
+            u = db.rows(con, "SELECT * FROM users WHERE id=?", out["user_id"])[0]
+            token, _ = auth.create_session(con, u, "127.0.0.1", "test")
+        return 200, out | {"token": token}
+    except HTTPException as e:
+        return e.status_code, {"detail": e.detail}
+
+
 def check_register():
+    # маршрут самостоятельной регистрации убран (решение заказчика 22.09.2026)
+    st, b = call("POST", "/tg/register/submit", {"initData": init_data(TG_NEW), "phone": PHONE})
+    assert st == 410 and "Регистрация не требуется" in b["detail"], (st, b)
     age_code(TG_NEW, 120)                      # минута прошла — можно слать заново
     st, b = call("POST", "/tg/register/send-code", {"initData": init_data(TG_NEW), "phone": PHONE})
     assert st == 200, (st, b)
@@ -296,14 +319,14 @@ def check_register():
     form = {"initData": init_data(TG_NEW), "phone": PHONE, "name": PD_NAME,
             "department": DEPARTMENT, "position": "менеджер", "branch": BRANCH,
             "consent": False, "consent_phone": True}
-    st, b = call("POST", "/tg/register/submit", form)
+    st, b = submit_form(form)
     assert st == 422 and "согласия" in b["detail"], (st, b)         # без согласия — отказ
 
-    st, b = call("POST", "/tg/register/submit", form | {"consent": True, "name": "  Ж  "})
+    st, b = submit_form(form | {"consent": True, "name": "  Ж  "})
     assert st == 422 and "имя" in b["detail"].lower(), (st, b)      # имя короче 2 символов — отказ
 
     form["consent"] = True
-    st, b = call("POST", "/tg/register/submit", form)
+    st, b = submit_form(form)
     assert st == 200 and b["role"] == "сотрудник" and b["status"] == "активен", (st, b)
     assert b.get("token"), b
     TOKENS["новый"] = b["token"]

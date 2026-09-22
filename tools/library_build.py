@@ -8,6 +8,7 @@
 После добавления новых файлов в library/ запустить повторно — каталог обновится.
 """
 import json
+import re
 import shutil
 from datetime import date
 from pathlib import Path
@@ -123,6 +124,56 @@ def collect_extra(known: set) -> list:
     return extra
 
 
+LANG_TITLES = {"ru": "русский", "uz": "узбекский", "en": "английский"}
+
+
+def source_url(path: str | None) -> str | None:
+    """Ссылка на первоисточник — из первой строки текста, куда её пишет lex_fetch.py."""
+    if not path:
+        return None
+    p = LIB / path
+    try:
+        head = p.read_text(encoding="utf-8", errors="ignore")[:300]
+    except Exception:
+        return None
+    m = re.search(r"Источник:\s*(\S+)", head)
+    return m.group(1) if m else None
+
+
+def guess_lang(name: str, path: str | None) -> str:
+    """Язык документа: по суффиксу в имени, иначе по алфавиту первых строк текста."""
+    low = name.lower()
+    if low.endswith("(uz)") or "(узб" in low or "(uz)" in low:
+        return "uz"
+    if low.endswith("(en)") or "(en)" in low:
+        return "en"
+    if "(рус" in low or "(ru)" in low:
+        return "ru"
+    if path:
+        url = source_url(path) or ""
+        if "/uz/docs/" in url:
+            return "uz"
+        if "/ru/docs/" in url:
+            return "ru"
+        p = LIB / path
+        try:
+            head = p.read_text(encoding="utf-8", errors="ignore")[:4000]
+        except Exception:
+            return "ru"
+        if "ў" in head.lower() or "ғ" in head.lower() or "қ" in head.lower():
+            return "uz"
+        if "sug‘urta" in head.lower() or "sugʻurta" in head.lower() or "toʻgʻrisida" in head.lower():
+            return "uz"
+    return "ru"
+
+
+def enrich(rec: dict) -> dict:
+    txt = rec.get("текст") or (rec.get("файл") if (rec.get("файл") or "").endswith(".txt") else None)
+    rec["язык"] = guess_lang(rec["name"], txt)
+    rec["источник"] = source_url(txt)
+    return rec
+
+
 def main():
     LIB.mkdir(exist_ok=True)
     records = [put(e) for e in REGISTRY]
@@ -142,6 +193,7 @@ def main():
 
     known = {r["файл"] for r in records if r["файл"]} | {r["текст"] for r in records if r["текст"]}
     records += collect_extra(known)
+    records = [enrich(r) for r in records]
 
     (LIB / "catalog.json").write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -160,7 +212,10 @@ def main():
                 links.append(f"[оригинал]({r['файл'].replace(' ', '%20')})")
             if r["текст"]:
                 links.append(f"[текст]({r['текст'].replace(' ', '%20')})")
-            lines.append(f"- **{r['name']}** — {' · '.join(links) if links else 'файла нет'}")
+            lang = LANG_TITLES.get(r.get("язык", "ru"), r.get("язык"))
+            if r.get("источник"):
+                links.append(f"[источник]({r['источник']})")
+            lines.append(f"- **{r['name']}** — язык: {lang} — {' · '.join(links) if links else 'файла нет'}")
             if r["about"]:
                 lines.append(f"  - {r['about']}")
             if r.get("tag"):          # пометка вида «знание» — не предупреждение, печатаем без значка

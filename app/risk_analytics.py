@@ -17,6 +17,10 @@
                                                 "reducers", "scenarios", "retention", "level", "market",
                                                 "method", ...}
     DEFAULT_THRESHOLDS, load_thresholds(con), save_thresholds(con, dict, user)
+    Быстрый режим: QUICK_MUST, DEFAULTS_BY_CLASS, validate_quick(must, optional),
+                   apply_defaults(con, must, optional, user=) -> (must, optional, assumptions),
+                   quick_plan(con, class_code, product_code, user), presets(con),
+                   load_last(con, user_id) / save_last(con, user_id, data)
     SCENARIO_PURPOSE                        — какой сценарий для чего (переключается одной правкой)
 
 Все числа модели сценариев и шкалы уровня риска — экспертные (calibrated = 0): выгрузок договоров
@@ -251,6 +255,333 @@ IMPACT = {
 
 
 # ================================================================================================
+# Быстрый режим (задача заказчика 22.09.2026: «интерфейс максимально лёгкий для заполнения»)
+#
+# В быстром режиме человек заполняет четыре поля: класс (или продукт), страховая сумма,
+# стоимость объекта, регион. Остальные обязательные поля подставляются по справочнику
+# DEFAULTS_BY_CLASS — консервативно, чтобы не занизить риск. Каждое подставленное значение
+# помечается assumed=true и попадает в блок assumptions ответа; полнота и уверенность падают.
+# Все значения умолчаний экспертные (calibrated = 0).
+# ================================================================================================
+QUICK_MUST = ["class_code", "sum_insured", "object_value", "region"]   # class_code можно заменить продуктом
+ASSUMED_NOTE = "взято по умолчанию — уточните"
+
+# Консервативные значения по группе класса. Логика выбора:
+#   construction=mixed  — смешанные конструкции (множитель 1,0 против 0,9 у железобетона);
+#   activity            — типовая для класса (склад/производство), не самая дешёвая «офис»;
+#   term_months=12      — годовой договор, как в подавляющем большинстве заявок;
+#   vehicle_type=car    — легковой (множитель 1,0; у грузового и спецтехники ниже);
+#   year=None           — год неизвестен → возраст берётся по худшему варианту «более 15 лет».
+DEFAULTS_BY_CLASS = {
+    "8": {"object_type": "Производство", "construction": "mixed", "activity": "warehouse", "term_months": 12},
+    "9": {"object_type": "Производство", "construction": "mixed", "activity": "warehouse", "term_months": 12},
+    "3": {"object_type": "Легковой", "vehicle_type": "car", "term_months": 12, "year": None},
+    "_": {"object_type": "Иное имущество", "term_months": 12},
+}
+# «год неизвестен» → какой вариант возраста справочника взять (худший, множитель 1,4)
+UNKNOWN_AGE_OPTION = "a15p"
+UNKNOWN_AGE_LABEL = "год выпуска неизвестен — возраст взят по худшему варианту «более 15 лет»"
+
+# Тип объекта → конструкция (умная подстановка, экспертно)
+CONSTRUCTION_BY_OBJECT_TYPE = {
+    "Склад": "mixed", "Производство": "mixed", "Магазин": "mixed", "Офис": "reinforced",
+    "Жильё": "reinforced", "Гостиница": "reinforced", "Машины и оборудование": "mixed",
+}
+# Тип объекта → деятельность (экспертно)
+ACTIVITY_BY_OBJECT_TYPE = {
+    "Склад": "warehouse", "Производство": "food", "Магазин": "office", "Офис": "office",
+    "Жильё": "office", "Гостиница": "office", "Машины и оборудование": "warehouse",
+}
+# Ключевое слово в названии продукта → (тип объекта, деятельность). Порядок важен: ищем сверху вниз.
+PRODUCT_KEYWORDS = [
+    ("электромоб", "Электромобиль", None), ("спецтехник", "Спецтехника", None),
+    ("экскаватор", "Спецтехника — экскаватор", None), ("трактор", "Спецтехника — трактор", None),
+    ("комбайн", "Спецтехника — комбайн", None), ("кран", "Спецтехника — автокран", None),
+    ("прицеп", "Прицеп и полуприцеп", None), ("грузов", "Грузовой", None), ("легков", "Легковой", None),
+    ("автотранспорт", "Легковой", None), ("транспортн", "Легковой", None),
+    ("склад", "Склад", "warehouse"), ("товар", "Склад", "warehouse"),
+    ("гостиниц", "Гостиница", "office"),
+    ("магазин", "Магазин", "office"), ("торгов", "Магазин", "office"),
+    ("офис", "Офис", "office"),
+    ("жил", "Жильё", "office"), ("квартир", "Жильё", "office"), ("дом", "Жильё", "office"),
+    ("оборудован", "Машины и оборудование", "warehouse"), ("машин", "Машины и оборудование", "warehouse"),
+    ("производств", "Производство", "food"), ("завод", "Производство", "food"),
+    ("предприят", "Производство", "food"), ("имуществ", "Производство", "warehouse"),
+]
+
+PRESET_KEYS = ["warehouse", "shop", "office", "production", "house", "car", "truck", "excavator", "goods"]
+
+
+def _defaults_for_classes(classes: list) -> dict:
+    """Значения по умолчанию для набора классов (для 8/9 — объединение)."""
+    out = {}
+    for c in classes:
+        for k, v in DEFAULTS_BY_CLASS.get(c, DEFAULTS_BY_CLASS["_"]).items():
+            out.setdefault(k, v)
+    if not classes:
+        out = dict(DEFAULTS_BY_CLASS["_"])
+    return out
+
+
+def product_defaults(ref, product_code: str) -> dict:
+    """
+    Что можно понять по продукту: класс, тип объекта, деятельность. Таблица product→defaults
+    строится автоматически по названию и классу продукта (все 176 продуктов), поэтому у каждого
+    значения есть признак guessed: True — угадано по названию, False — взято из справочника классов.
+    """
+    code = str(product_code or "").strip()
+    classes = list(ref.product_classes.get(code) or [])
+    name = (ref.products.get(code) or {}).get("name", "")
+    out = {"product_code": code, "product_name": name, "classes": classes,
+           "class_code": "/".join(classes) if classes else None, "class_guessed": False,
+           "object_type": None, "object_type_guessed": True, "activity": None, "activity_guessed": True}
+    low = name.lower()
+    for kw, otype, act in PRODUCT_KEYWORDS:
+        if kw in low:
+            out["object_type"], out["activity"] = otype, act
+            break
+    if out["object_type"] is None:
+        d = _defaults_for_classes(classes)
+        out["object_type"] = d.get("object_type")
+    # тип объекта должен существовать в базовых ставках хотя бы одного класса продукта
+    if classes and not any((c, out["object_type"]) in ref.base_rates for c in classes):
+        d = _defaults_for_classes(classes)
+        out["object_type"] = d.get("object_type")
+    if out["activity"] is None:
+        out["activity"] = ACTIVITY_BY_OBJECT_TYPE.get(out["object_type"] or "")
+    return out
+
+
+def region_from_branch(branch: str):
+    """Филиал пользователя → регион (точное совпадение или вхождение названия/псевдонима)."""
+    from . import market_picture as mp
+    key, name = mp.resolve_region(branch)
+    if name:
+        return name
+    v = mp._norm(branch)
+    if not v:
+        return None
+    words = v.split()
+    for rname, rkey, soato, aliases in mp.REGION_TABLE + [mp.REPUBLIC]:
+        if rkey == "total":
+            continue
+        for a in (mp._norm(rname),) + tuple(aliases):
+            if not a:
+                continue
+            if a in v:
+                return rname
+            # «Бухарский филиал» → «бухара»: сравниваем основы слов (окончания в русском разные)
+            stem = a[:5]
+            if len(a) >= 5 and any(w.startswith(stem) for w in words):
+                return rname
+    return None
+
+
+def validate_quick(must: dict, optional: Optional[dict] = None) -> dict:
+    """Проверка быстрого режима: нужны только класс (или продукт), сумма, стоимость, регион."""
+    must = must or {}
+    missing, errors = [], {}
+    if not _present(must.get("class_code")) and not _present(must.get("product_code")):
+        missing.append("class_code")
+    for key in ("sum_insured", "object_value"):
+        if not _present(must.get(key)):
+            missing.append(key)
+        else:
+            v = _to_float(must.get(key))
+            if v is None or v <= 0:
+                errors[key] = "нужно положительное число в сумах"
+    if not _present(must.get("region")):
+        missing.append("region")
+    return {"ok": not missing and not errors, "missing": missing, "errors": errors}
+
+
+def _label_of(key: str) -> str:
+    for f in FIELDS["must"] + FIELDS["optional"]:
+        if f["key"] == key:
+            return f["label"]
+    return key
+
+
+def _option_label(key: str, code) -> str:
+    for f in FIELDS["must"]:
+        if f["key"] == key and f.get("options"):
+            for o in f["options"]:
+                if o["code"] == code:
+                    return o["label"]
+    return str(code)
+
+
+def apply_defaults(con, must: dict, optional: Optional[dict] = None, *, user: Optional[dict] = None) -> tuple:
+    """
+    Быстрый режим: достраивает must до полного набора. Возврат (must, optional, assumptions),
+    где assumptions — [{key, label, value, value_label, why, assumed:true, calibrated:0}].
+    Явно заданные поля не трогаются: при полном вводе результат совпадает с обычным режимом.
+    """
+    must = dict(must or {})
+    optional = dict(optional or {})
+    ref = db.load_reference(con)
+    assumptions = []
+
+    def assume(key, value, why, value_label=None):
+        must[key] = value
+        assumptions.append({"key": key, "label": _label_of(key), "value": value,
+                            "value_label": value_label if value_label is not None else _option_label(key, value),
+                            "why": why, "assumed": True, "note": ASSUMED_NOTE, "calibrated": CALIBRATED})
+
+    # 1. класс из продукта
+    pd = product_defaults(ref, must.get("product_code")) if _present(must.get("product_code")) else None
+    if not _present(must.get("class_code")) and pd and pd["class_code"]:
+        assume("class_code", pd["class_code"],
+               f"класс взят по продукту {pd['product_code']} «{pd['product_name']}»", pd["class_code"])
+    classes = parse_classes(must.get("class_code"))
+    d = _defaults_for_classes(classes)
+
+    # 2. тип объекта: по продукту, иначе по классу
+    if not _present(must.get("object_type")):
+        if pd and pd["object_type"]:
+            why = (f"тип объекта угадан по названию продукта «{pd['product_name']}»" if pd["object_type_guessed"]
+                   else f"тип объекта по продукту {pd['product_code']}")
+            assume("object_type", pd["object_type"], why, pd["object_type"])
+        elif d.get("object_type"):
+            assume("object_type", d["object_type"],
+                   f"типовой объект класса {'/'.join(classes) or '—'}", d["object_type"])
+
+    # 3. конструкция — по типу объекта, иначе смешанная
+    if any(c in PROPERTY_CLASSES for c in classes) and not _present(must.get("construction")):
+        otype = str(must.get("object_type") or "")
+        val = CONSTRUCTION_BY_OBJECT_TYPE.get(otype) or d.get("construction") or "mixed"
+        why = (f"конструкция по типу объекта «{otype}»" if otype in CONSTRUCTION_BY_OBJECT_TYPE
+               else "конструкция не указана — взяты смешанные конструкции (осторожнее железобетона)")
+        assume("construction", val, why)
+
+    # 4. деятельность — по продукту/типу объекта
+    if any(c in PROPERTY_CLASSES for c in classes) and not _present(must.get("activity")):
+        otype = str(must.get("object_type") or "")
+        val = ((pd or {}).get("activity") if pd else None) or ACTIVITY_BY_OBJECT_TYPE.get(otype) \
+            or d.get("activity") or "warehouse"
+        assume("activity", val, f"типовая деятельность для объекта «{otype or '—'}»")
+
+    # 5. транспорт: тип и год
+    if any(c in VEHICLE_CLASSES for c in classes):
+        if not _present(must.get("vehicle_type")):
+            otype = str(must.get("object_type") or "")
+            val = ("special" if otype.startswith("Спецтехника") else
+                   "truck" if otype == "Грузовой" else "ev" if otype == "Электромобиль" else
+                   d.get("vehicle_type") or "car")
+            assume("vehicle_type", val, f"тип транспорта по объекту «{otype or 'Легковой'}»")
+        if not _present(must.get("year")):
+            assumptions.append({"key": "year", "label": _label_of("year"), "value": None,
+                                "value_label": "неизвестен", "why": UNKNOWN_AGE_LABEL,
+                                "assumed": True, "note": ASSUMED_NOTE, "calibrated": CALIBRATED})
+            must.pop("year", None)
+            must["year_unknown"] = True
+
+    # 6. срок
+    if not _present(must.get("term_months")):
+        assume("term_months", d.get("term_months", 12), "срок не указан — взят годовой договор", "12 мес.")
+
+    # 7. регион из профиля пользователя (филиал), персональные данные не используются
+    if not _present(must.get("region")) and user:
+        r = region_from_branch(str(user.get("branch") or ""))
+        if r:
+            assume("region", r, f"регион взят по филиалу пользователя", r)
+
+    return must, optional, assumptions
+
+
+def quick_plan(con, class_code: str = "", product_code: str = "", user: Optional[dict] = None) -> list:
+    """«Что подставим и почему» для GET /analytics/risk/fields?mode=quick — без страховых сумм."""
+    probe = {"class_code": class_code, "product_code": product_code}
+    _m, _o, a = apply_defaults(con, probe, {}, user=user)
+    return a
+
+
+def presets(con) -> list:
+    """Типовые объекты одним нажатием. Тексты ru здесь, ключи i18n — для uz/en (их даёт дизайнер)."""
+    raw = [
+        ("warehouse", "Склад", "9", "0808", "Склад", {"construction": "mixed", "activity": "warehouse"}),
+        ("shop", "Магазин", "9", "0808", "Магазин", {"construction": "mixed", "activity": "office"}),
+        ("office", "Офис", "9", "0808", "Офис", {"construction": "reinforced", "activity": "office"}),
+        ("production", "Производство", "8/9", "0807", "Производство",
+         {"construction": "mixed", "activity": "food"}),
+        ("house", "Жилой дом", "8", "0807", "Жильё", {"construction": "reinforced", "activity": "office"}),
+        ("car", "Легковой автомобиль", "3", "0308", "Легковой", {"vehicle_type": "car"}),
+        ("truck", "Грузовой автомобиль", "3", "0308", "Грузовой", {"vehicle_type": "truck"}),
+        ("excavator", "Экскаватор", "3", "0318", "Спецтехника — экскаватор", {"vehicle_type": "special"}),
+        ("goods", "Товар в обороте", "9", "0808", "Склад", {"construction": "mixed", "activity": "warehouse"}),
+    ]
+    out = []
+    for key, title, cls, prod, otype, extra in raw:
+        must = {"class_code": cls, "product_code": prod, "object_type": otype, "term_months": 12, **extra}
+        out.append({"key": key, "title": title, "i18n_key": f"preset.{key}",
+                    "class_code": cls, "product_code": prod, "object_type": otype,
+                    "must": must,
+                    "hint": f"Заполните только страховую сумму, стоимость и регион",
+                    "hint_i18n_key": "preset.hint",
+                    "calibrated": CALIBRATED})
+    return out
+
+
+# ================================================================================================
+# Последние введённые значения пользователя (форма запоминает выбор). Персональных данных нет.
+# ================================================================================================
+LAST_INPUT_SQL = """
+CREATE TABLE IF NOT EXISTS risk_last_input (
+    user_id    INTEGER PRIMARY KEY,
+    updated_at TEXT NOT NULL,
+    data_json  TEXT NOT NULL
+);
+"""
+LAST_ALLOWED = ["class_code", "product_code", "object_type", "region", "term_months", "construction",
+                "activity", "vehicle_type", "protection", "seismic_zone", "mode"]
+LAST_MAX_LEN = 4000
+
+
+def _ensure_last_table(con) -> None:
+    con.execute(LAST_INPUT_SQL)
+
+
+def clean_last(data: dict) -> dict:
+    """Только справочные поля выбора: ни сумм, ни имён, ни телефонов — персональные данные не пишем."""
+    out = {}
+    for k in LAST_ALLOWED:
+        v = (data or {}).get(k)
+        if v is None or (isinstance(v, str) and not v.strip()):
+            continue
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            out[k] = v
+        elif isinstance(v, str):
+            out[k] = v.strip()[:100]
+    return out
+
+
+def load_last(con, user_id) -> dict:
+    try:
+        r = con.execute("SELECT data_json, updated_at FROM risk_last_input WHERE user_id=?",
+                        (int(user_id),)).fetchone()
+    except Exception:
+        return {"values": {}, "updated_at": None}
+    if not r:
+        return {"values": {}, "updated_at": None}
+    try:
+        return {"values": clean_last(json.loads(r[0])), "updated_at": r[1]}
+    except ValueError:
+        return {"values": {}, "updated_at": None}
+
+
+def save_last(con, user_id, data: dict) -> dict:
+    vals = clean_last(data)
+    payload = json.dumps(vals, ensure_ascii=False)
+    if len(payload) > LAST_MAX_LEN:
+        raise ValueError("слишком много данных")
+    _ensure_last_table(con)
+    con.execute("INSERT INTO risk_last_input (user_id, updated_at, data_json) VALUES (?,?,?) "
+                "ON CONFLICT(user_id) DO UPDATE SET updated_at=excluded.updated_at, data_json=excluded.data_json",
+                (int(user_id), db.now(), payload))
+    return {"values": vals, "updated_at": db.now()}
+
+
+# ================================================================================================
 # Вспомогательное
 # ================================================================================================
 def money(x) -> str:
@@ -357,6 +688,8 @@ def validate(must: dict, optional: Optional[dict] = None) -> dict:
             continue
         if f["key"] != "class_code" and not _when_ok(f, classes):
             continue
+        if f["key"] == "year" and must.get("year_unknown") is True:
+            continue                      # быстрый режим: год неизвестен, возраст берётся по худшему варианту
         if not _present(must.get(f["key"])):
             missing.append(f["key"])
 
@@ -589,6 +922,9 @@ def engine_factors(classes: list, must: dict, optional: dict, th: dict, as_of: d
         if y is not None:
             age = as_of.year - int(y)
             f["veh_age"] = "a3" if age <= 3 else ("a7" if age <= 7 else ("a15" if age <= 15 else "a15p"))
+        elif must.get("year_unknown") is True:
+            f["veh_age"] = UNKNOWN_AGE_OPTION
+            notes.append(UNKNOWN_AGE_LABEL + f" — {EXPERT}")
         if _present(optional.get("protection")):
             f["antitheft"] = optional["protection"]
     losses = optional.get("losses_3y")
@@ -792,7 +1128,8 @@ def _scenarios_generic(S, V, cls) -> dict:
 # Главная функция
 # ================================================================================================
 def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Optional[dict] = None,
-            market: Optional[dict] = None, *, as_of: Optional[date] = None) -> dict:
+            market: Optional[dict] = None, *, as_of: Optional[date] = None,
+            assumptions: Optional[list] = None) -> dict:
     must = dict(must or {})
     optional = dict(optional or {})
     as_of = as_of or date.today()
@@ -975,16 +1312,16 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
         sc = dict(per_class[best_cls][s])
         amount = sc["amount"]
         purpose = SCENARIO_PURPOSE[s]
-        assumptions = [{"text": a, "calibrated": 0} for a in sc.pop("assumptions")]
+        sc_assumptions = [{"text": a, "calibrated": 0} for a in sc.pop("assumptions")]
         if len(per_class) > 1:
             others = ", ".join(f"класс {c}: {money(per_class[c][s]['amount'])}" for c in per_class if c != best_cls)
-            assumptions.append({"text": f"Взят больший из сценариев классов (одно событие): класс {best_cls}; "
-                                        f"{others}", "calibrated": 0})
+            sc_assumptions.append({"text": f"Взят больший из сценариев классов (одно событие): класс {best_cls}; "
+                                           f"{others}", "calibrated": 0})
         block = {"name": s, "title": SCENARIO_TITLE[s], "purpose": purpose,
                  "purpose_title": PURPOSE_TITLE[purpose], "class_code": best_cls,
                  "amount": round(amount), "pct_of_sum": round(amount / S * 100, 1),
                  **{k: (round(v2) if isinstance(v2, float) else v2) for k, v2 in sc.items() if k != "amount"},
-                 "assumptions": assumptions,
+                 "assumptions": sc_assumptions,
                  "level": _band_level(amount / S * 100, th["scenario_bands_pct"]),
                  "level_basis": "доля страховой суммы: " + ", ".join(
                      f"до {b}% — {n}" for b, n in zip(th["scenario_bands_pct"], LEVEL_NAMES)) + ", выше — Критический",
@@ -1003,7 +1340,7 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
     mk = _market_block(market, parts, applied)
 
     # ---------- полнота данных ----------
-    completeness = _completeness(must, optional, classes, th)
+    completeness = _completeness(must, optional, classes, th, assumptions)
 
     # ---------- внешняя статистика региона (stat.uz, data.egov.uz) ----------
     external = _external(con, classes, must.get("region"), th)
@@ -1026,6 +1363,7 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
         "level": level,
         "market": mk,
         "external_stats": external,
+        "assumptions": [{k: v for k, v in a.items()} for a in (assumptions or [])],
         "method": _method(),
         "thresholds_source": th.get("_source"),
     }
@@ -1174,7 +1512,7 @@ def _market_block(market, parts, applied) -> dict:
     return out
 
 
-def _completeness(must, optional, classes, th) -> dict:
+def _completeness(must, optional, classes, th, assumptions: Optional[list] = None) -> dict:
     must_f = [f for f in FIELDS["must"] if f.get("required") and (f["key"] == "class_code" or _when_ok(f, classes))]
     opt_keys = []
     for f in FIELDS["optional"]:
@@ -1190,9 +1528,21 @@ def _completeness(must, optional, classes, th) -> dict:
     add = [{"key": k, "why": why} for k, w, why in sorted(impact, key=lambda x: -x[1])
            if k in opt_keys and k not in filled][:3]
     total = len(must_f) + len(opt_keys)
-    return {"must_filled": sum(1 for f in must_f if _present(must.get(f["key"]))), "must_total": len(must_f),
+    assumed_keys = [a["key"] for a in (assumptions or []) if a.get("assumed")]
+    # быстрый режим: подставленное значение не считается заполненным — полнота и уверенность ниже
+    must_filled = sum(1 for f in must_f
+                      if f["key"] not in assumed_keys and (_present(must.get(f["key"]))
+                                                           or (f["key"] == "year" and must.get("year_unknown"))))
+    if assumed_keys:
+        order = ["низкая", "средняя", "высокая"]
+        conf = order[max(0, order.index(conf) - (2 if len(assumed_keys) >= 3 else 1))]
+        for k in assumed_keys:
+            if not any(x["key"] == k for x in add):
+                add.append({"key": k, "why": f"значение подставлено по умолчанию ({ASSUMED_NOTE})"})
+    return {"must_filled": must_filled, "must_total": len(must_f),
+            "must_assumed": len(assumed_keys), "assumed_keys": assumed_keys,
             "optional_filled": len(filled), "optional_total": len(opt_keys),
-            "pct": round((len(must_f) + len(filled)) / total * 100) if total else 100,
+            "pct": round((must_filled + len(filled)) / total * 100) if total else 100,
             "confidence": conf, "what_to_add": add}
 
 

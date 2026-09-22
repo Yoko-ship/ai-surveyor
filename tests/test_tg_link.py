@@ -37,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 os.environ.setdefault("SURVEYOR_DEV", "1")
 
 from tmpdb import temp_db  # noqa: E402  (tests/tmpdb.py)
+from fastapi import HTTPException                                             # noqa: E402
 from app import auth, db, guard, llm, registration, telegram, tg_link, tgbot   # noqa: E402
 from app.main import app                                                       # noqa: E402
 
@@ -281,6 +282,20 @@ def check_rate_limit():
     print(f"7. с одного link_id выдано {got} кодов, шестой — отказ 429 — ок")
 
 
+def submit_form(form: dict):
+    """Анкета в обход HTTP: маршрут отключён с 22.09.2026, код регистрации остался (см. выше)."""
+    body = registration.SubmitIn(**form)
+    try:
+        with db.tx() as con:
+            who = registration.who_registers(con, body)
+            out = registration.register(con, who["telegram_id"], body, via_link=who["via_link"])
+            u = db.rows(con, "SELECT * FROM users WHERE id=?", out["user_id"])[0]
+            token, _ = auth.create_session(con, u, "127.0.0.1", "test")
+        return 200, out | {"token": token}
+    except HTTPException as e:
+        return e.status_code, {"detail": e.detail}
+
+
 def check_register_without_phone_code():
     """Незнакомый человек: «нужна регистрация», анкета без кода на телефон, сразу активен."""
     st, d = ask_code()
@@ -294,10 +309,14 @@ def check_register_without_phone_code():
     with db.tx() as con:
         assert not db.rows(con, "SELECT 1 FROM reg_codes WHERE telegram_id=?", TG_NEW)
 
-    st, out = call("POST", "/tg/register/submit",
-                   {"link_id": link_id, "phone": PHONE, "full_name": PD_NAME,
-                    "department": DEPARTMENT, "position": "менеджер",
-                    "consent": True, "consent_phone": True, "branch": BRANCH})
+    # 22.09.2026: маршрут самостоятельной регистрации отключён (приложение открыто для всех),
+    # но сам код анкеты остался — им администратор заводит учётные записи. Проверяем оба факта.
+    st, off = call("POST", "/tg/register/submit",
+                   {"link_id": link_id, "phone": PHONE, "full_name": PD_NAME})
+    assert st == 410 and "Регистрация не требуется" in off["detail"], (st, off)
+    st, out = submit_form({"link_id": link_id, "phone": PHONE, "full_name": PD_NAME,
+                           "department": DEPARTMENT, "position": "менеджер",
+                           "consent": True, "consent_phone": True, "branch": BRANCH})
     assert st == 200, (st, out)
     assert out["role"] == registration.ROLE and out["status"] == auth.STATUS_ACTIVE, out
     token = out["token"]
@@ -312,9 +331,9 @@ def check_register_without_phone_code():
     print("8. новый человек: «нужна регистрация», анкета без кода на телефон, сразу активен — ок")
 
     # чужая анкета по чужому link_id не проходит: привязки нет
-    st3, bad = call("POST", "/tg/register/submit",
-                    {"link_id": "невыданный_ключ_ожидания_12345", "phone": PHONE, "full_name": PD_NAME,
-                     "department": DEPARTMENT, "position": "менеджер", "consent": True, "consent_phone": True})
+    st3, bad = submit_form({"link_id": "невыданный_ключ_ожидания_12345", "phone": PHONE,
+                            "full_name": PD_NAME, "department": DEPARTMENT, "position": "менеджер",
+                            "consent": True, "consent_phone": True})
     assert st3 == 401, (st3, bad)
     print("8а. анкета по непривязанному link_id — 401 — ок")
 

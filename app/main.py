@@ -18,6 +18,8 @@
   POST /analytics/risk, GET /analytics/risk/fields, GET|PUT /analytics/risk/thresholds — аналитика риска (app/risk_api.py)
   GET  /analytics/risk/docs, POST /analytics/risk/document, GET|DELETE /analytics/risk/document/{id} —
        документы для аналитики по шагам (app/analysis_docs.py)
+  GET  /analytics/risk/presets, GET|PUT /analytics/risk/last, GET /analytics/risk/fields?mode=quick —
+       быстрый режим аналитики: пресеты, последний выбор формы, четыре обязательных поля
   GET  /osgor/activities, POST /osgor/quick, /osgor/assess — ОСГОР (app/osgor.py)
   POST /admin/tariff-versions, /admin/min-rates, /admin/coefficients, /admin/products, PUT /admin/financials
   GET  /requests/{id}/explain           — объяснение расчёта клиенту (ИИ, без него — шаблон)
@@ -1000,7 +1002,8 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("tg_link", "tg_link_router"),
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
-                    ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router")):
+                    ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),
+                    ("legal", "legal_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

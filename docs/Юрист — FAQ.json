@@ -1,0 +1,2719 @@
+{
+  "version": "1.1",
+  "generated": "2026-09-22",
+  "about": "Ответы для сотрудников на ru/uz/en. Официальный текст актов — узбекский; русские редакции норм, изменённых ЗРУ-1154, на lex.uz помечены как неофициальный перевод; английские тексты есть только у ЗРУ-730 и ЗРУ-547 и отражают редакцию до 2026 года. Цитаты дословны: сверяются с файлами library/01_Законодательство (убраны только кнопки страницы lex.uz «Предложения по документу», «Прослушать аудио», «Получить ссылку…»); комментарии LexUz и заголовки соседних статей в цитату не попадают. Ссылки: /ru/docs/<номер> — русский текст, /uz/docs/-<номер> — узбекская латиница (дефис обязателен), /uz/docs/<номер> — узбекская кириллица. Если нормы нет на языке вопроса (Положение 3845 — только узбекский), показываем узбекский оригинал и ссылку на него.",
+  "sources": {
+    "gk_ru": "01_Законы/ГК РУз глава 52 Страхование (ст. 914-961).txt",
+    "gk_uz": "01_Законы/ГК РУз глава 52 Страхование (ст. 914-961) (uz).txt",
+    "z730_ru": "01_Законы/ЗРУ-730 от 23.11.2021 О страховой деятельности.txt",
+    "z730_uz": "01_Законы/ЗРУ-730 от 23.11.2021 О страховой деятельности (uz).txt",
+    "z730_en": "01_Законы/ЗРУ-730 от 23.11.2021 О страховой деятельности (en).txt",
+    "z210_ru": "01_Законы/ЗРУ-210 от 16.04.2009 Об обязательном страховании гражданской ответственности работодателя.txt",
+    "z210_uz": "01_Законы/ЗРУ-210 от 16.04.2009 Об обязательном страховании гражданской ответственности работодателя (uz).txt",
+    "z155_ru": "01_Законы/ЗРУ-155 от 21.04.2008 Об обязательном страховании гражданской ответственности владельцев транспортных средств.txt",
+    "z386_ru": "01_Законы/ЗРУ-386 от 26.05.2015 Об обязательном страховании гражданской ответственности перевозчика.txt",
+    "z547_ru": "01_Законы/ЗРУ-547 от 02.07.2019 О персональных данных.txt",
+    "z547_en": "01_Законы/ЗРУ-547 от 02.07.2019 О персональных данных (en).txt",
+    "p177_ru": "02_Акты_регуляторов/ПКМ № 177 от 24.06.2009 — меры по реализации Закона об ОСГО работодателя (Правила и тарифы).txt",
+    "p177_uz": "02_Акты_регуляторов/ПКМ № 177 от 24.06.2009 — меры по реализации Закона об ОСГО работодателя (Правила и тарифы) (uz).txt",
+    "p141_ru": "02_Акты_регуляторов/ПКМ № 141 от 24.06.2008 — меры по реализации Закона об ОСГО владельцев ТС (Правила и тарифы).txt",
+    "p1806_ru": "02_Акты_регуляторов/Положение 1806 — платёжеспособность страховщиков (рус).txt",
+    "p1882_ru": "02_Акты_регуляторов/Положение 1882 — страховые резервы (рус).txt",
+    "p3845_uz": "02_Акты_регуляторов/Положение 3845 — страховые агенты (uz).txt"
+  },
+  "items": [
+    {
+      "id": "underinsurance",
+      "tags": [
+        "недострахование",
+        "ст. 936",
+        "пропорция",
+        "ниже стоимости",
+        "меньше стоимости",
+        "qiymatdan kam",
+        "qiymatdan past",
+        "below the value"
+      ],
+      "q": {
+        "ru": "Страховая сумма ниже стоимости — что будет при убытке?",
+        "uz": "Sugʻurta summasi qiymatdan past boʻlsa, zarar yuz berganda nima boʻladi?",
+        "en": "The sum insured is below the value — what happens at a loss?"
+      },
+      "a": {
+        "ru": "Выплата уменьшается пропорционально: возмещается доля убытка, равная отношению страховой суммы к страховой стоимости. Это не отказ, а пропорциональное возмещение. Клиента нужно предупредить до подписания договора и предложить поднять сумму до стоимости.",
+        "uz": "Toʻlov mutanosib ravishda kamayadi: zarar sugʻurta summasining sugʻurta qiymatiga nisbati boʻyicha qoplanadi. Bu rad etish emas, mutanosib qoplash. Mijozni shartnoma imzolangunga qadar ogohlantirish va summani qiymatgacha koʻtarishni taklif qilish kerak.",
+        "en": "The indemnity is reduced proportionally: the loss is paid in the ratio of the sum insured to the insurable value. This is not a refusal but proportional indemnity. Warn the client before signing and offer to raise the sum to full value. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 936",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Если в договоре страхования имущества или предпринимательского риска страховая сумма установлена ниже страховой стоимости, страховщик при наступлении страхового случая обязан возместить страхователю (выгодоприобретателю) понесенные им убытки пропорционально отношению страховой суммы к страховой",
+            "uz": "Agar mol-mulkni yoki tadbirkorlik xavfini sugʻurtalash shartnomasida sugʻurta summasi sugʻurta qiymatidan kam qilib belgilangan boʻlsa, sugʻurtalovchi sugʻurta hodisasi yuz berganida sugʻurta qildiruvchiga (naf oluvchiga) u koʻrgan zararni sugʻurta summasining sugʻurta qiymatiga boʻlgan nisbatiga",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "underinsurance"
+      ]
+    },
+    {
+      "id": "sum_over_value",
+      "tags": [
+        "превышение стоимости",
+        "ст. 938",
+        "ничтожность",
+        "больше стоимости",
+        "выше стоимости",
+        "qiymatdan oshsa",
+        "qiymatdan ortiq",
+        "exceeds the value"
+      ],
+      "q": {
+        "ru": "Можно ли поставить страховую сумму выше стоимости имущества?",
+        "uz": "Sugʻurta summasini mol-mulk qiymatidan yuqori qilib belgilash mumkinmi?",
+        "en": "May the sum insured exceed the value of the property?"
+      },
+      "a": {
+        "ru": "Нет. Договор недействителен в той части, где страховая сумма превышает страховую стоимость, а излишне уплаченная премия не возвращается. Превышение надо снять до подписания или подтвердить стоимость документами.",
+        "uz": "Yoʻq. Shartnoma sugʻurta summasi sugʻurta qiymatidan ortiq boʻlgan qismida haqiqiy emas, ortiqcha toʻlangan mukofot esa qaytarilmaydi. Ortiqchani imzolashdan oldin olib tashlash yoki qiymatni hujjat bilan tasdiqlash kerak.",
+        "en": "No. The contract is invalid in the part where the sum insured exceeds the insurable value, and the excess premium is not refunded. Remove the excess before signing or document the value. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 938",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Если страховая сумма, указанная в договоре страхования имущества или предпринимательского риска, превышает страховую стоимость, договор является недействительным в той части, в которой страховая сумма превышает страховую стоимость.",
+            "uz": "Agar sugʻurta shartnomasida koʻrsatilgan mol-mulk yoki tadbirkorlik xavfining sugʻurta summasi sugʻurta qiymatidan ortiq boʻlsa, shartnoma sugʻurta summasining sugʻurta qiymatidan ortiq boʻlgan qismida oʻz-oʻzidan haqiqiy boʻlmaydi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "sum_over_value",
+        "sum_vs_valuation"
+      ]
+    },
+    {
+      "id": "additional_insurance",
+      "tags": [
+        "дополнительное страхование",
+        "ст. 937"
+      ],
+      "q": {
+        "ru": "Клиент застрахован не на полную стоимость — можно ли дострахoвать?",
+        "uz": "Mijoz toʻliq qiymatga sugʻurtalanmagan — qoʻshimcha sugʻurta qilish mumkinmi?",
+        "en": "The client is insured below value — may the balance be insured additionally?"
+      },
+      "a": {
+        "ru": "Да, дострахование допускается, в том числе у другого страховщика, но общая страховая сумма по всем договорам не должна превышать страховую стоимость. Иначе наступают последствия страхования сверх стоимости.",
+        "uz": "Ha, qoʻshimcha sugʻurta, shu jumladan boshqa sugʻurtalovchida ham mumkin, biroq barcha shartnomalar boʻyicha umumiy summa sugʻurta qiymatidan oshmasligi kerak. Aks holda qiymatdan ortiq sugʻurta oqibatlari kelib chiqadi.",
+        "en": "Yes, top-up cover is allowed, including with another insurer, provided the total sum insured under all contracts does not exceed the insurable value. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 937",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Если имущество или предпринимательский риск застрахованы лишь в части страховой стоимости, страхователь (выгодоприобретатель) вправе осуществить дополнительное страхование, в том числе у другого страховщика, но с тем, чтобы общая страховая сумма по всем договорам страхования не превышала страховой",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "sum_over_value"
+      ]
+    },
+    {
+      "id": "double_insurance",
+      "tags": [
+        "двойное страхование",
+        "ст. 939"
+      ],
+      "q": {
+        "ru": "Объект застрахован у двух страховщиков — кто и сколько платит?",
+        "uz": "Obyekt ikki sugʻurtalovchida sugʻurtalangan — kim va qancha toʻlaydi?",
+        "en": "The object is insured with two insurers — who pays and how much?"
+      },
+      "a": {
+        "ru": "Каждый страховщик отвечает в пределах своего договора, но общая сумма всех возмещений не может превышать реальный ущерб. Страхователь вправе получить возмещение с любого страховщика, а недостающую часть — с другого.",
+        "uz": "Har bir sugʻurtalovchi oʻz shartnomasi doirasida javob beradi, biroq barcha tovonlarning umumiy summasi haqiqiy zarardan oshmaydi. Sugʻurta qildiruvchi tovonni istalgan sugʻurtalovchidan, yetishmagan qismini esa boshqasidan olishga haqli.",
+        "en": "Each insurer pays within its own contract, but the total of all indemnities may not exceed the actual loss. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 939",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При двойном страховании имущества или предпринимательского риска каждый страховщик несет обязанность выплатить страховое возмещение в пределах заключенного им договора, однако общая сумма страховых возмещений, полученная от всех страховщиков, не может превышать реального ущерба.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "sum_over_value"
+      ]
+    },
+    {
+      "id": "insured_value_agreed",
+      "tags": [
+        "страховая стоимость",
+        "ст. 935",
+        "оценка"
+      ],
+      "q": {
+        "ru": "Кто определяет страховую стоимость — система или стороны?",
+        "uz": "Sugʻurta qiymatini kim belgilaydi — tizimmi yoki taraflarmi?",
+        "en": "Who sets the insurable value — the system or the parties?"
+      },
+      "a": {
+        "ru": "Страховая стоимость определяется соглашением сторон на момент заключения договора. Расчёт системы — предварительная оценка страховщика, окончательная стоимость фиксируется в договоре.",
+        "uz": "Sugʻurta qiymati shartnoma tuzilayotgan paytda taraflar kelishuviga koʻra aniqlanadi. Tizim hisobi — sugʻurtalovchining dastlabki bahosi, yakuniy qiymat shartnomada qayd etiladi.",
+        "en": "The insurable value is set by agreement of the parties at the time of contracting; the system figure is only the insurer's preliminary estimate. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 935",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховой стоимостью (страховой оценкой) признается стоимость имущества, с которым связывается страховой интерес, определяемая соглашением сторон на момент заключения договора страхования, если законодательством не предусмотрено иное.",
+            "uz": "Sugʻurta shartnomasini tuzish paytida taraflarning kelishuviga koʻra aniqlanadigan, sugʻurta manfaati bilan bogʻlanadigan mol-mulk qiymati, agar qonunchilikda boshqacha tartib nazarda tutilmagan boʻlsa, sugʻurta qiymati (sugʻurta bahosi) deb hisoblanadi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_agreed"
+      ]
+    },
+    {
+      "id": "value_cannot_dispute",
+      "tags": [
+        "оспаривание стоимости",
+        "ст. 935",
+        "осмотр"
+      ],
+      "q": {
+        "ru": "Можно ли позже оспорить стоимость, указанную в договоре?",
+        "uz": "Shartnomada koʻrsatilgan qiymatni keyinchalik nizolashish mumkinmi?",
+        "en": "Can the value stated in the contract be challenged later?"
+      },
+      "a": {
+        "ru": "Нет, кроме одного случая: если страховщик не воспользовался правом на оценку риска до заключения договора и был умышленно введён в заблуждение. Поэтому осмотр и фиксация стоимости до подписания — защита страховщика.",
+        "uz": "Yoʻq, faqat bitta holat bundan mustasno: sugʻurtalovchi shartnoma tuzilgunga qadar xavfni baholash huquqidan foydalanmagan va bila turib chalgʻitilgan boʻlsa. Shuning uchun imzolashdan oldin koʻzdan kechirish muhim.",
+        "en": "No, except where the insurer did not use its right to assess the risk before contracting and was deliberately misled. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 935 ч. 2",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховая стоимость имущества, указанная в договоре страхования, не может быть впоследствии оспорена, за исключением случая, когда страховщик, не воспользовавшийся до заключения договора своим правом на оценку страхового риска, был умышленно введен в заблуждение относительно этой стоимости.",
+            "uz": "Mol-mulkning shartnomada koʻrsatilgan sugʻurta qiymati ustida keyinchalik nizolashish mumkin emas, shartnoma tuzilgunga qadar sugʻurta xavfini baholash boʻyicha oʻz huquqidan foydalanmagan sugʻurtalovchi bu qiymat borasida bila turib chalgʻitilgan hol bundan mustasno.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_no_inspection"
+      ]
+    },
+    {
+      "id": "value_date_place",
+      "tags": [
+        "дата и место оценки",
+        "ст. 934"
+      ],
+      "q": {
+        "ru": "На какую дату и в каком месте определяется стоимость имущества?",
+        "uz": "Mol-mulk qiymati qaysi sana va qaysi joyda aniqlanadi?",
+        "en": "As of what date and place is the value of property determined?"
+      },
+      "a": {
+        "ru": "Действительная стоимость — это стоимость имущества в месте его нахождения в день заключения договора. Оценка полугодовой давности или по другому региону не годится: её нужно обновить.",
+        "uz": "Haqiqiy qiymat — mol-mulkning shartnoma tuzilgan kuni turgan joyidagi qiymati. Olti oy oldingi yoki boshqa hudud boʻyicha baho yaramaydi, uni yangilash kerak.",
+        "en": "The actual value is the value at the location of the property on the day the contract is concluded. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 934",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При страховании имущества или предпринимательского риска, если договором страхования не предусмотрено иное, страховая сумма не должна превышать их действительной стоимости (страховой стоимости), каковой считается: для имущества — его действительная стоимость в месте его нахождения в день заключения",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_date_place",
+        "sum_vs_valuation"
+      ]
+    },
+    {
+      "id": "inspection_right",
+      "tags": [
+        "осмотр",
+        "ст. 932",
+        "оценка риска"
+      ],
+      "q": {
+        "ru": "Обязан ли страховщик осматривать имущество перед договором?",
+        "uz": "Sugʻurtalovchi shartnomadan oldin mol-mulkni koʻzdan kechirishi shartmi?",
+        "en": "Must the insurer inspect the property before the contract?"
+      },
+      "a": {
+        "ru": "Это право, а не обязанность: страховщик вправе осмотреть имущество и при необходимости организовать оценку. Но отказ от осмотра лишает страховщика возможности позже оспорить стоимость.",
+        "uz": "Bu huquq, majburiyat emas: sugʻurtalovchi mol-mulkni koʻzdan kechirishga va zarurat boʻlsa baholashni tashkil etishga haqli. Ammo koʻzdan kechirmaslik keyinchalik qiymatni nizolashish imkonini yoʻqotadi.",
+        "en": "It is a right, not a duty: the insurer may inspect the property and arrange a valuation if needed. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 932",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора страхования имущества страховщик вправе произвести осмотр страхуемого имущества, а при необходимости — организовать проведение оценки в целях установления его действительной стоимости. (часть первая статьи 932 в редакции Закона Республики Узбекистан от 17 сентября 2010 г.",
+            "uz": "Mol-mulkni sugʻurtalash shartnomasi tuzilayotganida sugʻurtalovchi sugʻurta qilinayotgan mol-mulkni koʻzdan kechirishga, zarurat boʻlganda esa uning haqiqiy qiymatini belgilash maqsadida baholashdan oʻtkazishni tashkil etishga haqli.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_no_inspection"
+      ]
+    },
+    {
+      "id": "essential_terms",
+      "tags": [
+        "существенные условия",
+        "ст. 929"
+      ],
+      "q": {
+        "ru": "Какие условия обязательно должны быть в договоре имущественного страхования?",
+        "uz": "Mulkiy sugʻurta shartnomasida qanday shartlar boʻlishi shart?",
+        "en": "What terms must an property insurance contract contain?"
+      },
+      "a": {
+        "ru": "Объект страхования, характер страхового случая, размер страховой суммы, порядок определения возмещения (если оно может быть меньше суммы), размер и сроки уплаты премии, срок действия договора. Без согласования этих условий договор не считается заключённым.",
+        "uz": "Sugʻurta obyekti, sugʻurta hodisasi xususiyati, sugʻurta summasi miqdori, tovonni aniqlash tartibi, mukofot miqdori va toʻlash muddati, shartnoma amal qilish muddati. Bu shartlarsiz shartnoma tuzilgan hisoblanmaydi.",
+        "en": "The insured object, the nature of the insured event, the sum insured, the method of calculating indemnity, the premium and its due dates, and the term of the contract. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 929",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора имущественного страхования между страхователем и страховщиком должно быть достигнуто соглашение: об определенном имуществе либо ином имущественном интересе, являющемся объектом страхования;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "docs_missing"
+      ]
+    },
+    {
+      "id": "contract_form",
+      "tags": [
+        "форма договора",
+        "ст. 927",
+        "электронная форма"
+      ],
+      "q": {
+        "ru": "Можно ли заключать договор страхования в электронной форме?",
+        "uz": "Sugʻurta shartnomasini elektron shaklda tuzish mumkinmi?",
+        "en": "May the insurance contract be concluded electronically?"
+      },
+      "a": {
+        "ru": "Да. С редакции ЗРУ-1154 договор страхования заключается в письменной или электронной форме; несоблюдение формы влечёт недействительность договора.",
+        "uz": "Ha. OʻRQ-1154 tahririda sugʻurta shartnomasi yozma yoki elektron shaklda tuziladi; shakl buzilsa, shartnoma haqiqiy emas.",
+        "en": "Yes. Under the 2026 amendment the contract is concluded in written or electronic form; non-compliance renders it invalid. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 927",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Договор страхования должен быть заключен в письменной или электронной форме.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "contract_start",
+      "tags": [
+        "начало действия",
+        "ст. 947"
+      ],
+      "q": {
+        "ru": "С какого момента действует договор страхования?",
+        "uz": "Sugʻurta shartnomasi qaysi paytdan amal qiladi?",
+        "en": "When does the insurance contract take effect?"
+      },
+      "a": {
+        "ru": "По общему правилу — с момента уплаты премии или её первого взноса, если в договоре не указано иное. Страхование распространяется на случаи после вступления договора в силу.",
+        "uz": "Umumiy qoidaga koʻra — mukofot yoki uning birinchi badali toʻlangan paytdan, agar shartnomada boshqacha koʻrsatilmagan boʻlsa. Sugʻurta shartnoma kuchga kirgandan keyingi hodisalarga tatbiq etiladi.",
+        "en": "As a rule, upon payment of the premium or its first instalment, unless the contract states otherwise. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 947",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Договор страхования, если в нем не предусмотрено иное, вступает в силу в момент уплаты страховой премии или первого ее взноса.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "premium_unpaid"
+      ]
+    },
+    {
+      "id": "policy_without_premium",
+      "tags": [
+        "полис",
+        "ст. 33¹",
+        "премия не уплачена"
+      ],
+      "q": {
+        "ru": "Полис выдан, а премия не поступила — обязана ли компания платить?",
+        "uz": "Polis berilgan, mukofot tushmagan — kompaniya toʻlashi shartmi?",
+        "en": "The policy is issued but the premium was not received — must we pay?"
+      },
+      "a": {
+        "ru": "Да. Если полис выдан без уплаты премии, страховщик должен полностью обеспечить выполнение страховых обязательств. Поэтому полис не выдают до поступления денег.",
+        "uz": "Ha. Mukofot toʻlanmasdan polis berilgan boʻlsa, sugʻurtalovchi sugʻurta majburiyatlarini toʻliq taʼminlashi lozim. Shuning uchun pul tushmaguncha polis berilmaydi.",
+        "en": "Yes. If a policy is issued without payment of the premium, the insurer must fully honour its obligations. (unofficial translation; the English text on lex.uz is the 2021 version and does not contain Article 33-1)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 33¹",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Страховым полисом является документ, подтверждающий уплату страховой премии, установленной договором страхования или правилами страхования, и вступление в силу страховых обязательств страховщика.",
+            "uz": "Sugʻurta shartnomasiga yoki sugʻurta qoidalariga asosan belgilangan sugʻurta mukofotining toʻlanganligini va sugʻurtalovchining sugʻurtaga oid majburiyatlari kuchga kirganligini tasdiqlovchi hujjat sugʻurta polisi hisoblanadi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "premium_unpaid"
+      ]
+    },
+    {
+      "id": "early_termination_refund",
+      "tags": [
+        "досрочное расторжение",
+        "ст. 948",
+        "возврат премии"
+      ],
+      "q": {
+        "ru": "Клиент расторгает договор досрочно — сколько премии вернуть?",
+        "uz": "Mijoz shartnomani muddatidan oldin bekor qilmoqda — mukofotning qancha qismi qaytariladi?",
+        "en": "The client terminates early — how much premium is refunded?"
+      },
+      "a": {
+        "ru": "Если возможность страхового случая отпала (например, имущество погибло не по страховому случаю), страховщик оставляет себе часть премии пропорционально времени действия страхования, остальное возвращается. При простом отказе страхователя премия по общему правилу не возвращается, если договором не предусмотрено иное.",
+        "uz": "Agar sugʻurta hodisasi ehtimoli yoʻqolgan boʻlsa, sugʻurtalovchi mukofotning sugʻurta amal qilgan vaqtga mutanosib qismini oʻzida qoldiradi, qolgani qaytariladi. Sugʻurta qildiruvchi shunchaki voz kechsa, umumiy qoidaga koʻra mukofot qaytarilmaydi.",
+        "en": "If the possibility of the insured event has ceased, the insurer keeps the premium in proportion to the time on risk and refunds the rest. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 948",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При досрочном прекращении договора страхования по обстоятельствам, указанным в части первой настоящей статьи, страховщик имеет право на часть страховой премии пропорционально времени, в течение которого действовало страхование.",
+            "uz": "Sugʻurta shartnomasi ushbu moddaning birinchi qismida koʻrsatilgan holatlar boʻyicha muddatidan oldin bekor boʻlganda, sugʻurtalovchi sugʻurta mukofotining bir qismini sugʻurta amal qilgan vaqtga mutanosib ravishda olish huquqiga ega.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "refusal_grounds",
+      "tags": [
+        "отказ в выплате",
+        "ст. 955"
+      ],
+      "q": {
+        "ru": "На каких основаниях можно отказать в выплате?",
+        "uz": "Toʻlashni rad etish qanday asoslarda mumkin?",
+        "en": "On what grounds may payment be refused?"
+      },
+      "a": {
+        "ru": "Основания перечислены в ГК: договор прекратился до страхового случая, договор ничтожен, и другие случаи, прямо указанные в законе. Придумывать основания в правилах сверх закона нельзя — отказ будет оспорен.",
+        "uz": "Asoslar FKda sanab oʻtilgan: shartnoma sugʻurta hodisasigacha bekor boʻlgan, shartnoma oʻz-oʻzidan haqiqiy emas va qonunda koʻrsatilgan boshqa hollar. Qonundan tashqari asos oʻylab topib boʻlmaydi.",
+        "en": "The grounds are listed in the Civil Code; grounds invented in the insurer's rules beyond the law will not stand. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 955",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховщик вправе отказать страхователю (выгодоприобретателю) в выплате страхового возмещения по договору имущественного страхования или страховой выплаты по договору личного страхования в случаях, когда:",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "payment_only_on_event",
+      "tags": [
+        "выплата",
+        "ст. 34",
+        "страховой случай"
+      ],
+      "q": {
+        "ru": "Можно ли выплатить возмещение без страхового случая?",
+        "uz": "Sugʻurta hodisasisiz tovon toʻlash mumkinmi?",
+        "en": "May indemnity be paid without an insured event?"
+      },
+      "a": {
+        "ru": "Нет. Страховщик обязан выплатить возмещение только при наступлении страхового случая и не вправе отказать в срок, если получены доказательства случая.",
+        "uz": "Yoʻq. Sugʻurtalovchi tovonni faqat sugʻurta hodisasi yuz berganda toʻlaydi va dalillar olingan boʻlsa, belgilangan muddatda rad etishga haqli emas.",
+        "en": "No. The insurer pays only upon the occurrence of an insured event."
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 34",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Страховщик обязан выплатить страховое возмещение (страховую выплату) указанному в договоре страхования лицу только при наступлении страхового случая.",
+            "uz": "Sugʻurtalovchi sugʻurta shartnomasida koʻrsatilgan shaxsga faqat sugʻurta hodisasi yuz bergan taqdirda sugʻurta tovonini (sugʻurta toʻlovini) toʻlashi shart.",
+            "en": "The insurer shall be obliged to pay the insurance indemnity (insurance benefit) to the person specified in the insurance contract only upon the occurrence of the insured event."
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "disclosure",
+      "tags": [
+        "раскрытие информации",
+        "ст. 63",
+        "ЗРУ-1154"
+      ],
+      "q": {
+        "ru": "Что обязательно рассказать клиенту до продажи полиса?",
+        "uz": "Polis sotilgunga qadar mijozga nimalarni aytish shart?",
+        "en": "What must be disclosed to the client before selling a policy?"
+      },
+      "a": {
+        "ru": "О страховщике и его агенте, о самой услуге, её цене и условиях возврата премии, о преимуществах и недостатках, о застрахованных рисках и исключениях, о размере возмещения, обязанностях сторон и порядке урегулирования претензий. Это требование ст. 63 в редакции ЗРУ-1154.",
+        "uz": "Sugʻurtalovchi va uning agenti, xizmat va uning narxi, mukofotni qaytarish sharti, xizmatning ustunlik va kamchiliklari, sugʻurtalangan xavflar va istisnolar, tovon miqdori, tomonlar majburiyatlari va daʼvolarni hal qilish tartibi haqida.",
+        "en": "About the insurer and its agent, the service and its price, refund terms, advantages and drawbacks, covered risks and exclusions, the indemnity, the parties' duties and the claims procedure. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 63",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "В процессе оказании страховых услуг страховщик обязан предоставить потребителям страховых услуг достоверную и полную информацию о следующем: о страховщике (открытую информацию) и его страховом агенте (при наличии участия посредника);",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "disclosure"
+      ]
+    },
+    {
+      "id": "no_tying",
+      "tags": [
+        "навязывание",
+        "ст. 63"
+      ],
+      "q": {
+        "ru": "Можно ли продавать полис только в комплекте с другим продуктом?",
+        "uz": "Polisni faqat boshqa mahsulot bilan birga sotish mumkinmi?",
+        "en": "May a policy be sold only in a bundle with another product?"
+      },
+      "a": {
+        "ru": "Нет. Страховщик не вправе ставить получение одной услуги условием получения другой — ни своей, ни третьего лица. Потребитель свободен в выборе страховщика и услуги.",
+        "uz": "Yoʻq. Sugʻurtalovchi bir xizmatni olishni boshqasini olish sharti qilib qoʻya olmaydi. Isteʼmolchi sugʻurtalovchi va xizmatni tanlashda erkin.",
+        "en": "No. The insurer may not make one service a condition for another; the consumer is free to choose."
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 63 ч. 1",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Потребители страховых услуг свободны в выборе страховщика и страховых услуг. Страховщики обязаны по требованию потребителя предоставлять ему возможность ознакомления с условиями предоставления страховых услуг.",
+            "uz": null,
+            "en": "Consumers of insurance services shall be free to choose an insurer and insurance services. Insurers shall be obliged, at the request of the consumer, to provide it with the opportunity to familiarize itself with the terms and conditions of the insurance services."
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "disclosure"
+      ]
+    },
+    {
+      "id": "insurance_secret",
+      "tags": [
+        "тайна страхования",
+        "ст. 62"
+      ],
+      "q": {
+        "ru": "Какие сведения о клиенте нельзя разглашать?",
+        "uz": "Mijoz haqidagi qanday maʼlumotlarni oshkor qilish mumkin emas?",
+        "en": "What client information may not be disclosed?"
+      },
+      "a": {
+        "ru": "Сведения о страхователях, застрахованных и выгодоприобретателях, состоянии их здоровья, застрахованном имуществе, страховой сумме, банковских счетах и движении денег. Тарифы, виды и сроки страхования — открытая информация.",
+        "uz": "Sugʻurta qildiruvchilar, sugʻurtalangan shaxslar va naf oluvchilar, ularning sogʻligʻi, sugʻurtalangan mol-mulk, sugʻurta summasi, bank hisoblari haqidagi maʼlumotlar. Tariflar va sugʻurta turlari esa ochiq maʼlumot.",
+        "en": "Data on policyholders, insured persons and beneficiaries, their health, the insured property, the sum insured and bank accounts. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 62",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Не подлежат разглашению сведения о страхователях, застрахованных лицах и выгодоприобретателях, состоянии здоровья страхователей и застрахованных лиц, застрахованном имуществе, страховой сумме, наличии банковских счетов, об остатках и движении денег на этих счетах.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "pd_ads_scrape"
+      ]
+    },
+    {
+      "id": "rules_of_insurance",
+      "tags": [
+        "правила страхования",
+        "ст. 30",
+        "износ"
+      ],
+      "q": {
+        "ru": "Где должен быть описан порядок расчёта возмещения и учёт износа?",
+        "uz": "Tovonni hisoblash tartibi va eskirish qayerda yozilishi kerak?",
+        "en": "Where must the indemnity calculation and depreciation be described?"
+      },
+      "a": {
+        "ru": "В правилах страхования, которые принимает и утверждает страховщик; они содержат основные положения страхования. Если износ не описан в правилах и договоре, применять его при выплате рискованно.",
+        "uz": "Sugʻurtalovchi qabul qiladigan sugʻurta qoidalarida; ular sugʻurtaning asosiy qoidalarini oʻz ichiga oladi. Eskirish qoidalarda va shartnomada yozilmagan boʻlsa, uni toʻlovda qoʻllash xavfli.",
+        "en": "In the insurer's rules of insurance, which contain the main terms of cover. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 30",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Правила страхования (за исключением правил страхования, принимаемых в рамках международных систем страхования) принимаются и утверждаются страховщиком или объединением страховщиков и должны содержать основные положения страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_depreciation"
+      ]
+    },
+    {
+      "id": "surveyor_role",
+      "tags": [
+        "сюрвейер",
+        "ст. 24"
+      ],
+      "q": {
+        "ru": "Кто такой страховой сюрвейер и нужна ли ему лицензия?",
+        "uz": "Sugʻurta syurveyeri kim va unga litsenziya kerakmi?",
+        "en": "Who is an insurance surveyor and is a licence needed?"
+      },
+      "a": {
+        "ru": "Сюрвейер — юридическое или физическое лицо, которое осматривает объект, анализирует риск и составляет заключение до заключения договора. Он начинает и прекращает деятельность в уведомительном порядке, лицензия не требуется.",
+        "uz": "Syurveyer — obyektni koʻzdan kechiruvchi, xavfni tahlil qiluvchi va xulosa tuzuvchi yuridik yoki jismoniy shaxs. U faoliyatini xabardor qilish tartibida boshlaydi va tugatadi, litsenziya talab etilmaydi.",
+        "en": "A surveyor inspects the object, analyses the risk and issues an opinion before the contract; activity starts by notification. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 24",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Страховым сюрвейером является юридическое лицо, имеющее в своем штате соответствующих специалистов, или физическое лицо, владеющее профессиональными знаниями и навыками, оказывающее услуги по: осмотру и обследованию объекта страхования (перестрахования) до заключения договора страхования",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "tariff_freedom",
+      "tags": [
+        "тариф",
+        "ст. 942",
+        "ставка"
+      ],
+      "q": {
+        "ru": "Свободен ли страховщик в выборе тарифа?",
+        "uz": "Sugʻurtalovchi tarifni tanlashda erkinmi?",
+        "en": "Is the insurer free to set its tariff?"
+      },
+      "a": {
+        "ru": "По добровольным видам — да, страховщик применяет свои тарифы с учётом объекта и характера риска. По обязательным видам тарифы устанавливает Кабинет Министров, отступать от них нельзя.",
+        "uz": "Ixtiyoriy turlarda — ha, sugʻurtalovchi obyekt va xavf xususiyatini hisobga olib oʻz tariflarini qoʻllaydi. Majburiy turlarda tariflarni Vazirlar Mahkamasi belgilaydi, ulardan chetga chiqib boʻlmaydi.",
+        "en": "For voluntary classes the insurer applies its own tariffs; for compulsory classes tariffs are set by the Cabinet of Ministers."
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 942",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховщик при определении размера страховой премии, подлежащей уплате по договору страхования, вправе применять разработанные им страховые тарифы, определяющие премию, взимаемую с единицы страховой суммы, с учетом объекта страхования и характера страхового риска.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        },
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 33",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": null,
+            "uz": null,
+            "en": "When determining the amount of the insurance premium payable under the insurance contract, the insurer shall have the right to apply its developed insurance tariffs that determine the premium charged per unit of the insurance amount, taking into account the object of insurance and the nature of the"
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "min_rate"
+      ]
+    },
+    {
+      "id": "min_rate",
+      "tags": [
+        "минимальная ставка",
+        "тарифная политика",
+        "54-П"
+      ],
+      "q": {
+        "ru": "Ставка ниже минимальной по тарифной политике — что делать?",
+        "uz": "Tarif siyosatidagi minimal stavkadan past stavka — nima qilish kerak?",
+        "en": "The rate is below the minimum in the tariff policy — what now?"
+      },
+      "a": {
+        "ru": "Это внутреннее правило компании (приказ 54-П от 23.09.2025), а не норма закона: ставка проверяется по каждому классу отдельно, а не по средней по договору. Ниже минимума ставку ставить нельзя без решения уполномоченного органа компании.",
+        "uz": "Bu kompaniyaning ichki qoidasi (54-P buyrugʻi, 23.09.2025), qonun normasi emas: stavka har bir klass boʻyicha alohida tekshiriladi. Minimumdan past stavka kompaniyaning vakolatli organi qarorisiz qoʻyilmaydi.",
+        "en": "This is an internal company rule (order 54-P), not a statutory norm; the rate is checked per class, not on the contract average."
+      },
+      "citations": [],
+      "rule_codes": [
+        "min_rate"
+      ]
+    },
+    {
+      "id": "below_technical",
+      "tags": [
+        "техническая ставка",
+        "убыточность"
+      ],
+      "q": {
+        "ru": "Ставка выше минимальной, но ниже технической — это нарушение?",
+        "uz": "Stavka minimaldan yuqori, lekin texnik stavkadan past — bu qoidabuzarlikmi?",
+        "en": "The rate is above the minimum but below the technical rate — is that a breach?"
+      },
+      "a": {
+        "ru": "Нет, закон такой ставки не запрещает. Это экономическое предупреждение: премия не покрывает ожидаемые убытки, решение принимает андеррайтер, случай попадает в аналитику.",
+        "uz": "Yoʻq, qonun buni taqiqlamaydi. Bu iqtisodiy ogohlantirish: mukofot kutilayotgan zararni qoplamaydi, qarorni anderrayter qabul qiladi.",
+        "en": "No, the law does not prohibit it; it is an economic warning for the underwriter."
+      },
+      "citations": [],
+      "rule_codes": [
+        "below_technical"
+      ]
+    },
+    {
+      "id": "risk_limit_20",
+      "tags": [
+        "лимит 20%",
+        "Положение 1806",
+        "п. 15"
+      ],
+      "q": {
+        "ru": "Какой максимум ответственности допустим по одному риску?",
+        "uz": "Bitta xavf boʻyicha javobgarlikning eng koʻp miqdori qancha?",
+        "en": "What is the maximum liability per single risk?"
+      },
+      "a": {
+        "ru": "Не более 20% от суммы источников собственных средств и страховых резервов (для страхования экспортных контрактов от политических и коммерческих рисков — 15%). Считается по каждому отдельному риску.",
+        "uz": "Oʻz mablagʻlari manbalari va sugʻurta zaxiralari summasining 20 foizidan ortiq emas (eksport shartnomalarini siyosiy va tijorat xavflaridan sugʻurtalashda — 15 foiz).",
+        "en": "Not more than 20% of the sum of own funds and insurance reserves (15% for export contract risks). (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 1806 (платёжеспособность)",
+          "article": "п. 15",
+          "doc": "Положение о платёжеспособности страховщиков",
+          "quote": {
+            "ru": "Предельно допустимый размер обязательств страховщика (перестраховщика) по отдельным рискам, за исключением страхования экспортных контрактов от политических и коммерческих рисков, не может превышать 20% от суммы источников собственных средств и страховых резервов.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1354128",
+            "uz": "https://lex.uz/uz/docs/-1354126",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "risk_limit_20"
+      ]
+    },
+    {
+      "id": "limit_exceed_reinsurance",
+      "tags": [
+        "перестрахование",
+        "лимит",
+        "Положение 1806"
+      ],
+      "q": {
+        "ru": "Риск больше лимита 20% — можно ли его принять?",
+        "uz": "Xavf 20 foiz chegaradan katta — uni qabul qilish mumkinmi?",
+        "en": "The risk exceeds the 20% limit — may we accept it?"
+      },
+      "a": {
+        "ru": "Да, но только если часть обязательств сверх норматива перестрахована в порядке, установленном Положением 1806. Без перестрахования превышение недопустимо.",
+        "uz": "Ha, lekin meʼyordan ortiq qismi 1806-sonli Nizomga muvofiq qayta sugʻurta qilingan boʻlsa. Qayta sugʻurtasiz ortiqcha qabul qilinmaydi.",
+        "en": "Yes, but only if the part above the limit is reinsured under Regulation 1806. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 1806 (платёжеспособность)",
+          "article": "п. 15 абз. 3",
+          "doc": "Положение о платёжеспособности страховщиков",
+          "quote": {
+            "ru": "Страховщик (перестраховщик) вправе принять обязательства по отдельным рискам с превышением норматива, указанного в абзаце первом настоящего пункта, только при условии, если часть принятых обязательств, превышающая данный норматив, перестрахована в соответствии с настоящим Положением.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1354128",
+            "uz": "https://lex.uz/uz/docs/-1354126",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "risk_limit_20"
+      ]
+    },
+    {
+      "id": "cat_reserve",
+      "tags": [
+        "резерв катастроф",
+        "накопление",
+        "сейсмозона"
+      ],
+      "q": {
+        "ru": "Зачем следить за накоплением сумм в одной зоне?",
+        "uz": "Nega bitta hududdagi summalar toʻplanishini kuzatish kerak?",
+        "en": "Why watch accumulation of sums in one zone?"
+      },
+      "a": {
+        "ru": "Потому что по одному событию (землетрясение, крупная авария) выплаты идут сразу по многим договорам — для этого формируется резерв катастроф. Накопление в зоне требует либо резерва, либо перестрахования.",
+        "uz": "Chunki bitta hodisa (zilzila, yirik avariya) boʻyicha koʻplab shartnomalar boʻyicha toʻlov ketadi — buning uchun katastrofa zaxirasi shakllantiriladi. Toʻplanish zaxira yoki qayta sugʻurtani talab qiladi.",
+        "en": "Because one event triggers payouts under many contracts; the catastrophe reserve exists for this. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 1882 (страховые резервы)",
+          "article": "резерв катастроф",
+          "doc": "Положение о страховых резервах",
+          "quote": {
+            "ru": "Резерв катастроф (РК) предназначен для покрытия чрезвычайного ущерба, явившегося следствием непреодолимой силы или крупномасштабной аварии, повлекших за собой необходимость осуществления страховых выплат по большому количеству договоров страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1416860",
+            "uz": "https://lex.uz/uz/docs/-1416862",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "cat_accumulation"
+      ]
+    },
+    {
+      "id": "no_franchise",
+      "tags": [
+        "франшиза"
+      ],
+      "q": {
+        "ru": "Обязательна ли франшиза по закону?",
+        "uz": "Fransiza qonun boʻyicha majburiymi?",
+        "en": "Is a deductible required by law?"
+      },
+      "a": {
+        "ru": "Нет, по добровольным видам закон франшизу не требует и не запрещает — она устанавливается договором и правилами страхования. По ОСГОР франшизы нет: тариф и условия жёстко заданы актом.",
+        "uz": "Yoʻq, ixtiyoriy turlarda qonun fransizani talab ham, taqiqlamaydi ham — u shartnoma va qoidalarda belgilanadi. IFJMSda fransiza yoʻq.",
+        "en": "No. For voluntary classes the law is silent; the deductible is a matter of contract. For employer's liability there is none."
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 30",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Правила страхования (за исключением правил страхования, принимаемых в рамках международных систем страхования) принимаются и утверждаются страховщиком или объединением страховщиков и должны содержать основные положения страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "no_franchise"
+      ]
+    },
+    {
+      "id": "docs_missing",
+      "tags": [
+        "документы",
+        "чек-лист"
+      ],
+      "q": {
+        "ru": "Клиент не донёс документы — можно ли считать и оформлять?",
+        "uz": "Mijoz hujjatlarni keltirmadi — hisoblab, rasmiylashtirish mumkinmi?",
+        "en": "The client has not provided documents — may we quote and issue?"
+      },
+      "a": {
+        "ru": "Расчёт считается предварительным, пока нет обязательных документов: без них не проверить объект, стоимость и существенные условия договора. Оформлять договор до получения документов о праве на объект и стоимости не следует.",
+        "uz": "Majburiy hujjatlarsiz hisob dastlabki hisoblanadi: ularsiz obyekt, qiymat va muhim shartlarni tekshirib boʻlmaydi. Hujjatlar kelmaguncha shartnoma rasmiylashtirilmaydi.",
+        "en": "The quote is preliminary until the required documents arrive; without them the object, value and essential terms cannot be verified."
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 929",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора имущественного страхования между страхователем и страховщиком должно быть достигнуто соглашение: об определенном имуществе либо ином имущественном интересе, являющемся объектом страхования;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "docs_missing"
+      ]
+    },
+    {
+      "id": "agent_commission_25",
+      "tags": [
+        "агент",
+        "комиссия",
+        "25%",
+        "Положение 3845"
+      ],
+      "q": {
+        "ru": "Какой максимум комиссии страхового агента?",
+        "uz": "Sugʻurta agenti vositachilik haqining eng koʻp miqdori qancha?",
+        "en": "What is the cap on the insurance agent's commission?"
+      },
+      "a": {
+        "ru": "Не более 25% от страховых премий, фактически поступивших на банковский счёт страховщика по договорам, заключённым при посредничестве агента. Это Положение о страховых агентах (рег. № 3845 от 02.06.2026).",
+        "uz": "Agent vositachiligida tuzilgan shartnomalar boʻyicha sugʻurtalovchining bank hisobiga kelib tushgan mukofotlarning 25 foizidan oshmasligi kerak (3845-sonli Nizom).",
+        "en": "Not more than 25% of premiums actually received in the insurer's bank account under contracts concluded through the agent. (unofficial translation; the act exists in Uzbek only)"
+      },
+      "citations": [
+        {
+          "act": "Положение 3845 (страховые агенты)",
+          "article": "п. 15",
+          "doc": "Положение о страховых агентах (приказ НАПП № 14 от 20.04.2026, рег. 3845)",
+          "quote": {
+            "ru": null,
+            "uz": "Sugʻurta agenti vositachiligida tuzilgan sugʻurta shartnomalari boʻyicha vositachilik haqi sugʻurtalovchining bank hisob raqamiga kelib tushgan sugʻurta mukofotlarining 25 foizidan oshmagan holda amalga oshiriladi.",
+            "en": null
+          },
+          "url": {
+            "ru": null,
+            "uz": "https://lex.uz/uz/docs/-8241971",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "agent_no_staff_pay",
+      "tags": [
+        "агент",
+        "штатные работники",
+        "запрет"
+      ],
+      "q": {
+        "ru": "Можно ли платить агентское вознаграждение штатному сотруднику страховщика?",
+        "uz": "Sugʻurtalovchining shtatdagi xodimiga agentlik haqi toʻlash mumkinmi?",
+        "en": "May agent commission be paid to the insurer's own employee?"
+      },
+      "a": {
+        "ru": "Нет. Выплата работникам страховщика вознаграждения за посреднические услуги по договорам, заключённым с участием агентов на основании агентского соглашения, запрещена.",
+        "uz": "Yoʻq. Agent bitimi asosida tuzilgan shartnomalar boʻyicha sugʻurtalovchi xodimlariga vositachilik xizmatlari uchun haq toʻlash taqiqlanadi.",
+        "en": "No. Paying the insurer's staff for intermediary services under such contracts is prohibited. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 3845 (страховые агенты)",
+          "article": "п. 15 абз. 2",
+          "doc": "Положение о страховых агентах",
+          "quote": {
+            "ru": null,
+            "uz": "Topshiriq shartnomasi (agent bitimi) asosida sugʻurta agentlari ishtirokida tuzilgan sugʻurta shartnomalari boʻyicha sugʻurtalovchilarning xodimlariga agent bitimida koʻrsatilgan vositachilik xizmatlari uchun hamda unda koʻrsatilgan usulda haq toʻlash taqiqlanadi.",
+            "en": null
+          },
+          "url": {
+            "ru": null,
+            "uz": "https://lex.uz/uz/docs/-8241971",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "agent_commission_return",
+      "tags": [
+        "агент",
+        "возврат комиссии",
+        "расторжение"
+      ],
+      "q": {
+        "ru": "Договор расторгнут досрочно — возвращает ли агент комиссию?",
+        "uz": "Shartnoma muddatidan oldin bekor qilindi — agent haqni qaytaradimi?",
+        "en": "The contract is terminated early — does the agent return the commission?"
+      },
+      "a": {
+        "ru": "Да, при досрочном расторжении договора агент возвращает страховщику комиссионное вознаграждение в порядке, установленном Положением о страховых агентах.",
+        "uz": "Ha, shartnoma muddatidan oldin bekor qilinganda agent vositachilik haqini sugʻurtalovchiga qaytaradi.",
+        "en": "Yes; on early termination the agent returns the commission to the insurer. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 3845 (страховые агенты)",
+          "article": "п. 16",
+          "doc": "Положение о страховых агентах",
+          "quote": {
+            "ru": null,
+            "uz": "Sugʻurta shartnomalari muddatidan oldin bekor qilinganda sugʻurta shartnomalari boʻyicha vositachilik haqi sugʻurta agenti tomonidan sugʻurtalovchiga sugʻurta shartnomasining muddati oʻtmagan davriga mutanosib miqdorda qaytarilishi lozim.",
+            "en": null
+          },
+          "url": {
+            "ru": null,
+            "uz": "https://lex.uz/uz/docs/-8241971",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgor_sum",
+      "tags": [
+        "ОСГОР",
+        "страховая сумма",
+        "ФОТ",
+        "ст. 10"
+      ],
+      "q": {
+        "ru": "Как считается страховая сумма по ОСГОР?",
+        "uz": "IFJMS boʻyicha sugʻurta summasi qanday hisoblanadi?",
+        "en": "How is the sum insured calculated for employer's liability?"
+      },
+      "a": {
+        "ru": "Это годовая заработная плата всех работников за предыдущие 12 месяцев (для работающих более года) либо за последующие 12 месяцев — для вновь созданных. Это не лимит на одного человека.",
+        "uz": "Bu barcha xodimlarning oldingi 12 oy uchun yillik ish haqi (bir yildan ortiq faoliyat yuritayotganlar uchun) yoki yangi tashkil etilganlar uchun keyingi 12 oy uchun. Bu bir kishiga limit emas.",
+        "en": "It is the annual payroll of all employees for the previous 12 months, or for the next 12 months for new employers. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-210 (ОСГОР)",
+          "article": "ст. 10",
+          "doc": "Закон об обязательном страховании гражданской ответственности работодателя",
+          "quote": {
+            "ru": "Страховая сумма по договору обязательного страхования гражданской ответственности работодателя устанавливается: для работодателя, осуществляющего на дату заключения договора обязательного страхования гражданской ответственности работодателя деятельность более одного года, — в размере годовой",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1471201",
+            "uz": "https://lex.uz/uz/docs/-1471197",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-01"
+      ]
+    },
+    {
+      "id": "osgor_tariff_fixed",
+      "tags": [
+        "ОСГОР",
+        "тариф",
+        "КСТ",
+        "ст. 8"
+      ],
+      "q": {
+        "ru": "Можно ли по ОСГОР дать скидку или изменить коэффициент?",
+        "uz": "IFJMS boʻyicha chegirma berish yoki koeffitsientni oʻzgartirish mumkinmi?",
+        "en": "May we discount or change the coefficient for employer's liability?"
+      },
+      "a": {
+        "ru": "Нет. Страховщик не вправе применять базовую ставку и коэффициенты, отличные от установленных законом; коэффициент зависит от степени опасности вида деятельности. Премия = страховая сумма × 0,1 × КСТ / 100.",
+        "uz": "Yoʻq. Sugʻurtalovchi qonunda belgilangandan boshqa bazaviy stavka va koeffitsientlarni qoʻllashga haqli emas; koeffitsient faoliyat xavflilik darajasiga bogʻliq.",
+        "en": "No. The insurer may not apply a base rate or coefficients other than those set by law. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-210 (ОСГОР)",
+          "article": "ст. 8",
+          "doc": "Закон об обязательном страховании гражданской ответственности работодателя",
+          "quote": {
+            "ru": "Страховщик не вправе применять базовую ставку и коэффициенты страховых тарифов по обязательному страхованию гражданской ответственности работодателя, отличные от установленных в соответствии с настоящим Законом.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1471201",
+            "uz": "https://lex.uz/uz/docs/-1471197",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-02",
+        "OSGOR-03",
+        "OSGOR-04"
+      ]
+    },
+    {
+      "id": "osgor_premium_5days",
+      "tags": [
+        "ОСГОР",
+        "оплата премии",
+        "5 дней"
+      ],
+      "q": {
+        "ru": "В какой срок работодатель платит премию по ОСГОР?",
+        "uz": "Ish beruvchi IFJMS mukofotini qaysi muddatda toʻlaydi?",
+        "en": "When must the employer pay the premium?"
+      },
+      "a": {
+        "ru": "Единовременно в течение пяти рабочих дней с даты заключения договора. При безналичной оплате датой считается дата поступления денег на расчётный счёт страховщика.",
+        "uz": "Shartnoma tuzilgan sanadan besh ish kuni ichida bir yoʻla. Pul koʻchirishda toʻlov sanasi — pulning sugʻurtalovchi hisob raqamiga tushgan sanasi.",
+        "en": "In a lump sum within five working days from the date of the contract. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ПКМ № 177 (Правила ОСГОР)",
+          "article": "п. 26",
+          "doc": "Правила обязательного страхования ответственности работодателя",
+          "quote": {
+            "ru": "Страховая премия по договору обязательного страхования уплачивается работодателем единовременно в течение пяти рабочих дней с даты заключения договора обязательного страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1493387",
+            "uz": "https://lex.uz/uz/docs/-1493389",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-07"
+      ]
+    },
+    {
+      "id": "osgor_funeral",
+      "tags": [
+        "ОСГОР",
+        "погребение",
+        "3 БРВ"
+      ],
+      "q": {
+        "ru": "Какая сумма на погребение указывается в договоре ОСГОР?",
+        "uz": "IFJMS shartnomasida dafn xarajatlari uchun qancha summa koʻrsatiladi?",
+        "en": "What funeral expense amount is stated in the contract?"
+      },
+      "a": {
+        "ru": "Отдельной строкой, но не более 3-кратного размера базовой расчётной величины на день смерти работника.",
+        "uz": "Alohida satr bilan, ammo xodim vafot etgan kundagi bazaviy hisoblash miqdorining 3 baravaridan oshmagan holda.",
+        "en": "As a separate line, not exceeding three times the base calculation value on the day of death. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ПКМ № 177 (Правила ОСГОР)",
+          "article": "п. 43",
+          "doc": "Правила обязательного страхования ответственности работодателя",
+          "quote": {
+            "ru": "расходов на погребение, определяемом в договоре обязательного страхования, в сумме не более 3-кратного размера базовой расчетной величины, установленного законодательством, на день смерти, в случае смерти работника;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1493387",
+            "uz": "https://lex.uz/uz/docs/-1493389",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-08"
+      ]
+    },
+    {
+      "id": "osgor_fot_change",
+      "tags": [
+        "ОСГОР",
+        "изменение ФОТ",
+        "допсоглашение"
+      ],
+      "q": {
+        "ru": "У клиента вырос фонд оплаты труда — что делать с договором ОСГОР?",
+        "uz": "Mijozning ish haqi fondi oshdi — IFJMS shartnomasi bilan nima qilish kerak?",
+        "en": "The payroll has grown — what to do with the contract?"
+      },
+      "a": {
+        "ru": "Работодатель обязан сообщить страховщику не позднее пяти рабочих дней с момента изменения размера годовой заработной платы; премия пересчитывается допсоглашением пропорционально остатку срока.",
+        "uz": "Ish beruvchi yillik ish haqi miqdori oʻzgargan paytdan besh ish kunidan kechiktirmay sugʻurtalovchiga xabar berishi shart; mukofot qoʻshimcha bitim bilan qayta hisoblanadi.",
+        "en": "The employer must notify the insurer within five working days of the change in annual payroll. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ПКМ № 177 (Правила ОСГОР)",
+          "article": "п. 29",
+          "doc": "Правила обязательного страхования ответственности работодателя",
+          "quote": {
+            "ru": "не позднее пяти рабочих дней с момента изменения размера годовой заработной платы сообщить об этом страховщику в письменной или электронной форме;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1493387",
+            "uz": "https://lex.uz/uz/docs/-1493389",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-10"
+      ]
+    },
+    {
+      "id": "osgor_term",
+      "tags": [
+        "ОСГОР",
+        "срок договора"
+      ],
+      "q": {
+        "ru": "На какой срок заключается договор ОСГОР?",
+        "uz": "IFJMS shartnomasi qaysi muddatga tuziladi?",
+        "en": "For what term is the employer's liability contract concluded?"
+      },
+      "a": {
+        "ru": "На один год; более короткий срок возможен, только если сама деятельность работодателя короче года. Премия за неполный год считается пропорционально числу дней.",
+        "uz": "Bir yilga; qisqaroq muddat faqat ish beruvchi faoliyati bir yildan qisqa boʻlsa mumkin. Toʻliq boʻlmagan yil uchun mukofot kunlarga mutanosib hisoblanadi.",
+        "en": "For one year; a shorter term only if the employer's activity itself is shorter. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-210 (ОСГОР)",
+          "article": "ст. 8",
+          "doc": "Закон об обязательном страховании гражданской ответственности работодателя",
+          "quote": {
+            "ru": "Страховщик не вправе применять базовую ставку и коэффициенты страховых тарифов по обязательному страхованию гражданской ответственности работодателя, отличные от установленных в соответствии с настоящим Законом.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1471201",
+            "uz": "https://lex.uz/uz/docs/-1471197",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-06"
+      ]
+    },
+    {
+      "id": "osgo_term",
+      "tags": [
+        "ОСГО",
+        "срок",
+        "ст. 9"
+      ],
+      "q": {
+        "ru": "На какой срок заключается договор ОСГО владельцев транспортных средств?",
+        "uz": "Transport vositalari egalarining majburiy sugʻurta shartnomasi qaysi muddatga tuziladi?",
+        "en": "For what term is motor third-party liability concluded?"
+      },
+      "a": {
+        "ru": "На один год, кроме случаев, прямо указанных в законе. Для иностранных транспортных средств — на весь срок временного использования, но не менее пятнадцати дней.",
+        "uz": "Bir yilga, qonunda koʻrsatilgan hollar bundan mustasno. Chet el transport vositalari uchun — vaqtincha foydalanishning butun muddatiga, ammo kamida oʻn besh kun.",
+        "en": "For one year, with exceptions set by law; for foreign vehicles, for the period of temporary use but at least fifteen days. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 9",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Договор обязательного страхования заключается сроком на один год, за исключением случаев, предусмотренных частями второй и третьей настоящей статьи, а также статьей 16 настоящего Закона.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgo_sum_cm",
+      "tags": [
+        "ОСГО",
+        "страховая сумма",
+        "ПКМ 141"
+      ],
+      "q": {
+        "ru": "Кто устанавливает страховую сумму по ОСГО?",
+        "uz": "Majburiy sugʻurta boʻyicha sugʻurta summasini kim belgilaydi?",
+        "en": "Who sets the sum insured for motor third-party liability?"
+      },
+      "a": {
+        "ru": "Кабинет Министров: размеры страховой суммы установлены постановлением № 141 от 24.06.2008. Страховщик не может изменить их договором.",
+        "uz": "Vazirlar Mahkamasi: sugʻurta summasi 2008-yil 24-iyundagi 141-sonli qaror bilan belgilangan. Sugʻurtalovchi uni shartnoma bilan oʻzgartira olmaydi.",
+        "en": "The Cabinet of Ministers, by Resolution No. 141 of 24.06.2008. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 22",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Страховая сумма, в пределах которой возмещается вред, причиненный жизни, здоровью и (или) имуществу потерпевшего, определяется Кабинетом Министров Республики Узбекистан.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgo_payment_to_victim",
+      "tags": [
+        "ОСГО",
+        "выплата потерпевшему"
+      ],
+      "q": {
+        "ru": "Кому платится возмещение по ОСГО?",
+        "uz": "Majburiy sugʻurta boʻyicha tovon kimga toʻlanadi?",
+        "en": "To whom is the indemnity paid?"
+      },
+      "a": {
+        "ru": "Непосредственно потерпевшему (его наследнику или правопреемнику) в размере причинённого вреда, но не более страховой суммы.",
+        "uz": "Bevosita jabrlanuvchiga (uning merosxoʻri yoki huquqiy vorisiga) yetkazilgan zarar miqdorida, ammo sugʻurta summasidan ortiq emas.",
+        "en": "Directly to the victim (or their heir/successor), up to the sum insured. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 23",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Страховое возмещение выплачивается страховщиком непосредственно потерпевшему (его наследнику или правопреемнику) в размере причиненного вреда, но не более страховой суммы.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgo_decision_15days",
+      "tags": [
+        "ОСГО",
+        "срок решения",
+        "15 дней"
+      ],
+      "q": {
+        "ru": "В какой срок принимается решение о выплате по ОСГО?",
+        "uz": "Majburiy sugʻurta boʻyicha toʻlov toʻgʻrisidagi qaror qaysi muddatda qabul qilinadi?",
+        "en": "Within what period is the claims decision taken?"
+      },
+      "a": {
+        "ru": "В течение пятнадцати календарных дней со дня представления документов. Решение — либо выплата, либо мотивированный отказ.",
+        "uz": "Hujjatlar taqdim etilgan kundan oʻn besh kalendar kun ichida. Qaror — toʻlov yoki asoslantirilgan rad etish.",
+        "en": "Within fifteen calendar days from submission of the documents. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 21",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Страховщик принимает решение о выплате или отказе в выплате страхового возмещения в течение пятнадцати календарных дней со дня представления извещения о дорожно-транспортном происшествии с приложением материалов и документов, указанных в части второй настоящей статьи.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgo_no_repair",
+      "tags": [
+        "ОСГО",
+        "ремонт до осмотра"
+      ],
+      "q": {
+        "ru": "Можно ли ремонтировать автомобиль до решения страховщика?",
+        "uz": "Sugʻurtalovchi qarorigacha avtomobilni taʼmirlash mumkinmi?",
+        "en": "May the vehicle be repaired before the insurer's decision?"
+      },
+      "a": {
+        "ru": "Нет. Владельцы транспортных средств не вправе ремонтировать или утилизировать транспортное средство без письменного согласия страховщика или до решения о выплате либо отказе.",
+        "uz": "Yoʻq. Transport vositasi egalari sugʻurtalovchining yozma roziligisiz yoki qaror qabul qilinmaguncha taʼmirlash yoki utilizatsiya qilishga haqli emas.",
+        "en": "No, not without the insurer's written consent or before the decision. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 21",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Владельцы транспортных средств не вправе производить ремонт или утилизацию транспортных средств без письменного согласия страховщика или до дня принятия страховщиком решения о выплате либо об отказе в выплате страхового возмещения.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "osgop_victim",
+      "tags": [
+        "ОСГОП",
+        "перевозчик",
+        "пассажир"
+      ],
+      "q": {
+        "ru": "Кто считается потерпевшим по ОСГО перевозчика?",
+        "uz": "Tashuvchining majburiy sugʻurtasida jabrlanuvchi kim hisoblanadi?",
+        "en": "Who is the victim under carrier's liability insurance?"
+      },
+      "a": {
+        "ru": "Пассажир, здоровью и (или) имуществу которого причинён вред и который имеет право на страховое возмещение; имущество пассажира — багаж и ручная кладь.",
+        "uz": "Sogʻligʻiga va (yoki) mol-mulkiga zarar yetkazilgan hamda tovon olish huquqiga ega yoʻlovchi; yoʻlovchi mol-mulki — bagaj va qoʻl yuki.",
+        "en": "A passenger whose health and/or property has been harmed; passenger property means baggage and hand luggage. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-386 (ОСГОП)",
+          "article": "ст. 3",
+          "doc": "Закон об обязательном страховании ответственности перевозчика",
+          "quote": {
+            "ru": "потерпевший — пассажир, здоровью и (или) имуществу которого причинен вред, имеющий право на получение страхового возмещения;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/2652781",
+            "uz": "https://lex.uz/uz/docs/-2652779",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "pd_storage_uz",
+      "tags": [
+        "персональные данные",
+        "ст. 27¹",
+        "хранение в Узбекистане"
+      ],
+      "q": {
+        "ru": "Где должны храниться персональные данные граждан Узбекистана?",
+        "uz": "Oʻzbekiston fuqarolarining shaxsiy maʼlumotlari qayerda saqlanishi kerak?",
+        "en": "Where must personal data of Uzbek citizens be stored?"
+      },
+      "a": {
+        "ru": "Данные граждан РУз хранятся с соблюдением принципов закона; обязательному хранению на территории Узбекистана подлежат биометрические и генетические данные, а также данные пользователей операторов телекоммуникаций. Проектное правило компании — держать всю базу в Узбекистане.",
+        "uz": "OʻzR fuqarolari maʼlumotlari qonun tamoyillariga rioya qilgan holda saqlanadi; biometrik va genetik maʼlumotlar hamda telekommunikatsiya operatorlari foydalanuvchilari maʼlumotlari Oʻzbekiston hududida saqlanishi shart.",
+        "en": "Data of Uzbek citizens must be stored under the law's principles; biometric, genetic and telecom user data must be stored inside Uzbekistan. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-547 (персональные данные)",
+          "article": "ст. 27¹",
+          "doc": "Закон о персональных данных",
+          "quote": {
+            "ru": "Персональные данные граждан Республики Узбекистан должны храниться при обеспечении основных принципов настоящего Закона. Обязательному хранению на территории Республики Узбекистан подлежат следующие персональные данные: биометрические данные физических лиц; генетические данные физических лиц;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/4396428",
+            "uz": "https://lex.uz/uz/docs/-4396419",
+            "en": "https://lex.uz/ru/docs/4831939"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "pd_ads_scrape"
+      ]
+    },
+    {
+      "id": "pd_principles",
+      "tags": [
+        "персональные данные",
+        "принципы",
+        "ст. 5"
+      ],
+      "q": {
+        "ru": "Какие принципы обработки персональных данных обязательны?",
+        "uz": "Shaxsiy maʼlumotlarni qayta ishlashning qanday tamoyillari majburiy?",
+        "en": "What principles of personal data processing are mandatory?"
+      },
+      "a": {
+        "ru": "Соблюдение конституционных прав, законность целей и способов обработки, точность и достоверность данных, конфиденциальность и защищённость, равенство прав участников, безопасность личности, общества и государства.",
+        "uz": "Konstitutsiyaviy huquqlarga rioya qilish, qayta ishlash maqsad va usullarining qonuniyligi, maʼlumotlarning aniqligi, maxfiylik va himoyalanganlik, ishtirokchilar huquqlarining tengligi, xavfsizlik.",
+        "en": "Constitutional rights, lawful purposes and means, accuracy, confidentiality and security, equality of participants. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-547 (персональные данные)",
+          "article": "ст. 5",
+          "doc": "Закон о персональных данных",
+          "quote": {
+            "ru": "Основными принципами настоящего Закона являются: соблюдение конституционных прав и свобод человека и гражданина;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/4396428",
+            "uz": "https://lex.uz/uz/docs/-4396419",
+            "en": "https://lex.uz/ru/docs/4831939"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "pd_ads_scrape"
+      ]
+    },
+    {
+      "id": "pd_protection_measures",
+      "tags": [
+        "персональные данные",
+        "защита",
+        "ст. 27"
+      ],
+      "q": {
+        "ru": "Что компания обязана делать для защиты персональных данных?",
+        "uz": "Kompaniya shaxsiy maʼlumotlarni himoya qilish uchun nima qilishi shart?",
+        "en": "What must the company do to protect personal data?"
+      },
+      "a": {
+        "ru": "Принимать правовые, организационные и технические меры: защита частной жизни, целостность и сохранность данных, конфиденциальность, предотвращение незаконной обработки.",
+        "uz": "Huquqiy, tashkiliy va texnik choralar koʻrish: shaxsiy hayotni himoya qilish, maʼlumotlar butunligi va saqlanishi, maxfiylik, noqonuniy qayta ishlashning oldini olish.",
+        "en": "Legal, organisational and technical measures: privacy, integrity, confidentiality, prevention of unlawful processing. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-547 (персональные данные)",
+          "article": "ст. 27",
+          "doc": "Закон о персональных данных",
+          "quote": {
+            "ru": "Государство гарантирует защиту персональных данных. Собственник и (или) оператор, а также третье лицо принимают правовые, организационные и технические меры по защите персональных данных, обеспечивающие: реализацию права субъекта на защиту от вмешательства в его частную жизнь;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/4396428",
+            "uz": "https://lex.uz/uz/docs/-4396419",
+            "en": "https://lex.uz/ru/docs/4831939"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "pd_ads_scrape",
+      "tags": [
+        "объявления",
+        "персональные данные",
+        "оценка"
+      ],
+      "q": {
+        "ru": "Можно ли сохранять данные продавца из объявления при оценке стоимости?",
+        "uz": "Qiymatni baholashda eʼlondagi sotuvchi maʼlumotlarini saqlash mumkinmi?",
+        "en": "May we store the seller's data from an advertisement when valuing?"
+      },
+      "a": {
+        "ru": "Нет. Хранить можно только характеристики объекта и цену; ФИО, телефон, профиль и фото продавца не сохраняются, данные обезличиваются. Основание — принципы законности целей обработки и защиты данных.",
+        "uz": "Yoʻq. Faqat obyekt tavsiflari va narxni saqlash mumkin; sotuvchining FISh, telefoni, profili va surati saqlanmaydi, maʼlumotlar shaxssizlantiriladi.",
+        "en": "No. Only the object's features and price may be kept; the seller's name, phone, profile and photos must not be stored. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-547 (персональные данные)",
+          "article": "ст. 5",
+          "doc": "Закон о персональных данных",
+          "quote": {
+            "ru": "Основными принципами настоящего Закона являются: соблюдение конституционных прав и свобод человека и гражданина;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/4396428",
+            "uz": "https://lex.uz/uz/docs/-4396419",
+            "en": "https://lex.uz/ru/docs/4831939"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "pd_ads_scrape"
+      ]
+    },
+    {
+      "id": "credit_uncovered",
+      "tags": [
+        "кредитное страхование",
+        "необеспеченная часть"
+      ],
+      "q": {
+        "ru": "Какую часть кредита можно страховать?",
+        "uz": "Kreditning qaysi qismini sugʻurtalash mumkin?",
+        "en": "Which part of a loan may be insured?"
+      },
+      "a": {
+        "ru": "В проекте действует правило: страхуется только необеспеченная залогом часть и не более 50% суммы кредита. Полного текста документа регулятора по кредитному страхованию в библиотеке нет — норму нужно подтвердить документом от заказчика.",
+        "uz": "Loyihada qoida amal qiladi: faqat garov bilan taʼminlanmagan qism va kredit summasining 50 foizidan koʻp boʻlmagan qismi sugʻurtalanadi. Regulyator hujjatining toʻliq matni kutubxonada yoʻq.",
+        "en": "Project rule: only the unsecured part and not more than 50% of the loan. The regulator's full text is not in the library — to be confirmed."
+      },
+      "citations": [],
+      "rule_codes": [
+        "credit_uncovered"
+      ]
+    },
+    {
+      "id": "credit_payer",
+      "tags": [
+        "кредитное страхование",
+        "плательщик премии"
+      ],
+      "q": {
+        "ru": "Кто платит премию по страхованию кредитного риска?",
+        "uz": "Kredit xavfini sugʻurtalash boʻyicha mukofotni kim toʻlaydi?",
+        "en": "Who pays the premium in credit risk insurance?"
+      },
+      "a": {
+        "ru": "По правилу проекта страхователь — банк-кредитор, и премия принимается только от банка. Документального подтверждения нормой в библиотеке пока нет; запрошен документ регулятора.",
+        "uz": "Loyiha qoidasiga koʻra sugʻurta qildiruvchi — kreditor bank, mukofot faqat bankdan qabul qilinadi. Kutubxonada hujjat bilan tasdiq yoʻq.",
+        "en": "By project rule the policyholder is the lending bank and only the bank may pay the premium; the regulator's document is not in the library."
+      },
+      "citations": [],
+      "rule_codes": [
+        "credit_payer"
+      ]
+    },
+    {
+      "id": "sum_vs_valuation",
+      "tags": [
+        "страховая сумма",
+        "оценка системы"
+      ],
+      "q": {
+        "ru": "Страховая сумма выше оценки системы — это стоп?",
+        "uz": "Sugʻurta summasi tizim bahosidan yuqori — bu toʻxtatishmi?",
+        "en": "The sum insured exceeds the system valuation — is that a stop?"
+      },
+      "a": {
+        "ru": "Это предупреждение: превышение надо либо снять, либо подтвердить документами о стоимости (отчёт оценщика, счёт, договор купли-продажи). Если превышена реальная страховая стоимость, договор ничтожен в части превышения.",
+        "uz": "Bu ogohlantirish: ortiqchani olib tashlash yoki qiymat hujjatlari bilan tasdiqlash kerak. Haqiqiy sugʻurta qiymatidan oshsa, shartnoma oshgan qismida haqiqiy emas.",
+        "en": "It is a warning: remove the excess or support the value with documents. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 938",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Если страховая сумма, указанная в договоре страхования имущества или предпринимательского риска, превышает страховую стоимость, договор является недействительным в той части, в которой страховая сумма превышает страховую стоимость.",
+            "uz": "Agar sugʻurta shartnomasida koʻrsatilgan mol-mulk yoki tadbirkorlik xavfining sugʻurta summasi sugʻurta qiymatidan ortiq boʻlsa, shartnoma sugʻurta summasining sugʻurta qiymatidan ortiq boʻlgan qismida oʻz-oʻzidan haqiqiy boʻlmaydi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "sum_vs_valuation",
+        "value_ad_source"
+      ]
+    },
+    {
+      "id": "appraiser_optional",
+      "tags": [
+        "оценщик",
+        "отчёт об оценке"
+      ],
+      "q": {
+        "ru": "Нужен ли отчёт независимого оценщика для страхования?",
+        "uz": "Sugʻurta uchun mustaqil baholovchi hisoboti kerakmi?",
+        "en": "Is an independent appraiser's report required for insurance?"
+      },
+      "a": {
+        "ru": "Нет, обязательная оценка предусмотрена не для страхования, а для сделок с госимуществом и спора о стоимости. Для страхования стоимость определяется соглашением сторон, а страховщик вправе организовать оценку сам.",
+        "uz": "Yoʻq, majburiy baholash sugʻurta uchun emas, davlat mulki bitimlari va qiymat boʻyicha nizolar uchun nazarda tutilgan. Sugʻurtada qiymat taraflar kelishuviga koʻra aniqlanadi.",
+        "en": "No; mandatory valuation applies to state property deals and value disputes, not insurance. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 935",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховой стоимостью (страховой оценкой) признается стоимость имущества, с которым связывается страховой интерес, определяемая соглашением сторон на момент заключения договора страхования, если законодательством не предусмотрено иное.",
+            "uz": "Sugʻurta shartnomasini tuzish paytida taraflarning kelishuviga koʻra aniqlanadigan, sugʻurta manfaati bilan bogʻlanadigan mol-mulk qiymati, agar qonunchilikda boshqacha tartib nazarda tutilmagan boʻlsa, sugʻurta qiymati (sugʻurta bahosi) deb hisoblanadi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        },
+        {
+          "act": "ГК РУз",
+          "article": "ст. 932",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора страхования имущества страховщик вправе произвести осмотр страхуемого имущества, а при необходимости — организовать проведение оценки в целях установления его действительной стоимости. (часть первая статьи 932 в редакции Закона Республики Узбекистан от 17 сентября 2010 г.",
+            "uz": "Mol-mulkni sugʻurtalash shartnomasi tuzilayotganida sugʻurtalovchi sugʻurta qilinayotgan mol-mulkni koʻzdan kechirishga, zarurat boʻlganda esa uning haqiqiy qiymatini belgilash maqsadida baholashdan oʻtkazishni tashkil etishga haqli.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "appraiser_optional"
+      ]
+    },
+    {
+      "id": "value_ad_source",
+      "tags": [
+        "объявления",
+        "рыночная стоимость"
+      ],
+      "q": {
+        "ru": "Можно ли брать стоимость прямо из объявления на сайте?",
+        "uz": "Qiymatni toʻgʻridan-toʻgʻri saytdagi eʼlondan olish mumkinmi?",
+        "en": "May we take the value straight from an online advertisement?"
+      },
+      "a": {
+        "ru": "Цена объявления — это цена предложения, а не рыночная стоимость: нужны корректировки на торг, состояние и износ. Документы клиента (счёт, договор, отчёт оценщика) приоритетнее объявлений.",
+        "uz": "Eʼlondagi narx — taklif narxi, bozor qiymati emas: savdo, holat va eskirishga tuzatish kerak. Mijoz hujjatlari eʼlonlardan ustun.",
+        "en": "An advertised price is an offer price, not market value; adjustments are needed and client documents prevail."
+      },
+      "citations": [],
+      "rule_codes": [
+        "value_ad_source"
+      ]
+    },
+    {
+      "id": "depreciation",
+      "tags": [
+        "износ",
+        "возмещение"
+      ],
+      "q": {
+        "ru": "Можно ли уменьшать выплату на износ?",
+        "uz": "Toʻlovni eskirishga kamaytirish mumkinmi?",
+        "en": "May the payout be reduced for depreciation?"
+      },
+      "a": {
+        "ru": "Только если порядок определения возмещения, включая износ, описан в правилах страхования и договоре. Иначе уменьшение выплаты будет оспорено.",
+        "uz": "Faqat tovonni aniqlash tartibi, shu jumladan eskirish, sugʻurta qoidalari va shartnomada yozilgan boʻlsa. Aks holda kamaytirish nizoga sabab boʻladi.",
+        "en": "Only if the indemnity calculation, including depreciation, is set out in the rules and the contract."
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 30",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Правила страхования (за исключением правил страхования, принимаемых в рамках международных систем страхования) принимаются и утверждаются страховщиком или объединением страховщиков и должны содержать основные положения страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        },
+        {
+          "act": "ГК РУз",
+          "article": "ст. 929",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора имущественного страхования между страхователем и страховщиком должно быть достигнуто соглашение: об определенном имуществе либо ином имущественном интересе, являющемся объектом страхования;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "value_depreciation"
+      ]
+    },
+    {
+      "id": "payment_deadline_property",
+      "tags": [
+        "срок выплаты",
+        "имущество"
+      ],
+      "q": {
+        "ru": "Какой срок выплаты по добровольному имущественному страхованию?",
+        "uz": "Ixtiyoriy mulkiy sugʻurtada toʻlov muddati qanday?",
+        "en": "What is the payment deadline in voluntary property insurance?"
+      },
+      "a": {
+        "ru": "Закон единого срока не устанавливает — срок определяется договором и правилами страхования. При этом страховщик не вправе отказать в выплате в срок, установленный договором, если доказательства случая получены.",
+        "uz": "Qonun yagona muddat belgilamaydi — muddat shartnoma va qoidalarda belgilanadi. Dalillar olingan boʻlsa, sugʻurtalovchi shartnomadagi muddatda rad etishga haqli emas.",
+        "en": "The law sets no single deadline; it is fixed by the contract and rules."
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 34",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Страховщик обязан выплатить страховое возмещение (страховую выплату) указанному в договоре страхования лицу только при наступлении страхового случая.",
+            "uz": "Sugʻurtalovchi sugʻurta shartnomasida koʻrsatilgan shaxsga faqat sugʻurta hodisasi yuz bergan taqdirda sugʻurta tovonini (sugʻurta toʻlovini) toʻlashi shart.",
+            "en": "The insurer shall be obliged to pay the insurance indemnity (insurance benefit) to the person specified in the insurance contract only upon the occurrence of the insured event."
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "electronic_policy",
+      "tags": [
+        "ЕАИС",
+        "электронный полис",
+        "Положение 3571"
+      ],
+      "q": {
+        "ru": "Можно ли выдавать полис в электронном виде?",
+        "uz": "Polisni elektron shaklda berish mumkinmi?",
+        "en": "May the policy be issued electronically?"
+      },
+      "a": {
+        "ru": "Да: договор заключается в письменной или электронной форме, а порядок оказания страховых услуг в электронной форме определён Положением рег. № 3571 от 11.11.2024. В библиотеке есть узбекский (кириллица) текст Положения 3571.",
+        "uz": "Ha: shartnoma yozma yoki elektron shaklda tuziladi, elektron shakldagi xizmat tartibi 3571-sonli Nizomda belgilangan.",
+        "en": "Yes; the contract may be electronic, and the procedure is set by Regulation No. 3571 of 11.11.2024. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 927",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Договор страхования должен быть заключен в письменной или электронной форме.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "personal_vs_property",
+      "tags": [
+        "классификация",
+        "личное",
+        "имущественное"
+      ],
+      "q": {
+        "ru": "Кредитное страхование — это личное или имущественное?",
+        "uz": "Kredit sugʻurtasi shaxsiy sugʻurtami yoki mulkiymi?",
+        "en": "Is credit insurance personal or property insurance?"
+      },
+      "a": {
+        "ru": "Имущественное. По терминологии компании личное страхование — только жизнь и здоровье; всё остальное, включая кредиты, гарантии и финансовые риски, относится к имущественному.",
+        "uz": "Mulkiy. Kompaniya atamalariga koʻra shaxsiy sugʻurta — faqat hayot va sogʻliq; qolgani, jumladan kreditlar va moliyaviy xavflar, mulkiy sugʻurtaga kiradi.",
+        "en": "Property. In company terms personal insurance covers life and health only; everything else is property insurance."
+      },
+      "citations": [],
+      "rule_codes": []
+    },
+    {
+      "id": "official_language",
+      "tags": [
+        "язык",
+        "официальный текст",
+        "перевод"
+      ],
+      "q": {
+        "ru": "Какой текст закона считается официальным?",
+        "uz": "Qonunning qaysi matni rasmiy hisoblanadi?",
+        "en": "Which text of the law is official?"
+      },
+      "a": {
+        "ru": "Официальным является узбекский текст. Русские редакции норм, изменённых ЗРУ-1154 (2026), на lex.uz помечены как неофициальный перевод, английские тексты есть далеко не по всем актам и обычно отражают старую редакцию.",
+        "uz": "Rasmiy matn — oʻzbek tilidagi matn. OʻRQ-1154 bilan oʻzgartirilgan normalarning ruscha tahriri lex.uz da norasmiy tarjima deb belgilangan.",
+        "en": "The Uzbek text is official. Russian versions of provisions amended in 2026 are marked as unofficial translations; English versions exist only for some acts."
+      },
+      "citations": [],
+      "rule_codes": []
+    },
+    {
+      "id": "zru1154_changes",
+      "tags": [
+        "ЗРУ-1154",
+        "изменения",
+        "2026"
+      ],
+      "q": {
+        "ru": "Что главное изменил ЗРУ-1154 от 22.06.2026?",
+        "uz": "22.06.2026-dagi OʻRQ-1154 nimani oʻzgartirdi?",
+        "en": "What did Law LRU-1154 of 22.06.2026 change?"
+      },
+      "a": {
+        "ru": "В ГК — статьи 927, 934, 936, 938, 955 (электронная форма договора, страховая сумма, недострахование, превышение стоимости, отказ в выплате); в Законе о страховой деятельности — новая ст. 33¹ о полисе и расширенное раскрытие информации по ст. 63; изменены законы об ОСГО, ОСГОР и ОСГОП.",
+        "uz": "FKda — 927, 934, 936, 938, 955-moddalar; Sugʻurta faoliyati toʻgʻrisidagi qonunda — polis haqida yangi 33¹-modda va 63-modda boʻyicha kengaytirilgan axborot berish; majburiy sugʻurta qonunlari ham oʻzgartirilgan.",
+        "en": "It amended Civil Code articles 927, 934, 936, 938, 955, introduced Article 33-1 on the policy and expanded disclosure under Article 63. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Закон о страховой деятельности ЗРУ-730",
+          "article": "ст. 33¹",
+          "doc": "Закон РУз о страховой деятельности",
+          "quote": {
+            "ru": "Страховым полисом является документ, подтверждающий уплату страховой премии, установленной договором страхования или правилами страхования, и вступление в силу страховых обязательств страховщика.",
+            "uz": "Sugʻurta shartnomasiga yoki sugʻurta qoidalariga asosan belgilangan sugʻurta mukofotining toʻlanganligini va sugʻurtalovchining sugʻurtaga oid majburiyatlari kuchga kirganligini tasdiqlovchi hujjat sugʻurta polisi hisoblanadi.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/5739120",
+            "uz": "https://lex.uz/uz/docs/-5739117",
+            "en": "https://lex.uz/ru/docs/6124730"
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        },
+        {
+          "act": "ГК РУз",
+          "article": "ст. 927",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Договор страхования должен быть заключен в письменной или электронной форме.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "reserves_who",
+      "tags": [
+        "резервы",
+        "Положение 1882"
+      ],
+      "q": {
+        "ru": "Кто и какие страховые резервы обязан формировать?",
+        "uz": "Kim va qanday sugʻurta zaxiralarini shakllantirishi shart?",
+        "en": "Who must form insurance reserves and which ones?"
+      },
+      "a": {
+        "ru": "Страховщик формирует резервы по Положению 1882: незаработанной премии, убытков, катастроф, колебаний убыточности и другие. По обязательным видам (ОСГО, ОСГОР, ОСГОП) дополнительно формируется резерв предупредительных мероприятий.",
+        "uz": "Sugʻurtalovchi 1882-sonli Nizomga koʻra zaxiralarni shakllantiradi: ishlab topilmagan mukofot, zararlar, katastrofa va boshqalar. Majburiy turlarda ogohlantiruvchi tadbirlar zaxirasi ham shakllantiriladi.",
+        "en": "The insurer forms reserves under Regulation 1882; for compulsory classes a preventive measures reserve is also required. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "Положение 1882 (страховые резервы)",
+          "article": "резерв катастроф",
+          "doc": "Положение о страховых резервах",
+          "quote": {
+            "ru": "Резерв катастроф (РК) предназначен для покрытия чрезвычайного ущерба, явившегося следствием непреодолимой силы или крупномасштабной аварии, повлекших за собой необходимость осуществления страховых выплат по большому количеству договоров страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1416860",
+            "uz": "https://lex.uz/uz/docs/-1416862",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "spec_tech_osgo",
+      "tags": [
+        "спецтехника",
+        "ОСГО",
+        "трактор"
+      ],
+      "q": {
+        "ru": "Нужен ли полис ОСГО на трактор или экскаватор?",
+        "uz": "Traktor yoki ekskavatorga majburiy sugʻurta polisi kerakmi?",
+        "en": "Is motor third-party liability needed for a tractor or excavator?"
+      },
+      "a": {
+        "ru": "Вопрос решается по тому, зарегистрирована ли машина как транспортное средство и допущена ли к дорожному движению: техника на дорогах общего пользования подпадает под ОСГО владельцев транспортных средств. Точный перечень — в Законе ЗРУ-155 и Правилах ПКМ № 141; в спорном случае запросите регистрационные документы.",
+        "uz": "Masala mashina transport vositasi sifatida roʻyxatdan oʻtgani va yoʻl harakatiga qoʻyilganiga qarab hal qilinadi. Aniq roʻyxat OʻRQ-155 va 141-sonli qaror Qoidalarida; shubhali holatda roʻyxat hujjatlarini soʻrang.",
+        "en": "It depends on whether the machine is registered as a vehicle and admitted to road traffic; see LRU-155 and Resolution 141."
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-155 (ОСГО ВТС)",
+          "article": "ст. 9",
+          "doc": "Закон об ОСГО владельцев транспортных средств",
+          "quote": {
+            "ru": "Договор обязательного страхования заключается сроком на один год, за исключением случаев, предусмотренных частями второй и третьей настоящей статьи, а также статьей 16 настоящего Закона.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1342476",
+            "uz": "https://lex.uz/uz/docs/-1342474",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    },
+    {
+      "id": "subrogation",
+      "tags": [
+        "суброгация",
+        "виновник"
+      ],
+      "q": {
+        "ru": "Можно ли взыскать выплаченное с виновника?",
+        "uz": "Toʻlangan summani aybdordan undirish mumkinmi?",
+        "en": "Can we recover the paid indemnity from the party at fault?"
+      },
+      "a": {
+        "ru": "Да, по имущественному страхованию к страховщику переходит право требования к лицу, ответственному за убытки (суброгация, ст. 957 ГК). Документы по виновнику надо собирать сразу при урегулировании.",
+        "uz": "Ha, mulkiy sugʻurtada zarar uchun javobgar shaxsga nisbatan talab huquqi sugʻurtalovchiga oʻtadi (subrogatsiya, FK 957-modda).",
+        "en": "Yes, subrogation applies in property insurance (Civil Code Article 957)."
+      },
+      "citations": [],
+      "rule_codes": []
+    },
+    {
+      "id": "osgor_after_payment",
+      "tags": [
+        "ОСГОР",
+        "остаток суммы",
+        "доплата премии"
+      ],
+      "q": {
+        "ru": "После выплаты по ОСГОР страховая сумма уменьшилась — что дальше?",
+        "uz": "IFJMS boʻyicha toʻlovdan keyin sugʻurta summasi kamaydi — keyin nima?",
+        "en": "After a payout the sum insured has decreased — what next?"
+      },
+      "a": {
+        "ru": "Остаток страховой суммы уменьшается на сумму выплаты, и работодатель доплачивает премию пропорционально выплате и остатку срока договора. Это оформляется допсоглашением.",
+        "uz": "Sugʻurta summasi qoldigʻi toʻlangan tovonga kamayadi, ish beruvchi esa toʻlovga va shartnoma qolgan muddatiga mutanosib mukofot toʻlaydi.",
+        "en": "The remaining sum insured is reduced by the payout and the employer tops up the premium pro rata. (unofficial translation)"
+      },
+      "citations": [
+        {
+          "act": "ЗРУ-210 (ОСГОР)",
+          "article": "ст. 10",
+          "doc": "Закон об обязательном страховании гражданской ответственности работодателя",
+          "quote": {
+            "ru": "Страховая сумма по договору обязательного страхования гражданской ответственности работодателя устанавливается: для работодателя, осуществляющего на дату заключения договора обязательного страхования гражданской ответственности работодателя деятельность более одного года, — в размере годовой",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1471201",
+            "uz": "https://lex.uz/uz/docs/-1471197",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "OSGOR-09"
+      ]
+    },
+    {
+      "id": "osgor_no_contract",
+      "tags": [
+        "ОСГОР",
+        "штраф",
+        "КоАО"
+      ],
+      "q": {
+        "ru": "Что грозит работодателю без договора ОСГОР?",
+        "uz": "IFJMS shartnomasisiz ish beruvchiga nima tahdid qiladi?",
+        "en": "What are the consequences if the employer has no policy?"
+      },
+      "a": {
+        "ru": "Административный штраф по КоАО (ст. 49²): на должностное лицо 10–15 БРВ, повторно в течение года — 15–30 БРВ. Текста КоАО в библиотеке нет — ссылку нужно сверить по lex.uz перед использованием в письме клиенту.",
+        "uz": "MJtKga koʻra maʼmuriy jarima (49²-modda): mansabdor shaxsga 10–15 BHM, bir yil ichida takrorlansa — 15–30 BHM. MJtK matni kutubxonada yoʻq.",
+        "en": "An administrative fine under the Code of Administrative Liability; the code text is not in the library and must be checked on lex.uz."
+      },
+      "citations": [],
+      "rule_codes": [
+        "OSGOR-11"
+      ]
+    },
+    {
+      "id": "osgor_budget_double",
+      "tags": [
+        "ОСГОР",
+        "бюджет",
+        "двойное покрытие"
+      ],
+      "q": {
+        "ru": "Можно ли за счёт бюджета страховать работников, уже застрахованных государством?",
+        "uz": "Byudjet hisobidan davlat sugʻurtalagan xodimlarni sugʻurtalash mumkinmi?",
+        "en": "May budget funds insure employees already covered by the state?"
+      },
+      "a": {
+        "ru": "Нет: по ЗРУ-210 в редакции ЗРУ-1154 запрещено за счёт бюджетных средств страховать по ОСГОР работников, для которых предусмотрено обязательное государственное страхование жизни и здоровья.",
+        "uz": "Yoʻq: OʻRQ-1154 tahriridagi OʻRQ-210 ga koʻra byudjet mablagʻlari hisobidan bunday xodimlarni sugʻurtalash taqiqlanadi.",
+        "en": "No; budget funds may not be used to double-cover employees under compulsory state life and health insurance. (unofficial translation)"
+      },
+      "citations": [],
+      "rule_codes": [
+        "OSGOR-12"
+      ]
+    },
+    {
+      "id": "annuity_over_year",
+      "tags": [
+        "ОСГОР",
+        "аннуитет"
+      ],
+      "q": {
+        "ru": "Возмещение по ОСГОР на срок больше года — как оформляется?",
+        "uz": "IFJMS boʻyicha bir yildan ortiq muddatga tovon qanday rasmiylashtiriladi?",
+        "en": "How is indemnity for more than a year arranged?"
+      },
+      "a": {
+        "ru": "Через трёхсторонний договор аннуитетов со страховщиком, имеющим лицензию по страхованию жизни (ст. 14, 15 ЗРУ-210, пп. 49–50 Правил ПКМ № 177).",
+        "uz": "Hayotni sugʻurtalash litsenziyasiga ega sugʻurtalovchi bilan uch tomonlama annuitet shartnomasi orqali.",
+        "en": "Through a tripartite annuity contract with a life insurer. (unofficial translation)"
+      },
+      "citations": [],
+      "rule_codes": [
+        "OSGOR-13"
+      ]
+    },
+    {
+      "id": "premium_instalments",
+      "tags": [
+        "рассрочка",
+        "взносы",
+        "ст. 942"
+      ],
+      "q": {
+        "ru": "Можно ли принимать премию в рассрочку?",
+        "uz": "Mukofotni boʻlib-boʻlib olish mumkinmi?",
+        "en": "May the premium be paid in instalments?"
+      },
+      "a": {
+        "ru": "По добровольным видам — да, если это предусмотрено договором; в договоре можно установить последствия неуплаты очередного взноса. По ОСГОР премия уплачивается единовременно в пять рабочих дней.",
+        "uz": "Ixtiyoriy turlarda — ha, shartnomada nazarda tutilgan boʻlsa; navbatdagi badal toʻlanmaslik oqibatlarini shartnomada belgilash mumkin. IFJMSda mukofot bir yoʻla toʻlanadi.",
+        "en": "For voluntary classes yes, if the contract provides for it; for employer's liability the premium is a single payment."
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 942",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "Страховщик при определении размера страховой премии, подлежащей уплате по договору страхования, вправе применять разработанные им страховые тарифы, определяющие премию, взимаемую с единицы страховой суммы, с учетом объекта страхования и характера страхового риска.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        },
+        {
+          "act": "ПКМ № 177 (Правила ОСГОР)",
+          "article": "п. 26",
+          "doc": "Правила обязательного страхования ответственности работодателя",
+          "quote": {
+            "ru": "Страховая премия по договору обязательного страхования уплачивается работодателем единовременно в течение пяти рабочих дней с даты заключения договора обязательного страхования.",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/1493387",
+            "uz": "https://lex.uz/uz/docs/-1493389",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": [
+        "premium_unpaid"
+      ]
+    },
+    {
+      "id": "who_is_policyholder",
+      "tags": [
+        "страхователь",
+        "выгодоприобретатель"
+      ],
+      "q": {
+        "ru": "Чем страхователь отличается от выгодоприобретателя?",
+        "uz": "Sugʻurta qildiruvchi naf oluvchidan nimasi bilan farq qiladi?",
+        "en": "How does the policyholder differ from the beneficiary?"
+      },
+      "a": {
+        "ru": "Страхователь заключает договор и платит премию; выгодоприобретатель — лицо, в пользу которого заключён договор и которое получает возмещение. Замена выгодоприобретателя возможна по правилам ГК (ст. 945).",
+        "uz": "Sugʻurta qildiruvchi shartnoma tuzadi va mukofot toʻlaydi; naf oluvchi — foydasiga shartnoma tuzilgan va tovon oladigan shaxs.",
+        "en": "The policyholder concludes the contract and pays; the beneficiary receives the indemnity."
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 929",
+          "doc": "Гражданский кодекс, часть вторая",
+          "quote": {
+            "ru": "При заключении договора имущественного страхования между страхователем и страховщиком должно быть достигнуто соглашение: об определенном имуществе либо ином имущественном интересе, являющемся объектом страхования;",
+            "uz": null,
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/-180552",
+            "en": null
+          },
+          "official": {
+            "ru": false,
+            "uz": true,
+            "en": false
+          }
+        }
+      ],
+      "rule_codes": []
+    }
+  ]
+}

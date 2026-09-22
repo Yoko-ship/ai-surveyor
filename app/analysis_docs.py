@@ -29,9 +29,9 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 
-from . import auth, db
+from . import auth, db, guest
 from . import docparse as D
 from . import engine
 from . import ingest
@@ -61,6 +61,7 @@ SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS analysis_docs (
     id          TEXT PRIMARY KEY,
     user_id     INTEGER NOT NULL,
+    owner_key   TEXT NOT NULL DEFAULT '',
     filename    TEXT,
     mime        TEXT NOT NULL,
     size        INTEGER NOT NULL,
@@ -78,6 +79,12 @@ LEGAL_RE = re.compile(r"(ПКМ|ЗРУ|ст\.\s*\d|Правил|Положени
 
 def ensure_table(con) -> None:
     con.execute(SCHEMA_SQL)
+    # гостевой режим (22.09.2026): владелец файла — «u:<id>» вошедшего или «g:<guest_id>» гостя.
+    # Старые строки без owner_key достраиваются из user_id, чтобы ссылки не протухли.
+    cols = {r[1] for r in con.execute("PRAGMA table_info(analysis_docs)").fetchall()}
+    if "owner_key" not in cols:
+        con.execute("ALTER TABLE analysis_docs ADD COLUMN owner_key TEXT NOT NULL DEFAULT ''")
+    con.execute("UPDATE analysis_docs SET owner_key='u:'||user_id WHERE owner_key=''")
 
 
 # --------------------------------------------------------------------------- #
@@ -511,16 +518,17 @@ def _public(row: dict) -> dict:
             "expires_at": row["expires_at"]}
 
 
-def own_docs(con, user: dict, doc_ids: List[str]) -> List[dict]:
-    """Строки документов владельца. Чужой, несуществующий или просроченный id — 404 (одинаково)."""
+def own_docs(con, owner: Optional[str], doc_ids: List[str]) -> List[dict]:
+    """Строки документов владельца (owner_key: «u:<id>» или «g:<guest_id>»).
+    Чужой, несуществующий или просроченный id — 404 одинаково: по ответу не отличить."""
     ensure_table(con)
     now = _expired_before(datetime.now())
     out = []
     for doc_id in doc_ids:
-        if not isinstance(doc_id, str) or not re.fullmatch(r"[0-9a-f]{24}", doc_id):
+        if not owner or not isinstance(doc_id, str) or not re.fullmatch(r"[0-9a-f]{24}", doc_id):
             raise HTTPException(404, NOT_FOUND)
-        r = db.rows(con, "SELECT * FROM analysis_docs WHERE id=? AND user_id=? AND expires_at > ?",
-                    doc_id, user["id"], now)
+        r = db.rows(con, "SELECT * FROM analysis_docs WHERE id=? AND owner_key=? AND expires_at > ?",
+                    doc_id, owner, now)
         if not r:
             raise HTTPException(404, NOT_FOUND)
         out.append(r[0])
@@ -528,12 +536,18 @@ def own_docs(con, user: dict, doc_ids: List[str]) -> List[dict]:
 
 
 @router.post("/analytics/risk/document")
-async def upload_document(file: UploadFile = File(...), class_code: str = "", product_code: str = "",
-                          object_type: str = "", user: dict = Depends(auth.current_user)) -> dict:
+async def upload_document(request: Request, file: UploadFile = File(...), class_code: str = "",
+                          product_code: str = "", object_type: str = "") -> dict:
     """
     Один файл до 15 МБ: PDF или DOCX. Запрос не создаётся; через 24 часа файл удаляется.
     product_code/class_code/object_type — чтобы ответить, какие пункты чек-листа файл закрывает.
+    Без входа (гость, 22.09.2026) файл привязывается к анонимному guest_id из cookie.
     """
+    user = auth.optional_user(request)
+    owner = guest.owner_of(request, user)
+    if not owner:
+        raise HTTPException(400, "Не удалось опознать сессию гостя — откройте приложение заново")
+    who = user["login"] if user else "гость " + guest.short(owner)
     blob = await file.read(MAX_BYTES + 1)
     if not blob:
         raise HTTPException(400, "Файл пустой")
@@ -559,7 +573,7 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "", pr
     except Exception as e:                    # разбор упал — файл не держим, ошибку в журнал
         shutil.rmtree(folder, ignore_errors=True)
         with db.tx() as con:
-            db.audit(con, user["login"], "ошибка разбора договора для аналитики", "analysis_docs",
+            db.audit(con, who, "ошибка разбора договора для аналитики", "analysis_docs",
                      {"error": type(e).__name__, "format": fmt})
         raise HTTPException(422, "Файл прочитать не удалось: %s" % type(e).__name__)
     text, tables, status = core["read"]["text"], core["read"]["tables"], core["status"]
@@ -609,13 +623,14 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "", pr
         data = {"fields": _stored_fields(fields), "facts": facts, "prefill": prefill, "notes": notes,
                 "insurance_contract": bool(insurance), "format": fmt, "closes": closes,
                 "closes_basis": basis}
-        con.execute("INSERT INTO analysis_docs (id, user_id, filename, mime, size, kind, language, status,"
-                    " fields_json, created_at, expires_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
-                    (doc_id, user["id"], shown, MIME[fmt], len(blob), core["kind"]["kind"],
+        con.execute("INSERT INTO analysis_docs (id, user_id, owner_key, filename, mime, size, kind,"
+                    " language, status, fields_json, created_at, expires_at)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (doc_id, (user or {}).get("id") or 0, owner, shown, MIME[fmt], len(blob), core["kind"]["kind"],
                      core["lang"]["language"], status, json.dumps(data, ensure_ascii=False),
                      now.isoformat(timespec="seconds"),
                      (now + timedelta(hours=TTL_HOURS)).isoformat(timespec="seconds")))
-        db.audit(con, user["login"], "договор для аналитики разобран", f"analysis_doc:{doc_id}",
+        db.audit(con, who, "договор для аналитики разобран", f"analysis_doc:{doc_id}",
                  {"вид": core["kind"]["kind"], "язык": core["lang"]["language"], "статус": status,
                   "полей": len(fields), "подставлено": sorted(prefill["must"])})
         row = db.rows(con, "SELECT * FROM analysis_docs WHERE id=?", doc_id)[0]
@@ -626,19 +641,40 @@ async def upload_document(file: UploadFile = File(...), class_code: str = "", pr
     return out
 
 
-@router.get("/analytics/risk/document/{doc_id}")
-def get_document(doc_id: str, user: dict = Depends(auth.current_user)) -> dict:
+@router.get("/analytics/risk/documents")
+def my_documents(request: Request) -> dict:
+    """
+    Свои файлы, загруженные для анализа (вкладка «Фото» мини-аппа). Гостю — файлы его guest_id,
+    вошедшему — свои. Чужих в выдаче нет: отбор идёт по owner_key. Срок хранения — 24 часа.
+    """
+    owner = guest.owner_of(request, auth.optional_user(request))
+    if not owner:
+        return {"count": 0, "items": [], "ttl_hours": TTL_HOURS}
     with db.tx() as con:
-        return _public(own_docs(con, user, [doc_id])[0])
+        ensure_table(con)
+        rows = db.rows(con, "SELECT * FROM analysis_docs WHERE owner_key=? AND expires_at > ?"
+                            " ORDER BY created_at DESC LIMIT 50", owner, _expired_before(datetime.now()))
+    return {"count": len(rows), "items": [_public(r) for r in rows], "ttl_hours": TTL_HOURS,
+            "note": "Файлы хранятся 24 часа, затем удаляются автоматически"}
+
+
+@router.get("/analytics/risk/document/{doc_id}")
+def get_document(doc_id: str, request: Request) -> dict:
+    owner = guest.owner_of(request, auth.optional_user(request))
+    with db.tx() as con:
+        return _public(own_docs(con, owner, [doc_id])[0])
 
 
 @router.delete("/analytics/risk/document/{doc_id}")
-def delete_document(doc_id: str, user: dict = Depends(auth.current_user)) -> dict:
+def delete_document(doc_id: str, request: Request) -> dict:
+    user = auth.optional_user(request)
+    owner = guest.owner_of(request, user)
     with db.tx() as con:
-        own_docs(con, user, [doc_id])
+        own_docs(con, owner, [doc_id])
         con.execute("DELETE FROM analysis_docs WHERE id=?", (doc_id,))
         _remove_dir(doc_id)
-        db.audit(con, user["login"], "договор для аналитики удалён", f"analysis_doc:{doc_id}", None)
+        db.audit(con, (user["login"] if user else "гость " + guest.short(owner or "")),
+                 "договор для аналитики удалён", f"analysis_doc:{doc_id}", None)
     return {"ok": True, "doc_id": doc_id}
 
 
@@ -663,7 +699,7 @@ def _closes(kind: str, status: str, insurance: bool, names: List[str], closed: s
     return out
 
 
-def documents_block(con, user: Optional[dict], doc_ids: List[str], product_code: str,
+def documents_block(con, owner: Optional[str], doc_ids: List[str], product_code: str,
                     class_code: str, object_type: str) -> dict:
     """
     Что из нужных документов получено. Вид документа закрывает пункт чек-листа по той же таблице,
@@ -675,7 +711,7 @@ def documents_block(con, user: Optional[dict], doc_ids: List[str], product_code:
     except HTTPException as e:             # класс или продукт неверны — об этом скажет сам анализ
         need = {"required": [], "basis": None, "basis_text": str(e.detail)}
     names = [d["doc_name"] for d in need["required"]]
-    rows = own_docs(con, user, doc_ids) if doc_ids else []
+    rows = own_docs(con, owner, doc_ids) if doc_ids else []
     items, closed = [], set()
     for r in rows:
         data = json.loads(r["fields_json"] or "{}")

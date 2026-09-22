@@ -105,8 +105,8 @@ def check_menu():
     ok("«ОСГОР» сразу после «Расчёта»", "calc" in keys and keys[keys.index("calc") + 1:][:1] == ["osgor"], keys)
     ok("«Мои запросы» в меню нет", "my-requests" not in keys, keys)
     ok("«Ждут меня» у сотрудника не появилось", "inbox" not in keys, keys)
-    ok("сотрудник: меню ровно analytics, calc, osgor, photos, users",
-       keys == ["analytics", "calc", "osgor", "photos", "users"], keys)
+    ok("сотрудник: меню ровно analytics, calc, osgor, legal, photos, users",
+       keys == ["analytics", "calc", "osgor", "legal", "photos", "users"], keys)
     ok("is_admin = false, can_edit пуст",
        me["user"]["is_admin"] is False and me["can_edit"] == [], (me["user"], me.get("can_edit")))
     ok("user.name = full_name", me["user"]["name"] == me["user"]["full_name"], me["user"])
@@ -124,7 +124,7 @@ def check_menu():
     ok("админ: нет «Ждут меня», «Заявок», «Соглашений»",
        not {"inbox", "applications", "agreements"} & set(keys), keys)
     ok("админ: меню = база + «Настройки»",
-       keys == ["analytics", "calc", "osgor", "photos", "users", "settings"], keys)
+       keys == ["analytics", "calc", "osgor", "legal", "photos", "users", "settings"], keys)
     st, _ = call("GET", "/tg/inbox", who=ADM)
     ok("/tg/inbox как точка остался", st == 200, st)
 

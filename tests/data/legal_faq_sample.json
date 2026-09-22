@@ -1,0 +1,37 @@
+{
+  "version": "тестовый образец",
+  "generated": "2026-09-22",
+  "items": [
+    {
+      "id": "underinsurance",
+      "tags": ["недострахование", "неполное страхование", "ст. 936"],
+      "q": {
+        "ru": "Что будет, если страховая сумма меньше страховой стоимости?",
+        "uz": "Sugʻurta summasi sugʻurta qiymatidan kam boʻlsa nima boʻladi?",
+        "en": "What happens if the sum insured is below the insurable value?"
+      },
+      "a": {
+        "ru": "Это неполное страхование. Страховщик возмещает убыток пропорционально отношению страховой суммы к страховой стоимости (ГК РУз, ст. 936). Клиента нужно предупредить об этом до подписания договора.",
+        "uz": "Bu toʻliq boʻlmagan sugʻurta. Zarar sugʻurta summasining sugʻurta qiymatiga nisbatiga mutanosib ravishda qoplanadi (FK, 936-modda)."
+      },
+      "citations": [
+        {
+          "act": "ГК РУз",
+          "article": "ст. 936",
+          "quote": {
+            "ru": "Страховщик обязан возместить страхователю часть понесённых убытков пропорционально отношению страховой суммы к страховой стоимости.",
+            "uz": "Sugʻurtalovchi sugʻurta summasining sugʻurta qiymatiga nisbatiga mutanosib ravishda zararning bir qismini qoplashi shart.",
+            "en": null
+          },
+          "url": {
+            "ru": "https://lex.uz/ru/docs/180550",
+            "uz": "https://lex.uz/uz/docs/180552",
+            "en": null
+          },
+          "official": {"ru": false, "uz": true, "en": false}
+        }
+      ],
+      "rule_codes": ["underinsurance"]
+    }
+  ]
+}

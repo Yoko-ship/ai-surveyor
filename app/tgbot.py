@@ -64,9 +64,10 @@ HELP = ("Что умеет бот:\n"
         "/help — эта подсказка\n"
         "/admin КОД — разовый код первого администратора")
 
-OPEN_APP = ("Откройте приложение кнопкой «Открыть приложение» ниже или кнопкой меню внизу чата — "
-            "оно откроется прямо в Telegram: аналитика рисков, расчёт, ОСГОР и регистрация. "
-            "При регистрации нужен номер телефона: код придёт сюда же, в этот чат.")
+# 22.09.2026: приложение открыто для всех, регистрация отменена — подсказок про телефон и код нет.
+OPEN_APP = ("Приложение открыто для всех — нажмите кнопку меню внизу чата или кнопку "
+            "«Открыть приложение» ниже. Внутри: аналитика рисков, расчёт, ОСГОР и юридические ответы. "
+            "Регистрация не нужна.")
 
 WAIT_MSG = ("Заявка принята и ждёт подтверждения администратора. "
             "Как только вас подтвердят, откроются аналитика и расчёт.")
@@ -448,10 +449,9 @@ def start_keyboard():
 
 def cmd_start(con, tg_id, update_id=None) -> dict:
     """
-    Регистрация целиком в мини-приложении (решение заказчика 21.09.2026), поэтому /start короткий.
-    Почему так, а не пошаговый диалог в боте: анкета с согласием на ПД, номером телефона и списком
-    должностей должна существовать в одном экземпляре. Два пути означали бы две проверки номера,
-    две записи согласия и два места, где текст согласия может разойтись с документом юриста.
+    Приложение открыто для всех (решение заказчика 22.09.2026): /start — одно сообщение с кнопкой
+    web_app. Регистрации нет, поэтому подсказывать нечего; вход нужен только администратору,
+    он входит по своему username (TG_ADMIN_USERNAME) или логином и паролем на /login.
     """
     u = user_by_tg(con, tg_id)
     drop_dialog(con, tg_id)
@@ -464,14 +464,15 @@ def cmd_start(con, tg_id, update_id=None) -> dict:
         return {"action": "вход", "user_id": u["id"]}
     send(tg_id, "Здравствуйте! " + OPEN_APP, start_keyboard(), kind="start", con=con,
          user_id=(u or {}).get("id"))
-    return {"action": "регистрация в приложении", "user_id": (u or {}).get("id")}
+    return {"action": "открытое приложение", "user_id": (u or {}).get("id")}
 
 
 def cmd_me(con, tg_id) -> dict:
     u = user_by_tg(con, tg_id)
     if not u:
-        send(tg_id, "Вы ещё не зарегистрированы. Начните с команды /start.", kind="команда", con=con)
-        return {"action": "не зарегистрирован"}
+        send(tg_id, "Учётной записи у вас нет — она и не нужна: приложение открыто для всех. "
+                    + OPEN_APP, start_keyboard(), kind="команда", con=con)
+        return {"action": "гость"}
     send(tg_id, f"Роль: {u['role']}\nФилиал: {u.get('branch') or 'не указан'}\nСостояние: {u['status']}",
          kind="команда", con=con, user_id=u["id"])
     return {"action": "me", "user_id": u["id"], "status": u["status"]}
@@ -799,8 +800,17 @@ def start_polling():
 # кнопки «Сделать админом» / «Снять админа» показываются только админу (can_manage в /tg/users).
 # Меню 21.09.2026 (задача 144): «Аналитика» первой, «ОСГОР» после «Расчёта»; «Мои запросы» из меню
 # убраны, но точка /tg/my-requests и данные запросов остаются.
-NAV_BASE = [("analytics", "Аналитика"), ("calc", "Расчёт"), ("osgor", "ОСГОР"), ("photos", "Фото"),
-            ("users", "Пользователи")]
+NAV_BASE = [("analytics", "Аналитика"), ("calc", "Расчёт"), ("osgor", "ОСГОР"), ("legal", "Юрист"),
+            ("photos", "Фото"), ("users", "Пользователи")]
+# Гостевое меню (22.09.2026): приложение открыто для всех, вход нужен только администратору.
+# «Пользователи» гостю не показываем — это раздел админки.
+NAV_GUEST = [("analytics", "Аналитика"), ("calc", "Расчёт"), ("osgor", "ОСГОР"), ("legal", "Юрист"),
+             ("photos", "Фото")]
+# Что гостю можно: только чтение и расчёт, ничего не сохраняя в справочники.
+GUEST_RIGHTS = ["расчёт", "аналитика риска", "ОСГОР", "юридические ответы",
+                "справочники (чтение)", "договор для анализа (24 часа)"]
+GUEST_STATUS = "гость"
+GUEST_LOGIN_URL = "/login?next=/tg"
 
 # Справочники, которые админ правит из мини-приложения: ключ → метод, путь чтения и записи.
 # Остальным ролям can_edit пуст. Чек-листов здесь нет: API их правки нет.
@@ -821,6 +831,7 @@ def can_edit(u: dict) -> list:
     return [e["key"] for e in EDITABLE] if u.get("role") == "админ" else []
 # 21.09.2026 (задача 150): «Ждут меня», «Заявки», «Генеральные соглашения» из меню мини-аппа убраны
 # для всех ролей; точки /tg/inbox, /approvals, /agreements и данные остаются.
+# «Админка» отдельной кнопкой в меню не идёт: путь в неё — admin_available + login_url
 NAV_ADMIN = [("settings", "Настройки")]
 
 
@@ -849,18 +860,24 @@ def tg_me(request: Request, view: Optional[str] = None):
     real_role и admin_available — чтобы мини-апп показал «Вернуться в админку»."""
     u = _session_user(request)
     as_user = _wants_user_view(request, view)
-    if not u:
-        return {"mode": _mode(), "status": "не вошёл", "user": None, "rights": [], "nav": [],
-                "view": "user" if as_user else "full", "reason": "Войдите через Telegram или по логину и паролю"}
-    if u["status"] != auth.STATUS_ACTIVE:
-        return {"mode": _mode(), "status": u["status"], "user": None, "rights": [], "nav": [],
-                "view": "user" if as_user else "full", "reason": WAIT_MSG}
+    if not u or u["status"] != auth.STATUS_ACTIVE:
+        # гостевой режим (22.09.2026): приложение открыто, вход нужен только администратору.
+        # Незавершённая или заблокированная учётная запись тоже видит приложение как гость —
+        # ждать подтверждения больше не нужно, регистрация отменена.
+        return {"mode": "guest", "tg_mode": _mode(), "status": GUEST_STATUS, "user": None,
+                "guest": True,
+                "nav": [{"key": k, "title": t} for k, t in NAV_GUEST],
+                "rights": list(GUEST_RIGHTS), "can_edit": [],
+                "admin_available": False, "login_url": GUEST_LOGIN_URL,
+                "view": "user" if as_user else "full", "real_role": None,
+                "reason": "Приложение открыто для всех. Вход нужен только администратору"}
     shown = dict(u, role=auth.ROLE_EMPLOYEE) if as_user else u
     nav = list(NAV_BASE)
     if shown["role"] == "админ":
         nav += NAV_ADMIN
     # name — то же, что full_name: с 21.09.2026 в анкете одно поле «Имя», хранится в users.full_name
-    return {"mode": _mode(), "status": auth.STATUS_ACTIVE,
+    return {"mode": _mode(), "tg_mode": _mode(), "guest": False, "login_url": "",
+            "status": auth.STATUS_ACTIVE,
             "user": {"id": u["id"], "full_name": u["full_name"], "name": u["full_name"], "role": shown["role"],
                      "branch": u.get("branch"), "status": u["status"], "is_admin": shown["role"] == "админ"},
             "rights": sorted(r for r in auth.PERMISSIONS if auth.can(shown, r)),

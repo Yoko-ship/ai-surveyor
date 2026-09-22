@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from . import analysis_docs as adocs
-from . import auth, db, ingest, llm
+from . import auth, db, guest, ingest, llm
 from . import market_picture as mp
 from . import risk_analytics as ra
 
@@ -53,24 +53,88 @@ def _catalog(con, classes: list) -> dict:
 
 
 @router.get("/analytics/risk/fields")
-def risk_fields(class_code: str = "") -> dict:
-    """Поля must/optional для класса («8», «9», «8/9», «3»), регионы, классы и продукты."""
+def risk_fields(request: Request, class_code: str = "", mode: str = "full", product_code: str = "") -> dict:
+    """
+    Поля must/optional для класса («8», «9», «8/9», «3»), регионы, классы и продукты.
+    mode=quick — в must остаются только четыре поля (класс/продукт, сумма, стоимость, регион),
+    остальное уходит в will_assume: что подставим и почему.
+    """
     classes = ra.parse_classes(class_code)
+    quick = str(mode or "").lower() == "quick"
+    user = _user_opt(request) if quick else None
     with db.tx() as con:
         cat = _catalog(con, classes)
         regions = mp.regions(con)
+        plan = ra.quick_plan(con, class_code, product_code, user) if quick else []
     known = {c["code"] for c in cat["classes"]}
     unknown = [c for c in classes if c not in known]
-    return {"class_code": "/".join(classes), "classes_parsed": classes,
-            "unknown_classes": unknown, "group": ra._group(classes) if classes else None,
-            **ra.fields_for(class_code), "regions": regions, **cat,
-            "default_product_special": ra.DEFAULT_PRODUCT_SPECIAL}
+    out = {"class_code": "/".join(classes), "classes_parsed": classes,
+           "unknown_classes": unknown, "group": ra._group(classes) if classes else None,
+           **ra.fields_for(class_code), "regions": regions, **cat,
+           "mode": "quick" if quick else "full",
+           "default_product_special": ra.DEFAULT_PRODUCT_SPECIAL}
+    if quick:
+        assumed = {a["key"] for a in plan}
+        quick_must = [f for f in out["must"] if f["key"] in ra.QUICK_MUST]
+        out["must_full"] = out["must"]
+        out["must"] = quick_must
+        out["quick_must_keys"] = list(ra.QUICK_MUST)
+        out["will_assume"] = plan
+        out["hidden_keys"] = [f["key"] for f in out["must_full"] if f["key"] not in ra.QUICK_MUST]
+        out["note"] = ("Быстрый режим: заполните класс (или продукт), страховую сумму, стоимость и регион. "
+                       "Остальное подставим по умолчанию — значения консервативные, чтобы не занизить риск; "
+                       "каждое помечено «" + ra.ASSUMED_NOTE + "». Уточнение любого поля повышает точность.")
+        out["assumed_keys"] = sorted(assumed)
+        if user and not any(a["key"] == "region" for a in plan):
+            out["region_from_profile"] = ra.region_from_branch(str(user.get("branch") or ""))
+    return out
+
+
+@router.get("/analytics/risk/presets")
+def risk_presets() -> dict:
+    """Типовые объекты одним нажатием: значения готовы, человек вводит только суммы и регион."""
+    with db.tx() as con:
+        items = ra.presets(con)
+    return {"presets": items,
+            "i18n_keys": [p["i18n_key"] for p in items] + ["preset.hint"],
+            "languages": ["ru", "uz", "en"],
+            "note": "Тексты ru готовы; uz и en подставляются по ключам i18n словарями интерфейса."}
+
+
+@router.get("/analytics/risk/last")
+def get_last(request: Request) -> dict:
+    """Последний выбор этого пользователя (класс, продукт, тип объекта, регион…). Без сумм и ПД.
+    Гостю (22.09.2026) ничего не запоминаем: ответ пустой, форма открывается с нуля."""
+    user = _user_opt(request)
+    if not user:
+        return {"ok": True, "guest": True, "last": {}, "allowed_keys": list(ra.LAST_ALLOWED)}
+    with db.tx() as con:
+        data = ra.load_last(con, user["id"])
+    return {"ok": True, **data, "allowed_keys": list(ra.LAST_ALLOWED)}
+
+
+@router.put("/analytics/risk/last")
+def put_last(request: Request, body: dict = Body(...)) -> dict:
+    """Запоминает выбор формы. Пишутся только справочные ключи из LAST_ALLOWED, ПД не сохраняются."""
+    if not isinstance(body, dict) or len(body) > BODY_MAX_KEYS:
+        raise HTTPException(422, "Ожидается набор полей формы")
+    user = _user_opt(request)
+    if not user:
+        return {"ok": True, "guest": True, "saved": [],
+                "note": "Без входа выбор формы не сохраняется"}
+    with db.tx() as con:
+        try:
+            data = ra.save_last(con, user["id"], body)
+        except ValueError as e:
+            raise HTTPException(422, f"Не сохранено: {e}")
+    return {"ok": True, **data}
 
 
 class RiskIn(BaseModel):
     must: dict = {}
     optional: dict = {}
     doc_ids: List[str] = []          # договор и документы из POST /analytics/risk/document (задача 150)
+    mode: str = "full"               # "quick" — достроить обязательные поля по умолчанию (assumptions)
 
 
 def _user_opt(request: Request):
@@ -105,25 +169,33 @@ def risk_analyze(body: RiskIn, request: Request):
         raise HTTPException(422, "Слишком много полей в запросе")
     if len(body.doc_ids) > adocs.MAX_DOC_IDS:
         raise HTTPException(422, f"Документов в одном анализе — не больше {adocs.MAX_DOC_IDS}")
-    user = None
-    if body.doc_ids:
-        user = _user_opt(request)
-        if not user:
-            raise HTTPException(401, "Нужно войти в систему, чтобы использовать загруженные документы")
-    v = ra.validate(body.must, body.optional)
+    user = _user_opt(request)
+    # владелец файлов: вошедший или гость по анонимному guest_id из cookie (22.09.2026)
+    owner = guest.owner_of(request, user)
+    if body.doc_ids and not owner:
+        raise HTTPException(404, adocs.NOT_FOUND)
+    quick = str(body.mode or "").lower() == "quick"
+    must, optional, assumptions = dict(body.must), dict(body.optional), []
+    if quick:
+        v = ra.validate_quick(must, optional)
+        if not v["ok"]:
+            return _invalid(v, "Быстрый режим: нужны класс (или продукт), страховая сумма, "
+                               "стоимость объекта и регион.")
+        with db.tx() as con:
+            must, optional, assumptions = ra.apply_defaults(con, must, optional, user=user)
+    v = ra.validate(must, optional)
     if not v["ok"]:
         return _invalid(v, "Анализ не запущен: заполните обязательные поля и исправьте ошибки.")
-    must, optional = dict(body.must), dict(body.optional)
     with db.tx() as con:
         # документы проверяем до анализа: чужой или просроченный id — 404, анализ не запускается
-        docs = adocs.documents_block(con, user, list(dict.fromkeys(body.doc_ids)),
+        docs = adocs.documents_block(con, owner, list(dict.fromkeys(body.doc_ids)),
                                      str(must.get("product_code") or ""), str(must.get("class_code") or ""),
                                      str(must.get("object_type") or ""))
         # флаг «документы загружены» в полноте данных ставит сервер, если распознан хоть один
         if docs["items"] and not ra._present(optional.get("documents")) and any(
                 i["status"] in (ingest.ST_OK, ingest.ST_PARTIAL) for i in docs["items"]):
             optional["documents"] = True
-        res = ra.analyze(con, must, optional)
+        res = ra.analyze(con, must, optional, assumptions=assumptions)
         if not res.get("ok"):
             return _invalid(res.get("validation") or {}, res.get("message") or "Анализ не запущен")
         s = res["summary"]
@@ -139,6 +211,7 @@ def risk_analyze(body: RiskIn, request: Request):
     res["market_compare"] = res.pop("market")     # сравнение, по которому считался балл уровня риска
     res["market"] = pic
     res["documents"] = docs
+    res["mode"] = "quick" if quick else "full"
     comp = res["completeness"]
     comp["docs_pct"] = docs["completeness_docs_pct"]
     comp["docs_missing"] = len(docs["missing"])
@@ -161,7 +234,8 @@ def _history(con, n: int = 10) -> list:
 
 
 @router.get("/analytics/risk/thresholds")
-def get_thresholds(user: dict = Depends(auth.current_user)) -> dict:
+def get_thresholds(request: Request) -> dict:
+    user = _user_opt(request) or {}
     with db.tx() as con:
         th = ra.load_thresholds(con)
         hist = _history(con)

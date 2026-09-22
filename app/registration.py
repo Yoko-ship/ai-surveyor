@@ -473,9 +473,21 @@ def post_verify_code(body: CodeIn):
         return check_code(con, who["telegram_id"], phone, body.code)
 
 
+# Решение заказчика 22.09.2026: приложение открыто для всех, самостоятельная регистрация сотрудников
+# больше не нужна. Точка отвечает 410 (ресурс убран навсегда), чтобы старые версии мини-аппа и бота
+# получили понятный текст, а не молчаливую ошибку. Вход остаётся только администратору:
+# по username Telegram (TG_ADMIN_USERNAME) или логином и паролем на /login.
+REGISTRATION_OFF = ("Регистрация не требуется — приложение открыто; "
+                    "вход нужен только администратору")
+
+
 @router.post("/tg/register/submit")
-def post_submit(body: SubmitIn, request: Request, response: Response):
-    """Анкета. После неё человек СРАЗУ активен: ждать подтверждения администратора не нужно."""
+def post_submit_off():
+    raise HTTPException(410, REGISTRATION_OFF)
+
+
+def _post_submit_disabled(body: SubmitIn, request: Request, response: Response):
+    """Прежняя анкета — оставлена как справка о том, что делала регистрация (маршрут отключён)."""
     with db.tx() as con:
         who = who_registers(con, body)
         out = register(con, who["telegram_id"], body, via_link=who["via_link"])
