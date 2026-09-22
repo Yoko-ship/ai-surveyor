@@ -108,8 +108,8 @@ def types(b):
 def check_llm():
     print("1. Gemini как провайдер (app/llm.py)")
     ok("gemini есть в списке провайдеров", "gemini" in llm.PROVIDERS)
-    ok("модель по умолчанию gemini-2.5-flash",
-       llm.PROVIDERS["gemini"]["model"] == "gemini-2.5-flash")
+    ok("модель по умолчанию gemini-3.5-flash-lite",
+       llm.PROVIDERS["gemini"]["model"] == "gemini-3.5-flash-lite")
     body = llm._gemini_body([{"role": "system", "content": "правила"},
                              {"role": "user", "content": "вопрос"}], 100, 0.2,
                             [{"inline_data": {"mime_type": "image/jpeg", "data": "AA"}}])
