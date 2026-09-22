@@ -213,7 +213,9 @@ input:focus,select:focus{outline:none;border-color:var(--accent-dim)}
   async function linkStart(){
     tgBtn.disabled=true; msg("tg","Готовлю код…","ok");
     try{
-      const j=await post("/auth/tg-link/start",{link_id:LINK.id||""});
+      // mode:"admin" — вход со страницы администратора: незнакомый профиль заводится одним
+      // кликом как «сотрудник», анкеты нет (задача заказчика 23.09.2026)
+      const j=await post("/auth/tg-link/start",{link_id:LINK.id||"", mode:"admin"});
       LINK.id=j.link_id||""; LINK.until=Date.now()+(j.expires_in||600)*1000;
       $("#tgCode").textContent=j.code||"";
       $("#tgOpen").href=j.link||"#";
@@ -265,7 +267,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent-dim)}
 
   gBtn.onclick=()=>{ if(gBtn.disabled) return;
     msg("google","Открываю вход Google…","ok");
-    location.href="/auth/google?next="+encodeURIComponent(nextTarget()); };
+    location.href="/auth/google?mode=admin&next="+encodeURIComponent(nextTarget()); };
 
   // Вернулись от Google: одноразовый код из адреса меняем на сессию и убираем из истории.
   async function googleReturn(){

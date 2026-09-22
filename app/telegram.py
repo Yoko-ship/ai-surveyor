@@ -81,7 +81,13 @@ def check_init_data(init_data: str, token: str, max_age_sec: int = MAX_AGE_SEC) 
     checked = [(k, v) for k, v in pairs if k not in ("hash", "signature")]
     secret = hmac.new(b"WebAppData", token.encode("utf-8"), hashlib.sha256).digest()
     calc = hmac.new(secret, data_check_string(checked).encode("utf-8"), hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(calc, got_hash.lower()):
+    # hash присылает браузер: там может оказаться что угодно, вплоть до кириллицы,
+    # а compare_digest принимает только ASCII и иначе роняет обработчик (правило «недоверенный
+    # вход не должен ронять сервер»). Подпись Telegram — ровно 64 шестнадцатеричных знака.
+    got_hash = got_hash.strip().lower()
+    if len(got_hash) != 64 or any(c not in "0123456789abcdef" for c in got_hash):
+        return {"ok": False, "reason": "Подпись Telegram не совпала", "data": data, "user": None}
+    if not hmac.compare_digest(calc, got_hash):
         return {"ok": False, "reason": "Подпись Telegram не совпала", "data": data, "user": None}
     try:
         age = time.time() - int(data.get("auth_date", "0"))
@@ -139,6 +145,14 @@ def link_or_request(con, tg_user: dict) -> dict:
     if found:
         u = found[0]
         if u["status"] == auth.STATUS_ACTIVE:
+            # список способов входа профиля (app/login_links.py, 23.09.2026): вход через него
+            # не проходит, но профиль должен показывать «Telegram — @username · ID …»
+            try:
+                from . import login_links
+                login_links.ensure(con, u, login_links.TELEGRAM, tg_id, login_links.tg_display(tg_user))
+                login_links.touch(con, u["id"], login_links.TELEGRAM, tg_id)
+            except Exception as e:
+                print("telegram: способ входа не записан:", e)
             return {"status": ST_OK, "user": auth._public(u), "reason": "", "row": u}
         if u["status"] == auth.STATUS_BLOCKED:
             return {"status": ST_ERR, "user": None, "reason": "Доступ заблокирован администратором"}

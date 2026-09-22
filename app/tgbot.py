@@ -604,6 +604,32 @@ def handle_callback(con, cq: dict, update_id=None) -> dict:
             edit_card(con, chat_id, message_id, f"Заявка № {uid}: подтверждена как {role} ({admin['login']}).")
         return {"action": "заявка подтверждена", "user_id": uid, "role": role}
 
+    if action == "adminreq":
+        # Доступ в админку открывает ТОЛЬКО владелец (уточнение заказчика 23.09.2026).
+        # Кто нажал — по telegram_id отправителя; содержимое кнопки не доверенное.
+        from . import login_links
+        who = user_by_tg(con, tg_id)
+        if not who or not login_links.is_owner(con, who):
+            log(con, "in", "отказ", tg_id, (who or {}).get("id"), False, "not owner", update_id)
+            answer_callback(cq_id, "Нет прав: доступ в админку открывает владелец")
+            return {"action": "отказ", "reason": "не владелец"}
+        rid = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+        approve = (parts[2] if len(parts) > 2 else "") == "ok"
+        try:
+            res = login_links.decide_admin(con, who, rid, approve)
+        except Exception as e:
+            answer_callback(cq_id, "Запрос не найден")
+            log(con, "in", "callback", tg_id, who["id"], False, str(e)[:120], update_id)
+            return {"action": "отказ", "reason": "нет запроса"}
+        answer_callback(cq_id, "Доступ открыт" if approve else "Отклонено")
+        log(con, "in", "callback", tg_id, who["id"], True, None, update_id)
+        if message_id:
+            edit_card(con, chat_id, message_id,
+                      f"Запрос доступа в админку № {rid}: "
+                      + ("доступ открыт." if approve else "отклонён."))
+        return {"action": "доступ в админку открыт" if approve else "доступ в админку отклонён",
+                "request_id": rid, "user_id": res.get("user_id")}
+
     if action in ("approve", "reject", "ask"):
         # кнопки решения из старых сообщений: решение не пишем, только отвечаем на нажатие
         answer_callback(cq_id, APPROVAL_OFF)

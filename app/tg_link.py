@@ -63,6 +63,13 @@ DEFAULT_BOT = "inson_surveyor_bot"  # имя бота, если getMe недос
 
 ST_PENDING, ST_DONE, ST_REGISTER = "ожидание", "готово", "нужна регистрация"
 ST_EXPIRED, ST_NONE = "истёк", "нет кода"
+ST_LINKED = "привязано"                # код был выдан для привязки, а не для входа
+
+# Зачем выдан код (23.09.2026): 'вход' — прежний порядок (незнакомому нужна анкета);
+# 'админ' — вход для администратора из браузера, незнакомый получает профиль «сотрудник»
+# одним кликом; 'привязка' — добавить Telegram к уже открытому профилю (app/login_links.py).
+P_LOGIN, P_ADMIN, P_LINK = "вход", "админ", "привязка"
+PURPOSES = (P_LOGIN, P_ADMIN, P_LINK)
 
 
 # --------------------------------------------------------------------------- #
@@ -166,17 +173,24 @@ def _too_many(con, link_id: str, ip: str) -> bool:
     return by_ip >= RATE_MAX_IP
 
 
-def start(con, link_id: str = "", ip: str = "") -> dict:
-    """Новый одноразовый код. Возвращает и сам код — он показывается человеку и больше нигде не хранится."""
+def start(con, link_id: str = "", ip: str = "", purpose: str = P_LOGIN,
+          link_user_id: Optional[int] = None) -> dict:
+    """Новый одноразовый код. Возвращает и сам код — он показывается человеку и больше нигде не хранится.
+
+    purpose — зачем код выдан (см. P_LOGIN/P_ADMIN/P_LINK). Цель хранится на сервере: из браузера
+    её не подменить, а чужой link_id всё так же ничего не даёт."""
     link_id = clean_link_id(link_id) or new_link_id()
     if _too_many(con, link_id, ip):
         raise HTTPException(429, "Слишком много кодов подряд. Подождите %d минут и попробуйте снова"
                             % RATE_MINUTES)
     now = datetime.now()
     code = new_code()
-    con.execute("INSERT INTO tg_link_codes (link_id, code_hash, created_at, expires_at, ip)"
-                " VALUES (?,?,?,?,?)",
-                (link_id, code_hash(con, code), _ts(now), _ts(now + timedelta(minutes=CODE_MINUTES)), ip or ""))
+    if purpose not in PURPOSES:
+        purpose = P_LOGIN
+    con.execute("INSERT INTO tg_link_codes (link_id, code_hash, created_at, expires_at, ip,"
+                " purpose, link_user_id) VALUES (?,?,?,?,?,?,?)",
+                (link_id, code_hash(con, code), _ts(now), _ts(now + timedelta(minutes=CODE_MINUTES)),
+                 ip or "", purpose, link_user_id))
     # в журнал — ни кода, ни его отпечатка
     db.audit(con, "браузер", "запрошен код входа через Telegram", "tg-link", {"ip": ip or ""})
     return {"link_id": link_id, "code": code, "bot": "@" + bot_username(con), "link": bot_link(code, con),
@@ -271,8 +285,40 @@ def status(con, link_id: str, ip: str = "", user_agent: str = "") -> dict:
         tgbot.remember_owner(con, who)
     except Exception:
         pass
+    from . import login_links
+    purpose = row.get("purpose") or P_LOGIN
+    tg_id = str(row["telegram_id"] or "")
+    display = login_links.tg_display(who)
+
+    # --- код был выдан для привязки Telegram к уже открытому профилю ---
+    if purpose == P_LINK:
+        owner = db.rows(con, "SELECT * FROM users WHERE id=?", row.get("link_user_id"))
+        if not owner:
+            return {"status": telegram.ST_ERR, "link_id": link_id,
+                    "reason": "Профиль не найден — войдите заново"}
+        try:
+            login_links.attach(con, owner[0], login_links.TELEGRAM, tg_id, display)
+        except HTTPException as e:
+            return {"status": telegram.ST_ERR, "link_id": link_id, "reason": e.detail,
+                    "code": e.status_code}
+        return {"status": ST_LINKED, "link_id": link_id, "provider": login_links.TELEGRAM,
+                "display": display or ("ID " + tg_id)}
+
+    # --- «Вход для администратора»: незнакомый получает профиль «сотрудник» одним кликом ---
+    if purpose == P_ADMIN:
+        made = login_links.login_or_create(con, login_links.TELEGRAM, tg_id, display,
+                                           login_links.tg_name(who))
+        u = made["user"]
+        token, _ = auth.create_session(con, u, ip=ip, user_agent=user_agent or "browser-tg-link")
+        db.audit(con, u["login"], "новый профиль по коду бота" if made["created"] else "вход по коду бота",
+                 "user:%s" % u["id"], {"роль": u["role"]})
+        return {"status": ST_DONE, "link_id": link_id, "token": token, "user": auth._public(u),
+                "created": made["created"]}
+
     out = telegram.link_or_request(con, who)
     if out["status"] == telegram.ST_OK:
+        login_links.ensure(con, out["row"], login_links.TELEGRAM, tg_id, display)
+        login_links.touch(con, out["row"]["id"], login_links.TELEGRAM, tg_id)
         token, _ = auth.create_session(con, out["row"], ip=ip, user_agent=user_agent or "browser-tg-link")
         db.audit(con, out["row"]["login"], "вход по коду бота", "user:%s" % out["row"]["id"], None)
         return {"status": ST_DONE, "link_id": link_id, "token": token, "user": out["user"]}
@@ -288,6 +334,7 @@ def status(con, link_id: str, ip: str = "", user_agent: str = "") -> dict:
 
 class StartIn(BaseModel):
     link_id: str = ""
+    mode: str = ""            # 'admin' — вход со страницы /login (новый профиль одним кликом)
 
 
 def _ip(request: Request) -> str:
@@ -297,8 +344,10 @@ def _ip(request: Request) -> str:
 
 @router.post("/auth/tg-link/start")
 def post_start(body: StartIn, request: Request):
+    # привязку через эту точку не начинают: там нужен вошедший человек (POST /auth/link/telegram/start)
+    purpose = P_ADMIN if (body.mode or "").strip().lower() == "admin" else P_LOGIN
     with db.tx() as con:
-        return start(con, body.link_id, _ip(request))
+        return start(con, body.link_id, _ip(request), purpose=purpose)
 
 
 @router.get("/auth/tg-link/status")

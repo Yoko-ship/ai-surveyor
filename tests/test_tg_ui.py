@@ -544,6 +544,49 @@ def check_legal_tab(html):
     print("24. вкладка «Юрист»: /legal/faq, /legal/ask, цитаты с источником, история сессии — ок")
 
 
+def check_cover(html):
+    """Обложка (задача 234): полноэкранные секции, картинки, бережный режим и карточка «Способы входа»."""
+    must = {
+        'id="cover"': "нет слоя обложки",
+        "scroll-snap-type:y mandatory": "прокрутка не прилипает к секции",
+        'class="cv-sec': "нет полноэкранных секций",
+        "backdrop-filter": "карточки обложки не стеклянные",
+        "perspective(900px)": "нет лёгкого наклона карточки",
+        "IntersectionObserver": "текст не появляется при прокрутке",
+        "prefers-reduced-motion": "не выключаются анимации при системной настройке",
+        "saveData": "не учитывается экономия трафика",
+        'srcset="/static/bg/': "картинки без srcset на две ширины",
+        'loading="lazy"': "картинки секций грузятся сразу",
+        "surveyor_cover": "выбор «обложка или приложение» не помнится",
+        'id="appbg"': "нет фона раздела внутри приложения",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "обложка: " + "; ".join(miss)
+    # первая картинка — не lazy: она и есть первый экран
+    hero = html.split('data-cv="hero"')[1].split("</section>")[0]
+    assert 'loading="lazy"' not in hero, "первая картинка обложки помечена lazy — первый экран будет пустым"
+    # все картинки обложки есть на диске и вместе с телефонной версией не тяжелее 2 МБ
+    bg = Path(__file__).resolve().parent.parent / "app" / "static" / "bg"
+    names = sorted(set(re.findall(r'/static/bg/([a-z0-9-]+)\.jpg', html)))
+    lost = [n for n in names if not (bg / f"{n}.jpg").exists()]
+    assert names and not lost, "нет файлов фонов: " + ", ".join(lost)
+    total = sum(f.stat().st_size for f in bg.glob("*.jpg"))
+    assert total <= 2 * 1024 * 1024, f"фоны весят {total // 1024} КБ — больше 2 МБ"
+    small = sum(f.stat().st_size for f in bg.glob("*-640.jpg"))
+    # мини-апп отдаётся сервером вместе с картинками: адрес /static открыт до входа
+    from app import guard
+    assert any(x == "/static/" for x in guard.WHITE_PREFIX), "/static/ закрыт — картинки не загрузятся гостю"
+    # карточка «Способы входа»: Telegram, Google и кнопка привязки
+    for key, why in {'id="links"': "нет карточки способов входа",
+                     '"/auth/links"': "не запрашивается состав способов входа",
+                     "/auth/link/google/start": "нет запроса на привязку Google",
+                     "/auth/google?link=1": "нет запасного пути привязки Google"}.items():
+        assert key in html, "способы входа: " + why
+    print(f"25. обложка: {len(names)} адресов картинок, все фоны {total // 1024} КБ"
+          f" (телефонные {small // 1024} КБ),"
+          f" lazy, бережный режим, «Способы входа» — ок")
+
+
 if __name__ == "__main__":
     with temp_db("surveyor-tg-ui.db"):  # рабочая data/surveyor.db не меняется
         agent_id, uids, prod = setup()
@@ -564,6 +607,7 @@ if __name__ == "__main__":
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)
+            check_cover(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

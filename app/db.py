@@ -295,6 +295,17 @@ ADDED_COLUMNS = {
         # для заключения договора (заявление-анкета). Анализ риска строки 'оформление' не спрашивает.
         ("scope", "TEXT NOT NULL DEFAULT 'анализ'"),
     ],
+    "google_oauth_states": [
+        # зачем начат вход (23.09.2026): 'вход' | 'админ' (один клик для админки) |
+        # 'привязка' (добавить Google к уже открытому профилю, app/login_links.py)
+        ("purpose", "TEXT"),
+        ("link_user_id", "INTEGER"),           # чей профиль дополняем при purpose='привязка'
+    ],
+    "tg_link_codes": [
+        # то же самое для входа по коду боту (app/tg_link.py)
+        ("purpose", "TEXT"),
+        ("link_user_id", "INTEGER"),
+    ],
     "rules": [
         # LAWWATCH-01 (app/lawwatch.py): изменился акт — правила, которые на него ссылаются,
         # помечаются «требует пересмотра». Расчёты не блокируются, пометку снимает юрист.
@@ -387,6 +398,29 @@ def migrate(con):
     return added
 
 
+def backfill_login_links(con) -> int:
+    """
+    Переносит уже существующие привязки из users (telegram_id, google_sub) в login_links.
+    Идемпотентно: строка создаётся, только если такой пары «провайдер + аккаунт» ещё нет.
+
+    Если один и тот же telegram_id по недосмотру оказался у двух профилей, берём самый ранний:
+    уникальный индекс не даст создать два способа входа, ведущих в разные профили.
+    """
+    made = 0
+    for provider, column, display in (("telegram", "telegram_id", "NULL"),
+                                      ("google", "google_sub", "email")):
+        sql = (f"INSERT INTO login_links (user_id, provider, external_id, display, linked_at)"
+               f" SELECT u.id, ?, u.{column}, {display}, COALESCE(u.created_at, ?)"
+               f" FROM users u WHERE u.{column} IS NOT NULL AND u.{column} <> ''"
+               f"   AND u.id = (SELECT MIN(u2.id) FROM users u2 WHERE u2.{column} = u.{column})"
+               f"   AND NOT EXISTS (SELECT 1 FROM login_links l"
+               f"                   WHERE l.provider = ? AND l.external_id = u.{column})"
+               f"   AND NOT EXISTS (SELECT 1 FROM login_links l2"
+               f"                   WHERE l2.provider = ? AND l2.user_id = u.id)")
+        made += con.execute(sql, (provider, now(), provider, provider)).rowcount or 0
+    return made
+
+
 def ensure_schema():
     with tx() as con:
         # сначала доводим старые таблицы, потом schema.sql: индексы по новым колонкам
@@ -394,6 +428,7 @@ def ensure_schema():
         migrate(con)
         con.executescript(SCHEMA.read_text(encoding="utf-8"))
         _carry_decision_outcomes(con)       # строки старой decision_outcomes — в новую
+        backfill_login_links(con)           # способы входа из users → login_links (23.09.2026)
 
 
 def now() -> str:

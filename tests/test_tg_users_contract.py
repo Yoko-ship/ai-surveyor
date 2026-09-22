@@ -63,6 +63,7 @@ def get_users(token: str):
 
 def main():
     with temp_db("surveyor-test-users.db"):
+        db.ensure_schema()              # как при старте сервера: новые таблицы и колонки
         tokens, ids = {}, {}
         with db.tx() as con:
             for login, tg, sub, email, phone, role in PEOPLE:

@@ -546,7 +546,12 @@ def get_users(user: dict = Depends(auth.current_user)):
     отметка «админ». Кнопки управления — только у админа."""
     with db.tx() as con:
         items = people(con)
-    return {"can_manage": user["role"] == ADMIN, "count": len(items), "items": items}
+        # раздел «Запросы доступа» видит только владелец (уточнение заказчика 23.09.2026)
+        from . import login_links
+        owner = login_links.is_owner(con, user)
+        pending = login_links.pending_requests(con) if owner else []
+    return {"can_manage": user["role"] == ADMIN, "count": len(items), "items": items,
+            "is_owner": owner, "admin_requests": pending}
 
 
 def set_admin(con, actor: dict, uid: int, make: bool) -> dict:

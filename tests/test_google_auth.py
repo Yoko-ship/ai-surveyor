@@ -340,6 +340,7 @@ def main():
     google_auth.fetch_tokeninfo = fake_tokeninfo
     try:
         with temp_db("surveyor-test-google.db"):
+            db.ensure_schema()          # как при старте сервера: новые таблицы и колонки
             run()
             llm.get = real_get                          # чтение настроек проверяем без заглушки
             secrets_file_test()

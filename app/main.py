@@ -45,6 +45,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import access, background, db, web
@@ -922,6 +923,11 @@ def page(html: str, active: str = "", embed: bool = False) -> str:
 # предупредительные мероприятия, сохраняет запрос и даёт ссылку на PDF.
 
 
+# Картинки интерфейса (фоны обложки мини-аппа) отдаются как есть из app/static.
+# Одна строка монтирования; адреса вида /static/bg/hero-640.jpg открыты до входа (app/guard.py, WHITE_PREFIX).
+app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="static")
+
+
 @app.get("/theme.js")
 def theme_js(request: Request):
     return web.asset_response(request, ROOT / "app" / "theme.js", "application/javascript")
@@ -999,7 +1005,7 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("approvals", "approvals_router"), ("lawwatch", "lawwatch_router"),
                     ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router"),
                     ("tgbot", "tgbot_router"), ("registration", "registration_router"),
-                    ("tg_link", "tg_link_router"),
+                    ("tg_link", "tg_link_router"), ("login_links", "login_links_router"),
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
                     ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),

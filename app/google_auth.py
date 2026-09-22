@@ -74,6 +74,12 @@ EXPIRED = "Ссылка входа устарела — нажмите «Про�
 NOT_CONFIRMED = "Вход не подтверждён — начните заново"
 APPROVED_BY = "вход через Google"
 
+# Зачем начат вход (23.09.2026). 'вход' — прежний порядок (незнакомый аккаунт заполняет анкету);
+# 'админ' — вход для администратора из браузера: незнакомый аккаунт получает профиль «сотрудник»
+# одним кликом, без анкеты; 'привязка' — добавить Google к уже открытому профилю (app/login_links.py).
+P_LOGIN, P_ADMIN, P_LINK = "вход", "админ", "привязка"
+PURPOSES = (P_LOGIN, P_ADMIN, P_LINK)
+
 
 # --------------------------------------------------------------------------- #
 #  Настройки
@@ -220,16 +226,22 @@ def check_domain(email: str):
 #  Начатые входы (state + PKCE)
 # --------------------------------------------------------------------------- #
 
-def start_login(con, next_url: str, ip: str = "") -> dict:
-    """Готовит адрес страницы Google. Возвращает {"url","state"}; state кладётся ещё и в cookie."""
+def start_login(con, next_url: str, ip: str = "", purpose: str = P_LOGIN,
+                link_user_id: Optional[int] = None) -> dict:
+    """Готовит адрес страницы Google. Возвращает {"url","state"}; state кладётся ещё и в cookie.
+
+    purpose — зачем начат вход (см. P_LOGIN/P_ADMIN/P_LINK). Цель хранится на сервере, а не в
+    адресе: подменить её в браузере нельзя."""
     state = secrets.token_urlsafe(32)            # 32 случайных байта
     verifier = secrets.token_urlsafe(64)         # секрет PKCE: 43..128 знаков
     now = datetime.now()
     con.execute("DELETE FROM google_oauth_states WHERE expires_at < ?", (db.now(),))   # уборка старых
-    con.execute("INSERT INTO google_oauth_states (state, code_verifier, next_url, created_at, expires_at, ip)"
-                " VALUES (?,?,?,?,?,?)",
+    if purpose not in PURPOSES:
+        purpose = P_LOGIN
+    con.execute("INSERT INTO google_oauth_states (state, code_verifier, next_url, created_at, expires_at,"
+                " ip, purpose, link_user_id) VALUES (?,?,?,?,?,?,?,?)",
                 (state, verifier, safe_next(next_url), _ts(now),
-                 _ts(now + timedelta(minutes=STATE_MINUTES)), ip))
+                 _ts(now + timedelta(minutes=STATE_MINUTES)), ip, purpose, link_user_id))
     params = {"client_id": client_id(), "redirect_uri": redirect_uri(), "response_type": "code",
               "scope": SCOPE, "state": state, "code_challenge": _challenge(verifier),
               "code_challenge_method": "S256", "access_type": "online", "prompt": "select_account"}
@@ -334,20 +346,55 @@ def handle_callback(con, code: str, state: str, cookie_state: str, ip: str = "")
         con.commit()
         raise e
 
-    user = auth.user_by_google_sub(con, profile["sub"])
+    from . import login_links                 # локальный импорт: login_links обращается сюда же
+    purpose = row.get("purpose") or P_LOGIN
+    next_url = row["next_url"] or DEFAULT_NEXT
+
+    # --- привязка Google к уже открытому профилю (кнопка «Привязать Google») ---
+    if purpose == P_LINK:
+        owner = db.rows(con, "SELECT * FROM users WHERE id=?", row.get("link_user_id"))
+        if not owner:
+            return {"next": next_url, "auth": "", "token": None, "link": "ошибка",
+                    "reason": "Профиль не найден — войдите заново"}
+        try:
+            login_links.attach(con, owner[0], login_links.GOOGLE, profile["sub"], profile["email"])
+        except HTTPException as e:
+            return {"next": next_url, "auth": "", "token": None, "link": "ошибка", "reason": e.detail}
+        return {"next": next_url, "auth": "", "token": None, "link": "ок"}
+
+    user = login_links.user_by_link(con, login_links.GOOGLE, profile["sub"])
     if user:
+        if user["status"] == auth.STATUS_BLOCKED:
+            raise HTTPException(403, "Доступ заблокирован администратором")
+        login_links.ensure(con, user, login_links.GOOGLE, profile["sub"], profile["email"])
+        login_links.touch(con, user["id"], login_links.GOOGLE, profile["sub"])
         token, _ = auth.create_session(con, user, ip, "google")
         auth_code = issue_code(con, "обмен", profile, EXCHANGE_SECONDS, seconds=True,
                                user_id=user["id"], session_token=token, ip=ip)
         db.audit(con, user["login"], "вход через Google", f"user:{user['id']}",
                  {"почта": mask_email(profile["email"])})
-        return {"next": row["next_url"] or DEFAULT_NEXT, "auth": auth_code, "token": token}
+        return {"next": next_url, "auth": auth_code, "token": token}
+
+    # --- «Вход для администратора» из браузера: новый профиль одним кликом, без анкеты ---
+    if purpose == P_ADMIN:
+        full_name = " ".join(x for x in (profile.get("given_name"), profile.get("family_name")) if x)             or profile.get("name") or profile["email"].partition("@")[0]
+        made = login_links.login_or_create(con, login_links.GOOGLE, profile["sub"],
+                                           display=profile["email"], name=full_name,
+                                           email=profile["email"])
+        user = made["user"]
+        token, _ = auth.create_session(con, user, ip, "google")
+        auth_code = issue_code(con, "обмен", profile, EXCHANGE_SECONDS, seconds=True,
+                               user_id=user["id"], session_token=token, ip=ip)
+        db.audit(con, user["login"], "вход через Google: новый профиль" if made["created"]
+                 else "вход через Google", f"user:{user['id']}",
+                 {"почта": mask_email(profile["email"]), "роль": user["role"]})
+        return {"next": next_url, "auth": auth_code, "token": token}
 
     # незнакомый аккаунт: пользователя не создаём, ждём анкету (POST /auth/google/register)
     auth_code = issue_code(con, "обмен", profile, EXCHANGE_SECONDS, seconds=True, ip=ip)
     db.audit(con, APPROVED_BY, "вход через Google: нужна анкета", None,
              {"почта": mask_email(profile["email"])})
-    return {"next": row["next_url"] or DEFAULT_NEXT, "auth": auth_code, "token": None}
+    return {"next": next_url, "auth": auth_code, "token": None}
 
 
 def exchange(con, code: str) -> dict:
@@ -460,12 +507,16 @@ def get_status():
 
 
 @router.get("/auth/google")
-def go(request: Request, next: str = DEFAULT_NEXT):
-    """Начало входа: 302 на страницу выбора аккаунта Google."""
+def go(request: Request, next: str = DEFAULT_NEXT, mode: str = ""):
+    """Начало входа: 302 на страницу выбора аккаунта Google.
+
+    mode=admin — вход со страницы /login («Вход для администратора»): незнакомый аккаунт получает
+    профиль «сотрудник» одним кликом. Без mode порядок прежний: незнакомому нужна анкета."""
     if not configured():
         raise HTTPException(503, NOT_CONFIGURED + ". " + HINT)
+    purpose = P_ADMIN if (mode or "").strip().lower() == "admin" else P_LOGIN
     with db.tx() as con:
-        started = start_login(con, next, _ip(request))
+        started = start_login(con, next, _ip(request), purpose=purpose)
     resp = RedirectResponse(started["url"], status_code=302)
     resp.set_cookie(STATE_COOKIE, started["state"], max_age=STATE_MINUTES * 60, httponly=True,
                     samesite="lax", path=COOKIE_PATH)
@@ -482,6 +533,12 @@ def callback(request: Request, code: str = "", state: str = "", error: str = "")
     with db.tx() as con:
         out = handle_callback(con, code, state, request.cookies.get(STATE_COOKIE) or "", _ip(request))
     sep = "&" if "?" in out["next"] else "?"
+    if out.get("link"):
+        # привязка: сессия уже есть, одноразового кода не нужно — возвращаем с понятной пометкой
+        tail = "link=ok" if out["link"] == "ок" else ("link=error&reason=" + urllib.parse.quote(out.get("reason") or ""))
+        resp = RedirectResponse(out["next"] + sep + tail, status_code=302)
+        resp.delete_cookie(STATE_COOKIE, path=COOKIE_PATH)
+        return resp
     resp = RedirectResponse(out["next"] + sep + "auth=" + urllib.parse.quote(out["auth"]), status_code=302)
     resp.delete_cookie(STATE_COOKIE, path=COOKIE_PATH)
     if out["token"]:
