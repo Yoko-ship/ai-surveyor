@@ -288,7 +288,7 @@ def check_silence():
         ok("ответ «нормы нет», а не три случайных пассажа",
            r["answer"]["source"] == "none" and not r["citations"],
            (r["answer"]["source"], r["answer"]["confidence"], units(r)))
-        ok("уверенность ниже порога", r["answer"]["confidence"] < legal.MIN_CONFIDENCE,
+        ok("уверенность не выше 0,3", r["answer"]["confidence"] <= legal.SILENCE_MAX_CONF,
            r["answer"]["confidence"])
         ok("сказано смотреть правила страхования",
            "правил" in r["answer"]["text"].lower(), r["answer"]["text"][:80])
@@ -368,6 +368,170 @@ def check_uz_links():
     ok("и сказано, на каком языке норма", bool(r.get("note")), r.get("note"))
 
 
+def check_no_norm_all_langs():
+    """15. Порог уверенности выше шума: нормы нет — так и сказано на всех трёх языках.
+
+    Дефект контролёра 22.09.2026: срок рассмотрения претензии по ДОБРОВОЛЬНОМУ имущественному
+    страхованию законом не установлен, а система собирала «ответ» из ПКМ 141 (ОСГО), Положения
+    1882 (РЗНУ) и ГК ст. 914 с уверенностью 0,62. То же на uz (0,58 — ЗРУ-386 об ОСГО перевозчика).
+    """
+    print("15. Нормы нет — «нормы нет» на всех языках")
+    # к вопросу о сроке рассмотрения претензии по добровольному виду нормы нет, но показать
+    # ближайшие по смыслу статьи можно — с пометкой closest; к вопросу про билет в кино — нельзя
+    cases = [
+        ("максимальный срок рассмотрения претензии по добровольному имущественному страхованию", "ru", True),
+        ("Ixtiyoriy mulk sugʻurtasida davo arizasini koʻrib chiqish muddati qancha?", "uz", True),
+        ("what is the maximum claim handling period in voluntary property insurance?", "en", True),
+        ("сколько стоит билет в кино", "ru", False),
+        ("сколько стоит билет в кино", "uz", False),
+    ]
+    marks = {"ru": "прямой нормы не найдено", "uz": "toʻgʻridan-toʻgʻri norma topilmadi",
+             "en": "No direct provision found"}
+    for q, lg, closest in cases:
+        legal._cache.clear()
+        r = legal.ask(q, lg)
+        ok(f"[{lg}] «{q[:38]}…» → нормы нет", r["answer"]["source"] == "none",
+           (r["answer"]["source"], r["answer"]["confidence"], units(r)))
+        ok(f"[{lg}] уверенность не выше 0,3", r["answer"]["confidence"] <= legal.SILENCE_MAX_CONF,
+           r["answer"]["confidence"])
+        ok(f"[{lg}] ответ на языке вопроса и про правила страхования",
+           marks[lg].lower() in r["answer"]["text"].lower()
+           or legal.SILENCE_NOTE[lg].split("—")[0].strip().lower() in r["answer"]["text"].lower()
+           or any(w in r["answer"]["text"].lower()
+                  for w in ("правил", "qoidalar", "insurance rules")),
+           r["answer"]["text"][:90])
+        if closest:
+            ok(f"[{lg}] показаны ближайшие статьи с пометкой closest",
+               bool(r["citations"]) and all(c.get("closest") for c in r["citations"]), units(r))
+            ok(f"[{lg}] у ближайшей статьи есть дословная цитата и ссылка",
+               all(c["quote"] and (c["url"] or "").startswith("https://lex.uz/") for c in r["citations"]),
+               r["citations"][:1])
+        else:
+            ok(f"[{lg}] посторонних цитат нет", not r["citations"], units(r))
+
+
+def check_service_text():
+    """16. Подписи, шапки выгрузки и пустые бланки приложений не цитируются как норма."""
+    print("16. Служебный текст в индекс не попадает")
+    with db.tx() as con:
+        sign = db.rows(con, "SELECT COUNT(*) AS n FROM legal_chunks WHERE raw LIKE '%KARIMOV%'"
+                            " OR raw LIKE '%КАРИМОВ%' OR raw LIKE '%MIRZIYOYEV%'"
+                            " OR raw LIKE '%МИРЗИЁЕВ%'")[0]["n"]
+        head = db.rows(con, "SELECT COUNT(*) AS n FROM legal_chunks WHERE raw LIKE '%Загружено:%'"
+                            " OR raw LIKE '%Источник: http%'")[0]["n"]
+        blank = db.rows(con, r"SELECT COUNT(*) AS n FROM legal_chunks"
+                             r" WHERE raw LIKE '%\_\_\_%' ESCAPE '\'")[0]["n"]
+        chrome = db.rows(con, "SELECT COUNT(*) AS n FROM legal_chunks"
+                              " WHERE raw LIKE '%Hujjatga taklif yuborish%'"
+                              " OR raw LIKE '%Предложения по документу%'")[0]["n"]
+    ok("подписи под актом («… И. КАРИМОВ») в индексе нет", sign == 0, sign)
+    ok("шапки выгрузки («Источник: …», «Загружено: …») в индексе нет", head == 0, head)
+    ok("пустых бланков приложений («____ ning») в индексе нет", blank == 0, blank)
+    ok("кнопок страницы lex.uz в индексе нет", chrome == 0, chrome)
+    with db.tx() as con:
+        u = db.rows(con, "SELECT raw FROM legal_chunks WHERE unit='27-modda'"
+                         " AND path LIKE '%ЗРУ-210%' LIMIT 1")
+    ok("ЗРУ-210, 27-modda — текст статьи, а не выходные данные",
+       u and "OʻRQ-210-son" not in u[0]["raw"], (u[0]["raw"][:120] if u else None))
+
+
+def check_quotes_verbatim():
+    """17. Цитата — дословный непрерывный фрагмент исходного файла, без мусора lex.uz."""
+    print("17. Цитаты дословные и чистые")
+    import random
+    with db.tx() as con:
+        rs = db.rows(con, "SELECT path, unit, title, raw FROM legal_chunks WHERE path LIKE 'library/%'")
+    random.seed(20260922)
+    sample = random.sample(list(rs), 40)
+    bad = []
+    for r in sample:
+        q = legal._best_sentences(r["raw"], [], 2, legal.QUOTE_MAX)
+        if not legal.verbatim(r["path"], q):
+            bad.append((r["path"][-40:], r["unit"], q[:90]))
+    ok("40 случайных юнитов: цитата дословно есть в файле акта", not bad, bad[:3])
+
+    # служебный мусор сайта в цитаты не попадает
+    junk = ("ONLINE TRANSLATE", "Предложения по документу", "Основные реквизиты", "Поделиться",
+            "Дата вступления в силу", "Корреспонденты", "Респонденты", "Кодификация",
+            "Asosiy rekvizitlar", "Ulashish", "Korrespondentlar", "Facebook", "Instagram",
+            "Telegram", "Twitter", "ОКОЗ", "СПиТ", "https://lex.uz")
+    with db.tx() as con:
+        rows_ = db.rows(con, "SELECT raw FROM legal_chunks WHERE path LIKE 'library/%'")
+    dirty = sorted({j for j in junk for x in rows_ if j in x["raw"]})
+    ok("в индексе нет служебных строк lex.uz", not dirty, dirty)
+
+    # цитата не склеена через выброшенные строки
+    with db.tx() as con:
+        rows_ = db.rows(con, "SELECT path, raw FROM legal_chunks WHERE path LIKE 'library/%'"
+                             " AND raw LIKE ? LIMIT 200", "%" + legal.GAP + "%")
+    glued = []
+    for r in rows_[:60]:
+        for seg in legal.segments(r["raw"]):
+            if not legal.verbatim(r["path"], seg[:200]):
+                glued.append((r["path"][-30:], seg[:70]))
+                break
+    ok("каждый непрерывный кусок найден в файле как есть", not glued, glued[:3])
+    ok("разрывы в индексе размечены (есть куски с GAP)", bool(rows_), len(rows_))
+
+
+def check_answer_links():
+    """18. Ссылка в ответе всегда рабочая: /uz/docs/-<номер> — латиница (проверено 22.09.2026)."""
+    print("18. Адрес источника в ответе исправлен")
+    import re as _re
+    bad_shape = _re.compile(r"lex\.uz/[a-z]{2}/docs/-{2,}|lex\.uz/[a-z]{2}/docs/\s|[.,);]$")
+    seen = []
+    for q, lg in (("sugʻurta summasi qiymatdan oshsa?", "uz"),
+                  ("что если страховая сумма больше стоимости?", "ru"),
+                  ("максимальный срок рассмотрения претензии по добровольному страхованию", "ru"),
+                  ("Ixtiyoriy mulk sugʻurtasida davo arizasini koʻrib chiqish muddati?", "uz")):
+        legal._cache.clear()
+        r = legal.ask(q, lg)
+        for c in r["citations"]:
+            seen.append(c["url"])
+    ok("у каждой цитаты есть адрес", all(seen) and bool(seen), seen[:3])
+    ok("адрес без мусора и без двойного дефиса",
+       not [u for u in seen if bad_shape.search(u or "")], [u for u in seen if bad_shape.search(u or "")])
+    ok("узбекские адреса — латиница (/uz/docs/-…)",
+       all("/docs/-" in u for u in seen if "/uz/docs/" in u), [u for u in seen if "/uz/docs/" in u])
+    ok("все адреса ведут на lex.uz",
+       all((u or "").startswith("https://lex.uz/") for u in seen), seen[:3])
+
+
+def check_silences():
+    """19. Известные молчания закона: FAQ-стиль, ответ «не установлено законом»."""
+    print("19. Список известных молчаний")
+    ok("пунктов 5–8", 5 <= len(legal.SILENCES) <= 8, len(legal.SILENCES))
+    for s in legal.SILENCES:
+        for lg in ("ru", "uz", "en"):
+            ok(f"{s['id']}: есть вопрос и ответ на {lg}", bool(s["q"][lg]) and bool(s["a"][lg]), s["id"])
+    for q, lg, sid in (("какой размер франшизы установлен законом?", "ru", "franchise_size"),
+                       ("установлен ли законом максимальный тариф по добровольному страхованию?",
+                        "ru", "tariff_rate_limit"),
+                       ("Franshiza miqdori qonun bilan belgilanganmi?", "uz", "franchise_size")):
+        legal._cache.clear()
+        r = legal.ask(q, lg)
+        ok(f"«{q[:34]}…» → известное молчание", r["answer"].get("silence_id") == sid,
+           (r["answer"].get("silence_id"), r["answer"]["source"]))
+        ok("сказано, чем это регулируется (правила, договор, тарифная политика)",
+           any(w in r["answer"]["text"].lower()
+               for w in ("правил", "договор", "тарифной политик", "qoidalar", "shartnoma",
+                         "tarif siyosati", "rules", "contract", "tariff policy")),
+           r["answer"]["text"][:80])
+        ok("уверенность не выше 0,3", r["answer"]["confidence"] <= legal.SILENCE_MAX_CONF,
+           r["answer"]["confidence"])
+    # готовый ответ юриста из FAQ сильнее списка молчаний — но говорит он то же самое
+    legal._cache.clear()
+    r = legal.ask("в какой срок страховщик обязан выплатить возмещение по добровольному "
+                  "имущественному страхованию?", "ru")
+    ok("срок выплаты по добровольному виду: честный ответ «закон срока не устанавливает»",
+       any(w in r["answer"]["text"].lower() for w in ("не устанавливает", "не установлен",
+                                                      "прямой нормы не найдено")),
+       (r["answer"]["source"], r["answer"]["text"][:90]))
+    st, b = call("GET", "/legal/silences", params={"lang": "uz"}, who=EMP)
+    ok("GET /legal/silences → 200 и список", st == 200 and b["count"] == len(legal.SILENCES),
+       (st, b if st != 200 else b["count"]))
+
+
 def main():
     with temp_db():
         setup()
@@ -385,6 +549,11 @@ def main():
         check_faq_phrasing()
         check_gk_chapter()
         check_uz_links()
+        check_no_norm_all_langs()
+        check_service_text()
+        check_quotes_verbatim()
+        check_answer_links()
+        check_silences()
     print(f"\nИтого: {passed} ок, {failed} плохо")
     sys.exit(1 if failed else 0)
 

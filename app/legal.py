@@ -65,7 +65,97 @@ _TOKEN_RE = re.compile(r"[0-9a-zA-Zа-яёА-ЯЁўқғҳЎҚҒҲ]+")
 # мусор постраничной выгрузки lex.uz — в индекс не берём
 NOISE = ("Предложения по документу", "Прослушать аудио", "Получить ссылку из элемента документа",
          "Комментарий LexUz", "См. предыдущую редакцию", "См. судебную практику",
-         "Hujjat elementidan havola olish", "Hujjat bo'yicha takliflar")
+         "Hujjat elementidan havola olish", "Hujjat bo'yicha takliflar",
+         "Hujjatga taklif yuborish", "Audioni tinglash", "LexUZ sharhi", "LexUz sharhi")
+
+# шапка нашей же выгрузки (tools/lex_fetch.py): адрес источника и дата загрузки — не текст закона
+HEAD_RE = re.compile(r"^\s*(?:Источник|Загружено|Скачано|Индексировать|Manba|Yuklandi|Source)\s*:",
+                     re.IGNORECASE)
+
+# элементы страницы lex.uz (меню, кнопки формы «предложение по документу»): совпадение по всей
+# строке целиком, чтобы не задеть норму, где те же слова стоят внутри предложения.
+# Нормализуются ниже, сразу после объявления norm() — здесь norm ещё не определена.
+CHROME_RAW = (
+    "Все", "Вид", "A", "Ссылка на последующую редакцию", "Ссылка на предыдущую редакцию",
+    "Индексация по ОКОЗ", "Индексация по ТСЗ", "Источники изменений", "Источники опубликования",
+    "Закрыть", "×", "Предложение по документу", "Техническая ошибка", "Отправить", "Отменить",
+    "Выберите тип предложения", "Ознакомился с правилами внесения предложений в законодательство",
+    "Реклама на сайте", "RSS", "Новости сайта", "О Центре", "Печать", "Скачать",
+    "Hammasi", "Koʻrinishi", "Keyingi tahrirga havola", "Oldingi tahrirga havola",
+    "Keyingi tahrirga qarang.", "Oldingi tahrirga qarang.", "QTUK boʻyicha indekslash",
+    "QMQ boʻyicha indekslash", "Oʻzgartirishlar manbasi", "Rasmiy nashr manbasi",
+    "Yopish", "Joʻnatish", "Bekor qilish", "Taklif turini tanlang", "Hujjatga taklif",
+    "Texnik xatolik", "Saytda reklama", "Sayt yangiliklari", "Markaz haqida", "Chop etish",
+    # боковая панель карточки документа и кнопки «поделиться»: собраны обходом всех файлов
+    # library/01_Законодательство/**/*.txt (встречаются в 12–34 файлах из 43 — это шаблон сайта,
+    # а не текст акта). Попадали в цитаты вперемешку с нормой.
+    "Основные реквизиты", "Дополнительная информация", "Дата вступления в силу", "Кодификация",
+    "Корреспонденты", "Респонденты", "Пересмотренные акты", "Акты основания для пересмотра",
+    "Поделиться", "Предложения по документу", "Прослушать аудио", "Печатная версия",
+    "Asosiy rekvizitlar", "Qoʻshimcha axborot", "Kuchga kirish sanasi", "Kodifikatsiya",
+    "Korrespondentlar", "Respondentlar", "Qayta koʻrib chiqilgan hujjatlar", "Koʻrinish",
+    "Hujjatni qayta koʻrib chiqishga asos boʻlgan hujjatlar", "Ulashish",
+    "Qonunchilikka taklif berish qoidalari bilan tanishdim",
+    # переключатель языка и соцсети в шапке страницы
+    "Рус", "Ўзб", "Oʻzb", "Eng", "Рус|Oʻzb", "Рус|Ўзб", "Oʻzb|Рус", "Ўзб|Рус", "Eng|Рус",
+    "ONLINE TRANSLATE", "Facebook", "Twitter", "Telegram", "Instagram", "YouTube", "Одноклассники",
+)
+
+# подвал сайта: всё, что ниже, к акту отношения не имеет — разбор файла на этом месте заканчиваем
+FOOTER_RAW = (
+    "О Центре", "Markaz haqida", "© Государственное учреждение", "© Oʻzbekiston Respublikasi",
+    "Национальный правовой информационный центр",
+)
+
+# подпись под актом и выходные данные: «Президент … И. КАРИМОВ», «г. Ташкент,», «16 апреля 2009 г.,»,
+# «№ ЗРУ-210», «(Собрание законодательства …)». Это не статья 27 и не пункт — цитировать нельзя.
+# Признак: должность + фамилия прописными в конце строки: «… Prezidenti Sh. MIRZIYOYEV»,
+# «Президент Республики Узбекистан И. КАРИМОВ», «President of the Republic of Uzbekistan …»
+SIGN_RE = re.compile(
+    r"(?:Президент|Премьер-министр|Министр|Председатель|Prezident|Bosh\s+vazir|Vazir|Rais"
+    r"|President\s+of\s+the\s+Republic|Prime\s+Minister|Minister|Chairman)"
+    r"[^\n]*?[A-ZА-ЯЁʻʼ‘’]{4,}[.\s]*$")
+IMPRINT_RE = re.compile(
+    r"^(?:г\.\s*Ташкент|Ташкент\s*г?\.?|Toshkent\s*sh|№\s*\S+|N\s*\d|\d{1,2}\s+\S+\s+\d{4}\s*г"
+    r"|\d{4}-yil\s+\d{1,2}|[OO`ʻ‘'’]?RQ-\d|ЗРУ-\d|ПКМ|\(Собрание\s+законодательства"
+    r"|\((?:Oʻ|O‘|O`|O')?zbekiston\s+Respublikasi\s+qonun\s+hujjatlari"
+    r"|\(Национальная\s+база|\(Qonun(?:chilik)?\s+hujjatlari)",
+    re.IGNORECASE)
+IMPRINT_MAX_LINES = 8          # выходные данные длиннее восьми строк не бывают
+
+# невидимые знаки выгрузки: BOM, метки направления письма, мягкий перенос (он стоит внутри слова:
+# «Дополни\xadтельная информация»). Снимаем и в файле, и в цитате — иначе дословность не сходится
+ZERO_WIDTH = "﻿​‌‍‎‏­⁠"
+_ZW_RE = re.compile("[" + ZERO_WIDTH + "]")
+
+# строка целиком — адрес страницы («https://lex.uz/docs/...»): это колонтитул выгрузки, не норма
+URL_LINE_RE = re.compile(r"^\s*(?:https?://|www\.)\S+\s*$", re.IGNORECASE)
+# строка целиком — дата («23.06.2026») или число из карточки документа («20», «100»):
+# это ячейки таблицы реквизитов lex.uz, к тексту нормы отношения не имеют
+CELL_LINE_RE = re.compile(r"^\s*(?:\d{1,2}[./]\d{1,2}[./]\d{2,4}|\d{1,4}|[IVXLC]{1,6}|[a-zA-Zа-яёА-ЯЁ])\s*$")
+# редакционная сноска lex.uz с номером версии акта: «(13-modda … OʻRQ-1154-sonli Qonuni tahririda —
+# Qonun hujjatlari maʼlumotlari milliy bazasi, …)», «(статья 934 в редакции Закона … № ЗРУ-1154)».
+# Это история изменений, а не норма: цитировать её нельзя.
+EDIT_NOTE_RE = re.compile(
+    r"^\(.{0,400}?(?:в\s+редакции|tahririda|таҳририда|in\s+the\s+wording\s+of"
+    r"|Дата\s+обновления|Yangilangan\s+sana)", re.IGNORECASE | re.DOTALL)
+# редакционная справка lex.uz отдельной строкой: «Неофициальный перевод. Статья 35 дополнена
+# частью третьей Законом … Дата вступления в силу — 25 июля 2026 года.» Это история изменений
+# и отсылка к официальному тексту, а не норма — в цитату попадать не должна.
+NOTE_LINE_RE = re.compile(r"^(?:Неофициальный\s+перевод|Norasmiy\s+tarjima|Unofficial\s+translation)\b",
+                          re.IGNORECASE)
+# «Дата обновления: …», «Версия 3», «Redaksiya …» отдельной строкой
+STAMP_LINE_RE = re.compile(
+    r"^\s*(?:Дата\s+обновления|Дата\s+актуализации|Версия|Редакция\s+от|Yangilangan"
+    r"|Versiya|Tahrir\s+sanasi|Last\s+updated|Version)\b", re.IGNORECASE)
+
+# разрыв: между соседними строками выброшен служебный мусор. Цитата не должна склеиваться
+# через такой разрыв — иначе в ней окажется фрагмент, которого в акте нет подряд.
+GAP = "⁣"          # invisible separator: в текстах актов не встречается
+
+# пустой бланк приложения: строка формы «____ ning», «20__ y. “___” ____», «6-ILOVA ______».
+# Заполнять её должен страховщик — как норму такую строку показывать нельзя.
+BLANK_RE = re.compile(r"_{3,}")
 
 # служебные слова: в поисковый запрос не идут, иначе «что если» перетягивает выдачу
 STOP = {
@@ -79,16 +169,41 @@ STOP = {
 }
 ALL_STOP = set().union(*STOP.values())
 
-# порог уверенности: ниже — считаем, что нормы по вопросу нет, и так и говорим
-MIN_CONFIDENCE = 0.55
+# порог уверенности: ниже — считаем, что нормы по вопросу нет, и так и говорим.
+# 0,55 стоял ниже фактического шума: вопрос про срок рассмотрения претензии (такой нормы в
+# законодательстве нет) набирал 0,62, а «сколько стоит билет в кино» — 0,67. Порог поднят,
+# и одновременно введено правило редкого слова (RARE_SHARE / RARE_PENALTY ниже).
+MIN_CONFIDENCE = 0.60
+
+# «редкое слово» вопроса — то, вес которого близок к максимальному: именно оно задаёт тему
+# («претензия», «кино», «попугай»). Если его нет ни в одном найденном куске, совпадение идёт
+# по общим словам («страхование», «срок») и ответом считаться не может — уверенность делим.
+RARE_SHARE = 0.8
+RARE_PENALTY = 0.5
+
+# порог темы: если в лучшем куске нет хотя бы 40% значимых слов вопроса — это не ответ,
+# а совпадение по общей лексике. Плюс нижний порог самого bm25: кусок, набравший меньше,
+# попал в выдачу случайно (вопрос «сколько стоит билет в кино» — 4,6 против 8–20 у настоящих норм)
+KEY_SHARE_MIN = 0.40
+SCORE_MIN = 6.0
+SILENCE_MAX_CONF = 0.3          # «закон молчит» уверенным быть не может
 
 NO_NORM = {
-    "ru": "В законодательстве это прямо не установлено — вопрос решается правилами страхования "
-          "и условиями договора. Уточните у юриста компании.",
-    "uz": "Qonunchilikda bu bevosita belgilanmagan — masala sugʻurta qoidalari va shartnoma "
-          "shartlari bilan hal qilinadi. Kompaniya yuristidan aniqlashtiring.",
-    "en": "The law does not regulate this directly — it is governed by the insurance rules and "
-          "the contract terms. Please check with the company lawyer.",
+    "ru": "В законодательстве прямой нормы не найдено — смотрите правила страхования компании "
+          "и договор; ниже ближайшие по смыслу статьи",
+    "uz": "Qonunchilikda toʻgʻridan-toʻgʻri norma topilmadi — kompaniyaning sugʻurta qoidalari "
+          "va shartnomaga qarang; quyida maʼno jihatdan eng yaqin moddalar",
+    "en": "No direct provision found in the legislation — see the company's insurance rules and "
+          "the contract; closest articles below",
+}
+# тот же ответ, когда ближайших статей показать нечего (вопрос вообще не о страховом праве)
+NO_NORM_BARE = {
+    "ru": "В законодательстве прямой нормы не найдено — смотрите правила страхования компании "
+          "и договор.",
+    "uz": "Qonunchilikda toʻgʻridan-toʻgʻri norma topilmadi — kompaniyaning sugʻurta qoidalari "
+          "va shartnomaga qarang.",
+    "en": "No direct provision found in the legislation — see the company's insurance rules and "
+          "the contract.",
 }
 NO_NORM_NOTE = {
     "ru": "нормы по этому вопросу в базе не найдено — смотрите правила страхования",
@@ -102,6 +217,160 @@ NOTE_ONLY_LANG = {
     "uz": "normaning matni faqat %s tilida mavjud — asl matn va unga havola koʻrsatilgan",
     "en": "the provision exists only in %s — the original text and its link are shown",
 }
+
+# --------------------------------------------------------------------------- #
+#  Известные молчания закона
+# --------------------------------------------------------------------------- #
+# Вопросы, на которые закон РУз ответа НЕ даёт: по добровольным видам это отдано правилам
+# страхования и договору. Раньше поиск подбирал к ним нормы об ОБЯЗАТЕЛЬНОМ страховании
+# (ПКМ 141 об ОСГО, ЗРУ-386 о перевозчике) и выдавал их за ответ. Теперь отвечаем честно
+# и показываем ближайшую по смыслу норму.
+#   all  — группы слов, из каждой должно встретиться хотя бы одно (сравнение по основам);
+#   none — слова, при которых пункт не применяется (вопрос про обязательный вид — там нормы есть);
+#   near — запрос, которым ищем ближайшую норму для ссылки.
+SILENCE_NOTE = {
+    "ru": "законом не установлено — регулируется правилами страхования и договором",
+    "uz": "qonun bilan belgilanmagan — sugʻurta qoidalari va shartnoma bilan tartibga solinadi",
+    "en": "not set by law — governed by the insurance rules and the contract",
+}
+NOT_COMPULSORY = ["осго", "обязательн", "majburiy", "compulsory", "mandatory", "осгор", "ifjms"]
+
+SILENCES = [
+    {
+        "id": "claim_review_term",
+        "q": {"ru": "Какой максимальный срок рассмотрения претензии по добровольному имущественному страхованию?",
+              "uz": "Ixtiyoriy mulk sugʻurtasi boʻyicha daʼvoni koʻrib chiqishning eng koʻp muddati qancha?",
+              "en": "What is the maximum claim handling period in voluntary property insurance?"},
+        "a": {"ru": "Срок рассмотрения претензии по добровольному страхованию законом не установлен — "
+                    "он определяется правилами страхования и договором. По обязательным видам сроки "
+                    "задаёт отдельный акт по каждому виду.",
+              "uz": "Ixtiyoriy sugʻurtada daʼvoni koʻrib chiqish muddati qonun bilan belgilanmagan — "
+                    "u sugʻurta qoidalari va shartnoma bilan aniqlanadi. Majburiy turlarda muddatlar "
+                    "har bir tur boʻyicha alohida hujjatda belgilanadi.",
+              "en": "The claim handling period in voluntary insurance is not set by law — it is "
+                    "defined by the insurance rules and the contract. For compulsory classes the "
+                    "period is set by the act on each class."},
+        "all": [["претенз", "заявлен", "davo", "daʼvo", "ariza", "claim"],
+                ["срок", "muddat", "period", "term", "рассмотр", "korib", "handling"]],
+        "none": NOT_COMPULSORY,
+        "near": {"ru": "обязанности страховщика при наступлении страхового случая выплата",
+                 "uz": "sugʻurta hodisasi yuz berganda sugʻurta toʻlovi majburiyati",
+                 "en": "obligations of the insurer upon occurrence of the insured event payment"},
+    },
+    {
+        "id": "payout_term",
+        "q": {"ru": "В какой срок страховщик обязан выплатить возмещение по добровольному имущественному страхованию?",
+              "uz": "Ixtiyoriy mulk sugʻurtasi boʻyicha toʻlov qaysi muddatda amalga oshiriladi?",
+              "en": "Within what period must the insurer pay under voluntary property insurance?"},
+        "a": {"ru": "Срок выплаты по добровольному имущественному страхованию законом не установлен — "
+                    "его задают правила страхования и договор. Закон требует лишь выплатить при "
+                    "наступлении страхового случая в порядке, предусмотренном договором.",
+              "uz": "Ixtiyoriy mulk sugʻurtasida toʻlov muddati qonun bilan belgilanmagan — uni "
+                    "sugʻurta qoidalari va shartnoma belgilaydi. Qonun faqat sugʻurta hodisasi yuz "
+                    "berganda shartnomada nazarda tutilgan tartibda toʻlashni talab qiladi.",
+              "en": "The payment period in voluntary property insurance is not set by law — it is "
+                    "set by the insurance rules and the contract."},
+        "all": [["выплат", "возмещ", "tolov", "toʻlov", "payment", "payout", "indemn"],
+                ["срок", "muddat", "period", "term", "когда", "qachon", "when"]],
+        "none": NOT_COMPULSORY,
+        "near": {"ru": "страховая выплата при наступлении страхового случая обязанность страховщика",
+                 "uz": "sugʻurta toʻlovi sugʻurta hodisasi sugʻurtalovchi majburiyati",
+                 "en": "insurance payment upon the insured event obligation of the insurer"},
+    },
+    {
+        "id": "franchise_size",
+        "q": {"ru": "Какой размер франшизы установлен законом?",
+              "uz": "Franshiza miqdori qonun bilan belgilanganmi?",
+              "en": "What deductible (franchise) size does the law require?"},
+        "a": {"ru": "Размер франшизы законом не установлен — он определяется правилами страхования "
+                    "и договором. Закон только даёт понятие франшизы и требует указать её в договоре.",
+              "uz": "Franshiza miqdori qonun bilan belgilanmagan — u sugʻurta qoidalari va shartnoma "
+                    "bilan aniqlanadi. Qonun faqat franshiza tushunchasini beradi.",
+              "en": "The size of the deductible is not set by law — it is defined by the insurance "
+                    "rules and the contract; the law only defines the term."},
+        "all": [["франши", "franshiz", "deduct", "franchis"],
+                ["размер", "миqdor", "miqdor", "сколь", "qanch", "size", "amount", "максимал", "минимал"]],
+        "none": [],
+        "near": {"ru": "франшиза договор страхования",
+                 "uz": "franshiza sugʻurta shartnomasi",
+                 "en": "deductible franchise insurance contract"},
+    },
+    {
+        "id": "commission_voluntary",
+        "q": {"ru": "Какая комиссия агента допустима по добровольным видам страхования?",
+              "uz": "Ixtiyoriy sugʻurta turlari boʻyicha agent komissiyasi qancha boʻlishi mumkin?",
+              "en": "What agent commission is allowed in voluntary insurance classes?"},
+        "a": {"ru": "Предельный размер комиссии установлен только Положением 3845 — не более 25% "
+                    "от премии. Иных ограничений по добровольным видам закон не задаёт: размер "
+                    "определяется агентским договором и тарифной политикой компании.",
+              "uz": "Komissiyaning yuqori chegarasi faqat 3845-sonli Nizomda — mukofotning 25 "
+                    "foizidan koʻp emas. Boshqa cheklovlar qonunda yoʻq: miqdor agentlik shartnomasi "
+                    "va kompaniyaning tarif siyosati bilan belgilanadi.",
+              "en": "The only cap is Regulation 3845 — no more than 25% of the premium. Otherwise "
+                    "the commission is set by the agency contract and the company's tariff policy."},
+        "all": [["комисс", "вознагражд", "komiss", "vositachilik", "commission"],
+                ["добровол", "ixtiyo", "volunt", "размер", "miqdor", "сколь", "qanch", "max"]],
+        "none": [],
+        "near": {"ru": "страховой агент вознаграждение договор поручения",
+                 "uz": "sugʻurta agenti vositachilik haqi shartnoma",
+                 "en": "insurance agent remuneration agency contract"},
+    },
+    {
+        "id": "tariff_rate_limit",
+        "q": {"ru": "Установлен ли законом максимальный тариф по добровольному страхованию?",
+              "uz": "Ixtiyoriy sugʻurta boʻyicha eng yuqori tarif qonun bilan belgilanganmi?",
+              "en": "Does the law cap tariffs in voluntary insurance?"},
+        "a": {"ru": "Нет. Тарифы по добровольным видам страховщик устанавливает сам — в рамках "
+                    "своей тарифной политики; закон задаёт тарифы только по обязательным видам.",
+              "uz": "Yoʻq. Ixtiyoriy turlar boʻyicha tariflarni sugʻurtalovchi oʻz tarif siyosati "
+                    "doirasida belgilaydi; qonun faqat majburiy turlar tarifini belgilaydi.",
+              "en": "No. In voluntary classes the insurer sets tariffs itself within its tariff "
+                    "policy; the law sets tariffs only for compulsory classes."},
+        "all": [["тариф", "ставк", "tarif", "rate", "premium"],
+                ["максимал", "предел", "лимит", "eng", "chegara", "cap", "max", "limit", "установл"]],
+        "none": NOT_COMPULSORY,
+        "near": {"ru": "страховая премия страховой тариф договор страхования",
+                 "uz": "sugʻurta mukofoti sugʻurta tarifi shartnoma",
+                 "en": "insurance premium insurance tariff contract"},
+    },
+    {
+        "id": "documents_for_payout",
+        "q": {"ru": "Какой перечень документов нужен для выплаты по добровольному страхованию?",
+              "uz": "Ixtiyoriy sugʻurta boʻyicha toʻlov uchun qanday hujjatlar kerak?",
+              "en": "What documents are required for a payout in voluntary insurance?"},
+        "a": {"ru": "Перечень документов по добровольным видам законом не установлен — он приводится "
+                    "в правилах страхования и в договоре.",
+              "uz": "Ixtiyoriy turlar boʻyicha hujjatlar roʻyxati qonun bilan belgilanmagan — u "
+                    "sugʻurta qoidalari va shartnomada keltiriladi.",
+              "en": "The list of documents for voluntary classes is not set by law — it is given in "
+                    "the insurance rules and the contract."},
+        "all": [["документ", "перечен", "hujjat", "royxat", "document", "list"],
+                ["выплат", "возмещ", "tolov", "toʻlov", "payout", "payment", "случа", "hodis"]],
+        "none": NOT_COMPULSORY,
+        "near": {"ru": "страховая выплата документы страхового случая",
+                 "uz": "sugʻurta toʻlovi hujjatlar sugʻurta hodisasi",
+                 "en": "insurance payment documents insured event"},
+    },
+    {
+        "id": "contract_term_length",
+        "q": {"ru": "Установлен ли законом минимальный срок договора добровольного страхования?",
+              "uz": "Ixtiyoriy sugʻurta shartnomasining eng kam muddati qonun bilan belgilanganmi?",
+              "en": "Is there a statutory minimum term for a voluntary insurance contract?"},
+        "a": {"ru": "Нет. Срок договора добровольного страхования законом не ограничен — стороны "
+                    "определяют его сами в договоре.",
+              "uz": "Yoʻq. Ixtiyoriy sugʻurta shartnomasining muddati qonun bilan cheklanmagan — "
+                    "uni tomonlar shartnomada belgilaydi.",
+              "en": "No. The term of a voluntary insurance contract is not limited by law — the "
+                    "parties set it in the contract."},
+        "all": [["срок", "muddat", "term", "period"],
+                ["договор", "shartnoma", "contract", "polic", "polis"],
+                ["минимал", "максимал", "eng", "чем", "установл", "minimum", "maximum"]],
+        "none": NOT_COMPULSORY,
+        "near": {"ru": "срок действия договора страхования вступление в силу",
+                 "uz": "sugʻurta shartnomasining amal qilish muddati kuchga kirishi",
+                 "en": "term of the insurance contract entry into force"},
+    },
+]
 
 NOTE_NO_LANG = {
     "uz":"Bu hujjatning oʻzbekcha matni bazada yoʻq — javob rus tilidagi matn asosida.",
@@ -119,6 +388,16 @@ def fold(s: str) -> str:
     токенайзер unicode61, а вот апостроф он считает разделителем, и «sugʻurta» распалось бы на
     «sug» и «urta». Поэтому апострофы именно снимаются, а не заменяются."""
     s = unicodedata.normalize("NFC", s or "")
+    s = _ZW_RE.sub("", s)
+    s = _APO_RE.sub("", s)
+    return _WS_RE.sub(" ", s).strip()
+
+
+def quote_norm(s: str) -> str:
+    """Для сверки дословности: сняты апострофы всех начертаний и невидимые знаки, пробелы
+    схлопнуты. Регистр и знаки препинания сохраняются — иначе «дословно» ничего не значит."""
+    s = unicodedata.normalize("NFC", s or "")
+    s = _ZW_RE.sub("", s)
     s = _APO_RE.sub("", s)
     return _WS_RE.sub(" ", s).strip()
 
@@ -126,6 +405,10 @@ def fold(s: str) -> str:
 def norm(s: str) -> str:
     """То же самое плюс нижний регистр — для сравнения строк в Python."""
     return fold(s).lower()
+
+
+CHROME = {norm(x) for x in CHROME_RAW}
+FOOTER = tuple(norm(x) for x in FOOTER_RAW)
 
 
 _UZ_MARKERS = {"sugurta", "modda", "boyicha", "qiymat", "summasi", "shartnoma", "tashkiloti",
@@ -192,6 +475,16 @@ UNIT_RE = re.compile(
     r")\s*[\.\)]?\s*(?P<title>.*)$", re.IGNORECASE)
 POINT_RE = re.compile(r"^\s*(?P<n>\d+(?:\.\d+)*)\.\s+(?P<rest>\S.*)$")
 
+# приложение к акту («1-ILOVA», «ПРИЛОЖЕНИЕ № 2»): это отдельный документ — бланк, таблица тарифов.
+# Без этой границы содержимое приложения приклеивалось к последнему пункту и выдавалось как «п. 45».
+APPENDIX_RE = re.compile(r"^\s*(?:(?P<uz>\d+(?:\s*\d+)?)\s*-\s*ILOVA"
+                         r"|ПРИЛОЖЕНИЕ\s*(?:№\s*)?(?P<ru>\d+)?)\b", re.IGNORECASE)
+
+
+def _appendix_label(m: re.Match) -> str:
+    n = (m.group("uz") or m.group("ru") or "").replace(" ", "")
+    return ("прил. " + n).strip() if m.group("ru") is not None or not m.group("uz") else n + "-ilova"
+
 CHUNK_CHARS = 1800          # если структуры нет — режем на куски примерно по абзацу-полтора
 TOC_MIN_CHARS = 100         # короче — это строка оглавления, а не норма
 RUBRIC_MAX_LINES = 40       # рубрикатор lex.uz длиннее сорока строк не бывает
@@ -208,25 +501,90 @@ def _clean_lines(text: str) -> list:
     """
     out = []
     skip_left = 0                          # сколько ещё строк рубрикатора пропускаем
+    imprint_left = 0                       # сколько строк выходных данных после подписи пропускаем
+    dropped = False                        # между соседними строками выброшен мусор
+
+    def drop():
+        nonlocal dropped
+        dropped = True
+
+    def keep(s: str):
+        nonlocal dropped
+        if dropped and out:
+            out.append(GAP)                # разрыв: дальше идёт уже не продолжение предыдущей строки
+        dropped = False
+        out.append(s)
+
     for raw in text.splitlines():
-        ln = raw.replace("﻿", "").strip()
+        ln = _ZW_RE.sub("", raw).strip()
         if not ln:
             continue
         if skip_left:
             skip_left -= 1
             if "]" in ln:
                 skip_left = 0
+            drop()
             continue
+        low = norm(ln)
+        if any(low.startswith(f) for f in FOOTER):
+            break                          # подвал сайта — текст акта кончился
+        if HEAD_RE.match(ln):
+            drop()
+            continue                       # шапка нашей выгрузки: «Источник: …», «Загружено: …»
         if any(n in ln for n in NOISE):
+            drop()
             continue
+        if low in CHROME:
+            drop()
+            continue                       # кнопка или пункт меню страницы lex.uz
         if ln.startswith("["):
             if "]" not in ln:
                 skip_left = RUBRIC_MAX_LINES      # предел, чтобы незакрытая скобка не съела акт
+            drop()
             continue
         if ln.startswith("=== стр."):
+            drop()
             continue
-        out.append(ln)
+        if URL_LINE_RE.match(ln) or STAMP_LINE_RE.match(ln) or CELL_LINE_RE.match(ln):
+            drop()
+            continue                       # адрес страницы, «Дата обновления», ячейка карточки акта
+        if NOTE_LINE_RE.match(ln):
+            drop()
+            continue                       # редакционная справка «Неофициальный перевод. …»
+        if len(ln) < 600 and EDIT_NOTE_RE.match(ln):
+            drop()
+            continue                       # сноска о редакции и номере изменяющего акта — не норма
+        if BLANK_RE.search(ln):
+            drop()
+            continue                       # пустой бланк приложения — не норма
+        if imprint_left and IMPRINT_RE.match(ln):
+            imprint_left -= 1
+            drop()
+            continue                       # «г. Ташкент,», «16 апреля 2009 г.,», «№ ЗРУ-210»
+        imprint_left = 0
+        if len(ln) < 200 and SIGN_RE.search(ln):
+            # подпись под актом: дальше идут только выходные данные (город, дата, номер, источник
+            # опубликования). Раньше всё это приклеивалось к последней статье и цитировалось
+            # как её текст — «27-modda» отдавала «KARIMOV Toshkent sh., 2009-yil 16-aprel…».
+            imprint_left = IMPRINT_MAX_LINES
+            drop()
+            continue
+        keep(ln)
     return out
+
+
+def segments(body: str) -> list:
+    """Непрерывные куски текста акта: разрыв GAP означает, что между ними был выброшен мусор.
+
+    Цитата берётся только внутри одного куска — иначе она склеивает два места акта и в самом
+    акте такой фразы нет (дефект контролёра 22.09.2026).
+    """
+    return [s.strip() for s in (body or "").split(GAP) if s.strip()]
+
+
+def strip_gaps(body: str) -> str:
+    """Текст без меток разрыва — для поиска и для показа целиком."""
+    return _WS_RE.sub(" ", (body or "").replace(GAP, " ")).strip()
 
 
 def _unit_label(m: re.Match, lang: str) -> str:
@@ -248,6 +606,12 @@ def split_units(text: str, lang: str) -> list:
                 units.append(cur)
             cur = {"unit": _unit_label(m, lang), "title": (m.group("title") or "").strip(), "body": []}
             continue
+        ap = APPENDIX_RE.match(ln)
+        if ap and len(ln) < 200:
+            if cur:
+                units.append(cur)
+            cur = {"unit": _appendix_label(ap), "title": ln.strip()[:120], "body": []}
+            continue
         if cur is None:
             cur = {"unit": "", "title": "", "body": []}
         cur["body"].append(ln)
@@ -256,7 +620,7 @@ def split_units(text: str, lang: str) -> list:
 
     out = []
     for u in units:
-        body = "\n".join(u["body"]).strip()
+        body = _tidy("\n".join(u["body"]))
         if not body and not u["title"]:
             continue
         if len(body) <= CHUNK_CHARS * 2 or u["unit"]:
@@ -269,7 +633,16 @@ def split_units(text: str, lang: str) -> list:
     # отбрасываем оглавление: в выгрузке lex.uz перед текстом идёт список статей, где под
     # «Статья 816. Последствия неоплаты чека» стоит одна строка «Глава 46. Поручение».
     # Такие куски имеют настоящий заголовок и пустое содержание — они забивали выдачу.
-    return [u for u in out if len((u["text"] or "").strip()) >= TOC_MIN_CHARS]
+    return [dict(u, text=_tidy(u["text"])) for u in out
+            if len(strip_gaps(u["text"])) >= TOC_MIN_CHARS]
+
+
+_GAPS_RE = re.compile(r"(?:\s*" + GAP + r"\s*)+")
+
+
+def _tidy(body: str) -> str:
+    """Схлопываем подряд идущие разрывы и убираем их с краёв куска."""
+    return _GAPS_RE.sub(GAP, (body or "").strip()).strip().strip(GAP).strip()
 
 
 def _split_long(body: str) -> list:
@@ -460,7 +833,7 @@ def _index_file(con, path: Path, kind: str) -> dict:
     units = split_units(raw, language)
     rows_ = []
     for u in units:
-        body = fold(u["text"])
+        body = fold(strip_gaps(u["text"]))      # в поиск разрывы не идут, в raw остаются
         if not body:
             continue
         rows_.append((fold(act), code, language, fold(u["unit"]), fold(u["title"]),
@@ -492,9 +865,15 @@ def _index_rules(con) -> int:
     return len(rows_)
 
 
+# версия разбора текста: меняется вместе с правилами очистки и разметки разрывов. Индекс,
+# собранный прежней версией, пересобирается сам — иначе в цитатах остаётся старый мусор.
+PARSER_VERSION = "2026-09-22.quotes"
+PARSER_ROW = "db:parser"
+
+
 def index_stamp() -> str:
     """Отпечаток состава источников: пути + mtime + размеры. Изменился — индекс пересобирается."""
-    parts = []
+    parts = [PARSER_VERSION]
     for s in source_files():
         try:
             st = s["path"].stat()
@@ -528,6 +907,9 @@ def reindex(force: bool = False) -> dict:
             except Exception as e:
                 print("legal: таблица индекса не проверена:", e)
             have = {r["path"]: r for r in db.rows(con, "SELECT * FROM legal_files")}
+            # индекс собран прежней версией разбора — пересобираем целиком
+            if (have.get(PARSER_ROW) or {}).get("act") != PARSER_VERSION:
+                force = True
             seen, changed = set(), []
             for s in source_files():
                 p = s["path"]
@@ -545,10 +927,15 @@ def reindex(force: bool = False) -> dict:
                 except Exception as e:
                     # ошибку не глотаем: файл пропускаем, но в журнал она попадает
                     db.audit(con, "system", "индекс закона: файл не разобран", rel, {"ошибка": str(e)[:300]})
-            for gone in set(have) - seen:                 # файл удалили — убираем и из индекса
+            for gone in set(have) - seen - {PARSER_ROW}:  # файл удалили — убираем и из индекса
                 con.execute("DELETE FROM legal_chunks WHERE path=?", (gone,))
                 con.execute("DELETE FROM legal_files WHERE path=?", (gone,))
             rules_n = _index_rules(con)
+            # отметка версии разбора: по ней следующий запуск поймёт, что индекс свежий
+            con.execute("DELETE FROM legal_files WHERE path=?", (PARSER_ROW,))
+            con.execute("INSERT INTO legal_files (path, mtime, size, language, act, act_code,"
+                        " chunks, indexed_at) VALUES (?,?,?,?,?,?,?,?)",
+                        (PARSER_ROW, 0.0, 0, "", PARSER_VERSION, "parser", 0, db.now()))
             total = con.execute("SELECT COUNT(*) FROM legal_chunks").fetchone()[0]
         _index_ready["stamp"] = index_stamp()
         _cache.clear()
@@ -700,6 +1087,37 @@ def faq_match(question: str, lang: str) -> tuple:
     return (best, round(best_score, 3)) if best_score >= FAQ_MIN_SCORE else (None, round(best_score, 3))
 
 
+def silence_match(question: str, lang: str) -> Optional[dict]:
+    """Известное молчание закона: вопрос из списка SILENCES. Сравнение по основам слов.
+
+    Проверяется ДО поиска по актам (но после FAQ юриста): иначе поиск подбирает к такому
+    вопросу норму об обязательном виде страхования и выдаёт её за ответ.
+    """
+    q = norm(question)
+    if not q:
+        return None
+    for item in SILENCES:
+        if any(bad in q for bad in item.get("none") or ()):
+            continue
+        if all(any(w in q for w in group) for group in item["all"]):
+            return item
+    return None
+
+
+def silence_answer(item: dict, lang: str) -> tuple:
+    """Ответ по известному молчанию: текст + ближайшая норма как «ближайшая» цитата."""
+    text, _ = _pick(item.get("a") or {}, lang)
+    near_q, _ = _pick(item.get("near") or {}, lang)
+    citations = []
+    if near_q:
+        stems = stems_of(near_q, lang)
+        # ближайшую норму показываем только если она действительно по теме: иначе к узбекскому
+        # вопросу подставлялся случайный пункт Положения 1882 на кириллице
+        found = [r for r in search(near_q, lang, limit=3) if _on_topic(r, stems)][:2]
+        citations = [dict(_citation(r, lang, stems), closest=True) for r in found]
+    return text or NO_NORM_BARE[lang], citations
+
+
 # --------------------------------------------------------------------------- #
 #  Поиск по индексу
 # --------------------------------------------------------------------------- #
@@ -806,6 +1224,14 @@ def _coverage(r: dict, stems: list) -> float:
     return sum(1 for s in stems if s in hay) / max(1, len(stems))
 
 
+def _on_topic(r: dict, stems: list) -> bool:
+    """Порог релевантности: в куске есть хотя бы KEY_SHARE_MIN значимых слов вопроса и сам
+    bm25 не ниже SCORE_MIN. Иначе кусок попал в выдачу по общей лексике, а не по теме."""
+    if not r:
+        return False
+    return _coverage(r, list(stems)) >= KEY_SHARE_MIN and -r.get("score", 0.0) >= SCORE_MIN
+
+
 def search(question: str, lang: str, limit: int = MAX_PASSAGES) -> list:
     stems = stems_of(question, lang)
     q = match_query(question, lang)
@@ -820,8 +1246,14 @@ def search(question: str, lang: str, limit: int = MAX_PASSAGES) -> list:
         weights = weights_of(con, stems, lang)
     rs = [dict(r) for r in rs]
     worst = max([-r["score"] for r in rs] or [1.0]) or 1.0
+    top_w = max(weights.values()) if weights else 0.0
+    rare = {s for s, w in weights.items() if top_w and w >= RARE_SHARE * top_w}
     scored = []
     for r in rs:
+        hay_all = ((r["title"] or "") + " " + (r["folded"] or "")).lower()
+        # каких редких слов темы в куске нет — по ним ask() решает, ответ это или совпадение
+        # по общим словам
+        r["rare_missing"] = sorted(s for s in rare if s not in hay_all)
         r["coverage"] = _coverage(r, stems)
         r["coverage_w"] = _coverage_w(r, weights)
         title = (r["title"] or "").lower()
@@ -851,8 +1283,17 @@ SENT_RE = re.compile(r"(?<=[.!?;])\s+")
 
 def _first_sentences(text: str, n: int = 2, limit: int = 400) -> str:
     sents = [s.strip() for s in SENT_RE.split((text or "").strip()) if s.strip()]
-    out = " ".join(sents[:n]).strip()
-    return out[:limit] + ("…" if len(out) > limit else "")
+    return _clip(" ".join(sents[:n]), limit)
+
+
+def _clip(out: str, limit: int) -> str:
+    """Обрезаем по границе слова: цитата не должна обрываться на половине слова."""
+    out = _WS_RE.sub(" ", (out or "").strip())
+    if len(out) <= limit:
+        return out
+    cut = out[:limit]
+    sp = cut.rfind(" ")
+    return (cut[:sp] if sp > limit // 2 else cut).rstrip(" ,;:-") + "…"
 
 
 def _best_sentences(text: str, stems: list, n: int = 2, limit: int = QUOTE_MAX) -> str:
@@ -860,20 +1301,30 @@ def _best_sentences(text: str, stems: list, n: int = 2, limit: int = QUOTE_MAX) 
 
     В акте первым предложением часто идёт служебная строка («Глава 46. Поручение»,
     «Oldingi tahrirga qarang») — цитировать её бессмысленно.
+
+    Цитата берётся внутри ОДНОГО непрерывного куска (см. segments): фраза, склеенная через
+    выброшенный служебный мусор, в самом акте не встречается и цитатой быть не может.
     """
-    sents = [s.strip() for s in SENT_RE.split((text or "").strip()) if len(s.strip()) > 15]
-    if not sents:
-        return _first_sentences(text, n, limit)
-    best_i, best = 0, -1
-    for i, s in enumerate(sents):
-        low = s.lower()
-        hit = sum(1 for st in stems if st in low)
-        if hit > best:
-            best_i, best = i, hit
+    best_seg, best_i, best = None, 0, -1
+    for seg in segments(text) or [(text or "").strip()]:
+        # короткие «предложения» («4-боб.», «16.») из списка НЕ выбрасываем: без них соседние
+        # фразы склеивались в цитату, которой в акте нет. Они лишь не годятся как начало цитаты.
+        sents = [s.strip() for s in SENT_RE.split(seg) if s.strip()]
+        if not sents:
+            continue
+        for i, s in enumerate(sents):
+            if len(s) <= 15:
+                continue
+            low = s.lower()
+            hit = sum(1 for st in stems if st in low)
+            if hit > best:
+                best_seg, best_i, best = sents, i, hit
+    if not best_seg:
+        first = (segments(text) or [(text or "").strip()])[0]
+        return _clip(_first_sentences(first, n, limit), limit)
     if best <= 0:
-        return _first_sentences(text, n, limit)
-    out = " ".join(sents[best_i:best_i + n]).strip()
-    return out[:limit] + ("…" if len(out) > limit else "")
+        best_i = 0
+    return _clip(" ".join(best_seg[best_i:best_i + n]), limit)
 
 
 def _cap(s: str) -> str:
@@ -899,10 +1350,68 @@ def summarize_passages(passages: list, lang: str, stems: list = ()) -> str:
     return " ".join(parts)
 
 
+# тексты файлов для сверки дословности: файлов десятки, каждый до полумегабайта — держим
+# последние несколько и сверяем mtime, чтобы не читать диск на каждый вопрос
+_TEXT_CACHE_MAX = 8
+_text_cache = {}
+_text_lock = threading.Lock()
+
+
+def file_text(rel: str) -> str:
+    """Нормализованный текст исходного файла акта (апострофы и пробелы), пустая строка — нет файла."""
+    if not rel or rel.startswith("db:"):
+        return ""
+    p = ROOT / rel
+    try:
+        mtime = p.stat().st_mtime
+    except OSError:
+        return ""
+    with _text_lock:
+        hit = _text_cache.get(rel)
+        if hit and hit[0] == mtime:
+            return hit[1]
+    try:
+        txt = quote_norm(p.read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        txt = ""
+    with _text_lock:
+        if len(_text_cache) >= _TEXT_CACHE_MAX:
+            _text_cache.clear()
+        _text_cache[rel] = (mtime, txt)
+    return txt
+
+
+def quote_core(quote: str) -> str:
+    """Цитата без нашего многоточия обрезки — именно её ищем в исходном файле."""
+    return (quote or "").rstrip("…").strip()
+
+
+def verbatim(rel: str, quote: str) -> bool:
+    """Цитата дословно встречается в исходном файле (с точностью до апострофов и пробелов).
+
+    Правила движка (path='db:rules') и заметки проекта не акты — их не сверяем.
+    """
+    core = quote_core(quote)
+    if len(core) < 20:
+        return False
+    text = file_text(rel)
+    if not text:
+        return True                      # файла нет (правило движка) — сверять нечего
+    return quote_norm(core) in text
+
+
 def _citation(r: dict, lang: str, stems: list = ()) -> dict:
+    """Цитата из пассажа. Не дословную не отдаём: лучше без текста, чем выдуманная норма."""
     quote = _best_sentences(r["body"], list(stems), 2, QUOTE_MAX)
-    return {"act": _cap(r["act"]), "unit": _unit_of(r), "quote": _cap(quote),
-            "url": r["url"] or None, "language": r["language"], "official": bool(r["official"])}
+    rel = r.get("path") or ""
+    if not verbatim(rel, quote):
+        # длинная склейка не сошлась — пробуем одно первое предложение лучшего куска
+        quote = _best_sentences(r["body"], list(stems), 1, QUOTE_MAX)
+        if not verbatim(rel, quote):
+            quote = ""
+    return {"act": _cap(r["act"]), "unit": _unit_of(r), "quote": quote,
+            "url": _clean_url(r["url"]) or None, "language": r["language"],
+            "official": bool(r["official"]), "closest": False}
 
 
 # --------------------------------------------------------------------------- #
@@ -1066,6 +1575,19 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
 
     note = None
     item, conf = faq_match(question, lang)
+    silent = None if item else silence_match(question, lang)
+    if silent:
+        # известное молчание закона: отвечаем по списку, нормы не подбираем
+        text, citations = silence_answer(silent, lang)
+        answer = {"text": text, "source": "none", "confidence": SILENCE_MAX_CONF,
+                  "silence_id": silent["id"]}
+        note = SILENCE_NOTE.get(lang) or SILENCE_NOTE[DEFAULT_LANG]
+        out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
+               "citations": citations, "related": related(lang),
+               "ai": {"status": "off", "text": None}, "note": note, "cached": False}
+        _cache_put(key, out)
+        log_question(question, lang, "none", SILENCE_MAX_CONF, out["took_ms"], False)
+        return out
     if item:
         a = faq_answer(item, lang, conf)
         answer = {"text": a["text"], "source": "faq", "confidence": conf}
@@ -1083,16 +1605,34 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
         # уверенность — по лучшему пассажу и по весу найденных слов, а не по среднему числу
         # совпавших слов: среднее по трём случайным нормам давало «приемлемые» 0,5–0,7 там,
         # где закон вопроса вообще не касается
-        best = max((r.get("coverage_w", r["coverage"]) for r in passages), default=0.0)
+        # кусок считается ответом, только если в нём есть все редкие слова темы. Нет ни одного
+        # такого куска — уверенность делим: совпали общие слова, а сама тема в норме не встретилась
+        full = [r for r in passages if not r.get("rare_missing")]
+        best = max((r.get("coverage_w", r["coverage"]) for r in (full or passages)), default=0.0)
+        if passages and not full:
+            best *= RARE_PENALTY
         conf = round(best, 2)
-        if conf < MIN_CONFIDENCE:
-            # закон молчит: не выдаём три произвольных нормы за ответ
-            passages, citations = [], []
-            answer = {"text": NO_NORM.get(lang) or NO_NORM[DEFAULT_LANG],
+        # порог релевантности лучшего пассажа: доля значимых слов вопроса и сам bm25.
+        # Без него на вопрос без нормы («срок рассмотрения претензии по добровольному виду»)
+        # выдавался посторонний пассаж с обычной уверенностью.
+        on_topic = _on_topic(passages[0] if passages else None, stems)
+        if conf < MIN_CONFIDENCE or not on_topic:
+            # закон молчит: не выдаём три произвольных нормы за ответ. Ближайшие по смыслу
+            # статьи показываем отдельной пометкой closest — чтобы было что проверить руками,
+            # но только если вопрос вообще о страховом праве (иначе цитаты бессмысленны).
+            # «ближайшая по смыслу» — это кусок, где есть редкое слово темы вопроса. Если такого
+            # нет ни в одном (вопрос про крышу склада, про билет в кино), показывать нечего
+            near = [r for r in passages[:3] if not r.get("rare_missing")] if on_topic else []
+            closest = [dict(_citation(r, lang, stems), closest=True) for r in near]
+            conf = min(conf, SILENCE_MAX_CONF)
+            passages, citations = [], closest
+            texts = NO_NORM if closest else NO_NORM_BARE
+            answer = {"text": texts.get(lang) or texts[DEFAULT_LANG],
                       "source": "none", "confidence": conf}
             note = note or NO_NORM_NOTE.get(lang) or NO_NORM_NOTE[DEFAULT_LANG]
             out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
-                   "citations": [], "related": related(lang), "ai": {"status": "off", "text": None},
+                   "citations": citations, "related": related(lang),
+                   "ai": {"status": "off", "text": None},
                    "note": note, "cached": False}
             _cache_put(key, out)
             log_question(question, lang, "none", conf, out["took_ms"], False)
@@ -1158,13 +1698,26 @@ def legal_faq(lang: str = DEFAULT_LANG):
     return {"lang": lang, "version": _faq_cache.get("version"), "count": len(items), "items": items}
 
 
+@router.get("/legal/silences")
+def legal_silences(lang: str = DEFAULT_LANG):
+    """Известные молчания закона: вопросы, ответ на которые даёт не закон, а правила и договор."""
+    lang = lang if lang in LANGS else DEFAULT_LANG
+    items = []
+    for s in SILENCES:
+        q, _ = _pick(s.get("q") or {}, lang)
+        a, _ = _pick(s.get("a") or {}, lang)
+        items.append({"id": s["id"], "q": q, "a": a})
+    return {"lang": lang, "count": len(items), "items": items,
+            "note": SILENCE_NOTE.get(lang) or SILENCE_NOTE[DEFAULT_LANG]}
+
+
 @router.get("/legal/acts")
 def legal_acts():
     """Какие акты и на каких языках лежат в индексе — чтобы юрист видел, что ещё не докачано."""
     ensure_index()
     with db.tx() as con:
         rs = db.rows(con, "SELECT act, act_code, language, SUM(chunks) AS chunks FROM legal_files"
-                          " GROUP BY act_code, language ORDER BY act")
+                          " WHERE path <> ? GROUP BY act_code, language ORDER BY act", PARSER_ROW)
     acts = {}
     for r in rs:
         a = acts.setdefault(r["act_code"], {"act_code": r["act_code"], "act": r["act"],
