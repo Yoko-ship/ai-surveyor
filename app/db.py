@@ -290,6 +290,11 @@ ADDED_COLUMNS = {
         ("exhausted", "INTEGER NOT NULL DEFAULT 0"),
         ("blocked_until", "TEXT"),
     ],
+    "checklists": [
+        # 22.09.2026: зачем документ нужен. 'анализ' — для оценки риска, 'оформление' — только
+        # для заключения договора (заявление-анкета). Анализ риска строки 'оформление' не спрашивает.
+        ("scope", "TEXT NOT NULL DEFAULT 'анализ'"),
+    ],
     "rules": [
         # LAWWATCH-01 (app/lawwatch.py): изменился акт — правила, которые на него ссылаются,
         # помечаются «требует пересмотра». Расчёты не блокируются, пометку снимает юрист.
@@ -376,6 +381,9 @@ def migrate(con):
             if name not in have:
                 con.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
                 added.append(f"{table}.{name}")
+                if (table, name) == ("checklists", "scope"):
+                    # LIKE без lower(): в SQLite lower() кириллицу не приводит
+                    con.execute("UPDATE checklists SET scope='оформление' WHERE doc_name LIKE '%аявлен%'")
     return added
 
 
@@ -483,7 +491,11 @@ def _load_reference(con, today: str) -> Reference:
     pcs = {}
     for r in rows(con, "SELECT product_code, class_code FROM product_classes ORDER BY part_no"):
         pcs.setdefault(r["product_code"], []).append(r["class_code"])
-    checklists = rows(con, "SELECT scope_type, scope_code, doc_name, required, condition FROM checklists ORDER BY id")
+    # scope появился 22.09.2026 ('анализ' | 'оформление'); на старых базах колонки ещё нет
+    has_scope = any(r[1] == "scope" for r in con.execute("PRAGMA table_info(checklists)").fetchall())
+    checklists = rows(con, "SELECT scope_type, scope_code, doc_name, required, condition"
+                           + (", scope" if has_scope else ", 'анализ' AS scope")
+                           + " FROM checklists ORDER BY id")
     fin = rows(con, "SELECT * FROM company_financials ORDER BY report_date DESC LIMIT 1")
     measures = rows(con, "SELECT * FROM preventive_measures")
     # факторы каждого класса: движок строит форму и расчёт по набору своего класса, а не по фиксированному списку

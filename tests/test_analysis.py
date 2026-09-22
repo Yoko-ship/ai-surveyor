@@ -298,6 +298,11 @@ def test_verdict_code():
         print("  node нет — проверка фразы мини-аппа пропущена")
         return
     html = (ROOT / "app" / "tg.html").read_text(encoding="utf-8")
+    # 22.09.2026 (заказчик): калькулятор мини-аппа упрощён, вероятность подтверждения он больше
+    # не показывает — фразу проверяем только пока функция есть на странице
+    if "function probLine(p){" not in html:
+        print("  вероятность в мини-аппе не показывается — проверка фразы пропущена")
+        return
     funcs = "".join(_re.search(r"function " + n + r"\(p\)\{.*?\n\}", html, _re.S).group(0) + "\n"
                     for n in ("probLine", "verdictPhrase"))
     ru = _j.loads((ROOT / "app" / "i18n" / "ru.json").read_text(encoding="utf-8"))

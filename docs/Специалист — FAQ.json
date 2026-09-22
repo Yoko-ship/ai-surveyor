@@ -1,7 +1,7 @@
 {
-  "version": "1.1",
+  "version": "2.0",
   "generated": "2026-09-22",
-  "about": "Ответы для сотрудников на ru/uz/en. Официальный текст актов — узбекский; русские редакции норм, изменённых ЗРУ-1154, на lex.uz помечены как неофициальный перевод; английские тексты есть только у ЗРУ-730 и ЗРУ-547 и отражают редакцию до 2026 года. Цитаты дословны: сверяются с файлами library/01_Законодательство (убраны только кнопки страницы lex.uz «Предложения по документу», «Прослушать аудио», «Получить ссылку…»); комментарии LexUz и заголовки соседних статей в цитату не попадают. Ссылки: /ru/docs/<номер> — русский текст, /uz/docs/-<номер> — узбекская латиница (дефис обязателен), /uz/docs/<номер> — узбекская кириллица. Если нормы нет на языке вопроса (Положение 3845 — только узбекский), показываем узбекский оригинал и ссылку на него.",
+  "about": "Ответы для сотрудников на ru/uz/en. Официальный текст актов — узбекский; русские редакции норм, изменённых ЗРУ-1154, на lex.uz помечены как неофициальный перевод; английские тексты есть только у ЗРУ-730 и ЗРУ-547 и отражают редакцию до 2026 года. Цитаты дословны: сверяются с файлами library/01_Законодательство (убраны только кнопки страницы lex.uz «Предложения по документу», «Прослушать аудио», «Получить ссылку…»); комментарии LexUz и заголовки соседних статей в цитату не попадают. Ссылки: /ru/docs/<номер> — русский текст, /uz/docs/-<номер> — узбекская латиница (дефис обязателен), /uz/docs/<номер> — узбекская кириллица. Если нормы нет на языке вопроса (Положение 3845 — только узбекский), показываем узбекский оригинал и ссылку на него. Часть вопросов — практика страхования (андеррайтинг, документы, оценка, убытки): у них kind=«практика», цитаты нет, вместо неё поле basis — «заметка проекта: <файл docs/*.md> · практика компании / учебник CII».",
   "sources": {
     "gk_ru": "01_Законы/ГК РУз глава 52 Страхование (ст. 914-961).txt",
     "gk_uz": "01_Законы/ГК РУз глава 52 Страхование (ст. 914-961) (uz).txt",
@@ -68,7 +68,9 @@
       ],
       "rule_codes": [
         "underinsurance"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "sum_over_value",
@@ -117,7 +119,9 @@
       "rule_codes": [
         "sum_over_value",
         "sum_vs_valuation"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "additional_insurance",
@@ -159,7 +163,9 @@
       ],
       "rule_codes": [
         "sum_over_value"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "double_insurance",
@@ -201,7 +207,9 @@
       ],
       "rule_codes": [
         "sum_over_value"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "insured_value_agreed",
@@ -244,7 +252,9 @@
       ],
       "rule_codes": [
         "value_agreed"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "value_cannot_dispute",
@@ -287,7 +297,9 @@
       ],
       "rule_codes": [
         "value_no_inspection"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "value_date_place",
@@ -330,7 +342,9 @@
       "rule_codes": [
         "value_date_place",
         "sum_vs_valuation"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "inspection_right",
@@ -373,7 +387,9 @@
       ],
       "rule_codes": [
         "value_no_inspection"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "essential_terms",
@@ -415,7 +431,9 @@
       ],
       "rule_codes": [
         "docs_missing"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "contract_form",
@@ -456,7 +474,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "contract_start",
@@ -498,7 +518,9 @@
       ],
       "rule_codes": [
         "premium_unpaid"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "policy_without_premium",
@@ -541,7 +563,9 @@
       ],
       "rule_codes": [
         "premium_unpaid"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "early_termination_refund",
@@ -582,7 +606,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "refusal_grounds",
@@ -622,7 +648,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "payment_only_on_event",
@@ -663,7 +691,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "disclosure",
@@ -706,7 +736,9 @@
       ],
       "rule_codes": [
         "disclosure"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "no_tying",
@@ -748,7 +780,9 @@
       ],
       "rule_codes": [
         "disclosure"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "insurance_secret",
@@ -790,7 +824,9 @@
       ],
       "rule_codes": [
         "pd_ads_scrape"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "rules_of_insurance",
@@ -833,7 +869,9 @@
       ],
       "rule_codes": [
         "value_depreciation"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "surveyor_role",
@@ -873,7 +911,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "tariff_freedom",
@@ -936,7 +976,9 @@
       ],
       "rule_codes": [
         "min_rate"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "min_rate",
@@ -958,7 +1000,9 @@
       "citations": [],
       "rule_codes": [
         "min_rate"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "below_technical",
@@ -979,7 +1023,9 @@
       "citations": [],
       "rule_codes": [
         "below_technical"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "risk_limit_20",
@@ -1022,7 +1068,9 @@
       ],
       "rule_codes": [
         "risk_limit_20"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "limit_exceed_reinsurance",
@@ -1065,7 +1113,9 @@
       ],
       "rule_codes": [
         "risk_limit_20"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "cat_reserve",
@@ -1108,7 +1158,9 @@
       ],
       "rule_codes": [
         "cat_accumulation"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "no_franchise",
@@ -1149,7 +1201,9 @@
       ],
       "rule_codes": [
         "no_franchise"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "docs_missing",
@@ -1191,7 +1245,9 @@
       ],
       "rule_codes": [
         "docs_missing"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "agent_commission_25",
@@ -1233,7 +1289,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "agent_no_staff_pay",
@@ -1274,7 +1332,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "agent_commission_return",
@@ -1315,7 +1375,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_sum",
@@ -1359,7 +1421,9 @@
       ],
       "rule_codes": [
         "OSGOR-01"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_tariff_fixed",
@@ -1405,7 +1469,9 @@
         "OSGOR-02",
         "OSGOR-03",
         "OSGOR-04"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_premium_5days",
@@ -1448,7 +1514,9 @@
       ],
       "rule_codes": [
         "OSGOR-07"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_funeral",
@@ -1491,7 +1559,9 @@
       ],
       "rule_codes": [
         "OSGOR-08"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_fot_change",
@@ -1534,7 +1604,9 @@
       ],
       "rule_codes": [
         "OSGOR-10"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_term",
@@ -1576,7 +1648,9 @@
       ],
       "rule_codes": [
         "OSGOR-06"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgo_term",
@@ -1617,7 +1691,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgo_sum_cm",
@@ -1658,7 +1734,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgo_payment_to_victim",
@@ -1698,7 +1776,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgo_decision_15days",
@@ -1739,7 +1819,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgo_no_repair",
@@ -1779,7 +1861,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgop_victim",
@@ -1820,7 +1904,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "pd_storage_uz",
@@ -1863,7 +1949,9 @@
       ],
       "rule_codes": [
         "pd_ads_scrape"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "pd_principles",
@@ -1906,7 +1994,9 @@
       ],
       "rule_codes": [
         "pd_ads_scrape"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "pd_protection_measures",
@@ -1947,7 +2037,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "pd_ads_scrape",
@@ -1990,7 +2082,9 @@
       ],
       "rule_codes": [
         "pd_ads_scrape"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "credit_uncovered",
@@ -2011,7 +2105,9 @@
       "citations": [],
       "rule_codes": [
         "credit_uncovered"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "credit_payer",
@@ -2032,7 +2128,9 @@
       "citations": [],
       "rule_codes": [
         "credit_payer"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "sum_vs_valuation",
@@ -2075,7 +2173,9 @@
       "rule_codes": [
         "sum_vs_valuation",
         "value_ad_source"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "appraiser_optional",
@@ -2137,7 +2237,9 @@
       ],
       "rule_codes": [
         "appraiser_optional"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "value_ad_source",
@@ -2158,7 +2260,9 @@
       "citations": [],
       "rule_codes": [
         "value_ad_source"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "depreciation",
@@ -2220,7 +2324,9 @@
       ],
       "rule_codes": [
         "value_depreciation"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "payment_deadline_property",
@@ -2260,7 +2366,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "electronic_policy",
@@ -2301,7 +2409,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "personal_vs_property",
@@ -2321,7 +2431,9 @@
         "en": "Property. In company terms personal insurance covers life and health only; everything else is property insurance."
       },
       "citations": [],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "official_language",
@@ -2341,7 +2453,9 @@
         "en": "The Uzbek text is official. Russian versions of provisions amended in 2026 are marked as unofficial translations; English versions exist only for some acts."
       },
       "citations": [],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "zru1154_changes",
@@ -2402,7 +2516,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "reserves_who",
@@ -2442,7 +2558,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "spec_tech_osgo",
@@ -2483,7 +2601,9 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "subrogation",
@@ -2502,7 +2622,9 @@
         "en": "Yes, subrogation applies in property insurance (Civil Code Article 957)."
       },
       "citations": [],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_after_payment",
@@ -2545,7 +2667,9 @@
       ],
       "rule_codes": [
         "OSGOR-09"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_no_contract",
@@ -2567,7 +2691,9 @@
       "citations": [],
       "rule_codes": [
         "OSGOR-11"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "osgor_budget_double",
@@ -2589,7 +2715,9 @@
       "citations": [],
       "rule_codes": [
         "OSGOR-12"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "annuity_over_year",
@@ -2610,7 +2738,9 @@
       "citations": [],
       "rule_codes": [
         "OSGOR-13"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "premium_instalments",
@@ -2673,7 +2803,9 @@
       ],
       "rule_codes": [
         "premium_unpaid"
-      ]
+      ],
+      "kind": "норма",
+      "basis": null
     },
     {
       "id": "who_is_policyholder",
@@ -2713,7 +2845,1557 @@
           }
         }
       ],
-      "rule_codes": []
+      "rule_codes": [],
+      "kind": "норма",
+      "basis": null
+    },
+    {
+      "id": "pml_eml_mfl",
+      "tags": [
+        "pml",
+        "eml",
+        "mfl",
+        "максимальный убыток",
+        "eng katta zarar",
+        "maximum loss"
+      ],
+      "q": {
+        "ru": "Что такое PML, EML и MFL простыми словами?",
+        "uz": "PML, EML va MFL oddiy soʻz bilan nima?",
+        "en": "What are PML, EML and MFL in plain words?"
+      },
+      "a": {
+        "ru": "EML — убыток, которого разумно ждать: горит один противопожарный отсек, защита работает. PML — убыток, когда защита не сработала, но здание устояло. MFL — худший мыслимый случай: объект гибнет целиком. Ставку и удержание считаем по EML и PML, перестрахование — по MFL.",
+        "uz": "EML — oqilona kutiladigan zarar: bitta yongʻin boʻlimi yonadi, himoya ishlaydi. PML — himoya ishlamagan, lekin bino saqlanib qolgan holdagi zarar. MFL — eng yomon holat: obyekt butunlay yoʻq boʻladi. Stavka va oʻz ushlab qolish EML va PML boʻyicha, qayta sugʻurta MFL boʻyicha hisoblanadi.",
+        "en": "EML is the loss reasonably expected: one fire compartment burns and protection works. PML is the loss when protection fails but the building survives. MFL is the worst case: the object is destroyed. Rate and retention follow EML and PML, reinsurance follows MFL."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Максимальный убыток и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Максимальный убыток и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Максимальный убыток и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Максимальный убыток и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "eml_how",
+      "tags": [
+        "как считается eml",
+        "отсек",
+        "доля гибели",
+        "eml qanday",
+        "how eml is calculated"
+      ],
+      "q": {
+        "ru": "Как система считает EML по зданию?",
+        "uz": "Tizim bino boʻyicha EML ni qanday hisoblaydi?",
+        "en": "How does the system calculate EML for a building?"
+      },
+      "a": {
+        "ru": "Берётся самый большой противопожарный отсек и умножается на долю гибели. Долю задают защита (сигнализация, спринклеры, охрана), конструкция, горючесть содержимого и удалённость пожарной части. Это экспертная оценка, она помечена как некалиброванная.",
+        "uz": "Eng katta yongʻin boʻlimi olinadi va yoʻqolish ulushiga koʻpaytiriladi. Ulushni himoya (signalizatsiya, sprinklerlar, qorovul), konstruksiya, ichidagi mol-mulkning yonuvchanligi va yongʻin boʻlimining uzoqligi belgilaydi. Bu ekspert bahosi, u kalibrlanmagan deb belgilangan.",
+        "en": "The largest fire compartment is taken and multiplied by a damage share. The share depends on protection (alarm, sprinklers, guard), construction, combustibility of contents and distance to the fire brigade. This is an expert estimate, flagged as not calibrated."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Максимальный убыток и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Максимальный убыток и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Максимальный убыток и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Максимальный убыток и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "mfl_why",
+      "tags": [
+        "зачем mfl",
+        "перестрахование",
+        "худший случай",
+        "nega mfl",
+        "why mfl"
+      ],
+      "q": {
+        "ru": "Зачем считать MFL, если он почти не случается?",
+        "uz": "MFL deyarli yuz bermasa, uni nega hisoblaymiz?",
+        "en": "Why calculate MFL if it almost never happens?"
+      },
+      "a": {
+        "ru": "MFL показывает, сколько компания теряет в худшем дне. По нему решают, хватает ли собственного удержания и нужно ли перестрахование. Частота тут не важна: важно, переживёт ли компания событие.",
+        "uz": "MFL kompaniya eng yomon kunda qancha yoʻqotishini koʻrsatadi. Shunga qarab oʻz ushlab qolish yetarlimi va qayta sugʻurta kerakmi degan qaror qabul qilinadi. Bu yerda chastota muhim emas: kompaniya hodisadan omon qoladimi — shu muhim.",
+        "en": "MFL shows how much the company loses on its worst day. It decides whether the retention is enough and whether reinsurance is needed. Frequency does not matter here: survival does."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Максимальный убыток и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Максимальный убыток и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Максимальный убыток и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Максимальный убыток и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "franchise_what",
+      "tags": [
+        "франшиза",
+        "что такое франшиза",
+        "franshiza",
+        "deductible"
+      ],
+      "q": {
+        "ru": "Что такое франшиза простыми словами?",
+        "uz": "Franshiza oddiy soʻz bilan nima?",
+        "en": "What is a deductible in plain words?"
+      },
+      "a": {
+        "ru": "Франшиза — часть убытка, которую клиент оставляет себе. Обычно её ставят в процентах от страховой суммы или твёрдой суммой. Мелкие убытки клиент оплачивает сам, а премия за это ниже.",
+        "uz": "Franshiza — zararning mijoz oʻzida qoldiradigan qismi. Odatda u sugʻurta summasining foizida yoki qatʼiy summada belgilanadi. Mayda zararlarni mijoz oʻzi toʻlaydi, buning evaziga mukofot kamayadi.",
+        "en": "A deductible is the part of a loss the client keeps. It is usually set as a percentage of the sum insured or as a fixed amount. Small losses are paid by the client and the premium is lower."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Франшиза — правовые рамки и правовой блок промпта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Франшиза — правовые рамки и правовой блок промпта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Франшиза — правовые рамки и правовой блок промпта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Франшиза — правовые рамки и правовой блок промпта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "franchise_choose",
+      "tags": [
+        "как выбрать франшизу",
+        "подобрать франшизу",
+        "franshizani tanlash",
+        "choose deductible"
+      ],
+      "q": {
+        "ru": "Как выбирают размер франшизы?",
+        "uz": "Franshiza miqdori qanday tanlanadi?",
+        "en": "How is the size of the deductible chosen?"
+      },
+      "a": {
+        "ru": "Смотрят, какой убыток клиент спокойно оплатит сам, и историю мелких убытков за 3 года. Франшиза должна отсечь частые мелкие убытки, но остаться посильной. Условие берут из правил страхования компании: своих вариантов мы не придумываем.",
+        "uz": "Mijoz oʻzi bemalol toʻlay oladigan zarar miqdori va 3 yillik mayda zararlar tarixi koʻriladi. Franshiza tez-tez uchraydigan mayda zararlarni kesishi, lekin mijozga ogʻir boʻlmasligi kerak. Shart kompaniyaning sugʻurta qoidalaridan olinadi: oʻzimizdan variant oʻylab topmaymiz.",
+        "en": "Look at the loss the client can absorb and at the three-year record of small claims. The deductible should cut off frequent small losses yet stay affordable. The wording is taken from the company insurance rules; we do not invent options."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Франшиза — правовые рамки и правовой блок промпта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Франшиза — правовые рамки и правовой блок промпта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Франшиза — правовые рамки и правовой блок промпта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Франшиза — правовые рамки и правовой блок промпта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "franchise_effect",
+      "tags": [
+        "франшиза и премия",
+        "скидка за франшизу",
+        "franshiza mukofot",
+        "deductible premium"
+      ],
+      "q": {
+        "ru": "Насколько франшиза снижает премию?",
+        "uz": "Franshiza mukofotni qanchaga kamaytiradi?",
+        "en": "How much does a deductible reduce the premium?"
+      },
+      "a": {
+        "ru": "В расчёте франшиза — обычный коэффициент: система показывает новую премию и экономию в сумах прямо в блоке рекомендаций. Точная величина зависит от класса и набора рисков, поэтому смотрите цифру расчёта, а не общее правило.",
+        "uz": "Hisob-kitobda franshiza oddiy koeffitsiyent: tizim yangi mukofot va soʻmdagi tejamni tavsiyalar blokida koʻrsatadi. Aniq miqdor sinf va risklar toʻplamiga bogʻliq, shuning uchun umumiy qoidaga emas, hisob raqamiga qarang.",
+        "en": "In the calculation the deductible is an ordinary factor: the system shows the new premium and the saving in soum in the recommendations block. The exact effect depends on the class and the perils, so rely on the calculated figure, not on a rule of thumb."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Франшиза — правовые рамки и правовой блок промпта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Франшиза — правовые рамки и правовой блок промпта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Франшиза — правовые рамки и правовой блок промпта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Франшиза — правовые рамки и правовой блок промпта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "rate_lower",
+      "tags": [
+        "что снижает ставку",
+        "скидка",
+        "stavkani kamaytiradi",
+        "reduce the rate"
+      ],
+      "q": {
+        "ru": "Что снижает ставку по имуществу?",
+        "uz": "Mol-mulk boʻyicha stavkani nima kamaytiradi?",
+        "en": "What reduces the property rate?"
+      },
+      "a": {
+        "ru": "Франшиза, охрана и сигнализация, спринклеры, негорючая конструкция, отсутствие убытков за 3 года, исключение отдельных рисков и приведение страховой суммы к стоимости. Все эти рычаги система перебирает сама и показывает экономию в сумах.",
+        "uz": "Franshiza, qorovul va signalizatsiya, sprinklerlar, yonmaydigan konstruksiya, 3 yil ichida zarar boʻlmagani, ayrim risklarni chiqarib tashlash va sugʻurta summasini qiymatga tenglashtirish. Tizim bu richaglarni oʻzi saralab, soʻmdagi tejamni koʻrsatadi.",
+        "en": "A deductible, guard and alarm, sprinklers, non-combustible construction, a clean three-year loss record, excluding selected perils and aligning the sum insured with the value. The system tries these levers itself and shows the saving in soum."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "rate_higher",
+      "tags": [
+        "что повышает ставку",
+        "надбавка",
+        "stavkani oshiradi",
+        "increase the rate"
+      ],
+      "q": {
+        "ru": "Что повышает ставку?",
+        "uz": "Stavkani nima oshiradi?",
+        "en": "What increases the rate?"
+      },
+      "a": {
+        "ru": "Горючая конструкция и содержимое, отсутствие защиты, износ, высокая сейсмозона, повторяющиеся убытки и включение катастрофических рисков (землетрясение, сель, оползень). Каждый множитель виден в объяснении расчёта построчно.",
+        "uz": "Yonuvchan konstruksiya va mol-mulk, himoyaning yoʻqligi, eskirish, yuqori seysmik zona, takrorlanuvchi zararlar va katastrofik risklarni (zilzila, sel, surilma) qoʻshish. Har bir koʻpaytuvchi hisob izohida satrma-satr koʻrinadi.",
+        "en": "Combustible construction and contents, no protection, wear, a high seismic zone, repeated losses and the inclusion of catastrophe perils (earthquake, mudflow, landslide). Every multiplier is shown line by line in the explanation."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "underins_example",
+      "tags": [
+        "недострахование пример",
+        "пропорция пример",
+        "kam sugʻurta misol",
+        "underinsurance example"
+      ],
+      "q": {
+        "ru": "Покажите недострахование на примере.",
+        "uz": "Kam sugʻurtalashni misolda koʻrsating.",
+        "en": "Show underinsurance with an example."
+      },
+      "a": {
+        "ru": "Склад стоит 1 млрд, застрахован на 600 млн — это 60% стоимости. Сгорело товара на 100 млн, выплата составит 60 млн. Это не отказ, а пропорциональное возмещение; предупредить клиента нужно до подписания.",
+        "uz": "Ombor 1 mlrd turadi, 600 mln ga sugʻurtalangan — bu qiymatning 60 foizi. 100 mln lik mol yonib ketsa, toʻlov 60 mln boʻladi. Bu rad etish emas, mutanosib qoplash; mijozni shartnoma imzolangunga qadar ogohlantirish kerak.",
+        "en": "A warehouse worth 1 bn is insured for 600 m, i.e. 60% of value. Goods worth 100 m burn and the payment is 60 m. This is not a refusal but proportional indemnity; the client must be warned before signing."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "premium_formula",
+      "tags": [
+        "как считается премия",
+        "формула премии",
+        "mukofot qanday hisoblanadi",
+        "premium formula"
+      ],
+      "q": {
+        "ru": "Как считается премия?",
+        "uz": "Mukofot qanday hisoblanadi?",
+        "en": "How is the premium calculated?"
+      },
+      "a": {
+        "ru": "Премия = применённая ставка × страховая сумма × число дней / 365. Применённая ставка — наибольшее из технической ставки расчёта и минимального тарифа по продукту. У продукта из нескольких классов премии частей складываются.",
+        "uz": "Mukofot = qoʻllanilgan stavka × sugʻurta summasi × kunlar soni / 365. Qoʻllanilgan stavka — hisobning texnik stavkasi va mahsulot boʻyicha eng kichik tarifdan kattasi. Bir necha sinfdan iborat mahsulotda qismlarning mukofoti qoʻshiladi.",
+        "en": "Premium = applied rate × sum insured × days / 365. The applied rate is the greater of the technical rate and the product minimum tariff. For a product covering several classes the part premiums are added up."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "net_gross",
+      "tags": [
+        "нетто",
+        "брутто",
+        "нагрузка",
+        "netto brutto",
+        "net gross rate"
+      ],
+      "q": {
+        "ru": "Чем нетто-ставка отличается от брутто?",
+        "uz": "Netto stavka bruttodan nimasi bilan farq qiladi?",
+        "en": "How does the net rate differ from the gross rate?"
+      },
+      "a": {
+        "ru": "Нетто-ставка покрывает только ожидаемые выплаты. Брутто (техническая) — это нетто плюс рисковая и катастрофическая надбавки, делённые на единицу минус доля нагрузки. Нагрузка — расходы на ведение дела и вознаграждение посредника.",
+        "uz": "Netto stavka faqat kutilayotgan toʻlovlarni qoplaydi. Brutto (texnik) — netto ustiga risk va katastrofa ustamalari qoʻshilib, bir minus yuklama ulushiga boʻlinadi. Yuklama — ish yuritish xarajatlari va vositachi haqi.",
+        "en": "The net rate covers expected claims only. The gross (technical) rate is the net rate plus risk and catastrophe loadings, divided by one minus the expense share. The loading covers running costs and intermediary remuneration."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "loading_parts",
+      "tags": [
+        "из чего нагрузка",
+        "расходы на ведение дела",
+        "yuklama",
+        "expense loading"
+      ],
+      "q": {
+        "ru": "Из чего складывается нагрузка в ставке?",
+        "uz": "Stavkadagi yuklama nimalardan tashkil topadi?",
+        "en": "What makes up the loading in the rate?"
+      },
+      "a": {
+        "ru": "Из расходов на ведение дела, комиссии посредника и прибыли. Доля нагрузки берётся из справочника компании и видна в объяснении расчёта. Предупредительные мероприятия (РПМ) компания не ведёт, в нагрузку они не входят.",
+        "uz": "Ish yuritish xarajatlari, vositachi komissiyasi va foyda. Yuklama ulushi kompaniya maʼlumotnomasidan olinadi va hisob izohida koʻrinadi. Ogohlantiruvchi tadbirlar (RPM) kompaniyada yuritilmaydi va yuklamaga kirmaydi.",
+        "en": "Running costs, intermediary commission and profit. The expense share comes from the company reference table and is shown in the explanation. Loss prevention funds are not maintained by the company and are not part of the loading."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "risk_load",
+      "tags": [
+        "рисковая надбавка",
+        "колебания убытков",
+        "risk ustamasi",
+        "risk loading"
+      ],
+      "q": {
+        "ru": "Зачем нужна рисковая надбавка?",
+        "uz": "Risk ustamasi nima uchun kerak?",
+        "en": "Why is the risk loading needed?"
+      },
+      "a": {
+        "ru": "Фактические убытки колеблются вокруг среднего. Надбавка (у нас 12% нетто до калибровки) даёт запас, чтобы года с плохой статистикой не съедали капитал. Она экспертная и помечена как некалиброванная — уточним по выгрузке убытков компании.",
+        "uz": "Haqiqiy zararlar oʻrtacha atrofida tebranadi. Ustama (kalibrlashgacha netto 12 foizi) yomon statistikali yillar kapitalni yeb qoʻymasligi uchun zaxira beradi. U ekspert bahosi va kalibrlanmagan deb belgilangan — kompaniya zararlari yuklamasi boʻyicha aniqlanadi.",
+        "en": "Actual losses fluctuate around the mean. The loading (12% of the net rate before calibration) gives a buffer so that bad years do not eat capital. It is an expert figure marked as not calibrated and will be refined on the company loss data."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "min_tariff_company",
+      "tags": [
+        "минимальный тариф",
+        "54-п",
+        "eng kichik tarif",
+        "minimum tariff"
+      ],
+      "q": {
+        "ru": "Что такое минимальный тариф компании?",
+        "uz": "Kompaniyaning eng kichik tarifi nima?",
+        "en": "What is the company minimum tariff?"
+      },
+      "a": {
+        "ru": "Это нижняя граница ставки из действующей тарифной политики (графа «минимальный тариф»). Расчёт не даёт ставку ниже неё; исключения — продукты «по согласованию с ЦО», «по программе» и «по генеральному договору», где ставка согласуется отдельно.",
+        "uz": "Bu amaldagi tarif siyosatidagi stavkaning quyi chegarasi («eng kichik tarif» ustuni). Hisob undan past stavka bermaydi; istisno — «markaz bilan kelishuv boʻyicha», «dastur boʻyicha» va «bosh shartnoma boʻyicha» mahsulotlar, ularda stavka alohida kelishiladi.",
+        "en": "It is the floor rate in the current tariff policy (column «minimum tariff»). The calculation never goes below it; the exceptions are products priced by head-office agreement, by programme or under a master agreement, where the rate is agreed separately."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "statutory_tariff",
+      "tags": [
+        "обязательные виды",
+        "тариф пкм",
+        "majburiy turlar tarifi",
+        "compulsory tariff"
+      ],
+      "q": {
+        "ru": "Кто устанавливает тариф по обязательным видам?",
+        "uz": "Majburiy turlar boʻyicha tarifni kim belgilaydi?",
+        "en": "Who sets the tariff for compulsory lines?"
+      },
+      "a": {
+        "ru": "Тариф по обязательным видам задан нормативным актом (постановление Кабинета Министров), а не расчётом компании. Система показывает ориентир и прямо пишет, что ставку надо взять из акта.",
+        "uz": "Majburiy turlar boʻyicha tarif kompaniya hisobi bilan emas, meyoriy hujjat (Vazirlar Mahkamasi qarori) bilan belgilanadi. Tizim faqat moʻljal koʻrsatadi va stavkani hujjatdan olish kerakligini ochiq yozadi.",
+        "en": "The tariff for compulsory lines is set by a regulation (Cabinet of Ministers resolution), not by the company. The system shows a reference figure and states plainly that the rate must be taken from the act."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "one_risk_limit",
+      "tags": [
+        "лимит на один риск",
+        "20 процентов",
+        "bitta riskka limit",
+        "single risk limit"
+      ],
+      "q": {
+        "ru": "Что такое лимит на один риск и как он считается?",
+        "uz": "Bitta riskka limit nima va u qanday hisoblanadi?",
+        "en": "What is the single risk limit and how is it calculated?"
+      },
+      "a": {
+        "ru": "Это предел ответственности по одному договору: 20% от суммы собственных средств и резервов на последнюю отчётную дату. Превышение не запрещает сделку, но требует перестрахования, и система ставит по этой проверке «стоп».",
+        "uz": "Bu bitta shartnoma boʻyicha javobgarlik chegarasi: oxirgi hisobot sanasidagi oʻz mablagʻlari va zaxiralar summasining 20 foizi. Oshib ketish bitimni taqiqlamaydi, lekin qayta sugʻurta talab qiladi va tizim bu tekshiruvga «stop» qoʻyadi.",
+        "en": "It is the cap of liability under one contract: 20% of own funds plus reserves at the last reporting date. Exceeding it does not forbid the deal but requires reinsurance, and the system marks that check as a stop."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Резервы, ёмкость и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Резервы, ёмкость и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Резервы, ёмкость и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Резервы, ёмкость и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "retention",
+      "tags": [
+        "собственное удержание",
+        "удержание",
+        "oʻz ushlab qolish",
+        "retention"
+      ],
+      "q": {
+        "ru": "Что такое собственное удержание?",
+        "uz": "Oʻz ushlab qolish nima?",
+        "en": "What is the retention?"
+      },
+      "a": {
+        "ru": "Это часть риска, которую компания оставляет себе, а остальное передаёт в перестрахование. Берётся наименьшее из: сценария удержания по объекту, лимита на один риск и таблицы линий класса.",
+        "uz": "Bu kompaniya oʻzida qoldiradigan risk qismi, qolganini qayta sugʻurtaga beradi. Obyekt boʻyicha ushlab qolish ssenariysi, bitta riskka limit va sinf liniyalari jadvalidan eng kichigi olinadi.",
+        "en": "It is the share of the risk the company keeps, the rest being ceded to reinsurers. It is the lowest of: the retention scenario for the object, the single risk limit and the class line table."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Резервы, ёмкость и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Резервы, ёмкость и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Резервы, ёмкость и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Резервы, ёмкость и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "reinsurance_short",
+      "tags": [
+        "перестрахование",
+        "в двух словах",
+        "qayta sugʻurta",
+        "reinsurance"
+      ],
+      "q": {
+        "ru": "Перестрахование в двух словах — это что?",
+        "uz": "Qayta sugʻurta — qisqacha nima?",
+        "en": "Reinsurance in two words — what is it?"
+      },
+      "a": {
+        "ru": "Страховщик страхует сам себя: часть принятого риска он передаёт другому страховщику вместе с частью премии. Перед клиентом всё равно отвечает наша компания целиком. Расчёты по перестрахованию в продукт пока не входят.",
+        "uz": "Sugʻurtalovchi oʻzini sugʻurtalaydi: qabul qilgan riskning bir qismini mukofotning bir qismi bilan birga boshqa sugʻurtalovchiga beradi. Mijoz oldida baribir bizning kompaniya toʻliq javob beradi. Qayta sugʻurta hisob-kitoblari hozircha mahsulotga kirmaydi.",
+        "en": "The insurer insures itself: part of the accepted risk is passed to another insurer together with part of the premium. Towards the client our company remains fully liable. Reinsurance calculations are not part of the product yet."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Резервы, ёмкость и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Резервы, ёмкость и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Резервы, ёмкость и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Резервы, ёмкость и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "fac_treaty",
+      "tags": [
+        "факультативное",
+        "облигаторное",
+        "fakultativ",
+        "facultative treaty"
+      ],
+      "q": {
+        "ru": "Чем факультативное перестрахование отличается от облигаторного?",
+        "uz": "Fakultativ qayta sugʻurta obligatordan nimasi bilan farq qiladi?",
+        "en": "How does facultative reinsurance differ from treaty?"
+      },
+      "a": {
+        "ru": "Факультативное — по каждому риску отдельно, обе стороны свободны в решении. Облигаторное — заранее заключённый договор, по которому все подходящие риски передаются автоматически. Крупные единичные объекты обычно идут факультативно.",
+        "uz": "Fakultativ — har bir risk boʻyicha alohida, ikkala tomon ham erkin qaror qiladi. Obligator — oldindan tuzilgan shartnoma, unga mos keladigan barcha risklar avtomatik oʻtadi. Yirik yakka obyektlar odatda fakultativ tarzda beriladi.",
+        "en": "Facultative is risk by risk, both sides free to decide. Treaty is a pre-agreed contract under which all qualifying risks cede automatically. Large single objects usually go facultative."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Резервы, ёмкость и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Резервы, ёмкость и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Резервы, ёмкость и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Резервы, ёмкость и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "coinsurance",
+      "tags": [
+        "сострахование",
+        "несколько страховщиков",
+        "hamkorlikda sugʻurta",
+        "coinsurance"
+      ],
+      "q": {
+        "ru": "Чем сострахование отличается от перестрахования?",
+        "uz": "Hamkorlikda sugʻurta qayta sugʻurtadan nimasi bilan farq qiladi?",
+        "en": "How does coinsurance differ from reinsurance?"
+      },
+      "a": {
+        "ru": "При состраховании несколько страховщиков подписывают один договор с клиентом, каждый отвечает своей долей. При перестраховании договор с клиентом один и отвечает по нему только наша компания.",
+        "uz": "Hamkorlikda sugʻurtada bir necha sugʻurtalovchi mijoz bilan bitta shartnomani imzolaydi, har biri oʻz ulushi boʻyicha javob beradi. Qayta sugʻurtada mijoz bilan shartnoma bitta va u boʻyicha faqat bizning kompaniya javob beradi.",
+        "en": "In coinsurance several insurers sign one contract with the client, each liable for its share. In reinsurance there is one contract with the client and only our company is liable under it."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Резервы, ёмкость и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Резервы, ёмкость и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Резервы, ёмкость и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Резервы, ёмкость и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "osgor_short",
+      "tags": [
+        "осгор",
+        "ответственность работодателя",
+        "ish beruvchi javobgarligi",
+        "employer liability"
+      ],
+      "q": {
+        "ru": "Что такое ОСГОР коротко?",
+        "uz": "OSGOR qisqacha nima?",
+        "en": "What is compulsory employer liability insurance in brief?"
+      },
+      "a": {
+        "ru": "Обязательное страхование гражданской ответственности работодателя за вред жизни и здоровью работника при исполнении трудовых обязанностей. Страховая сумма — годовой фонд оплаты труда, тариф и коэффициент по виду деятельности заданы актом.",
+        "uz": "Ish beruvchining xodim mehnat vazifalarini bajarish paytida hayoti va sogʻligʻiga yetkazilgan zarar uchun fuqarolik javobgarligini majburiy sugʻurtalash. Sugʻurta summasi — yillik mehnatga haq toʻlash fondi, tarif va faoliyat turi koeffitsiyenti hujjat bilan belgilangan.",
+        "en": "Compulsory insurance of the employer liability for harm to the life and health of an employee at work. The sum insured is the annual payroll; the tariff and the activity coefficient are set by the regulation."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/ОСГОР — оценка риска.md",
+      "basis": {
+        "ru": "заметка проекта: docs/ОСГОР — оценка риска.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/ОСГОР — оценка риска.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/ОСГОР — оценка риска.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "osgor_premium",
+      "tags": [
+        "премия осгор",
+        "фот",
+        "кст",
+        "osgor mukofoti",
+        "employer liability premium"
+      ],
+      "q": {
+        "ru": "Как считается премия по ОСГОР?",
+        "uz": "OSGOR boʻyicha mukofot qanday hisoblanadi?",
+        "en": "How is the employer liability premium calculated?"
+      },
+      "a": {
+        "ru": "Годовой фонд оплаты труда × базовый тариф × коэффициент вида деятельности по ОКЭД. Есть нижняя граница премии в долях БРВ: если расчёт меньше, берётся минимум. Код ОКЭД надо сверить с заявлением — от него зависит коэффициент.",
+        "uz": "Yillik mehnatga haq toʻlash fondi × asosiy tarif × IFUT boʻyicha faoliyat turi koeffitsiyenti. Mukofotning BHM ulushidagi quyi chegarasi bor: hisob undan kam boʻlsa, eng kam miqdor olinadi. IFUT kodini arizaga solishtirish kerak — koeffitsiyent shunga bogʻliq.",
+        "en": "Annual payroll × base tariff × activity coefficient by the national activity classifier. There is a floor premium expressed in base calculation units: if the result is lower, the floor applies. Check the activity code, the coefficient depends on it."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/ОСГОР — оценка риска.md",
+      "basis": {
+        "ru": "заметка проекта: docs/ОСГОР — оценка риска.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/ОСГОР — оценка риска.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/ОСГОР — оценка риска.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "osgo_short",
+      "tags": [
+        "осго",
+        "владельцы транспортных средств",
+        "avtoegalari javobgarligi",
+        "motor third party"
+      ],
+      "q": {
+        "ru": "Что такое ОСГО владельцев транспортных средств коротко?",
+        "uz": "Transport vositalari egalarining majburiy javobgarlik sugʻurtasi qisqacha nima?",
+        "en": "What is compulsory motor third party liability in brief?"
+      },
+      "a": {
+        "ru": "Обязательное страхование ответственности водителя за вред третьим лицам: жизнь, здоровье и имущество потерпевшего. Своё авто оно не покрывает — для этого отдельный договор каско по классу 3.",
+        "uz": "Haydovchining uchinchi shaxslarga — jabrlanuvchining hayoti, sogʻligʻi va mol-mulkiga yetkazilgan zarar uchun javobgarligini majburiy sugʻurtalash. Oʻz avtomobilini qoplamaydi — buning uchun 3-sinf boʻyicha alohida kasko shartnomasi kerak.",
+        "en": "Compulsory insurance of the driver liability to third parties: life, health and property of the victim. It does not cover the own vehicle — that needs a separate own-damage contract in class 3."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/ОСАГО — убыточность и рычаги.md",
+      "basis": {
+        "ru": "заметка проекта: docs/ОСАГО — убыточность и рычаги.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/ОСАГО — убыточность и рычаги.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/ОСАГО — убыточность и рычаги.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "osgop_short",
+      "tags": [
+        "осгоп",
+        "перевозчик",
+        "tashuvchi javobgarligi",
+        "carrier liability"
+      ],
+      "q": {
+        "ru": "Что такое ОСГОП перевозчика коротко?",
+        "uz": "Tashuvchining majburiy javobgarlik sugʻurtasi qisqacha nima?",
+        "en": "What is compulsory carrier liability in brief?"
+      },
+      "a": {
+        "ru": "Обязательное страхование ответственности перевозчика перед пассажирами за вред жизни, здоровью и багажу во время перевозки. Обязанность и условия заданы отдельным законом, тариф — актом.",
+        "uz": "Tashuvchining tashish paytida yoʻlovchilar hayoti, sogʻligʻi va bagajiga yetkazilgan zarar uchun javobgarligini majburiy sugʻurtalash. Majburiyat va shartlar alohida qonun bilan, tarif hujjat bilan belgilangan.",
+        "en": "Compulsory insurance of the carrier liability to passengers for harm to life, health and luggage during carriage. The duty and terms are set by a separate law, the tariff by a regulation."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/ОСАГО — убыточность и рычаги.md",
+      "basis": {
+        "ru": "заметка проекта: docs/ОСАГО — убыточность и рычаги.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/ОСАГО — убыточность и рычаги.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/ОСАГО — убыточность и рычаги.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "docs_by_class",
+      "tags": [
+        "какие документы",
+        "чек-лист",
+        "qanday hujjatlar",
+        "which documents"
+      ],
+      "q": {
+        "ru": "Какие документы нужны для анализа риска?",
+        "uz": "Riskni tahlil qilish uchun qanday hujjatlar kerak?",
+        "en": "Which documents are needed to analyse the risk?"
+      },
+      "a": {
+        "ru": "Общие: документ о праве на объект, документ о стоимости, справка об убытках за 3 года, регистрация страхователя. Дальше — по классу. Заявление-анкета относится к оформлению договора и в анализ риска не входит (правка заказчика 22.09.2026).",
+        "uz": "Umumiy: obyektga boʻlgan huquq hujjati, qiymat hujjati, 3 yillik zararlar maʼlumotnomasi, sugʻurta qildiruvchining roʻyxatdan oʻtgani. Keyingilari sinf boʻyicha. Ariza-anketa shartnoma rasmiylashtirishga tegishli va risk tahliliga kirmaydi (buyurtmachi tuzatishi 22.09.2026).",
+        "en": "General: title document, value document, three-year loss record, registration of the policyholder. The rest depends on the class. The proposal form belongs to contract issuance and is not part of the risk analysis (client decision of 22.09.2026)."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "docs_class8",
+      "tags": [
+        "документы класс 8",
+        "имущество",
+        "8-sinf hujjatlari",
+        "class 8 documents"
+      ],
+      "q": {
+        "ru": "Какие документы нужны по имуществу (класс 8)?",
+        "uz": "Mol-mulk boʻyicha (8-sinf) qanday hujjatlar kerak?",
+        "en": "Which documents are needed for property (class 8)?"
+      },
+      "a": {
+        "ru": "Отчёт оценщика или справка по основным средствам, технический паспорт или кадастровые документы, фотографии объекта, сведения о пожарной сигнализации и охране. По условию добавляются план противопожарных отсеков, заключение пожарной службы, акт проверки электрохозяйства.",
+        "uz": "Baholovchi hisoboti yoki asosiy vositalar maʼlumotnomasi, texnik pasport yoki kadastr hujjatlari, obyekt fotosuratlari, yongʻin signalizatsiyasi va qorovul haqida maʼlumot. Shartga koʻra yongʻin boʻlimlari rejasi, yongʻin xizmati xulosasi, elektr xoʻjaligi tekshiruv dalolatnomasi qoʻshiladi.",
+        "en": "Valuer report or fixed assets statement, technical passport or cadastral documents, photographs of the object, details of fire alarm and guarding. On condition: compartment plan, fire brigade opinion, electrical inspection report."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "docs_class9",
+      "tags": [
+        "документы класс 9",
+        "товар в обороте",
+        "9-sinf hujjatlari",
+        "class 9 documents"
+      ],
+      "q": {
+        "ru": "Что нужно по товару на складе (класс 9)?",
+        "uz": "Ombordagi mol boʻyicha (9-sinf) nima kerak?",
+        "en": "What is needed for goods in a warehouse (class 9)?"
+      },
+      "a": {
+        "ru": "Инвентаризационная опись товара, сведения об охране и сигнализации, данные о помещении. Без учёта остатков размер убытка при краже или пожаре доказать нечем — об этом предупреждаем заранее.",
+        "uz": "Molning inventarizatsiya roʻyxati, qorovul va signalizatsiya haqida maʼlumot, bino haqidagi maʼlumotlar. Qoldiqlar hisobisiz oʻgʻirlik yoki yongʻindagi zarar miqdorini isbotlab boʻlmaydi — bu haqda oldindan ogohlantiramiz.",
+        "en": "Stock inventory, details of guarding and alarm, data on the premises. Without stock records the amount of a theft or fire loss cannot be proved — we warn about this in advance."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "docs_class3",
+      "tags": [
+        "документы транспорт",
+        "класс 3",
+        "transport hujjatlari",
+        "class 3 documents"
+      ],
+      "q": {
+        "ru": "Что нужно по транспорту (класс 3)?",
+        "uz": "Transport boʻyicha (3-sinf) nima kerak?",
+        "en": "What is needed for a vehicle (class 3)?"
+      },
+      "a": {
+        "ru": "Технический паспорт и свидетельство о регистрации, документ о стоимости (счёт дилера или отчёт оценщика), фотографии с четырёх сторон и фото одометра, сведения о противоугонной системе и ночном хранении, список допущенных водителей. В залоге — договор с банком или лизингом.",
+        "uz": "Texnik pasport va roʻyxatdan oʻtganlik guvohnomasi, qiymat hujjati (diler hisobi yoki baholovchi hisoboti), toʻrt tomondan fotosuratlar va odometr fotosurati, oʻgʻirlikka qarshi tizim va tunda saqlash haqida maʼlumot, ruxsat etilgan haydovchilar roʻyxati. Garovda boʻlsa — bank yoki lizing shartnomasi.",
+        "en": "Technical passport and registration certificate, value document (dealer invoice or valuer report), photographs from four sides and of the odometer, details of the anti-theft device and night parking, list of admitted drivers. If pledged — the bank or leasing contract."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "docs_class14",
+      "tags": [
+        "документы кредит",
+        "класс 14",
+        "kredit hujjatlari",
+        "class 14 documents"
+      ],
+      "q": {
+        "ru": "Что нужно по кредитному страхованию (класс 14)?",
+        "uz": "Kredit sugʻurtasi boʻyicha (14-sinf) nima kerak?",
+        "en": "What is needed for credit insurance (class 14)?"
+      },
+      "a": {
+        "ru": "Кредитный договор и график погашения, отчёт об оценке обеспечения, финансовая отчётность заёмщика, расчёт необеспеченной части кредита. Страхуется только необеспеченная часть и не более половины суммы кредита, страхователь и плательщик — банк-кредитор.",
+        "uz": "Kredit shartnomasi va toʻlov jadvali, taʼminotni baholash hisoboti, qarz oluvchining moliyaviy hisoboti, kreditning taʼminlanmagan qismi hisobi. Faqat taʼminlanmagan qism va kredit summasining yarmidan koʻp boʻlmagan qismi sugʻurtalanadi, sugʻurta qildiruvchi va toʻlovchi — kredit bergan bank.",
+        "en": "Loan agreement and repayment schedule, collateral valuation report, borrower financial statements, calculation of the uncovered part. Only the uncovered part is insured and no more than half of the loan; the policyholder and payer is the lending bank."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "spec_vs_transport",
+      "tags": [
+        "спецтехника",
+        "экскаватор",
+        "граница",
+        "maxsus texnika",
+        "special machinery"
+      ],
+      "q": {
+        "ru": "Экскаватор — это транспорт или спецтехника?",
+        "uz": "Ekskavator transportmi yoki maxsus texnikami?",
+        "en": "Is an excavator a vehicle or special machinery?"
+      },
+      "a": {
+        "ru": "Класс страхования у них один (3), а документы и коэффициенты разные. Граница по назначению: машина создана возить людей и грузы по дорогам — транспорт; выполнять работу (копать, поднимать, бурить) — спецтехника. Смотрим назначение, а не наличие номеров.",
+        "uz": "Sugʻurta sinfi bitta (3), lekin hujjatlar va koeffitsiyentlar har xil. Chegara vazifaga koʻra: mashina odam va yukni yoʻlda tashish uchun yaratilgan boʻlsa — transport; ish bajarish uchun (qazish, koʻtarish, burgʻulash) — maxsus texnika. Raqamga emas, vazifaga qaraymiz.",
+        "en": "They share one insurance class (3) but differ in documents and factors. The border is purpose: built to carry people and cargo on roads — a vehicle; built to do work (dig, lift, drill) — special machinery. Look at the purpose, not at the plates."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Спецтехника и транспорт — граница.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Спецтехника и транспорт — граница.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Спецтехника и транспорт — граница.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Спецтехника и транспорт — граница.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "valuation_methods",
+      "tags": [
+        "оценка стоимости",
+        "как оценить",
+        "qiymatni baholash",
+        "valuation"
+      ],
+      "q": {
+        "ru": "Как определяют страховую стоимость объекта?",
+        "uz": "Obyektning sugʻurta qiymati qanday aniqlanadi?",
+        "en": "How is the insurable value determined?"
+      },
+      "a": {
+        "ru": "Три опоры: документы клиента (отчёт оценщика, баланс, счёт дилера), рыночные объявления не старше 6 месяцев со ссылкой на источник и запрос дилеру. Расхождение заявленной и расчётной стоимости больше 15% — повод запросить подтверждение.",
+        "uz": "Uchta tayanch: mijoz hujjatlari (baholovchi hisoboti, balans, diler hisobi), 6 oydan oshmagan bozor eʼlonlari manbaga havola bilan va dilerga soʻrov. Eʼlon qilingan va hisoblangan qiymat farqi 15 foizdan oshsa — tasdiq soʻrash uchun asos.",
+        "en": "Three sources: client documents (valuer report, balance sheet, dealer invoice), market advertisements not older than six months with a link, and a dealer enquiry. A gap of more than 15% between declared and calculated value calls for confirmation."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Оценка стоимости объекта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Оценка стоимости объекта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Оценка стоимости объекта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Оценка стоимости объекта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "wear_depreciation",
+      "tags": [
+        "износ",
+        "амортизация",
+        "eskirish",
+        "depreciation"
+      ],
+      "q": {
+        "ru": "Как учитывается износ?",
+        "uz": "Eskirish qanday hisobga olinadi?",
+        "en": "How is wear taken into account?"
+      },
+      "a": {
+        "ru": "Износ считается по нормам компании от года выпуска и снижает стоимость, но не ниже остаточного порога. На ставку износ влияет отдельным коэффициентом: изношенный объект и горит, и ломается чаще.",
+        "uz": "Eskirish kompaniya meʼyorlari boʻyicha ishlab chiqarilgan yilidan hisoblanadi va qiymatni kamaytiradi, lekin qoldiq chegaradan past emas. Stavkaga eskirish alohida koeffitsiyent bilan taʼsir qiladi: eskirgan obyekt koʻproq yonadi va buziladi.",
+        "en": "Wear is calculated by the company norms from the year of manufacture and reduces the value, but not below a residual floor. It also affects the rate through a separate factor: a worn object burns and breaks more often."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Оценка стоимости объекта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Оценка стоимости объекта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Оценка стоимости объекта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Оценка стоимости объекта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "value_vs_sum",
+      "tags": [
+        "стоимость и страховая сумма",
+        "в чём разница",
+        "qiymat va summa",
+        "value and sum insured"
+      ],
+      "q": {
+        "ru": "Чем страховая стоимость отличается от страховой суммы?",
+        "uz": "Sugʻurta qiymati sugʻurta summasidan nimasi bilan farq qiladi?",
+        "en": "How does the insurable value differ from the sum insured?"
+      },
+      "a": {
+        "ru": "Стоимость — сколько объект стоит на самом деле. Сумма — на сколько его застраховали и предел выплаты. Сумма ниже стоимости даёт пропорциональную выплату, выше — превышение ничтожно, премия за него не возвращается.",
+        "uz": "Qiymat — obyekt aslida qancha turishi. Summa — u qanchaga sugʻurtalangani va toʻlov chegarasi. Summa qiymatdan past boʻlsa toʻlov mutanosib, yuqori boʻlsa ortiqcha qism haqiqiy emas va mukofot qaytarilmaydi.",
+        "en": "Value is what the object is really worth. The sum insured is what it is insured for and the cap of indemnity. A sum below value gives proportional payment; above value the excess is void and the premium for it is not returned."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Оценка стоимости объекта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Оценка стоимости объекта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Оценка стоимости объекта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Оценка стоимости объекта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "sum_choice",
+      "tags": [
+        "как выбрать страховую сумму",
+        "на сколько страховать",
+        "summani tanlash",
+        "choose sum insured"
+      ],
+      "q": {
+        "ru": "На какую сумму страховать, чтобы не переплатить?",
+        "uz": "Ortiqcha toʻlamaslik uchun qanday summaga sugʻurtalash kerak?",
+        "en": "What sum insured avoids overpaying?"
+      },
+      "a": {
+        "ru": "По страховой стоимости: ровно она даёт полную выплату без переплаты. Ставить сумму выше смысла нет — превышение не работает. Ставить ниже можно осознанно, понимая пропорциональную выплату.",
+        "uz": "Sugʻurta qiymati boʻyicha: aynan u ortiqcha toʻlovsiz toʻliq qoplashni beradi. Summani yuqori qoʻyishdan maʼno yoʻq — ortiqcha qism ishlamaydi. Pastroq qoʻyish mumkin, lekin mutanosib toʻlovni tushungan holda.",
+        "en": "At the insurable value: it gives full indemnity without overpaying. A higher sum is pointless — the excess does not work. A lower sum is a conscious choice, accepting proportional payment."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Оценка стоимости объекта.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Оценка стоимости объекта.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Оценка стоимости объекта.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Оценка стоимости объекта.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "claim_steps",
+      "tags": [
+        "что делать при убытке",
+        "страховой случай",
+        "zarar yuz berganda",
+        "what to do at a loss"
+      ],
+      "q": {
+        "ru": "Что клиенту делать при убытке?",
+        "uz": "Zarar yuz berganda mijoz nima qilishi kerak?",
+        "en": "What should the client do when a loss occurs?"
+      },
+      "a": {
+        "ru": "Сообщить страховщику в срок, указанный в договоре, вызвать компетентные органы (пожарные, милиция, ГАИ), сохранить место и остатки до осмотра, собрать документы и принять разумные меры к уменьшению убытка. Решение о выплате принимает страховщик по правилам страхования.",
+        "uz": "Shartnomada koʻrsatilgan muddatda sugʻurtalovchiga xabar berish, vakolatli organlarni (yongʻin xizmati, militsiya, YHXX) chaqirish, koʻrikkacha joy va qoldiqlarni saqlash, hujjatlarni yigʻish va zararni kamaytirish uchun oqilona chora koʻrish. Toʻlov haqidagi qarorni sugʻurtalovchi sugʻurta qoidalari boʻyicha qabul qiladi.",
+        "en": "Notify the insurer within the contract period, call the competent authorities (fire service, police, traffic police), preserve the site and the remains until inspection, gather documents and take reasonable steps to reduce the loss. The insurer decides on payment under the rules."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "claim_docs",
+      "tags": [
+        "документы по убытку",
+        "какие документы при убытке",
+        "zarar hujjatlari",
+        "claim documents"
+      ],
+      "q": {
+        "ru": "Какие документы собирают по убытку?",
+        "uz": "Zarar boʻyicha qanday hujjatlar yigʻiladi?",
+        "en": "Which documents are collected for a claim?"
+      },
+      "a": {
+        "ru": "Заявление об убытке, договор (полис), акт компетентного органа о событии, документы о праве на повреждённое имущество, смету или счета на восстановление, фотографии повреждений. Точный перечень берут из правил страхования по продукту.",
+        "uz": "Zarar haqida ariza, shartnoma (polis), hodisa haqida vakolatli organ dalolatnomasi, shikastlangan mol-mulkka boʻlgan huquq hujjatlari, tiklash smetasi yoki hisoblari, shikast fotosuratlari. Aniq roʻyxat mahsulot boʻyicha sugʻurta qoidalaridan olinadi.",
+        "en": "A loss notification, the contract (policy), the authority report on the event, title documents for the damaged property, a repair estimate or invoices, photographs of the damage. The exact list comes from the insurance rules of the product."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "claim_timing",
+      "tags": [
+        "срок уведомления",
+        "когда сообщать",
+        "xabar berish muddati",
+        "notification period"
+      ],
+      "q": {
+        "ru": "В какой срок сообщать об убытке?",
+        "uz": "Zarar haqida qaysi muddatda xabar berish kerak?",
+        "en": "Within what period must a loss be reported?"
+      },
+      "a": {
+        "ru": "Срок задан договором и правилами страхования по продукту — единого срока на все виды нет. Просрочка не всегда лишает выплаты, но резко усложняет доказывание; сообщать надо сразу, как стало известно.",
+        "uz": "Muddat mahsulot boʻyicha shartnoma va sugʻurta qoidalarida belgilanadi — barcha turlar uchun yagona muddat yoʻq. Kechikish har doim ham toʻlovdan mahrum qilmaydi, lekin isbotlashni keskin qiyinlashtiradi; maʼlum boʻlishi bilanoq xabar berish kerak.",
+        "en": "The period is set by the contract and the product rules — there is no single period for all lines. A delay does not always forfeit the claim but makes proof much harder; report as soon as you know."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "loss_history",
+      "tags": [
+        "убытки за 3 года",
+        "история убытков",
+        "3 yillik zararlar",
+        "loss history"
+      ],
+      "q": {
+        "ru": "Зачем справка об убытках за 3 года?",
+        "uz": "3 yillik zararlar maʼlumotnomasi nima uchun kerak?",
+        "en": "Why is a three-year loss record needed?"
+      },
+      "a": {
+        "ru": "Прошлые убытки — самый честный показатель риска: повторяющийся убыток означает неустранённую причину. Справка влияет на коэффициент истории убытков и на условия (франшиза, мероприятия).",
+        "uz": "Oʻtgan zararlar — riskning eng halol koʻrsatkichi: takrorlanuvchi zarar bartaraf etilmagan sababni bildiradi. Maʼlumotnoma zararlar tarixi koeffitsiyentiga va shartlarga (franshiza, tadbirlar) taʼsir qiladi.",
+        "en": "Past losses are the most honest measure of risk: a repeated loss means an unfixed cause. The record drives the loss history factor and the terms (deductible, required measures)."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Статистика по рискам классов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Статистика по рискам классов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Статистика по рискам классов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Статистика по рискам классов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "fire_compartment",
+      "tags": [
+        "противопожарный отсек",
+        "отсек",
+        "yongʻin boʻlimi",
+        "fire compartment"
+      ],
+      "q": {
+        "ru": "Что такое противопожарный отсек и почему он так важен?",
+        "uz": "Yongʻin boʻlimi nima va u nega muhim?",
+        "en": "What is a fire compartment and why does it matter?"
+      },
+      "a": {
+        "ru": "Это часть здания, отделённая стенами и перекрытиями, через которые огонь не проходит заданное время. Он ограничивает размер пожара, поэтому EML считается по самому большому отсеку, а не по всему зданию.",
+        "uz": "Bu binoning olov belgilangan vaqt davomida oʻta olmaydigan devor va yopmalar bilan ajratilgan qismi. U yongʻin hajmini cheklaydi, shuning uchun EML butun bino boʻyicha emas, eng katta boʻlim boʻyicha hisoblanadi.",
+        "en": "It is a part of the building separated by walls and floors that fire cannot cross for a set time. It caps the size of a fire, which is why EML is based on the largest compartment, not the whole building."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Максимальный убыток и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Максимальный убыток и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Максимальный убыток и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Максимальный убыток и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "seismic_zone",
+      "tags": [
+        "сейсмозона",
+        "землетрясение",
+        "накопление",
+        "seysmik zona",
+        "seismic zone"
+      ],
+      "q": {
+        "ru": "Почему землетрясение считается отдельно?",
+        "uz": "Zilzila nega alohida hisoblanadi?",
+        "en": "Why is earthquake assessed separately?"
+      },
+      "a": {
+        "ru": "Землетрясение бьёт по всей площадке сразу: отсеки и сигнализация от него не спасают, поэтому сценарий считается от стоимости всей площадки с поправками на зону, конструкцию, износ и этажность. Ещё оно даёт накопление по зоне — много договоров пострадают в один день.",
+        "uz": "Zilzila butun maydonchani bir vaqtda uradi: boʻlimlar va signalizatsiya undan saqlamaydi, shuning uchun ssenariy butun maydoncha qiymatidan zona, konstruksiya, eskirish va qavatlar soniga tuzatma bilan hisoblanadi. Bundan tashqari u zona boʻyicha toʻplanish beradi — bir kunda koʻp shartnoma zarar koʻradi.",
+        "en": "An earthquake hits the whole site at once: compartments and alarms do not help, so the scenario is based on the value of the entire site adjusted for zone, construction, wear and storeys. It also creates accumulation by zone — many contracts suffer on the same day."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Максимальный убыток и собственное удержание.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Максимальный убыток и собственное удержание.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Максимальный убыток и собственное удержание.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Максимальный убыток и собственное удержание.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "preventive_measures",
+      "tags": [
+        "предупредительные мероприятия",
+        "предписания",
+        "ogohlantiruvchi tadbirlar",
+        "risk improvement"
+      ],
+      "q": {
+        "ru": "Что такое предписания страхователю?",
+        "uz": "Sugʻurta qildiruvchiga koʻrsatmalar nima?",
+        "en": "What are risk improvement requirements?"
+      },
+      "a": {
+        "ru": "Это мероприятия, снижающие риск: сигнализация, охрана, разбор причин прошлых убытков, инвентаризация. Система подбирает их по факторам и рискам объекта, показывает эффект на премию и помечает, какие при крупной сумме становятся условием договора со сроком исполнения.",
+        "uz": "Bu riskni kamaytiruvchi tadbirlar: signalizatsiya, qorovul, oʻtgan zararlar sabablarini tahlil qilish, inventarizatsiya. Tizim ularni obyekt omillari va risklariga qarab tanlaydi, mukofotga taʼsirini koʻrsatadi va katta summada qaysilari muddatli shartnoma sharti boʻlishini belgilaydi.",
+        "en": "These are measures that reduce risk: alarm, guarding, review of past loss causes, stock taking. The system selects them by the object factors and perils, shows the effect on the premium and flags which become a contract condition with a deadline when the sum insured is large."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "business_interruption",
+      "tags": [
+        "перерыв в производстве",
+        "простой",
+        "ishlab chiqarish toʻxtashi",
+        "business interruption"
+      ],
+      "q": {
+        "ru": "Что покрывает страхование простоя?",
+        "uz": "Toʻxtab qolishni sugʻurtalash nimani qoplaydi?",
+        "en": "What does business interruption cover?"
+      },
+      "a": {
+        "ru": "Потерянную прибыль и постоянные расходы за время восстановления после застрахованного убытка. Для расчёта нужны прибыль и постоянные расходы в месяц и реальный срок восстановления — их запрашиваем отдельным пунктом чек-листа.",
+        "uz": "Sugʻurtalangan zarardan keyin tiklash davridagi yoʻqotilgan foyda va doimiy xarajatlar. Hisob uchun oylik foyda va doimiy xarajatlar hamda haqiqiy tiklash muddati kerak — ularni chek-roʻyxatning alohida bandi bilan soʻraymiz.",
+        "en": "Lost profit and standing charges during the restoration period after an insured loss. The calculation needs monthly profit and standing charges and a realistic restoration period — we ask for them as a separate checklist item."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "limit_vs_deductible",
+      "tags": [
+        "лимит ответственности",
+        "франшиза и лимит",
+        "javobgarlik limiti",
+        "limit and deductible"
+      ],
+      "q": {
+        "ru": "Чем лимит ответственности отличается от франшизы?",
+        "uz": "Javobgarlik limiti franshizadan nimasi bilan farq qiladi?",
+        "en": "How does a limit of liability differ from a deductible?"
+      },
+      "a": {
+        "ru": "Франшиза отрезает низ убытка (мелкое платит клиент), лимит — верх (выше предела платит клиент). Обе величины берутся из правил страхования и обе снижают премию, но защищают от разного.",
+        "uz": "Franshiza zararning pastini kesadi (maydasini mijoz toʻlaydi), limit — ustini (chegaradan yuqorisini mijoz toʻlaydi). Ikkalasi ham sugʻurta qoidalaridan olinadi va mukofotni kamaytiradi, lekin har xil narsadan himoya qiladi.",
+        "en": "A deductible cuts the bottom of a loss (the client pays small amounts), a limit cuts the top (the client pays above the cap). Both come from the insurance rules and both reduce the premium, but they protect against different things."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "double_insurance_practice",
+      "tags": [
+        "двойное страхование",
+        "два полиса",
+        "ikki polis",
+        "double insurance"
+      ],
+      "q": {
+        "ru": "Как заметить двойное страхование на практике?",
+        "uz": "Amalda ikki karra sugʻurtani qanday sezish mumkin?",
+        "en": "How do you spot double insurance in practice?"
+      },
+      "a": {
+        "ru": "Спросить прямо, есть ли действующие договоры по этому же объекту и рискам, и сверить даты и страховые суммы в документах клиента. Совпадение объекта, периода и риска — повод передать вопрос андеррайтеру до выпуска договора.",
+        "uz": "Shu obyekt va risklar boʻyicha amaldagi shartnomalar bor-yoʻqligini ochiq soʻrash va mijoz hujjatlaridagi sanalar bilan summalarni solishtirish. Obyekt, davr va risk mos kelsa — shartnoma chiqarilgunga qadar savolni andarrayterga oʻtkazish kerak.",
+        "en": "Ask directly whether other contracts on the same object and perils are in force and compare dates and sums in the client documents. If object, period and peril coincide, refer the case to the underwriter before issuing."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "underwriting_what",
+      "tags": [
+        "андеррайтинг",
+        "что такое андеррайтинг",
+        "andarrayting",
+        "underwriting"
+      ],
+      "q": {
+        "ru": "Что такое андеррайтинг простыми словами?",
+        "uz": "Andarrayting oddiy soʻz bilan nima?",
+        "en": "What is underwriting in plain words?"
+      },
+      "a": {
+        "ru": "Это решение, брать ли риск, на каких условиях и по какой цене. Сюрвейер собирает факты и считает, андеррайтер решает. Система не отказывает от своего имени: спорный риск она помечает «вне аппетита — на решение андеррайтера».",
+        "uz": "Bu riskni qabul qilish yoki qilmaslik, qanday shartlarda va qanday narxda degan qaror. Syurveyer faktlarni yigʻadi va hisoblaydi, andarrayter qaror qiladi. Tizim oʻz nomidan rad etmaydi: bahsli riskni «ishtahadan tashqari — andarrayter qaroriga» deb belgilaydi.",
+        "en": "It is the decision whether to take a risk, on what terms and at what price. The surveyor gathers facts and calculates, the underwriter decides. The system never declines in its own name: a doubtful risk is flagged «outside appetite — for the underwriter»."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "tariff_policy",
+      "tags": [
+        "тарифная политика",
+        "54-п",
+        "tarif siyosati",
+        "tariff policy"
+      ],
+      "q": {
+        "ru": "Что такое тарифная политика компании?",
+        "uz": "Kompaniyaning tarif siyosati nima?",
+        "en": "What is the company tariff policy?"
+      },
+      "a": {
+        "ru": "Внутренний документ, где по каждому продукту записаны минимальный тариф и порядок ценообразования: обычная ставка, «по согласованию с ЦО», «по программе», «по генеральному договору» или тариф по нормативному акту. Расчёт всегда сверяется с ней.",
+        "uz": "Ichki hujjat boʻlib, unda har bir mahsulot boʻyicha eng kichik tarif va narx belgilash tartibi yozilgan: oddiy stavka, «markaz bilan kelishuv boʻyicha», «dastur boʻyicha», «bosh shartnoma boʻyicha» yoki meyoriy hujjat tarifi. Hisob doimo shunga solishtiriladi.",
+        "en": "An internal document listing, for each product, the minimum tariff and the pricing mode: ordinary rate, head-office agreement, programme, master agreement or a statutory tariff. Every calculation is checked against it."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "class_meaning",
+      "tags": [
+        "класс страхования",
+        "учётная группа",
+        "sugʻurta sinfi",
+        "class of insurance"
+      ],
+      "q": {
+        "ru": "Зачем нужен класс страхования?",
+        "uz": "Sugʻurta sinfi nima uchun kerak?",
+        "en": "Why is the class of insurance needed?"
+      },
+      "a": {
+        "ru": "Класс определяет базовую ставку, набор факторов, набор рисков и чек-лист документов. Продукт из нескольких классов считается по каждому классу отдельно, а премии складываются — средняя ставка по договору ничего не проверяет.",
+        "uz": "Sinf asosiy stavkani, omillar toʻplamini, risklar toʻplamini va hujjatlar chek-roʻyxatini belgilaydi. Bir necha sinfdan iborat mahsulot har bir sinf boʻyicha alohida hisoblanadi, mukofotlar qoʻshiladi — shartnoma boʻyicha oʻrtacha stavka hech nimani tekshirmaydi.",
+        "en": "The class sets the base rate, the set of factors, the set of perils and the document checklist. A product covering several classes is calculated class by class and the premiums are added; an average contract rate checks nothing."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Терминология — ru-uz-en.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Терминология — ru-uz-en.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Терминология — ru-uz-en.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Терминология — ru-uz-en.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "terms_ru_uz_en",
+      "tags": [
+        "термины",
+        "перевод терминов",
+        "atamalar",
+        "terminology"
+      ],
+      "q": {
+        "ru": "Где взять правильный перевод страховых терминов?",
+        "uz": "Sugʻurta atamalarining toʻgʻri tarjimasi qayerdan olinadi?",
+        "en": "Where do I get the correct translation of insurance terms?"
+      },
+      "a": {
+        "ru": "В проекте есть единый словарь терминов ru-uz-en; интерфейс и ответы берут названия оттуда. Свои варианты перевода не придумываем: расхождение в терминах в договоре потом стоит спора.",
+        "uz": "Loyihada yagona ru-uz-en atamalar lugʻati bor; interfeys va javoblar nomlarni shu yerdan oladi. Oʻzimizdan tarjima oʻylab topmaymiz: shartnomadagi atama farqi keyin nizoga olib keladi.",
+        "en": "The project keeps a single ru-uz-en glossary; the interface and the answers take the terms from it. We do not invent our own wording: a mismatch of terms in a contract later costs a dispute."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Терминология — ru-uz-en.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Терминология — ru-uz-en.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Терминология — ru-uz-en.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Терминология — ru-uz-en.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "calibrated_flag",
+      "tags": [
+        "некалиброванный",
+        "экспертная оценка",
+        "kalibrlanmagan",
+        "not calibrated"
+      ],
+      "q": {
+        "ru": "Что означает пометка «некалиброванный»?",
+        "uz": "«Kalibrlanmagan» belgisi nimani anglatadi?",
+        "en": "What does the «not calibrated» flag mean?"
+      },
+      "a": {
+        "ru": "Что коэффициент или шкала поставлены экспертно, а не выведены из убытков компании. Такие числа годятся для сравнения вариантов, но не для утверждения тарифа. Пометка снимется после выгрузки договоров и убытков за 3–5 лет.",
+        "uz": "Koeffitsiyent yoki shkala kompaniya zararlaridan emas, ekspert yoʻli bilan qoʻyilganini anglatadi. Bunday raqamlar variantlarni solishtirishga yaraydi, tarifni tasdiqlashga emas. Belgi 3–5 yillik shartnoma va zararlar yuklamasidan keyin olinadi.",
+        "en": "It means the factor or scale is set by expert judgement, not derived from company losses. Such figures are fine for comparing options but not for approving a tariff. The flag is removed once three to five years of contract and loss data arrive."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Статистика по рискам классов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Статистика по рискам классов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Статистика по рискам классов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Статистика по рискам классов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "market_rate_compare",
+      "tags": [
+        "рынок",
+        "средняя ставка рынка",
+        "bozor stavkasi",
+        "market rate"
+      ],
+      "q": {
+        "ru": "Зачем сравнивать ставку с рынком?",
+        "uz": "Stavkani bozor bilan solishtirish nima uchun kerak?",
+        "en": "Why compare the rate with the market?"
+      },
+      "a": {
+        "ru": "Средняя ставка и убыточность класса по отчётам регулятора показывают, не выбиваемся ли мы. Сильное отклонение вниз — риск убыточного портфеля, вверх — риск потерять клиента; и то и другое решает андеррайтер, а не расчёт.",
+        "uz": "Regulyator hisobotlaridagi sinf boʻyicha oʻrtacha stavka va zararlilik bizning stavkamiz qanchalik farq qilishini koʻrsatadi. Kuchli pasayish — zararli portfel xavfi, oshish — mijozni yoʻqotish xavfi; ikkalasini ham hisob emas, andarrayter hal qiladi.",
+        "en": "The class average rate and loss ratio from the regulator reports show whether we are out of line. A large downward gap risks an unprofitable portfolio, an upward gap risks losing the client; both are for the underwriter, not for the calculation."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Статистика по рискам классов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Статистика по рискам классов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Статистика по рискам классов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Статистика по рискам классов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "takaful_short",
+      "tags": [
+        "такафул",
+        "исламское страхование",
+        "takaful",
+        "islamic insurance"
+      ],
+      "q": {
+        "ru": "Что такое такафул коротко?",
+        "uz": "Takaful qisqacha nima?",
+        "en": "What is takaful in brief?"
+      },
+      "a": {
+        "ru": "Взаимная модель: участники вносят взносы в общий фонд, из него платятся возмещения, а оператор управляет фондом за вознаграждение. У нас это отдельные продукты, расчёт идёт по тем же классам и справочникам.",
+        "uz": "Oʻzaro model: ishtirokchilar umumiy fondga badal kiritadi, undan qoplamalar toʻlanadi, operator esa fondni haq evaziga boshqaradi. Bizda bu alohida mahsulotlar, hisob oʻsha sinflar va maʼlumotnomalar boʻyicha boradi.",
+        "en": "A mutual model: participants contribute to a common fund, indemnities are paid from it and the operator manages the fund for a fee. In our system these are separate products calculated on the same classes and reference tables."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "agent_commission_practice",
+      "tags": [
+        "комиссия агента",
+        "вознаграждение",
+        "agent komissiyasi",
+        "agent commission"
+      ],
+      "q": {
+        "ru": "Как комиссия агента отражается в цене?",
+        "uz": "Agent komissiyasi narxda qanday aks etadi?",
+        "en": "How does agent commission show up in the price?"
+      },
+      "a": {
+        "ru": "Комиссия входит в нагрузку брутто-ставки, поэтому она уже учтена в премии и не добавляется сверху. Предельный размер и порядок возврата при досрочном расторжении заданы нормой — смотрите нормативные вопросы FAQ.",
+        "uz": "Komissiya brutto stavkaning yuklamasiga kiradi, shuning uchun u mukofotda hisobga olingan va ustiga qoʻshilmaydi. Eng koʻp miqdor va muddatidan oldin bekor qilinganda qaytarish tartibi norma bilan belgilangan — FAQ ning meyoriy savollariga qarang.",
+        "en": "Commission is part of the loading in the gross rate, so it is already in the premium and is not added on top. The cap and the refund on early termination are set by regulation — see the legal questions in the FAQ."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "why_photos",
+      "tags": [
+        "фотографии объекта",
+        "зачем фото",
+        "obyekt fotosuratlari",
+        "why photos"
+      ],
+      "q": {
+        "ru": "Зачем нужны фотографии объекта?",
+        "uz": "Obyekt fotosuratlari nima uchun kerak?",
+        "en": "Why are photographs of the object needed?"
+      },
+      "a": {
+        "ru": "Фото подтверждают состояние, конструкцию и защиту на дату осмотра — это и есть материал сюрвейера. При убытке они показывают, что было до события, и снимают спор о доснятии повреждений.",
+        "uz": "Fotosuratlar koʻrik sanasidagi holat, konstruksiya va himoyani tasdiqlaydi — bu syurveyerning asosiy materiali. Zarar yuz berganda ular hodisadan oldin nima boʻlganini koʻrsatadi va shikastlanish haqidagi nizoni bartaraf etadi.",
+        "en": "Photographs prove the condition, construction and protection at the survey date — that is the surveyor evidence. At a loss they show what was there before the event and remove arguments about pre-existing damage."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Чек-листы документов.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Чек-листы документов.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Чек-листы документов.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Чек-листы документов.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "quick_vs_full",
+      "tags": [
+        "быстрый расчёт",
+        "полный анализ",
+        "tez hisob",
+        "quick or full"
+      ],
+      "q": {
+        "ru": "Чем быстрый расчёт отличается от полного анализа риска?",
+        "uz": "Tez hisob toʻliq risk tahlilidan nimasi bilan farq qiladi?",
+        "en": "How does a quick quote differ from a full risk analysis?"
+      },
+      "a": {
+        "ru": "Быстрый расчёт даёт ставку и премию по минимуму данных. Полный анализ добавляет сценарии убытка, уровень риска, ёмкость, рынок, документы и рекомендации. Для решения андеррайтера нужен полный.",
+        "uz": "Tez hisob eng kam maʼlumot asosida stavka va mukofot beradi. Toʻliq tahlil zarar ssenariylari, risk darajasi, sigʻim, bozor, hujjatlar va tavsiyalarni qoʻshadi. Andarrayter qarori uchun toʻliq tahlil kerak.",
+        "en": "A quick quote gives the rate and premium from minimal data. The full analysis adds loss scenarios, the risk level, capacity, market comparison, documents and recommendations. The underwriter decision needs the full one."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
+    },
+    {
+      "id": "what_if_no_data",
+      "tags": [
+        "не хватает данных",
+        "нет документов",
+        "maʼlumot yetishmaydi",
+        "missing data"
+      ],
+      "q": {
+        "ru": "Что делать, если данных для анализа не хватает?",
+        "uz": "Tahlil uchun maʼlumot yetishmasa nima qilish kerak?",
+        "en": "What if there is not enough data for the analysis?"
+      },
+      "a": {
+        "ru": "Анализ всё равно считается, но система показывает полноту данных и список «что добавить». Чем меньше данных, тем осторожнее допущения — все они перечислены в ответе отдельным блоком.",
+        "uz": "Tahlil baribir hisoblanadi, lekin tizim maʼlumot toʻliqligini va «nima qoʻshish kerak» roʻyxatini koʻrsatadi. Maʼlumot qancha kam boʻlsa, taxminlar shuncha ehtiyotkor — ularning hammasi javobda alohida blokda sanab oʻtiladi.",
+        "en": "The analysis still runs, but the system shows data completeness and a list of what to add. The less data, the more conservative the assumptions — all of them are listed in a separate block of the answer."
+      },
+      "citations": [],
+      "rule_codes": [],
+      "kind": "практика",
+      "basis_doc": "docs/Фундаментальные знания из учебников CII.md",
+      "basis": {
+        "ru": "заметка проекта: docs/Фундаментальные знания из учебников CII.md · практика компании / учебник CII",
+        "uz": "loyiha eslatmasi: docs/Фундаментальные знания из учебников CII.md · kompaniya amaliyoti / CII darsligi",
+        "en": "project note: docs/Фундаментальные знания из учебников CII.md · company practice / CII textbook"
+      }
     }
   ]
 }

@@ -112,7 +112,10 @@ CREATE TABLE IF NOT EXISTS checklists (
     scope_code  TEXT,
     doc_name    TEXT NOT NULL,
     required    INTEGER NOT NULL DEFAULT 1,
-    condition   TEXT                        -- когда запрашивать дополнительно
+    condition   TEXT,                       -- когда запрашивать дополнительно
+    -- зачем документ нужен: 'анализ' — для оценки риска, 'оформление' — только для заключения
+    -- договора (заявление-анкета и прочая канцелярия). Анализ риска строки 'оформление' не спрашивает.
+    scope       TEXT NOT NULL DEFAULT 'анализ'
 );
 
 -- Правила проверки: то, что система не даст нарушить

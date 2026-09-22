@@ -42,7 +42,11 @@ TOKENS = {}
 # задача 144: «Аналитика» и «ОСГОР» добавлены, «Мои запросы» из меню убраны (точка /tg/my-requests осталась)
 # задача 150: «Ждут меня», «Заявки», «Генеральные соглашения» убраны из меню для всех ролей
 # 22.09.2026: «Юрист» для всех, «Админка» — только админу
+# задача 223: «Аналитика» и «Фото» сведены в одну вкладку «ИИ-сюрвейер» (chat);
+# сервер по-прежнему отдаёт ключи analytics/photos, интерфейс их объединяет (NAV_MERGE)
 NAV_KEYS = ["analytics", "calc", "osgor", "legal", "photos", "users", "settings"]
+SECTIONS = ["chat", "calc", "osgor", "legal", "users", "settings"]      # разделы в разметке
+GONE_SECTIONS = ["analytics", "photos"]
 REMOVED_KEYS = ["inbox", "applications", "agreements"]
 # «Пользователи» открыты всем зарегистрированным (решение заказчика 21.09.2026)
 NAV_BY_ROLE = {
@@ -151,11 +155,14 @@ def check_page():
     assert st == 200, st
     assert isinstance(html, str) and "Сюрвейер INSON" in html, html[:300]
 
-    missing = [k for k in NAV_KEYS if f'id="tab-{k}"' not in html]
+    missing = [k for k in SECTIONS if f'id="tab-{k}"' not in html]
     assert not missing, "в разметке нет разделов: " + ", ".join(missing)
-    no_attr = [k for k in NAV_KEYS if f'data-section="{k}"' not in html]
+    no_attr = [k for k in SECTIONS if f'data-section="{k}"' not in html]
     assert not no_attr, "у разделов нет data-section: " + ", ".join(no_attr)
-    print(f"1. GET /tg отдаёт 200, все {len(NAV_KEYS)} разделов есть в разметке — ок")
+    left = [k for k in GONE_SECTIONS if f'id="tab-{k}"' in html or f'data-section="{k}"' in html]
+    assert not left, "«Аналитика» и «Фото» должны быть внутри вкладки chat: " + ", ".join(left)
+    assert 'const NAV_MERGE = {analytics: "chat", photos: "chat"}' in html, "меню сервера не сводится к вкладке chat"
+    print(f"1. GET /tg отдаёт 200, все {len(SECTIONS)} разделов есть в разметке, analytics и photos — внутри chat — ок")
 
     ext = re.findall(r'src="(https?://[^"]+)"', html)
     assert len(ext) == 1, "внешних скриптов должно быть ровно один, найдено: " + str(ext)
@@ -228,23 +235,21 @@ def check_guest_screen(uids, html):
 
 
 def check_guest_photos(html):
-    """Вкладка «Фото» у гостя: свои файлы анализа, загрузка, удаление, срок хранения 24 часа."""
-    must = {'id="gdocCard"': "нет карточки файлов гостя",
-            '"/analytics/risk/documents"': "список своих файлов не запрашивается",
-            '"/analytics/risk/document", {method: "POST"': "нет загрузки файла гостем",
-            '"/analytics/risk/document/" + encodeURIComponent(id), {method: "DELETE"}': "нет удаления файла",
-            "tg.gdoc_ttl": "не сказано, что файлы хранятся 24 часа",
-            "function loadPhotosTab(": "вкладка «Фото» не различает гостя и вошедшего",
-            'errHtml(r.error)': "отказ сервера (429) показывается не его словами"}
+    """Файлы гостя теперь грузятся прямо в диалог: скрепка, перетаскивание, буфер обмена."""
+    must = {'"/chat/upload"': "файлы не уходят в диалог",
+            'id="chatFile"': "нет поля выбора файлов",
+            'accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"': "форматы файлов не ограничены",
+            'errHtml(CH.err)': "отказ сервера (413, 415, 429) показывается не его словами"}
     miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "вкладка «Фото» у гостя: " + "; ".join(miss)
+    assert not miss, "файлы в диалоге: " + "; ".join(miss)
     # гостевое меню сервера рисуется целиком
     st, me = call("GET", "/tg/me")
     keys = [n["key"] for n in me["nav"]]
     assert keys == ["analytics", "calc", "osgor", "legal", "photos"], me
-    assert all(f'data-section="{k}"' in html for k in keys), "не все разделы гостя есть в разметке"
+    merged = {"analytics": "chat", "photos": "chat"}
+    assert all(f'data-section="{merged.get(k, k)}"' in html for k in keys), "не все разделы гостя есть в разметке"
     assert "const GUEST_NAV = [" in html, "нет запасного меню гостя, если сервер не ответил"
-    print("5a. вкладка «Фото» гостя: свои файлы, загрузка, удаление, 24 часа — ок")
+    print("5a. файлы гостя уходят в диалог: скрепка, форматы, ответ сервера своими словами — ок")
 
 
 def check_flow(uids, prod):
@@ -343,30 +348,12 @@ def check_ui_blocks(html):
     assert not miss, "в админке, раздел «Пользователи», нет колонок почты и входа: " + ", ".join(miss)
     assert "№ 159" not in hub, "в админке осталось пояснение про закрытый вопрос № 159"
 
-    prob = ["Вероятность подтверждения", "Что снижает", "Что повысит", "жёсткое нарушение",
-            "Вероятность ещё не рассчитана", "не калибрована", "how_to_raise", "function probHtml("]
-    miss = [k for k in prob if k not in html]
-    assert not miss, "блок вероятности: нет " + ", ".join(miss)
-
-    exp = ["Скачать PDF", "Скачать XLSX", "Прислать в Telegram", '/analysis." + fmt',
-           'data-fmt="pdf"', 'data-fmt="xlsx"',
-           "/analysis/send-telegram", "скачивание файла часто не срабатывает"]
-    miss = [k for k in exp if k not in html]
-    assert not miss, "кнопки выгрузок: нет " + ", ".join(miss)
-
-    # Выгрузки закрыты единым входом (app/guard.py), а сессия мини-аппа держится на токене:
-    # по простой ссылке <a href> заголовок Authorization не уходит и файл вернёт 401.
-    link = re.compile(r"<a[^>]+href=[\"'][^\"']*/analysis\.(?:pdf|xlsx)")
-    assert not link.search(html), "«Скачать PDF/XLSX» снова простые ссылки — токен по ним не уйдёт"
-    dl = ["function downloadAnalysis(", 'data-dl="', "Authorization: \"Bearer \" + TOKEN",
-          "Content-Disposition", "Анализ запроса ", "function saveBlob(",
-          "вы не вошли или сессия закончилась", "у вас нет доступа к этому запросу",
-          "Встроенный браузер Telegram не дал сохранить файл"]
-    miss = [k for k in dl if k not in html]
-    assert not miss, "скачивание выгрузок запросом с токеном: нет " + ", ".join(miss)
-    # запрос за файлом уходит с заголовком Authorization
-    got = re.search(r"async function downloadAnalysis\(rid, fmt\)\{(.+?)\n\}", html, re.S)
-    assert got and "Authorization" in got.group(1) and "/analysis.\" + fmt" in got.group(1),         "downloadAnalysis не забирает файл запросом с заголовком Authorization"
+    # 22.09.2026 (заказчик): калькулятор упрощён — вероятность подтверждения, сохранение запроса
+    # и выгрузки PDF/XLSX с экрана расчёта убраны; серверные точки остались.
+    gone_calc = ["function probHtml(", "function downloadAnalysis(", "Прислать в Telegram",
+                 'id="saveBtn"', "/analysis.pdf"]
+    left = [k for k in gone_calc if k in html]
+    assert not left, "в упрощённом калькуляторе осталось лишнее: " + ", ".join(left)
 
     # 21.09.2026: мини-апп только для аналитики — ни отправки на согласование из расчёта,
     # ни карточки решения по ссылке /tg?request=<№>; серверные точки согласования остаются
@@ -380,7 +367,7 @@ def check_ui_blocks(html):
     # параметр ?request= просто игнорируется: страница та же, что и без него
     st, with_req = call("GET", "/tg", params={"request": "123"})
     assert st == 200 and with_req == html, "GET /tg?request=123 отдаёт не ту же страницу"
-    print("16. «Пользователи», вероятность, выгрузки — в разметке; блока согласования и карточки решения нет,"
+    print("16. «Пользователи» в разметке; согласования, вероятности и выгрузок в мини-аппе нет,"
           " ?request= игнорируется — ок")
 
 
@@ -443,29 +430,70 @@ def check_removed_tabs(html):
     print("21. в разметке нет разделов inbox, applications, agreements — ок")
 
 
-def check_analytics_steps(html):
-    """Задача 150 (разметка — дизайнер): аналитика по шагам продукт → документы → договор → суммы → анализ."""
+def check_chat_tab(html):
+    """Задача 223: «Аналитика», «Расчёт» и «Фото» сведены в диалог ИИ-сюрвейера."""
     must = {
-        "/analytics/risk/docs": "шаг 2: список нужных документов не запрашивается",
-        "/analytics/risk/document": "шаг 3: нет загрузки договора",
-        'accept=".pdf,.docx': "шаг 3: поле файла не ограничено PDF и DOCX",
-        "doc_ids": "шаг 5: распознанные документы не передаются в анализ",
-        "prefill": "шаг 4: суммы из договора не подставляются",
-        "ai_summary": "шаг 5: не показан разбор ИИ",
-        "ai_status": "шаг 5: не показано, что ИИ не подключён",
+        'id="tab-chat"': "нет раздела «ИИ-сюрвейер»",
+        'data-section="chat"': "раздел не подключён к меню",
+        '"/chat/start"': "диалог не начинается",
+        '"/chat/answer"': "ответы на чипы и поля не уходят",
+        '"/chat/upload"': "файлы не уходят одним действием",
+        '"/chat/analyze"': "анализ не запускается",
+        '"/chat/message"': "свободный вопрос к ИИ не уходит",
+        '"/chat/lang"': "смена языка не переводит свободный текст",
+        '"/chat/state?session_id="': "диалог не восстанавливается после перезагрузки",
+        '"dragenter"': "файл нельзя перетащить на экран",
+        '"drop"': "нет обработчика отпускания файла",
+        '"paste"': "файл из буфера обмена не вставляется",
+        'id="chatDrop"': "нет подсветки «Отпустите, чтобы загрузить»",
+        'capture': "на телефоне скрепка не открывает камеру",
+        "function chatRelang(": "лента не перерисовывается при смене языка",
+        "CH.tr[I18N_LANG]": "переводы не кэшируются на клиенте",
+        'sessionStorage.setItem(CH_KEY': "номер диалога не переживает перезагрузку",
+        'case "checklist"': "карточка чек-листа не рисуется",
+        'case "fields"': "карточка полей не рисуется",
+        'case "chips"': "быстрые ответы не рисуются",
+        'case "result"': "итог не рисуется",
+        "gaugeSvg(lv.score": "в итоге нет спидометра уровня риска",
+        "chatOptionsHtml": "нет трёх вариантов тарифа",
+        "narrative_source": "не показано, ИИ это или правила",
+        "anScenariosCard(r)": "«Подробнее» не переиспользует карточки дашборда",
+        'inputmode="numeric"': "суммы без цифровой клавиатуры",
+        "keepDoc(": "«Заявление-анкета» не убрано из чек-листов",
+        'HIDE_CHECKS = ["disclosure", "premium_unpaid"]': "скрытые проверки не отфильтрованы",
     }
     miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "аналитика по шагам: " + "; ".join(miss)
-    print("22. аналитика по шагам: документы, загрузка договора, подстановка сумм, разбор ИИ — ок")
+    assert not miss, "диалог ИИ-сюрвейера: " + "; ".join(miss)
+    gone = ["function wzQuick(", "function wzStep1(", "function loadPhotosTab(", 'id="anDash"']
+    left = [k for k in gone if k in html]
+    assert not left, "остался старый мастер аналитики: " + ", ".join(left)
+    print("22. диалог ИИ-сюрвейера: карточки, файлы, анализ, язык, восстановление сессии — ок")
+
+
+def check_calc_tab(html):
+    """Заказчик 22.09.2026: «Калькулятор» — отдельная простая вкладка без диалога."""
+    must = {
+        'id="tab-calc"': "нет раздела «Калькулятор»",
+        '"/reference/coefficients"': "факторы класса не запрашиваются",
+        '"/calculate"': "премия не считается",
+        "function calcRun(": "нет кнопки расчёта",
+        "CALC_TERMS = [3, 6, 12]": "срок не выбирается сегментами",
+        "CALC_FACTORS = 3": "показано больше трёх главных факторов",
+        'T("calc.breakdown"': "нет раскрывашки «Из чего сложилась ставка»",
+        'T("tg.calc_min"': "не показан минимум по продукту",
+        'T("tg.nav.calc", "Калькулятор")': "вкладка называется не «Калькулятор»",
+        'T("tg.nav.legal", "Специалист")': "«Юрист» не переименован в специалиста",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "вкладка «Калькулятор»: " + "; ".join(miss)
+    print("22a. «Калькулятор»: продукт, сумма, срок, три фактора, «как сложилась» — ок")
 
 
 def check_compact_and_view(html):
     """Задача 170: компактная раскладка, режим пользователя для админа, нативные кнопки Telegram."""
     must = {
         ".seg{": "нет блока сегментов для связанных значений",
-        '<div class="seg">': "ставки не объединены в сегменты",
         ".fg>div.half": "короткие поля не стоят по два в ряд",
-        "function isShort(": "шаг 4: короткие поля не отмечаются",
         ".kpi.hero{grid-column:span 2}": "главная цифра KPI не на две колонки",
         "@media (max-width:599px){" + chr(10) + "  .tblwrap": "таблицы на телефоне не становятся карточками строк",
         "function anExtStatsCard(": "нет карточки «Статистика по рискам региона» (external_stats)",
@@ -476,7 +504,7 @@ def check_compact_and_view(html):
         '"/tg/me" + (VIEW_USER ? "?view=user" : "")': "режим пользователя не передаётся серверу (view=user)",
         "const IS_ADMIN = () => REAL_ADMIN() && !VIEW_USER": "в режиме пользователя админские части не прячутся",
         "CAN_MANAGE = !!USERS.can_manage && !VIEW_USER": "в режиме пользователя остались кнопки управления людьми",
-        "TG.BackButton": "в мастере нет нативной кнопки «Назад»",
+        "TG.BackButton": "нет нативной кнопки «Назад»",
         "TG.SettingsButton": "нет нативной кнопки настроек",
         "showProgress": "нижняя кнопка Telegram без прогресса",
         "selectionChanged": "нет отклика HapticFeedback на выбор",
@@ -501,6 +529,7 @@ def check_legal_tab(html):
         "legal: lgRepaint": "раздел «Юрист» не в списке перерисовки языков",
         "legal: loadLegal": "раздел «Юрист» не в списке загрузчиков",
         'T("tg.nav.legal"': "название вкладки не берётся из словаря",
+        'data-i18n="tg.lg.title">ИИ специалист по страхованию<': "вкладка не переименована в специалиста",
         "lgskel": "ответ появляется без скелетона",
         "tg.lg.read_source": "нет кнопки «Читать в источнике lex.uz»",
         "c.official": "не показано, официальный текст или перевод",
@@ -513,33 +542,6 @@ def check_legal_tab(html):
     # ИИ не изображаем: текст ИИ показываем только при ai.status === "ok"
     assert 'ai === "ok"' in html, "ответ ИИ показывается без проверки ai.status"
     print("24. вкладка «Юрист»: /legal/faq, /legal/ask, цитаты с источником, история сессии — ок")
-
-
-def check_quick_mode(html):
-    """Быстрый режим аналитики (заказчик 22.09.2026): плитки, четыре поля, подстановки по умолчанию."""
-    must = {
-        'mode: "quick"': "быстрый режим не включён по умолчанию",
-        'body.mode = WZ.mode': "режим не уходит в POST /analytics/risk",
-        '"/analytics/risk/presets"': "плитки готовых объектов не запрашиваются",
-        '"/analytics/risk/last"': "последние значения формы не восстанавливаются",
-        '&mode=quick': "поля не запрашиваются в быстром режиме",
-        "will_assume": "не показано, что система подставит по умолчанию",
-        "assumptions": "в итоге не показаны подстановки",
-        "must_full": "остальные поля не берутся из must_full",
-        "function wzQuick(": "нет экрана быстрого анализа",
-        'class="tiles"': "нет плиток объектов",
-        'class="qadd"': "нет кнопок «+млн», «+млрд», «= стоимости»",
-        'inputmode="numeric"': "суммы без цифровой клавиатуры",
-        'class="segsel"': "нет сегментных переключателей вместо списков",
-        "opts5.length <= 5": "сегменты не ограничены пятью вариантами",
-        'T("tg.an.mode_full"': "нет переключателя «Подробный режим»",
-        'T("tg.an.mode_quick"': "из подробного режима не вернуться в быстрый",
-        'T("tg.an.refine"': "нет раскрытия «Уточнить данные»",
-        "anSaveLast": "последние значения не сохраняются после анализа",
-    }
-    miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "быстрый режим аналитики: " + "; ".join(miss)
-    print("25. быстрый режим: пресеты, четыре поля, подстановки, подробный режим — ок")
 
 
 if __name__ == "__main__":
@@ -558,10 +560,10 @@ if __name__ == "__main__":
             check_ui_kit(html)
             # ниже — ожидания к разметке после дизайнера (задача 150)
             check_removed_tabs(html)
-            check_analytics_steps(html)
+            check_chat_tab(html)
+            check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)
-            check_quick_mode(html)
             print("\nВсе проверки мини-приложения пройдены.")
         finally:
             teardown(rid)

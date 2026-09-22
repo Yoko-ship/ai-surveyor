@@ -196,7 +196,10 @@ def check_docs():
     names = [d["doc_name"] for d in b["required"]]
     ok("0807: своего чек-листа нет — основание «класс»", b["basis"] == "класс", b["basis"])
     ok("0807: общий пункт и пункт класса 8 среди обязательных",
-       "Заявление-анкета на страхование" in names and "Фотографии объекта" in names, names)
+       "Документ о праве на объект" in names and "Фотографии объекта" in names, names)
+    # правка заказчика 22.09.2026: заявление-анкета — документ оформления, в анализ риска не идёт
+    ok("0807: заявления-анкеты в списке нет",
+       not any("аявлен" in d["doc_name"] for d in b["required"] + b["optional"]), names)
     ok("0807: источники помечены (общий / класс)",
        {d["source"] for d in b["required"]} == {"общий", "класс"}, {d["source"] for d in b["required"]})
     ok("0807: необязательные с условием «когда»",
@@ -383,8 +386,13 @@ def check_analyze(doc_docx, doc_pdf):
     docs = r.get("documents") or {}
     ok("documents: received — вид договора", docs.get("received") == [r["documents"]["items"][0]["kind"]], docs)
     ok("documents: missing — пункты чек-листа 0807",
-       "Фотографии объекта" in docs.get("missing", []) and "Заявление-анкета на страхование" in docs.get("missing", []),
+       "Фотографии объекта" in docs.get("missing", []) and "Документ о праве на объект" in docs.get("missing", []),
        docs.get("missing"))
+    rules = {c["rule"] for part in (r["summary"]["parts"] or []) for c in part["checks"]}
+    ok("анализ без проверок оформления (оплата премии, раскрытие)",
+       not ({"premium_unpaid", "disclosure"} & rules), sorted(rules))
+    ok("documents: заявления-анкеты в missing нет",
+       not any("аявлен" in d for d in docs.get("missing", [])), docs.get("missing"))
     ok("documents: договор страхования пунктов не закрывает, полнота документов 0%",
        docs.get("completeness_docs_pct") == 0 and docs.get("note"), docs)
     comp = r.get("completeness") or {}

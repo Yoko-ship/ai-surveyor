@@ -248,7 +248,7 @@ def check_log():
 # ---------- 6. FAQ ----------
 
 def check_faq():
-    print("8. FAQ юриста")
+    print("8. FAQ специалиста по страхованию")
     real = legal.FAQ_FILE
     legal.FAQ_FILE = FAQ_SAMPLE
     legal._faq_cache.update({"mtime": None, "items": [], "version": None})
@@ -532,6 +532,43 @@ def check_silences():
        (st, b if st != 200 else b["count"]))
 
 
+def check_specialist():
+    """Правка заказчика 22.09.2026: «ИИ специалист по страхованию» — имя, практика, промпт."""
+    print("15. ИИ специалист по страхованию")
+    ok("FAQ читается из docs/Специалист — FAQ.json",
+       legal.FAQ_FILE.name.startswith("Специалист") and legal.FAQ_FILE.exists(), str(legal.FAQ_FILE))
+    ok("старое имя файла поддерживается кодом", legal.FAQ_FILE_OLD.name.startswith("Юрист"))
+    st, b = call("GET", "/legal/faq", params={"lang": "ru"}, who=EMP)
+    names = b.get("assistant_name") or {}
+    ok("GET /legal/faq: имя помощника на трёх языках",
+       st == 200 and all(names.get(l) for l in ("ru", "uz", "en")) and "INSON" in names["ru"], names)
+    ok("в FAQ есть практические вопросы (40+)", b.get("practice_count", 0) >= 40, b.get("practice_count"))
+    ok("вопросов в справочнике стало больше сотни", b["count"] >= 100, b["count"])
+    st, r = call("POST", "/legal/ask", {"q": "Что такое PML, EML и MFL простыми словами?"}, who=EMP)
+    ok("практический вопрос отвечается из FAQ",
+       st == 200 and r["answer"]["source"] == "faq" and "EML" in r["answer"]["text"], r["answer"])
+    ok("практический ответ помечен как практика, а не норма",
+       r["answer"].get("kind") == "практика" and not r["citations"], (r["answer"].get("kind"), r["citations"]))
+    ok("в пометке названа заметка проекта и учебник CII",
+       "CII" in (r["note"] or "") and "docs/" in (r["note"] or ""), r["note"])
+    ok("POST /legal/ask: имя помощника на трёх языках",
+       all((r.get("assistant_name") or {}).get(l) for l in ("ru", "uz", "en")), r.get("assistant_name"))
+    for q, lang in (("Franshiza qanday tanlanadi?", "uz"), ("How is the premium calculated?", "en")):
+        legal._cache.clear()
+        st, r2 = call("POST", "/legal/ask", {"q": q, "lang": lang}, who=EMP)
+        ok(f"практика отвечается на {lang}",
+           st == 200 and r2["answer"]["source"] == "faq" and bool(r2["answer"]["text"]), r2["answer"])
+    sp = legal.system_prompt("ru")
+    ok("системный промпт: роль специалиста", "ИИ специалист по страхованию INSON" in sp, sp[:120])
+    ok("системный промпт: правовой блок юриста подклеен",
+       "ТЕБЕ ЗАПРЕЩЕНО" in sp and "не подтверждено" in sp, len(sp))
+    free = legal.system_prompt("ru", free=True)
+    ok("свободный режим запрещает выдумывать статьи",
+       "НЕ ссылайся на конкретные статьи" in free and "ТЕБЕ ЗАПРЕЩЕНО" in free, free[:120])
+    ok("ключа ИИ нет — свободный ответ не собирается",
+       legal.ai_free_answer("вопрос без нормы", "ru")["status"] in ("off", "error"))
+
+
 def main():
     with temp_db():
         setup()
@@ -554,6 +591,7 @@ def main():
         check_quotes_verbatim()
         check_answer_links()
         check_silences()
+        check_specialist()
     print(f"\nИтого: {passed} ок, {failed} плохо")
     sys.exit(1 if failed else 0)
 

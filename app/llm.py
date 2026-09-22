@@ -19,8 +19,14 @@
   openai    — https://api.openai.com/v1
   anthropic — другой формат запроса, здесь НЕ поддержан: выбор провайдера 'anthropic' работает
               как 'none' (честная ошибка), чтобы не притворяться рабочим.
+  gemini    — https://generativelanguage.googleapis.com/v1beta, модели gemini-2.5-flash и
+              gemini-2.5-pro. Формат запроса свой (contents/parts), ключ — в заголовке
+              x-goog-api-key. Умеет вложения inline_data: JPEG/PNG и PDF (сканы, фото объекта).
+              Ключ берётся из LLM_API_KEY, а если он пуст — из GEMINI_API_KEY (.secrets.env).
   none      — ИИ выключен.
 """
+import base64
+import hashlib
 import json
 import os
 import re
@@ -42,10 +48,18 @@ ROOT = Path(__file__).resolve().parent.parent
 ENV_FILES = (ROOT / ".env", ROOT / ".secrets.env")
 
 TIMEOUT_SEC = 40
-RETRIES = 1                       # одна повторная попытка
+RETRIES = 1                       # одна повторная попытка (всего две), пауза растёт: 1 с, 2 с
+RETRY_BASE_SEC = 1
 MAX_PROMPT_CHARS = 12000          # длинные документы режем: и дешевле, и меньше риска
 
-SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY",
+# Вложения (только Gemini): фото и сканы уходят inline_data в base64.
+# Пределы намеренно жёсткие: один запрос не должен весить больше загрузки одного документа.
+INLINE_MIME = {"image/jpeg", "image/jpg", "image/png", "application/pdf"}
+INLINE_MAX_FILES = 10
+INLINE_MAX_BYTES = 15 * 1024 * 1024        # суммарно на один запрос
+INLINE_MAX_ONE = 10 * 1024 * 1024          # на один файл
+
+SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY", "GEMINI_API_KEY",
                 "TELEGRAM_BOT_TOKEN", "PD_MODE", "SERVER_URL",
                 # бот Telegram (app/tgbot.py): секрет вебхука, код первого администратора,
                 # запасной режим опроса и версия текста согласия на обработку ПД
@@ -54,20 +68,26 @@ SETTING_KEYS = ("LLM_PROVIDER", "LLM_BASE_URL", "LLM_MODEL", "LLM_API_KEY",
                 "TG_POLLING", "CONSENT_VERSION",
                 # вход через Google (app/google_auth.py): приложение в Google Cloud Console
                 # и необязательное ограничение по доменам почты, через запятую
-                "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_ALLOWED_DOMAINS")
+                "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_ALLOWED_DOMAINS",
+                # Gemini 2.5: бюджет «размышления» в токенах (0 = выключить, пусто = по модели)
+                "LLM_THINKING_BUDGET")
 
 PROVIDERS = {
     "kimi":      {"base_url": "https://api.moonshot.ai/v1", "model": "kimi-k3",       "name": "Kimi (Moonshot)"},
     "openai":    {"base_url": "https://api.openai.com/v1",  "model": "gpt-4o-mini",   "name": "OpenAI"},
     "anthropic": {"base_url": "https://api.anthropic.com",  "model": "claude-sonnet", "name": "Anthropic (не подключён)"},
+    "gemini":    {"base_url": "https://generativelanguage.googleapis.com/v1beta",
+                  "model": "gemini-3.5-flash-lite", "name": "Google Gemini"},
     "none":      {"base_url": "",                           "model": "",              "name": "ИИ выключен"},
 }
 
 DEFAULTS = {"LLM_PROVIDER": "none", "PD_MODE": "test", "SERVER_URL": "http://127.0.0.1:8000",
-            "LLM_BASE_URL": "", "LLM_MODEL": "", "LLM_API_KEY": "", "TELEGRAM_BOT_TOKEN": "",
+            "LLM_BASE_URL": "", "LLM_MODEL": "", "LLM_API_KEY": "", "GEMINI_API_KEY": "",
+            "TELEGRAM_BOT_TOKEN": "",
             "TG_WEBHOOK_SECRET": "", "ADMIN_BOOTSTRAP_CODE": "", "ADMIN_BOOTSTRAP_USED": "",
             "TG_POLLING": "0", "CONSENT_VERSION": "черновик-1",
-            "GOOGLE_CLIENT_ID": "", "GOOGLE_CLIENT_SECRET": "", "GOOGLE_ALLOWED_DOMAINS": ""}
+            "GOOGLE_CLIENT_ID": "", "GOOGLE_CLIENT_SECRET": "", "GOOGLE_ALLOWED_DOMAINS": "",
+            "LLM_THINKING_BUDGET": ""}
 
 NOT_CONNECTED = "ИИ не подключён: не задан ключ API"
 
@@ -158,11 +178,20 @@ def model() -> str:
 
 
 def api_key() -> str:
-    return get("LLM_API_KEY") or ""
+    """Ключ провайдера. У Gemini общий LLM_API_KEY может быть пуст — тогда берём GEMINI_API_KEY."""
+    key = get("LLM_API_KEY") or ""
+    if not key and provider() == "gemini":
+        key = get("GEMINI_API_KEY") or ""
+    return key
 
 
 def enabled() -> bool:
-    return provider() in ("kimi", "openai") and bool(api_key()) and bool(base_url())
+    return provider() in ("kimi", "openai", "gemini") and bool(api_key()) and bool(base_url())
+
+
+def supports_files() -> bool:
+    """Вложения (фото, PDF) умеет только Gemini; остальным отдаём извлечённый текст."""
+    return provider() == "gemini" and enabled()
 
 
 def status() -> dict:
@@ -313,48 +342,214 @@ def _friendly(err: Exception) -> str:
     return f"Ошибка обращения к ИИ: {type(err).__name__}"
 
 
-def _request(messages: list, max_tokens: int, temperature: float) -> dict:
-    body = json.dumps({"model": model(), "messages": messages,
-                       "max_tokens": max_tokens, "temperature": temperature}).encode("utf-8")
-    req = urllib.request.Request(
-        base_url() + "/chat/completions", data=body, method="POST",
-        headers={"Content-Type": "application/json", "Authorization": "Bearer " + api_key(),
-                 "User-Agent": "INSON-surveyor/1.0"})
+def _post(url: str, body: dict, headers: dict) -> dict:
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
+                                 headers={"Content-Type": "application/json",
+                                          "User-Agent": "INSON-surveyor/1.0", **headers})
     with urllib.request.urlopen(req, timeout=TIMEOUT_SEC) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
-def chat(purpose: str, system: str, user: str, max_tokens: int = 700,
-         temperature: float = 0.2) -> Optional[str]:
+def _request(messages: list, max_tokens: int, temperature: float) -> dict:
+    """OpenAI-совместимый вызов (kimi, openai)."""
+    return _post(base_url() + "/chat/completions",
+                 {"model": model(), "messages": messages,
+                  "max_tokens": max_tokens, "temperature": temperature},
+                 {"Authorization": "Bearer " + api_key()})
+
+
+# ---------- Gemini ----------
+
+def prepare_files(files: Optional[list]) -> tuple:
     """
-    Единственная точка обращения к модели. Маскирует персональные данные, логирует метрики.
-    Возвращает текст ответа или None — вызывающий код обязан уметь работать без ИИ.
+    Приводит вложения к виду для inline_data и отсекает лишнее.
+
+    files — список {"name":..., "mime":..., "data": bytes} или {"path": ...}.
+    Возвращает (parts, notes): parts готовы к отправке, notes — понятные причины отказа,
+    которые показываем человеку («файл больше 10 МБ», «формат не принимается»).
+    """
+    parts, notes, total = [], [], 0
+    for f in (files or []):
+        name = str(f.get("name") or "файл")
+        if len(parts) >= INLINE_MAX_FILES:
+            notes.append(f"{name}: за один раз модели показываем не больше {INLINE_MAX_FILES} файлов")
+            continue
+        data = f.get("data")
+        if data is None and f.get("path"):
+            try:
+                data = Path(f["path"]).read_bytes()
+            except Exception:
+                notes.append(f"{name}: файл не прочитан")
+                continue
+        if not data:
+            notes.append(f"{name}: пустой файл")
+            continue
+        mime = (f.get("mime") or "").split(";")[0].strip().lower()
+        if mime == "image/jpg":
+            mime = "image/jpeg"
+        if mime not in INLINE_MIME:
+            notes.append(f"{name}: модели напрямую отдаём только JPEG, PNG и PDF — "
+                         f"из остальных файлов берём текст")
+            continue
+        if len(data) > INLINE_MAX_ONE:
+            notes.append(f"{name}: больше {INLINE_MAX_ONE // (1024 * 1024)} МБ — не отправлен")
+            continue
+        if total + len(data) > INLINE_MAX_BYTES:
+            notes.append(f"{name}: не поместился в один запрос "
+                         f"(предел {INLINE_MAX_BYTES // (1024 * 1024)} МБ) — отправьте отдельно")
+            continue
+        total += len(data)
+        parts.append({"inline_data": {"mime_type": mime,
+                                      "data": base64.b64encode(data).decode("ascii")}})
+    return parts, notes
+
+
+def thinking_budget() -> int:
+    """
+    Бюджет «размышления» Gemini 2.5 в токенах. У flash он по умолчанию включён и съедает
+    maxOutputTokens: ответ приходит пустым или обрезанным при finishReason=MAX_TOKENS
+    (проверено 22.09.2026: candidatesTokenCount 22–30 при total 2000+). Поэтому:
+    flash — 0 (выключено), pro — небольшой бюджет (у pro отключить нельзя).
+    Переопределяется настройкой LLM_THINKING_BUDGET.
+    """
+    raw = (get("LLM_THINKING_BUDGET") or "").strip()
+    if raw:
+        try:
+            return max(0, int(float(raw)))
+        except ValueError:
+            pass
+    return 512 if "pro" in (model() or "").lower() else 0
+
+
+def _gemini_body(messages: list, max_tokens: int, temperature: float, file_parts: list) -> dict:
+    system = "\n".join(m["content"] for m in messages if m.get("role") == "system")
+    contents = []
+    for m in messages:
+        role = m.get("role")
+        if role == "system":
+            continue
+        contents.append({"role": "model" if role == "assistant" else "user",
+                         "parts": [{"text": m.get("content") or ""}]})
+    if not contents:
+        contents = [{"role": "user", "parts": [{"text": ""}]}]
+    if file_parts:                       # вложения кладём к последней реплике человека
+        contents[-1]["parts"] = list(contents[-1]["parts"]) + list(file_parts)
+    cfg = {"maxOutputTokens": int(max_tokens), "temperature": temperature}
+    # thinkingConfig понимают только модели 2.5: у gemini-3.* это поле даёт 400 (проверено 22.09.2026)
+    if "2.5" in (model() or ""):
+        cfg["thinkingConfig"] = {"thinkingBudget": thinking_budget()}
+    body = {"contents": contents, "generationConfig": cfg}
+    if system:
+        body["systemInstruction"] = {"parts": [{"text": system}]}
+    return body
+
+
+def _request_gemini(messages: list, max_tokens: int, temperature: float, file_parts: list) -> dict:
+    url = f"{base_url()}/models/{model()}:generateContent"
+    return _post(url, _gemini_body(messages, max_tokens, temperature, file_parts),
+                 {"x-goog-api-key": api_key()})
+
+
+TRUNCATED = "ответ обрезан: модель не уложилась в лимит вывода"
+
+
+def _gemini_text(data: dict) -> tuple:
+    """(текст, finish_reason). Пустой текст при MAX_TOKENS — не успех, а обрезанный ответ."""
+    cand = (data.get("candidates") or [{}])[0]
+    parts = ((cand.get("content") or {}).get("parts") or [])
+    text = "".join(p.get("text") or "" for p in parts)
+    return (text or None), str(cand.get("finishReason") or "")
+
+
+def _looks_cut(text: Optional[str], finish: str) -> bool:
+    """Обрыв: лимит вывода исчерпан, а текст пуст или кончается на полуслове."""
+    if finish != "MAX_TOKENS":
+        return False
+    t = (text or "").strip()
+    return not t or t[-1] not in ".!?»)”:"
+
+
+def _gemini_usage(data: dict) -> dict:
+    u = data.get("usageMetadata") or {}
+    return {"prompt_tokens": u.get("promptTokenCount"),
+            "completion_tokens": u.get("candidatesTokenCount"),
+            "thoughts_tokens": u.get("thoughtsTokenCount"),
+            "total_tokens": u.get("totalTokenCount")}
+
+
+def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: float = 0.2,
+             files: Optional[list] = None) -> dict:
+    """
+    Низкий уровень: готовый список сообщений (роли system/user/assistant) и вложения.
+    Маскировка персональных данных обязательна и делается здесь — обойти её нельзя.
+    Возвращает {"text", "ok", "notes", "ms", "reason"}; text=None, если ИИ недоступен.
     """
     last_error["text"] = None
+    notes = []
     if not enabled():
         last_error["text"] = status()["reason"]
         _log_call(purpose, 0, False, error=last_error["text"])
-        return None
-    messages = [{"role": "system", "content": mask_pd(system)},
-                {"role": "user", "content": mask_pd(user)[:MAX_PROMPT_CHARS]}]
+        return {"text": None, "ok": False, "notes": notes, "ms": 0, "reason": last_error["text"]}
+    safe = []
+    for m in messages:
+        role = m.get("role") if m.get("role") in ("system", "user", "assistant") else "user"
+        content = mask_pd(m.get("content"))
+        safe.append({"role": role, "content": content[:MAX_PROMPT_CHARS]})
+    file_parts = []
+    if files:
+        if supports_files():
+            file_parts, notes = prepare_files(files)
+        else:
+            notes.append("Текущий провайдер ИИ не принимает файлы — отправлен только текст")
     last_err = None
     for attempt in range(RETRIES + 1):
         t0 = time.time()
         try:
-            data = _request(messages, max_tokens, temperature)
+            if provider() == "gemini":
+                data = _request_gemini(safe, max_tokens, temperature, file_parts)
+                text, finish = _gemini_text(data)
+                usage = _gemini_usage(data)
+                if _looks_cut(text, finish):
+                    # одна попытка с увеличенным лимитом; если и она обрывается — не выдаём обрубок
+                    data = _request_gemini(safe, min(int(max_tokens) * 3, 8192), temperature, file_parts)
+                    text, finish = _gemini_text(data)
+                    usage = _gemini_usage(data)
+                    if _looks_cut(text, finish):
+                        ms = (time.time() - t0) * 1000
+                        _log_call(purpose, ms, False, usage, TRUNCATED)
+                        last_error["text"] = TRUNCATED
+                        return {"text": None, "ok": False, "notes": notes, "ms": int(ms),
+                                "reason": TRUNCATED}
+            else:
+                data = _request(safe, max_tokens, temperature)
+                text = (data.get("choices") or [{}])[0].get("message", {}).get("content")
+                usage = data.get("usage") or {}
             ms = (time.time() - t0) * 1000
-            text = (data.get("choices") or [{}])[0].get("message", {}).get("content")
-            _log_call(purpose, ms, bool(text), data.get("usage") or {},
-                      None if text else "пустой ответ модели")
-            return text
+            _log_call(purpose, ms, bool(text), usage, None if text else "пустой ответ модели")
+            return {"text": text, "ok": bool(text), "notes": notes, "ms": int(ms),
+                    "reason": None if text else "пустой ответ модели"}
         except Exception as e:
             last_err = e
             _log_call(purpose, (time.time() - t0) * 1000, False, error=_friendly(e))
             if isinstance(e, urllib.error.HTTPError) and e.code in (400, 401, 403, 404):
                 break                    # повтор не поможет
-            time.sleep(1)
+            if attempt < RETRIES:        # 429 и 5xx: ждём с нарастающей паузой
+                # 503 у Gemini — «модель перегружена»: повтор через 2 с обычно проходит
+                busy = isinstance(e, urllib.error.HTTPError) and e.code == 503
+                time.sleep(2 if busy else RETRY_BASE_SEC * (2 ** attempt))
     last_error["text"] = _friendly(last_err) if last_err else None
-    return None
+    return {"text": None, "ok": False, "notes": notes, "ms": 0, "reason": last_error["text"]}
+
+
+def chat(purpose: str, system: str, user: str, max_tokens: int = 700,
+         temperature: float = 0.2, files: Optional[list] = None) -> Optional[str]:
+    """
+    Единственная точка обращения к модели. Маскирует персональные данные, логирует метрики.
+    Возвращает текст ответа или None — вызывающий код обязан уметь работать без ИИ.
+    """
+    return chat_raw(purpose, [{"role": "system", "content": system},
+                              {"role": "user", "content": user}],
+                    max_tokens, temperature, files)["text"]
 
 
 def ping() -> dict:
@@ -362,7 +557,7 @@ def ping() -> dict:
     if not enabled():
         return {"ok": False, "reason": status()["reason"], "provider": provider(), "model": model()}
     t0 = time.time()
-    answer = chat("проверка связи", "Отвечай одним словом.", "Ответь словом: ОК", max_tokens=10)
+    answer = chat("проверка связи", "Отвечай одним словом.", "Ответь словом: ОК", max_tokens=256)   # у Gemini 2.5 часть лимита уходит на «размышление» — 10 токенов дают пустой ответ
     ms = int((time.time() - t0) * 1000)
     if answer:
         return {"ok": True, "reason": "Связь есть", "answer": answer.strip()[:40],
@@ -528,7 +723,7 @@ def risk_summary(res: dict) -> dict:
     data = risk_summary_data(res)
     answer = chat("разбор анализа риска", SYSTEM_RISK,
                   "Результаты анализа (JSON):\n" + json.dumps(data, ensure_ascii=False, default=str),
-                  max_tokens=600)
+                  max_tokens=900)
     if answer and answer.strip():
         return {"text": answer.strip(), "status": "Разбор подготовил ИИ по результатам анализа — цифры "
                                                   "сверяйте с блоками ниже", "source": "ИИ"}
@@ -657,7 +852,7 @@ def extract_document(text: str, kind: str = "", language: str = None) -> dict:
             .replace("{schema}", DOC_SCHEMA)
             .replace("{keys}", ", ".join(DOC_FIELD_KEYS))
             .replace("{text}", text))
-    answer = chat("разбор документа", SYSTEM_DOCUMENT, user, max_tokens=900)
+    answer = chat("разбор документа", SYSTEM_DOCUMENT, user, max_tokens=1200)
     if not answer:
         return empty | {"reason": last_error["text"] or "ответ не получен"}
     m = re.search(r"\{.*\}", answer, re.S)
@@ -703,6 +898,253 @@ def analyze_news(items: list, purpose: str = "изменения законод�
               "важность": None, "что_меняется": None, "норма": None} for i in (items or [])]
     return {"ok": False, "source": "нет", "items": plain,
             "reason": "Разбор новостей ИИ ещё не реализован — показан исходный список"}
+
+
+# --------------------------------------------------------------------------- #
+#  (г) Публичные функции ИИ-сюрвейера: диалог, перевод, разбор файлов, разбор риска
+#      Системные промпты — в app/llm_prompts/system.json (правит юрист, код не трогаем).
+# --------------------------------------------------------------------------- #
+
+SYSTEM_FILE = PROMPTS_DIR / "system.json"
+_sys_cache: dict = {}
+
+# запасные формулировки на случай, если файл промптов испорчен или удалён
+SYSTEM_FALLBACK = {
+    "base": ("Ты ИИ-сюрвейер страховой организации Узбекистана. Не сочиняй нормы права. "
+             "Франшиза и условия — по правилам страхования компании. Ставка не ниже минимума "
+             "тарифной политики. Не придумывай цифры: только переданные данные."),
+    "chat": "Отвечай коротко и по делу.",
+    "translate": "Переведи текст, сохранив числа, суммы, даты и ссылки без изменений.",
+    "extract": "Отвечай только объектом JSON по заданной схеме. Ничего не придумывай.",
+    "narrative": "Напиши 5–8 предложений по результатам анализа, используя только данные из JSON.",
+}
+
+
+def system_prompt(name: str) -> str:
+    """Системный промпт: общие правила + блок под задачу. Файл читается один раз на процесс."""
+    data = _sys_cache.get("data")
+    if data is None:
+        try:
+            data = json.loads(SYSTEM_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            data = {}
+        _sys_cache["data"] = data
+    base = data.get("base") or SYSTEM_FALLBACK["base"]
+    part = data.get(name) or SYSTEM_FALLBACK.get(name, "")
+    return (base + "\n" + part).strip()
+
+
+def reload_prompts() -> None:
+    """Сбросить кэш промптов — после правки system.json без перезапуска сервера."""
+    _sys_cache.clear()
+
+
+LANG_NAME = {"ru": "русском", "uz": "узбекском (латиница)", "en": "английском"}
+
+
+def chat_dialog(messages: list, lang: str = "ru", max_tokens: int = 600,
+                files: Optional[list] = None) -> dict:
+    """
+    Свободный диалог. messages — [{"role": "user"|"assistant", "content": "..."}].
+    lang — язык ответа (ru/uz/en). Возвращает {"text", "ok", "notes", "reason", "source"}.
+    Без ключа ИИ text = None: вызывающий код обязан иметь запасной ответ по правилам.
+    Имя chat() занято низкоуровневым вызовом, поэтому публичная функция диалога — chat_dialog().
+    """
+    lang = lang if lang in LANG_NAME else "ru"
+    system = system_prompt("chat") + f"\nОтвечай на {LANG_NAME[lang]} языке."
+    msgs = [{"role": "system", "content": system}]
+    for m in (messages or [])[-12:]:            # длинную историю не тащим: дороже и бесполезно
+        msgs.append({"role": m.get("role") or "user", "content": str(m.get("content") or "")})
+    res = chat_raw("диалог сюрвейера", msgs, max_tokens=max_tokens, files=files)
+    return res | {"source": "ИИ" if res["ok"] else None}
+
+
+# кэш переводов: ключ — хэш (текст + язык + модель), значение — перевод.
+_tr_cache: dict = {}
+TR_CACHE_MAX = 2000
+
+
+def _tr_key(text: str, to_lang: str) -> str:
+    return hashlib.sha256(f"{to_lang}|{model()}|{text}".encode("utf-8")).hexdigest()
+
+
+def translate(text: str, to_lang: str) -> dict:
+    """
+    Перевод свободного текста на uz/en (и обратно на ru). Числа, суммы, даты и ссылки
+    сохраняются — это прямо записано в промпте translate.
+    Возвращает {"text", "lang", "source": "ИИ"|"кэш"|"исходный", "reason"}.
+    Без ИИ отдаётся исходный текст: интерфейс не должен оставаться пустым.
+    """
+    text = (text or "").strip()
+    to_lang = to_lang if to_lang in LANG_NAME else "ru"
+    if not text:
+        return {"text": "", "lang": to_lang, "source": "исходный", "reason": "пустой текст"}
+    key = _tr_key(text, to_lang)
+    if key in _tr_cache:
+        return {"text": _tr_cache[key], "lang": to_lang, "source": "кэш", "reason": None}
+    if not enabled():
+        return {"text": text, "lang": to_lang, "source": "исходный", "reason": status()["reason"]}
+    answer = chat("перевод текста", system_prompt("translate"),
+                  f"Язык перевода: {LANG_NAME[to_lang]}.\nТекст:\n{text}",
+                  # лимит вывода отдельно от «размышления»: перевод бывает длиннее исходника
+                  max_tokens=min(4096, 2 * len(text) + 256))
+    if not answer or not answer.strip():
+        return {"text": text, "lang": to_lang, "source": "исходный",
+                "reason": last_error["text"] or "ответ не получен"}
+    out = answer.strip()
+    if len(_tr_cache) > TR_CACHE_MAX:
+        _tr_cache.clear()
+    _tr_cache[key] = out
+    return {"text": out, "lang": to_lang, "source": "ИИ", "reason": None}
+
+
+def translate_cache_size() -> int:
+    return len(_tr_cache)
+
+
+# ---------- разбор пачки файлов ----------
+
+# Что ждём от модели. Ключи английские и одинаковые для документа на любом языке
+# (тот же принцип, что и у extract_document выше).
+FILES_SCHEMA = (
+    '{'
+    '"documents": [{"file": "имя файла", "document_kind": "техпаспорт|кадастр|договор страхования|'
+    'отчёт оценщика|фото объекта|иное", "language": "ru|uz-latn|uz-cyrl|en", '
+    '"fields": {"ключ": "значение"}}], '
+    '"object": {"construction": "reinforced|mixed|wood", "floors": число, '
+    '"condition": "хорошее|удовлетворительное|плохое", "protection": "описание защиты", '
+    '"object_kind": "строка", "wear_pct": число}, '
+    '"pdf_contains": {"заявление": true|false, "паспорт объекта": true|false, '
+    '"фото 4 сторон": true|false, "кадастр": true|false, "техпаспорт": true|false, '
+    '"отчёт оценщика": true|false, "договор страхования": true|false}, '
+    '"notes": ["короткое замечание"]'
+    '}')
+
+FILES_OBJECT_KEYS = ("construction", "floors", "condition", "protection", "object_kind", "wear_pct")
+TEXT_FORMATS = {"xlsx", "docx"}              # эти файлы модели не показываем — отдаём текст
+
+
+def _text_from_file(f: dict) -> str:
+    """Текст Excel/Word через app/ingest (ленивый импорт: ingest сам импортирует llm)."""
+    path = f.get("path")
+    if not path:
+        return ""
+    try:
+        from . import ingest                  # noqa: PLC0415 — круговой импорт разрывается здесь
+        read = ingest.read_file(Path(path), f.get("mime"))
+        return (read.get("text") or "")[:MAX_PROMPT_CHARS]
+    except Exception:
+        return ""
+
+
+def extract_from_files(files: list, product_hint: str = "", checklist: Optional[list] = None) -> dict:
+    """
+    Разбор пачки загруженных файлов одним обращением к модели.
+
+    files — [{"name", "mime", "data"|"path", "format"}]. Изображения (JPEG/PNG) и PDF уходят
+    вложениями inline_data, Excel и Word — извлечённым текстом (app/ingest.read_file).
+    checklist — названия пунктов «что должно быть в PDF» по продукту (источник — /analytics/risk/docs).
+
+    Возвращает {"ok", "source", "documents", "object", "pdf_contains", "notes", "reason"}.
+    Значения отсюда всегда «требуют проверки»: источник помечается как «ИИ».
+    """
+    empty = {"ok": False, "source": "нет", "documents": [], "object": {}, "pdf_contains": {},
+             "notes": [], "требует_проверки": False}
+    if not files:
+        return empty | {"reason": "файлов нет"}
+    if not enabled():
+        return empty | {"reason": status()["reason"]}
+    inline, texts, notes = [], [], []
+    for f in files:
+        fmt = (f.get("format") or "").lower()
+        mime = (f.get("mime") or "").lower()
+        if fmt in TEXT_FORMATS or "spreadsheet" in mime or "wordprocessing" in mime:
+            text = _text_from_file(f)
+            if text:
+                texts.append(f"=== {f.get('name') or 'файл'} ===\n{text}")
+            else:
+                notes.append(f"{f.get('name') or 'файл'}: текст не извлечён")
+            continue
+        inline.append(f)
+    if not inline and not texts:
+        return empty | {"reason": "ни один файл не пригоден для разбора", "notes": notes}
+    ask = ["Разбери приложенные файлы объекта страхования.",
+           "Схема ответа (только JSON, без пояснений):", FILES_SCHEMA]
+    if product_hint:
+        ask.append(f"Продукт: {product_hint}.")
+    if checklist:
+        ask.append("Проверь по списку, что в файлах есть, а чего нет "
+                   "(ключи pdf_contains — ровно эти названия): " + "; ".join(str(c) for c in checklist))
+    if texts:
+        ask.append("Текст из файлов Excel/Word:\n" + "\n".join(texts))
+    res = chat_raw("разбор файлов", [{"role": "system", "content": system_prompt("extract")},
+                                     {"role": "user", "content": "\n\n".join(ask)}],
+                   max_tokens=2048, files=inline)
+    notes += res.get("notes") or []
+    if not res["text"]:
+        return empty | {"reason": res.get("reason") or "ответ не получен", "notes": notes}
+    m = re.search(r"\{.*\}", res["text"], re.S)
+    if not m:
+        return empty | {"reason": "модель ответила не JSON", "notes": notes}
+    try:
+        data = json.loads(m.group(0))
+    except Exception:
+        return empty | {"reason": "ответ модели не разобрался как JSON", "notes": notes}
+    docs = []
+    for d in (data.get("documents") or [])[:20]:
+        if not isinstance(d, dict):
+            continue
+        raw = d.get("fields") if isinstance(d.get("fields"), dict) else {}
+        docs.append({"file": str(d.get("file") or "")[:200],
+                     "document_kind": (str(d.get("document_kind"))[:80] if d.get("document_kind") else None),
+                     "language": (str(d.get("language"))[:10] if d.get("language") else None),
+                     "fields": {k: str(v).strip()[:300] for k, v in raw.items()
+                                if k in DOC_FIELD_KEYS and v not in (None, "", "-", "нет", "не указано")}})
+    raw_obj = data.get("object") if isinstance(data.get("object"), dict) else {}
+    obj = {k: raw_obj[k] for k in FILES_OBJECT_KEYS
+           if raw_obj.get(k) not in (None, "", "-", "нет", "не указано")}
+    raw_pdf = data.get("pdf_contains") if isinstance(data.get("pdf_contains"), dict) else {}
+    pdf = {str(k)[:120]: bool(v) for k, v in raw_pdf.items()}
+    notes += [str(n)[:300] for n in (data.get("notes") or [])[:10] if n]
+    return {"ok": True, "source": "ИИ", "documents": docs, "object": obj, "pdf_contains": pdf,
+            "notes": notes, "требует_проверки": True,
+            "reason": "Значения предложены ИИ по файлам — проверьте по оригиналам"}
+
+
+# ---------- разбор результатов анализа текстом ----------
+
+def risk_narrative(analysis_json: dict, lang: str = "ru", franchise: Optional[dict] = None) -> dict:
+    """
+    5–8 предложений по результатам анализа: уровень риска, сумма к стоимости, ставка к минимуму,
+    совет по франшизе, чего не хватает. Все цифры — только из analysis_json (и franchise).
+    Без ИИ отдаётся шаблон: анализ и так содержит все числа, интерфейс не остаётся пустым.
+    """
+    lang = lang if lang in LANG_NAME else "ru"
+    data = risk_summary_data(analysis_json or {})
+    if franchise:
+        data["рекомендация_по_франшизе"] = franchise
+    base = explain_template({
+        "тип_объекта": data.get("тип_объекта"), "класс": data.get("класс"),
+        "страховая_сумма": data.get("страховая_сумма"),
+        "ставка_техническая_проц": data.get("ставка_применённая_проц"),
+        "ставка_применённая_проц": data.get("ставка_применённая_проц"),
+        "ставка_минимальная_проц": data.get("ставка_минимальная_проц"),
+        "премия": data.get("премия"),
+        "вердикт": data.get("уровень_риска"),
+    })
+    if not enabled():
+        return {"text": base, "source": "шаблон", "template": base, "reason": status()["reason"]}
+    answer = chat("разбор риска текстом", system_prompt("narrative") +
+                  f"\nЯзык ответа — {LANG_NAME[lang]}.",
+                  "Результаты анализа (JSON):\n" +
+                  json.dumps(data, ensure_ascii=False, default=str) +
+                  "\n\nЧерновик по шаблону:\n" + base +
+                  "\n\nНапиши 5–8 предложений, сохранив все цифры без изменений.",
+                  max_tokens=1024)
+    if answer and answer.strip():
+        return {"text": answer.strip(), "source": "ИИ", "template": base, "reason": None}
+    return {"text": base, "source": "шаблон", "template": base,
+            "reason": last_error["text"] or "ответ не получен"}
 
 
 # --------------------------------------------------------------------------- #

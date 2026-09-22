@@ -81,9 +81,6 @@ body.side-wide{padding-left:calc(var(--side) + env(safe-area-inset-left))}
 .cards{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s2);align-items:start}
 .cards>.card{margin-bottom:0}
 @media (min-width:1180px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))}.cards>.span{grid-column:1/-1}}
-/* экран расчёта: форма слева, итог справа */
-@media (min-width:1180px){#result:empty::before{content:attr(data-empty);
-  display:block;border:1px dashed var(--line);border-radius:14px;padding:var(--s4);color:var(--muted);font-size:13px}}
 /* поля формы: метка сверху, подсказка снизу, ширина 100% */
 label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:var(--s2) 0 6px}
 label.f:first-child,.card>h2+p.sub+label.f{margin-top:0}
@@ -357,12 +354,10 @@ details.how code{font-family:var(--mono);font-size:12px;color:var(--ink);overflo
 .srcbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--line);margin-top:var(--s2);padding-top:var(--s1);font-size:12px;color:var(--muted)}
 .srcbar a{color:var(--link);-webkit-text-fill-color:var(--link)}
 .dev.pos{color:var(--warn)}.dev.neg{color:var(--stop)}.dev.ok{color:var(--accent)}
-/* на широком экране дашборд аналитики шире обычной колонки */
-@media (min-width:1100px){.wrap:has(#tab-analytics.an-wide:not(.hidden)){max-width:1320px}}
+/* «Подробнее» в итоге чата: карточки дашборда в одну колонку на телефоне, в две — на компьютере */
 .kv.disc{grid-template-columns:minmax(120px,220px) minmax(0,1fr);gap:8px 16px}
 .kv.disc b{font-family:var(--sans);font-weight:600;text-align:left}
-/* ---------- аналитика по шагам ---------- */
-#tab-analytics:not(.an-wide){max-width:960px;margin:0 auto}
+/* ---------- шаги (оставлены для ОСГОР и «Юриста») ---------- */
 .stepper{list-style:none;display:flex;gap:6px;margin:0 0 var(--s3);padding:0}
 .stepper li{flex:1 1 0;min-width:0}
 .stepper button{width:100%;min-height:52px;display:flex;align-items:center;gap:8px;padding:10px 4px 6px 0;background:none;border:0;
@@ -651,6 +646,62 @@ body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-acce
   color:var(--ink);font:600 13px var(--sans);cursor:pointer}
 .segsel button[aria-pressed="true"]{border-color:var(--accent-dim);background:var(--soft)}
 .segsel button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+/* ---------- ИИ-сюрвейер: лента диалога ---------- */
+#tab-chat{max-width:900px;margin:0 auto}
+.chat-feed{display:flex;flex-direction:column;gap:10px;min-height:40vh;padding-bottom:var(--s2)}
+.bub{max-width:88%;border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:14.5px;overflow-wrap:anywhere}
+.bub p{margin:0 0 6px}
+.bub p:last-child{margin-bottom:0}
+.bub.ai{align-self:flex-start;background:var(--card);border-bottom-left-radius:6px}
+.bub.me{align-self:flex-end;background:var(--soft);border-bottom-right-radius:6px}
+.bub.warn{border-color:var(--warn)}
+.bub.wide{max-width:100%;align-self:stretch}
+.bub.typing{color:var(--muted)}
+.bub .eyebrow{margin:0 0 6px}
+.bub .h3{margin:var(--s3) 0 6px;font:700 13px var(--sans);color:var(--muted)}
+.bub input,.bub select,.bub textarea{width:100%}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.chips .chip{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:22px;background:transparent;
+  color:var(--ink);font:600 13.5px var(--sans);cursor:pointer}
+.chips .chip[aria-pressed="true"]{border-color:var(--accent-dim);background:var(--soft)}
+.chips .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* чек-лист документов: получено или нет */
+.chk>div{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.chk>div:last-child{border-bottom:0}
+.chk i{font-style:normal;font-weight:700;line-height:1.5}
+.chk i.ok{color:var(--accent)}
+.chk i.no{color:var(--stop)}
+.chk small{display:block;color:var(--muted);font-size:11.5px}
+.upbar{height:4px;border-radius:2px;background:var(--soft);margin-top:8px;overflow:hidden}
+.upbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
+/* итог: спидометр меньше, рядом премия и ставка */
+.reshead{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center}
+.gauge.sm{flex:none;width:150px}
+.gauge.sm svg{width:100%;height:auto}
+.reskpi{flex:1 1 200px;display:flex;flex-wrap:wrap;gap:10px var(--s3);align-items:baseline}
+.reskpi>div>b{display:block;font:700 18px var(--mono)}
+.reskpi>div>span{font-size:11.5px;color:var(--muted)}
+.opts{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+@media (min-width:700px){.opts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.opt-card{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.opt-card.on{border-color:var(--accent-dim);background:var(--soft)}
+.opt-card>b{display:block;font:700 16px var(--mono);margin:2px 0}
+.opt-card .btn{margin-top:8px;width:100%}
+/* строка ввода: скрепка, поле, отправка — всегда видна снизу */
+.chat-bar{position:sticky;bottom:0;z-index:5;display:flex;gap:8px;align-items:flex-end;
+  background:var(--paper);padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);border-top:1px solid var(--line)}
+.chat-bar textarea{flex:1 1 auto;min-height:44px;max-height:140px;resize:none;overflow:auto;padding:11px 12px;
+  border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:15px var(--sans)}
+.chat-bar .icon{flex:none;width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;
+  border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--ink);cursor:pointer}
+.chat-bar .icon:focus-visible,.chat-bar textarea:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.chat-bar .icon svg{width:20px;height:20px}
+/* файл можно бросить в любое место экрана */
+.dropzone{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
+  background:rgba(15,20,24,.86);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font:700 18px var(--sans);text-align:center;padding:var(--s4)}
+.dropzone span{border:3px dashed var(--accent);border-radius:18px;padding:var(--s4) var(--s4)}
+.dropzone.hidden{display:none}
 /* в Telegram основное действие шага и «Назад» — нативные MainButton и BackButton, дубли на странице прячем */
 body.in-tg .tg-main,body.in-tg .tg-back{display:none}
 body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
@@ -697,12 +748,33 @@ body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
   <!-- ---------- приложение ---------- -->
   <div id="screen-app" class="hidden">
 
-  <!-- аналитика риска по шагам: продукт → документы → договор → суммы → анализ (задача 150) -->
-  <section id="tab-analytics" data-section="analytics" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.an.title">Аналитика риска</h1>
-      <p id="anLead" data-i18n="tg.an.lead_steps">Пять шагов: продукт, нужные документы, договор, суммы — и анализ риска с премией, сценариями и рынком.</p></div></div>
-    <ol class="stepper" id="anSteps" data-i18n-aria="tg.an.steps_aria" aria-label="Шаги анализа"></ol>
-    <div id="anStep"></div>
+
+  <!-- ИИ-сюрвейер: один диалог — анализ, расчёт и файлы вместе (задача 223) -->
+  <section id="tab-chat" data-section="chat" class="hidden">
+    <div class="chat-feed" id="chatFeed" role="log" aria-live="polite"
+      data-i18n-aria="tg.chat.feed_aria" aria-label="Диалог с ИИ-сюрвейером"></div>
+    <div class="chat-bar">
+      <button type="button" class="icon" id="chatClip" data-i18n-aria="tg.chat.attach" aria-label="Прикрепить файлы"
+        data-i18n-title="tg.chat.attach" title="Прикрепить файлы">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5"/></svg></button>
+      <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" hidden>
+      <textarea id="chatText" rows="1" maxlength="2000" enterkeyhint="send"
+        data-i18n-aria="tg.chat.ph" aria-label="Спросите или опишите объект — ИИ ответит"></textarea>
+      <button type="button" class="icon" id="chatSend" data-i18n-aria="tg.chat.send" aria-label="Отправить"
+        data-i18n-title="tg.chat.send" title="Отправить">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor"
+          d="M3 20.5 21 12 3 3.5 3 10l12 2-12 2z"/></svg></button>
+    </div>
+    <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
+  </section>
+
+  <!-- калькулятор премии: продукт, сумма, срок, главные факторы — без диалога -->
+  <section id="tab-calc" data-section="calc" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.calc">Калькулятор</h1>
+      <p data-i18n="tg.calc.lead2">Быстрая премия: продукт, страховая сумма, срок и пара главных факторов. Диалог с ИИ для этого не нужен.</p></div></div>
+    <div id="calcForm"></div>
+    <div id="calcOut"></div>
   </section>
 
   <!-- ОСГОР: калькулятор премии -->
@@ -750,8 +822,8 @@ body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
 
   <!-- Юрист: вопрос по закону — ответ из FAQ и текстов актов (GET /legal/faq, POST /legal/ask) -->
   <section id="tab-legal" data-section="legal" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.lg.title">Юрист</h1>
-      <p data-i18n="tg.lg.lead">Спросите про закон своими словами — ответ придёт сразу, со ссылкой на статью и цитатой из акта.</p></div></div>
+    <div class="sec-head"><div><h1 data-i18n="tg.lg.title">ИИ специалист по страхованию</h1>
+      <p data-i18n="tg.lg.lead">Спросите про закон, андеррайтинг, тарифы, документы и франшизу — ответ придёт сразу, со ссылкой на источник.</p></div></div>
     <div class="card">
       <div class="h3" data-i18n="tg.lg.often">Спрашивают часто</div>
       <div class="qchips" id="lgChips"></div>
@@ -764,113 +836,7 @@ body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
     <div id="lgFeed"></div>
   </section>
 
-  <!-- расчёт: на широком экране форма слева, итог справа -->
-  <section id="tab-calc" data-section="calc" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.nav.calc">Расчёт</h1>
-      <p data-i18n="tg.calc_lead">Опишите объект и договор, отметьте факторы риска — система посчитает ставку, премию и проверки.</p></div></div>
-    <div class="grid2">
-    <div>
-    <div class="card">
-      <h2 data-i18n="tg.form_title">Объект и договор</h2>
-      <p class="sub" data-i18n="tg.form_hint">Коротко: что страхуем, на какую сумму и на какой срок.</p>
-      <div class="fg">
-        <div>
-          <label class="f" for="cls" data-i18n="calc.class">Класс страхования</label>
-          <select id="cls"><option data-i18n="common.loading">загружаю…</option></select>
-        </div>
-        <div>
-          <label class="f" for="prod" data-i18n="calc.product">Продукт</label>
-          <select id="prod"><option data-i18n="calc.class_pick_first">сначала выберите класс</option></select>
-        </div>
-        <div class="full">
-          <label class="f" for="otype" data-i18n="calc.object_type">Тип объекта</label>
-          <input id="otype" type="text" value="Склад" autocomplete="off">
-        </div>
-        <div>
-          <label class="f" for="sum" data-i18n="calc.sum_insured_field">Страховая сумма, сум</label>
-          <input id="sum" type="text" inputmode="numeric" value="800 000 000">
-        </div>
-        <div>
-          <label class="f" for="val" data-i18n="calc.value_field">Стоимость объекта, сум</label>
-          <input id="val" type="text" inputmode="numeric" value="1 000 000 000">
-        </div>
-        <div class="half">
-          <label class="f" for="term" data-i18n="calc.term_days">Срок, дней</label>
-          <input id="term" type="text" inputmode="numeric" value="365">
-        </div>
-        <div class="half">
-          <label class="f" for="fr" data-i18n="calc.franchise">Франшиза</label>
-          <select id="fr"><option value="" data-i18n="calc.franchise_none">не применяется</option></select>
-        </div>
-      </div>
-    </div>
 
-    <div class="card" id="factorsCard">
-      <h2 data-i18n="calc.factors">Факторы риска</h2>
-      <p class="sub" data-i18n="calc.factors_hint">Набор зависит от класса. Пустое поле — фактор не учитывается.</p>
-      <div id="factors" class="fg"><div class="note full" data-i18n="common.loading">загружаю…</div></div>
-    </div>
-
-    <div class="card">
-      <h2 data-i18n="disclosure.title">Что сказать клиенту</h2>
-      <p class="sub" data-i18n="disclosure.legal">Статья 63 Закона о страховой деятельности.</p>
-      <div class="two keep">
-        <label class="chk" style="margin-top:0"><input type="checkbox" id="disclosure"><span data-i18n="disclosure.done">Клиенту всё рассказал</span></label>
-        <label class="chk" style="margin-top:0"><input type="checkbox" id="paid"><span data-i18n="disclosure.premium_paid">Премия поступила</span></label>
-      </div>
-      <div class="actions"><button type="button" class="btn btn-primary tg-main" id="calcBtn" data-i18n="tg.calc_button">Посчитать</button></div>
-      <div class="note msg" id="calcMsg"></div>
-    </div>
-    </div>
-
-    <div id="result" data-empty=""></div>
-    </div>
-  </section>
-
-  <!-- фото и документы -->
-  <section id="tab-photos" data-section="photos" class="hidden">
-    <div class="sec-head"><div><h1 data-i18n="tg.photos_section">Фото и документы</h1>
-      <p id="phLead" data-i18n="tg.photos_lead">Файлы прикрепляются к последнему сохранённому запросу — сначала посчитайте и сохраните его в разделе «Расчёт».</p></div></div>
-    <!-- гость: свои файлы для анализа риска, без входа и без запроса; сервер хранит их 24 часа -->
-    <div class="card hidden" id="gdocCard">
-      <h2 data-i18n="tg.gdoc_title">Документы для анализа</h2>
-      <p class="sub" data-i18n="tg.gdoc_hint">Договор, техпаспорт или кадастр — PDF или DOCX, до 15 МБ. Система прочитает из файла характеристики и суммы.</p>
-      <label class="f" for="gdocFile" data-i18n="tg.gdoc_file">Файл — PDF или DOCX</label>
-      <input type="file" id="gdocFile" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-      <div class="note msg" id="gdocMsg"></div>
-      <div class="files" id="gdocList" style="margin-top:var(--s2)"></div>
-      <p class="note" style="margin:var(--s2) 0 0" data-i18n="tg.gdoc_ttl">Файлы хранятся 24 часа, потом сервер удаляет их сам.</p>
-    </div>
-    <div class="grid2" id="phCards">
-    <div class="card">
-      <h2 data-i18n="tg.photos_title">Фотографии объекта</h2>
-      <p class="sub" data-i18n="tg.photos_order_hint">Порядок меняется пальцем: нажмите на снимок и ведите. Важно: порядок пока виден только на этом экране — сервер его не сохраняет.</p>
-      <p class="note" id="phMsg" style="margin:0 0 var(--s2)"></p>
-      <label class="f" for="phFile" data-i18n="tg.photos_input">Снимки объекта</label>
-      <input type="file" id="phFile" accept="image/*" multiple capture="environment">
-      <div class="photos" id="phList" style="margin-top:var(--s2)"></div>
-    </div>
-    <div class="card">
-      <h2 data-i18n="tg.docs_title">Документы объекта</h2>
-      <p class="sub" data-i18n="tg.docs_hint">Технический паспорт или кадастр. Система сама прочитает характеристики из файла.</p>
-      <div class="fg">
-        <div>
-          <label class="f" for="docKind" data-i18n="tg.doc_kind_question">Что за документ</label>
-          <select id="docKind">
-            <option value="техпаспорт" data-i18n="tg.doc_kind_tech">Технический паспорт</option>
-            <option value="кадастр" data-i18n="tg.doc_kind_cadastre">Кадастровые документы</option>
-          </select>
-        </div>
-        <div>
-          <label class="f" for="docFile" data-i18n="tg.doc_file">Файл — PDF или фотография</label>
-          <input type="file" id="docFile" accept="image/*,application/pdf">
-        </div>
-      </div>
-      <div class="note msg" id="docMsg"></div>
-      <div class="files" id="docList" style="margin-top:var(--s2)"></div>
-    </div>
-    </div>
-  </section>
 
   <!-- пользователи -->
   <section id="tab-users" data-section="users" class="hidden">
@@ -1121,23 +1087,34 @@ $("#scrim").onclick = () => { if (!WIDE.matches) sideOpen(false); };
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !WIDE.matches) sideOpen(false); });
 
 /* ---------- разделы меню: рисуются по ответу сервера ---------- */
-const NAV_ICON = {analytics: "◔", calc: "₌", osgor: "⛨", legal: "⚖", photos: "▣", users: "◍", settings: "⚙"};
+const NAV_ICON = {chat: "◎", calc: "₌", osgor: "⛨", legal: "⚖", users: "◍", settings: "⚙"};
+/* «Аналитику» и «Фото» сервер отдаёт по отдельности — в интерфейсе это один раздел «ИИ-сюрвейер».
+   «Калькулятор» остаётся сам по себе: быстрый расчёт премии без диалога. */
+const NAV_MERGE = {analytics: "chat", photos: "chat"};
+function navMerge(items){
+  const out = [];
+  (items || []).forEach(it => {
+    const key = NAV_MERGE[it.key] || it.key;
+    if (!out.some(x => x.key === key)) out.push(key === it.key ? it : {key: key, title: ""});
+  });
+  return out;
+}
 /* полные и короткие (для узкой рейки) подписи — по языку интерфейса */
 function navFull(key, title){
-  const full = {analytics: () => T("tg.nav.analytics", "Аналитика"), calc: () => T("tg.nav.calc", "Расчёт"),
-    osgor: () => T("tg.nav.osgor", "ОСГОР"), legal: () => T("tg.nav.legal", "Юрист"), photos: () => T("tg.nav.photos", "Фото"),
+  const full = {chat: () => T("tg.nav.chat", "ИИ-сюрвейер"), calc: () => T("tg.nav.calc", "Калькулятор"),
+    osgor: () => T("tg.nav.osgor", "ОСГОР"), legal: () => T("tg.nav.legal", "Специалист"),
     users: () => T("tg.nav.users", "Пользователи"),
     settings: () => T("tg.nav.settings", "Настройки")}[key];
   return full ? full() : (title || key);
 }
 function navRail(key, title){
-  const rail = {analytics: () => T("tg.rail.analytics", "Аналит."), calc: () => T("tg.rail.calc", "Расчёт"),
-    osgor: () => T("tg.rail.osgor", "ОСГОР"), legal: () => T("tg.rail.legal", "Юрист"), photos: () => T("tg.rail.photos", "Фото"),
+  const rail = {chat: () => T("tg.rail.chat", "Сюрвейер"), calc: () => T("tg.rail.calc", "Расчёт"),
+    osgor: () => T("tg.rail.osgor", "ОСГОР"), legal: () => T("tg.rail.legal", "Спец."),
     users: () => T("tg.rail.users", "Люди"),
     settings: () => T("tg.rail.settings", "Настр.")}[key];
   return rail ? rail() : navFull(key, title);
 }
-const LOADERS = {analytics: loadAnalytics, osgor: loadOsgor, legal: loadLegal, users: loadUsers, settings: loadSettings, photos: loadPhotosTab};
+const LOADERS = {chat: loadChat, calc: loadCalc, osgor: loadOsgor, legal: loadLegal, users: loadUsers, settings: loadSettings};
 let TAB = null;
 const BADGES = {};
 
@@ -1148,7 +1125,7 @@ function sectionKeys(){
 /* repaint=true — только перерисовать подписи (смена языка), раздел не перезагружать */
 function paintNav(items, repaint){
   const nav = $("#nav");
-  const list = (items || []).filter(it => document.querySelector('[data-section="' + it.key + '"]'));
+  const list = navMerge(items).filter(it => document.querySelector('[data-section="' + it.key + '"]'));
   // «Юрист» — у всех вошедших: раздел только читает законы, прав на него не нужно
   if (ME.user && !list.some(it => it.key === "legal")) {
     const at = list.findIndex(it => it.key === "osgor");
@@ -1229,15 +1206,13 @@ function syncTgButtons(){
   if (!IN_TG) return;
   let text = null, fn = null, back = null, off = false;
   if (SCREEN === "app") {
-    if (TAB === "calc") { text = T("tg.calc_button", "Посчитать"); fn = calculate; }
+    if (TAB === "calc") { text = T("tg.calc_button", "Посчитать"); fn = calcRun; off = CALC.busy; }
     else if (TAB === "osgor") { text = T("tg.os.calc", "Рассчитать"); fn = osCalc; }
     else if (TAB === "legal") { text = T("tg.lg.send", "Спросить"); fn = lgAsk; off = LG.busy; }
-    else if (TAB === "analytics" && WZ.step < 5) {
-      const sel = (WZ.mode === "quick" || WZ.step === 4) ? "#anGo" : "#wzNext" + WZ.step;
-      const b = $(sel);
-      if (b) { text = b.textContent; fn = pressBtn(sel); off = b.disabled; }
+    else if (TAB === "chat") {
+      const b = $("#chatMain");
+      if (b) { text = b.textContent; fn = pressBtn("#chatMain"); off = b.disabled; }
     }
-    if (TAB === "analytics" && WZ.mode !== "quick" && WZ.step > 1) back = () => wzGo(WZ.step - 1);
   }
   TGB.main = fn; TGB.back = back;
   if (TG.MainButton) tgCall(() => {
@@ -1265,7 +1240,7 @@ if (IN_TG) {
 /* ---------- смена языка: мгновенная перерисовка всего, что видно ---------- */
 /* app/i18n.js меняет словарь без перезагрузки, ставит тексты по data-i18n и шлёт событие i18n:changed.
    Здесь перерисовываются подписи, которые рисует JS: меню, шапка, текущий экран и открытый раздел. */
-const REPAINT = {analytics: anRepaint, osgor: osRepaint, legal: lgRepaint, calc: calcRepaint, photos: loadPhotosTab,
+const REPAINT = {chat: chatRelang, calc: calcRepaint, osgor: osRepaint, legal: lgRepaint,
   users: usersRepaint, settings: settingsRepaint};
 function repaintCurrent(){
   document.title = T("tg.title", "Сюрвейер INSON");
@@ -1283,11 +1258,8 @@ window.addEventListener("i18n:changed", repaintCurrent);
 
 /* подписи, которые JS держит сам (у них нет data-i18n: текст меняется по ходу работы) */
 function paintStatic(){
-  $("#result").dataset.empty = T("tg.result_empty", "Итог появится здесь после расчёта: ставка, проверки и что сказать клиенту.");
-  if (!RID) {
-    $("#phMsg").textContent = T("tg.request_unsaved", "запрос ещё не сохранён");
-    $("#docMsg").textContent = T("tg.request_unsaved", "запрос ещё не сохранён");
-  }
+  const inp = $("#chatText");
+  if (inp) inp.placeholder = T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит");
 }
 function paintMode(){
   const m = ME.mode ? modeName(ME.mode) : "";
@@ -1421,8 +1393,7 @@ async function boot(){
   await loadMe();
 }
 
-const GUEST_NAV = [{key: "analytics", title: ""}, {key: "calc", title: ""}, {key: "osgor", title: ""},
-  {key: "legal", title: ""}, {key: "photos", title: ""}];
+const GUEST_NAV = [{key: "chat", title: ""}, {key: "calc", title: ""}, {key: "osgor", title: ""}, {key: "legal", title: ""}];
 const IS_GUEST = () => !ME.user;
 
 async function loadMe(){
@@ -1442,7 +1413,6 @@ async function loadMe(){
   paintWho();
   screen("app");
   paintNav((ME.nav && ME.nav.length ? ME.nav : GUEST_NAV));
-  loadRefs();
   if (ME.user) {
     api("/auth/me").then(m => { if (m.ok) EAIS = m.data.agent_eais_id || null; });
     api("/tg/bot-status").then(b => { if (b.ok) { BOT = b.data; paintTgOpen(); } });
@@ -1452,7 +1422,8 @@ async function loadMe(){
 $("#outBtn").onclick = async () => {
   await api("/auth/logout", {method: "POST"});
   setToken(null);
-  RID = null;
+  CH.sid = "";
+  try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
   try { sessionStorage.removeItem(VIEW_KEY); } catch (e) {}
   VIEW_USER = false;
   USERS = null;
@@ -1621,337 +1592,267 @@ function lgRepaint(){
 }
 
 /* =====================================================================================
-   Аналитика риска по шагам (задача 150): 1 Продукт → 2 Документы → 3 Договор → 4 Суммы → 5 Анализ.
-   Данные: GET /analytics/risk/fields — классы, все продукты и поля формы класса;
-           GET /analytics/risk/docs — чек-лист «что попросить у клиента»;
-           POST /analytics/risk/document — договор (PDF, DOCX) → распознанные поля и prefill;
-           DELETE /analytics/risk/document/{id} — удалить файл раньше суток;
-           POST /analytics/risk — must, optional и doc_ids → дашборд, documents, ai_summary, ai_status.
-   Состояние мастера — WZ; копия в sessionStorage, поэтому перезагрузка и смена языка шагов не теряют.
-   Перерисовка: смена шага и языка — текущий шаг целиком; ввод в поле — только индикатор заполненности,
-   подсказка о соотношении сумм и пометка «из договора», чтобы курсор оставался в поле.
+   Калькулятор премии (заказчик 22.09.2026): продукт, страховая сумма, срок и пара главных
+   факторов класса — и сразу ставка, премия и минимум. Без диалога и без документов.
+   Данные: GET /reference/classes, /reference/products, /reference/coefficients;
+           POST /calculate — тот же движок, что и раньше.
+   Ввод не перерисовываем: меняются только чипы и сегменты, курсор в поле суммы не теряется.
    ===================================================================================== */
-const AN = {cls: "", qcls: "", fields: null, fieldsErr: "", res: null, group: "property", scn: "EML",
-  missing: [], errors: {}, msg: null, busy: false};
-const MONEY_UNIT = "сум";                  // единица денежных полей в ответе сервера
-const WZ_KEY = "surveyor_an_wizard";
-const WZ_MAX_DOCS = 10;                    // столько doc_ids принимает POST /analytics/risk
-const WZ_MAX_BYTES = 15 * 1024 * 1024;     // предел файла на сервере
-const HERO = ["sum_insured", "object_value"];          // крупные поля шага 4
-const FROM_STEP1 = ["class_code", "product_code"];     // приходят с шага 1, в форме шага 4 не повторяются
-let CAT = null, CAT_ERR = "";                          // все классы и продукты
-const WZ = {step: 1, max: 1, mode: "quick", preset: "", fcls: "", q: "", cls: "", product: null, otype: "",
-  docs: null, docsErr: "", uploads: [], raw: {}, upMsg: null, busyUp: 0};
+const CALC = {classes: [], products: [], coefs: [], done: false, err: "", busy: false,
+  cls: "", product: "", q: "", sum: 0, days: 365, factors: {}, res: null, body: null};
+const CALC_TERMS = [3, 6, 12];
+const CALC_FACTORS = 3;                       // столько главных факторов класса показываем
+/* пункты, которые заказчик убрал из интерфейса (их же убирает сервер) */
+const HIDE_CHECKS = ["disclosure", "premium_unpaid"];
+const HIDE_DOC = /^заявлени/i;
+function keepCheck(c){ return HIDE_CHECKS.indexOf(String((c || {}).code || "")) < 0; }
+function keepDoc(name){ return !HIDE_DOC.test(String(name || "").trim()); }
 
-function anLoadingCard(){ return '<div class="note">' + spin(T("common.loading", "загружаю…")) + "</div>"; }
+async function loadCalc(){
+  if (!CALC.done && !CALC.busy) {
+    CALC.busy = true;
+    calcPaint();
+    const [c, p, k] = await Promise.all([api("/reference/classes"), api("/reference/products"), api("/reference/coefficients")]);
+    CALC.busy = false;
+    if (!c.ok || !p.ok || !k.ok) { CALC.err = c.error || p.error || k.error; calcPaint(); return; }
+    CALC.err = "";
+    CALC.done = true;
+    CALC.classes = c.data || []; CALC.products = p.data || []; CALC.coefs = k.data || [];
+    if (!CALC.cls) CALC.cls = CALC.classes.some(x => x.code === "8") ? "8" : ((CALC.classes[0] || {}).code || "");
+    calcSeedFactors();
+  }
+  calcPaint();
+}
+function calcClassesOf(p){
+  if (Array.isArray(p.classes)) return p.classes;
+  if (typeof p.classes === "string" && p.classes) return p.classes.split(",");
+  return [];
+}
+function calcOptions(factor){ return CALC.coefs.filter(x => x.class_code === CALC.cls && x.factor_code === factor); }
+function calcFactorCodes(){
+  const codes = [];
+  CALC.coefs.filter(x => x.class_code === CALC.cls).forEach(r => {
+    if (codes.indexOf(r.factor_code) < 0 && r.factor_code !== "franchise") codes.push(r.factor_code);
+  });
+  return codes.slice(0, CALC_FACTORS);
+}
+/* разумное значение по умолчанию: первый вариант каждого фактора */
+function calcSeedFactors(){
+  CALC.factors = {};
+  calcFactorCodes().forEach(code => {
+    const o = calcOptions(code)[0];
+    if (o) CALC.factors[code] = o.option_code;
+  });
+}
+function calcProducts(){
+  const q = String(CALC.q || "").trim().toLowerCase();
+  const mine = CALC.products.filter(p => calcClassesOf(p).indexOf(CALC.cls) >= 0);
+  if (!q) return mine.slice(0, 6);
+  return CALC.products.filter(p => String(p.code).toLowerCase().indexOf(q) === 0
+    || String(p.name || "").toLowerCase().indexOf(q) >= 0).slice(0, 12);
+}
 
-/* ---------- память мастера ---------- */
-function wzSave(){
-  try {
-    sessionStorage.setItem(WZ_KEY, JSON.stringify({step: WZ.step, max: WZ.max, mode: WZ.mode, preset: WZ.preset,
-      fcls: WZ.fcls, q: WZ.q, cls: WZ.cls,
-      product: WZ.product, otype: WZ.otype, uploads: WZ.uploads, raw: WZ.raw, res: AN.res, group: AN.group}));
-  } catch (e) { /* память недоступна — мастер работает до перезагрузки */ }
-}
-function wzLoad(){
-  let s = null;
-  try { s = JSON.parse(sessionStorage.getItem(WZ_KEY) || "null"); } catch (e) { s = null; }
-  if (!s || typeof s !== "object") return;
-  ["step", "max", "mode", "preset", "fcls", "q", "cls", "product", "otype", "raw"].forEach(k => { if (s[k] != null) WZ[k] = s[k]; });
-  WZ.uploads = Array.isArray(s.uploads) ? s.uploads : [];
-  AN.res = s.res || null;
-  AN.group = s.group || "property";
-  if (WZ.step === 5 && !AN.res) WZ.step = WZ.mode === "quick" ? 1 : 4;
-}
-function wzKeep(){ if ($("#anInput")) WZ.raw = anRead().raw; }
-
-/* ---------- данные ---------- */
-async function anFetchCatalog(){
-  const r = await api("/analytics/risk/fields");
-  if (!r.ok) { CAT_ERR = r.error; return; }
-  CAT_ERR = "";
-  CAT = {classes: r.data.classes || [], products: r.data.products || []};
-}
-async function anFetchFields(cls){
-  const r = await api("/analytics/risk/fields?class_code=" + encodeURIComponent(cls));
-  if (!r.ok) { AN.fieldsErr = r.error; return; }
-  AN.fieldsErr = "";
-  AN.cls = cls;
-  AN.qcls = "";                                  // набор полей подробного режима
-  AN.fields = r.data;
-}
-async function wzFetchDocs(){
-  const q = "product_code=" + encodeURIComponent(WZ.product ? WZ.product.code : "")
-    + "&class_code=" + encodeURIComponent(WZ.product ? "" : WZ.cls)
-    + "&object_type=" + encodeURIComponent(WZ.otype || "");
-  const r = await api("/analytics/risk/docs?" + q);
-  if (!r.ok) { WZ.docsErr = r.error; WZ.docs = null; return; }
-  WZ.docsErr = "";
-  WZ.docs = r.data;
-}
-async function wzEnsure(step){
-  if (!CAT && !CAT_ERR) await anFetchCatalog();
-  if (WZ.mode === "quick") {
-    if (!LAST_LOADED) await anFetchLast();
-    if (!PRESETS && !PRESETS_ERR) await anFetchPresets();
-    const sig = WZ.cls + "|" + (WZ.product ? WZ.product.code : "");
-    if ((!AN.fields || AN.qcls !== sig) && !AN.fieldsErr) await anFetchQuick();
+function calcPaint(){
+  const box = $("#calcForm");
+  if (!box) return;
+  if (CALC.err) {
+    box.innerHTML = '<div class="card"><p class="note err">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: CALC.err}))
+      + '</p><div class="actions"><button type="button" class="btn btn-secondary" id="calcRetry">' + esc(T("common.retry", "Повторить")) + "</button></div></div>";
+    $("#calcRetry").onclick = () => { CALC.err = ""; loadCalc(); };
     return;
   }
-  if (step >= 2 && WZ.cls && (!AN.fields || AN.cls !== WZ.cls) && !AN.fieldsErr) await anFetchFields(WZ.cls);
-  if (step === 2 && !WZ.docs && !WZ.docsErr) await wzFetchDocs();
-}
-
-let WZ_BOOTED = false;
-async function loadAnalytics(){
-  if (!WZ_BOOTED) { WZ_BOOTED = true; wzLoad(); }
-  const step = WZ.step;
-  wzPaint();
-  await wzEnsure(step);
-  if (WZ.step === step && TAB === "analytics") wzPaint();
-}
-function anRepaint(){ wzPaint(); }
-
-async function wzGo(step){
-  wzKeep();
-  if (step > 1 && !WZ.cls) step = 1;
-  if (step === 5 && !AN.res) step = 4;
-  WZ.step = step;
-  WZ.max = Math.max(WZ.max, step);
-  wzSave();
-  wzPaint();
-  const top = $("#tab-analytics");
-  if (top && top.getBoundingClientRect().top < 0) top.scrollIntoView({block: "start"});
-  await wzEnsure(step);
-  if (WZ.step === step) wzPaint();
-}
-
-/* ---------- степпер ---------- */
-function stepName(i){
-  switch (i) {
-    case 1: return T("tg.an.s1", "Продукт");
-    case 2: return T("tg.an.s2", "Документы");
-    case 3: return T("tg.an.s3", "Договор");
-    case 4: return T("tg.an.s4", "Суммы");
-    default: return T("tg.an.s5", "Анализ");
-  }
-}
-function wzStepper(){
-  let h = "";
-  if (WZ.mode === "quick") {
-    const pair = [[1, T("tg.an.quick_step", "Данные")], [5, T("tg.an.s5", "Анализ")]];
-    return pair.map((x, i) => {
-      const on = WZ.step === x[0], reach = x[0] === 1 || !!AN.res;
-      return '<li class="' + (on ? "on" : reach ? "done" : "") + '"><button type="button" data-step="' + x[0] + '"'
-        + (on || !reach ? " disabled" : "") + (on ? ' aria-current="step"' : "") + ">"
-        + "<i>" + (i + 1) + "</i><span>" + esc(x[1]) + "</span></button></li>";
-    }).join("");
-  }
-  for (let i = 1; i <= 5; i++) {
-    const on = i === WZ.step;
-    const reach = i <= WZ.max && (i < 5 || !!AN.res) && (i === 1 || !!WZ.cls);
-    const cls = on ? "on" : reach ? "done" : "";
-    h += '<li class="' + cls + '"><button type="button" data-step="' + i + '"' + (on || !reach ? " disabled" : "")
-      + (on ? ' aria-current="step"' : "") + ' title="' + esc(T("tg.an.step_n", "Шаг {n}: {name}", {n: i, name: stepName(i)})) + '">'
-      + "<i>" + i + "</i><span>" + esc(stepName(i)) + "</span></button></li>";
-  }
-  return h;
-}
-function wzPaint(){
-  wzKeep();
-  const sec = $("#tab-analytics");
-  sec.classList.toggle("an-wide", WZ.step === 5);
-  const ol = $("#anSteps");
-  ol.innerHTML = wzStepper();
-  ol.querySelectorAll("[data-step]").forEach(b => { b.onclick = () => wzGo(Number(b.dataset.step)); });
-  const lead = $("#anLead");
-  if (lead) lead.textContent = WZ.mode === "quick"
-    ? T("tg.an.lead_quick", "Быстрый анализ: объект, две суммы и регион — остальное система возьмёт по типовым значениям и покажет, что подставила.")
-    : T("tg.an.lead_steps", "Пять шагов: продукт, нужные документы, договор, суммы — и анализ риска с премией, сценариями и рынком.");
-  const box = $("#anStep");
-  if (WZ.mode === "quick") { if (WZ.step === 5) wzStep5(box); else wzQuick(box); }
-  else if (WZ.step === 1) wzStep1(box);
-  else if (WZ.step === 2) wzStep2(box);
-  else if (WZ.step === 3) wzStep3(box);
-  else if (WZ.step === 4) wzStep4(box);
-  else wzStep5(box);
-  if (TAB === "analytics") syncTgButtons();
-}
-function failCard(title, reason, retryId){
-  return '<div class="card"><h2>' + esc(title) + '</h2><p class="note err">' + esc(reason) + "</p>"
-    + '<div class="actions"><button type="button" class="btn btn-secondary" id="' + retryId + '">' + esc(T("common.retry", "Повторить")) + "</button></div></div>";
-}
-
-/* ---------- шаг 1: продукт ---------- */
-function prodClasses(p){ return (p.classes || []).join("/"); }
-function wzFiltered(){
-  const q = String(WZ.q || "").trim().toLowerCase();
-  return ((CAT && CAT.products) || []).filter(p =>
-    (!WZ.fcls || (p.classes || []).indexOf(WZ.fcls) >= 0)
-    && (!q || String(p.code).toLowerCase().indexOf(q) === 0 || String(p.name || "").toLowerCase().indexOf(q) >= 0));
-}
-function wzStep1(box){
-  if (CAT_ERR) {
-    box.innerHTML = failCard(T("tg.an.s1_title", "Какой продукт оформляем"), T("tg.an.cat_failed", "Список продуктов не загрузился: {reason}", {reason: CAT_ERR}), "wzRetry1");
-    $("#wzRetry1").onclick = async () => { CAT_ERR = ""; box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; await anFetchCatalog(); wzPaint(); };
-    return;
-  }
-  if (!CAT) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
+  if (!CALC.done) { box.innerHTML = '<div class="card"><p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>"; return; }
+  const uncal = calcFactorCodes().some(code => calcOptions(code).some(o => !o.calibrated));
   box.innerHTML = '<div class="card">'
-    + "<h2>" + esc(T("tg.an.s1_title", "Какой продукт оформляем")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.s1_hint", "Выберите класс или сразу найдите продукт по коду или названию. Следующим шагом покажем, какие документы попросить у клиента.")) + "</p>"
-    + '<div class="two"><div><label class="f" for="wzCls">' + esc(T("tg.an.f.class_code", "Класс страхования")) + "</label>"
-    + '<select id="wzCls"><option value="">' + esc(T("tg.an.all_classes", "все классы")) + "</option>"
-    + CAT.classes.map(c => '<option value="' + esc(c.code) + '">' + esc(c.code + " · " + c.name) + "</option>").join("") + "</select></div>"
-    + '<div><label class="f" for="wzQ">' + esc(T("tg.an.find_product", "Найти продукт")) + "</label>"
-    + '<input id="wzQ" type="search" autocomplete="off" enterkeyhint="search" placeholder="' + esc(T("tg.an.find_ph", "код или слово, например 0807 или склад")) + '"></div></div>'
-    + '<p class="count" id="wzCount" style="margin:var(--s2) 0 6px"></p>'
-    + '<div class="plist" id="wzList" role="group" aria-label="' + esc(T("tg.an.f.product_code", "Продукт")) + '"></div>'
-    + '<div class="picked" id="wzPicked"></div>'
-    + '<div class="actions" id="wzAct1"></div>'
-    + "</div>";
-  $("#wzCls").value = WZ.fcls;
-  $("#wzQ").value = WZ.q;
-  $("#wzCls").onchange = () => { WZ.fcls = $("#wzCls").value; wzSave(); wzPaintList(); wzPaintPicked(); };
-  $("#wzQ").oninput = () => { WZ.q = $("#wzQ").value; wzPaintList(); };
-  $("#wzQ").onblur = wzSave;
-  wzPaintList();
-  wzPaintPicked();
-}
-function wzPaintList(){
-  const list = wzFiltered();
-  const shown = list.slice(0, 80);
-  $("#wzCount").innerHTML = esc(T("tg.an.found_n", "Найдено продуктов: {n}", {n: list.length}));
-  $("#wzList").innerHTML = shown.length
-    ? shown.map(p => '<button type="button" data-code="' + esc(p.code) + '" aria-pressed="' + (!!WZ.product && WZ.product.code === p.code) + '">'
-      + "<b>" + esc(p.code) + "</b><span>" + esc(p.name) + "</span><em>"
-      + esc(T("tg.an.classes_n", "класс {c}", {c: (p.classes || []).join(", ")})) + "</em></button>").join("")
-      + (list.length > shown.length ? '<div class="more">' + esc(T("tg.an.more_n", "Ещё {n} — уточните поиск", {n: list.length - shown.length})) + "</div>" : "")
-    : '<div class="none">' + esc(T("tg.an.found_none", "Ничего не нашлось. Проверьте код или выберите «все классы».")) + "</div>";
-  $("#wzList").querySelectorAll("[data-code]").forEach(b => { b.onclick = () => wzPick(b.dataset.code); });
-}
-function wzSetClass(cls, product){
-  const changed = cls !== WZ.cls || (product ? product.code : "") !== (WZ.product ? WZ.product.code : "");
-  WZ.product = product;
-  WZ.cls = cls;
-  if (changed) {
-    WZ.docs = null; WZ.docsErr = ""; WZ.otype = "";
-    AN.res = null; AN.missing = []; AN.errors = {}; AN.msg = null; AN.fieldsErr = "";
-    WZ.max = 1;
-  }
-  wzSave();
-}
-function wzPick(code){
-  const p = ((CAT && CAT.products) || []).filter(x => x.code === code)[0];
-  if (!p) return;
-  wzSetClass(prodClasses(p), {code: p.code, name: p.name, classes: p.classes || []});
-  haptic("select");
-  $("#wzList").querySelectorAll("[data-code]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.code === code)));
-  wzPaintPicked();
-  const next = $("#wzNext1");
-  if (next) next.focus({preventScroll: false});
-}
-function wzPaintPicked(){
-  const p = WZ.product;
-  const cl = WZ.fcls && CAT ? CAT.classes.filter(c => c.code === WZ.fcls)[0] : null;
-  $("#wzPicked").innerHTML = p
-    ? esc(T("tg.an.picked", "Выбрано:")) + " <b>" + esc(p.code + " · " + p.name) + "</b> · " + esc(T("tg.an.classes_n", "класс {c}", {c: p.classes.join(", ")}))
-    : cl ? esc(T("tg.an.picked_class", "Продукт не выбран — чек-лист покажем по классу {c}.", {c: cl.code + " · " + cl.name}))
-    : esc(T("tg.an.pick_hint", "Выберите продукт из списка или хотя бы класс."));
-  const can = !!p || !!cl;
-  $("#wzAct1").innerHTML = '<button type="button" class="btn btn-primary tg-main" id="wzNext1"' + (can ? "" : " disabled") + ">"
-    + esc(p || !cl ? T("tg.an.to_docs", "Дальше: какие нужны документы") : T("tg.an.to_docs_class", "Дальше без продукта")) + "</button>"
-    + '<button type="button" class="btn btn-link" id="wzQuickBack">' + esc(T("tg.an.mode_quick", "Быстрый режим")) + "</button>";
-  $("#wzQuickBack").onclick = () => qMode("quick");
-  $("#wzNext1").onclick = () => {
-    if (!p && cl) wzSetClass(cl.code, null);
-    wzGo(2);
-  };
+    + "<h2>" + esc(T("tg.an.f.class_code", "Класс страхования")) + "</h2>"
+    + '<div class="segsel" id="calcCls">' + CALC.classes.slice(0, 8).map(c =>
+      '<button type="button" data-cls="' + esc(c.code) + '" aria-pressed="' + (CALC.cls === c.code) + '">'
+      + esc(c.code + " · " + c.name) + "</button>").join("") + "</div>"
+    + '<div class="h3">' + esc(T("tg.an.f.product_code", "Продукт")) + "</div>"
+    + '<div class="chips" id="calcProds">' + calcProducts().map(p =>
+      '<button type="button" class="chip" data-prod="' + esc(p.code) + '" aria-pressed="' + (CALC.product === p.code) + '">'
+      + esc(p.code + " · " + p.name) + "</button>").join("") + "</div>"
+    + '<label class="f" for="calcQ">' + esc(T("tg.chat.find_product", "Найти продукт среди всех")) + "</label>"
+    + '<input id="calcQ" type="search" autocomplete="off" value="' + esc(CALC.q) + '" placeholder="'
+    + esc(T("tg.an.find_ph", "код или слово, например 0807 или склад")) + '">'
+    + "</div>"
+    + '<div class="card"><h2>' + esc(T("tg.an.f.sum_insured", "Страховая сумма")) + "</h2>"
+    + '<input id="calcSum" type="text" inputmode="numeric" enterkeyhint="done" value="'
+    + esc(CALC.sum ? Number(CALC.sum).toLocaleString(LOC()) : "") + '">'
+    + '<div class="qadd" id="calcAdd">'
+    + '<button type="button" data-add="1000000">' + esc(T("tg.chat.add_mln", "+млн")) + "</button>"
+    + '<button type="button" data-add="1000000000">' + esc(T("tg.chat.add_bln", "+млрд")) + "</button></div>"
+    + '<div class="h3">' + esc(T("tg.an.f.term_months", "Срок страхования")) + "</div>"
+    + '<div class="segsel" id="calcTerm">' + CALC_TERMS.map(m =>
+      '<button type="button" data-months="' + m + '" aria-pressed="' + (CALC.days === Math.round(m * 30.4)) + '">'
+      + esc(T("tg.an.months_n", "{n} мес.", {n: m})) + "</button>").join("") + "</div>"
+    + "</div>"
+    + '<div class="card"><h2>' + esc(T("tg.calc.factors", "Главные факторы")) + "</h2>"
+    + calcFactorsHtml()
+    + (uncal ? '<p class="note warn">' + esc(T("tg.calc_uncal", "Коэффициенты помечены «не калибровано»: это экспертные значения, компания их ещё не подтвердила своей статистикой убытков.")) + "</p>" : "")
+    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="calcGo">'
+    + esc(T("tg.calc_button", "Посчитать")) + "</button></div>"
+    + '<div class="note msg" id="calcMsg"></div></div>';
+  calcBind();
+  calcPaintOut();
   syncTgButtons();
 }
-
-/* ---------- шаг 2: какие документы нужны ---------- */
-function srcName(s){
-  if (s === "общий") return T("tg.an.src_common", "для всех");
-  if (s === "класс") return T("tg.an.src_class", "по классу");
-  if (s === "продукт") return T("tg.an.src_product", "по продукту");
-  if (s === "тип объекта") return T("tg.an.src_type", "по типу объекта");
-  return s || "";
+function calcFactorsHtml(){
+  const codes = calcFactorCodes();
+  if (!codes.length) return '<p class="note">' + esc(T("tg.calc_no_factors", "Для этого класса факторов в справочнике нет — ставка считается по базовой.")) + "</p>";
+  return codes.map(code => {
+    const opts = calcOptions(code);
+    const label = T("calc.factor." + code, (opts[0] || {}).factor_name || code);
+    const cur = CALC.factors[code] || "";
+    if (opts.length <= 5) {
+      return '<div class="h3">' + esc(label) + "</div>"
+        + '<div class="segsel">' + opts.map(o =>
+          '<button type="button" data-fc="' + esc(code) + '" data-fv="' + esc(o.option_code) + '" aria-pressed="' + (cur === o.option_code) + '">'
+          + esc(o.option_name) + " ×" + esc(nf(o.multiplier, 2)) + (o.calibrated ? "" : " " + esc(T("tg.calc_uncal_short", "(не калибровано)"))) + "</button>").join("")
+        + "</div>";
+    }
+    return '<label class="f" for="calcf-' + esc(code) + '">' + esc(label) + "</label>"
+      + '<select id="calcf-' + esc(code) + '" data-fsel="' + esc(code) + '">'
+      + '<option value="">' + esc(T("tg.calc_factor_off", "не учитывать")) + "</option>"
+      + opts.map(o => '<option value="' + esc(o.option_code) + '"' + (cur === o.option_code ? " selected" : "") + ">"
+        + esc(o.option_name) + " ×" + esc(nf(o.multiplier, 2)) + "</option>").join("") + "</select>";
+  }).join("");
 }
-/* какие пункты чек-листа закрыты загруженными файлами: closes из ответа загрузки или анализа */
-function wzClosed(){
-  const out = {};
-  WZ.uploads.forEach(u => (u.closes || []).forEach(n => { out[n] = u.doc_id; }));
-  const items = (AN.res && AN.res.documents && AN.res.documents.items) || [];
-  items.forEach(i => (i.closes || []).forEach(n => { out[n] = i.doc_id; }));
-  return out;
-}
-function prodLine(){
-  const p = WZ.product;
-  return p ? p.code + " · " + p.name + " · " + T("tg.an.classes_n", "класс {c}", {c: p.classes.join(", ")})
-    : T("tg.an.class_only", "Класс {c}, продукт не выбран", {c: WZ.cls});
-}
-function wzStep2(box){
-  const types = (AN.fields && AN.fields.object_types) || [];
-  box.innerHTML = '<div class="card">'
-    + "<h2>" + esc(T("tg.an.s2_title", "Что попросить у клиента")) + "</h2>"
-    + '<p class="sub">' + esc(prodLine()) + "</p>"
-    + '<label class="f" for="wzType">' + esc(T("tg.an.otype_filter", "Тип объекта — уточняет список")) + "</label>"
-    + '<select id="wzType"><option value="">' + esc(T("tg.an.otype_any", "не важно")) + "</option>"
-    + types.map(t => '<option value="' + esc(t) + '">' + esc(t) + "</option>").join("") + "</select>"
-    + '<div id="wzDocs" style="margin-top:var(--s3)"></div>'
-    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="wzNext2">' + esc(T("tg.an.to_contract", "Дальше: загрузить договор")) + "</button>"
-    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack2">' + esc(T("common.back", "Назад")) + "</button></div>"
-    + "</div>";
-  const sel = $("#wzType");
-  if (WZ.otype && types.indexOf(WZ.otype) < 0) sel.insertAdjacentHTML("beforeend", '<option value="' + esc(WZ.otype) + '">' + esc(WZ.otype) + "</option>");
-  sel.value = WZ.otype || "";
-  sel.onchange = async () => {
-    WZ.otype = sel.value; WZ.docs = null; WZ.docsErr = "";
-    if (WZ.otype && !WZ.raw.object_type) WZ.raw.object_type = WZ.otype;
-    wzSave(); wzPaintDocs();
-    await wzFetchDocs();
-    if (WZ.step === 2) wzPaintDocs();
+function calcBind(){
+  const box = $("#calcForm");
+  box.querySelectorAll("[data-cls]").forEach(b => {
+    b.onclick = () => { CALC.cls = b.dataset.cls; CALC.product = ""; calcSeedFactors(); haptic("select"); calcPaint(); };
+  });
+  box.querySelectorAll("[data-prod]").forEach(b => {
+    b.onclick = () => { CALC.product = b.dataset.prod; haptic("select"); calcPaint(); };
+  });
+  box.querySelectorAll("[data-months]").forEach(b => {
+    b.onclick = () => { CALC.days = Math.round(Number(b.dataset.months) * 30.4); haptic("select"); calcPaint(); };
+  });
+  box.querySelectorAll("[data-fc]").forEach(b => {
+    b.onclick = () => { CALC.factors[b.dataset.fc] = b.dataset.fv; haptic("select"); calcPaint(); };
+  });
+  box.querySelectorAll("[data-fsel]").forEach(sel => {
+    sel.onchange = () => { CALC.factors[sel.dataset.fsel] = sel.value; };
+  });
+  const q = $("#calcQ");
+  q.oninput = () => {
+    CALC.q = q.value;
+    const at = q.selectionStart;
+    calcPaint();
+    const again = $("#calcQ");
+    if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
   };
-  $("#wzNext2").onclick = () => wzGo(3);
-  $("#wzBack2").onclick = () => wzGo(1);
-  wzPaintDocs();
-}
-function docRow(x, state){
-  const bits = [];
-  if (x.when) bits.push(T("tg.an.doc_when", "когда нужен: {w}", {w: x.when}));
-  if (x.why) bits.push(x.why);
-  if (x.legal_ref) bits.push(x.legal_ref);
-  return '<div class="check ' + state + '"><i></i><div><b>' + esc(x.doc_name)
-    + (state === "ok" ? ' <span class="tag">' + esc(T("tg.an.doc_closed", "есть")) + "</span>" : "") + "</b>"
-    + "<span>" + esc(srcName(x.source)) + (bits.length ? " · " + esc(bits.join(" · ")) : "") + "</span></div></div>";
-}
-function wzPaintDocs(){
-  const box = $("#wzDocs");
-  if (!box) return;
-  if (WZ.docsErr) {
-    box.innerHTML = '<p class="note err">' + esc(T("tg.an.docs_failed", "Список документов не загрузился: {reason}", {reason: WZ.docsErr})) + "</p>"
-      + '<button type="button" class="btn btn-secondary" id="wzRetry2">' + esc(T("common.retry", "Повторить")) + "</button>";
-    $("#wzRetry2").onclick = async () => { WZ.docsErr = ""; box.innerHTML = anLoadingCard(); await wzFetchDocs(); wzPaintDocs(); };
-    return;
-  }
-  const d = WZ.docs;
-  if (!d) { box.innerHTML = anLoadingCard(); return; }
-  const closed = wzClosed();
-  const req = d.required || [], opt = d.optional || [];
-  const got = req.filter(x => closed[x.doc_name]).length;
-  // обязательные и дополнительные — рядом на широком экране, друг под другом на телефоне
-  box.innerHTML = '<div class="cols2"><div><div class="h3" style="margin-top:0">' + esc(T("tg.an.docs_required", "Обязательные · {n}", {n: req.length})) + "</div>"
-    + (got ? '<p class="note ok" style="margin:2px 0 4px">' + esc(T("tg.an.docs_got_n", "Закрыто файлами: {c} из {n}", {c: got, n: req.length})) + "</p>" : "")
-    + (req.length ? req.map(x => docRow(x, closed[x.doc_name] ? "ok" : "warn")).join("") : '<p class="note">' + esc(T("common.none", "нет")) + "</p>")
-    + "</div>"
-    + (opt.length ? '<div><div class="h3 opt-h">' + esc(T("tg.an.docs_optional", "Дополнительные — по условиям · {n}", {n: opt.length})) + "</div>"
-      + opt.map(x => docRow(x, closed[x.doc_name] ? "ok" : "opt")).join("") + "</div>" : "")
-    + "</div>"
-    + '<p class="note" style="margin-top:var(--s2)">' + esc(d.basis_text || "") + "</p>";
+  const sum = $("#calcSum");
+  sum.oninput = () => { groupDigitsLive(sum); CALC.sum = num(sum.value); };
+  box.querySelectorAll("#calcAdd button").forEach(b => {
+    b.onclick = () => {
+      CALC.sum = (CALC.sum || 0) + Number(b.dataset.add);
+      $("#calcSum").value = Number(CALC.sum).toLocaleString(LOC());
+      haptic("select");
+    };
+  });
+  $("#calcGo").onclick = calcRun;
 }
 
-/* ---------- шаг 3: договор ---------- */
+async function calcRun(){
+  if (!CALC.product) { $("#calcMsg").innerHTML = errHtml(T("tg.no_product", "Выберите продукт — без него движок не знает минимальный тариф.")); return; }
+  if (!CALC.sum) { $("#calcMsg").innerHTML = errHtml(T("tg.zero_sum", "Страховая сумма и стоимость объекта должны быть больше нуля.")); return; }
+  const prod = CALC.products.filter(p => p.code === CALC.product)[0] || {};
+  const body = {product_code: CALC.product, class_code: calcClassesOf(prod)[0] || CALC.cls,
+    object_type: CALC_OBJECT, value_amount: CALC.sum, sum_insured: CALC.sum, term_days: CALC.days,
+    factors: Object.assign({}, CALC.factors), premium_paid: true, disclosure_done: true};
+  CALC.busy = true;
+  tgBusy(true);
+  $("#calcGo").disabled = true;
+  $("#calcMsg").innerHTML = spin(T("common.calculating", "считаю…"));
+  const r = await api("/calculate", jsonOpts("POST", body));
+  CALC.busy = false;
+  tgBusy(false);
+  if ($("#calcGo")) $("#calcGo").disabled = false;
+  if (!r.ok) { haptic("error"); $("#calcMsg").innerHTML = errHtml(T("tg.calc_failed", "Расчёт не выполнен: {reason}", {reason: r.error})); return; }
+  $("#calcMsg").innerHTML = "";
+  CALC.res = r.data;
+  CALC.body = body;
+  haptic("success");
+  calcPaintOut();
+  const out = $("#calcOut");
+  if (out && out.scrollIntoView) out.scrollIntoView({block: "start", behavior: "smooth"});
+}
+const CALC_OBJECT = "Склад";                 // тип объекта по справочнику сервера (значение, не подпись)
+
+function calcPaintOut(){
+  const box = $("#calcOut");
+  if (!box) return;
+  const j = CALC.res, b = CALC.body;
+  if (!j || !b) { box.innerHTML = ""; return; }
+  const r = j.rates || {};
+  const checks = (j.checks || []).filter(keepCheck);
+  box.innerHTML = '<div class="card"><h2>' + esc(T("tg.rate_and_premium", "Ставка и премия")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.calc_rate_note", "Ставка годовая, премия — за {n} дней.", {n: b.term_days})) + "</p>"
+    + '<div class="headline"><div class="big">' + pct(r.applied_pct) + '</div><span class="sm">' + esc(money(j.premium)) + "</span></div>"
+    + '<div class="seg">'
+    + "<div><span>" + esc(T("tg.calc_technical", "Техническая ставка")) + "</span><b>" + pct(r.technical_pct) + "</b></div>"
+    + "<div><span>" + esc(T("tg.calc_min", "Минимум по продукту")) + "</span><b>" + pct(r.min_pct) + "</b></div>"
+    + "</div>"
+    + '<details class="opt"><summary>' + esc(T("calc.breakdown", "Из чего сложилась ставка")) + "</summary>"
+    + '<div class="chain">' + (j.explanation || []).map(calcChainRow).join("") + "</div>"
+    + (checks.length ? '<div class="h3">' + esc(T("calc.checks", "Проверки")) + "</div>"
+        + checks.map(c => '<div class="check ' + (c.status === "ok" ? "ok" : c.status === "stop" ? "stop" : "warn") + '"><i></i><div><b>'
+          + esc(c.title) + "</b><span>" + esc(c.detail) + "</span></div></div>").join("") : "")
+    + "</details></div>";
+}
+function calcChainRow(x){
+  let v = "";
+  if (x.value_pct != null) v = pct(x.value_pct);
+  else if (x.mult != null) v = "×" + nf(x.mult, 2);
+  else if (x.add_pct != null) v = "+" + pct(x.add_pct);
+  else if (x.divide_by != null) v = "÷" + nf(x.divide_by, 2);
+  return "<div><span>" + esc(x.name) + "</span><b>" + v + "</b></div>";
+}
+/* смена языка: форма и итог перерисовываются целиком, введённые значения лежат в CALC */
+function calcRepaint(){ calcPaint(); }
+
+/* =====================================================================================
+   ИИ-сюрвейер: один диалог вместо вкладок «Аналитика» и «Фото» (задача 223).
+   Данные: POST /chat/start  — начать диалог (и вопрос «старый или новый договор»);
+           POST /chat/answer — чип или заполненные поля;
+           POST /chat/upload — файлы (договор, общий PDF, фото, Excel) одним действием;
+           POST /chat/analyze — ставка, франшиза и пояснение;
+           POST /chat/message — свободный вопрос к ИИ;
+           POST /chat/lang   — смена языка: свободный текст переводится, подписи берём из словаря;
+           GET  /chat/state  — восстановление диалога после перезагрузки.
+   Сервер присылает карточки (text, checklist, fields, chips, result) — интерфейс их рисует.
+   Лента перерисовывается по карточкам; поля ввода не трогаем, пока человек печатает, —
+   меняется только та карточка, где нажали чип. Курсор в поле остаётся на месте.
+   ===================================================================================== */
+const AN = {res: null, scn: "EML", fields: null};           // дашборд читает AN.res
+const MONEY_UNIT = "сум";                                   // единица денежных полей в ответе сервера
+const CH_KEY = "surveyor_chat";
+const CH_REGION = "surveyor_region";
+const CH_MAX_FILES = 10;
+const CH = {sid: "", step: "", state: {must: {}, optional: {}}, ai: {}, feed: [], booted: false,
+  busy: false, err: "", draft: {must: {}, optional: {}}, pick: [], res: null, meta: null, metaErr: "",
+  presets: null, q: "", upPct: 0, upName: "", tr: {}, relang: false, detail: false, full: null, fullErr: ""};
+
+function chatSave(){ try { sessionStorage.setItem(CH_KEY, CH.sid); } catch (e) {} }
+function chatLoadSid(){ try { return sessionStorage.getItem(CH_KEY) || ""; } catch (e) { return ""; } }
+
+/* ---------- справочники для полей: классы, продукты, регионы ---------- */
+async function chatMeta(cls){
+  const q = "?class_code=" + encodeURIComponent(cls || "") + "&mode=quick";
+  const r = await api("/analytics/risk/fields" + q);
+  if (!r.ok) { CH.metaErr = r.error; return; }
+  CH.metaErr = "";
+  CH.meta = r.data;
+  AN.fields = r.data;
+}
+async function chatPresets(){
+  const r = await api("/analytics/risk/presets");
+  CH.presets = r.ok ? (r.data.presets || []) : [];
+}
+
+/* вид документа и состояние разбора — как их называет сервер */
 function kindName(k){
   switch (k) {
     case "договор": return T("tg.an.kind.contract", "договор");
@@ -1961,17 +1862,9 @@ function kindName(k){
     case "выписка": return T("tg.an.kind.statement", "выписка");
     case "штатное расписание": return T("tg.an.kind.staff", "штатное расписание");
     case "фото объекта": return T("tg.an.kind.photo", "фото объекта");
+    case "таблица": return T("tg.chat.kind_table", "таблица");
     case "прочее": return T("tg.an.kind.other", "вид не определён");
     default: return k || T("tg.an.kind.other", "вид не определён");
-  }
-}
-function langName(l){
-  switch (l) {
-    case "ru": return T("tg.an.lang.ru", "русский");
-    case "uz-latn": return T("tg.an.lang.uz_latn", "узбекский (латиница)");
-    case "uz-cyrl": return T("tg.an.lang.uz_cyrl", "узбекский (кириллица)");
-    case "en": return T("tg.an.lang.en", "английский");
-    default: return T("tg.an.lang.unknown", "язык не определён");
   }
 }
 function upStatus(s){
@@ -1980,191 +1873,715 @@ function upStatus(s){
   if (s === "нужно распознавание") return {cls: "warn", text: T("tg.an.st_ocr", "скан без текста")};
   if (s === "не поддерживается") return {cls: "stop", text: T("tg.an.st_unsupported", "формат не читается")};
   if (s === "ошибка") return {cls: "stop", text: T("tg.an.st_error", "ошибка чтения")};
+  if (s === "принят") return {cls: "ok", text: T("tg.chat.st_taken", "принят")};
   return {cls: "", text: s || "—"};
 }
-function confName(c){
-  if (c === "высокая") return T("tg.an.conf_high", "уверенность высокая");
-  if (c === "средняя") return T("tg.an.conf_mid", "уверенность средняя");
-  return c ? T("tg.an.conf_other", "уверенность: {c}", {c: c}) : "";
+
+/* ---------- лента ---------- */
+function chatPush(who, card){ CH.feed.push({who: who, card: card}); }
+function chatCards(list){ (list || []).forEach(c => chatPush("ai", c)); }
+
+function chatApply(d){
+  if (!d) return;
+  if (d.session_id) { CH.sid = d.session_id; chatSave(); }
+  if (d.step) CH.step = d.step;
+  if (d.state) {
+    CH.state = d.state;
+    CH.draft = {must: Object.assign({}, d.state.must || {}), optional: Object.assign({}, d.state.optional || {})};
+  }
+  if (d.ai) CH.ai = d.ai;
 }
-function sizeName(b){
-  const n = Number(b) || 0;
-  return n >= 1048576 ? T("tg.an.size_mb", "{n} МБ", {n: nf(n / 1048576, 1)}) : T("tg.an.size_kb", "{n} КБ", {n: nf(Math.max(1, n / 1024), 0)});
+
+async function loadChat(){
+  if (CH.booted) { chatPaint(); return; }
+  CH.booted = true;
+  chatPaint();
+  const sid = chatLoadSid();
+  if (sid) {
+    const r = await api("/chat/state?session_id=" + encodeURIComponent(sid));
+    if (r.ok) {
+      chatApply(r.data);
+      (r.data.messages || []).forEach(m => {
+        if (m.kind === "text" && m.text) chatPush(m.role === "user" ? "me" : "ai", {type: "text", text: m.text});
+      });
+      chatCards(r.data.cards);
+      chatPaint();
+      chatMeta(CH.state.must && CH.state.must.class_code).then(chatPaint);
+      chatPresets().then(chatPaint);
+      return;
+    }
+  }
+  await chatStart();
 }
-/* значение prefill → строка для поля формы */
-function pfRaw(key, x){
-  if (key === "region") return x.name || String(x.value || "");
-  if (HERO.indexOf(key) >= 0 || typeof x.value === "number" && fieldUnit(key) === MONEY_UNIT) return Number(x.value).toLocaleString(LOC());
-  return String(x.value == null ? "" : x.value);
+
+async function chatStart(){
+  CH.feed = [];
+  CH.res = null;
+  AN.res = null;
+  CH.busy = true;
+  chatPaint();
+  const r = await api("/chat/start", jsonOpts("POST", {lang: I18N_LANG}));
+  CH.busy = false;
+  if (!r.ok) { CH.err = r.error; chatPaint(); return; }
+  CH.err = "";
+  chatApply(r.data);
+  chatCards(r.data.cards);
+  chatPaint();
+  chatMeta("").then(chatPaint);
+  chatPresets().then(chatPaint);
 }
-function fieldDef(key){
-  const all = AN.fields ? (AN.fields.must || []).concat(AN.fields.optional || []) : [];
-  return all.filter(f => f.key === key)[0] || null;
+
+/* ---------- запросы ---------- */
+async function chatPost(url, body, mine){
+  if (mine) chatPush("me", {type: "text", text: mine});
+  CH.busy = true;
+  CH.err = "";
+  chatPaint();
+  const r = await api(url, jsonOpts("POST", Object.assign({session_id: CH.sid, lang: I18N_LANG}, body)));
+  CH.busy = false;
+  if (!r.ok) {
+    // сессии нет (404) — начинаем диалог заново, остальные отказы показываем словами сервера
+    if (r.status === 404) { try { sessionStorage.removeItem(CH_KEY); } catch (e) {} CH.sid = ""; await chatStart(); return null; }
+    CH.err = r.error;
+    chatPaint();
+    return null;
+  }
+  chatApply(r.data);
+  chatCards(r.data.cards);
+  if (r.data.source) CH.lastSource = r.data.source;
+  chatPaint();
+  return r.data;
 }
-function fieldUnit(key){ const f = fieldDef(key); return f ? f.unit : null; }
-/* значение prefill для показа */
-function pfShow(key, x){
-  if (HERO.indexOf(key) >= 0 || fieldUnit(key) === MONEY_UNIT) return money(x.value);
-  if (key === "region") return x.name || String(x.value || "");
-  const f = fieldDef(key);
-  if (f && f.options) { const o = f.options.filter(o => o.code === x.value)[0]; if (o) return optLabel(f, o); }
-  return String(x.value == null ? "" : x.value);
+
+function chatChip(key, value, label){
+  haptic("select");
+  chatPost("/chat/answer", {key: key, value: value}, label);
 }
-function pfLabel(key, x){
-  const f = fieldDef(key);
-  if (f) return fieldLabel(f);
-  return fieldLabel({key: key, label: x.label || key});
+
+async function chatFields(scope){
+  const fields = Object.assign({}, CH.draft[scope] || {});
+  const d = await chatPost("/chat/answer", {key: "fields", scope: scope, fields: fields});
+  if (d && scope === "must") chatMeta(CH.draft.must.class_code || "").then(chatPaint);
 }
-/* что подставлено: первое значение по каждому полю в порядке загрузки */
-function wzPrefill(){
-  const out = {};
-  WZ.uploads.forEach(u => {
-    const pf = u.prefill || {};
-    ["must", "optional"].forEach(g => Object.keys(pf[g] || {}).forEach(k => {
-      if (!out[k]) out[k] = Object.assign({grp: g, doc_id: u.doc_id}, pf[g][k]);
-    }));
+
+async function chatAnalyze(mode){
+  const opt = Object.assign({}, CH.draft.optional || {});
+  const was = (CH.state && CH.state.optional) || {};
+  if (JSON.stringify(opt) !== JSON.stringify(was)) await chatPost("/chat/answer", {key: "fields", scope: "optional", fields: opt});
+  const d = await chatPost("/chat/analyze", {mode: mode || "quick"});
+  if (d) haptic("success");
+}
+
+async function chatSend(){
+  const el = $("#chatText");
+  const text = (el.value || "").trim();
+  if (!text || CH.busy) return;
+  el.value = "";
+  el.style.height = "auto";
+  await chatPost("/chat/message", {text: text}, text);
+}
+
+/* ---------- файлы: скрепка, перетаскивание, вставка из буфера ---------- */
+async function chatUpload(files){
+  const list = Array.prototype.slice.call(files || []).slice(0, CH_MAX_FILES);
+  if (!list.length || CH.busy) return;
+  if (!CH.sid) await chatStart();
+  const fd = new FormData();
+  fd.append("session_id", CH.sid);
+  list.forEach(f => fd.append("files", f));
+  CH.busy = true;
+  CH.err = "";
+  CH.upPct = 0;
+  CH.upName = list.map(f => f.name).join(", ");
+  chatPush("me", {type: "files", names: list.map(f => f.name)});
+  chatPaint();
+  const done = data => {
+    CH.busy = false;
+    CH.upName = "";
+    chatApply(data);
+    chatCards(data.cards);
+    if (data.files) chatPush("ai", {type: "files_got", files: data.files, extracted: data.extracted});
+    chatPaint();
+  };
+  await new Promise(resolve => {
+    const x = new XMLHttpRequest();
+    x.open("POST", "/chat/upload");
+    if (TOKEN) x.setRequestHeader("Authorization", "Bearer " + TOKEN);
+    x.upload.onprogress = e => { if (e.lengthComputable) { CH.upPct = Math.round(e.loaded / e.total * 100); chatProgress(); } };
+    x.onload = () => {
+      let j = null;
+      try { j = JSON.parse(x.responseText); } catch (e) { j = null; }
+      // 413 (много файлов), 415 (формат), 429 (частые запросы) — показываем текстом сервера
+      if (x.status >= 400) { CH.busy = false; CH.upName = ""; CH.err = (j && (j.detail || j.error)) || why(x.status, j); chatPaint(); }
+      else done(j || {});
+      resolve();
+    };
+    x.onerror = () => { CH.busy = false; CH.upName = ""; CH.err = T("tg.err.offline", "сервер не отвечает"); chatPaint(); resolve(); };
+    x.send(fd);
   });
-  return out;
 }
-function wzApplyPrefill(){
-  const pf = wzPrefill();
-  Object.keys(pf).forEach(k => { if (WZ.raw[k] == null || WZ.raw[k] === "" || WZ.raw[k] === false) WZ.raw[k] = pfRaw(k, pf[k]); });
+function chatProgress(){
+  const el = $("#chatUp");
+  if (el) el.style.width = CH.upPct + "%";
 }
-function wzStep3(box){
-  box.innerHTML = '<div class="card">'
-    + "<h2>" + esc(T("tg.an.s3_title", "Договор страхования")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.s3_hint", "Загрузите договор — прочитаем суммы, адрес и условия и подставим их на следующем шаге. Файл хранится 24 часа, затем удаляется.")) + "</p>"
-    + '<div class="drop" id="wzDrop">'
-    + '<label class="f" for="wzFile" style="margin:0">' + esc(T("tg.an.drop_title", "Файл договора")) + "</label>"
-    + '<input type="file" id="wzFile" accept=".pdf,.docx" multiple>'
-    + '<span class="hint" style="margin:0"><span class="dnd">' + esc(T("tg.an.drop_dnd", "Можно перетащить файл сюда. ")) + "</span>"
-    + esc(T("tg.an.drop_formats", "PDF или Word (.docx), до 15 МБ, до 10 файлов.")) + "</span></div>"
-    + '<div class="note msg" id="wzUpMsg"></div>'
-    + '<div id="wzUps"></div>'
-    + '<p class="note" style="margin-top:var(--s2)">' + esc(T("tg.an.more_docs", "Сюда же можно загрузить документы из чек-листа — отчёт оценщика, техпаспорт, выписку. Они закрывают пункты чек-листа; договор страхования — предмет анализа и пунктов не закрывает.")) + "</p>"
-    + '<div class="actions" id="wzAct3"></div>'
-    + "</div>";
-  const inp = $("#wzFile");
-  inp.onchange = () => { const f = inp.files; wzUpload(f).then(() => { inp.value = ""; }); };
-  const drop = $("#wzDrop");
-  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
-  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
-  drop.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); wzUpload(e.dataTransfer && e.dataTransfer.files); });
-  wzPaintUploads();
+
+function chatPickFiles(){ const f = $("#chatFile"); if (f) f.click(); }
+
+/* ---------- смена языка ---------- */
+/* Структурные подписи берём из словаря, свободный текст ИИ переводит сервер (POST /chat/lang).
+   Перевод кладём в кэш по «язык + текст», поэтому назад и вперёд язык переключается мгновенно. */
+function chatFree(){
+  const out = [];
+  CH.feed.forEach(it => {
+    const c = it.card || {};
+    if (c.type === "text" && c.text && it.who === "ai") out.push(c.text);
+    if (c.type === "result" && c.narrative) out.push(c.narrative);
+  });
+  return out.filter((x, i) => out.indexOf(x) === i).slice(0, 10);
 }
-function wzPaintUpMsg(){
-  const m = $("#wzUpMsg");
-  if (!m) return;
-  const x = WZ.upMsg;
-  m.innerHTML = !x ? "" : x.kind === "busy" ? spin(x.text()) : x.kind === "err" ? errHtml(x.text()) : okHtml(x.text());
+function chatTr(text){
+  const box = CH.tr[I18N_LANG] || {};
+  return box[text] || text;
 }
-function wzPaintUploads(){
-  const box = $("#wzUps");
+async function chatRelang(){
+  chatPaint();
+  if (!CH.sid) return;
+  const box = CH.tr[I18N_LANG] = CH.tr[I18N_LANG] || {};
+  const need = chatFree().filter(t => !box[t]);
+  CH.relang = true;
+  chatPaint();
+  const r = await api("/chat/lang", jsonOpts("POST", {session_id: CH.sid, lang: I18N_LANG, translate: need}));
+  CH.relang = false;
+  if (r.ok) {
+    (r.data.translated || []).forEach((t, i) => { if (need[i] && t && t.text) box[need[i]] = t.text; });
+    chatApply(r.data);
+    if (CH.res && (r.data.cards || []).some(c => c.type === "result")) {
+      // итог сервер пересобрал на новом языке — заменяем карточку в ленте, ленту не дублируем
+      const fresh = (r.data.cards || []).filter(c => c.type === "result")[0];
+      CH.feed.forEach(it => { if (it.card && it.card.type === "result") it.card = fresh; });
+      CH.res = fresh;
+    }
+  }
+  chatPaint();
+}
+
+/* ---------- отрисовка ленты ---------- */
+function chatPaint(){
+  const box = $("#chatFeed");
   if (!box) return;
-  wzPaintUpMsg();
-  const closed = wzClosed();
-  box.innerHTML = WZ.uploads.map(u => upHtml(u, Object.keys(closed).filter(n => closed[n] === u.doc_id))).join("");
-  box.querySelectorAll("[data-del]").forEach(b => { b.onclick = () => wzDelete(b.dataset.del); });
-  const full = WZ.uploads.length >= WZ_MAX_DOCS;
-  const inp = $("#wzFile");
-  if (inp) inp.disabled = full || WZ.busyUp > 0;
-  const act = $("#wzAct3");
-  if (!act) return;
-  act.innerHTML = (WZ.uploads.length
-      ? '<button type="button" class="btn btn-primary tg-main" id="wzNext3">' + esc(T("tg.an.to_sums", "Дальше: суммы и объект")) + "</button>"
-      : '<button type="button" class="btn btn-secondary tg-main" id="wzNext3">' + esc(T("tg.an.no_contract", "Нет договора — ввести вручную")) + "</button>")
-    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack3">' + esc(T("common.back", "Назад")) + "</button>";
-  $("#wzNext3").disabled = WZ.busyUp > 0;
-  $("#wzNext3").onclick = () => wzGo(4);
-  $("#wzBack3").onclick = () => wzGo(2);
+  box.innerHTML = CH.feed.map((it, i) => chatItemHtml(it, i)).join("")
+    + (CH.busy ? '<div class="bub ai typing">' + spin(T("tg.chat.thinking", "думаю…")) + "</div>" : "")
+    + (CH.relang ? '<div class="bub ai typing">' + spin(T("tg.chat.translating", "перевожу…")) + "</div>" : "")
+    + (CH.err ? '<div class="bub ai warn">' + errHtml(CH.err) + "</div>" : "");
+  chatBind(box);
+  chatScroll();
   syncTgButtons();
 }
-function upHtml(u, closes){
-  const st = upStatus(u.status);
-  const pf = u.prefill || {};
-  const rows = [];
-  ["must", "optional"].forEach(g => Object.keys(pf[g] || {}).forEach(k => rows.push([k, pf[g][k]])));
-  const fields = Object.keys(u.fields || {}).map(k => u.fields[k]).filter(f => f && f.value != null && f.value !== "");
-  return '<div class="upl">'
-    + '<div class="upl-h"><b>' + esc(u.filename || "") + '</b><span class="verdict ' + st.cls + '">' + esc(st.text) + "</span></div>"
-    + '<div class="upl-m">' + esc([kindName(u.kind), langName(u.language), sizeName(u.size)].join(" · "))
-    + (u.insurance_contract ? ' <span class="tag">' + esc(T("tg.an.is_contract", "договор страхования")) + "</span>" : "") + "</div>"
-    + (u.status === "нужно распознавание"
-      ? '<div class="itv warn"><div><b>' + esc(T("tg.an.up_scan", "Нужно распознавание: заполните вручную")) + "</b><span>"
-        + esc(T("tg.an.up_scan_d", "Это скан без текстового слоя — прочитать его пока нельзя. Суммы и данные объекта введите на следующем шаге.")) + "</span></div></div>" : "")
-    + (rows.length
-      ? '<div class="h3">' + esc(T("tg.an.pf_title", "Подставим в форму")) + '</div><div class="pf two-col">'
-        + rows.map(([k, x]) => "<div><span>" + esc(pfLabel(k, x)) + "<small>" + esc(T("tg.an.from_contract", "из договора"))
-          + (x.confidence ? " · " + esc(confName(x.confidence)) : "") + (x.found_by ? " · " + esc(T("tg.an.found_by", "строка «{s}»", {s: x.found_by})) : "") + "</small></span>"
-          + "<b>" + esc(pfShow(k, x)) + "</b></div>").join("") + "</div>"
-      : (u.status === "нужно распознавание" ? "" : '<p class="note" style="margin-top:var(--s2)">' + esc(T("tg.an.pf_none", "Подставить в форму из этого файла нечего.")) + "</p>"))
-    + (closes.length ? '<p class="note ok" style="margin-top:var(--s2)">' + esc(T("tg.an.closes", "Закрывает пункт чек-листа: {list}", {list: closes.join(", ")})) + "</p>" : "")
-    + (fields.length
-      ? '<details class="how"><summary>' + esc(T("tg.an.recognized", "Что распознано в файле · {n}", {n: fields.length})) + '</summary><div class="kv wrap-b" style="margin-top:6px">'
-        + fields.map(f => "<span>" + esc(f.name || "") + "</span><b>" + esc(String(f.value)) + "</b>").join("") + "</div></details>" : "")
-    + ((u.notes || []).length ? '<ul class="notes">' + u.notes.map(n => "<li>" + esc(n) + "</li>").join("") + "</ul>" : "")
-    + '<div class="actions" style="margin-top:var(--s2)"><button type="button" class="btn btn-secondary btn-sm" data-del="' + esc(u.doc_id) + '">'
-    + esc(T("tg.an.delete_file", "Удалить файл")) + "</button></div></div>";
+function chatScroll(){
+  const last = $("#chatFeed").lastElementChild;
+  if (last && last.scrollIntoView) last.scrollIntoView({block: "end"});
 }
-function upError(status, reason){
-  if (/[А-Яа-я]/.test(reason || "")) return reason;
-  if (status === 413) return T("tg.an.up_413", "файл больше 15 МБ — сожмите PDF или уберите из него фотографии");
-  if (status === 415) return T("tg.an.up_415", "нужен договор в PDF или Word (.docx)");
-  return reason;
+function chatRepaintCard(i){
+  const node = document.querySelector('[data-ci="' + i + '"]');
+  if (!node) { chatPaint(); return; }
+  node.outerHTML = chatItemHtml(CH.feed[i], i);
+  chatBind($("#chatFeed"));
+  syncTgButtons();
 }
-async function wzUpload(files){
-  const list = Array.prototype.slice.call(files || []);
-  for (const f of list) {
-    if (WZ.uploads.length >= WZ_MAX_DOCS) {
-      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_limit", "В одном анализе — не больше 10 файлов. Удалите лишний и загрузите снова.")};
-      break;
-    }
-    if (f.size > WZ_MAX_BYTES) {
-      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_failed", "«{name}» не загружен: {reason}", {name: f.name, reason: T("tg.an.up_413", "файл больше 15 МБ — сожмите PDF или уберите из него фотографии")})};
-      continue;
-    }
-    WZ.busyUp++;
-    WZ.upMsg = {kind: "busy", text: () => T("tg.an.up_reading", "загружаю и читаю «{name}»…", {name: f.name})};
-    wzPaintUploads();
-    const fd = new FormData();
-    fd.append("file", f);
-    // продукт, класс и тип объекта — чтобы сервер сразу сказал, какие пункты чек-листа закрыл файл (closes)
-    const r = await api("/analytics/risk/document?class_code=" + encodeURIComponent(WZ.cls || "")
-      + "&product_code=" + encodeURIComponent(WZ.product ? WZ.product.code : "")
-      + "&object_type=" + encodeURIComponent(WZ.otype || ""), {method: "POST", body: fd});
-    WZ.busyUp--;
-    if (!r.ok) {
-      const reason = upError(r.status, r.error);
-      WZ.upMsg = {kind: "err", text: () => T("tg.an.up_failed", "«{name}» не загружен: {reason}", {name: f.name, reason: reason})};
-      continue;
-    }
-    WZ.uploads.push(r.data);
-    wzApplyPrefill();
-    const n = Object.keys((r.data.prefill || {}).must || {}).length + Object.keys((r.data.prefill || {}).optional || {}).length;
-    WZ.upMsg = {kind: "ok", text: () => T("tg.an.up_done", "«{name}» прочитан: для формы найдено значений — {n}.", {name: f.name, n: n})};
+
+function chatItemHtml(it, i){
+  const c = it.card || {};
+  const open = '<div class="bub ' + (it.who === "me" ? "me" : "ai")
+    + (c.tone === "warn" ? " warn" : "") + (c.type === "result" ? " wide res" : "")
+    + (c.type === "fields" || c.type === "checklist" ? " wide" : "") + '" data-ci="' + i + '">';
+  return open + chatCardHtml(c, i) + "</div>";
+}
+
+function chatCardHtml(c, i){
+  switch (c.type) {
+    case "text": return chatTextHtml(c);
+    case "chips": return chatChipsHtml(c, i);
+    case "checklist": return chatCheckHtml(c, i);
+    case "fields": return chatFieldsHtml(c, i);
+    case "files": return chatFilesMineHtml(c);
+    case "files_got": return chatFilesGotHtml(c);
+    case "result": return chatResultHtml(c, i);
+    default: return esc(c.text || "");
   }
-  wzSave();
-  if (WZ.step === 3) wzPaintUploads();
 }
-async function wzDelete(id){
-  const r = await api("/analytics/risk/document/" + encodeURIComponent(id), {method: "DELETE"});
-  if (!r.ok && r.status !== 404) {                 // 404 — срок хранения уже истёк, убираем из списка
-    WZ.upMsg = {kind: "err", text: () => T("tg.an.del_failed", "Файл не удалён: {reason}", {reason: r.error})};
-    wzPaintUpMsg();
-    return;
+function chatTextHtml(c){
+  return String(chatTr(c.text) || "").split("\n").filter(x => x.trim())
+    .map(x => "<p>" + esc(x) + "</p>").join("");
+}
+function chatChipsHtml(c, i){
+  return (c.title ? '<p class="eyebrow">' + esc(c.title) + "</p>" : "")
+    + '<div class="chips">' + (c.items || []).map(x =>
+      '<button type="button" class="chip" data-chip="' + esc(c.key) + '" data-val="' + esc(x.value) + '">'
+      + esc(x.label || x.value) + "</button>").join("") + "</div>";
+}
+
+/* чек-лист документов: что уже есть и чего не хватает; основание — из ответа сервера */
+function chatCheckHtml(c, i){
+  const items = (c.items || []).filter(x => keepDoc(x.name));
+  const miss = items.filter(x => !x.ok).length;
+  return '<p class="eyebrow">' + esc(c.title || T("tg.chat.checklist", "Что должно быть внутри")) + "</p>"
+    + '<div class="chk">' + items.map(x =>
+      '<div><i class="' + (x.ok ? "ok" : "no") + '" aria-hidden="true">' + (x.ok ? "✓" : "✗") + "</i>"
+      + "<span>" + esc(x.name || "") + (x.why ? "<small>" + esc(x.why) + "</small>" : "") + "</span></div>").join("")
+    + "</div>"
+    + (c.basis ? '<p class="note">' + esc(c.basis) + "</p>" : "")
+    + (miss ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
+        + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "");
+}
+
+function chatFilesMineHtml(c){
+  return '<p class="eyebrow">' + esc(T("tg.chat.sent_files", "Отправил файлы")) + "</p>"
+    + (c.names || []).map(n => "<div>" + esc(n) + "</div>").join("")
+    + (CH.upName ? '<div class="upbar"><i id="chatUp" style="width:' + CH.upPct + '%"></i></div>' : "");
+}
+function chatFilesGotHtml(c){
+  const got = c.files || [];
+  return '<p class="eyebrow">' + esc(T("tg.chat.files_read", "Что нашёл в файлах")) + "</p>"
+    + '<div class="chk">' + got.map(f => {
+      const st = f.ok ? upStatus(f.status) : {cls: "stop", text: f.error || ""};
+      return '<div><i class="' + (f.ok ? "ok" : "no") + '" aria-hidden="true">' + (f.ok ? "✓" : "✗") + "</i>"
+        + "<span>" + esc(f.name || "") + "<small>" + esc(kindName(f.kind) + (st.text ? " · " + st.text : ""))
+        + ((f.filled || []).length ? " · " + esc(T("tg.chat.filled_n", "подставлено полей: {n}", {n: f.filled.length})) : "")
+        + "</small></span></div>";
+    }).join("") + "</div>";
+}
+
+/* ---------- карточка полей ---------- */
+function chatFieldsHtml(c, i){
+  const scope = c.scope === "optional" ? "optional" : "must";
+  const main = i === CH.feed.length - 1 ? ' id="chatMain"' : "";
+  return '<p class="eyebrow">' + esc(c.title || "") + "</p>"
+    + (c.note ? '<p class="note">' + esc(c.note) + "</p>" : "")
+    + (scope === "must" ? chatMustHtml(c, i) : chatOptionalHtml(c, i))
+    + '<div class="actions">'
+    + (scope === "must"
+        ? '<button type="button" class="btn btn-primary tg-main"' + main + ' data-go="must" data-ci="' + i + '">'
+          + esc(T("tg.chat.go_must", "Готово — считаем")) + "</button>"
+        : '<button type="button" class="btn btn-primary tg-main"' + main + ' data-go="analyze" data-ci="' + i + '">'
+          + esc(T("tg.chat.analyze", "Рассчитать")) + "</button>"
+          + '<button type="button" class="btn btn-secondary" data-go="full" data-ci="' + i + '">'
+          + esc(T("tg.chat.analyze_full", "Подробный расчёт")) + "</button>")
+    + "</div>";
+}
+
+/* четыре обязательных поля: класс или продукт, сумма, стоимость, регион */
+function chatMustHtml(c, i){
+  const fields = c.fields || [];
+  const by = k => fields.filter(f => f.key === k)[0];
+  const sums = ["sum_insured", "object_value"].map(by).filter(Boolean);
+  const rest = fields.filter(f => ["class_code", "product_code", "region", "sum_insured", "object_value"].indexOf(f.key) < 0);
+  return chatClassHtml(i)
+    + '<div class="hero2">' + sums.map(f => chatMoneyHtml(f, i)).join("") + "</div>"
+    + chatRegionHtml(i)
+    + rest.map(f => chatFieldHtml(f, "must", i)).join("");
+}
+function chatClassHtml(i){
+  const cls = CH.draft.must.class_code || "";
+  const prod = CH.draft.must.product_code || "";
+  if (CH.metaErr) return '<p class="note err">' + esc(T("tg.chat.meta_failed", "Список классов не загрузился: {reason}", {reason: CH.metaErr})) + "</p>";
+  const classes = (CH.meta && CH.meta.classes) || [];
+  const presets = CH.presets || [];
+  const found = chatProducts();
+  return '<div class="h3">' + esc(T("tg.an.f.class_code", "Класс страхования")) + "</div>"
+    + (presets.length ? '<div class="chips">' + presets.slice(0, 6).map(p =>
+        '<button type="button" class="chip" data-preset="' + esc(p.key) + '" data-ci="' + i + '"'
+        + ' aria-pressed="' + (cls && p.class_code === cls) + '">'
+        + esc(T(p.i18n_key || ("preset." + p.key), p.title || p.key)) + "</button>").join("") + "</div>" : "")
+    + '<div class="segsel">' + classes.slice(0, 8).map(cl =>
+        '<button type="button" data-cls="' + esc(cl.code) + '" data-ci="' + i + '" aria-pressed="' + (cls === cl.code) + '">'
+        + esc(cl.code + " · " + cl.name) + "</button>").join("") + "</div>"
+    + '<label class="f" for="chatQ">' + esc(T("tg.chat.find_product", "Найти продукт среди всех")) + "</label>"
+    + '<input id="chatQ" type="search" autocomplete="off" enterkeyhint="search" data-ci="' + i + '" value="' + esc(CH.q) + '"'
+    + ' placeholder="' + esc(T("tg.an.find_ph", "код или слово, например 0807 или склад")) + '">'
+    + (CH.q ? '<div class="plist">' + found.slice(0, 12).map(p =>
+        '<button type="button" data-prod="' + esc(p.code) + '" data-ci="' + i + '" aria-pressed="' + (prod === p.code) + '">'
+        + "<b>" + esc(p.code) + "</b><span>" + esc(p.name) + "</span></button>").join("")
+      + (found.length ? "" : '<div class="none">' + esc(T("tg.an.found_none", "Ничего не нашлось. Проверьте код или выберите «все классы».")) + "</div>")
+      + "</div>" : "")
+    + '<p class="note">' + esc(prod ? T("tg.an.picked_product", "Продукт {c} · {n}", {c: prod, n: chatProdName(prod)})
+        : cls ? T("tg.an.class_only", "Класс {c}, продукт не выбран", {c: cls})
+        : T("tg.an.pick_hint", "Выберите продукт из списка или хотя бы класс.")) + "</p>";
+}
+function chatProducts(){
+  const q = String(CH.q || "").trim().toLowerCase();
+  const all = (CH.meta && CH.meta.products) || [];
+  if (!q) return [];
+  return all.filter(p => String(p.code).toLowerCase().indexOf(q) === 0
+    || String(p.name || "").toLowerCase().indexOf(q) >= 0);
+}
+function chatProdName(code){
+  const p = ((CH.meta && CH.meta.products) || []).filter(x => x.code === code)[0];
+  return p ? p.name : "";
+}
+function chatMoneyHtml(f, i){
+  const id = "chf-" + f.key;
+  const v = CH.draft.must[f.key];
+  const other = f.key === "sum_insured" ? "object_value" : "sum_insured";
+  return '<div class="hero"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + "</label>"
+    + '<input id="' + id + '" type="text" inputmode="numeric" enterkeyhint="done" data-money="1" data-fk="' + esc(f.key) + '"'
+    + ' data-scope="must" value="' + esc(v == null ? "" : Number(v).toLocaleString(LOC())) + '">'
+    + '<span class="unit">' + esc(unitName(f.unit)) + "</span>"
+    + '<div class="qadd" data-for="' + esc(f.key) + '" data-ci="' + i + '">'
+    + '<button type="button" data-add="1000000">' + esc(T("tg.chat.add_mln", "+млн")) + "</button>"
+    + '<button type="button" data-add="1000000000">' + esc(T("tg.chat.add_bln", "+млрд")) + "</button>"
+    + '<button type="button" data-copy="' + esc(other) + '">'
+    + esc(f.key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div></div>";
+}
+function chatRegionHtml(i){
+  const regions = (CH.meta && CH.meta.regions) || [];
+  const cur = CH.draft.must.region || "";
+  const top = regions.slice(0, 8);
+  return '<div class="h3">' + esc(T("tg.an.f.region", "Регион")) + "</div>"
+    + '<div class="chips">' + top.map(r => {
+      const name = typeof r === "string" ? r : (r.name || r.code);
+      return '<button type="button" class="chip" data-region="' + esc(name) + '" data-ci="' + i + '"'
+        + ' aria-pressed="' + (cur === name) + '">' + esc(name) + "</button>";
+    }).join("") + "</div>"
+    + '<input id="chf-region" type="text" data-fk="region" data-scope="must" value="' + esc(cur) + '"'
+    + ' placeholder="' + esc(T("tg.chat.region_ph", "или впишите регион")) + '">';
+}
+
+/* «что ещё уточнить»: человек сам выбирает поля, выбранные раскрываются */
+function chatOptionalHtml(c, i){
+  const fields = (c.fields || []).filter(f => f.key !== "documents");
+  const on = k => CH.pick.indexOf(k) >= 0 || CH.draft.optional[k] != null;
+  return '<div class="chips">' + fields.map(f =>
+      '<button type="button" class="chip" data-opt="' + esc(f.key) + '" data-ci="' + i + '" aria-pressed="' + on(f.key) + '">'
+      + esc(fieldLabel(f)) + "</button>").join("") + "</div>"
+    + '<div class="fgrid">' + fields.filter(f => on(f.key)).map(f => chatFieldHtml(f, "optional", i)).join("") + "</div>";
+}
+
+function chatFieldHtml(f, scope, i){
+  const id = "chf-" + f.key;
+  const v = CH.draft[scope][f.key];
+  const opts = f.options || [];
+  const why = f.why ? '<span class="hint">' + esc(f.why) + "</span>" : "";
+  if (opts.length && opts.length <= 5) {
+    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + "</label>"
+      + '<div class="segsel">' + opts.map(o =>
+        '<button type="button" data-set="' + esc(f.key) + '" data-scope="' + scope + '" data-ci="' + i + '"'
+        + ' data-value="' + esc(o.code) + '" aria-pressed="' + (String(v) === String(o.code)) + '">'
+        + esc(optLabel(f, o)) + "</button>").join("") + "</div>" + why + "</div>";
   }
-  const gone = WZ.uploads.filter(u => u.doc_id === id)[0];
-  WZ.uploads = WZ.uploads.filter(u => u.doc_id !== id);
-  // значения, подставленные только из удалённого файла и не исправленные вручную, убираем из формы
-  const left = wzPrefill();
-  if (gone) ["must", "optional"].forEach(g => Object.keys((gone.prefill || {})[g] || {}).forEach(k => {
-    if (!left[k] && WZ.raw[k] === pfRaw(k, gone.prefill[g][k])) delete WZ.raw[k];
-  }));
-  wzApplyPrefill();
-  WZ.upMsg = {kind: "ok", text: () => T("tg.an.del_done", "Файл удалён с сервера.")};
-  wzSave();
-  wzPaintUploads();
+  if (opts.length) {
+    return '<div class="full"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + "</label>"
+      + '<select id="' + id + '" data-fk="' + esc(f.key) + '" data-scope="' + scope + '">'
+      + '<option value="">' + esc(T("common.not_set", "не задан")) + "</option>"
+      + opts.map(o => '<option value="' + esc(o.code) + '"' + (String(v) === String(o.code) ? " selected" : "") + ">"
+        + esc(optLabel(f, o)) + "</option>").join("") + "</select>" + why + "</div>";
+  }
+  if (f.type === "object" && (f.fields || []).length) {
+    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + "</label><div class=\"two\">"
+      + f.fields.map(sf => {
+        const sv = (v && typeof v === "object") ? v[sf.key] : "";
+        return "<div><label class=\"f\" for=\"" + id + "-" + sf.key + "\">" + esc(subLabel(f.key, sf.key)) + "</label>"
+          + '<input id="' + id + "-" + sf.key + '" type="text" inputmode="numeric" data-fk="' + esc(f.key)
+          + '" data-sub="' + esc(sf.key) + '" data-scope="' + scope + '" value="' + esc(sv == null ? "" : sv) + '"></div>';
+      }).join("") + "</div>" + why + "</div>";
+  }
+  const numeric = f.type === "number";
+  return '<div><label class="f" for="' + id + '">' + esc(fieldLabel(f))
+    + (f.unit ? " <span>" + esc(unitName(f.unit)) + "</span>" : "") + "</label>"
+    + '<input id="' + id + '" type="text"' + (numeric ? ' inputmode="numeric"' : "")
+    + (f.unit === MONEY_UNIT ? ' data-money="1"' : "")
+    + ' data-fk="' + esc(f.key) + '" data-scope="' + scope + '" value="' + esc(v == null ? "" : v) + '">' + why + "</div>";
 }
+
+/* ---------- итог ---------- */
+function chatResultHtml(c, i){
+  CH.res = c;
+  const s = c.summary || {};
+  const lv = c.level || {};
+  const fr = c.franchise || {};
+  return '<div class="reshead">'
+    + '<div class="gauge sm">' + gaugeSvg(lv.score, lv.scale) + "</div>"
+    + '<div class="reskpi">' + lvChip(lv.name)
+    + "<div><b>" + esc(money(s.premium)) + "</b><span>" + esc(T("tg.an.premium", "Страховая премия")) + "</span></div>"
+    + "<div><b>" + esc(pct(s.rate_applied_pct)) + "</b><span>" + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span></div>"
+    + (s.rate_min_pct != null ? "<div><b>" + esc(pct(s.rate_min_pct)) + "</b><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span></div>" : "")
+    + "</div></div>"
+    + '<p class="note warn">' + esc(T("tg.chat.uncal", "Часть коэффициентов ещё не калибрована на статистике компании — ставка предварительная, её подтверждает андеррайтер.")) + "</p>"
+    + chatOptionsHtml(fr, i)
+    + chatFranchiseHtml(fr)
+    + chatNarrativeHtml(c)
+    + chatAssumeHtml(c, i)
+    + chatDocsHtml(c)
+    + '<details class="opt" ' + (CH.detail ? "open" : "") + ' id="chatMore"><summary>'
+    + esc(T("tg.chat.more", "Подробнее: сценарии, риски, рынок")) + "</summary>"
+    + '<div id="chatDash">' + (CH.fullErr ? '<p class="note err">' + esc(CH.fullErr) + "</p>"
+        : CH.full ? "" : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>") + "</div></details>"
+    + '<div class="actions">'
+    + '<button type="button" class="btn btn-primary tg-main"' + (i === CH.feed.length - 1 ? ' id="chatMain"' : "") + ' data-go="refine">' + esc(T("tg.chat.refine", "Уточнить")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.chat.restart", "Новый анализ")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-go="legal">' + esc(T("tg.chat.ask_legal", "Спросить специалиста")) + "</button>"
+    + "</div>";
+}
+
+/* три варианта тарифа: базовый, с франшизой, с мероприятиями — как их посчитал сервер */
+function chatOptionsHtml(fr, i){
+  const opts = (fr && fr.options) || [];
+  if (!opts.length) return "";
+  const name = o => o.title || {base: T("tg.chat.opt_base", "Базовый"),
+    franchise: T("tg.chat.opt_franchise", "С франшизой"),
+    measures: T("tg.chat.opt_measures", "С мероприятиями")}[o.key] || o.key;
+  return '<div class="h3">' + esc(T("tg.chat.options", "Варианты тарифа")) + "</div>"
+    + '<div class="opts">' + opts.map(o =>
+      '<div class="opt-card' + (CH.choice === o.key ? " on" : "") + '"><p class="eyebrow">' + esc(name(o)) + "</p>"
+      + "<b>" + esc(money(o.premium)) + "</b>"
+      + '<span class="note">' + esc(o.rate_pct != null ? pct(o.rate_pct) : "") + "</span>"
+      + (o.text ? '<p class="note">' + esc(o.text) + "</p>" : "")
+      + '<button type="button" class="btn btn-secondary btn-sm" data-choose="' + esc(o.key) + '" data-ci="' + i + '">'
+      + esc(CH.choice === o.key ? T("tg.chat.chosen", "Выбран") : T("tg.chat.choose", "Выбрать")) + "</button></div>").join("")
+    + "</div>";
+}
+function chatFranchiseHtml(fr){
+  if (!fr) return "";
+  if (!fr.ok) {
+    return '<p class="note warn">' + esc(T("tg.chat.fr_none", "Франшизу система пока не советует: {why}",
+      {why: fr.reason || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")})) + "</p>";
+  }
+  const f = fr.franchise || {};
+  return '<div class="h3">' + esc(T("tg.chat.fr_title", "Франшиза по ситуации")) + "</div>"
+    + '<p><b>' + esc(f.text || fr.decision || "") + "</b></p>"
+    + (f.peril ? '<p class="note">' + esc(T("tg.chat.fr_peril", "Риск: {p}", {p: f.peril})) + "</p>" : "")
+    + (fr.explanation ? '<p class="note">' + esc(T("tg.chat.fr_why", "Почему: {t}", {t: fr.explanation})) + "</p>" : "")
+    + (fr.tariff_advice ? '<p class="note">' + esc(T("tg.chat.fr_advice", "Совет по тарифу: {t}", {t: fr.tariff_advice})) + "</p>" : "");
+}
+function chatNarrativeHtml(c){
+  const text = c.narrative && String(c.narrative).trim();
+  if (!text) return "";
+  const src = c.narrative_source;
+  return '<div class="h3">' + esc(T("tg.chat.explain", "Пояснение"))
+    + ' <span class="tag' + (src === "ии" || src === "ai" ? "" : " off") + '">'
+    + esc(src === "ии" || src === "ai" ? T("tg.chat.src_ai", "ИИ") : T("tg.chat.src_rules", "правила")) + "</span></div>"
+    + chatTextHtml({text: text});
+}
+function chatAssumeHtml(c, i){
+  const list = c.assumptions || [];
+  if (!list.length) return "";
+  return '<div class="h3">' + esc(T("tg.an.assumed_title", "Возьмём по умолчанию")) + "</div>"
+    + list.map(x => '<div class="asm"><div><b>' + esc((x.label || x.key) + ": " + (x.value_label || x.value)) + "</b>"
+      + "<span>" + esc(x.why || T("tg.an.assumed_note", "взято по умолчанию — уточните")) + "</span></div>"
+      + '<button type="button" class="btn btn-secondary btn-sm" data-fix="' + esc(x.key) + '" data-ci="' + i + '">'
+      + esc(T("tg.an.assumed_edit", "Изменить")) + "</button></div>").join("");
+}
+function chatDocsHtml(c){
+  const d = c.documents || {};
+  const items = (d.items || []).filter(x => keepDoc(x.name || x.kind));
+  const missing = (d.missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name)));
+  if (!items.length && !missing.length) return "";
+  return '<div class="h3">' + esc(T("tg.an.docs_block", "Документы")) + "</div>"
+    + '<div class="chk">'
+    + items.map(x => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(x.name || x.kind || "") + "</span></div>").join("")
+    + missing.map(x => '<div><i class="no" aria-hidden="true">✗</i><span>' + esc(typeof x === "string" ? x : (x.name || "")) + "</span></div>").join("")
+    + "</div>";
+}
+
+/* «Подробнее»: сценарии, риски, рынок и регион — те же карточки дашборда, что и раньше.
+   Полный разбор считает POST /analytics/risk по тем же данным диалога. */
+async function chatFull(){
+  if (CH.full || CH.busy) { chatPaintDash(); return; }
+  const body = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {}), mode: "full"};
+  const r = await api("/analytics/risk", jsonOpts("POST", body));
+  if (!r.ok) { CH.fullErr = r.error; chatPaintDash(); return; }
+  CH.fullErr = "";
+  CH.full = r.data;
+  AN.res = r.data;
+  chatPaintDash();
+}
+function chatPaintDash(){
+  const box = $("#chatDash");
+  if (!box) return;
+  const r = CH.full;
+  if (!r) { box.innerHTML = CH.fullErr ? '<p class="note err">' + esc(CH.fullErr) + "</p>" : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; return; }
+  box.innerHTML = '<div class="dash">'
+    + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r)
+    + "</div>";
+  box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); }; });
+  anPaintScenario();
+}
+
+/* ---------- обработчики карточек ---------- */
+function chatBind(box){
+  box.querySelectorAll("[data-chip]").forEach(b => {
+    b.onclick = () => chatChip(b.dataset.chip, b.dataset.val, b.textContent);
+  });
+  box.querySelectorAll("[data-upload]").forEach(b => { b.onclick = chatPickFiles; });
+  box.querySelectorAll("[data-preset]").forEach(b => {
+    b.onclick = () => {
+      const p = (CH.presets || []).filter(x => x.key === b.dataset.preset)[0];
+      if (!p) return;
+      CH.draft.must.class_code = p.class_code || CH.draft.must.class_code;
+      if (p.object_type) CH.draft.must.object_type = p.object_type;
+      haptic("select");
+      chatMeta(CH.draft.must.class_code).then(() => chatRepaintCard(Number(b.dataset.ci)));
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-cls]").forEach(b => {
+    b.onclick = () => {
+      CH.draft.must.class_code = b.dataset.cls;
+      CH.draft.must.product_code = "";
+      haptic("select");
+      chatMeta(b.dataset.cls).then(() => chatRepaintCard(Number(b.dataset.ci)));
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-prod]").forEach(b => {
+    b.onclick = () => {
+      const p = ((CH.meta && CH.meta.products) || []).filter(x => x.code === b.dataset.prod)[0];
+      CH.draft.must.product_code = b.dataset.prod;
+      if (p && (p.classes || []).length) CH.draft.must.class_code = p.classes.join("/");
+      haptic("select");
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-region]").forEach(b => {
+    b.onclick = () => {
+      CH.draft.must.region = b.dataset.region;
+      try { localStorage.setItem(CH_REGION, b.dataset.region); } catch (e) {}
+      haptic("select");
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-opt]").forEach(b => {
+    b.onclick = () => {
+      const k = b.dataset.opt;
+      const at = CH.pick.indexOf(k);
+      if (at >= 0) { CH.pick.splice(at, 1); delete CH.draft.optional[k]; } else CH.pick.push(k);
+      haptic("select");
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-set]").forEach(b => {
+    b.onclick = () => {
+      CH.draft[b.dataset.scope][b.dataset.set] = b.dataset.value;
+      haptic("select");
+      chatRepaintCard(Number(b.dataset.ci));
+    };
+  });
+  box.querySelectorAll("[data-fix]").forEach(b => {
+    b.onclick = () => {
+      if (CH.pick.indexOf(b.dataset.fix) < 0) CH.pick.push(b.dataset.fix);
+      chatPost("/chat/answer", {key: "next", value: "refine"});
+    };
+  });
+  box.querySelectorAll("[data-choose]").forEach(b => {
+    b.onclick = () => { CH.choice = b.dataset.choose; haptic("select"); chatRepaintCard(Number(b.dataset.ci)); };
+  });
+  box.querySelectorAll("[data-go]").forEach(b => {
+    b.onclick = () => {
+      const go = b.dataset.go;
+      if (go === "must") chatFields("must");
+      else if (go === "analyze") chatAnalyze("quick");
+      else if (go === "full") chatAnalyze("full");
+      else if (go === "refine") chatPost("/chat/answer", {key: "next", value: "refine"});
+      else if (go === "restart") chatStart();
+      else if (go === "legal") chatToLegal();
+    };
+  });
+  // ввод в поля: значение запоминаем, карточку не перерисовываем — курсор остаётся на месте
+  box.querySelectorAll("[data-fk]").forEach(el => {
+    el.oninput = () => {
+      if (el.dataset.money) groupDigitsLive(el);
+      const scope = el.dataset.scope;
+      const key = el.dataset.fk;
+      const raw = el.value;
+      if (el.dataset.sub) {
+        const cur = Object.assign({}, CH.draft[scope][key] || {});
+        cur[el.dataset.sub] = num(raw) || "";
+        CH.draft[scope][key] = cur;
+        return;
+      }
+      CH.draft[scope][key] = (el.dataset.money || el.inputMode === "numeric") ? num(raw) : raw;
+      if (!raw) delete CH.draft[scope][key];
+    };
+  });
+  box.querySelectorAll(".qadd button").forEach(b => {
+    b.onclick = () => {
+      const key = b.parentNode.dataset.for;
+      const el = $("#chf-" + key);
+      if (b.dataset.add) CH.draft.must[key] = (num(CH.draft.must[key]) || 0) + Number(b.dataset.add);
+      else CH.draft.must[key] = num(CH.draft.must[b.dataset.copy]) || 0;
+      if (el) el.value = Number(CH.draft.must[key]).toLocaleString(LOC());
+      haptic("select");
+    };
+  });
+  const q = box.querySelector("#chatQ");
+  if (q) {
+    q.oninput = () => {
+      CH.q = q.value;
+      const i = Number(q.dataset.ci);
+      const at = q.selectionStart;
+      chatRepaintCard(i);
+      const again = $("#chatQ");
+      if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
+    };
+  }
+  const more = box.querySelector("#chatMore");
+  if (more) more.ontoggle = () => { CH.detail = more.open; if (more.open) chatFull(); };
+  if (more && more.open && CH.full) chatPaintDash();
+}
+
+/* «Спросить юриста»: открываем раздел «Юрист» и переносим туда вопрос по объекту */
+function chatToLegal(){
+  const s = (CH.state && CH.state.must) || {};
+  const q = T("tg.chat.legal_q", "Объект: {o}, класс {c}. Что закон требует сказать клиенту при заключении договора?",
+    {o: s.object_type || s.product_code || "—", c: s.class_code || "—"});
+  openTab("legal");
+  lgAsk(q);
+}
+
+/* ---------- строка ввода: текст, скрепка, перетаскивание, буфер ---------- */
+function chatBoot(){
+  const text = $("#chatText");
+  text.addEventListener("input", () => {
+    text.style.height = "auto";
+    text.style.height = Math.min(140, text.scrollHeight) + "px";
+  });
+  text.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey && WIDE.matches) { e.preventDefault(); chatSend(); }
+  });
+  $("#chatSend").onclick = chatSend;
+  $("#chatClip").onclick = chatPickFiles;
+  $("#chatFile").onchange = e => { chatUpload(e.target.files); e.target.value = ""; };
+  // перетащить файл можно в любое место экрана: подсвечиваем всю область
+  let depth = 0;
+  const zone = on => { $("#chatDrop").classList.toggle("hidden", !on); };
+  document.addEventListener("dragenter", e => {
+    if (TAB !== "chat" || !e.dataTransfer || (e.dataTransfer.types || []).indexOf("Files") < 0) return;
+    depth++;
+    zone(true);
+  });
+  document.addEventListener("dragover", e => { if (!$("#chatDrop").classList.contains("hidden")) e.preventDefault(); });
+  document.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) zone(false); });
+  document.addEventListener("drop", e => {
+    if (TAB !== "chat") return;
+    depth = 0;
+    zone(false);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      e.preventDefault();
+      chatUpload(e.dataTransfer.files);
+    }
+  });
+  // вставка из буфера: скриншот или файл прямо в ленту
+  document.addEventListener("paste", e => {
+    if (TAB !== "chat" || !e.clipboardData) return;
+    const files = Array.prototype.slice.call(e.clipboardData.files || []);
+    if (files.length) { e.preventDefault(); chatUpload(files); }
+  });
+  // на телефоне снимок делает камера, на компьютере — обычный выбор файла
+  if (!WIDE.matches) $("#chatFile").setAttribute("capture", "environment");
+  const saved = (function(){ try { return localStorage.getItem(CH_REGION) || ""; } catch (e) { return ""; } })();
+  if (saved) CH.draft.must.region = saved;
+}
+
+chatBoot();
 
 /* ---------- подписи полей: ключи словаря, запас — подпись сервера ---------- */
 function fieldLabel(f){
@@ -2209,630 +2626,6 @@ function subLabel(parent, key){
     case "bi.recovery_months": return T("tg.an.sf.bi_recovery", "Восстановление");
     default: return key;
   }
-}
-
-/* ---------- панель «Данные объекта» ---------- */
-function anClassOptions(){
-  const cl = (AN.fields && AN.fields.classes) || [];
-  const combo = '<option value="8/9">' + esc(T("tg.an.cls_89", "8/9 · Имущество: огонь и стихия + ущерб")) + "</option>";
-  return combo + cl.map(c => '<option value="' + esc(c.code) + '">' + esc(c.code + " · " + c.name) + "</option>").join("");
-}
-function anProducts(){
-  const cls = AN.cls.split("/");
-  return ((AN.fields && AN.fields.products) || []).filter(p => (p.classes || []).some(c => cls.indexOf(c) >= 0));
-}
-/* короткое поле (срок, год, этажность, сейсмозона, износ…) — на телефоне по два в ряд */
-function isShort(f){ return f.type === "number" && f.unit !== MONEY_UNIT && !f.options; }
-/* короткие поля ставим парами: собираем их подряд, а последнее без пары растягиваем на всю ширину —
-   на телефоне не остаётся половинок с пустым местом рядом */
-function pairShort(list){
-  const shortOnes = list.filter(isShort), rest = list.filter(f => !isShort(f));
-  const odd = shortOnes.length % 2 ? shortOnes[shortOnes.length - 1].key : null;
-  const at = list.findIndex(isShort);
-  const marked = shortOnes.map(f => f.key === odd ? Object.assign({}, f, {lone: true}) : f);
-  return at < 0 ? list : rest.slice(0, at).concat(marked, rest.slice(at));
-}
-function wrapField(f, inner, wide){
-  return '<div id="anw-' + esc(f.key) + '"' + (wide ? ' class="full"' : isShort(f) && !f.lone ? ' class="half"' : "") + ">"
-    + '<label class="f" for="anf-' + esc(f.key) + '"><span>' + esc(fieldLabel(f)) + "</span>"
-    + (f.unit ? '<span class="unit">' + esc(unitName(f.unit, f.unit_code)) + "</span>" : "")
-    + (f.required ? '<span class="req">' + esc(T("tg.an.required", "обязательно")) + "</span>" : "") + "</label>"
-    + inner + '<span class="ferr" id="ane-' + esc(f.key) + '"></span></div>';
-}
-function inputHtml(f, id, unit, sub){
-  const money = unit === MONEY_UNIT;
-  return '<input id="' + esc(id) + '" type="text" autocomplete="off" inputmode="' + (money ? "numeric" : "decimal") + '"'
-    + ' data-key="' + esc(f.key) + '"' + (sub ? ' data-sub="' + esc(sub) + '"' : "") + (money ? ' data-money="1"' : "") + ">";
-}
-function fieldHtml(f){
-  const id = "anf-" + f.key;
-  if (f.key === "class_code") {
-    return wrapField(f, '<select id="' + id + '" data-key="class_code">' + anClassOptions() + "</select>");
-  }
-  if (f.key === "product_code") {
-    return wrapField(f, '<select id="' + id + '" data-key="product_code"><option value="">'
-      + esc(T("tg.an.product_auto", "подобрать по классу")) + "</option>"
-      + anProducts().map(p => '<option value="' + esc(p.code) + '">' + esc(p.code + " · " + p.name) + "</option>").join("") + "</select>");
-  }
-  if (f.key === "object_type") {
-    const types = (AN.fields && AN.fields.object_types) || [];
-    return wrapField(f, '<input id="' + id + '" type="text" autocomplete="off" list="anTypes" data-key="object_type"'
-      + ' placeholder="' + esc(T("tg.an.object_type_ph", "например Склад или Производство")) + '">'
-      + '<datalist id="anTypes">' + types.map(t => '<option value="' + esc(t) + '">').join("") + "</datalist>");
-  }
-  if (f.key === "region") {
-    const regs = (AN.fields && AN.fields.regions) || [];
-    return wrapField(f, '<select id="' + id + '" data-key="region"><option value="">' + esc(T("tg.an.region_pick", "выберите регион")) + "</option>"
-      + regs.map(r => '<option value="' + esc(r.name) + '">' + esc(r.name) + "</option>").join("") + "</select>");
-  }
-  if (f.type === "select") {
-    const opts5 = f.options || [];
-    if (WZ.mode === "quick" && opts5.length && opts5.length <= 5) {
-      return wrapField(f, '<input type="hidden" id="' + id + '" data-key="' + esc(f.key) + '" data-text="1">'
-        + '<div class="segsel" data-seg="' + esc(f.key) + '">'
-        + opts5.map(o => '<button type="button" data-val="' + esc(o.code) + '">' + esc(optLabel(f, o)) + "</button>").join("") + "</div>");
-    }
-    return wrapField(f, '<select id="' + id + '" data-key="' + esc(f.key) + '"><option value="">'
-      + esc(f.required ? T("tg.an.pick", "выберите") : T("tg.an.not_set", "не указано")) + "</option>"
-      + (f.options || []).map(o => '<option value="' + esc(o.code) + '">' + esc(optLabel(f, o)) + "</option>").join("") + "</select>");
-  }
-  if (f.type === "flag") {
-    return '<div id="anw-' + esc(f.key) + '" style="grid-column:1/-1"><label class="flag"><input type="checkbox" id="' + id + '" data-key="' + esc(f.key) + '">'
-      + "<span>" + esc(fieldLabel(f)) + "</span></label>" + '<span class="ferr" id="ane-' + esc(f.key) + '"></span></div>';
-  }
-  if (f.type === "object") {
-    const subs = (f.fields || []).map(s =>
-      "<div><label class=\"f\" for=\"" + esc(id + "-" + s.key) + '" style="margin-top:0;font-weight:400">' + esc(subLabel(f.key, s.key))
-      + (s.unit ? ' <span class="unit">' + esc(unitName(s.unit, s.unit_code)) + "</span>" : "") + "</label>"
-      + (s.type === "text"
-        ? '<input id="' + esc(id + "-" + s.key) + '" type="text" autocomplete="off" data-key="' + esc(f.key) + '" data-sub="' + esc(s.key) + '" data-text="1">'
-        : inputHtml(f, id + "-" + s.key, s.unit, s.key)) + "</div>").join("");
-    return wrapField(Object.assign({}, f, {unit: ""}), '<div class="sub2">' + subs + "</div>");
-  }
-  return wrapField(f, inputHtml(f, id, f.unit));
-}
-
-/* значения формы: {must:{}, optional:{}} — только заполненное */
-function anRead(){
-  const out = {must: {}, optional: {}}, raw = {};
-  const box = $("#anInput");
-  if (!box || !AN.fields) return {body: out, raw: raw};
-  const where = {};
-  (AN.fields.must_full || AN.fields.must || []).forEach(f => { where[f.key] = "must"; });
-  (AN.fields.optional || []).forEach(f => { where[f.key] = "optional"; });
-  box.querySelectorAll("[data-key]").forEach(el => {
-    const key = el.dataset.key, sub = el.dataset.sub;
-    const v = el.type === "checkbox" ? el.checked : el.value;
-    raw[key + (sub ? "." + sub : "")] = v;
-    const grp = where[key] || "must";
-    let val;
-    if (el.type === "checkbox") { if (!v) return; val = true; }
-    else if (el.tagName === "SELECT" || key === "object_type" || el.dataset.text) { val = String(v).trim(); if (!val) return; }
-    else if (el.dataset.money) { const d = String(v).replace(/\D/g, ""); if (!d) return; val = Number(d); }
-    else {
-      const t = String(v).trim(); if (!t) return;
-      const n = dec(t);
-      val = (n != null && !isNaN(n)) ? n : t;       // «8–9» у сейсмозоны сервер принимает строкой
-    }
-    if (sub) { out[grp][key] = out[grp][key] || {}; out[grp][key][sub] = val; }
-    else out[grp][key] = val;
-  });
-  if (WZ.cls) out.must.class_code = WZ.cls;              // класс и продукт выбраны на шаге 1
-  if (WZ.product) out.must.product_code = WZ.product.code;
-  return {body: out, raw: raw};
-}
-function anRestore(raw){
-  const box = $("#anInput");
-  Object.keys(raw || {}).forEach(k => {
-    const parts = k.split(".");
-    const sel = parts[1] ? '[data-key="' + parts[0] + '"][data-sub="' + parts[1] + '"]' : '[data-key="' + parts[0] + '"]:not([data-sub])';
-    const el = box.querySelector(sel);
-    if (!el) return;
-    if (el.type === "checkbox") el.checked = !!raw[k];
-    else if (el.tagName === "SELECT") { if (Array.prototype.some.call(el.options, o => o.value === raw[k])) el.value = raw[k]; }
-    else el.value = raw[k];
-  });
-}
-
-function anCompleteness(){
-  if (!AN.fields) return 0;
-  const {body} = anRead();
-  const must = (AN.fields.must_full || AN.fields.must || []).filter(f => f.required);
-  const opt = AN.fields.optional || [];
-  const mf = must.filter(f => body.must[f.key] != null).length;
-  const of = opt.filter(f => body.optional[f.key] != null).length;
-  const tot = must.length + opt.length;
-  return tot ? Math.round((mf + of) / tot * 100) : 0;
-}
-function meterHtml(p, id){
-  return '<span class="meter" id="' + id + '"><span>' + esc(T("tg.an.filled", "заполнено")) + '</span><i><b style="width:' + p + '%"></b></i><em>' + p + "%</em></span>";
-}
-function anMeter(){
-  const p = anCompleteness();
-  ["#anMeter", "#anMeterOpt"].forEach(s => {
-    const m = $(s); if (!m) return;
-    m.querySelector("b").style.width = p + "%";
-    m.querySelector("em").textContent = p + "%";
-  });
-}
-
-/* ---------- шаг 4: суммы и объект ---------- */
-function heroField(f){
-  const id = "anf-" + f.key;
-  return '<div id="anw-' + esc(f.key) + '"><label class="f" for="' + id + '"><span>' + esc(fieldLabel(f)) + "</span>"
-    + '<span class="unit">' + esc(unitName(f.unit || MONEY_UNIT, f.unit_code)) + "</span></label>"
-    + '<input id="' + id + '" type="text" autocomplete="off" inputmode="numeric" data-key="' + esc(f.key) + '" data-money="1" placeholder="0">'
-    + '<span class="ferr" id="ane-' + esc(f.key) + '"></span></div>';
-}
-function wzStep4(box){
-  if (AN.fieldsErr) {
-    box.innerHTML = failCard(T("tg.an.data", "Данные объекта"), T("tg.an.fields_failed", "Поля формы не загрузились: {reason}. Обновите раздел.", {reason: AN.fieldsErr}), "wzRetry4");
-    $("#wzRetry4").onclick = async () => { AN.fieldsErr = ""; box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; await anFetchFields(WZ.cls); wzPaint(); };
-    return;
-  }
-  if (!AN.fields || AN.cls !== WZ.cls) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
-  wzApplyPrefill();
-  if (WZ.otype && !WZ.raw.object_type) WZ.raw.object_type = WZ.otype;
-  const must = (AN.fields.must || []).filter(f => HERO.indexOf(f.key) < 0 && FROM_STEP1.indexOf(f.key) < 0);
-  const hero = HERO.map(k => (AN.fields.must || []).filter(f => f.key === k)[0]).filter(Boolean);
-  const opt = AN.fields.optional || [];
-  box.innerHTML = '<div id="anInput">'
-    + '<div class="card"><h2>' + esc(T("tg.an.sums_title", "Суммы")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.sums_hint", "Страховая сумма — предел выплаты по договору. Стоимость — сколько объект стоит на самом деле.")) + "</p>"
-    + '<div class="hero2">' + hero.map(heroField).join("") + "</div>"
-    + '<div id="wzRatio"></div></div>'
-    + '<div class="card"><div class="an-head"><h2>' + esc(T("tg.an.data", "Данные объекта")) + "</h2>" + meterHtml(0, "anMeter") + "</div>"
-    + '<p class="sub">' + esc(prodLine()) + "</p>"
-    + '<div class="h3">' + esc(T("tg.an.must", "Обязательно")) + "</div>"
-    + '<div class="fgrid">' + pairShort(must).map(fieldHtml).join("") + "</div>"
-    + '<details class="opt"><summary>' + esc(T("tg.an.optional", "Дополнительно"))
-    + " <span>" + esc(T("tg.an.optional_hint", "повышает точность")) + "</span>" + meterHtml(0, "anMeterOpt") + "</summary>"
-    + '<div class="fgrid">' + pairShort(opt).map(fieldHtml).join("") + "</div></details>"
-    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button>"
-    + '<button type="button" class="btn btn-secondary tg-back" id="wzBack4">' + esc(T("common.back", "Назад")) + "</button></div>"
-    + '<div class="note msg" id="anMsg"></div></div></div>';
-  anRestore(WZ.raw);
-  box.querySelectorAll("[data-money]").forEach(el => { if (el.value) groupDigitsLive(el); });
-  wzMarks();
-  wzRatio();
-  anMeter();
-  anShowErrors();
-  anPaintMsg();
-  $("#anGo").onclick = analyze;
-  $("#wzBack4").onclick = () => wzGo(3);
-  const inp = $("#anInput");
-  inp.oninput = anOnInput;
-  inp.onchange = anOnInput;
-}
-/* пометка «из договора — проверьте» у полей, где значение подставлено и ещё не исправлено */
-function wzMarks(){
-  const pf = wzPrefill();
-  const raw = anRead().raw;
-  Object.keys(pf).forEach(k => wzMark(k, pf[k], raw[k]));
-}
-function wzMark(k, x, cur){
-  const w = $("#anw-" + k);
-  if (!w) return;
-  const old = w.querySelector(".pfmark");
-  if (old) old.remove();
-  if (!x || String(cur == null ? "" : cur) !== pfRaw(k, x)) return;
-  const lab = w.querySelector("label");
-  if (lab) lab.insertAdjacentHTML("beforeend", '<span class="tag pfmark" title="' + esc(confName(x.confidence)) + '">'
-    + esc(T("tg.an.from_contract_check", "из договора — проверьте")) + "</span>");
-}
-/* соотношение страховой суммы и стоимости — ГК РУз, ст. 936 и 938 */
-function wzRatio(){
-  const el = $("#wzRatio");
-  if (!el) return;
-  const s = num(($("#anf-sum_insured") || {}).value), v = num(($("#anf-object_value") || {}).value);
-  if (!s || !v) { el.innerHTML = '<p class="note" style="margin:var(--s2) 0 0">' + esc(T("tg.an.ratio_empty", "Введите обе суммы — покажем, будет ли выплата полной.")) + "</p>"; return; }
-  const k = s / v;
-  const p = nf(k * 100, k < 0.995 || k > 1.005 ? 1 : 0);
-  let cls, title, text;
-  if (Math.abs(k - 1) < 0.005) {
-    cls = ""; title = T("tg.an.ratio_full", "Сумма равна стоимости — при убытке выплата полная");
-    text = T("tg.an.ratio_full_d", "Недострахования и превышения нет.");
-  } else if (k < 1) {
-    cls = "warn"; title = T("tg.an.ratio_under", "Недострахование: сумма — {p}% стоимости", {p: p});
-    text = T("tg.an.ratio_under_d", "При убытке выплата составит {p}% ущерба — пропорционально (ГК РУз, ст. 936). Скажите об этом клиенту.", {p: p});
-  } else {
-    cls = "stop"; title = T("tg.an.ratio_over", "Сумма больше стоимости: {p}%", {p: p});
-    text = T("tg.an.ratio_over_d", "Договор недействителен в части, превышающей стоимость (ГК РУз, ст. 938). Снизьте сумму до стоимости или проверьте оценку.");
-  }
-  el.innerHTML = '<div class="itv ' + cls + '"><div><b>' + esc(title) + "</b><span>" + esc(text) + "</span></div></div>";
-}
-function anOnInput(e){
-  const t = e.target;
-  if (!t || !t.dataset || !t.dataset.key) return;
-  if (e.type === "input" && t.dataset.money) groupDigitsLive(t);   // разделители сразу, курсор на месте
-  WZ.raw = anRead().raw;
-  wzSave();
-  anMeter();                                   // перерисовываем только индикатор — курсор остаётся в поле
-  const k = t.dataset.key;
-  if (HERO.indexOf(k) >= 0) wzRatio();
-  const pf = wzPrefill();
-  if (pf[k]) wzMark(k, pf[k], WZ.raw[k]);
-  if (AN.missing.indexOf(k) >= 0 || AN.errors[k]) {
-    AN.missing = AN.missing.filter(x => x !== k);
-    delete AN.errors[k];
-    anShowErrors();
-  }
-}
-
-function anShowErrors(){
-  const box = $("#anInput");
-  if (!box) return;
-  box.querySelectorAll("[id^='anw-']").forEach(w => w.classList.remove("bad"));
-  box.querySelectorAll(".ferr").forEach(e => { e.textContent = ""; });
-  AN.missing.forEach(k => {
-    const w = $("#anw-" + k), e = $("#ane-" + k);
-    if (w) w.classList.add("bad");
-    if (e) e.textContent = T("tg.an.fill_this", "Заполните это поле — без него анализ не запустится.");
-  });
-  Object.keys(AN.errors).forEach(k => {
-    const w = $("#anw-" + k), e = $("#ane-" + k);
-    if (w) w.classList.add("bad");
-    if (e) e.textContent = AN.errors[k];          // текст ошибки — с сервера
-  });
-  // ошибка в свёрнутом блоке «Дополнительно» не должна прятаться
-  const det = box.querySelector("details.opt");
-  if (det && det.querySelector(".bad")) det.open = true;
-}
-function anPaintMsg(){
-  const m = $("#anMsg");
-  if (!m) return;
-  const x = AN.msg;
-  if (!x) { m.innerHTML = ""; return; }
-  if (x.kind === "busy") m.innerHTML = spin(T("tg.an.analyzing", "анализирую…"));
-  else if (x.kind === "missing") m.innerHTML = errHtml(T("tg.an.missing", "Анализ не запущен: заполните поля, отмеченные красным ({n}).", {n: x.n}));
-  else if (x.kind === "server") m.innerHTML = errHtml(x.text);
-}
-
-async function analyze(){
-  if (AN.busy) return;
-  const {body, raw} = anRead();
-  WZ.raw = raw;
-  // сначала проверяем сами: пустые обязательные подсвечиваем сразу, не дожидаясь сервера
-  const miss = (AN.fields.must || []).filter(f => f.required && body.must[f.key] == null).map(f => f.key);
-  if (WZ.mode === "quick" && !WZ.cls && !WZ.product && miss.indexOf("class_code") < 0) miss.unshift("class_code");
-  AN.errors = {};
-  AN.missing = miss;
-  if (miss.length) {
-    AN.msg = {kind: "missing", n: miss.length}; anShowErrors(); anPaintMsg(); haptic("error");
-    const first = $("#anw-" + miss[0]);
-    if (first) first.scrollIntoView({block: "center"});
-    return;
-  }
-  body.doc_ids = WZ.uploads.map(u => u.doc_id);
-  body.mode = WZ.mode;
-  AN.busy = true; AN.msg = {kind: "busy"}; anPaintMsg();
-  $("#anGo").disabled = true;
-  tgBusy(true);
-  const r = await api("/analytics/risk", jsonOpts("POST", body));
-  tgBusy(false);
-  AN.busy = false;
-  if ($("#anGo")) $("#anGo").disabled = false;
-  if (!r.ok) {
-    const d = r.data || {};
-    AN.missing = d.missing || [];
-    AN.errors = d.errors || {};
-    AN.msg = {kind: "server", text: (d.detail && typeof d.detail === "string") ? d.detail : r.error};
-    anShowErrors(); anPaintMsg(); haptic("error");
-    return;
-  }
-  AN.msg = null;
-  AN.res = r.data;
-  AN.group = (AN.fields && AN.fields.group) || "property";
-  anSaveLast();
-  if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
-  wzGo(5);
-}
-
-/* =====================================================================================
-   Быстрый режим аналитики: один экран вместо пяти шагов.
-   Данные: GET /analytics/risk/presets           — плитки готовых объектов;
-           GET /analytics/risk/fields?mode=quick — четыре обязательных поля, остальные (must_full)
-                                                   и подстановки по умолчанию (will_assume);
-           GET|PUT /analytics/risk/last          — последние значения формы (без сумм и ПД);
-           POST /analytics/risk с mode:"quick"   — анализ; подстановки возвращаются в assumptions.
-   Подробный режим — те же пять шагов, что и раньше: переключатель внизу экрана.
-   ===================================================================================== */
-const QUICK_ICON = {warehouse: "▤", shop: "▢", office: "▥", production: "⚙", house: "⌂",
-  car: "⛍", truck: "⛟", excavator: "⛏", goods: "▦"};
-let PRESETS = null, PRESETS_ERR = "";
-let LAST_VALUES = null, LAST_LOADED = false;
-const LAST_KEYS = ["class_code", "product_code", "object_type", "region", "term_months", "construction",
-  "activity", "vehicle_type", "protection", "seismic_zone", "mode"];
-
-async function anFetchPresets(){
-  const r = await api("/analytics/risk/presets");
-  if (!r.ok) { PRESETS_ERR = r.error; return; }
-  PRESETS_ERR = "";
-  PRESETS = r.data.presets || [];
-}
-async function anFetchLast(){
-  LAST_LOADED = true;
-  const r = await api("/analytics/risk/last");
-  LAST_VALUES = r.ok ? (r.data.values || {}) : {};
-}
-/* поля быстрого режима: четыре обязательных, остальные — в «Уточнить данные» */
-async function anFetchQuick(){
-  const q = "?class_code=" + encodeURIComponent(WZ.cls || "")
-    + "&product_code=" + encodeURIComponent(WZ.product ? WZ.product.code : "") + "&mode=quick";
-  const r = await api("/analytics/risk/fields" + q);
-  if (!r.ok) { AN.fieldsErr = r.error; return; }
-  AN.fieldsErr = "";
-  AN.cls = WZ.cls;
-  AN.qcls = WZ.cls + "|" + (WZ.product ? WZ.product.code : "");
-  AN.fields = r.data;
-}
-/* последние значения и регион из профиля подставляем только в пустые поля */
-function qSeed(){
-  const f = AN.fields || {};
-  (f.quick_must_keys || []).concat(f.hidden_keys || []).forEach(k => {
-    if (WZ.raw[k] == null && LAST_VALUES && LAST_VALUES[k] != null) WZ.raw[k] = String(LAST_VALUES[k]);
-  });
-  if (!WZ.raw.region && f.region_from_profile) WZ.raw.region = f.region_from_profile;
-  if (WZ.otype && !WZ.raw.object_type) WZ.raw.object_type = WZ.otype;
-}
-async function anSaveLast(){
-  const body = {};
-  LAST_KEYS.forEach(k => { if (WZ.raw[k]) body[k] = WZ.raw[k]; });
-  body.class_code = WZ.cls || "";
-  if (WZ.product) body.product_code = WZ.product.code;
-  body.mode = WZ.mode;
-  await api("/analytics/risk/last", jsonOpts("PUT", body));
-}
-
-/* ---------- плитки готовых объектов ---------- */
-function qPresetTitle(p){ return T(p.i18n_key || ("preset." + p.key), p.title || p.key); }
-function qPresetsHtml(){
-  if (PRESETS_ERR) return '<p class="note err">' + esc(T("tg.an.presets_failed", "Готовые объекты не загрузились: {reason}", {reason: PRESETS_ERR})) + "</p>";
-  if (!PRESETS) return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>";
-  return '<div class="tiles">' + PRESETS.map(p => '<button type="button" class="tile" data-preset="' + esc(p.key) + '"'
-    + ' aria-pressed="' + (WZ.preset === p.key) + '"><i aria-hidden="true">' + esc(QUICK_ICON[p.key] || "▢") + "</i>"
-    + esc(qPresetTitle(p)) + "</button>").join("") + "</div>";
-}
-async function qApplyPreset(key){
-  const p = (PRESETS || []).filter(x => x.key === key)[0];
-  if (!p) return;
-  WZ.preset = key;
-  WZ.cls = p.class_code || WZ.cls;
-  const prod = ((AN.fields && AN.fields.products) || (CAT && CAT.products) || []).filter(x => x.code === p.product_code)[0];
-  WZ.product = p.product_code ? (prod || {code: p.product_code, name: p.object_type || ""}) : null;
-  WZ.otype = p.object_type || "";
-  Object.keys(p.must || {}).forEach(k => {
-    if (k === "class_code" || k === "product_code") return;
-    WZ.raw[k] = String(p.must[k]);
-  });
-  AN.missing = []; AN.errors = {}; AN.msg = null;
-  wzSave();
-  wzPaint();
-  await anFetchQuick();
-  if (WZ.step === 1) wzPaint();
-}
-
-/* ---------- сам экран ---------- */
-function qClassLine(){
-  const p = WZ.product;
-  if (p) return T("tg.an.picked_product", "Продукт {c} · {n}", {c: p.code, n: p.name || ""});
-  if (WZ.cls) return T("tg.an.class_only", "Класс {c}, продукт не выбран", {c: WZ.cls});
-  return T("tg.an.pick_nothing", "Объект не выбран — возьмите плитку или класс ниже.");
-}
-function qClassSeg(){
-  const cl = ((AN.fields && AN.fields.classes) || (CAT && CAT.classes) || []);
-  const top = cl.slice(0, 8);
-  return '<div class="segsel" id="qCls">' + top.map(c => '<button type="button" data-cls="' + esc(c.code) + '"'
-    + ' aria-pressed="' + (WZ.cls === c.code) + '">' + esc(c.code + " · " + c.name) + "</button>").join("") + "</div>";
-}
-function qMoneyBtns(key){
-  const other = key === "sum_insured" ? "object_value" : "sum_insured";
-  return '<div class="qadd" data-for="' + esc(key) + '">'
-    + '<button type="button" data-add="10000000">' + esc(T("tg.an.add_10m", "+10 млн")) + "</button>"
-    + '<button type="button" data-add="100000000">' + esc(T("tg.an.add_100m", "+100 млн")) + "</button>"
-    + '<button type="button" data-add="1000000000">' + esc(T("tg.an.add_1b", "+1 млрд")) + "</button>"
-    + '<button type="button" data-copy="' + esc(other) + '">'
-    + esc(key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div>";
-}
-function qAssumeHtml(){
-  const list = (AN.fields && AN.fields.will_assume) || [];
-  const show = list.filter(x => !WZ.raw[x.key]);
-  if (!show.length) return "";
-  return '<div class="h3">' + esc(T("tg.an.assumed_title", "Возьмём по умолчанию")) + "</div>"
-    + show.map(x => '<div class="asm"><div><b>' + esc(x.label || x.key) + ": " + esc(x.value_label || x.value) + "</b>"
-      + "<span>" + esc(x.why || T("tg.an.assumed_note", "взято по умолчанию — уточните")) + "</span></div>"
-      + '<button type="button" class="btn btn-secondary btn-sm" data-fix="' + esc(x.key) + '">'
-      + esc(T("tg.an.assumed_edit", "Изменить")) + "</button></div>").join("");
-}
-function qExtraFields(){
-  const f = AN.fields || {};
-  const quick = f.quick_must_keys || [];
-  const rest = (f.must_full || []).filter(x => quick.indexOf(x.key) < 0 && FROM_STEP1.indexOf(x.key) < 0);
-  const opt = f.optional || [];
-  return pairShort(rest).map(fieldHtml).join("") + pairShort(opt).map(fieldHtml).join("");
-}
-function wzQuick(box){
-  if (AN.fieldsErr) {
-    box.innerHTML = failCard(T("tg.an.quick_title", "Быстрый анализ"),
-      T("tg.an.fields_failed", "Поля формы не загрузились: {reason}. Обновите раздел.", {reason: AN.fieldsErr}), "wzRetryQ");
-    $("#wzRetryQ").onclick = async () => { AN.fieldsErr = ""; box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; await anFetchQuick(); wzPaint(); };
-    return;
-  }
-  if (!AN.fields) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
-  qSeed();
-  const must = AN.fields.must || [];
-  const hero = HERO.map(k => must.filter(f => f.key === k)[0]).filter(Boolean);
-  const region = must.filter(f => f.key === "region")[0];
-  box.innerHTML = '<div id="anInput">'
-    + '<div class="card"><h2>' + esc(T("tg.an.quick_title", "Быстрый анализ")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.quick_hint", "Выберите объект и заполните четыре поля — остальное система возьмёт по типовым значениям и покажет, что именно подставила.")) + "</p>"
-    + qPresetsHtml()
-    + '<div class="h3">' + esc(T("tg.an.quick_class", "Или класс страхования")) + "</div>" + qClassSeg()
-    + '<p class="note" style="margin-top:var(--s2)">' + esc(qClassLine()) + "</p>"
-    + '<span class="ferr" id="ane-class_code"></span></div>'
-    + '<div class="card"><h2>' + esc(T("tg.an.sums_title", "Суммы")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.sums_hint", "Страховая сумма — предел выплаты по договору. Стоимость — сколько объект стоит на самом деле.")) + "</p>"
-    + '<div class="hero2">' + hero.map(f => heroField(f) + qMoneyBtns(f.key)).join("") + "</div>"
-    + '<div id="wzRatio"></div>'
-    + (region ? '<div class="fgrid" style="margin-top:var(--s3)">' + fieldHtml(region) + "</div>" : "")
-    + "</div>"
-    + '<div class="card">' + qAssumeHtml()
-    + '<details class="opt" id="qMore"><summary>' + esc(T("tg.an.refine", "Уточнить данные"))
-    + " <span>" + esc(T("tg.an.refine_hint", "точнее ставка")) + "</span>" + meterHtml(0, "anMeter") + "</summary>"
-    + '<div class="fgrid">' + qExtraFields() + "</div></details>"
-    + '<div class="actions"><button type="button" class="btn btn-primary tg-main" id="anGo">' + esc(T("tg.an.analyze", "Анализировать")) + "</button>"
-    + '<button type="button" class="btn btn-link" id="qFull">' + esc(T("tg.an.mode_full", "Подробный режим")) + "</button></div>"
-    + '<div class="note msg" id="anMsg"></div></div></div>';
-  anRestore(WZ.raw);
-  box.querySelectorAll("[data-money]").forEach(el => { if (el.value) groupDigitsLive(el); });
-  qBind(box);
-  wzRatio();
-  anMeter();
-  anShowErrors();
-  anPaintMsg();
-}
-function qBind(box){
-  box.querySelectorAll("[data-preset]").forEach(b => { b.onclick = () => qApplyPreset(b.dataset.preset); });
-  box.querySelectorAll("#qCls [data-cls]").forEach(b => { b.onclick = () => qSetClass(b.dataset.cls); });
-  box.querySelectorAll(".qadd button").forEach(b => { b.onclick = () => qMoneyClick(b); });
-  box.querySelectorAll("[data-fix]").forEach(b => { b.onclick = () => qFix(b.dataset.fix); });
-  qBindSegs(box);
-  $("#anGo").onclick = analyze;
-  $("#qFull").onclick = () => qMode("full");
-  box.oninput = anOnInput;
-  box.onchange = anOnInput;
-}
-async function qSetClass(cls){
-  if (WZ.cls === cls) return;
-  WZ.cls = cls;
-  WZ.product = null;
-  WZ.preset = "";
-  wzSave();
-  wzPaint();
-  await anFetchQuick();
-  if (WZ.step === 1) wzPaint();
-}
-function qMoneyClick(b){
-  const key = b.closest(".qadd").dataset.for;
-  const el = $("#anf-" + key);
-  if (!el) return;
-  if (b.dataset.copy) {
-    const src = $("#anf-" + b.dataset.copy);
-    el.value = src && num(src.value) ? num(src.value).toLocaleString(LOC()) : el.value;
-  } else {
-    el.value = (num(el.value) + Number(b.dataset.add)).toLocaleString(LOC());
-  }
-  WZ.raw = anRead().raw;
-  wzSave();
-  wzRatio();
-  anMeter();
-  if (AN.missing.indexOf(key) >= 0) { AN.missing = AN.missing.filter(x => x !== key); anShowErrors(); }
-  haptic("select");
-}
-/* «Изменить» у подстановки: раскрываем «Уточнить данные» и ставим курсор в нужное поле */
-function qFix(key){
-  const det = $("#qMore");
-  if (det) det.open = true;
-  const el = $("#anf-" + key);
-  if (el) { el.scrollIntoView({block: "center"}); if (el.focus) el.focus(); }
-}
-/* сегментные переключатели вместо списков, когда вариантов не больше пяти */
-function qBindSegs(box){
-  box.querySelectorAll("[data-seg]").forEach(seg => {
-    const key = seg.dataset.seg, inp = box.querySelector('#anf-' + key);
-    const mark = () => seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.val === (inp ? inp.value : ""))));
-    mark();
-    seg.querySelectorAll("button").forEach(b => {
-      b.onclick = () => {
-        if (!inp) return;
-        inp.value = inp.value === b.dataset.val ? "" : b.dataset.val;
-        mark();
-        WZ.raw = anRead().raw;
-        wzSave();
-        anMeter();
-        if (AN.missing.indexOf(key) >= 0 || AN.errors[key]) {
-          AN.missing = AN.missing.filter(x => x !== key);
-          delete AN.errors[key];
-          anShowErrors();
-        }
-        haptic("select");
-      };
-    });
-  });
-}
-function qMode(mode){
-  wzKeep();
-  WZ.mode = mode;
-  WZ.preset = "";
-  AN.fields = null;
-  AN.fieldsErr = "";
-  AN.cls = "";
-  AN.missing = []; AN.errors = {}; AN.msg = null;
-  WZ.step = mode === "quick" ? 1 : (WZ.cls ? 4 : 1);
-  WZ.max = WZ.step;
-  wzSave();
-  wzGo(WZ.step);
-}
-/* подстановки в итоге: что система взяла за нас */
-function qAssumptionsCard(){
-  const list = (AN.res && AN.res.assumptions) || [];
-  if (!list.length) return "";
-  return '<div class="card"><h2>' + esc(T("tg.an.assumed_used", "Взято по умолчанию")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.assumed_used_hint", "Этих данных не было в форме. Уточните их — ставка станет точнее.")) + "</p>"
-    + list.map(x => '<div class="asm"><div><b>' + esc(x.label || x.key) + ": " + esc(x.value_label || x.value) + "</b>"
-      + "<span>" + esc(x.why || "") + (x.calibrated === 0 ? " · " + esc(T("tg.an.not_calibrated", "коэффициент экспертный, по убыткам не калиброван")) : "") + "</span></div>"
-      + '<button type="button" class="btn btn-secondary btn-sm" data-fix2="' + esc(x.key) + '">'
-      + esc(T("tg.an.assumed_edit", "Изменить")) + "</button></div>").join("")
-    + "</div>";
-}
-/* «по желанию» после результата: документы и договор — шаги подробного режима */
-function qAfterCard(){
-  return '<div class="card"><h2>' + esc(T("tg.an.after_title", "По желанию")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.an.after_hint", "Чек-лист документов и разбор договора не обязательны для анализа — откройте их, когда будете собирать дело.")) + "</p>"
-    + '<div class="actions" style="justify-content:flex-end">'
-    + '<button type="button" class="btn btn-secondary" id="qDocs">' + esc(T("tg.an.s2", "Документы")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" id="qContract">' + esc(T("tg.an.s3", "Договор")) + "</button></div></div>";
-}
-/* ---------- шаг 5: анализ ---------- */
-function wzStep5(box){
-  if (!AN.res) { wzGo(WZ.mode === "quick" ? 1 : 4); return; }
-  box.innerHTML = '<div class="card an-sum" id="anSum"></div><div id="anQAsm"></div><div id="anDash"></div><div id="anAfter"></div>';
-  anPaintSummary();
-  anPaintDash();
-  if (WZ.mode !== "quick") return;
-  $("#anQAsm").innerHTML = qAssumptionsCard();
-  $("#anQAsm").querySelectorAll("[data-fix2]").forEach(b => {
-    b.onclick = () => { const k = b.dataset.fix2; wzGo(1).then(() => qFix(k)); };
-  });
-  $("#anAfter").innerHTML = qAfterCard();
-  const go = step => { WZ.mode = "full"; WZ.max = 5; AN.fields = null; AN.qcls = ""; AN.fieldsErr = ""; wzSave(); wzGo(step); };
-  $("#qDocs").onclick = () => go(2);
-  $("#qContract").onclick = () => go(3);
-}
-function anPaintSummary(){
-  const s = $("#anSum");
-  if (!s || !AN.res) return;
-  const sm = AN.res.summary || {};
-  const comp = (AN.res.completeness || {}).pct;
-  s.innerHTML = "<p><b>" + esc(sm.class_code || WZ.cls) + "</b>" + (sm.product_code ? " · " + esc(sm.product_code) : "")
-    + " · " + esc(sm.object_type || "—") + " · <b>"
-    + esc(compact(sm.sum_insured)) + " " + esc(SUM()) + "</b> · " + esc(sm.region || "—") + " · "
-    + esc(T("tg.an.months_n", "{n} мес.", {n: nf(sm.term_months || 12, 0)}))
-    + (comp != null ? " · " + esc(T("tg.an.filled_n", "заполнено {n}%", {n: comp})) : "") + "</p>"
-    + '<div class="an-sum-act"><button type="button" class="btn btn-secondary" id="anEdit">' + esc(T("tg.an.edit", "Изменить данные")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" id="anNew">' + esc(T("tg.an.new", "Новый анализ")) + "</button></div>";
-  $("#anEdit").onclick = () => wzGo(WZ.mode === "quick" ? 1 : 4);
-  $("#anNew").onclick = wzReset;
-}
-/* новый анализ: мастер с начала, загруженные файлы удаляем с сервера сразу, не дожидаясь суток */
-function wzReset(){
-  WZ.uploads.forEach(u => { api("/analytics/risk/document/" + encodeURIComponent(u.doc_id), {method: "DELETE"}); });
-  Object.assign(WZ, {step: 1, max: 1, preset: "", q: "", cls: "", product: null, otype: "", docs: null, docsErr: "",
-    uploads: [], raw: {}, upMsg: null});
-  AN.fields = null; AN.qcls = ""; AN.fieldsErr = "";
-  AN.res = null; AN.missing = []; AN.errors = {}; AN.msg = null; AN.scn = "EML";
-  try { sessionStorage.removeItem(WZ_KEY); } catch (e) {}
-  wzGo(1);
 }
 
 /* ---------- уровни риска ---------- */
@@ -2935,7 +2728,7 @@ function anPaintDash(){
   if (!box || !r) return;
   box.innerHTML = '<div class="dash">'
     + anAiCard(r) + anDocsCard(r)
-    + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r) + anClientCard(r)
+    + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r)
     + "</div>";
   box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); }; });
   anPaintScenario();
@@ -2954,7 +2747,8 @@ function anAiCard(r){
 /* документы: что получено и чего не хватает по чек-листу */
 function anDocsCard(r){
   const d = r.documents || {};
-  const items = d.items || [], missing = d.missing || [];
+  const items = (d.items || []).filter(x => keepDoc(x.name || x.kind));
+  const missing = (d.missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name)));
   const p = d.completeness_docs_pct != null ? Number(d.completeness_docs_pct) : null;
   return '<div class="card w4"><p class="eyebrow">' + esc(T("tg.an.docs_block", "Документы")) + "</p>"
     + (p != null ? '<div class="docpct"><b>' + esc(nf(p, 0)) + "%</b><span>"
@@ -3305,24 +3099,6 @@ function anExtStatsCard(r){
 }
 
 /* Что сказать клиенту — ст. 63 Закона о страховой деятельности */
-function anClientCard(r){
-  const s = r.summary || {};
-  const covered = (r.risks || []).filter(x => Number(x.share_of_net_pct) > 0).map(x => x.name);
-  const excl = [];
-  (s.parts || []).forEach(p => (p.explanation || []).forEach(e => (e.excluded || []).forEach(x => { if (excl.indexOf(x) < 0) excl.push(x); })));
-  const ratio = Number(s.ratio_sum_to_value) || 1;
-  return '<div class="card w12"><p class="eyebrow">' + esc(T("disclosure.title", "Что сказать клиенту")) + "</p>"
-    + '<p class="sub">' + esc(T("disclosure.legal", "Статья 63 Закона о страховой деятельности.")) + "</p>"
-    + '<div class="kv disc">'
-    + "<span>" + esc(T("disclosure.price", "Цена")) + "</span><b>" + esc(money(s.premium)) + " · " + esc(T("tg.an.months_n", "{n} мес.", {n: nf(s.term_months || 12, 0)})) + "</b>"
-    + "<span>" + esc(T("disclosure.covered", "Покрываемые риски")) + "</span><b>" + esc(covered.join(", ") || "—") + "</b>"
-    + "<span>" + esc(T("disclosure.excluded", "Исключённые риски")) + "</span><b>" + esc(excl.join(", ") || T("common.none", "нет")) + "</b>"
-    + "<span>" + esc(T("disclosure.underinsurance", "Выплата при недостраховании")) + "</span><b>"
-    + esc(ratio < 1 ? T("disclosure.underinsurance_partial", "выплата {pct}% убытка (ст. 936 ГК)", {pct: Math.round(ratio * 100)}) : T("disclosure.underinsurance_full", "выплата полная")) + "</b>"
-    + "<span>" + esc(T("disclosure.refund", "Возврат премии")) + "</span><b>" + esc(T("disclosure.refund_text", "при досрочном расторжении — за неистёкший срок")) + "</b>"
-    + "<span>" + esc(T("disclosure.claims", "Претензии")) + "</span><b>" + esc(T("disclosure.claims_text", "принимаются письменно, ответ в срок по правилам страхования")) + "</b>"
-    + "</div></div>";
-}
 
 /* =====================================================================================
    ОСГОР: калькулятор премии (POST /osgor/quick), подсказка ОКЭД по мере ввода (GET /osgor/activities).
@@ -3829,472 +3605,6 @@ async function admNormDelete(code){
   $("#nnMsg").innerHTML = okHtml(T("tg.adm.norm_deleted", "Норма {c} удалена.", {c: code}));
 }
 
-/* ---------- справочники ---------- */
-let CLASSES = [], PRODUCTS = [], COEFS = [], REFS_DONE = false, REFS_ERR = "";
-
-function classesOf(p){
-  if (Array.isArray(p.classes)) return p.classes;
-  if (typeof p.classes === "string" && p.classes) return p.classes.split(",");
-  return [];
-}
-
-async function loadRefs(){
-  if (REFS_DONE) return;
-  REFS_DONE = true;
-  const [c, p, k] = await Promise.all([api("/reference/classes"), api("/reference/products"), api("/reference/coefficients")]);
-  if (!c.ok || !p.ok || !k.ok) {
-    REFS_DONE = false;
-    REFS_ERR = c.error || p.error || k.error;
-    calcRefsError();
-    return;
-  }
-  REFS_ERR = "";
-  CLASSES = c.data || []; PRODUCTS = p.data || []; COEFS = k.data || [];
-  $("#cls").innerHTML = CLASSES.map(x => '<option value="' + esc(x.code) + '">' + esc(x.code + " · " + x.name) + "</option>").join("");
-  const has8 = CLASSES.some(x => x.code === "8");
-  $("#cls").value = has8 ? "8" : (CLASSES[0] ? CLASSES[0].code : "");
-  onClass();
-}
-function calcRefsError(){
-  $("#cls").innerHTML = "<option>" + esc(T("tg.refs_unavailable", "справочники недоступны")) + "</option>";
-  $("#factors").innerHTML = '<div class="note err full">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: REFS_ERR})) + "</div>";
-}
-
-function onClass(){
-  const cls = $("#cls").value;
-  const keep = $("#prod").value;
-  const list = PRODUCTS.filter(p => classesOf(p).indexOf(cls) >= 0);
-  $("#prod").innerHTML = list.length
-    ? list.map(p => '<option value="' + esc(p.code) + '">' + esc(p.code + " · " + p.name) + "</option>").join("")
-    : '<option value="">' + esc(T("tg.calc_no_products", "в этом классе продуктов нет")) + "</option>";
-  if (list.some(p => p.code === keep)) $("#prod").value = keep;
-  paintFactors(cls);
-}
-
-function optionsFor(cls, factor){
-  return COEFS.filter(x => x.class_code === cls && x.factor_code === factor);
-}
-
-/* keep=true — перерисовать подписи (смена языка), выбранные варианты оставить */
-function paintFactors(cls, keep){
-  const was = {};
-  if (keep) $("#factors").querySelectorAll("select").forEach(s => { was[s.dataset.factor] = s.value; });
-  const frWas = $("#fr").value;
-  const rows = COEFS.filter(x => x.class_code === cls);
-  const codes = [];
-  rows.forEach(r => { if (codes.indexOf(r.factor_code) < 0 && r.factor_code !== "franchise") codes.push(r.factor_code); });
-
-  const fr = optionsFor(cls, "franchise");
-  $("#fr").innerHTML = '<option value="">' + esc(T("calc.franchise_none", "не применяется")) + "</option>"
-    + fr.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name) + "</option>").join("");
-  if (keep) $("#fr").value = frWas;
-
-  if (!codes.length) {
-    $("#factors").innerHTML = '<div class="note full">' + esc(T("tg.calc_no_factors", "Для этого класса факторов в справочнике нет — ставка считается по базовой.")) + "</div>";
-    return;
-  }
-  let uncal = false;
-  $("#factors").innerHTML = codes.map(code => {
-    const opts = optionsFor(cls, code);
-    if (opts.some(o => !o.calibrated)) uncal = true;
-    return '<div><label class="f" for="f_' + esc(code) + '">' + esc(T("calc.factor." + code, opts[0].factor_name)) + "</label>"
-      + '<select id="f_' + esc(code) + '" data-factor="' + esc(code) + '">'
-      + '<option value="">' + esc(T("tg.calc_factor_off", "не учитывать")) + "</option>"
-      + opts.map(o => '<option value="' + esc(o.option_code) + '">' + esc(o.option_name)
-        + " · ×" + nf(o.multiplier, 2) + (o.calibrated ? "" : " " + T("tg.calc_uncal_short", "(не калибровано)")) + "</option>").join("")
-      + "</select></div>";
-  }).join("")
-    + (uncal ? '<div class="note warn full" style="margin-top:10px">' + esc(T("tg.calc_uncal", "Коэффициенты помечены «не калибровано»: это экспертные значения, компания их ещё не подтвердила своей статистикой убытков.")) + "</div>" : "");
-
-  // разумные значения по умолчанию: первый вариант каждого фактора
-  $("#factors").querySelectorAll("select").forEach(sel => {
-    if (keep && was[sel.dataset.factor] != null) sel.value = was[sel.dataset.factor];
-    else if (sel.options.length > 1) sel.selectedIndex = 1;
-  });
-}
-
-$("#cls").onchange = onClass;
-LOADERS.calc = loadRefs;
-
-/* смена языка на расчёте: форма остаётся как есть, перерисовываются подписи и итог */
-function calcRepaint(){
-  if (REFS_ERR) calcRefsError();
-  else if (REFS_DONE && CLASSES.length) paintFactors($("#cls").value, true);
-  if (LAST && LAST_BODY) {
-    const keepBranch = $("#branch") ? $("#branch").value : "", keepHolder = $("#holder") ? $("#holder").value : "";
-    const saveMsg = $("#saveMsg") ? $("#saveMsg").innerHTML : "";
-    paintResult(LAST, LAST_BODY);
-    $("#branch").value = keepBranch; $("#holder").value = keepHolder;
-    if (RID) { paintSaved(); $("#exportBox").innerHTML = exportsHtml(RID); bindExports($("#exportBox")); }
-    else if (saveMsg && canSave()) $("#saveMsg").innerHTML = "";
-  }
-}
-
-/* ---------- расчёт ---------- */
-let LAST = null, LAST_BODY = null, RID = null;
-
-function factorsPayload(){
-  const f = {};
-  $("#factors").querySelectorAll("select").forEach(sel => { if (sel.value) f[sel.dataset.factor] = sel.value; });
-  if ($("#fr").value) f.franchise = $("#fr").value;
-  return f;
-}
-
-function payload(){
-  return {
-    product_code: $("#prod").value,
-    class_code: $("#cls").value,
-    object_type: $("#otype").value.trim() || DEFAULT_OBJECT,
-    value_amount: num($("#val").value),
-    sum_insured: num($("#sum").value),
-    term_days: num($("#term").value) || 365,
-    factors: factorsPayload(),
-    premium_paid: $("#paid").checked,
-    disclosure_done: $("#disclosure").checked
-  };
-}
-const DEFAULT_OBJECT = "Склад";           // тип объекта по справочнику сервера (значение, не подпись)
-
-function progress(on){
-  tgBusy(on);
-  $("#calcBtn").disabled = on;
-  $("#calcMsg").innerHTML = on ? spin(T("common.calculating", "считаю…")) : "";
-}
-
-async function calculate(){
-  const b = payload();
-  if (!b.product_code) { $("#calcMsg").innerHTML = errHtml(T("tg.no_product", "Выберите продукт — без него движок не знает минимальный тариф.")); return; }
-  if (b.sum_insured <= 0 || b.value_amount <= 0) { $("#calcMsg").innerHTML = errHtml(T("tg.zero_sum", "Страховая сумма и стоимость объекта должны быть больше нуля.")); return; }
-  progress(true);
-  const r = await api("/calculate", jsonOpts("POST", b));
-  progress(false);
-  if (!r.ok) { haptic("error"); $("#result").innerHTML = ""; $("#calcMsg").innerHTML = errHtml(T("tg.calc_failed", "Расчёт не выполнен: {reason}", {reason: r.error})); return; }
-  LAST = r.data; LAST_BODY = b;
-  paintResult(r.data, b);
-  if (TG && TG.HapticFeedback) { try { TG.HapticFeedback.notificationOccurred("success"); } catch (e) {} }
-}
-$("#calcBtn").onclick = calculate;
-
-function verdictClass(v){
-  if (v === "ок") return "ok";
-  if (v === "на утверждение") return "warn";
-  if (v === "отклонено") return "stop";
-  return "";
-}
-function verdictName(v){
-  if (v === "ок") return T("status.verdict.ok", "ок");
-  if (v === "на утверждение") return T("status.verdict.review", "на утверждение");
-  if (v === "отклонено") return T("status.verdict.rejected", "отклонено");
-  return v || "—";
-}
-
-function chainRow(x){
-  let v = "";
-  if (x.value_pct != null) v = pct(x.value_pct);
-  else if (x.mult != null) v = "×" + nf(x.mult, 2);
-  else if (x.add_pct != null) v = "+" + pct(x.add_pct);
-  else if (x.divide_by != null) v = "÷" + nf(x.divide_by, 2);
-  return "<div><span>" + esc(x.name) + "</span><b>" + v + "</b></div>";
-}
-
-function paintResult(j, b){
-  const r = j.rates || {};
-  const perils = j.perils_included || [];
-  const share = b.value_amount ? Math.round(b.sum_insured / b.value_amount * 100) : 100;
-  const tips = (j.recommendations || []).slice(0, 4);
-  const excl = excluded(j);
-
-  $("#result").innerHTML =
-    '<div class="card">'
-    + "<h2>" + esc(T("tg.rate_and_premium", "Ставка и премия")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.calc_rate_note", "Ставка годовая, премия — за {n} дней.", {n: b.term_days})) + "</p>"
-    + '<div class="headline"><div class="big">' + pct(r.applied_pct) + '</div><span class="sm">' + esc(money(j.premium)) + "</span>"
-    + '<span class="verdict ' + verdictClass(j.verdict) + '">' + esc(verdictName(j.verdict)) + "</span></div>"
-    // связанные ставки — одним блоком с сегментами, а не шестью строками «метка — значение»
-    + '<div class="seg-t">' + esc(T("tg.seg.rates", "Ставки, годовых")) + "</div>"
-    + '<div class="seg">'
-    + "<div><span>" + esc(T("tg.calc_technical", "Техническая ставка")) + "</span><b>" + pct(r.technical_pct) + "</b></div>"
-    + "<div><span>" + esc(T("tg.calc_min", "Минимум по продукту")) + "</span><b>" + pct(r.min_pct) + "</b></div>"
-    + (j.market && j.market.rate_pct ? "<div><span>" + esc(T("tg.calc_market", "Рынок, {label}", {label: j.market.label || T("tg.napp", "НАПП")})) + "</span><b>" + pct(j.market.rate_pct) + "</b></div>" : "")
-    + "</div>"
-    + '<div class="seg-t">' + esc(T("tg.seg.loads", "Нетто и надбавки")) + "</div>"
-    + '<div class="seg">'
-    + "<div><span>" + esc(T("tg.calc_net", "Нетто-ставка")) + "</span><b>" + pct(r.net_pct) + "</b></div>"
-    + "<div><span>" + esc(T("tg.calc_risk_load", "Рисковая надбавка")) + "</span><b>" + pct(r.risk_load_pct) + "</b></div>"
-    + "<div><span>" + esc(T("tg.calc_cat_load", "Катастрофическая надбавка")) + "</span><b>" + pct(r.cat_load_pct) + "</b></div>"
-    + "</div></div>"
-
-    + "<div class=\"card\"><h2>" + esc(T("calc.breakdown", "Из чего сложилась ставка")) + '</h2><p class="sub">' + esc(T("calc.breakdown_hint", "Каждый шаг движка по порядку.")) + "</p>"
-    + '<div class="chain">' + (j.explanation || []).map(chainRow).join("") + "</div></div>"
-
-    + "<div class=\"card\"><h2>" + esc(T("calc.checks", "Проверки")) + '</h2><p class="sub">' + esc(T("calc.checks_hint", "Каждая ссылается на норму.")) + "</p>"
-    + (j.checks || []).map(c => '<div class="check ' + (c.status === "ok" ? "ok" : c.status === "stop" ? "stop" : "warn") + '"><i></i><div><b>'
-      + esc(c.title) + "</b><span>" + esc(c.detail) + "</span></div></div>").join("")
-    + "</div>"
-
-    + (tips.length ? "<div class=\"card\"><h2>" + esc(T("calc.cheaper", "Как удешевить")) + '</h2><p class="sub">' + esc(T("tg.calc_cheaper_hint", "Что можно изменить в договоре и на сколько это меняет премию.")) + "</p>"
-      + '<div class="rows">' + tips.map(t => "<div><span>" + esc(t.text) + '</span><b class="' + (t.premium_delta > 0 ? "up" : "down") + '">'
-        + (t.premium_delta > 0 ? "+" : "") + esc(money(t.premium_delta)) + "</b></div>").join("") + "</div>"
-      + "</div>" : "")
-
-    + probHtml(probFrom(j))
-
-    + "<div class=\"card\"><h2>" + esc(T("disclosure.title", "Что сказать клиенту")) + '</h2><p class="sub">' + esc(T("tg.calc_disclosure_hint", "Обязательное раскрытие по статье 63 Закона о страховой деятельности.")) + "</p>"
-    + '<div class="kv wrap-b stack">'
-    + "<span>" + esc(T("disclosure.price", "Цена")) + "</span><b>" + esc(T("tg.calc_price", "{p} за {n} дн.", {p: money(j.premium), n: b.term_days})) + "</b>"
-    + "<span>" + esc(T("disclosure.covered", "Покрываемые риски")) + "</span><b>" + esc(perils.length ? T("tg.calc_perils", "{n} по классу {c}", {n: perils.length, c: b.class_code}) : T("tg.calc_perils_rules", "по правилам продукта")) + "</b>"
-    + "<span>" + esc(T("disclosure.excluded", "Исключённые риски")) + "</span><b>" + esc(excl.join(", ") || T("common.none", "нет")) + "</b>"
-    + "<span>" + esc(T("tg.calc_underins", "При недостраховании")) + "</span><b>" + esc(share < 100 ? T("disclosure.underinsurance_partial", "выплата {pct}% убытка (ст. 936 ГК)", {pct: share}) : T("disclosure.underinsurance_full", "выплата полная")) + "</b>"
-    + "<span>" + esc(T("disclosure.refund", "Возврат премии")) + "</span><b>" + esc(T("disclosure.refund_text", "при досрочном расторжении — за неистёкший срок")) + "</b>"
-    + "<span>" + esc(T("disclosure.claims", "Претензии")) + "</span><b>" + esc(T("tg.calc_claims", "письменно, ответ в срок по правилам страхования")) + "</b>"
-    + "</div></div>"
-
-    + "<div class=\"card\"><h2>" + esc(T("tg.save_title", "Сохранить запрос")) + '</h2><p class="sub">' + esc(T("tg.save_hint", "После сохранения появится номер, к нему прикрепляются фото и документы.")) + "</p>"
-    + '<div class="fg"><div><label class="f" for="branch">' + esc(T("tg.branch", "Филиал")) + '</label><input id="branch" type="text" placeholder="' + esc(T("tg.branch_ph", "например Чиланзарский")) + '" autocomplete="off"></div>'
-    + '<div><label class="f" for="holder">' + esc(T("tg.holder", "Страхователь")) + '</label><input id="holder" type="text" placeholder="' + esc(T("tg.holder_ph", "название организации")) + '" autocomplete="off"></div></div>'
-    + '<div class="actions"><button type="button" class="btn btn-primary" id="saveBtn">' + esc(T("tg.save_title", "Сохранить запрос")) + "</button></div>"
-    + '<div class="note msg" id="saveMsg"></div></div>'
-
-    + '<div id="exportBox"></div>';
-
-  $("#saveBtn").onclick = saveRequest;
-  if (!canSave()) {
-    $("#saveBtn").disabled = true;
-    $("#saveMsg").innerHTML = '<span class="warn">' + esc(T("tg.save_after_confirm", "Сохранение откроется после подтверждения администратором.")) + "</span>";
-  }
-}
-function canSave(){ return !!(ME.user && ME.status === "активен"); }
-
-function excluded(j){
-  const step = (j.explanation || []).filter(x => x.excluded && x.excluded.length)[0];
-  return step ? step.excluded : [];
-}
-
-/* ---------- вероятность подтверждения ---------- */
-/* Структура от актуария: {probability, verdict, summary, minus:[{text, delta, norm, stop}],
-   plus:[...], how_to_raise:[...], calibrated}. Поля может не быть — тогда честно говорим,
-   что числа ещё нет, и ничего не придумываем. */
-function normProb(raw){
-  if (raw == null) return null;
-  let p = (typeof raw === "number") ? {probability: raw} : raw;
-  if (typeof p !== "object") return null;
-  if (p.ready === false) return null;
-  let e = p;
-  // разбор может прийти вложенным объектом или строкой JSON — берём то, что есть
-  ["result_json", "explanation", "factors_json"].forEach(k => {
-    if (e !== p) return;
-    const v = p[k];
-    if (v && typeof v === "object") e = v;
-    else if (typeof v === "string" && v) { try { e = JSON.parse(v); } catch (err) {} }
-  });
-  let v = (p.percent != null) ? p.percent : (e.probability != null ? e.probability : p.probability);
-  if (v == null || isNaN(Number(v))) return null;
-  v = Number(v);
-  if (v > 0 && v <= 1) v = v * 100;                    // пришла доля 0..1 — переводим в проценты
-  return {value: Math.round(v), verdict: e.verdict || p.verdict || "",
-    verdict_code: e.verdict_code || p.verdict_code || "",
-    has_stop: !!(p.has_stop || (e.minus || []).some(x => x && x.stop)),
-    summary: e.summary || p.summary || p.text || "",
-    minus: e.minus || [], plus: e.plus || [], how: e.how_to_raise || [],
-    calibrated: (e.calibrated != null ? e.calibrated : p.calibrated)};
-}
-
-/* ключи ответа сервера ещё уточняются — берём первый, который пришёл */
-function probFrom(src){
-  if (!src || typeof src !== "object") return null;
-  if (src.result_json || src.explanation || src.factors_json) return src;   // строка прогноза целиком
-  const keys = ["probability", "probability_block", "analysis", "prediction"];
-  for (let i = 0; i < keys.length; i++) if (src[keys[i]] != null) return src[keys[i]];
-  return null;
-}
-
-function probRows(list){
-  if (!list || !list.length) return '<div class="note">' + esc(T("tg.prob_empty", "пусто")) + "</div>";
-  return list.map(x => {
-    const stop = !!x.stop;
-    const d = (x.delta == null) ? "" : (Number(x.delta) > 0 ? "+" : "−") + Math.abs(Number(x.delta));
-    return '<div class="pr' + (stop ? " stop" : "") + '"><span>' + esc(x.text || "—")
-      + (x.norm ? '<span class="norm">' + esc(x.norm) + "</span>" : "") + "</span><b>"
-      + (stop ? esc(T("tg.prob_hard", "жёсткое нарушение")) : esc(d)) + "</b></div>";
-  }).join("");
-}
-
-/* Одна короткая строка под крупной цифрой: вывод без хвоста про замечания + их число.
-   Сплошной текст разбора (summary) не выводим — он повторяет списки «Что снижает / Что повысит». */
-function probLine(p){
-  const n = (p.minus || []).length;
-  return verdictPhrase(p) + ". " + T("tg.prob_remarks_n", "Замечаний: {n}", {n: n});
-}
-/* Серверный текст вердикта не режем: своя фраза по коду (verdict_code); у старых прогнозов кода нет —
-   код по тем же порогам, что app/analysis.py verdict_code(). */
-function verdictPhrase(p){
-  let c = p.verdict_code;
-  if (!c) {
-    const v = Number(p.value);
-    c = p.has_stop ? "stop" : v >= 80 ? "likely" : v >= 60 ? "good" : v >= 40 ? "any" : v >= 20 ? "rework" : "unlikely";
-  }
-  switch (c) {
-    case "stop": return T("tg.prob_v.stop", "Почти наверняка вернут: нарушена норма");
-    case "likely": return T("tg.prob_v.likely", "Скорее всего подтвердят");
-    case "good": return T("tg.prob_v.good", "Шансы хорошие, но есть замечания");
-    case "any": return T("tg.prob_v.any", "Решение может быть любым");
-    case "rework": return T("tg.prob_v.rework", "Скорее вернут на доработку");
-    default: return T("tg.prob_v.unlikely", "Почти наверняка не подтвердят");
-  }
-}
-
-/* Проверка из карточки запроса: сервер хранит код правила и строку «Название: пояснение».
-   Показываем название, код — нет. На других языках — перевод по ключу check.<код>.<статус>.title. */
-function checkText(x){
-  const bad = x.status === "нарушено" || x.status === "stop" || x.status === "warn";
-  const cls = (x.status === "ok" || x.status === "пройдено") ? "ok" : x.status === "stop" ? "stop" : "warn";
-  let title = "", detail = String(x.detail || "");
-  const m = /^(.+?(?::\s*\d+)?):\s+([\s\S]*)$/.exec(detail);
-  if (m) { title = m[1]; detail = m[2]; }
-  if (I18N_LANG !== "ru" && x.rule_code && window.I18N_HAS) {
-    const order = bad ? ["stop", "warn", "unknown"] : ["ok"];
-    const key = order.map(st => "check." + x.rule_code + "." + st + ".title").filter(k => I18N_HAS(k))[0];
-    if (key) title = T(key, title).replace(/:?\s*\{n\}/, "");
-  }
-  return {cls: cls, title: title || "—", detail: detail};
-}
-
-function probHtml(raw){
-  const p = normProb(raw);
-  const head = "<div class=\"card\"><h2>" + esc(T("tg.prob_title", "Вероятность подтверждения")) + "</h2>";
-  if (!p) {
-    return head + '<div class="note">' + esc(T("tg.prob_none", "Вероятность ещё не рассчитана. Как только модуль анализа её посчитает, число появится здесь.")) + "</div></div>";
-  }
-  const cls = p.value >= 70 ? "high" : p.value >= 40 ? "mid" : "low";
-  return head
-    + '<div class="prob ' + cls + '">~' + p.value + "%</div>"
-    + '<p class="sub">' + esc(probLine(p)) + "</p>"
-    + '<div class="h3">' + esc(T("tg.prob_minus", "Что снижает")) + "</div>" + probRows(p.minus)
-    + '<div class="h3">' + esc(T("tg.prob_plus", "Что повысит")) + "</div>" + probRows(p.how.length ? p.how : p.plus)
-    + (p.calibrated ? ""
-      : '<div class="note warn" style="margin-top:10px">' + esc(T("tg.prob_uncal", "Оценка экспертная, пока не калибрована: веса правил компания ещё не подтвердила своей статистикой решений.")) + "</div>")
-    + "</div>";
-}
-
-/* ---------- выгрузка анализа ---------- */
-function exportsHtml(rid){
-  return '<div class="card" id="exp-' + rid + '"><h2>' + esc(T("tg.exp_title", "Выгрузка анализа")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.exp_hint", "Запрос № {n}: расчёт, проверки, вероятность подтверждения и участники — одним файлом.", {n: rid})) + "</p>"
-    + '<p class="note" style="margin:0">' + esc(T("tg.exp_why_tg", "«Прислать в Telegram» нужна потому, что во встроенном браузере Telegram скачивание файла часто не срабатывает: бот пришлёт оба файла прямо в чат.")) + "</p>"
-    + '<div class="actions">'
-    + '<button type="button" class="btn btn-secondary" data-dl="' + rid + '" data-fmt="pdf">' + esc(T("tg.exp_pdf", "Скачать PDF")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-dl="' + rid + '" data-fmt="xlsx">' + esc(T("tg.exp_xlsx", "Скачать XLSX")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-tgsend="' + rid + '">' + esc(T("tg.exp_tg", "Прислать в Telegram")) + "</button>"
-    + "</div>"
-    + '<div class="note msg" id="expm-' + rid + '"></div></div>';
-}
-
-function bindExports(root){
-  (root || document).querySelectorAll("[data-tgsend]").forEach(b => {
-    b.onclick = () => sendToTelegram(b.dataset.tgsend);
-  });
-  (root || document).querySelectorAll("[data-dl]").forEach(b => {
-    b.onclick = () => downloadAnalysis(b.dataset.dl, b.dataset.fmt);
-  });
-}
-
-/* Имя файла берём из заголовка Content-Disposition, если сервер его прислал. */
-function cdName(cd){
-  if (!cd) return "";
-  let m = /filename\*=UTF-8''([^;]+)/i.exec(cd);
-  if (m) { try { return decodeURIComponent(m[1].trim().replace(/^"|"$/g, "")); } catch (e) {} }
-  m = /filename="?([^";]+)"?/i.exec(cd);
-  return m ? m[1].trim() : "";
-}
-
-/* Сохраняем полученный файл. Встроенный браузер Telegram это часто запрещает — тогда false. */
-function saveBlob(blob, name){
-  try {
-    const a = document.createElement("a");
-    if (typeof a.download !== "string") return false;
-    const url = URL.createObjectURL(blob);
-    a.href = url; a.download = name; a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 30000);
-    return true;
-  } catch (e) { return false; }
-}
-
-/* Файл забираем запросом с заголовком Authorization: сессия мини-аппа держится на токене
-   (встроенный браузер Telegram может не хранить cookie), а по простой ссылке <a href>
-   заголовок не уходит и единый вход app/guard.py ответил бы 401. */
-async function downloadAnalysis(rid, fmt){
-  const msg = $("#expm-" + rid);
-  const hint = " " + T("tg.exp_hint_tg", "Нажмите «Прислать в Telegram» — бот пришлёт файл прямо в чат.");
-  msg.innerHTML = spin(T("tg.exp_preparing", "готовлю {f}…", {f: (fmt || "").toUpperCase()}));
-  let r;
-  try {
-    r = await fetch("/requests/" + rid + "/analysis." + fmt,
-                    TOKEN ? {headers: {Authorization: "Bearer " + TOKEN}} : {});
-  } catch (e) {
-    msg.innerHTML = errHtml(T("tg.exp_offline", "Сервер не отвечает, файл не скачался. Повторите позже."));
-    return;
-  }
-  if (!r.ok) {
-    let j = null;
-    try { j = await r.json(); } catch (e) { j = null; }
-    const d = j && (j.detail || j.error);
-    const text = typeof d === "string" && /[А-Яа-я]/.test(d) ? d
-      : r.status === 401 ? T("tg.exp_401", "вы не вошли или сессия закончилась — войдите заново")
-      : r.status === 403 ? T("tg.exp_403", "у вас нет доступа к этому запросу")
-      : why(r.status, j);
-    msg.innerHTML = errHtml(T("tg.exp_failed", "Файл не скачался: {reason}.", {reason: text}));
-    return;
-  }
-  const blob = await r.blob();
-  const name = cdName(r.headers.get("Content-Disposition")) || T("tg.exp_file", "Анализ запроса {n}", {n: rid}) + "." + fmt;
-  if (!saveBlob(blob, name)) {
-    msg.innerHTML = errHtml(T("tg.exp_blocked", "Встроенный браузер Telegram не дал сохранить файл.") + hint);
-    return;
-  }
-  msg.innerHTML = okHtml(T("tg.exp_saved", "Файл «{name}» сохранён — ищите его в загрузках.", {name: name}))
-    + '<br><span class="note">' + esc(T("tg.exp_not_found", "Если файла в загрузках нет, нажмите «Прислать в Telegram».")) + "</span>";
-}
-
-async function sendToTelegram(rid){
-  const msg = $("#expm-" + rid);
-  msg.innerHTML = spin(T("tg.exp_asking", "прошу бота прислать файлы…"));
-  const r = await api("/requests/" + rid + "/analysis/send-telegram?format=both", {method: "POST"});
-  if (!r.ok) { msg.innerHTML = errHtml(r.error); return; }
-  const sent = (r.data.sent || []).join(", ");
-  const errs = (r.data.errors || []).join("; ");
-  msg.innerHTML = okHtml(T("tg.exp_sent", "Отправлено в чат: {list}", {list: sent || "—"}))
-    + (errs ? " " + errHtml(T("tg.exp_not_sent", "Не ушло: {list}", {list: errs})) : "");
-}
-
-async function saveRequest(){
-  const b = payload();
-  b.branch = ($("#branch") && $("#branch").value.trim()) || null;
-  b.policyholder = ($("#holder") && $("#holder").value.trim()) || null;
-  if (EAIS) b.agent_eais_id = EAIS;
-  $("#saveMsg").innerHTML = spin(T("common.saving", "сохраняю…"));
-  const r = await api("/requests", jsonOpts("POST", b));
-  if (!r.ok) { $("#saveMsg").innerHTML = errHtml(T("tg.save_failed", "Запрос не сохранился: {reason}", {reason: r.error})); return; }
-  RID = r.data.request_id;
-  paintSaved();
-  loadPhotos();
-  loadDocs();
-  $("#exportBox").innerHTML = exportsHtml(RID);
-  bindExports($("#exportBox"));
-}
-function paintSaved(){
-  if (!RID || !$("#saveMsg")) return;
-  $("#saveMsg").innerHTML = okHtml(T("tg.saved_request2", "Сохранено. Запрос № {n} — теперь можно прикрепить фото и документы.", {n: RID}));
-  paintPhotoMsgs();
-}
-function paintPhotoMsgs(){
-  const t = RID ? T("tg.request_n", "запрос № {n}", {n: RID}) : T("tg.request_unsaved", "запрос ещё не сохранён");
-  if (!$("#phMsg").dataset.busy) $("#phMsg").textContent = t;
-  if (!$("#docMsg").dataset.busy) $("#docMsg").textContent = t;
-}
-
 /* ---------- пользователи (список видят все вошедшие) ---------- */
 let CAN_MANAGE = false, USERS = null;
 const USER_MSG = {};
@@ -4416,193 +3726,6 @@ function paintBot(){
     + (b.reason ? "<span>" + esc(T("tg.bot_reason", "Пояснение")) + "</span><b>" + esc(b.reason) + "</b>" : "");
 }
 $("#botReload").onclick = loadBot;
-
-/* ---------- фото ---------- */
-let PHOTOS = [];
-
-async function loadPhotos(){
-  if (!RID) return;
-  const r = await api("/requests/" + RID + "/photos");
-  if (!r.ok) { $("#phMsg").innerHTML = errHtml(T("tg.photos_list_failed", "Список фото недоступен: {reason}", {reason: r.error})); return; }
-  PHOTOS = r.data || [];
-  paintPhotos();
-}
-
-function paintPhotos(){
-  paintPhotoMsgs();
-  $("#phList").innerHTML = PHOTOS.map((p, i) =>
-    '<div class="ph" data-id="' + p.id + '"><img src="/photos/' + p.id + '" alt="' + esc(T("tg.photo_alt", "фото объекта")) + '">'
-    + '<span class="no">' + (i + 1) + "</span>"
-    + '<button type="button" class="del" data-del="' + p.id + '" aria-label="' + esc(T("tg.photo_delete", "Удалить фото")) + '" title="' + esc(T("tg.photo_delete", "Удалить фото")) + '">×</button></div>').join("");
-  $("#phList").querySelectorAll("[data-del]").forEach(b => { b.onclick = e => { e.stopPropagation(); delPhoto(b.dataset.del); }; });
-  bindDrag();
-}
-
-async function delPhoto(id){
-  const r = await api("/photos/" + id, {method: "DELETE"});
-  if (!r.ok) { $("#phMsg").innerHTML = errHtml(T("tg.photo_delete_failed", "Фото не удалилось: {reason}", {reason: r.error})); return; }
-  loadPhotos();
-}
-
-$("#phFile").onchange = async e => {
-  const files = e.target.files;
-  if (!files || !files.length) return;
-  if (!RID) { $("#phMsg").innerHTML = errHtml(T("tg.request_not_saved", "Сначала сохраните запрос на вкладке «Расчёт».")); return; }
-  const fd = new FormData();
-  for (let i = 0; i < files.length; i++) fd.append("files", files[i]);
-  $("#phMsg").innerHTML = spin(T("common.loading", "загружаю…"));
-  const r = await api("/requests/" + RID + "/photos", {method: "POST", body: fd});
-  e.target.value = "";
-  if (!r.ok) { $("#phMsg").innerHTML = errHtml(T("tg.photos_failed", "Фото не загрузились: {reason}", {reason: r.error})); return; }
-  $("#phMsg").innerHTML = okHtml(T("tg.photos_uploaded", "загружено: {n}", {n: (r.data.saved || []).length}));
-  $("#phMsg").dataset.busy = "1";
-  loadPhotos().then(() => { delete $("#phMsg").dataset.busy; });
-};
-
-/* перетаскивание пальцем и мышью: порядок показа фото */
-function bindDrag(){
-  const list = $("#phList");
-  let drag = null;
-
-  const at = (x, y) => {
-    const el = document.elementFromPoint(x, y);
-    return el ? el.closest(".ph") : null;
-  };
-  const start = (tile) => {
-    drag = tile;
-    tile.classList.add("drag");
-  };
-  const move = (x, y) => {
-    if (!drag) return;
-    const over = at(x, y);
-    if (!over || over === drag) return;
-    const tiles = Array.prototype.slice.call(list.children);
-    if (tiles.indexOf(over) < tiles.indexOf(drag)) list.insertBefore(drag, over);
-    else list.insertBefore(drag, over.nextSibling);
-  };
-  const end = () => {
-    if (!drag) return;
-    drag.classList.remove("drag");
-    drag = null;
-    const ids = Array.prototype.slice.call(list.children).map(el => Number(el.dataset.id));
-    PHOTOS.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-    Array.prototype.slice.call(list.children).forEach((el, i) => { el.querySelector(".no").textContent = i + 1; });
-    $("#phMsg").innerHTML = '<span class="note">' + esc(T("tg.photos_order_note", "порядок изменён — он виден только на этом экране, сервер порядок пока не хранит")) + "</span>";
-  };
-
-  list.querySelectorAll(".ph").forEach(tile => {
-    tile.addEventListener("touchstart", e => {
-      if (e.target.closest(".del")) return;
-      start(tile);
-    }, {passive: true});
-    tile.addEventListener("touchmove", e => {
-      if (!drag) return;
-      e.preventDefault();                      // палец двигает плитку, а не страницу
-      const t = e.touches[0];
-      move(t.clientX, t.clientY);
-    }, {passive: false});
-    tile.addEventListener("touchend", end);
-    tile.addEventListener("touchcancel", end);
-    tile.addEventListener("mousedown", e => {
-      if (e.target.closest(".del")) return;
-      e.preventDefault();
-      start(tile);
-    });
-  });
-  document.onmousemove = e => { if (drag) move(e.clientX, e.clientY); };
-  document.onmouseup = end;
-}
-
-/* ---------- гость: свои файлы для анализа риска ---------- */
-/* Запроса у гостя нет, поэтому файлы живут сами по себе: POST /analytics/risk/document,
-   список GET /analytics/risk/documents, удаление DELETE /analytics/risk/document/{id}.
-   Сервер отбирает их по анонимному gid из cookie и удаляет через 24 часа. */
-let GDOCS = [];
-
-function loadPhotosTab(){
-  const guest = IS_GUEST();
-  $("#gdocCard").classList.toggle("hidden", !guest);
-  $("#phCards").classList.toggle("hidden", guest);
-  $("#phLead").textContent = guest
-    ? T("tg.gdoc_lead", "Загрузите договор или документы объекта — система прочитает их и подставит данные в анализ риска.")
-    : T("tg.photos_lead", "Файлы прикрепляются к последнему сохранённому запросу — сначала посчитайте и сохраните его в разделе «Расчёт».");
-  if (guest) { loadGuestDocs(); return; }
-  paintPhotoMsgs();
-}
-
-async function loadGuestDocs(){
-  const r = await api("/analytics/risk/documents");
-  if (!r.ok) { $("#gdocList").innerHTML = '<div class="note err">' + esc(T("tg.gdoc_list_failed", "Список файлов не загрузился: {reason}", {reason: r.error})) + "</div>"; return; }
-  GDOCS = (r.data && r.data.items) || [];
-  paintGuestDocs();
-}
-
-function paintGuestDocs(){
-  const box = $("#gdocList");
-  if (!GDOCS.length) { box.innerHTML = '<div class="note">' + esc(T("tg.gdoc_empty", "пока ничего не загружено")) + "</div>"; return; }
-  box.innerHTML = GDOCS.map(d => "<div><span>" + esc(d.filename || T("tg.doc_default", "документ")) + " · " + esc(d.kind || "")
-    + "</span><b>" + esc(d.status || "") + "</b>"
-    + '<button type="button" class="btn btn-link btn-sm" data-gdel="' + esc(d.doc_id) + '">' + esc(T("common.delete", "Удалить")) + "</button></div>").join("");
-  box.querySelectorAll("[data-gdel]").forEach(b => { b.onclick = () => delGuestDoc(b.dataset.gdel); });
-}
-
-async function delGuestDoc(id){
-  const r = await api("/analytics/risk/document/" + encodeURIComponent(id), {method: "DELETE"});
-  if (!r.ok) { $("#gdocMsg").innerHTML = errHtml(T("tg.gdoc_delete_failed", "Файл не удалился: {reason}", {reason: r.error})); return; }
-  $("#gdocMsg").innerHTML = "";
-  loadGuestDocs();
-}
-
-$("#gdocFile").onchange = async e => {
-  const f = e.target.files && e.target.files[0];
-  if (!f) return;
-  const fd = new FormData();
-  fd.append("file", f);
-  $("#gdocMsg").innerHTML = spin(T("tg.doc_reading", "загружаю и читаю документ…"));
-  const r = await api("/analytics/risk/document", {method: "POST", body: fd});
-  e.target.value = "";
-  // 429 и прочие отказы показываем словами сервера (detail), своих текстов не придумываем
-  if (!r.ok) { $("#gdocMsg").innerHTML = errHtml(r.error); return; }
-  $("#gdocMsg").innerHTML = okHtml(T("tg.doc_uploaded", "загружено"));
-  loadGuestDocs();
-};
-
-/* ---------- документы ---------- */
-async function loadDocs(){
-  if (!RID) return;
-  const r = await api("/requests/" + RID + "/documents/files");
-  if (!r.ok) { $("#docList").innerHTML = '<div class="note">' + esc(T("tg.docs_unavailable", "список документов недоступен")) + "</div>"; return; }
-  const rows = r.data || [];
-  $("#docList").innerHTML = rows.length
-    ? rows.map(d => "<div><span>" + esc(d.doc_kind || T("tg.doc_default", "документ")) + " · " + esc(d.filename || "") + "</span><b>"
-      + esc(d.parse_status || "") + "</b></div>").join("")
-    : '<div class="note">' + esc(T("tg.docs_empty", "пока ничего не загружено")) + "</div>";
-}
-
-$("#docFile").onchange = async e => {
-  const f = e.target.files && e.target.files[0];
-  if (!f) return;
-  if (!RID) { $("#docMsg").innerHTML = errHtml(T("tg.request_not_saved", "Сначала сохраните запрос на вкладке «Расчёт».")); return; }
-  const fd = new FormData();
-  fd.append("files", f);
-  $("#docMsg").dataset.busy = "1";
-  $("#docMsg").innerHTML = spin(T("tg.doc_reading", "загружаю и читаю документ…"));
-  const r = await api("/requests/" + RID + "/documents/upload?doc_kind=" + encodeURIComponent($("#docKind").value), {method: "POST", body: fd});
-  e.target.value = "";
-  if (!r.ok) { $("#docMsg").innerHTML = errHtml(T("tg.doc_failed", "Документ не загрузился: {reason}", {reason: r.error})); return; }
-  const saved = (r.data.saved || [])[0] || {};
-  const parsed = saved[PARSED_KEY] || {};
-  const found = parsed.fields ? parsed.fields.filter(x => x.value != null).length : null;
-  $("#docMsg").innerHTML = okHtml(T("tg.doc_uploaded", "загружено")) + (found != null ? ' <span class="note">· ' + esc(T("tg.doc_fields_read", "прочитано полей: {n}", {n: found})) + "</span>" : "");
-  loadDocs();
-};
-const PARSED_KEY = "разбор";            // ключ ответа сервера, не подпись
-
-/* ---------- поля с суммами: разделители тысяч по языку, курсор не теряем ---------- */
-["sum", "val"].forEach(id => {
-  const el = $("#" + id);
-  el.addEventListener("blur", () => { const v = num(el.value); el.value = v ? v.toLocaleString(LOC()) : ""; });
-});
 
 boot();
 </script>

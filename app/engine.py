@@ -187,17 +187,26 @@ def _obj_match(c: dict, object_type: Optional[str]) -> bool:
     return bool(obj) and obj.startswith(str(c["scope_code"]).strip().lower())
 
 
+PURPOSE_CONTRACT = "contract"      # расчёт под договор: всё как раньше
+PURPOSE_ANALYSIS = "analysis"      # анализ риска: без документов и проверок оформления договора
+# Правила оформления договора: к оценке риска отношения не имеют, в анализе не показываются.
+CONTRACT_ONLY_CHECKS = {"premium_unpaid", "disclosure"}
+
+
 def checklist_items(checklists: list, class_code: Optional[str], object_type: Optional[str] = None,
-                    product_code: Optional[str] = None) -> list:
+                    product_code: Optional[str] = None, purpose: str = PURPOSE_CONTRACT) -> list:
     """
     Строки чек-листа, которые относятся к договору. Собирается по признакам: «всегда», по классу
     и по типу объекта (тип нужен спецтехнике: документы у экскаватора и у легкового автомобиля
     разные, а класс у них один — 3). С product_code — ещё строки продукта (scope_type «продукт»).
     Движок в проверке docs_missing продукт не передаёт — поведение расчёта прежнее.
     Возвращает строки справочника как есть (с required и condition), без дублей по doc_name.
+    purpose='analysis' — строки со scope 'оформление' (заявление-анкета) не возвращаются.
     """
     out, seen = [], set()
     for c in checklists:
+        if purpose == PURPOSE_ANALYSIS and (c.get("scope") or "анализ") != "анализ":
+            continue
         st = c["scope_type"]
         hit = (st == "всегда"
                or (st != "продукт" and class_code is not None and c["scope_code"] == class_code)
@@ -209,7 +218,8 @@ def checklist_items(checklists: list, class_code: Optional[str], object_type: Op
     return out
 
 
-def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict) -> list:
+def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict,
+               purpose: str = PURPOSE_CONTRACT) -> list:
     out = []
     add = lambda code, s, t, d: out.append({"rule": code, "status": s, "title": t, "detail": d})
 
@@ -350,7 +360,8 @@ def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict) ->
                 "Страхователем выступает банк-кредитор, премия принимается только от банка.")
 
     # документы
-    need = [c["doc_name"] for c in checklist_items(ref.checklists, inp.class_code, inp.object_type)
+    need = [c["doc_name"] for c in checklist_items(ref.checklists, inp.class_code, inp.object_type,
+                                                   purpose=purpose)
             if c["required"]]
     missing = [d for d in need if d not in set(inp.docs_received)]
     if missing:
@@ -366,13 +377,16 @@ def checks_for(ref: Reference, inp: Input, r: dict, applied: float, mr: dict) ->
     if "earthquake" in r["included"] and inp.factors.get("seismic", "z7") != "z7":
         add("cat_accumulation", "warn", "Катастрофический риск в сейсмозоне",
             "Страховая сумма попадает в накопление по зоне; нужен контроль лимита по зоне.")
-    if not inp.premium_paid:
-        add("premium_unpaid", "warn", "Премия не поступила",
-            "По ст. 33¹ полис без уплаты премии обязывает страховщика полностью.")
-    if not inp.disclosure_done:
-        add("disclosure", "warn", "Клиенту не раскрыта информация",
-            "Ст. 63: цена, покрытые и исключённые риски, возврат премии, порядок претензий.")
-    return out
+    # оплата премии и раскрытие информации — правила оформления договора, а не оценки риска
+    if purpose != PURPOSE_ANALYSIS:
+        if not inp.premium_paid:
+            add("premium_unpaid", "warn", "Премия не поступила",
+                "По ст. 33¹ полис без уплаты премии обязывает страховщика полностью.")
+        if not inp.disclosure_done:
+            add("disclosure", "warn", "Клиенту не раскрыта информация",
+                "Ст. 63: цена, покрытые и исключённые риски, возврат премии, порядок претензий.")
+    return [c for c in out if c["rule"] not in CONTRACT_ONLY_CHECKS] \
+        if purpose == PURPOSE_ANALYSIS else out
 
 
 def recommendations(ref: Reference, inp: Input, current_premium: float) -> list:
@@ -445,7 +459,8 @@ def preventive_measures(ref: Reference, inp: Input, r: dict, current_premium: fl
     return out
 
 
-def calculate(ref: Reference, inp: Input) -> dict:
+def calculate(ref: Reference, inp: Input, purpose: str = PURPOSE_CONTRACT) -> dict:
+    """purpose='analysis' — расчёт для анализа риска: без проверок и документов оформления договора."""
     r = rate_for(ref, inp)
     mr = min_rate(ref, inp.product_code, inp.payer_type)
     if pricing_mode_of(ref, inp) in NEGOTIATED_MODES:
@@ -454,7 +469,7 @@ def calculate(ref: Reference, inp: Input) -> dict:
     auto = max(r["gross_pct"], mr["floor"] or 0)
     applied = inp.applied_rate_pct if inp.applied_rate_pct else auto
     premium = premium_of(applied, inp.sum_insured, inp.term_days)
-    checks = checks_for(ref, inp, r, applied, mr)
+    checks = checks_for(ref, inp, r, applied, mr, purpose)
     worst = "stop" if any(c["status"] == "stop" for c in checks) else \
             "warn" if any(c["status"] == "warn" for c in checks) else "ok"
     verdict = {"ok": "ок", "warn": "на утверждение", "stop": "отклонено"}[worst]

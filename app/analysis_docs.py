@@ -108,9 +108,12 @@ def _item(c: dict) -> dict:
     return out
 
 
-def required_docs(con, product_code: str = "", class_code: str = "", object_type: str = "") -> dict:
+def required_docs(con, product_code: str = "", class_code: str = "", object_type: str = "",
+                  purpose: str = engine.PURPOSE_ANALYSIS) -> dict:
     """
-    Документы по продукту, классу и типу объекта. Если у продукта свой чек-лист (строки «продукт») —
+    Документы по продукту, классу и типу объекта. Список для анализа риска: строки оформления
+    договора (заявление-анкета) сюда не попадают — см. engine.checklist_items(purpose=...).
+    Если у продукта свой чек-лист (строки «продукт») —
     берём его; иначе — общий и по классам продукта (или по переданному классу). Строки по типу
     объекта добавляются всегда. Источник каждой строки помечен.
     """
@@ -134,7 +137,8 @@ def required_docs(con, product_code: str = "", class_code: str = "", object_type
         raise HTTPException(422, "Неизвестный класс страхования: " + ", ".join(unknown))
 
     lists = db.load_reference(con).checklists
-    by_product = [c for c in engine.checklist_items(lists, None, object_type, product_code or None)
+    by_product = [c for c in engine.checklist_items(lists, None, object_type, product_code or None,
+                                                    purpose=purpose)
                   if c["scope_type"] != "всегда"] if product else []
     if any(c["scope_type"] == "продукт" for c in by_product):
         rows, basis = by_product, "продукт"
@@ -142,7 +146,7 @@ def required_docs(con, product_code: str = "", class_code: str = "", object_type
     else:
         rows, seen, basis = [], set(), "класс"
         for cls in classes:
-            for c in engine.checklist_items(lists, cls, object_type):
+            for c in engine.checklist_items(lists, cls, object_type, purpose=purpose):
                 if c["doc_name"] not in seen:
                     seen.add(c["doc_name"])
                     rows.append(c)

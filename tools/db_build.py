@@ -768,7 +768,10 @@ def main():
         cur.execute("UPDATE rules SET review_status=?, review_reason=?, review_since=? WHERE code=?",
                     (st, why, since, code))
     for ch in CHECKLISTS:
-        cur.execute("INSERT INTO checklists (scope_type,scope_code,doc_name,required,condition) VALUES (?,?,?,?,?)", ch)
+        # заявление-анкета нужна только для оформления договора, в анализ риска она ничего не добавляет
+        scope = "оформление" if "заявлен" in ch[2].lower() else "анализ"
+        cur.execute("INSERT INTO checklists (scope_type,scope_code,doc_name,required,condition,scope)"
+                    " VALUES (?,?,?,?,?,?)", tuple(ch) + (scope,))
     for m in MEASURES:
         cur.execute("INSERT INTO preventive_measures VALUES (?,?,?,?,?,?,?,?,?,?)", m)
 

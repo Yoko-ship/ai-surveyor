@@ -1003,7 +1003,7 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
                     ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),
-                    ("legal", "legal_router")):
+                    ("legal", "legal_router"), ("surveyor_chat", "surveyor_chat_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

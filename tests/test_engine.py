@@ -244,6 +244,25 @@ def test_every_class_with_products_is_calculable():
     print("классов с продуктами:", len(rows), "— по всем считается ставка")
 
 
+def test_purpose_analysis():
+    """Правка заказчика 22.09.2026: в анализе риска нет проверок оформления и заявления-анкеты."""
+    R = ref()
+    inp = Input(product_code="0807", class_code="8", object_type="здание",
+                value_amount=1e9, sum_insured=1e9)
+    contract = calculate(R, inp)
+    analysis = calculate(R, inp, purpose="analysis")
+    rules_c = {c["rule"] for c in contract["checks"]}
+    rules_a = {c["rule"] for c in analysis["checks"]}
+    assert {"premium_unpaid", "disclosure"} <= rules_c, rules_c
+    assert not ({"premium_unpaid", "disclosure"} & rules_a), rules_a
+    miss_c = next(c["detail"] for c in contract["checks"] if c["rule"] == "docs_missing")
+    miss_a = next(c["detail"] for c in analysis["checks"] if c["rule"] == "docs_missing")
+    assert "Заявление-анкета на страхование" in miss_c, miss_c
+    assert "аявлен" not in miss_a, miss_a
+    assert contract["premium"] == analysis["premium"]
+    print("purpose=analysis: без оплаты, раскрытия и заявления; премия та же", analysis["premium"])
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

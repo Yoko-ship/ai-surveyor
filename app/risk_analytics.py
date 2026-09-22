@@ -33,6 +33,7 @@ from typing import Optional
 
 from . import capacity as cap
 from . import db
+from . import engine
 from .engine import (Input, NEGOTIATED_MODES, calculate, factors_for, min_rate, premium_of,
                      pricing_mode_of, rate_for)
 
@@ -137,6 +138,24 @@ DEFAULT_THRESHOLDS = {
     # коэффициент): 0,5 и ниже → 0 баллов, 1,5 и выше → 100, республиканский уровень (1,0) → 50
     "external_ratio": [0.5, 1.5],
     "external_volatility_years": 10,   # за сколько лет считается изменчивость сбора урожая (класс 16у)
+    # --------------------------------------------------------------------------------------------
+    # Франшиза по ситуации (app/franchise.py). Все числа экспертные (calibrated = 0), правятся
+    # администратором через save_thresholds и хранятся в таблице risk_thresholds.
+    # --------------------------------------------------------------------------------------------
+    # вилка безусловной франшизы (% страховой суммы) по уровню риска
+    "franchise_by_level": {"Низкий": [0, 1], "Умеренный": [1, 2], "Повышенный": [2, 5],
+                           "Высокий": [5, 10], "Критический": [10, 90]},
+    # множитель к нетто-ставке по размеру франшизы: 0/0,5/1/2% — из справочника коэффициентов
+    # (class_factors → franchise), 5/10/90% — экспертное продолжение той же кривой
+    "franchise_multipliers": {"0": 1.0, "0.5": 0.92, "1": 0.85, "2": 0.75,
+                              "5": 0.60, "10": 0.45, "90": 0.15},
+    "franchise_small_loss_pct": 1.0,      # «мелкий убыток» — меньше 1% страховой суммы
+    "franchise_small_share": 0.5,         # мелких убытков больше половины → верх вилки
+    "franchise_loss_count_high": 2,       # 2 и более убытков за 3 года → верх вилки
+    "franchise_class_caps": {"3": 5},     # потолок франшизы по классу (транспорт — 5%)
+    "franchise_critical_peril_pct": 90,   # франшиза по одному «неприемлемому» риску
+    "franchise_critical_seismic_zone": 9,  # зона, с которой землетрясение без сейсмостойкости критично
+    "franchise_measures_note_days": 90,   # срок мероприятий по умолчанию, дней
 }
 
 THRESHOLDS_SQL = """
@@ -813,6 +832,42 @@ def check_thresholds(t: dict) -> list:
         errs.append("scenario_bands_pct: четыре возрастающих числа")
     if t.get("stop_min_level") not in LEVEL_NAMES:
         errs.append("stop_min_level: одно из " + ", ".join(LEVEL_NAMES))
+    errs += _check_franchise_thresholds(t)
+    return errs
+
+
+def _check_franchise_thresholds(t: dict) -> list:
+    """Проверка порогов франшизы (app/franchise.py)."""
+    errs = []
+    by = t.get("franchise_by_level") or {}
+    if set(by) != set(LEVEL_NAMES):
+        errs.append("franchise_by_level: нужны все уровни — " + ", ".join(LEVEL_NAMES))
+    for name, v in by.items():
+        if not (isinstance(v, list) and len(v) == 2 and all(isinstance(x, (int, float)) for x in v)
+                and 0 <= v[0] <= v[1] <= 100):
+            errs.append(f"franchise_by_level[{name}]: пара [от, до] в процентах от 0 до 100")
+    mult = t.get("franchise_multipliers") or {}
+    try:
+        pts = sorted((float(k), float(v)) for k, v in mult.items())
+    except (TypeError, ValueError):
+        pts = []
+        errs.append("franchise_multipliers: ключ — процент франшизы, значение — множитель")
+    if pts and (pts[0][0] != 0 or pts[0][1] != 1.0):
+        errs.append("franchise_multipliers: при франшизе 0% множитель должен быть 1")
+    if any(b[1] > a[1] for a, b in zip(pts, pts[1:])):
+        errs.append("franchise_multipliers: с ростом франшизы множитель не должен расти")
+    if any(v <= 0 for _, v in pts):
+        errs.append("franchise_multipliers: множители должны быть больше нуля")
+    for k, lo, hi in (("franchise_small_loss_pct", 0, 100), ("franchise_small_share", 0, 1),
+                      ("franchise_loss_count_high", 1, 20), ("franchise_critical_peril_pct", 0, 100),
+                      ("franchise_critical_seismic_zone", 6, 10), ("franchise_measures_note_days", 1, 365)):
+        v = t.get(k)
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or not lo <= v <= hi:
+            errs.append(f"{k}: число от {lo} до {hi}")
+    caps = t.get("franchise_class_caps")
+    if not isinstance(caps, dict) or any(not isinstance(v, (int, float)) or not 0 < v <= 100
+                                         for v in (caps or {}).values()):
+        errs.append("franchise_class_caps: класс → потолок франшизы в процентах (0–100]")
     return errs
 
 
@@ -1168,7 +1223,8 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
                     value_amount=V, sum_insured=S, term_days=T, factors=dict(factors),
                     payer_type=optional.get("payer_type"), takaful=pname.startswith("Такафул"),
                     docs_received=list(optional.get("docs_received") or []))
-        out = calculate(ref, inp)
+        # анализ риска: без проверок оформления договора (оплата премии, раскрытие) и без заявления-анкеты
+        out = calculate(ref, inp, purpose=engine.PURPOSE_ANALYSIS)
         r = rate_for(ref, inp)
         parts.append({"class_code": cls, "product_code": prod, "product_name": pname, "inp": inp,
                       "calc": out, "rate": r})
@@ -1364,6 +1420,9 @@ def analyze(con, must: dict, optional: Optional[dict] = None, thresholds: Option
         "market": mk,
         "external_stats": external,
         "assumptions": [{k: v for k, v in a.items()} for a in (assumptions or [])],
+        # набор полей, на котором расчёт реально сделан (после apply_defaults быстрого режима):
+        # повторный счёт (франшиза, варианты) обязан идти на этих же данных, иначе цифры разойдутся
+        "inputs": {"must": dict(must), "optional": dict(optional)},
         "method": _method(),
         "thresholds_source": th.get("_source"),
     }

@@ -1,16 +1,21 @@
 """
-Мгновенные юридические ответы на трёх языках (ru | uz | en) — без внешнего ИИ.
+«ИИ специалист по страхованию INSON»: мгновенные ответы на трёх языках (ru | uz | en).
 
-Зачем: юрист и андеррайтер задают один и тот же вопрос десятки раз («что если страховая сумма
-больше стоимости?»), а ответ у модели занимает секунды и стоит денег. Здесь ответ собирается из
-того, что уже лежит в проекте, за десятки миллисекунд:
+Зачем: сотрудники задают один и тот же вопрос десятки раз («что если страховая сумма больше
+стоимости?», «как выбирают франшизу?»), а ответ у модели занимает секунды и стоит денег. Здесь
+ответ собирается из того, что уже лежит в проекте, за десятки миллисекунд:
 
-  1. FAQ юриста  — docs/Юрист — FAQ.json (готовые короткие ответы и точные цитаты на ru/uz/en);
+  0. Роль: помощник отвечает и по практике страхования (андеррайтинг, документы, оценка, убытки),
+     и по норме. Практический ответ помечается «практика компании / учебник CII», нормативный —
+     цитатой акта. Имя помощника на трёх языках отдаётся в ответах как assistant_name.
+  1. FAQ          — docs/Специалист — FAQ.json (старое имя «Юрист — FAQ.json» тоже читается);
   2. индекс      — SQLite FTS5 по library/01_Законодательство/**/*.txt, заметкам docs/*.md
                    и правилам движка (таблица rules);
-  3. ИИ          — НЕОБЯЗАТЕЛЬНОЕ улучшение: если ключ настроен (app/llm), к мгновенному ответу
-                   добавляется пересказ строго по найденным пассажам. Нет ключа — ai.status="off",
-                   ответ всё равно выдаётся.
+  3. ИИ          — НЕОБЯЗАТЕЛЬНОЕ улучшение (Gemini или другой провайдер, app/llm): к мгновенному
+                   ответу добавляется пересказ строго по найденным пассажам, а если ни FAQ, ни закон
+                   вопрос не покрыли — свободный ответ модели с пометкой «ИИ». Системный промпт —
+                   роль специалиста плюс правовой блок app/llm_prompts/legal_guard.ru.txt.
+                   Нет ключа — ai.status="off", ответ всё равно выдаётся.
 
 Три языка. Файл считается узбекским/английским по пометке в имени («… (uz).txt», «… (узб).txt»,
 «… (en).txt»), иначе язык определяется по тексту (app/ingest.detect_language), по умолчанию ru.
@@ -45,7 +50,30 @@ router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "library" / "01_Законодательство"
 NOTES = ROOT / "docs"
-FAQ_FILE = ROOT / "docs" / "Юрист — FAQ.json"
+# FAQ переименован 22.09.2026 («ИИ специалист по страхованию»). Старое имя поддерживается:
+# на развёрнутом сервере файл мог остаться прежним.
+FAQ_FILE_NEW = ROOT / "docs" / "Специалист — FAQ.json"
+FAQ_FILE_OLD = ROOT / "docs" / "Юрист — FAQ.json"
+FAQ_FILE = FAQ_FILE_NEW if FAQ_FILE_NEW.exists() else FAQ_FILE_OLD
+
+# Как зовут помощника в ответах API (мини-апп показывает это имя пользователю)
+ASSISTANT_NAME = {
+    "ru": "ИИ специалист по страхованию INSON",
+    "uz": "INSON sugʻurta boʻyicha sunʼiy intellekt mutaxassisi",
+    "en": "INSON AI insurance specialist",
+}
+# пометка практического ответа: норма его не покрывает
+PRACTICE_NOTE = {
+    "ru": "Ответ по практике компании и учебникам CII, а не по норме права.",
+    "uz": "Javob huquqiy norma emas, kompaniya amaliyoti va CII darsliklari asosida berildi.",
+    "en": "This answer follows company practice and CII textbooks, not a legal rule.",
+}
+# пометка ответа, собранного моделью
+AI_NOTE = {
+    "ru": "ИИ: ответ подготовлен моделью, норма его не подтверждает — проверьте у юриста.",
+    "uz": "SI: javobni model tayyorladi, norma bilan tasdiqlanmagan — yuristda tekshiring.",
+    "en": "AI: drafted by the model and not confirmed by a rule — check with the lawyer.",
+}
 ACTS_REGISTRY = ROOT / "docs" / "Отслеживаемые акты.json"
 
 LANGS = ("ru", "uz", "en")
@@ -966,7 +994,10 @@ _faq_cache = {"mtime": None, "items": [], "version": None}
 
 
 def faq_items() -> list:
-    """docs/Юрист — FAQ.json. Файла ещё нет — работаем без него (юрист пишет параллельно)."""
+    """docs/Специалист — FAQ.json (старое имя «Юрист — FAQ.json» тоже подходит)."""
+    global FAQ_FILE
+    if not FAQ_FILE.exists():                     # файл могли переименовать на работающем сервере
+        FAQ_FILE = FAQ_FILE_NEW if FAQ_FILE_NEW.exists() else FAQ_FILE_OLD
     try:
         st = FAQ_FILE.stat()
     except OSError:
@@ -1041,6 +1072,10 @@ def _term_hit(term: str, tokens: list, groups: set) -> bool:
     """
     for tk in tokens:
         if len(tk) < 4:
+            # трёхбуквенные аббревиатуры (PML, EML, MFL, БРВ) ловим только полным совпадением:
+            # по началу слова они по-прежнему не сравниваются
+            if len(tk) == 3 and tk == term:
+                return True
             continue
         n = _common_prefix(tk, term)
         if n >= PREFIX_MIN or (n >= 4 and n >= min(len(tk), len(term)) - 1):
@@ -1465,18 +1500,61 @@ def faq_answer(item: dict, lang: str, confidence: float) -> dict:
         note = NOTE_ONLY_LANG.get(lang, NOTE_ONLY_LANG[DEFAULT_LANG]) % ", ".join(sorted(other))
     if lang == "en" and not any(c["official"] for c in citations):
         note = (note + " " if note else "") + "unofficial: no official English text of the act exists"
+    # практический вопрос (андеррайтинг, документы, оценка, убытки): нормы нет, есть заметка проекта
+    if (item.get("kind") == "практика") or (not citations and item.get("basis")):
+        basis, _ = _pick_any(item.get("basis") or {}, lang)
+        mark = PRACTICE_NOTE.get(lang) or PRACTICE_NOTE[DEFAULT_LANG]
+        note = (note + " " if note else "") + mark + (f" ({basis})" if basis else "")
     return {"text": text or "", "citations": citations, "note": note,
-            "confidence": confidence}
+            "confidence": confidence, "kind": item.get("kind") or "норма",
+            "basis": _pick_any(item.get("basis") or {}, lang)[0]}
 
 
 # --------------------------------------------------------------------------- #
 #  ИИ — необязательное улучшение
 # --------------------------------------------------------------------------- #
 
-AI_SYSTEM = ("Ты юрист страховой компании в Узбекистане. Отвечай ТОЛЬКО по приведённым ниже пассажам. "
-             "Ничего не добавляй от себя: если в пассажах ответа нет — так и напиши. "
-             "Цитируй номера статей и пунктов. Ответ — 2–5 предложений. "
-             "Язык ответа строго: %s.")
+GUARD_FILE = ROOT / "app" / "llm_prompts" / "legal_guard.ru.txt"
+SYSTEM_FILE = ROOT / "app" / "llm_prompts" / "system.json"
+_guard_cache = {"mtime": None, "text": ""}
+
+# Роль помощника. Правовой блок (legal_guard.ru.txt) подклеивается к ней целиком: запреты
+# «не сочинять нормы», «не обещать выплату», «не толковать договор» действуют и здесь.
+AI_ROLE = ("Ты «ИИ специалист по страхованию INSON» — помощник сотрудников страховой организации "
+           "в Узбекистане. Ты отвечаешь и на вопросы практики (андеррайтинг, документы, оценка, "
+           "убытки), и на правовые вопросы. Практику объясняй просто и по делу; норму — только со "
+           "ссылкой на акт, статью и пункт. Ответ — 2–5 предложений. Язык ответа строго: %s.")
+
+AI_SYSTEM = AI_ROLE + ("\nОтвечай ТОЛЬКО по приведённым ниже пассажам. Ничего не добавляй от себя: "
+                       "если в пассажах ответа нет — так и напиши. Цитируй номера статей и пунктов.")
+
+# Нормы в пассажах нет: модель отвечает по общей практике страхования и обязана это пометить
+AI_SYSTEM_FREE = AI_ROLE + ("\nНормы по этому вопросу тебе не передали. Отвечай по общей практике "
+                            "страхования и учебникам, НЕ ссылайся на конкретные статьи и пункты и не "
+                            "называй номера актов. Если вопрос требует нормы — скажи, что нужен юрист.")
+
+
+def guard_text() -> str:
+    """Правовой блок системного промпта (app/llm_prompts/legal_guard.ru.txt). Файла нет — работаем без него."""
+    try:
+        st = GUARD_FILE.stat()
+    except OSError:
+        return ""
+    if _guard_cache["mtime"] != st.st_mtime:
+        try:
+            _guard_cache.update({"mtime": st.st_mtime,
+                                 "text": GUARD_FILE.read_text(encoding="utf-8")})
+        except Exception as e:
+            print("legal: правовой блок промпта не прочитан:", e)
+            _guard_cache.update({"mtime": st.st_mtime, "text": ""})
+    return _guard_cache["text"]
+
+
+def system_prompt(lang: str, free: bool = False) -> str:
+    """Системный промпт «ИИ специалиста»: роль + правовой блок юриста."""
+    base = (AI_SYSTEM_FREE if free else AI_SYSTEM) % lang
+    guard = guard_text()
+    return base + ("\n\n" + guard if guard else "")
 
 
 def ai_answer(question: str, passages: list, lang: str) -> dict:
@@ -1488,8 +1566,8 @@ def ai_answer(question: str, passages: list, lang: str) -> dict:
         return {"status": "off", "text": None}
     old = getattr(llm, "TIMEOUT_SEC", None)
     try:
-        llm.TIMEOUT_SEC = AI_TIMEOUT_SEC            # юридический ответ ждать дольше 8 с нет смысла
-        text = llm.chat("юридический вопрос", AI_SYSTEM % lang,
+        llm.TIMEOUT_SEC = AI_TIMEOUT_SEC            # ответ по норме ждать дольше 8 с нет смысла
+        text = llm.chat("вопрос специалисту по страхованию", system_prompt(lang),
                         f"Вопрос: {question}\n\nПассажи:\n{body}", max_tokens=400)
     except Exception as e:
         return {"status": "error", "text": None, "reason": str(e)[:200]}
@@ -1499,6 +1577,26 @@ def ai_answer(question: str, passages: list, lang: str) -> dict:
     if not text:
         return {"status": "error", "text": None, "reason": (llm.last_error or {}).get("text")}
     return {"status": "ok", "text": text.strip()}
+
+
+def ai_free_answer(question: str, lang: str) -> dict:
+    """Ни FAQ, ни закон вопрос не покрыли: отвечает модель, ответ помечается «ИИ»."""
+    if not llm.enabled():
+        return {"status": "off", "text": None}
+    old = getattr(llm, "TIMEOUT_SEC", None)
+    try:
+        llm.TIMEOUT_SEC = AI_TIMEOUT_SEC
+        text = llm.chat("вопрос специалисту по страхованию (без нормы)",
+                        system_prompt(lang, free=True), f"Вопрос: {question}", max_tokens=400)
+    except Exception as e:
+        return {"status": "error", "text": None, "reason": str(e)[:200]}
+    finally:
+        if old is not None:
+            llm.TIMEOUT_SEC = old
+    if not text:
+        return {"status": "error", "text": None, "reason": (llm.last_error or {}).get("text")}
+    return {"status": "ok", "text": text.strip(), "source": "ai",
+            "note": AI_NOTE.get(lang) or AI_NOTE[DEFAULT_LANG]}
 
 
 # --------------------------------------------------------------------------- #
@@ -1584,13 +1682,15 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
         note = SILENCE_NOTE.get(lang) or SILENCE_NOTE[DEFAULT_LANG]
         out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
                "citations": citations, "related": related(lang),
-               "ai": {"status": "off", "text": None}, "note": note, "cached": False}
+               "ai": {"status": "off", "text": None}, "note": note, "cached": False,
+               "assistant_name": dict(ASSISTANT_NAME)}
         _cache_put(key, out)
         log_question(question, lang, "none", SILENCE_MAX_CONF, out["took_ms"], False)
         return out
     if item:
         a = faq_answer(item, lang, conf)
-        answer = {"text": a["text"], "source": "faq", "confidence": conf}
+        answer = {"text": a["text"], "source": "faq", "confidence": conf,
+                  "kind": a.get("kind"), "basis": a.get("basis")}
         citations, note = a["citations"], a["note"]
         passages = []
     else:
@@ -1630,9 +1730,13 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
             answer = {"text": texts.get(lang) or texts[DEFAULT_LANG],
                       "source": "none", "confidence": conf}
             note = note or NO_NORM_NOTE.get(lang) or NO_NORM_NOTE[DEFAULT_LANG]
+            # ни FAQ, ни закон не покрыли вопрос — отвечает модель, ответ помечен «ИИ»
+            ai = ai_free_answer(question, lang) if with_ai else {"status": "off", "text": None}
+            if ai.get("status") == "ok":
+                note = note + " " + (ai.get("note") or "")
             out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
                    "citations": citations, "related": related(lang),
-                   "ai": {"status": "off", "text": None},
+                   "ai": ai, "assistant_name": dict(ASSISTANT_NAME),
                    "note": note, "cached": False}
             _cache_put(key, out)
             log_question(question, lang, "none", conf, out["took_ms"], False)
@@ -1649,7 +1753,8 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
 
     took = int((time.time() - t0) * 1000)
     out = {"lang": lang, "took_ms": took, "answer": answer, "citations": citations,
-           "related": related(lang), "ai": ai, "note": note, "cached": False}
+           "related": related(lang), "ai": ai, "note": note, "cached": False,
+           "assistant_name": dict(ASSISTANT_NAME)}
     _cache_put(key, out)
     log_question(question, lang, answer["source"], answer["confidence"], took, bool(citations))
     return out
@@ -1694,8 +1799,11 @@ def legal_faq(lang: str = DEFAULT_LANG):
         if not q:
             continue
         items.append({"id": item["id"], "q": q, "tags": item.get("tags") or [],
+                      "kind": item.get("kind") or "норма",
                       "lang": DEFAULT_LANG if fb else lang})
-    return {"lang": lang, "version": _faq_cache.get("version"), "count": len(items), "items": items}
+    return {"lang": lang, "version": _faq_cache.get("version"), "count": len(items), "items": items,
+            "assistant_name": dict(ASSISTANT_NAME),
+            "practice_count": sum(1 for i in items if i["kind"] == "практика")}
 
 
 @router.get("/legal/silences")
