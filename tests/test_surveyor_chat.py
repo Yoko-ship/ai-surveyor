@@ -188,11 +188,27 @@ def check_chat():
     ok("ставка не ниже минимума тарифной политики",
        res["summary"]["rate_applied_pct"] >= (res["summary"]["rate_min_pct"] or 0), res["summary"])
     # правка 22.09.2026: в быстром режиме франшиза считается на полях после apply_defaults
+    # правка 27.09.2026: франшиза предлагается только при основании — вариант franchise
+    # появляется в options лишь тогда; base и measures есть всегда
     fr = res["franchise"]
     ok("франшиза посчитана в быстром режиме", fr.get("ok") is True, fr.get("reason"))
     opts = (fr.get("premium_effect") and fr.get("options")) or fr.get("options") or []
-    ok("три варианта тарифа", len(opts) == 3 and {o["key"] for o in opts} ==
-       {"base", "franchise", "measures"}, [o.get("key") for o in opts])
+    keys = [o.get("key") for o in opts]
+    ok("варианты тарифа: base и measures всегда, franchise — только при основании",
+       keys[:1] == ["base"] and keys[-1:] == ["measures"]
+       and ("franchise" in keys) == bool(fr.get("needed")), (keys, fr.get("needed")))
+    ok("основания для франшизы перечислены с ответом «да/нет»",
+       [c["code"] for c in fr.get("grounds_checked") or []] ==
+       ["small_losses", "level_high", "dominant_peril", "client_request"], fr.get("grounds_checked"))
+    # склад из WAREHOUSE — чистый объект: оснований для франшизы быть не должно ни одного
+    ok("в сценарии без оснований список grounds пуст", fr.get("grounds") == [], fr.get("grounds"))
+    ok("без оснований решение — no_franchise, франшиза «нет» и 0%",
+       fr["decision_code"] == "no_franchise" and fr["franchise"]["type"] == "нет"
+       and fr["franchise"]["pct"] == 0 and fr.get("needed") is False,
+       (fr["decision_code"], fr["franchise"]["type"], fr["franchise"]["pct"], fr.get("needed")))
+    ok("без оснований варианта franchise в options нет", "franchise" not in keys, keys)
+    ok("есть альтернативы вместо франшизы", isinstance(fr.get("alternatives"), list),
+       fr.get("alternatives"))
     floor = (res["summary"]["rate_min_pct"] or 0) / 100 * res["summary"]["sum_insured"]
     ok("премии вариантов не ниже минимальной ставки компании (в годовом выражении)",
        all(o["premium"] > 0 for o in opts) and max(o["premium"] for o in opts) >= floor * 0.5,

@@ -150,8 +150,11 @@ DEFAULT_THRESHOLDS = {
     "franchise_multipliers": {"0": 1.0, "0.5": 0.92, "1": 0.85, "2": 0.75,
                               "5": 0.60, "10": 0.45, "90": 0.15},
     "franchise_small_loss_pct": 1.0,      # «мелкий убыток» — меньше 1% страховой суммы
-    "franchise_small_share": 0.5,         # мелких убытков больше половины → верх вилки
-    "franchise_loss_count_high": 2,       # 2 и более убытков за 3 года → верх вилки
+    "franchise_small_share": 0.5,         # мелких убытков больше половины → основание «поток мелких»
+    "franchise_loss_count_high": 2,       # 2 и более убытков за 3 года → основание и верх вилки
+    # доля одного риска в нетто-ставке, с которой он считается доминирующим: франшиза ставится
+    # по этому риску (при неблагоприятном факторе), а не по всему договору (решение 27.09.2026)
+    "franchise_dominant_share": 0.35,
     "franchise_class_caps": {"3": 5},     # потолок франшизы по классу (транспорт — 5%)
     "franchise_critical_peril_pct": 90,   # франшиза по одному «неприемлемому» риску
     "franchise_critical_seismic_zone": 9,  # зона, с которой землетрясение без сейсмостойкости критично
@@ -859,6 +862,7 @@ def _check_franchise_thresholds(t: dict) -> list:
     if any(v <= 0 for _, v in pts):
         errs.append("franchise_multipliers: множители должны быть больше нуля")
     for k, lo, hi in (("franchise_small_loss_pct", 0, 100), ("franchise_small_share", 0, 1),
+                      ("franchise_dominant_share", 0, 1),
                       ("franchise_loss_count_high", 1, 20), ("franchise_critical_peril_pct", 0, 100),
                       ("franchise_critical_seismic_zone", 6, 10), ("franchise_measures_note_days", 1, 365)):
         v = t.get(k)

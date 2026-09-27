@@ -2588,28 +2588,120 @@ function chatOptionsHtml(fr, i){
   const name = o => o.title || {base: T("tg.chat.opt_base", "Базовый"),
     franchise: T("tg.chat.opt_franchise", "С франшизой"),
     measures: T("tg.chat.opt_measures", "С мероприятиями")}[o.key] || o.key;
+  const rate = o => (o.rate_applied_pct != null ? o.rate_applied_pct : o.rate_pct);
+  const deltaHtml = o => {
+    const d = Number(o.delta || 0);
+    if (o.key === "base") return "";                         // базовый вариант сам себе точка отсчёта
+    if (!d) return '<p class="note">' + esc(T("tg.chat.opt_same", "Премия не меняется")) + "</p>";
+    const share = (o.delta_pct == null || isNaN(Number(o.delta_pct))) ? "" : " (" + pct(Math.abs(Number(o.delta_pct)), 1) + ")";
+    const t = d < 0 ? T("tg.chat.opt_cheaper", "Дешевле на {d}", {d: money(-d)})
+                    : T("tg.chat.opt_dearer", "Дороже на {d}", {d: money(d)});
+    return '<p class="note ' + (d < 0 ? "ok" : "warn") + '">' + esc(t + share) + "</p>";
+  };
   return '<div class="h3">' + esc(T("tg.chat.options", "Варианты тарифа")) + "</div>"
     + '<div class="opts">' + opts.map(o =>
       '<div class="opt-card' + (CH.choice === o.key ? " on" : "") + '"><p class="eyebrow">' + esc(name(o)) + "</p>"
       + "<b>" + esc(money(o.premium)) + "</b>"
-      + '<span class="note">' + esc(o.rate_pct != null ? pct(o.rate_pct) : "") + "</span>"
-      + (o.text ? '<p class="note">' + esc(o.text) + "</p>" : "")
+      + (rate(o) != null ? '<span class="note">' + esc(T("tg.chat.opt_rate", "ставка {r}", {r: pct(rate(o))})) + "</span>" : "")
+      + deltaHtml(o)
+      + ((o.what || o.text) ? '<p class="note">' + esc(o.what || o.text) + "</p>" : "")
+      + (o.how ? '<p class="note">' + esc(T("tg.chat.opt_how", "Как посчитано: {t}", {t: o.how})) + "</p>" : "")
       + '<button type="button" class="btn btn-secondary btn-sm" data-choose="' + esc(o.key) + '" data-ci="' + i + '">'
       + esc(CH.choice === o.key ? T("tg.chat.chosen", "Выбран") : T("tg.chat.choose", "Выбрать")) + "</button></div>").join("")
     + "</div>";
 }
+/* строки сервера (список или текст с переводами строк) — каждая своим абзацем */
+function frLinesHtml(src){
+  const list = Array.isArray(src) ? src : String(src == null ? "" : src).split("\n");
+  return list.map(x => String(x == null ? "" : x).trim()).filter(Boolean)
+    .map(x => '<p class="note">' + esc(x) + "</p>").join("");
+}
+/* Франшиза: решение, риск, эффект на премию, что можно вместо франшизы, четыре основания
+   и совет по тарифу — по структуре ответа app/franchise.recommend_franchise. */
 function chatFranchiseHtml(fr){
   if (!fr) return "";
   if (!fr.ok) {
     return '<p class="note warn">' + esc(T("tg.chat.fr_none", "Франшизу система пока не советует: {why}",
-      {why: fr.reason || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")})) + "</p>";
+      {why: fr.reason || fr.message || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")})) + "</p>";
   }
   const f = fr.franchise || {};
-  return '<div class="h3">' + esc(T("tg.chat.fr_title", "Франшиза по ситуации")) + "</div>"
-    + '<p><b>' + esc(f.text || fr.decision || "") + "</b></p>"
-    + (f.peril ? '<p class="note">' + esc(T("tg.chat.fr_peril", "Риск: {p}", {p: f.peril})) + "</p>" : "")
-    + (fr.explanation ? '<p class="note">' + esc(T("tg.chat.fr_why", "Почему: {t}", {t: fr.explanation})) + "</p>" : "")
-    + (fr.tariff_advice ? '<p class="note">' + esc(T("tg.chat.fr_advice", "Совет по тарифу: {t}", {t: fr.tariff_advice})) + "</p>" : "");
+  const code = fr.decision_code || "";
+  const per = (f.peril && typeof f.peril === "object") ? f.peril : null;
+  const notNeeded = T("tg.chat.fr_not_needed", "Франшиза не требуется");
+  const head = code === "statutory"
+    ? T("tg.chat.fr_statutory", "Франшиза не применяется: обязательный вид, тариф по нормативному акту")
+    : code === "no_franchise" ? notNeeded : (f.text || fr.decision || notNeeded);
+  let h = '<div class="h3">' + esc(T("tg.chat.fr_title", "Франшиза по ситуации")) + "</div>"
+    + "<p><b>" + esc(head) + "</b></p>";
+  if (code === "no_franchise") {
+    h += '<p class="note">' + esc(T("tg.chat.fr_no_grounds",
+      "Ни одно из четырёх оснований для франшизы не сработало — разбор в блоке «Почему так».")) + "</p>";
+  }
+  if (f.pct) {
+    h += '<p class="note">' + esc(T("tg.chat.fr_amount", "По договору: {p} страховой суммы = {a} с каждого убытка",
+      {p: pct(f.pct, 2), a: money(f.amount)})) + "</p>";
+  }
+  if (per) {
+    h += '<p class="note">' + esc(T("tg.chat.fr_peril", "По риску «{name}»: франшиза {p} = {a} с каждого убытка от этого риска",
+      {name: per.name || per.code || "", p: pct(per.pct == null ? f.peril_pct : per.pct, 1),
+       a: money(f.peril_amount)})) + "</p>";
+    if (per.why) h += '<p class="note">' + esc(per.why) + "</p>";
+  }
+  const eff = (fr.premium_effect && typeof fr.premium_effect === "object") ? fr.premium_effect : {};
+  if (eff.formula) h += '<p class="note">' + esc(eff.formula) + "</p>";
+  const own = fr.options_custom;
+  if (own && own.premium != null) {
+    h += '<p class="note">' + esc(T("tg.chat.fr_custom", "{t}: премия {p}",
+      {t: own.title || notNeeded, p: money(own.premium)})) + "</p>";
+  }
+
+  const alts = (fr.alternatives || []).filter(a => a && (a.title || a.what));
+  if (alts.length) {
+    h += '<div class="h3">' + esc(T("tg.chat.fr_alts", "Вместо франшизы можно")) + "</div>"
+      + alts.map(a => '<div class="asm"><div><b>' + esc(a.title || "") + "</b>"
+        + (a.what ? "<span>" + esc(a.what) + "</span>" : "")
+        + (a.effect ? "<span>" + esc(a.effect) + "</span>"
+          : (a.premium_delta != null ? "<span>" + esc(T("tg.chat.fr_alt_delta", "Изменение премии: {d}",
+              {d: money(a.premium_delta)})) + "</span>" : ""))
+        + (a.why ? "<span>" + esc(a.why) + "</span>" : "")
+        + (a.legal_ref ? "<span>" + esc(a.legal_ref) + "</span>" : "")
+        + "</div></div>").join("");
+  }
+
+  const gr = (fr.grounds_checked || []).filter(x => x && (x.title || x.why || x.code));
+  if (gr.length) {
+    const yes = gr.filter(x => x.ok).length;
+    h += '<details class="opt"><summary>' + esc(T("tg.chat.fr_why_title", "Почему так"))
+      + "<span>" + esc(T("tg.chat.fr_grounds_n", "оснований: {n} из {all}", {n: yes, all: gr.length}))
+      + "</span></summary><div class=\"chk\">"
+      + gr.map(x => '<div><i class="' + (x.ok ? "ok" : "no") + '" aria-hidden="true">' + (x.ok ? "✓" : "✗")
+        + "</i><span>" + esc((x.title || x.code || "") + " — "
+          + (x.ok ? T("tg.chat.fr_ground_yes", "есть") : T("tg.chat.fr_ground_no", "нет")))
+        + (x.why ? "<small>" + esc(x.why) + "</small>" : "") + "</span></div>").join("")
+      + "</div></details>";
+  }
+
+  const ta = (fr.tariff_advice && typeof fr.tariff_advice === "object") ? fr.tariff_advice : null;
+  if (ta) {
+    const rows = [[T("tg.an.rate_applied", "Ставка применённая"), ta.rate_applied_pct],
+                  [T("tg.chat.fr_rate_tech", "Ставка техническая"), ta.rate_technical_pct],
+                  [T("tg.chat.fr_rate_net", "Нетто-ставка"), ta.rate_net_pct],
+                  [T("tg.an.rate_min", "Минимум по продукту"), ta.rate_min_pct],
+                  [T("tg.chat.fr_rate_market", "Ориентир рынка"), ta.rate_market_pct]]
+      .filter(r => r[1] != null && !isNaN(Number(r[1])));
+    h += '<div class="h3">' + esc(T("tg.chat.fr_advice_title", "Совет по тарифу")) + "</div>"
+      + (rows.length ? '<div class="kv">' + rows.map(r => "<span>" + esc(r[0]) + "</span><b>"
+          + esc(pct(r[1], 4)) + "</b>").join("") + "</div>" : "")
+      + frLinesHtml(ta.lines);
+  }
+
+  const ex = (Array.isArray(fr.explanation) && fr.explanation.length) ? fr.explanation : fr.llm_text;
+  const exHtml = frLinesHtml(ex);
+  if (exHtml) {
+    h += '<details class="opt"><summary>' + esc(T("tg.chat.fr_full", "Разбор франшизы: как считали"))
+      + "</summary>" + exHtml + "</details>";
+  }
+  return h;
 }
 function chatNarrativeHtml(c){
   const text = c.narrative && String(c.narrative).trim();
