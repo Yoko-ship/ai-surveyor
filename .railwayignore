@@ -26,6 +26,12 @@ __pycache__/
 library/*
 !library/catalog.json
 !library/КАТАЛОГ.md
+# исключение: открытые тексты законов (.txt) — нужны специалисту на сервере
+!library/01_Законодательство/
+library/01_Законодательство/**/*.html
+library/01_Законодательство/**/*.doc
+library/01_Законодательство/**/*.docx
+library/01_Законодательство/**/*.pdf
 docs/source/
 data/surveyor.db
 data/surveyor.db-wal

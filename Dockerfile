@@ -14,6 +14,8 @@ COPY data/inbox data/inbox
 COPY data/parsed data/parsed
 COPY data/dealers_uz.json data/dealers_uz.json
 COPY library/catalog.json library/catalog.json
+# открытые тексты законов и актов регуляторов (.txt) — по ним отвечает ИИ специалист
+COPY library/01_Законодательство library/01_Законодательство
 COPY db db
 COPY docs docs
 COPY tools tools
