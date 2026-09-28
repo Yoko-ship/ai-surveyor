@@ -2,7 +2,7 @@
 """
 Фоновые картинки мини-аппа: генерация, обрезка водяного знака, две ширины.
 
-Зачем. Обложка и разделы мини-аппа (app/tg.html) показывают фотореалистичные фоны в тёмной гамме INSON.
+Зачем. Разделы мини-аппа (app/tg.html) показывают под содержимым фотореалистичные фоны в тёмной гамме INSON.
 Картинки не покупаем и не скачиваем со стоков — их рисует бесплатный сервис image.pollinations.ai
 (без ключа, отвечает готовым JPEG). Внизу справа сервис ставит подпись «pollinations.ai» — её срезаем.
 
@@ -18,7 +18,7 @@
     set PYTHONIOENCODING=utf-8
     sandbox\.venv\Scripts\python.exe tools\gen_backgrounds.py            (только недостающие)
     sandbox\.venv\Scripts\python.exe tools\gen_backgrounds.py --force    (перерисовать все)
-    sandbox\.venv\Scripts\python.exe tools\gen_backgrounds.py hero calc  (только эти сцены)
+    sandbox\.venv\Scripts\python.exe tools\gen_backgrounds.py chat calc  (только эти сцены)
 """
 import sys
 import time
@@ -37,15 +37,14 @@ STYLE = ("photorealistic cinematic photograph, very dark moody scene, deep navy 
          "no letters, no logos, no watermark, high detail, film grain")
 
 # сцена -> (что на картинке, seed). Seed фиксируем, чтобы повтор запуска давал ту же картинку.
+# Сцены hero и wave были только у обложки — её убрали 28.09.2026, картинки удалены.
 SCENES = {
-    "hero":      ("aerial night view of Tashkent city from high above, glowing avenues, dark sky", 11),
     "chat":      ("modern large logistics warehouse at dusk, tall racks, loading docks, cold light", 23),
     "calc":      ("glass office tower interior at night, reflections in the windows, empty desks", 31),
     "osgor":     ("industrial factory workshop, row of safety helmets on a rack, soft warm light", 47),
     "specialist": ("old library wall of legal code volumes, warm lamp light on dark wood", 59),
     "documents": ("desk with rolled building blueprints and a tablet, dim lamp, top view", 67),
     "admin":     ("server room aisle, rows of racks, blue indicator lights, dark", 73),
-    "wave":      ("abstract dark navy silk waves, smooth flowing gradient, soft green rim light", 83),
     "particles": ("abstract dark field of tiny glowing particles, bokeh depth, navy and green", 97),
     "lines":     ("abstract long exposure light trails on dark background, navy and green streaks", 103),
 }

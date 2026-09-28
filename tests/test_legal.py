@@ -34,6 +34,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 os.environ.pop("SURVEYOR_DEV", None)          # guard проверяем целиком
 os.environ["SURVEYOR_NO_BACKGROUND"] = "1"    # фоновая пересборка индекса в тесте не нужна
+os.environ["LEX_LIVE"] = "0"                  # живой поиск на lex.uz — в tests/test_legal_live.py, без сети
 
 from tmpdb import temp_db            # noqa: E402
 from app import auth, db             # noqa: E402

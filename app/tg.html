@@ -618,6 +618,14 @@ body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-acce
 .cit b{display:block;font-weight:700}
 .cit q{display:block;color:var(--muted);margin:3px 0 5px}
 .cit .lgmeta{margin-top:0}
+.cit.live{border-left-color:var(--accent-dim)}
+.lglive{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-bottom:4px;font-size:11.5px;color:var(--muted);overflow-wrap:anywhere}
+.lglive .tag{margin-left:0}
+.lglivenote{margin-top:var(--s2);padding-left:10px;border-left:2px solid var(--line)}
+.cit .srcbar{margin-top:6px}
+.cit .warnline{margin-top:6px}
+.cit .warnline a,.lgskip span{overflow-wrap:anywhere}
+.srcbar.lgskip{margin-top:var(--s2)}
 .lgskel span{display:block;height:12px;border-radius:6px;background:var(--soft);margin-top:9px;animation:sk 1s ease-in-out infinite alternate}
 .lgskel span:nth-child(2){width:88%}.lgskel span:nth-child(3){width:64%}
 @keyframes sk{from{opacity:.45}to{opacity:.9}}
@@ -705,97 +713,6 @@ body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-acce
 /* в Telegram основное действие шага и «Назад» — нативные MainButton и BackButton, дубли на странице прячем */
 body.in-tg .tg-main,body.in-tg .tg-back{display:none}
 body.in-tg .actions:not(:has(> :not(.tg-main):not(.tg-back))){display:none}
-/* =====================================================================================
-   Обложка: полноэкранные секции с прилипающей прокруткой (scroll-snap), как на главной apple.com.
-   Показывается при первом открытии и по нажатию на логотип. Внутри Telegram — один раз.
-   Оформление лежит отдельным слоем (#cover), разметка приложения не тронута.
-   Доступность: под каждой картинкой лежит затемняющий слой, текст на нём белый (контраст не ниже 4,5:1);
-   при системной настройке «меньше движения» анимации выключаются, при экономии трафика картинки не грузятся.
-   ===================================================================================== */
-body.cover-on{overflow:hidden}
-body.cover-on #side,body.cover-on .wrap,body.cover-on #scrim{display:none}
-#cover{position:fixed;inset:0;z-index:120;overflow-y:auto;overflow-x:hidden;background:#05080B;color:#FFFFFF;
-  scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-#cover::-webkit-scrollbar{display:none}
-#cover.hidden{display:none}
-.cv-sec{position:relative;scroll-snap-align:start;scroll-snap-stop:always;min-height:100svh;height:100svh;
-  display:flex;align-items:flex-end;overflow:hidden;isolation:isolate}
-@supports not (height:100svh){.cv-sec{min-height:100vh;height:100vh}}
-/* слой картинки: он же двигается при прокрутке (параллакс) */
-.cv-bg{position:absolute;inset:-8% 0;z-index:0;will-change:transform;transform:translate3d(0,var(--par,0px),0)}
-.cv-bg img{width:100%;height:100%;object-fit:cover;display:block;background:#0B1117}
-/* затемнение: снизу сильнее, там текст */
-.cv-sec::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
-  background:linear-gradient(180deg,rgba(5,8,11,.55) 0%,rgba(5,8,11,.20) 32%,rgba(5,8,11,.78) 72%,rgba(5,8,11,.94) 100%)}
-/* стеклянная карточка с текстом */
-.cv-card{position:relative;z-index:2;flex:1 1 auto;min-width:0;margin:0 16px calc(env(safe-area-inset-bottom) + 40px);max-width:560px;
-  padding:22px 22px 20px;border-radius:20px;border:1px solid rgba(255,255,255,.16);
-  background:rgba(12,18,24,.52);-webkit-backdrop-filter:blur(14px) saturate(140%);backdrop-filter:blur(14px) saturate(140%);
-  box-shadow:0 24px 60px rgba(0,0,0,.45);
-  transform:perspective(900px) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
-  transition:transform .28s cubic-bezier(.22,.61,.36,1)}
-.cv-card.tilting{transition:none}
-.cv-sec.center{align-items:center;justify-content:center;text-align:center}
-.cv-sec.center .cv-card{margin:0 16px;max-width:600px}
-.cv-kicker{margin:0 0 8px;font:700 12px/1.2 var(--sans);letter-spacing:.14em;text-transform:uppercase;color:#7FE3B6}
-.cv-card h2{margin:0;font:800 clamp(28px,7.4vw,54px)/1.05 var(--sans);letter-spacing:-.025em;color:#FFFFFF;
-  overflow-wrap:break-word;hyphens:auto}
-.cv-card p{margin:12px 0 0;font:400 clamp(15px,4vw,18px)/1.5 var(--sans);color:rgba(255,255,255,.88);max-width:min(44ch,100%)}
-.cv-card .btn{margin-top:18px}
-.cv-card .btn-ghost{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.34);color:#FFFFFF;
-  -webkit-text-fill-color:#FFFFFF;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
-.cv-card .btn-ghost:hover:not(:disabled){background:rgba(255,255,255,.2);border-color:#FFFFFF;color:#FFFFFF}
-/* появление текста при прокрутке */
-.cv-card>*{opacity:0;transform:translateY(22px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,.61,.36,1)}
-.cv-sec.in .cv-card>*{opacity:1;transform:none}
-.cv-sec.in .cv-card>*:nth-child(2){transition-delay:.08s}
-.cv-sec.in .cv-card>*:nth-child(3){transition-delay:.16s}
-.cv-sec.in .cv-card>*:nth-child(4){transition-delay:.24s}
-/* медленный наезд на первой секции */
-.cv-sec.hero .cv-bg img{animation:cvZoom 26s ease-in-out infinite alternate}
-@keyframes cvZoom{from{transform:scale(1.02)}to{transform:scale(1.14)}}
-.cv-hint{position:absolute;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 14px);z-index:3;text-align:center;
-  font:600 12px/1 var(--sans);letter-spacing:.08em;color:rgba(255,255,255,.72);animation:cvHint 2.4s ease-in-out infinite}
-@keyframes cvHint{0%,100%{transform:translateY(0);opacity:.72}50%{transform:translateY(6px);opacity:1}}
-/* верхняя строка обложки: логотип и переход в приложение */
-.cv-top{position:fixed;top:0;left:0;right:0;z-index:130;display:flex;align-items:center;justify-content:space-between;
-  gap:12px;padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
-  background:linear-gradient(180deg,rgba(5,8,11,.72),rgba(5,8,11,0))}
-.cv-top .mark{display:flex;align-items:center;gap:8px;font:800 15px/1 var(--sans);color:#FFFFFF}
-.cv-top .mark i{display:inline-flex;font-style:normal;font-weight:800;letter-spacing:.02em}
-.cv-top .mark i b:first-child{color:#8EA9FF}
-.cv-top .mark i b:last-child{color:#3FBE74}
-.cv-top .btn{min-height:38px;padding:8px 14px;font-size:13px}
-/* точки разделов справа */
-.cv-dots{position:fixed;right:10px;top:50%;transform:translateY(-50%);z-index:130;display:flex;flex-direction:column;gap:10px}
-.cv-dots button{width:26px;height:26px;padding:0;border:0;background:none;cursor:pointer;display:grid;place-items:center}
-.cv-dots button::before{content:"";width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.34);
-  transition:background .2s,transform .2s}
-.cv-dots button.on::before{background:#3FBE74;transform:scale(1.5)}
-.cv-dots button:focus-visible{outline:2px solid var(--focus);outline-offset:2px;border-radius:50%}
-@media (max-width:599px){.cv-dots{display:none}}
-@media (min-width:760px){
-  .cv-card{margin-left:clamp(24px,8vw,120px);margin-bottom:clamp(48px,12vh,120px);padding:30px 30px 28px}
-  .cv-sec.center .cv-card{margin-left:auto;margin-right:auto}
-  .cv-top{padding:18px 24px 14px}
-}
-/* экономия трафика и «меньше движения»: без картинок и без анимаций */
-body.cv-still .cv-bg{transform:none !important}
-body.cv-still .cv-sec.hero .cv-bg img{animation:none}
-body.cv-still .cv-card{transform:none !important;transition:none}
-body.cv-still .cv-card>*{opacity:1;transform:none;transition:none}
-body.cv-still .cv-hint{animation:none}
-body.cv-lite .cv-bg{display:none}
-body.cv-lite .cv-sec{background:linear-gradient(160deg,#101C2E,#0B1117)}
-@media (prefers-reduced-motion:reduce){
-  .cv-bg{transform:none !important}
-  .cv-sec.hero .cv-bg img{animation:none}
-  .cv-card{transform:none !important;transition:none}
-  .cv-card>*{opacity:1;transform:none;transition:none}
-  .cv-hint{animation:none}
-  #cover{scroll-behavior:auto}
-}
-
 /* ---------- кинематографичные штрихи внутри приложения ---------- */
 /* фон раздела: та же картинка, сильно размытая и затемнённая, закреплена за экраном */
 html{background:var(--paper)}
@@ -809,21 +726,21 @@ html[data-theme="light"] #appbg img.on{opacity:.12}
 #appbg::after{content:"";position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(15,20,24,.50),rgba(15,20,24,.82))}
 html[data-theme="light"] #appbg::after{background:linear-gradient(180deg,rgba(245,247,249,.72),rgba(245,247,249,.92))}
-body.cv-lite #appbg img{display:none}
+body.fx-lite #appbg img{display:none}
 /* карточки на этом фоне: стекло и мягкая тень */
 body.cine .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
 html[data-theme="light"] body.cine .card{box-shadow:0 8px 24px rgba(16,28,38,.08)}
 /* переход между вкладками: 200 мс, лёгкий сдвиг снизу */
 [data-section]:not(.hidden){animation:secIn .2s cubic-bezier(.22,.61,.36,1) both}
 @keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-body.cv-still [data-section]:not(.hidden){animation:none}
+body.fx-still [data-section]:not(.hidden){animation:none}
 @media (prefers-reduced-motion:reduce){[data-section]:not(.hidden){animation:none}}
 /* полосы результата вырастают, спидометр проявляется — при каждой отрисовке */
 body.cine .bars .bar b{transform-origin:left center;animation:growIn .55s cubic-bezier(.22,.61,.36,1) both}
 @keyframes growIn{from{transform:scaleX(0);opacity:.4}to{transform:none;opacity:1}}
 body.cine .gauge svg{animation:gaugeIn .5s cubic-bezier(.22,.61,.36,1) both}
 @keyframes gaugeIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
-body.cv-still .bars .bar b,body.cv-still .gauge svg{animation:none}
+body.fx-still .bars .bar b,body.fx-still .gauge svg{animation:none}
 @media (prefers-reduced-motion:reduce){.bars .bar b,.gauge svg{animation:none !important}}
 
 /* карточка «Способы входа» в левой панели */
@@ -903,86 +820,6 @@ body:not(.side-open) .links{display:none}
 
 <!-- фон раздела приложения: размытая картинка под содержимым, ставится в appBg() -->
 <div id="appbg" aria-hidden="true"></div>
-
-<!-- ---------- обложка: полноэкранные секции с прилипающей прокруткой ---------- -->
-<div id="cover" class="hidden">
-  <div class="cv-top">
-    <span class="mark"><i aria-hidden="true"><b>INS</b><b>ON</b></i><span data-i18n="tg.cover.brand">Сюрвейер</span></span>
-    <button type="button" class="btn btn-ghost" id="cvSkip" data-i18n="tg.cover.to_app">Перейти в приложение</button>
-  </div>
-  <nav class="cv-dots" id="cvDots" data-i18n-aria="tg.cover.dots_aria" aria-label="Разделы обложки"></nav>
-
-  <section class="cv-sec hero" id="cv-hero" data-cv="hero" data-title-key="tg.cover.hero_title">
-    <div class="cv-bg"><img src="/static/bg/hero-640.jpg"
-      srcset="/static/bg/hero-640.jpg 640w, /static/bg/hero.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" decoding="async" fetchpriority="high"></div>
-    <div class="cv-card">
-      <p class="cv-kicker" data-i18n="tg.cover.kicker">INSON</p>
-      <h2 data-i18n="tg.cover.hero_title">ИИ-сюрвейер INSON</h2>
-      <p data-i18n="tg.cover.hero_lead">Оцениваем риск, считаем премию и проверяем договор по закону — в одном приложении.</p>
-    </div>
-    <div class="cv-hint" data-i18n="tg.cover.scroll">Листайте вниз</div>
-  </section>
-
-  <section class="cv-sec" id="cv-chat" data-cv="chat" data-title-key="tg.nav.chat">
-    <div class="cv-bg"><img src="/static/bg/chat-640.jpg"
-      srcset="/static/bg/chat-640.jpg 640w, /static/bg/chat.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" loading="lazy" decoding="async"></div>
-    <div class="cv-card">
-      <p class="cv-kicker" data-i18n="tg.cover.kicker_1">Шаг 1</p>
-      <h2 data-i18n="tg.nav.chat">ИИ-сюрвейер</h2>
-      <p data-i18n="tg.cover.chat_lead">Опишите объект и приложите документы. В ответ — разбор рисков, расчёт и ссылки на нормы.</p>
-      <button type="button" class="btn btn-ghost" data-open="chat" data-i18n="tg.cover.open">Открыть</button>
-    </div>
-  </section>
-
-  <section class="cv-sec" id="cv-calc" data-cv="calc" data-title-key="tg.nav.calc">
-    <div class="cv-bg"><img src="/static/bg/calc-640.jpg"
-      srcset="/static/bg/calc-640.jpg 640w, /static/bg/calc.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" loading="lazy" decoding="async"></div>
-    <div class="cv-card">
-      <p class="cv-kicker" data-i18n="tg.cover.kicker_2">Шаг 2</p>
-      <h2 data-i18n="tg.nav.calc">Калькулятор</h2>
-      <p data-i18n="tg.cover.calc_lead">Продукт, страховая сумма и срок — премия выходит сразу, с разбивкой, из чего она сложилась.</p>
-      <button type="button" class="btn btn-ghost" data-open="calc" data-i18n="tg.cover.open">Открыть</button>
-    </div>
-  </section>
-
-  <section class="cv-sec" id="cv-osgor" data-cv="osgor" data-title-key="tg.nav.osgor">
-    <div class="cv-bg"><img src="/static/bg/osgor-640.jpg"
-      srcset="/static/bg/osgor-640.jpg 640w, /static/bg/osgor.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" loading="lazy" decoding="async"></div>
-    <div class="cv-card">
-      <p class="cv-kicker" data-i18n="tg.cover.kicker_3">Шаг 3</p>
-      <h2 data-i18n="tg.nav.osgor">ОСГОР</h2>
-      <p data-i18n="tg.cover.osgor_lead">Вид деятельности, фонд оплаты труда, срок — премия по ставке нормативного акта, без скидок и надбавок.</p>
-      <button type="button" class="btn btn-ghost" data-open="osgor" data-i18n="tg.cover.open">Открыть</button>
-    </div>
-  </section>
-
-  <section class="cv-sec" id="cv-legal" data-cv="legal" data-title-key="tg.nav.legal">
-    <div class="cv-bg"><img src="/static/bg/specialist-640.jpg"
-      srcset="/static/bg/specialist-640.jpg 640w, /static/bg/specialist.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" loading="lazy" decoding="async"></div>
-    <div class="cv-card">
-      <p class="cv-kicker" data-i18n="tg.cover.kicker_4">Шаг 4</p>
-      <h2 data-i18n="tg.nav.legal">Специалист</h2>
-      <p data-i18n="tg.cover.legal_lead">Вопрос про закон, тариф, документы или франшизу — ответ приходит сразу, со ссылкой на источник.</p>
-      <button type="button" class="btn btn-ghost" data-open="legal" data-i18n="tg.cover.open">Открыть</button>
-    </div>
-  </section>
-
-  <section class="cv-sec center" id="cv-final" data-cv="final" data-title-key="tg.cover.final_title">
-    <div class="cv-bg"><img src="/static/bg/wave-640.jpg"
-      srcset="/static/bg/wave-640.jpg 640w, /static/bg/wave.jpg 1024w" sizes="100vw"
-      width="1024" height="540" alt="" loading="lazy" decoding="async"></div>
-    <div class="cv-card">
-      <h2 data-i18n="tg.cover.final_title">Всё готово к работе</h2>
-      <p data-i18n="tg.cover.final_lead">Вход не нужен: расчёт, ОСГОР и вопросы по закону открыты сразу.</p>
-      <button type="button" class="btn btn-primary" id="cvOpen" data-i18n="tg.cover.final_btn">Открыть приложение</button>
-    </div>
-  </section>
-</div>
 
 
 <div class="wrap">
@@ -1510,7 +1347,6 @@ function repaintCurrent(){
     paintNav(ME.nav || [], true);
     if (TAB && REPAINT[TAB]) REPAINT[TAB]();
   }
-  if (CV.booted) cvDots();
   paintLinks();
   syncTgButtons();
 }
@@ -1647,7 +1483,6 @@ async function boot(){
     if (a.ok && a.data && a.data.token) setToken(a.data.token);
   }
   await loadMe();
-  coverDecide();                  // обложка: в браузере — по выбору человека, в Telegram — один раз
 }
 
 const GUEST_NAV = [{key: "chat", title: ""}, {key: "calc", title: ""}, {key: "osgor", title: ""}, {key: "legal", title: ""}];
@@ -1747,15 +1582,82 @@ function lgLangName(code){
     default: return code || "";
   }
 }
-function lgCitation(c){
-  const head = (c.act || "") + (c.unit ? ", " + c.unit : "");
-  return '<div class="cit"><b>' + esc(head) + "</b>"
-    + (c.quote ? "<q>" + esc(c.quote) + "</q>" : "")
+/* Живой поиск на lex.uz (app/legal_live.py): поле live ответа и пометки у цитат.
+   live.status: found — акт найден и сохранён сейчас; found_base — найден раньше, уже в базе;
+   not_found / unavailable / limit / off — одна строка-примечание; not_needed — ничего не пишем. */
+const lgStr = v => (typeof v === "string" || typeof v === "number") ? String(v).trim() : "";
+const lgUrl = v => { const s = lgStr(v); return /^https?:\/\//i.test(s) ? s : ""; };
+const lgA = (url, text) => '<a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(text) + "</a>";
+function lgLive(res){ const lv = res && res.live; return lv && typeof lv === "object" ? lv : {}; }
+function lgLiveLine(lv){
+  let t = "";
+  switch (lv.status) {
+    case "found_base": t = T("legal.live.found_base", "Акт найден на lex.uz раньше и уже есть в базе — цитата из сохранённого текста"); break;
+    case "not_found": t = T("legal.live.not_found", "На lex.uz подходящей действующей нормы тоже не нашлось"); break;
+    case "unavailable": t = T("legal.live.unavailable", "lex.uz сейчас недоступен — ответ дан по локальной базе. Спросите ещё раз через несколько минут"); break;
+    case "limit": t = T("legal.live.limit", "Поиск на lex.uz на час приостановлен: исчерпан предел обращений. Ответ дан по локальной базе"); break;
+    case "off": t = T("legal.live.off", "Поиск на lex.uz отключён администратором — ответ дан по локальной базе"); break;
+  }
+  return t ? '<p class="note lglivenote">' + esc(t) + "</p>" : "";
+}
+/* из общей пометки сервера убираем то, что уже показано отдельной строкой или ссылкой */
+function lgNoteText(res){
+  let n = lgStr(res.note);
+  const lv = lgLive(res), shown = ["found", "found_base", "not_found", "unavailable", "limit", "off"];
+  if (!n || shown.indexOf(lv.status) < 0) return n;
+  const off = lgUrl(lv.official_url);
+  if (off) n = n.split(" (" + off + ")").join("");
+  const cut = [];
+  if (lv.status === "found" && lgStr(lv.label)) cut.push(lgStr(lv.label) + ": " + (lgStr(lv.badge) || lgStr(lv.act)));
+  if (lgStr(lv.text)) cut.push(lgStr(lv.text));
+  (Array.isArray(lv.skipped) ? lv.skipped : []).forEach(s => {
+    if (s && lgStr(s.reason)) cut.push(lgStr(s.reason) + ": " + (lgStr(s.badge) || lgStr(s.act)) + " — " + (lgUrl(s.official_url) || lgUrl(s.url)));
+  });
+  cut.forEach(f => { n = n.split("; " + f).join("").split(f + "; ").join("").split(f).join(""); });
+  return n.replace(/^[;\s]+|[;\s]+$/g, "");
+}
+/* «сайт недоступен / предел» сервер дописывает и в текст ответа — там его показывает строка-примечание */
+function lgAnswerText(res, a){
+  const t = lgStr(a.text), lv = lgLive(res), tail = " " + lgStr(lv.text) + ".";
+  return (lv.status === "unavailable" || lv.status === "limit") && lgStr(lv.text) && t.endsWith(tail)
+    ? t.slice(0, -tail.length) : t;
+}
+function lgSkipped(lv){
+  return (Array.isArray(lv.skipped) ? lv.skipped : []).map(s => {
+    const url = s && (lgUrl(s.official_url) || lgUrl(s.url));
+    if (!url) return "";
+    return '<div class="srcbar lgskip"><span>' + esc(T("legal.live.uz_only", "{act}: на lex.uz текст только на узбекском — цитату по-русски дать нельзя",
+      {act: lgStr(s.badge) || lgStr(s.act) || "lex.uz"})) + "</span>"
+      + lgA(url, T("legal.live.open_original", "Открыть оригинал на lex.uz")) + "</div>";
+  }).join("");
+}
+function lgCitation(c, lv){
+  lv = lv || {};
+  const head = lgStr(c.act) + (lgStr(c.unit) ? ", " + lgStr(c.unit) : "");
+  const url = lgUrl(c.url);
+  const fresh = c.live === true;
+  const badge = lgStr(c.act_badge);
+  const official = c.found_on === "lex.uz" && lgUrl(lv.official_url) !== url && (!lgUrl(lv.url) || lgUrl(lv.url) === url)
+    ? lgUrl(lv.official_url) : "";
+  const act = c.actuality && typeof c.actuality === "object" ? c.actuality : null;
+  const actUrl = act ? (lgUrl(act.url) || url) : "";
+  return '<div class="cit' + (fresh ? " live" : "") + '">'
+    + (fresh ? '<div class="lglive"><span class="tag">' + esc(T("legal.live.found", "найдено на lex.uz сейчас")) + "</span>"
+      + (badge ? "<span>" + esc(T("legal.live.in_force", "действует · {badge}", {badge: badge})) + "</span>" : "") + "</div>" : "")
+    + "<b>" + esc(head) + "</b>"
+    + (lgStr(c.quote) ? "<q>" + esc(lgStr(c.quote)) + "</q>" : "")
     + '<div class="lgmeta"><span class="tag' + (c.official ? "" : " off") + '">'
     + esc(c.official ? T("tg.lg.official", "официальный текст") : T("tg.lg.unofficial", "неофициальный перевод")) + "</span>"
-    + "<span>" + esc(lgLangName(c.language)) + "</span>"
-    + (c.url ? '<a class="btn btn-secondary btn-sm" href="' + esc(c.url) + '" target="_blank" rel="noopener">'
-      + esc(T("tg.lg.read_source", "Читать в источнике lex.uz")) + "</a>" : "") + "</div></div>";
+    + (lgLangName(c.language) ? "<span>" + esc(lgLangName(c.language)) + "</span>" : "") + "</div>"
+    + (act ? '<p class="warnline">' + esc(lgStr(act.redaction)
+        ? T("legal.actuality.changed_since", "Акт изменился на lex.uz (редакция от {date}) — сверьте цитату с действующей редакцией", {date: lgStr(act.redaction)})
+        : T("legal.actuality.changed", "Акт изменился на lex.uz — сверьте цитату с действующей редакцией"))
+      + (actUrl ? " " + lgA(actUrl, T("legal.actuality.open", "Открыть действующую редакцию")) : "") + "</p>" : "")
+    + '<div class="srcbar">'
+    + (url ? lgA(url, T("tg.lg.read_source", "Читать в источнике lex.uz"))
+      : "<span>" + esc(T("legal.src_missing", "Ссылки на акт нет — найдите его по названию")) + "</span>" + lgA("https://lex.uz/", T("tg.lg.read_source", "Читать в источнике lex.uz")))
+    + (official ? lgA(official, T("legal.live.official_link", "Официальный текст на узбекском")) : "")
+    + "</div></div>";
 }
 function lgCard(it){
   if (it.pending) {
@@ -1771,11 +1673,14 @@ function lgCard(it){
   const cits = res.citations || [];
   const rel = (res.related || []).filter(x => String(x.q || "").trim() !== it.q);
   const conf = a.confidence != null ? Math.round(a.confidence * 100) : null;
+  const lv = lgLive(res), note = lgNoteText(res);
   return '<div class="card"><p class="lgq">' + esc(it.q) + "</p>"
-    + '<p class="lgans">' + esc(a.text || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
-    + (res.note ? '<p class="note" style="margin-top:var(--s2)">' + esc(res.note) + "</p>" : "")
+    + '<p class="lgans">' + esc(lgAnswerText(res, a) || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
+    + lgLiveLine(lv)
+    + (note ? '<p class="note" style="margin-top:var(--s2)">' + esc(note) + "</p>" : "")
     + (ai === "ok" && res.ai.text ? '<p class="lgans" style="margin-top:var(--s2)">' + esc(res.ai.text) + "</p>" : "")
-    + cits.map(lgCitation).join("")
+    + lgSkipped(lv)
+    + cits.map(c => lgCitation(c || {}, lv)).join("")
     + '<div class="lgmeta"><span class="tag' + (a.source === "faq" ? "" : " off") + '">' + esc(lgSourceName(a.source, ai)) + "</span>"
     + (conf != null ? "<span>" + esc(T("tg.lg.match", "совпадение {n}%", {n: conf})) + "</span>" : "")
     + (res.took_ms != null ? "<span>" + esc(T("tg.lg.took", "ответ за {n} мс", {n: res.took_ms})) + "</span>" : "")
@@ -4081,32 +3986,20 @@ $("#botReload").onclick = loadBot;
 
 
 /* =====================================================================================
-   Обложка и кинематографичные штрихи.
+   Кинематографичные штрихи внутри приложения.
 
-   Обложка (#cover) — отдельный слой поверх приложения: полноэкранные секции, прокрутка прилипает
-   к секции (CSS scroll-snap), картинка каждой секции едет медленнее текста (параллакс), карточка
-   слегка наклоняется вслед за пальцем или мышью, текст появляется при входе секции в экран.
-   Показываем: в обычном браузере — при первом открытии и дальше по выбору человека (localStorage),
-   внутри Telegram — один раз, чтобы не мешать работе.
-
-   Бережно к телефону: большая версия картинки грузится только на широком экране (srcset),
-   все секции кроме первой — loading="lazy". При системной настройке «меньше движения» и при
-   включённой экономии трафика движение и картинки выключаются (классы cv-still / cv-lite).
-
-   Внутри приложения — фон раздела (#appbg): та же картинка, размытая и затемнённая, под содержимым.
+   Фон раздела (#appbg): размытая и затемнённая картинка под содержимым, лёгкий параллакс.
+   При системной настройке «меньше движения» и при включённой экономии трафика движение
+   и картинки выключаются (классы fx-still / fx-lite).
+   Обложку убрали по решению заказчика 28.09.2026: приложение сразу открывается на разделе.
    ===================================================================================== */
-const CV_KEY = "surveyor_cover";          // выбор человека: обложка или сразу приложение
-const CV_SEEN = "surveyor_cover_seen";    // в Telegram обложку показываем один раз
-function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
-function lsSet(k, v){ try { localStorage.setItem(k, v); } catch (e) { /* режим без хранилища — просто не помним */ } }
-
 /* бережный режим: системная настройка «меньше движения» и экономия трафика у оператора */
 const MOTION_OFF = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
 function cineFlags(){
   const c = navigator.connection || {};
   const slow = !!c.saveData || /^(slow-2g|2g)$/.test(c.effectiveType || "");
-  document.body.classList.toggle("cv-lite", slow);
-  document.body.classList.toggle("cv-still", slow || !!(MOTION_OFF && MOTION_OFF.matches));
+  document.body.classList.toggle("fx-lite", slow);
+  document.body.classList.toggle("fx-still", slow || !!(MOTION_OFF && MOTION_OFF.matches));
 }
 document.body.classList.add("cine");
 cineFlags();
@@ -4118,7 +4011,7 @@ const APP_BG = {chat: "chat", calc: "calc", osgor: "osgor", legal: "specialist",
 let APP_BG_NOW = "";
 function appBg(key){
   const scene = APP_BG[key] || "particles";
-  if (scene === APP_BG_NOW || document.body.classList.contains("cv-lite")) return;
+  if (scene === APP_BG_NOW || document.body.classList.contains("fx-lite")) return;
   APP_BG_NOW = scene;
   const box = $("#appbg");
   const img = new Image();
@@ -4135,7 +4028,7 @@ function appBg(key){
 /* лёгкий параллакс фона приложения при прокрутке страницы */
 let appTick = false;
 window.addEventListener("scroll", () => {
-  if (appTick || document.body.classList.contains("cv-still")) return;
+  if (appTick || document.body.classList.contains("fx-still")) return;
   appTick = true;
   requestAnimationFrame(() => {
     appTick = false;
@@ -4143,128 +4036,6 @@ window.addEventListener("scroll", () => {
     if (img) img.style.setProperty("--par", Math.round(window.scrollY * -0.06) + "px");
   });
 }, {passive: true});
-
-/* ---------- обложка ---------- */
-const CV = {secs: [], io: null, tick: false, booted: false};
-
-function cvSections(){ return Array.prototype.slice.call(document.querySelectorAll(".cv-sec")); }
-
-function cvDots(){
-  const box = $("#cvDots");
-  box.innerHTML = CV.secs.map((el, i) => {
-    const name = T(el.dataset.titleKey, el.dataset.cv);
-    return '<button type="button" data-go="' + i + '" title="' + esc(name) + '" aria-label="' + esc(name) + '"></button>';
-  }).join("");
-  box.querySelectorAll("[data-go]").forEach(b => {
-    b.onclick = () => CV.secs[Number(b.dataset.go)].scrollIntoView({behavior: "smooth"});
-  });
-}
-function cvMark(i){
-  $("#cvDots").querySelectorAll("button").forEach((b, n) => b.classList.toggle("on", n === i));
-}
-
-/* картинка едет медленнее содержимого: смещение считаем от положения секции в экране */
-function cvParallax(){
-  if (document.body.classList.contains("cv-still")) return;
-  const h = window.innerHeight || 1;
-  CV.secs.forEach(el => {
-    const r = el.getBoundingClientRect();
-    if (r.bottom < -h || r.top > h * 2) return;
-    const bg = el.querySelector(".cv-bg");
-    if (bg) bg.style.setProperty("--par", Math.round((r.top / h) * -60) + "px");
-  });
-}
-
-/* наклон карточки вслед за пальцем или мышью — небольшой, чтобы текст оставался читаемым */
-function cvTilt(sec, x, y, on){
-  const card = sec.querySelector(".cv-card");
-  if (!card || document.body.classList.contains("cv-still")) return;
-  if (!on) { card.classList.remove("tilting"); card.style.setProperty("--rx", "0deg"); card.style.setProperty("--ry", "0deg"); return; }
-  const r = sec.getBoundingClientRect();
-  const dx = (x - r.left) / r.width - .5;
-  const dy = (y - r.top) / r.height - .5;
-  card.classList.add("tilting");
-  card.style.setProperty("--ry", (dx * 7).toFixed(2) + "deg");
-  card.style.setProperty("--rx", (-dy * 5).toFixed(2) + "deg");
-}
-
-function cvBuild(){
-  if (CV.booted) return;
-  CV.booted = true;
-  CV.secs = cvSections();
-  cvDots();
-  CV.io = new IntersectionObserver(es => {
-    es.forEach(e => {
-      e.target.classList.toggle("in", e.isIntersecting);
-      if (e.isIntersecting) cvMark(CV.secs.indexOf(e.target));
-    });
-  }, {threshold: .45});
-  CV.secs.forEach(el => {
-    CV.io.observe(el);
-    el.addEventListener("pointermove", ev => cvTilt(el, ev.clientX, ev.clientY, true), {passive: true});
-    el.addEventListener("pointerleave", () => cvTilt(el, 0, 0, false), {passive: true});
-    el.addEventListener("touchmove", ev => {
-      const t = ev.touches[0];
-      if (t) cvTilt(el, t.clientX, t.clientY, true);
-    }, {passive: true});
-    el.addEventListener("touchend", () => cvTilt(el, 0, 0, false), {passive: true});
-  });
-  $("#cover").addEventListener("scroll", () => {
-    if (CV.tick) return;
-    CV.tick = true;
-    requestAnimationFrame(() => { CV.tick = false; cvParallax(); });
-  }, {passive: true});
-  $("#cvSkip").onclick = () => coverHide(true);
-  $("#cvOpen").onclick = () => coverHide(true);
-  $("#cover").querySelectorAll("[data-open]").forEach(b => {
-    b.onclick = () => { const k = b.dataset.open; coverHide(true); openTab(k); };
-  });
-}
-
-function coverShow(remember){
-  cvBuild();
-  document.body.classList.add("cover-on");
-  $("#cover").classList.remove("hidden");
-  $("#cover").scrollTop = 0;
-  CV.secs.forEach((el, i) => el.classList.toggle("in", i === 0));
-  cvMark(0);
-  cvParallax();
-  if (remember) lsSet(CV_KEY, "on");
-  lsSet(CV_SEEN, "1");
-  if (IN_TG && TG.MainButton) tgCall(() => TG.MainButton.hide());
-}
-function coverHide(remember){
-  document.body.classList.remove("cover-on");
-  $("#cover").classList.add("hidden");
-  if (remember) lsSet(CV_KEY, "off");
-  lsSet(CV_SEEN, "1");
-  window.scrollTo(0, 0);
-  syncTgButtons();
-}
-/* показывать ли обложку при открытии страницы */
-function coverDecide(){
-  const q = new URLSearchParams(location.search).get("cover");   // ?cover=on / ?cover=off — для проверки и ссылок
-  if (q === "off") return;
-  if (q === "on" || /^#cv-/.test(location.hash)) { coverShow(false); cvGoHash(); return; }
-  if (IN_TG) { if (!lsGet(CV_SEEN)) coverShow(false); return; }
-  if (lsGet(CV_KEY) !== "off") coverShow(false);
-}
-/* адрес вида /tg#cv-osgor открывает обложку сразу на этой секции */
-function cvGoHash(){
-  const el = /^#cv-[a-z]+$/.test(location.hash) ? document.querySelector(location.hash) : null;
-  if (el) { el.scrollIntoView(); el.classList.add("in"); cvMark(CV.secs.indexOf(el)); cvParallax(); }
-}
-/* логотип в левой панели возвращает обложку */
-(function(){
-  const mark = document.querySelector("#side .brand");
-  if (!mark) return;
-  mark.setAttribute("role", "button");
-  mark.setAttribute("tabindex", "0");
-  mark.style.cursor = "pointer";
-  mark.setAttribute("aria-label", T("tg.cover.open_cover", "Показать обложку"));
-  mark.onclick = () => coverShow(true);
-  mark.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); coverShow(true); } };
-})();
 
 /* ---------- Способы входа (левая панель, у каждого вошедшего) ---------- */
 /* Данные: GET /auth/links → {links:[{provider, title, display, external_id_masked, …}],

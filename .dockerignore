@@ -24,6 +24,8 @@ data/reports/
 data/backups/
 data/perf/
 data/inbox/portfolio/
+data/analysis/
+data/chat/
 
 # внутренние документы компании и извлечённые тексты — только на локальной машине
 library/*

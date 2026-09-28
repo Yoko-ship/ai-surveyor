@@ -148,6 +148,7 @@ def main():
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg?theme=light")
             time.sleep(6)
             bad = []
+            # обложки нет (28.09.2026): первый экран — сразу раздел «ИИ-сюрвейер»
             bad.append(shot(ws, "chat_390_start.png", 390))
 
             # шаг «четыре обязательных поля»

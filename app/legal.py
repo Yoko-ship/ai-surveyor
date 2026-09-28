@@ -16,6 +16,15 @@
                    вопрос не покрыли — свободный ответ модели с пометкой «ИИ». Системный промпт —
                    роль специалиста плюс правовой блок app/llm_prompts/legal_guard.ru.txt.
                    Нет ключа — ai.status="off", ответ всё равно выдаётся.
+  4. lex.uz      — ЖИВОЙ ПОИСК (с 28.09.2026, app/legal_live.py): только если FAQ и индекс нормы не
+                   нашли. Ключевые слова вопроса без ПД (только из словаря законодательства) → поиск
+                   действующего акта на lex.uz → дословная цитата статьи; акт сохраняется в библиотеку
+                   (на сервере с STORAGE_DIR — в STORAGE_DIR/library_live, LIVE_LIB) и в индекс. Поле ответа live: status
+                   found | found_base | not_found | unavailable | limit | off | not_needed, подпись
+                   label «найдено на lex.uz сейчас». Выключатель — LEX_LIVE=0.
+  5. актуальность — у цитат из базы по актам, изменившимся на lex.uz (app/lawwatch: watched_acts
+                   «изменился» или правила «требует пересмотра»), поле actuality со ссылкой на
+                   действующую редакцию (with_actuality).
 
 Три языка. Файл считается узбекским/английским по пометке в имени («… (uz).txt», «… (узб).txt»,
 «… (en).txt»), иначе язык определяется по тексту (app/ingest.detect_language), по умолчанию ru.
@@ -50,6 +59,10 @@ router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "library" / "01_Законодательство"
 NOTES = ROOT / "docs"
+# Акты, найденные живым поиском на lex.uz (app/legal_live.py). На сервере с постоянным диском
+# (STORAGE_DIR) — STORAGE_DIR/library_live: library/ в образе Docker пустая и живёт до перезапуска.
+# Без STORAGE_DIR — None: акты кладутся в LIB, как при ручной загрузке tools/lex_fetch.py.
+LIVE_LIB = (db.DATA_DIR / "library_live") if os.environ.get("STORAGE_DIR") else None
 # FAQ переименован 22.09.2026 («ИИ специалист по страхованию»). Старое имя поддерживается:
 # на развёрнутом сервере файл мог остаться прежним.
 FAQ_FILE_NEW = ROOT / "docs" / "Специалист — FAQ.json"
@@ -802,11 +815,33 @@ def skipped(path: Path) -> bool:
         return False
 
 
+def live_lib() -> Path:
+    """Куда живой поиск сохраняет найденные акты: постоянный диск или сама библиотека."""
+    return LIVE_LIB if LIVE_LIB is not None else LIB
+
+
+def rel_path(p: Path) -> str:
+    """Путь файла для индекса и цитат: внутри проекта — относительный, на постоянном диске
+    (STORAGE_DIR вне проекта) — абсолютный. Читатели делают ROOT / путь — это работает для обоих
+    (тот же подход, что app/db.stored_path)."""
+    p = Path(p)
+    try:
+        return p.relative_to(ROOT).as_posix()
+    except ValueError:
+        return p.resolve().as_posix()
+
+
 def source_files() -> list:
-    """Что индексируем: акты библиотеки (норма) и заметки проекта (пометка «заметка, не норма»)."""
+    """Что индексируем: акты библиотеки (норма), акты живого поиска на постоянном диске
+    и заметки проекта (пометка «заметка, не норма»)."""
     out = []
-    if LIB.exists():
-        for p in sorted(LIB.rglob("*.txt")):
+    dirs = [LIB]
+    if LIVE_LIB is not None and LIVE_LIB != LIB:
+        dirs.append(LIVE_LIB)
+    for d in dirs:
+        if not d.exists():
+            continue
+        for p in sorted(d.rglob("*.txt")):
             if skipped(p):
                 continue
             out.append({"path": p, "kind": "act"})
@@ -848,7 +883,7 @@ def _insert(con, rows_):
 
 def _index_file(con, path: Path, kind: str) -> dict:
     raw = path.read_text(encoding="utf-8", errors="replace")
-    rel = path.relative_to(ROOT).as_posix()
+    rel = rel_path(path)
     language = _file_language(path, raw)
     act = _act_name(path)
     code = _slug(path.stem)
@@ -941,7 +976,7 @@ def reindex(force: bool = False) -> dict:
             seen, changed = set(), []
             for s in source_files():
                 p = s["path"]
-                rel = p.relative_to(ROOT).as_posix()
+                rel = rel_path(p)
                 seen.add(rel)
                 try:
                     st = p.stat()
@@ -1655,7 +1690,150 @@ def related(lang: str, limit: int = 6) -> list:
     return out
 
 
-def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
+# --------------------------------------------------------------------------- #
+#  Актуальность цитаты: данные слежения за законодательством (app/lawwatch.py)
+# --------------------------------------------------------------------------- #
+
+ACTUALITY_TEXT = {
+    "ru": "Акт изменился на lex.uz%s — цитата из базы может быть из прежней редакции. "
+          "Сверьте с действующей редакцией: %s",
+    "uz": "Hujjat lex.uz saytida oʻzgargan%s — bazadagi iqtibos avvalgi tahrirdan boʻlishi mumkin. "
+          "Amaldagi tahrir bilan solishtiring: %s",
+    "en": "The act has changed on lex.uz%s — the quote from the database may be from the previous "
+          "version. Check the current version: %s",
+}
+ACTUALITY_SINCE = {"ru": " (редакция от %s)", "uz": " (%s tahriri)", "en": " (version of %s)"}
+ACTUALITY_NOTE = {
+    "ru": "есть цитаты из актов, изменившихся на lex.uz: правила по ним требуют пересмотра юристом",
+    "uz": "lex.uz da oʻzgargan hujjatlardan iqtiboslar bor: ular boʻyicha qoidalar yurist tomonidan "
+          "qayta koʻrib chiqilishi kerak",
+    "en": "some quotes come from acts that have changed on lex.uz: the related rules need the "
+          "lawyer's review",
+}
+ST_REVIEW = "требует пересмотра"
+ST_CHANGED = "изменился"                      # то же значение, что lawwatch.ST_CHANGED
+
+
+def _doc_num(url: str) -> str:
+    m = re.search(r"/docs/-?(\d+)", url or "")
+    return m.group(1) if m else ""
+
+
+def _changed_acts() -> list:
+    """Отслеживаемые акты, изменившиеся на lex.uz или с правилами «требует пересмотра».
+
+    Данные — таблицы watched_acts и rules, которые ведёт app/lawwatch.py. Нет таблиц — пусто.
+    """
+    try:
+        with db.tx() as con:
+            acts = db.rows(con, "SELECT code, title, kind, status, lex_url, redaction, last_changed_at,"
+                                " rules_refs FROM watched_acts")
+            review = {r["code"] for r in db.rows(con, "SELECT code FROM rules WHERE review_status=?",
+                                                 ST_REVIEW)}
+    except Exception:
+        return []
+    reg = {a.get("code"): a for a in _registry()}
+    out = []
+    for a in acts:
+        try:
+            refs = json.loads(a["rules_refs"] or "[]")
+        except Exception:
+            refs = []
+        flagged = [r for r in refs if r in review]
+        if a["status"] != ST_CHANGED and not flagged:
+            continue
+        ra = reg.get(a["code"]) or {}
+        ids = {_doc_num(u) for u in (a["lex_url"], ra.get("lex_url"), ra.get("lex_url_uz")) if _doc_num(u)}
+        # коды вида «зру-730», «пкм № 141»; четырёхзначный номер — только у положений (рег. № 1806),
+        # иначе год в названии («от 23.11.2021») совпал бы с любым актом того же года
+        t = norm(a["title"] or "")
+        keys = [k.replace(" ", "").replace("№", "") for k in re.findall(r"(?:зру|пкм|уп|пп)[-\s№]*\d+", t)]
+        if t.startswith("положение"):
+            keys += [k for k in re.findall(r"\b\d{4}\b", t) if not k.startswith(("19", "20"))]
+        out.append({"code": a["code"], "title": a["title"], "status": ST_CHANGED if a["status"] == ST_CHANGED
+                    else ST_REVIEW, "rules": flagged, "redaction": a["redaction"],
+                    "since": a["last_changed_at"], "ids": ids, "keys": keys,
+                    "url_ru": a["lex_url"] or ra.get("lex_url"), "url_uz": ra.get("lex_url_uz")})
+    return out
+
+
+def _actuality_for(c: dict, changed: list, lang: str) -> Optional[dict]:
+    num = _doc_num(c.get("url") or "")
+    name = norm(c.get("act") or "").replace(" ", "").replace("№", "")
+    for a in changed:
+        if (num and num in a["ids"]) or any(k and k in name for k in a["keys"]):
+            url = (a["url_uz"] if c.get("language") == "uz" else None) or a["url_ru"] or c.get("url")
+            since = (ACTUALITY_SINCE.get(lang) or ACTUALITY_SINCE["ru"]) % a["redaction"] if a["redaction"] else ""
+            text = (ACTUALITY_TEXT.get(lang) or ACTUALITY_TEXT["ru"]) % (since, url)
+            return {"status": a["status"], "act_code": a["code"], "text": text, "url": url,
+                    "redaction": a["redaction"], "changed_at": a["since"], "rules": a["rules"]}
+    return None
+
+
+def with_actuality(out: dict) -> dict:
+    """Копия ответа, где у цитат из локальной базы по изменившимся актам есть пометка actuality.
+
+    Цитаты, только что найденные на lex.uz (live), и так из действующей редакции — их не трогаем.
+    Кэш ответа не портим: цитаты копируются.
+    """
+    out = dict(out)
+    cits = [dict(c) for c in out.get("citations") or []]
+    changed = _changed_acts() if cits else []
+    lang = out.get("lang") or DEFAULT_LANG
+    hit = False
+    for c in cits:
+        c.pop("actuality", None)
+        if c.get("live") or not changed:
+            continue
+        a = _actuality_for(c, changed, lang)
+        if a:
+            c["actuality"] = a
+            hit = True
+    out["citations"] = cits
+    if hit:
+        mark = ACTUALITY_NOTE.get(lang) or ACTUALITY_NOTE[DEFAULT_LANG]
+        note = out.get("note") or ""
+        if mark not in note:
+            out["note"] = (note + "; " if note else "") + mark
+    return out
+
+
+# --------------------------------------------------------------------------- #
+#  Живой поиск на lex.uz (app/legal_live.py)
+# --------------------------------------------------------------------------- #
+
+LIVE_NOT_NEEDED = {"status": "not_needed", "source": "lex.uz"}
+
+
+def _live(question: str, lang: str, who: str = None) -> dict:
+    try:
+        from . import legal_live
+        return legal_live.lookup(question, lang, who=who)
+    except Exception as e:                     # живой поиск не должен ронять ответ по базе
+        print("legal: живой поиск не выполнен:", e)
+        return {"status": "error", "source": "lex.uz", "reason": str(e)[:200]}
+
+
+def _live_public(live: dict) -> dict:
+    """Поле live ответа: без внутренних пассажей."""
+    return {k: v for k, v in (live or {}).items() if k != "passages"}
+
+
+def _live_enabled() -> bool:
+    try:
+        from . import legal_live
+        return legal_live.enabled()
+    except Exception:
+        return False
+
+
+def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None) -> dict:
+    """who — кто спрашивает («u:<id>», «g:<guest_id>», «ip:<адрес>»): только для личного предела
+    живого поиска на lex.uz; в журнал и в ответ не попадает."""
+    return with_actuality(_ask(question, lang, with_ai, who))
+
+
+def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None) -> dict:
     t0 = time.time()
     question = (question or "").strip()
     if not question:
@@ -1663,7 +1841,7 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
     lang = lang if lang in LANGS else detect_lang(question)
     ensure_index()
 
-    key = (norm(question), lang, bool(with_ai))
+    key = (norm(question), lang, bool(with_ai), _live_enabled())
     cached = _cache_get(key)
     if cached:
         out = dict(cached)
@@ -1683,7 +1861,7 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
         out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
                "citations": citations, "related": related(lang),
                "ai": {"status": "off", "text": None}, "note": note, "cached": False,
-               "assistant_name": dict(ASSISTANT_NAME)}
+               "assistant_name": dict(ASSISTANT_NAME), "live": dict(LIVE_NOT_NEEDED)}
         _cache_put(key, out)
         log_question(question, lang, "none", SILENCE_MAX_CONF, out["took_ms"], False)
         return out
@@ -1724,12 +1902,32 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
             # нет ни в одном (вопрос про крышу склада, про билет в кино), показывать нечего
             near = [r for r in passages[:3] if not r.get("rare_missing")] if on_topic else []
             closest = [dict(_citation(r, lang, stems), closest=True) for r in near]
+            # локальная база ответа не дала — ищем на lex.uz (app/legal_live.py). Только здесь:
+            # обычные ответы из базы живой поиск не замедляет
+            live = _live(question, lang, who)
+            if live.get("status") in ("found", "found_base"):
+                out = _live_answer(question, lang, with_ai, live, closest, t0)
+                if out:
+                    _cache_put(key, out)
+                    log_question(question, lang, "lex", out["answer"]["confidence"], out["took_ms"], True)
+                    return out
+                live = dict(live, status="not_found",
+                            text=(legal_live_text("not_found", lang)))
             conf = min(conf, SILENCE_MAX_CONF)
             passages, citations = [], closest
             texts = NO_NORM if closest else NO_NORM_BARE
             answer = {"text": texts.get(lang) or texts[DEFAULT_LANG],
                       "source": "none", "confidence": conf}
             note = note or NO_NORM_NOTE.get(lang) or NO_NORM_NOTE[DEFAULT_LANG]
+            if live.get("status") in ("unavailable", "limit", "not_found") and live.get("text"):
+                # честно: сайт недоступен / предел исчерпан / там тоже нет — ответ по базе
+                note = note + "; " + live["text"]
+                if live["status"] in ("unavailable", "limit"):
+                    answer["text"] = answer["text"].rstrip(".") + ". " + live["text"] + "."
+                for s in (live.get("skipped") or [])[:2]:
+                    # похожий акт есть, но только на узбекском — ссылку даём, норму не пересказываем
+                    note += "; %s: %s — %s" % (s["reason"], s.get("badge") or s["act"],
+                                               s.get("official_url") or s["url"])
             # ни FAQ, ни закон не покрыли вопрос — отвечает модель, ответ помечен «ИИ»
             ai = ai_free_answer(question, lang) if with_ai else {"status": "off", "text": None}
             if ai.get("status") == "ok":
@@ -1737,8 +1935,9 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
             out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
                    "citations": citations, "related": related(lang),
                    "ai": ai, "assistant_name": dict(ASSISTANT_NAME),
-                   "note": note, "cached": False}
-            _cache_put(key, out)
+                   "note": note, "cached": False, "live": _live_public(live)}
+            if live.get("status") not in ("unavailable", "limit", "error"):
+                _cache_put(key, out)          # «сайт недоступен» не запоминаем: через минуту он может ожить
             log_question(question, lang, "none", conf, out["took_ms"], False)
             return out
         answer = {"text": summarize_passages(passages, lang, stems),
@@ -1754,10 +1953,50 @@ def ask(question: str, lang: str = None, with_ai: bool = False) -> dict:
     took = int((time.time() - t0) * 1000)
     out = {"lang": lang, "took_ms": took, "answer": answer, "citations": citations,
            "related": related(lang), "ai": ai, "note": note, "cached": False,
-           "assistant_name": dict(ASSISTANT_NAME)}
+           "assistant_name": dict(ASSISTANT_NAME), "live": dict(LIVE_NOT_NEEDED)}
     _cache_put(key, out)
     log_question(question, lang, answer["source"], answer["confidence"], took, bool(citations))
     return out
+
+
+def legal_live_text(status: str, lang: str) -> str:
+    from . import legal_live
+    t = legal_live.STATUS_TEXT.get(status) or {}
+    return t.get(lang) or t.get(DEFAULT_LANG) or ""
+
+
+def _live_answer(question: str, lang: str, with_ai: bool, live: dict, closest: list, t0: float):
+    """Ответ по норме, найденной на lex.uz. Цитата — только дословная (legal._citation сверяет её
+    с сохранённым в библиотеку текстом акта); не сошлась ни одна — ответа нет (None)."""
+    from . import legal_live
+    passages = live.get("passages") or []
+    stems = stems_of(question, lang)
+    fresh = live.get("status") == "found"
+    label = legal_live.LABEL.get(lang) or legal_live.LABEL[DEFAULT_LANG]
+    cits = []
+    for r in passages:
+        c = _citation(r, lang, stems)
+        if not c["quote"]:
+            continue
+        c.update({"live": fresh, "found_on": "lex.uz", "live_label": label if fresh else None,
+                  "act_badge": live.get("badge")})
+        cits.append(c)
+    if not cits:
+        return None
+    kept = [r for r in passages if any(c["unit"] == _unit_of(r) for c in cits)]
+    conf = round(max(r.get("coverage_w", 0.0) for r in kept), 2)
+    answer = {"text": summarize_passages(kept, lang, stems), "source": "passages",
+              "confidence": conf, "live": fresh, "found_on": "lex.uz"}
+    parts = [(label + ": " + (live.get("badge") or live.get("act") or "")) if fresh else
+             legal_live_text("found_base", lang)]
+    if lang != "uz":
+        parts.append((legal_live.UNOFFICIAL.get(lang) or legal_live.UNOFFICIAL[DEFAULT_LANG]).rstrip(".")
+                     + (f" ({live['official_url']})" if live.get("official_url") else ""))
+    note = "; ".join(p for p in parts if p)
+    ai = ai_answer(question, kept, lang) if with_ai else {"status": "off", "text": None}
+    return {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
+            "citations": cits + closest, "related": related(lang), "ai": ai, "note": note,
+            "cached": False, "assistant_name": dict(ASSISTANT_NAME), "live": _live_public(live)}
 
 
 # --------------------------------------------------------------------------- #
@@ -1783,10 +2022,25 @@ class AskIn(BaseModel):
     ai: bool = False
 
 
+def _who(request: Request) -> Optional[str]:
+    """Ключ спрашивающего для личного предела живого поиска: вошедший, гость или адрес."""
+    try:
+        from . import guest
+        from .guard import client_host
+        user = request.scope.get("surveyor_user") or {}
+        key = guest.owner_of(request, user)
+        if key:
+            return key
+        host = client_host(request)
+        return ("ip:" + host) if host else None
+    except Exception:
+        return None
+
+
 @router.post("/legal/ask")
-def legal_ask(body: AskIn):
+def legal_ask(body: AskIn, request: Request):
     """Мгновенный юридический ответ. lang не указан — определяем по тексту вопроса."""
-    return ask(body.q, body.lang, with_ai=body.ai)
+    return ask(body.q, body.lang, with_ai=body.ai, who=_who(request))
 
 
 @router.get("/legal/faq")

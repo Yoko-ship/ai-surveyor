@@ -32,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 os.environ.pop("SURVEYOR_DEV", None)     # гостя проверяем при включённом guard
+os.environ["LEX_LIVE"] = "0"              # 200 вопросов подряд не должны идти на lex.uz (сеть в тестах не нужна)
 
 from tmpdb import temp_db                                  # noqa: E402
 from app import analysis_docs as adocs                     # noqa: E402

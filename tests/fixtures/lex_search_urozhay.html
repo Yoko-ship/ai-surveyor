@@ -1,0 +1,1630 @@
+<!-- Образец страницы lex.uz, сохранён 28.09.2026 для tests/test_legal_live.py; скрипты, стили и значки вырезаны ради размера, разметка и текст акта не тронуты -->
+
+<!DOCTYPE html>
+<html lang="ru-UZ">
+<head>
+    <title>Lex.uz - Результаты поиска</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="google" content="notranslate">
+<meta http-equiv="x-ua-compatible" content="ie=edge">
+    <link href="/bundle/css2?v=tLdniCSVT89iae5_mJKyxRHPrBZBfXREf_3mVMM7zTM1" rel="stylesheet"/>
+</head>
+<body>
+    <div class="wrapper">
+<header class="header">
+    <div class="header__top skiptranslate">
+        <div class="container">
+            <div class="header__telegram" style="margin-right: auto;">
+                <img src="/assets/img/globe.svg">
+                <span class="header__telegram-desc ml-1"><a href="https://ai.lex.uz" target="_blank">ai.lex.uz</a></span>
+            </div>
+            <div class="header__telegram">
+                <span class="header__telegram-desc"><a href="https://t.me/huquqiyaxborot" target="_blank">@huquqiyaxborot</a></span>
+            </div>
+            <div class="header__top-right">
+                <div class="header__icons">
+                    <div class="header__icon">
+                        <a target="_blank" href="https://t.me/lexuzofficial"><i class="fab fa-telegram-plane"></i></a>
+                    </div>
+                    <div class="header__icon">
+                        <a target="_blank" href="https://www.facebook.com/minjustuz"><i class="fab fa-facebook-f"></i></a>
+                    </div>
+                    <div class="header__icon">
+                        <a target="_blank" href="https://www.instagram.com/adliyanews/"><i class="fab fa-instagram-square"></i></a>
+                    </div>
+                    <div class="header__icon">
+                        <a target="_blank" href="https://www.youtube.com/c/adliya"><i class="fab fa-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="header__bottom">
+        <div class="container">
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
+            <div class="header__bottom-left">
+                <a class="header__logo" href="/ru/">
+                    <img src="/assets/img/lex_uz.svg">
+                </a>
+                <div class="header__slogan" onclick="lxOpenUrl('/ru/')">Национальная база данных законодательства Республики Узбекистан</div>
+            </div>
+            <div class="header__bottom-right">
+                <div class="dropdown">
+                    <button type="button" class="btn btn-link btn_eye_drop" data-toggle="dropdown">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <div class="dropdown-menu drop_menu">
+                        <h6 class="show_size">Вид</h6>
+                        <div class="row" style="margin-right: 1.3rem; margin-left: 0rem;">
+                            <div class="col-4">
+                                <button class="btnA btn__left" onclick="toggleTheme('light');">A</button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btnA btn__cebter" onclick="toggleTheme('grey');">A</button>
+                            </div>
+                            <div class="col-4">
+                                <button class="btnA btn__reght" onclick="toggleTheme('dark');">A</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="languageSelector skiptranslate">
+                    <div class="dropdown">
+                        <button class="btn dropdown-toggle" id="dropdownMenuButton" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">РУС</button>
+                        <div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+                            <a class="dropdown-item" href="/uz/search/nat?status=Y&lang=4&searchtitle=%D1%81%D1%82%D1%80%D0%B0%D1%85%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D1%83%D1%80%D0%BE%D0%B6%D0%B0%D1%8F">O‘ZB</a><div class="line"></div><a class="dropdown-item" href="/search/nat?status=Y&lang=3&searchtitle=%D1%81%D1%82%D1%80%D0%B0%D1%85%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D1%83%D1%80%D0%BE%D0%B6%D0%B0%D1%8F">ЎЗБ</a><div class="line"></div><a class="dropdown-item" href="/en/search/nat?status=Y&lang=2&searchtitle=%D1%81%D1%82%D1%80%D0%B0%D1%85%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5%20%D1%83%D1%80%D0%BE%D0%B6%D0%B0%D1%8F">ENG</a>
+                        </div>
+                    </div>
+                </div>
+                <div id="lx_gte">
+                    <div id="google_translate_element"></div>
+                    <div class="skiptranslate lx_ot">ONLINE TRANSLATE</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <section>
+        <div class="container">
+            <nav class="navbar navbar-expand-lg navbar-light">
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav">
+                        <li class="nav-item dropdown"><a class="nav-link" href="/ru/search/bybody" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">ОФИЦИАЛЬНЫЕ АКТЫ</a><div class="dropdown-menu" aria-labelledby="navbarDropdown"><a class="dropdown-item" href="/ru/search/official?lang=1&pub_date=today">Сегодня</a><a class="dropdown-item" href="/ru/search/official?lang=1&pub_date=week">За неделю</a><a class="dropdown-item" href="/ru/search/official?lang=1&pub_date=month">За месяц</a><a class="dropdown-item" href="/ru/search/calendar">Календарь</a></div></li><li class="nav-item dropdown"><a class="nav-link" href="/ru/lexuz" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">О СИСТЕМЕ</a><div class="dropdown-menu" aria-labelledby="navbarDropdown"><a class="dropdown-item" href="/ru/user_guide">Руководство пользователя</a><a class="dropdown-item" href="/ru/card">Реквизиты карточка юридического анализа</a><a class="dropdown-item" href="/ru/search">Перечень реквизитов поиска</a><a class="dropdown-item" href="/ru/axborot">Условия предоставления информации</a></div></li><li class="nav-item dropdown"><a class="nav-link" href="/ru/publication" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">ИЗДАНИЯ</a><div class="dropdown-menu" aria-labelledby="navbarDropdown"><a class="dropdown-item" href="/ru/law_collection">Собрание законодательства Республики Узбекистан</a><a class="dropdown-item" href="/ru/pact_collection">Сборник международных договоров Республики Узбекистан</a><a class="dropdown-item" href="/ru/library">Библиотека</a></div></li><li class="nav-item dropdown"><a class="nav-link" href="/ru/catalog" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">СПРАВОЧНИКИ</a><div class="dropdown-menu" aria-labelledby="navbarDropdown"><a class="dropdown-item" href="/ru/symbols">Государственные символы Республики Узбекистан</a><a class="dropdown-item" href="/ru/dictionary">Словарь конституционного права (на узбекском)</a><a class="dropdown-item" href="/ru/klassifkator">Общеправовой классификатор отраслей законодательства</a><a class="dropdown-item" href="/ru/forms">Формы отчетности</a><a class="dropdown-item" href="/ru/nsbu">НСБУ</a><a class="dropdown-item" href="/ru/statistic">Статистика LexUz</a><a class="dropdown-item" href="/ru/qollanma">Пособие</a></div></li>
+                        <li class="nav-item"><a class="nav-link" href="/ru/explanation">ЮРИДИЧЕСКИЕ РАЗЪЯСНЕНИЯ</a></li>
+                        <li>
+                            <a class="btn my-3 ml-4 py-3 px-5" href="/ru/login" style="color: #fff; background-color: #0c57a6;">
+                                <i class="fa fa-user mr-2"></i>Вход</a>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        </div>
+    </section>
+</header>
+        <main class="main">
+            <div id="lx_showsearchform" class="container">
+                <div class="row">
+                    <div id="shsb" class="refind__result-export__item w-100 w-sm-auto mb-3" style="margin-left: 1rem;">
+                        <div class="btn refind__result-export__btn d-block w-100 w-sm-auto d-sm-inline-block" onclick="showsearchform(); return false;">
+                            Развернуть форму поиска
+                        </div>
+                    </div>
+                    <div id="hhsb" style="display: none; margin-left: 1rem;" class="refind__result-export__item w-100 w-sm-auto mb-3">
+                        <div class="btn refind__result-export__btn d-block w-100 w-sm-auto d-sm-inline-block" onclick="hidesearchform(); return false;">
+                            Свернуть форму поиска
+                        </div>
+                    </div>
+                    <div id="shsb1" class="refind__result-export__item w-100 w-sm-auto mb-3" style="margin-left: 1rem;">
+                        <div id="mic_id" class="btn refind__result-export__btn d-block w-100 w-sm-auto d-sm-inline-block" onclick="routeIndex();">
+                            <i class="fas fa-solid fa-microphone"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="container">
+                <div class="searchPanelExt" id="searchPanelExt" style="display: none;">
+<ul class="nav nav-pills mb-3" id="pills-tab" role="tablist">
+    <li class="nav-item">
+        <a class="nav-link active" id="pills-home-tab" data-toggle="pill" href="#pills-all" role="tab" aria-controls="pills-home" aria-selected="true">Все</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-contact3-tab" data-toggle="pill" href="#pills-ol" role="tab" aria-controls="pills-contact" aria-selected="false">Олий Mажлис</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-profile-tab" data-toggle="pill" href="#pills-mv" role="tab" aria-controls="pills-profile" aria-selected="false">Местной власти</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-contact-tab" data-toggle="pill" href="#pills-mn" role="tab" aria-controls="pills-contact" aria-selected="false">Международные</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-contact1-tab" data-toggle="pill" href="#pills-tx" role="tab" aria-controls="pills-contact" aria-selected="false">Технические</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-contact2-tab" data-toggle="pill" href="#pills-cd" role="tab" aria-controls="pills-contact" aria-selected="false">Судебная практика</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="pills-contact4-tab" data-toggle="pill" href="#pills-cr" role="tab" aria-controls="pills-contact" aria-selected="false">Судебные решения</a>
+    </li>
+</ul>
+<div class="tab-content" id="pills-tabContent">
+    <div id="deep_search_header" class="d-flex justify-content-center align-items-center justify-content-md-between">
+        <h4><b>Расширенный поиск</b></h4>
+        <a class="d-lg-block d-none d-md-none" id="searchPanelExt__basic-link" href="#"><u>Универсальный поиск</u></a>
+    </div>
+    <div class="tab-pane fade show active" id="pills-all" role="tabpanel" aria-labelledby="pills-home-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_1">Номер акта</label>
+                                    <input class="form-control" id="actnum_1" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                <div class="form-group">
+                                    <div class="label-ph d-none d-xl-block"></div>
+                                    <div class="custom-control custom-checkbox">
+                                        <input class="custom-control-input" id="regnummj_1" type="checkbox" >
+                                        <label class="custom-control-label" for="regnummj_1">
+                                            <span class="mr-1">регистрационный номер</span><br class="d-none d-md-block">
+                                            <span>Министерства юстиции</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_61">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_61" id="query_61" type="text" value="&#1089;&#1090;&#1088;&#1072;&#1093;&#1086;&#1074;&#1072;&#1085;&#1080;&#1077; &#1091;&#1088;&#1086;&#1078;&#1072;&#1103;">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_21" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_21">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_1">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_1" id="query_1" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_1" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_1">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_1">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата вступления в силу</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_1_eff" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_1_eff">
+                <input class="form-control position-relative datepicker" id="dt_1_eff" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_1_eff" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_1_eff">Диапазон</label>
+        </div>
+    </div>
+</div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата утраты силу акта</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_1_obs" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_1_obs">
+                <input class="form-control position-relative datepicker" id="dt_1_obs" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_1_obs" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_1_obs">Диапазон</label>
+        </div>
+    </div>
+</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_1">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата принятия</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_1" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_1">
+                <input class="form-control position-relative datepicker" id="dt_1" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_1" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_1">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Форма акта</label>
+                                    <select class="js-example-basic-single select2" id="form_1">
+                                        <option value="">Все</option><option value="4131">Конституция</option><option value="3964">Кодекс</option><option value="3968">Закон</option><option value="3973">Указ</option><option value="3972">Постановление</option><option value="588">Распоряжение</option><option value="22216">Конституция Республики Каракалпакстан</option><option value="22218">Закон Республики Каракалпакстан</option><option value="489">Инструкция</option><option value="579">Методические указания</option><option value="580">Методическое пособие</option><option value="574">Перечень</option><option value="584">Письмо</option><option value="487">Положение</option><option value="573">Порядок</option><option value="488">Правила</option><option value="586">Предельные нормы</option><option value="486">Приказ</option><option value="585">Разъяснительное письмо</option><option value="575">Регламент</option><option value="576">Список</option><option value="577">Ставки</option><option value="581">Стандарт</option><option value="583">Типовое положение</option><option value="582">Типовой контракт</option><option value="587">Типовой проспект эмиссии</option><option value="490">Указания</option><option value="578">Устав</option><option value="491">Решение</option><option value="4176">Концепция</option><option value="4184">Доктрина</option><option value="4191">Декларация</option><option value="4193">Программа</option><option value="4387">Протокол</option><option value="4622">Система</option><option value="4625">Разъяснение</option><option value="4685">Нормативы</option><option value="4763">Руководящий документ</option><option value="4930">Основные условия</option><option value="4941">Межотраслевая инструкция</option><option value="4943">Порядок и условия</option><option value="4945">СНИП</option><option value="4947">Требования</option><option value="5045">Изменения и дополнения</option><option value="5275">План счетов</option><option value="5292">Критерии</option><option value="5323">Ограничения</option><option value="5401">Классификация</option><option value="5621">План</option><option value="8733">Сборник</option><option value="8837">Решение (Конституционного суда)</option><option value="8838">Определение</option><option value="8994">Конвенция</option><option value="8995">Соглашение</option><option value="9075">Меморандум</option><option value="9076">Акт</option><option value="9077">Договор</option><option value="9125">Документ</option><option value="9150">Заявление</option><option value="9170">Поправка</option><option value="9255">Договоренность</option><option value="10026">Мероприятия</option><option value="10103">Хартия</option><option value="12672">Приговор</option><option value="16258">Пакт</option><option value="16383">Коммюнике</option><option value="16389">Судебная практика</option><option value="16470">Нота</option><option value="16497">Международный кодекс</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Орган</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_org_1" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('org_1')">
+        <input id="org_1" type="hidden" value="">
+        <span id="name_org_1" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'org_1')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_org_1" class="lx_stm_dd">
+        <input id="lx_stm_search_org_1" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'org_1')">
+        <input id="lx_stm_url_org_1" type="hidden" value="/ru/ajax_methods_url?action=GetOrganTree&parentId=&ucId=org_1">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_org_1" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Характер акта</label>
+                                    <select class="js-example-basic-single select2" id="nature_1">
+                                        <option value="">Все</option><option value="1">Нормативно-правовые акты</option><option value="2">Оперативные и иные</option><option value="3">Изменения и дополнения</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Отрасли законодательства</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_okoz_1" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('okoz_1')">
+        <input id="okoz_1" type="hidden" value="">
+        <span id="name_okoz_1" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'okoz_1')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_okoz_1" class="lx_stm_dd">
+        <input id="lx_stm_search_okoz_1" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'okoz_1')">
+        <input id="lx_stm_url_okoz_1" type="hidden" value="/ru/ajax_methods_url?action=GetOkozTree&ucId=okoz_1">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_okoz_1" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_1">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-light pt-2 pb-2" style="float: right;" onclick="clearSearchForm(1);return false;">Очистить поиск</button>
+                    </div>
+                    <div class="col-6">
+                        <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(1);return false;">Найти</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-mv" role="tabpanel" aria-labelledby="pills-profile-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_2">Номер акта</label>
+                                    <input class="form-control" id="actnum_2" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_62">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_62" id="query_62" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_22" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_22">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_2">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_2" id="query_2" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_2" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_2">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_2">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата вступления в силу</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_2_eff" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_2_eff">
+                <input class="form-control position-relative datepicker" id="dt_2_eff" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_2_eff" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_2_eff">Диапазон</label>
+        </div>
+    </div>
+</div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата утраты силу акта</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_2_obs" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_2_obs">
+                <input class="form-control position-relative datepicker" id="dt_2_obs" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_2_obs" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_2_obs">Диапазон</label>
+        </div>
+    </div>
+</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_2">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата принятия</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_2" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_2">
+                <input class="form-control position-relative datepicker" id="dt_2" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_2" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_2">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Форма акта</label>
+                                    <select class="js-example-basic-single select2" id="form_2">
+                                        <option value="">Все</option><option value="3972">Постановление</option><option value="491">Решение</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Орган</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_org_2" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('org_2')">
+        <input id="org_2" type="hidden" value="">
+        <span id="name_org_2" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'org_2')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_org_2" class="lx_stm_dd">
+        <input id="lx_stm_search_org_2" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'org_2')">
+        <input id="lx_stm_url_org_2" type="hidden" value="/ru/ajax_methods_url?action=GetOrganTree&parentId=813&ucId=org_2">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_org_2" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Отрасли законодательства</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_okoz_2" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('okoz_2')">
+        <input id="okoz_2" type="hidden" value="">
+        <span id="name_okoz_2" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'okoz_2')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_okoz_2" class="lx_stm_dd">
+        <input id="lx_stm_search_okoz_2" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'okoz_2')">
+        <input id="lx_stm_url_okoz_2" type="hidden" value="/ru/ajax_methods_url?action=GetOkozTree&ucId=okoz_2">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_okoz_2" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_2">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <button class="btn btn-light mr-3 pt-2 pb-2" onclick="clearSearchForm(2);return false;">Очистить поиск</button>
+                            <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(2);return false;">Найти</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-mn" role="tabpanel" aria-labelledby="pills-contact-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_3">Номер акта</label>
+                                    <input class="form-control" id="actnum_3" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_63">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_63" id="query_63" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_23" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_23">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_3">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_3" id="query_3" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_3" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_3">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Стороны</label>
+                                    <select class="js-example-basic-single select2" id="countries">
+                                        <option value="">Все</option><option value="10">Прочие...</option><option value="14">Австрия</option><option value="20">Бельгия</option><option value="23">Беларусь</option><option value="26">Канада</option><option value="29">Швейцария</option><option value="32">Китай</option><option value="35">Германия</option><option value="41">Египет</option><option value="44">Испания</option><option value="47">Финляндия</option><option value="50">Франция</option><option value="53">Великобритания</option><option value="56">Греция</option><option value="59">Италия</option><option value="62">Япония</option><option value="65">Кыргызстан</option><option value="68">Корея</option><option value="71">Казахстан</option><option value="74">Великое Герцогство Люксембург</option><option value="77">Малайзия</option><option value="80">Нидерланды</option><option value="83">Польша</option><option value="86">Россия</option><option value="89">Турция</option><option value="92">Украина</option><option value="95">Объединенные Арабские Эмираты</option><option value="98">США</option><option value="8461">Эстония</option><option value="8876">Молдова</option><option value="8879">Грузия</option><option value="8882">Армения</option><option value="8885">Азербайджан</option><option value="8888">Таджикистан</option><option value="8898">Туркменистан</option><option value="8901">Латвия</option><option value="8904">Литва</option><option value="9010">Болгария</option><option value="9042">Пакистан</option><option value="9047">Кувейт</option><option value="9062">Иран</option><option value="9088">Саудовская Аравия</option><option value="9132">Румыния</option><option value="9158">Индия</option><option value="9165">Сингапур</option><option value="9608">Бразилия</option><option value="9620">Словакия‎</option><option value="9700">Султанат Оман</option><option value="9853">Таиланд</option><option value="10054">Иордания</option><option value="10060">Катар</option><option value="10114">Бахрейн</option><option value="10119">Афганистан</option><option value="10131">Венгрия</option><option value="10136">Чехия</option><option value="12243">Израиль</option><option value="12285">Бангладеш</option><option value="12959">Княжество Андорра</option><option value="12962">Вьетнам</option><option value="12965">Индонезия</option><option value="12968">Куба</option><option value="12971">Монголия</option><option value="12974">Португалия</option><option value="12977">Словения</option><option value="15682">Мальдивская Республика</option><option value="16265">Кипр</option><option value="16460">Ирландия</option><option value="16492">Ливия</option><option value="17003">Народно Демократическая  Республика  Алжир</option><option value="17060">Чили</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_3">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата вступления в силу</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_3_eff" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_3_eff">
+                <input class="form-control position-relative datepicker" id="dt_3_eff" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_3_eff" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_3_eff">Диапазон</label>
+        </div>
+    </div>
+</div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата утраты силу акта</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_3_obs" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_3_obs">
+                <input class="form-control position-relative datepicker" id="dt_3_obs" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_3_obs" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_3_obs">Диапазон</label>
+        </div>
+    </div>
+</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_3">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата подписания договора</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_3" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_3">
+                <input class="form-control position-relative datepicker" id="dt_3" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_3" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_3">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Форма акта</label>
+                                    <select class="js-example-basic-single select2" id="form_3">
+                                        <option value="">Все</option><option value="489">Инструкция</option><option value="487">Положение</option><option value="575">Регламент</option><option value="581">Стандарт</option><option value="578">Устав</option><option value="491">Решение</option><option value="4176">Концепция</option><option value="4191">Декларация</option><option value="4193">Программа</option><option value="4387">Протокол</option><option value="8994">Конвенция</option><option value="8995">Соглашение</option><option value="9075">Меморандум</option><option value="9076">Акт</option><option value="9077">Договор</option><option value="9125">Документ</option><option value="9150">Заявление</option><option value="9170">Поправка</option><option value="9255">Договоренность</option><option value="10103">Хартия</option><option value="16258">Пакт</option><option value="16383">Коммюнике</option><option value="16470">Нота</option><option value="16497">Международный кодекс</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Орган</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_org_3" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('org_3')">
+        <input id="org_3" type="hidden" value="">
+        <span id="name_org_3" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'org_3')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_org_3" class="lx_stm_dd">
+        <input id="lx_stm_search_org_3" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'org_3')">
+        <input id="lx_stm_url_org_3" type="hidden" value="/ru/ajax_methods_url?action=GetOrganTree&parentId=8980&ucId=org_3">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_org_3" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>По количеству субъектов</label>
+                                    <select class="js-example-basic-single select2" id="choose_country">
+                                        <option value="">Все</option><option value="1">Многосторонний</option><option value="2">Двусторонний</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Уровень</label>
+                                    <select class="js-example-basic-single select2" id="level_id">
+                                        <option value="">Все</option><option value="1">Межгосударственный</option><option value="3">Межведомственный</option><option value="2">Межправительственный</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Отрасли законодательства</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_okoz_3" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('okoz_3')">
+        <input id="okoz_3" type="hidden" value="">
+        <span id="name_okoz_3" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'okoz_3')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_okoz_3" class="lx_stm_dd">
+        <input id="lx_stm_search_okoz_3" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'okoz_3')">
+        <input id="lx_stm_url_okoz_3" type="hidden" value="/ru/ajax_methods_url?action=GetOkozTree&ucId=okoz_3">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_okoz_3" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_3">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <button class="btn btn-light mr-3 pt-2 pb-2" onclick="clearSearchForm(3);return false;">Очистить поиск</button>
+                            <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(3);return false;">Найти</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-tx" role="tabpanel" aria-labelledby="pills-contact-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_4">Номер акта</label>
+                                    <input class="form-control" id="actnum_4" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_64">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_64" id="query_64" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_24" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_24">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_4">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_4" id="query_4" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_4" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_4">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_4">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата вступления в силу</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_4_eff" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_4_eff">
+                <input class="form-control position-relative datepicker" id="dt_4_eff" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_4_eff" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_4_eff">Диапазон</label>
+        </div>
+    </div>
+</div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата утраты силу акта</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_4_obs" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_4_obs">
+                <input class="form-control position-relative datepicker" id="dt_4_obs" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_4_obs" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_4_obs">Диапазон</label>
+        </div>
+    </div>
+</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_4">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата принятия</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_4" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_4">
+                <input class="form-control position-relative datepicker" id="dt_4" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_4" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_4">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Форма акта</label>
+                                    <select class="js-example-basic-single select2" id="form_4">
+                                        <option value="">Все</option><option value="489">Инструкция</option><option value="487">Положение</option><option value="573">Порядок</option><option value="488">Правила</option><option value="486">Приказ</option><option value="581">Стандарт</option><option value="490">Указания</option><option value="4685">Нормативы</option><option value="4947">Требования</option><option value="5292">Критерии</option><option value="10026">Мероприятия</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Орган</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_org_4" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('org_4')">
+        <input id="org_4" type="hidden" value="">
+        <span id="name_org_4" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'org_4')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_org_4" class="lx_stm_dd">
+        <input id="lx_stm_search_org_4" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'org_4')">
+        <input id="lx_stm_url_org_4" type="hidden" value="/ru/ajax_methods_url?action=GetOrganTree&parentId=&ucId=org_4">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_org_4" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Отрасли законодательства</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_okoz_4" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('okoz_4')">
+        <input id="okoz_4" type="hidden" value="">
+        <span id="name_okoz_4" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'okoz_4')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_okoz_4" class="lx_stm_dd">
+        <input id="lx_stm_search_okoz_4" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'okoz_4')">
+        <input id="lx_stm_url_okoz_4" type="hidden" value="/ru/ajax_methods_url?action=GetOkozTree&ucId=okoz_4">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_okoz_4" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_4">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <button class="btn btn-light mr-3 pt-2 pb-2" onclick="clearSearchForm(4);return false;">Очистить поиск</button>
+                            <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(4);return false;">Найти</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-cd" role="tabpanel" aria-labelledby="pills-contact-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_5">Номер акта</label>
+                                    <input class="form-control" id="actnum_5" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_65">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_65" id="query_65" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_25" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_25">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_5">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_5" id="query_5" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_5" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_5">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Вид дела:</label>
+                                    <select class="js-example-basic-single select2" id="court_form">
+                                        <option value="">Все</option><option value="F">Гражданские</option><option value="H">Хозяйственные</option><option value="J">Уголовные</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_5">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_5">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата принятия</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_5" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_5">
+                <input class="form-control position-relative datepicker" id="dt_5" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_5" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_5">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Тип дела:</label>
+                                    <select class="js-example-basic-single select2" id="court_type">
+                                        <option value="">Все</option><option value="11013">Исковая давность</option><option value="11049">Подряд</option><option value="11001">Возмещение убытков</option><option value="11002">Признание гражданина недееспособным</option><option value="11003">Ограничение дееспособности гражданина</option><option value="11004">Опека и попечительство</option><option value="11005">Признание гражданина безвестно отсутствующим</option><option value="11006">Объявление гражданина умершим</option><option value="11007">Регистрация актов гражданского состояния</option><option value="11008">Юридические лица</option><option value="11009">Защита чести, достоинства и деловой репутации</option><option value="11010">Недействительность сделок</option><option value="11011">Представительство</option><option value="11012">Доверенность</option><option value="11016">Изъятие имущества у собственника</option><option value="11017">Определение стоимости имущества при его изъятии</option><option value="11018">Бесспорное взыскание задолженности</option><option value="11019">Прекращение права собственности, не связанное с изъятием имущества</option><option value="11020">Общее имущество собственников помещений в многоквартирном доме</option><option value="11021">Возникновение права собственности на жилой дом (квартиру)</option><option value="11022">Самовольная постройка</option><option value="11023">Общая собственность</option><option value="11024">Истребование имущества из чужого владения</option><option value="11025">Защита прав собственника от нарушений, не связанных с лишением владения</option><option value="11026">Неустойка</option><option value="11027">Залог</option><option value="11028">Ипотека</option><option value="11029">Поручительство</option><option value="11030">Гарантия</option><option value="11031">Задаток</option><option value="11032">Прекращение обязательств</option><option value="11033">Заключение, изменение и расторжение договора</option><option value="11034">Субсидиарная и солидарная ответственность</option><option value="11035">Купля-продажа</option><option value="11036">Розничная купля-продажа</option><option value="11015">Приобретательная давность</option><option value="11037">Продажа недвижимости</option><option value="11038">Мена</option><option value="11039">Дарение</option><option value="11040">Рента</option><option value="11041">Отчуждение жилого дома (квартиры) с условием пожизненного содержания</option><option value="11042">Общие положения имущественного найма (аренды)</option><option value="11043">Прокат</option><option value="11044">Аренда транспортных средств</option><option value="11045">Аренда зданий и сооружений</option><option value="11046">Лизинг</option><option value="11047">Наем жилого помещения</option><option value="11048">Безвозмездное пользование</option><option value="11050">Строительный подряд</option><option value="11051">Возмездное оказание услуг</option><option value="11052">Перевозка</option><option value="11053">Заем</option><option value="11054">Кредит</option><option value="11055">Банковский вклад</option><option value="11056">Комиссия</option><option value="11057">Хранение</option><option value="11058">Страхование</option><option value="11059">Возмещение вреда</option><option value="11060">Интеллектуальная собственность</option><option value="11061">Наследство</option><option value="11014">Право ограниченного пользования чужим земельным участком (сервитут)</option><option value="21001">Отказ в приеме на работу</option><option value="21002">Предварительное испытание при приеме на работу</option><option value="21003">Изменение работодателем условий труда</option><option value="21004">Прекращение трудового договора</option><option value="21005">Восстановление на работе</option><option value="21006">Удержания из оплаты труда</option><option value="21007">Возмещение вреда, причиненного работнику</option><option value="21008">Возмещение вреда, причиненного работодателю</option><option value="21009">Полная материальная ответственность работника</option><option value="31001">Отказ в регистрации актов гражданского состояния</option><option value="31002">Брачный договор</option><option value="31003">Распоряжение общим имуществом супругов</option><option value="31004">Раздел имущества и определение долей супругов в общем имуществе</option><option value="31005">Обращение взыскания на имущество супругов</option><option value="31006">Воспитание детей</option><option value="31007">Лишение родительских прав</option><option value="31008">Ограничение родительских прав</option><option value="31009">Алименты</option><option value="31010">Установление отцовства</option><option value="31011">Усыновление (удочерение)</option><option value="31012">Опекунство</option><option value="31013">Расторжение брака</option><option value="31014">Признание брака недействительным</option><option value="41001">Государственная регистрация прав на жилое помещение и сделок с ним</option><option value="41002">Приватизация жилья</option><option value="41003">Предоставление жилья</option><option value="41004">Переустройство и перепланировка жилых помещений</option><option value="41005">Распоряжение приватизированным жильем</option><option value="41006">Принудительное изъятие жилого помещения</option><option value="41007">Выселение одного из собственников</option><option value="41008">Выселение нанимателя</option><option value="41009">Специализированные дома</option><option value="41010">Условия пользования жилым помещением и размеры участия в расходах</option><option value="41011">Найм жилого помещения</option><option value="41012">Расторжение договора найма</option><option value="41013">Споры по сносу жилья</option><option value="41014">Возмещение убытков в связи со сносом жилья</option><option value="41015">Обмен жилыми помещениями</option><option value="41016">Признание ордера недействительным</option><option value="41017">Аренда жилого помещения</option><option value="41018">Общее имущество собственников в многоквартирном доме</option><option value="41019">Плата за найм, оплата расходов по содержанию жилищного фонда</option><option value="41020">Ремонт жилищного фонда</option><option value="41021">Процессуальные вопросы</option><option value="51001">Административные правонарушения, посягающие на права и свободы граждан</option><option value="51002">Административные правонарушения в области охраны здоровья населения</option><option value="51003">Административные правонарушения в области организации и проведения выборов и референдума</option><option value="51004">Административные правонарушения, посягающие на права собственности</option><option value="51005">Административные правонарушения в области охраны природы и природопользование</option><option value="51006">Административные правонарушения в промышленности, строительстве, сельском хозяйстве, в области использования тепловой и электрической энергии</option><option value="51007">Административные правонарушения на транспорте, в области дорожного хозяйства и связи</option><option value="51008">Административные правонарушения в области жилищных прав граждан, коммунального обслуживания и благоустройства</option><option value="51009">Административные правонарушения в области торговли, предпринимательства и финансов</option><option value="51010">Административные правонарушения, посягающие на общественный порядок</option><option value="51011">Административные правонарушения, посягающие на правосудие, установленный порядок управления</option><option value="51012">Административные правонарушения за воспрепятствование, незаконное вмешательство в предпринимательскую деятельность и другие правонарушения, посягающие на права и законные интересы хозяйствующих субъектов</option><option value="51013">Иные категории дел</option><option value="51014">Процессуальные вопросы</option><option value="61018">Преступления против общественной безопасности</option><option value="61019">Преступления против безопасности движения и эксплуатации транспорта</option><option value="61020">Преступления, составляющие незаконный оборот наркотических средств или психотропных веществ</option><option value="61021">Преступления против общественного порядка</option><option value="61022">Преступления в сфере информационных технологий</option><option value="61023">Преступления против порядка подчиненности и соблюдения воинской чести</option><option value="61024">Преступления против порядка прохождения военной службы</option><option value="61025">Преступления против порядка сохранности или эксплуатации военного имущества</option><option value="61026">Воинские должностные преступления</option><option value="61027">Процессуальные вопросы</option><option value="61001">Преступления против жизни</option><option value="61002">Преступления против здоровья</option><option value="61003">Преступления, опасные для жизни или здоровья</option><option value="61004">Преступления против половой свободы</option><option value="61005">Преступления против семьи, молодежи и нравственности</option><option value="61006">Преступления против свободы, чести и достоинства</option><option value="61007">Преступления против конституционных прав и свобод граждан</option><option value="61008">Преступления против мира и безопасности человечества</option><option value="61009">Преступления против Республики Узбекистан</option><option value="61010">Хищение чужого имущества</option><option value="61011">Преступления, не связанные с хищением чужого имущества</option><option value="61012">Преступления против основ экономики</option><option value="61013">Преступления в сфере хозяйственной деятельности</option><option value="61014">Преступления, связанные с воспрепятствованием, незаконным вмешательством в предпринимательскую деятельность, и другие преступления, посягающие на права и законные интересы хозяйствующих субъектов</option><option value="61015">Преступления в сфере экологии</option><option value="61016">Преступления против порядка управления</option><option value="61017">Преступления против правосудия</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Уровень:</label>
+                                    <select class="js-example-basic-single select2" id="court_branch">
+                                        <option value="">Все</option><option value="12413">Верховный суд Республики Каракалпакстан по гражданским делам</option><option value="12421">Нукусский межрайонный суд по гражданским делам</option><option value="12414">Ташкентский городской суд по гражданским делам</option><option value="12422">Учтепинский межрайонный суд по гражданским делам</option><option value="12416">Андижанский областной суд по гражданским делам</option><option value="12417">Бухарский областной суд по гражданским делам</option><option value="12418">Джизакский областной суд по гражданским делам</option><option value="12419">Навоийский областной суд по гражданским делам</option><option value="12420">Наманганский областной суд по гражданским делам</option><option value="12423">Самаркандский областной суд по гражданским делам</option><option value="12424">Сурхандарьинский областной суд по гражданским делам</option><option value="12425">Сырдарьинский областной суд по гражданским делам</option><option value="12426">Ташкентский областной суд по гражданским делам</option><option value="12427">Ферганский областной суд по гражданским делам</option><option value="12428">Хорезмский областной суд по гражданским делам</option><option value="12429">Кашкадарьинский областной суд по гражданским делам</option><option value="12435">Высший хозяйственный суд</option><option value="12436">Хозяйственный суд Республики Каракалпакстан</option><option value="12437">Хозяйственный суд Андижанской области</option><option value="12430">Верховный суд Республики Каракалпакстан по уголовным делам</option><option value="12433">Амударьинский районный суд по уголовным делам</option><option value="12434">Берунийский районный суд по уголовным делам</option><option value="12431">Ташкентский городской суд по уголовным делам</option><option value="12432">Андижанский областной суд по уголовным делам</option><option value="12412">Верховный суд Республики Узбекистан</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Инстанция:</label>
+                                    <select class="js-example-basic-single select2" id="instance">
+                                        <option value="">Все</option><option value="1">Первая</option><option value="2">Аппеляционная</option><option value="3">Кассационная</option><option value="4">Порядка надзора</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_5">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <button class="btn btn-light mr-3 pt-2 pb-2" onclick="clearSearchForm(5);return false;">Очистить поиск</button>
+                            <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(5);return false;">Найти</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-cr" role="tabpanel" aria-labelledby="pills-contact-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <a href="https://public.sud.uz/report/ECONOMIC" class="court_button" target="_blank">Судебные решения по экономическим делам</a>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <a href="https://public.sud.uz/report/choose-administrative" class="court_button" target="_blank">Судебные решения по административным делам</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <a href="https://public.sud.uz/report/CIVIL" class="court_button" target="_blank">Судебные решенияпо гражданским делам</a>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <a href="https://public.sud.uz/report/CRIMINAL" class="court_button" target="_blank">Судебные решения по уголовным делам</a>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pills-ol" role="tabpanel" aria-labelledby="pills-contact-tab">
+        <div class="searchPanelExt__body">
+            <form>
+                <div class="row">
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col">
+                                <div class="form-group">
+                                    <label for="actnum_6">Номер акта</label>
+                                    <input class="form-control" id="actnum_6" type="text" value="">
+                                </div>
+                            </div>
+                            <div class="col-12 col-lg-6">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_66">Наименование акта</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_64" id="query_66" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_26" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_26">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="query_6">Слово и фраза в тексте</label>
+                                    <input class="form-control lxAutoComplete" data-url="/ru/suggestions/query_4" id="query_6" type="text" value="">
+                                    <div class="custom-control custom-checkbox mb-2">
+                                        <input class="custom-control-input" id="exact_6" type="checkbox" >
+                                        <label class="custom-control-label" for="exact_6">Точное соответствие</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Статус акта</label>
+                                    <select class="js-example-basic-single select2" id="status_6">
+                                        <option value="">Все</option><option value="Y">Действующий</option><option value="R">Утративший силу</option><option value="N">Не действующий</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата вступления в силу</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_6_eff" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_6_eff">
+                <input class="form-control position-relative datepicker" id="dt_6_eff" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_6_eff" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_6_eff">Диапазон</label>
+        </div>
+    </div>
+</div>
+<div class="col-8">
+    <div class="form-group">
+        <label>Дата утраты силу акта</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_6_obs" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_6_obs">
+                <input class="form-control position-relative datepicker" id="dt_6_obs" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_6_obs" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_6_obs">Диапазон</label>
+        </div>
+    </div>
+</div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="form-row align-items-center">
+                            <div class="col-12 col-xl-2">
+                                <div class="form-group">
+                                    <label>Языки</label>
+                                    <select class="js-example-basic-single select2" id="lang_6">
+                                        <option value="" selected>Все</option><option value="3">ЎЗБ</option><option value="1">РУС</option><option value="4">O‘ZB</option><option value="2">ENG</option>
+                                    </select>
+                                </div>
+                            </div>
+<div class="col-8 col-xl-7">
+    <div class="form-group">
+        <label>Дата принятия</label>
+        <div class="form-inline flex-nowrap">
+            <div class="form-group form-datepicker">
+                <input class="form-control mr-sm-2 position-relative datepicker" id="df_6" placeholder="Введите дату" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+            <div class="form-group form-datepicker" id="searchPanelExt__daterange_6">
+                <input class="form-control position-relative datepicker" id="dt_6" placeholder="до" type="text" value="">
+                <i class="far fa-calendar position-absolute"></i>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="col-4 col-xl-3">
+    <div class="form-group">
+        <div class="label-ph d-none d-sm-block"></div>
+        <div class="custom-control custom-checkbox ml-0">
+            <input class="custom-control-input" id="checkbox-dp_6" type="checkbox" >
+            <label class="custom-control-label" for="checkbox-dp_6">Диапазон</label>
+        </div>
+    </div>
+</div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Характер акта</label>
+                                    <select class="js-example-basic-single select2" id="nature_6">
+                                        <option value="">Все</option><option value="1">Нормативно-правовой акт</option><option value="1010">Документ, не имеющий нормативно-правового характера</option>
+                                    </select>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Орган</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_org_6" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('org_6')">
+        <input id="org_6" type="hidden" value="">
+        <span id="name_org_6" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'org_6')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_org_6" class="lx_stm_dd">
+        <input id="lx_stm_search_org_6" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'org_6')">
+        <input id="lx_stm_url_org_6" type="hidden" value="/ru/ajax_methods_url?action=GetOrganTree&parentId=740&ucId=org_6">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_org_6" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                    <div class="custom-control custom-checkbox mb-2"></div>
+                                </div>
+                                <div class="form-group">
+                                    <label>Отрасли законодательства</label>
+<div class="lx_stm">
+    <div id="lx_stm_bn_okoz_6" class="lx_stm_bn" onclick="lx_stm.lx_stm_open('okoz_6')">
+        <input id="okoz_6" type="hidden" value="">
+        <span id="name_okoz_6" class="form-control"></span>
+        <button class="lx_stm_bn_clear" type="button" onclick="lx_stm.lx_stm_clear_all(event,'okoz_6')" tabindex="-1" title="Очистить">×</button>
+        <span class="lx_stm_bn_arrow"><b role="presentation"></b></span>
+    </div>
+    <div id="lx_stm_dd_okoz_6" class="lx_stm_dd">
+        <input id="lx_stm_search_okoz_6" class="lx_stm_search" type="text" placeholder="Поиск" onkeyup="lx_stm.lx_stm_search(this.value, 'okoz_6')">
+        <input id="lx_stm_url_okoz_6" type="hidden" value="/ru/ajax_methods_url?action=GetOkozTree&ucId=okoz_6">
+        <div class="lx_stm_not_found">No results found</div>
+        <div id="lx_stm_options_okoz_6" class="lx_stm_options">Loading...</div>
+    </div>
+</div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label>Целостность документа</label>
+                                    <select class="js-example-basic-single select2" id="minor_6">
+                                        <option value="">Все</option><option value="N">Полный текст документа</option><option value="Y">Внесение изменений и дополнений</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <button class="btn btn-light mr-3 pt-2 pb-2" onclick="clearSearchForm(6);return false;">Очистить поиск</button>
+                            <button class="btn btn-primary pt-2 pb-2 pl-sm-4 pr-sm-4" onclick="goSearch(6);return false;">Найти</button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+                </div>
+            </div>
+            <div class="container lx_revive_adserver mb-3">
+            </div>
+            <div class="container">
+<form method="post" action="./nat?status=Y&amp;lang=1&amp;searchtitle=%d1%81%d1%82%d1%80%d0%b0%d1%85%d0%be%d0%b2%d0%b0%d0%bd%d0%b8%d0%b5+%d1%83%d1%80%d0%be%d0%b6%d0%b0%d1%8f" id="Form1">
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="pMa9mFeGlUxGcy5DqJYvq5P2A6dpTF+z+pGXdriZ0mO28mzbsiZr+ZLOsS9o+1HWhvX7U69x52qoiHcUwvmPOv3cvk/KPpHgjYJcE/UdL+kJRhtA/0GzDtdJiBwiU3F6lZ/A4l2TpDuErWiCCqo/NWMsG1paftJh17zEj5E9OAB66P6KSNiIuRahkK9NdPxjj2WicCXO6Jh7J5nrPTOyxNgNyYgGSId/puHQYSolc1iqZOMCw99cHmWQxlfhq2B+fLjMSgVZdStql2w7kWkrBtV8JToRtUXzEzoV6K9tWP+n8B7tz+02BRpLCdSwn8deE+nHPO1oGuefC4dUnq1PK/GWu5RyEU6MCcy2WsYmYA5d47ehSYy0nHu1J2aqu1Q+GZvbvSPLGN1aBorkmE0J680KC9uZs/wSuEOZjSAW+fvjtqPyMjH9J5mIBMi0CKrj" />
+<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="4CEDEDF5" />
+    <div class="refindHeader d-none d-sm-block">
+        <h4 class="refindHeader__title d-none d-sm-block">Уточнить результаты по:</h4>
+        <h4 class="refindHeader__title-mobile text-center d-sm-none">Фильтрация</h4>
+        <div class="form">
+            <div class="form-row">
+                <div class="col-lg-2 col-md-3 mb-2 col-sm-12">
+                    <div class="refindHeader__link">
+                        <label class="d-sm-none">По годам</label>
+                        <select class="lx_select2_filter select2 form-control-lg" onchange="filter_result(this)" required>
+                            <option value="" selected>По годам</option><option value="&fyear=2024">2024 (1)</option><option value="&fyear=2019">2019 (1)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-3 mb-2 col-sm-12">
+                    <div class="refindHeader__link">
+                        <label class="d-sm-none">По месяцам</label>
+                        <select class="lx_select2_filter select2 form-control-lg" onchange="filter_result(this)" required>
+                            <option value="" selected>По месяцам</option><option value="&fmonth=7">Июль (1)</option><option value="&fmonth=6">Июнь (1)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-3 mb-2 col-sm-12">
+                    <div class="refindHeader__link">
+                        <label class="d-sm-none">По органу</label>
+                        <select class="lx_select2_filter select2 form-control-lg" onchange="filter_result(this)" required>
+                            <option value="0" selected>Кабинет Министров</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-3 mb-2 col-sm-12">
+                    <div class="refindHeader__link">
+                        <label class="d-sm-none">По формамм</label>
+                        <select class="lx_select2_filter select2 form-control-lg" onchange="filter_result(this)" required>
+                            <option value="0" selected>Постановление</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="refind__result-export">
+        <div class="container">
+            <div class="row d-flex align-items-center justify-content-between flex-column flex-md-row">
+                <div class="refind__result-export__title-mobile mb-3 d-sm-none">
+                    <a href="#">Главная страница</a>
+                    <b>></b>
+                    <a href="#">Результаты поиска</a>
+                </div>
+                <div class="refind__result-export__title_search-mobile mb-3 d-sm-none">
+                    <h4>Поиск</h4>
+                </div>
+                <div class="refind__result-export__title mb-3">
+                    По запросу найдено 2 документа(ов)
+                </div>
+                <div class="refind__result-export__item-mobile d-sm-none w-100">
+                    <a class="btn refind__result-export__btn-mobile w-100 mb-3" href="#" data-toggle="modal" data-target="#filter"><i class="fas fa-filter mr-3"></i>Фильтрация</a>
+                </div>
+                <div class="modal fade refind__result-export__filterMobile" id="filter" role="dialog">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <button class="close modal__close-btn" type="button" data-dismiss="modal"><i class="fas fa-arrow-left text-black"></i></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="refindHeader">
+                                    <h4 class="refindHeader__title d-none d-sm-block">Уточнить результаты по:</h4>
+                                    <h4 class="refindHeader__title-mobile text-center d-sm-none">Фильтрация</h4>
+                                    <div class="form">
+                                        <div class="form-row">
+                                            <div class="col-lg-2 col-md-3 mb-2 col-sm-12">
+                                                <div class="refindHeader__link">
+                                                    <label class="d-sm-none">По годам</label>
+                                                    <select class="lx_select2_filter select2 form-control-lg" id="f_by_year" required>
+                                                        <option value="0" selected>По годам</option><option value="2024">2024</option><option value="2019">2019</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-2 col-md-3 mb-2 col-sm-12">
+                                                <div class="refindHeader__link">
+                                                    <label class="d-sm-none">По месяцам</label>
+                                                    <select class="lx_select2_filter select2 form-control-lg" id="f_by_month" required>
+                                                        <option value="0" selected>По месяцам</option><option value="7">Июль</option><option value="6">Июнь</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 col-md-3 mb-2 col-sm-12">
+                                                <div class="refindHeader__link">
+                                                    <label class="d-sm-none">По органу</label>
+                                                    <select class="lx_select2_filter select2 form-control-lg" id="f_by_body" required>
+                                                        <option value="0" selected>Кабинет Министров</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-lg-4 col-md-3 mb-2 col-sm-12">
+                                                <div class="refindHeader__link">
+                                                    <label class="d-sm-none">По формам</label>
+                                                    <select class="lx_select2_filter select2 form-control-lg" id="f_by_form" required>
+                                                        <option value="0" selected>Постановление</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-o" type="reset" onclick="clear_filter_result_mobile()">Очистить поиск</button>
+                                <button class="btn btn-p ml-3" type="button" onclick="filter_result_mobile()">Применить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="refind__result-export__item w-100 w-sm-auto">
+                    <a class="btn refind__result-export__btn d-block w-100 w-sm-auto d-sm-inline-block" href="javascript:__doPostBack(&#39;ucFoundActsControl$ctl00&#39;,&#39;&#39;)">
+                        <i class="far fa-file mr-3"></i>Экспортировать весь список в Word</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="refind__table">
+<div class="dd-table__main">
+    <table style="width: 100%">
+                <tr class="dd-table__main-item">
+                    <td><span class="dd-table__main-item_number">1</span></td>
+                    <td>
+                        <span class="lx_act_state">
+                            <i class="fa fa-check-circle status_code_y"></i>
+                        </span>
+                        <div class="dd-table__main-left-desc">
+                            <a class="lx_link " href="/ru/docs/6993260" target="_blank">Об утверждении Положения о порядке покрытия субъектам сельского хозяйства части расходов на страховую премию при страховании урожая посевов</a>
+                        </div>
+                        <div class="dd-table__main-extra">
+                            <div><span class="badge badge-pill badge-nine">Постановление Кабинета Министров Республики Узбекистан, от 02.07.2024 г. № 373</span></div>
+                            <div style="padding-top: 8px"><a class="lx_link lx_act_passport" href="/ru/doc-passport/6993260" target="_blank">Дополнительная информация</a></div>
+                            <div style="padding-top: 8px"></div>
+                            <div style="padding-top: 8px"><a class="lx_link" href="/ru/docs/6993260?type=doc" target="_blank" title="Сохранить в MS Word"></a></div>
+                        </div>
+                    </td>
+                </tr>
+                <tr class="dd-table__main-item">
+                    <td><span class="dd-table__main-item_number">2</span></td>
+                    <td>
+                        <span class="lx_act_state">
+                            <i class="fa fa-check-circle status_code_y"></i>
+                        </span>
+                        <div class="dd-table__main-left-desc">
+                            <a class="lx_link " href="/ru/docs/4379352" target="_blank">О мерах по совершенствованию системы страхования будущего урожая хлопка-сырца и зерновых колосовых культур</a>
+                        </div>
+                        <div class="dd-table__main-extra">
+                            <div><span class="badge badge-pill badge-nine">Постановление Кабинета Министров Республики Узбекистан, от 17.06.2019 г. № 505</span></div>
+                            <div style="padding-top: 8px"></div>
+                            <div style="padding-top: 8px"></div>
+                            <div style="padding-top: 8px"><a class="lx_link" href="/ru/docs/4379352?type=doc" target="_blank" title="Сохранить в MS Word"></a></div>
+                        </div>
+                    </td>
+                </tr>
+    </table>
+</div>
+    </div>
+    <div class="pgn">
+         <div class="item_pgn_phone1">
+            <a><i class="fas fa-chevron-left"></i></a>
+        </div>
+        <div class="item_pgn1">
+        </div>
+        <div class="item_pgn2">
+        </div>
+        <div class="item_pgn3">
+            <table id="ucFoundActsControl_rptPaging" cellspacing="0">
+	<tr>
+		<td>
+                    </td>
+	</tr>
+</table>
+        </div>
+        <div class="item_pgn4">
+        </div>
+        <div class="item_pgn5">
+        </div>
+        <div class="item_pgn_phone2">
+            <a><i class="fas fa-chevron-right"></i></a>
+        </div>
+    </div>
+</form>
+            </div>
+            <div class="container">
+                <div class="secondary">
+                    <div class="secondary__content"></div>
+                    <aside class="secondary__sidebar"></aside>
+                </div>
+            </div>
+        </main>
+<main class="main">
+    <section class="slider_resource">
+        <div class="container">
+            <div class="slider_resource__title">Полезные ресурсы</div>
+            <div class="slider_resource__body">
+                <a class="slider_resource__item" target="_blank" href="http://www.prezident.uz">
+                    <div class="slider_resource__img">
+                        <img src="/assets/img/gerb.png" style="max-width: 80px">
+                    </div>
+                    <div class="slider_resource__desc">Президент Республики Узбекистан</div>
+                </a>
+                <a class="slider_resource__item" target="_blank" href="http://www.parliament.gov.uz">
+                    <div class="slider_resource__img">
+                        <img src="/assets/img/oliy_majlis.png">
+                    </div>
+                    <div class="slider_resource__desc">Законодательная палата Олий Мажлиса Республики Узбекистан</div>
+                </a>
+                <a class="slider_resource__item" target="_blank" href="http://www.gov.uz/ru/">
+                    <div class="slider_resource__img">
+                        <img src="/img/lx_bt_a3.png">
+                    </div>
+                    <div class="slider_resource__desc">Правительственный портал Республики Узбекистан</div>
+                </a>
+                <a class="slider_resource__item" target="_blank" href="http://www.senat.gov.uz">
+                    <div class="slider_resource__img">
+                        <img src="/img/lx_bt_a2.png">
+                    </div>
+                    <div class="slider_resource__desc">Сенат Олий Мажлиса Республики Узбекистан</div>
+                </a>
+                <a class="slider_resource__item" target="_blank" href="http://www.minjust.uz">
+                    <div class="slider_resource__img">
+                        <img src="/assets/img/gerb_ministerstva.png">
+                    </div>
+                    <div class="slider_resource__desc">Министерство юстиции Республики Узбекистан</div>
+                </a>
+                <a class="slider_resource__item" target="_blank" href="http://www.strategy.uz/">
+                    <div class="slider_resource__img">
+                        <img src="/assets/img/strategy.png">
+                    </div>
+                    <div class="slider_resource__desc">Центр стратегия<br />развития</div>
+                </a>
+            </div>
+        </div>
+    </section>
+    <div class="container">
+        <div class="secondary">
+            <div class="secondary__content"></div>
+            <aside class="secondary__sidebar"></aside>
+        </div>
+    </div>
+</main>
+<footer class="footer">
+    <div class="footer__top">
+        <div class="container">
+            <div class="footer__links">
+                <div class="footer__links-ads">
+                    <a href="/ru/about">О Центре</a>
+                </div>
+                <div class="footer__links-ads">
+                    <a href="/ru/news">Новости сайта</a>
+                </div>
+                <div class="footer__links-ads">
+                    <a href="/ru/adv">Реклама на сайте</a>
+                </div>
+                <div class="footer__links-ads">
+                    <a href="/ru/rss">RSS</a>
+                </div>
+            </div>
+            <div class="footer__app">
+                <div class="footer__app-download">
+                    <a target="_blank" href="https://play.google.com/store/apps/details?id=uz.lex.mobile">
+                        <img src="/assets/img/google_app.svg"></a>
+                </div>
+                <div class="footer__app-download">
+                    <a target="_blank" href="https://apps.apple.com/us/app/lexuz/id1608798574">
+                        <img src="/assets/img/app_store.png"></a>
+                </div>
+            </div>
+            <div class="footer__icon">
+                <div class="footer__icons">
+                    <a target="_blank" href="https://t.me/lexuzofficial"><i class="fab fa-telegram-plane"></i></a>
+                </div>
+                <div class="footer__icons">
+                    <a target="_blank" href="https://www.facebook.com/minjustuz"><i class="fab fa-facebook-f"></i></a>
+                </div>
+                <div class="footer__icons">
+                    <a target="_blank" href="https://www.instagram.com/adliyanews/"><i class="fab fa-instagram-square"></i></a>
+                </div>
+                <div class="footer__icons">
+                    <a target="_blank" href="https://www.youtube.com/c/adliya"><i class="fab fa-youtube"></i></a>
+                </div>
+            </div>
+            <div style="float: right; top: -30px; margin-top: -44px;">
+<NOSCRIPT>
+		<A href="https://www.uz/rus/toprating/cmd/stat/id/4079" target="_blank">
+				<img height="31" src="https://www.uz/plugins/top_rating/count/nojs_cnt.png?id=4079&pg=http%3A//lex.uz&col=0C57A6&t=ffffff&p=DD7900" width="88" border="0" alt="Топ рейтинг www.uz">
+		</A>
+</NOSCRIPT>
+</div>
+        </div>
+    </div>
+    <div class="footer__bottom">
+        <div class="container">
+            <div class="footer__bottom-desc">&copy; Государственное учреждение «Национальный правовой информационный центр «Адолат» при Министерстве юстиции Республики Узбекистан»</div>
+        </div>
+    </div>
+</footer>
+<div id="lx_alert" style="display: none;">
+    <div class="lx_alert_content">
+        <div class="lx_alert_body">
+            <div id="lx_alert_message"></div>
+        </div>
+        <div class="lx_alert_footer">
+            <button id="lx_alert_close" type="button" class="btn btn-primary" onclick="lxCloseAlert();">Закрыть</button>
+        </div>
+    </div>
+</div>
+<span id="lx_btn_up" onclick="lx_btn_up_top()" title="">
+</span>
+    </div>
+</body>
+</html>

@@ -1179,6 +1179,17 @@ CREATE TABLE IF NOT EXISTS legal_questions (
 );
 CREATE INDEX IF NOT EXISTS ix_legal_questions_hash ON legal_questions(q_hash);
 
+-- Кэш живого поиска «ИИ специалиста» на lex.uz (app/legal_live.py): выдача поиска и страницы
+-- актов на 24 часа, чтобы повторный вопрос не шёл на сайт. body — страница, сжатая zlib.
+-- Адрес выдачи поиска НЕ хранится (в нём слова вопроса) — только отпечаток в key.
+CREATE TABLE IF NOT EXISTS lex_live_cache (
+    key        TEXT PRIMARY KEY,
+    kind       TEXT NOT NULL,          -- search | act
+    url        TEXT,                   -- только для страниц актов
+    created_at REAL NOT NULL,          -- время записи, секунды эпохи
+    body       BLOB
+);
+
 -- ---------------------------------------------------------------------------
 -- Способы входа в один профиль (задача заказчика 23.09.2026, «как на daykon.uz»).
 -- Профиль (users) один, а войти в него можно любым привязанным способом: Telegram или Google.

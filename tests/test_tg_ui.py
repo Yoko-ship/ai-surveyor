@@ -544,41 +544,42 @@ def check_legal_tab(html):
     print("24. вкладка «Юрист»: /legal/faq, /legal/ask, цитаты с источником, история сессии — ок")
 
 
-def check_cover(html):
-    """Обложка (задача 234): полноэкранные секции, картинки, бережный режим и карточка «Способы входа»."""
+def check_no_cover(html):
+    """Обложки нет (решение заказчика 28.09.2026): приложение сразу открывается на разделе.
+    Фон раздела (#appbg) остаётся: картинки на диске, бережный режим работает."""
+    gone = {
+        'id="cover"': "слой обложки остался в разметке",
+        "cv-sec": "полноэкранные секции обложки остались",
+        "coverShow": "функция показа обложки осталась",
+        "coverHide": "функция скрытия обложки осталась",
+        "coverDecide": "при запуске всё ещё решается, показывать ли обложку",
+        "cvGoHash": "переход к секции обложки по адресу остался",
+        "surveyor_cover": "в браузере всё ещё помнится выбор «обложка или приложение»",
+        "tg.cover.": "в разметке остались подписи обложки",
+    }
+    left = [why for key, why in gone.items() if key in html]
+    assert not left, "обложка: " + "; ".join(left)
     must = {
-        'id="cover"': "нет слоя обложки",
-        "scroll-snap-type:y mandatory": "прокрутка не прилипает к секции",
-        'class="cv-sec': "нет полноэкранных секций",
-        "backdrop-filter": "карточки обложки не стеклянные",
-        "perspective(900px)": "нет лёгкого наклона карточки",
-        "IntersectionObserver": "текст не появляется при прокрутке",
+        'id="appbg"': "нет фона раздела внутри приложения",
+        "function appBg(": "фон раздела не ставится",
         "prefers-reduced-motion": "не выключаются анимации при системной настройке",
         "saveData": "не учитывается экономия трафика",
-        'srcset="/static/bg/': "картинки без srcset на две ширины",
-        'loading="lazy"': "картинки секций грузятся сразу",
-        "surveyor_cover": "выбор «обложка или приложение» не помнится",
-        'id="appbg"': "нет фона раздела внутри приложения",
     }
     miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "обложка: " + "; ".join(miss)
-    # первая картинка — не lazy: она и есть первый экран
-    hero = html.split('data-cv="hero"')[1].split("</section>")[0]
-    assert 'loading="lazy"' not in hero, "первая картинка обложки помечена lazy — первый экран будет пустым"
-    # все картинки обложки есть на диске и вместе с телефонной версией не тяжелее 2 МБ
+    assert not miss, "фон раздела: " + "; ".join(miss)
+    # все сцены фона раздела есть на диске в двух ширинах и вместе не тяжелее 2 МБ
     bg = Path(__file__).resolve().parent.parent / "app" / "static" / "bg"
-    names = sorted(set(re.findall(r'/static/bg/([a-z0-9-]+)\.jpg', html)))
-    lost = [n for n in names if not (bg / f"{n}.jpg").exists()]
-    assert names and not lost, "нет файлов фонов: " + ", ".join(lost)
+    table = re.search(r"const APP_BG = \{(.*?)\};", html, re.S)
+    assert table, "нет таблицы фонов разделов APP_BG"
+    names = sorted(set(re.findall(r'"([a-z0-9-]+)"', table.group(1))) | {"particles"})
+    lost = [n for n in names for f in (f"{n}.jpg", f"{n}-640.jpg") if not (bg / f).exists()]
+    assert not lost, "нет файлов фонов: " + ", ".join(lost)
     total = sum(f.stat().st_size for f in bg.glob("*.jpg"))
     assert total <= 2 * 1024 * 1024, f"фоны весят {total // 1024} КБ — больше 2 МБ"
-    small = sum(f.stat().st_size for f in bg.glob("*-640.jpg"))
     # мини-апп отдаётся сервером вместе с картинками: адрес /static открыт до входа
     from app import guard
     assert any(x == "/static/" for x in guard.WHITE_PREFIX), "/static/ закрыт — картинки не загрузятся гостю"
-    print(f"25. обложка: {len(names)} адресов картинок, все фоны {total // 1024} КБ"
-          f" (телефонные {small // 1024} КБ),"
-          f" lazy, бережный режим — ок")
+    print(f"25. обложки нет, фон раздела: {len(names)} сцен, все фоны {total // 1024} КБ — ок")
 
 
 def check_login_links(html):
@@ -650,7 +651,7 @@ if __name__ == "__main__":
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)
-            check_cover(html)
+            check_no_cover(html)
             check_login_links(html)
             check_admin_request(html)
             print("\nВсе проверки мини-приложения пройдены.")

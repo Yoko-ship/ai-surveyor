@@ -923,8 +923,8 @@ def page(html: str, active: str = "", embed: bool = False) -> str:
 # предупредительные мероприятия, сохраняет запрос и даёт ссылку на PDF.
 
 
-# Картинки интерфейса (фоны обложки мини-аппа) отдаются как есть из app/static.
-# Одна строка монтирования; адреса вида /static/bg/hero-640.jpg открыты до входа (app/guard.py, WHITE_PREFIX).
+# Картинки интерфейса (фоны разделов мини-аппа; обложка удалена 28.09.2026) отдаются как есть из app/static.
+# Одна строка монтирования; адреса вида /static/bg/calc-640.jpg открыты до входа (app/guard.py, WHITE_PREFIX).
 app.mount("/static", StaticFiles(directory=str(ROOT / "app" / "static")), name="static")
 
 

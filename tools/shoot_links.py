@@ -70,7 +70,7 @@ def open_page(ws, port, token=None):
        "try { sessionStorage.removeItem('surveyor_token'); } catch (e) {}")
     ws.call("Page.navigate", url=page)
     time.sleep(6)
-    js(ws, "if (typeof coverHide === 'function') coverHide(true); sideOpen(true);", 1.2)
+    js(ws, "sideOpen(true);", 1.2)
 
 
 def main():

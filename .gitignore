@@ -12,6 +12,9 @@ data/surveyor.db-shm
 data/uploads/
 data/reports/
 data/inbox/portfolio/
+# материалы клиентов: договоры для анализа и переписка чата
+data/analysis/
+data/chat/
 # внутренние документы компании и извлечённые тексты — только на локальной машине
 library/*
 !library/catalog.json
