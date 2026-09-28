@@ -3,7 +3,7 @@
     "lang": "uz",
     "note": "Oʻzbekcha (lotin). Qonun matnidan olingan atamalar — docs/i18n_terms.json; «draft» roʻyxatidagi kalitlar interfeys uchun ishchi tarjima, yurist tasdiqlashi kerak.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1718,
+    "keys": 1719,
     "draft": [
       "admin.exit",
       "admin.exit_short",
@@ -1484,6 +1484,7 @@
       "tg.wz.ask_title",
       "tg.wz.assumed",
       "tg.wz.bad_format",
+      "tg.wz.bad_image",
       "tg.wz.cal_word",
       "tg.wz.camera",
       "tg.wz.class_only_hint",
@@ -1614,7 +1615,7 @@
       "tg.zero_sum",
       "unit.m2"
     ],
-    "draft_count": 1474,
+    "draft_count": 1475,
     "from_terms_count": 98,
     "official": [
       "osgor.full",
@@ -3216,6 +3217,7 @@
   "tg.wz.ask_title": "Sunʼiy intellekt-syurveyerga savol",
   "tg.wz.assumed": "Toʻldirilmasa: {v}",
   "tg.wz.bad_format": "{name}: bu format oʻqilmaydi — PDF, DOCX, XLSX, JPG yoki PNG kerak.",
+  "tg.wz.bad_image": "{name}: rasmni ochib boʻlmadi — uni JPG yoki PNG qilib saqlang.",
   "tg.wz.cal_word": "kalibrlangan",
   "tg.wz.camera": "Kamera",
   "tg.wz.class_only_hint": "faqat sinf — mahsulot tanlanmagan",

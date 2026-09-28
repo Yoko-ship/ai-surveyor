@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1718,
+    "keys": 1719,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -1599,6 +1599,7 @@
   "tg.wz.ask_title": "Question to the AI surveyor",
   "tg.wz.assumed": "If left empty: {v}",
   "tg.wz.bad_format": "{name}: this format cannot be read — use PDF, DOCX, XLSX, JPG or PNG.",
+  "tg.wz.bad_image": "{name}: the image could not be opened — save it as JPG or PNG.",
   "tg.wz.cal_word": "calibrated",
   "tg.wz.camera": "Camera",
   "tg.wz.class_only_hint": "class only — no product chosen",

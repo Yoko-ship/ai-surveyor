@@ -976,7 +976,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent-line)}
     <div id="wzBody"></div>
     <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.wz.no_docs">Без документов</button></div></div>
     <!-- «Галерея / файлы»: несколько файлов сразу; «Камера»: снимок с задней камеры телефона -->
-    <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" hidden>
+    <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.heic,.heif,.bmp,.gif,image/*" hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
   </section>
@@ -2574,10 +2574,52 @@ function wzFilesHtml(){
     + (CH.sent.length ? '<p class="hint">' + esc(T("tg.wz.sent_hint", "Отправленные файлы уже разобраны и вошли в анализ — убрать их можно, только начав заново."))
       + ' <button type="button" class="btn btn-link btn-sm" data-go="restart">' + esc(T("tg.wz.start_over", "Начать заново")) + "</button></p>" : "");
 }
-function wzAddFiles(files){
-  const list = Array.prototype.slice.call(files || []);
+/* Картинки других форматов (WEBP, GIF, BMP, AVIF, HEIC — если браузер умеет их открыть) переводим
+   в JPG прямо в браузере: сервер получает привычный формат. Не открылась — вернём null. */
+const WZ_CONVERT = /\.(webp|gif|bmp|avif|heic|heif|jfif|tiff?)$/i;
+function wzNeedsConvert(f){
+  const name = String(f.name || ""), type = String(f.type || "");
+  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png)$/i.test(name)) return false;
+  return /^image\//.test(type) || WZ_CONVERT.test(name);
+}
+function wzToJpeg(f){
+  return new Promise(done => {
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    const end = v => { URL.revokeObjectURL(url); done(v); };
+    img.onerror = () => end(null);
+    img.onload = () => {
+      try {
+        const k = Math.min(1, 2560 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * k));
+        c.height = Math.max(1, Math.round(img.naturalHeight * k));
+        const g = c.getContext("2d");
+        g.fillStyle = "#fff";                       // прозрачный фон в JPG стал бы чёрным
+        g.fillRect(0, 0, c.width, c.height);
+        g.drawImage(img, 0, 0, c.width, c.height);
+        c.toBlob(b => {
+          if (!b) return end(null);
+          const name = String(f.name || "photo").replace(/\.[a-z0-9]+$/i, "") + ".jpg";
+          end(new File([b], name, {type: "image/jpeg"}));
+        }, "image/jpeg", 0.9);
+      } catch (e) { end(null); }
+    };
+    img.src = url;
+  });
+}
+async function wzAddFiles(files){
+  let list = Array.prototype.slice.call(files || []);
   if (!list.length || CH.busy) return;
   const bad = [];
+  const ready = [];
+  for (const f of list) {
+    if (!wzNeedsConvert(f)) { ready.push(f); continue; }
+    const j = await wzToJpeg(f);
+    if (j) ready.push(j);
+    else bad.push(T("tg.wz.bad_image", "{name}: не удалось открыть картинку — сохраните её как JPG или PNG.", {name: f.name || "?"}));
+  }
+  list = ready;
   let over = false;
   list.forEach(f => {
     const name = String(f.name || "");

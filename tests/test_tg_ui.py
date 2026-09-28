@@ -238,7 +238,8 @@ def check_guest_photos(html):
     """Файлы гостя теперь грузятся прямо в диалог: скрепка, перетаскивание, буфер обмена."""
     must = {'"/chat/upload"': "файлы не уходят в диалог",
             'id="chatFile"': "нет поля выбора файлов",
-            'accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png"': "форматы файлов не ограничены",
+            'accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.heic,.heif,.bmp,.gif,image/*"': "форматы файлов не ограничены",
+            'function wzToJpeg': "картинки других форматов (WEBP и т.п.) не переводятся в JPG",
             'errHtml(CH.err)': "отказ сервера (413, 415, 429) показывается не его словами"}
     miss = [why for key, why in must.items() if key not in html]
     assert not miss, "файлы в диалоге: " + "; ".join(miss)
