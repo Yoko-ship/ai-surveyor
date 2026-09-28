@@ -2,6 +2,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title data-i18n="tg.title">Сюрвейер INSON</title>
+<link rel="icon" href="data:,">
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- язык переключается без перезагрузки: app/i18n.js шлёт событие i18n:changed, страница перерисовывает экран -->
 <!-- переключатель RU/UZ/EN стоит в левом меню (#sideLang), плавающий из app/i18n.js здесь не нужен -->
@@ -10,20 +11,21 @@
 <style>
 /* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
    Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
-   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   Контраст белого текста: основная — фиолетовый градиент #6D4AE8 → #4B2FC9 (5,5:1 на светлом краю, 8,2:1 на тёмном;
+   решение заказчика 28.09.2026); успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
    опасная #A4231C — 7,4:1. Высота не меньше 44px. */
 :root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
 html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
 .btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:12px;
   font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
   cursor:pointer;transition:background-color .12s,border-color .12s}
 .btn svg{flex:none;width:18px;height:18px}
 .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
-.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
-.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
-.btn-primary:active:not(:disabled){background:#111B57}
+.btn-primary,.btn-primary:visited{background:#5B3CD9 linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);border-color:#5B3CD9;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#4B2FC9 linear-gradient(135deg,#5E3DDB 0%,#3F25B0 100%);border-color:#4B2FC9;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#3A22A3}
 .btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
 .btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
 .btn-success:active:not(:disabled){background:#0E5230}
@@ -42,15 +44,25 @@ html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--foc
 .actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
 @media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
 /* ===== конец ui-kit ===== */
-:root{--paper:#0F1418;--card:#161C21;--ink:#E6ECF0;--muted:#8E9BA6;--line:#26303A;--soft:#1C242B;--accent:#2ED3A2;--accent-dim:#1E8F70;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;
-  --on-accent:#0F1418;--on-stop:#0F1418;--brand-a:#8EA9FF;--brand-b:#3FBE74;
+/* ===== Палитра INSON (заказчик 28.09.2026, снимки «Тарифы» и «Фото и документы») =====
+   Светлый фон с лавандовым оттенком, белые карточки со скруглением 16px и тонкой рамкой, тёмно-синий текст,
+   серо-лавандовый вторичный, один акцент — фиолетовый (кнопки — градиент #6D4AE8 → #4B2FC9, см. ui-kit).
+   Светлая тема — по умолчанию; тёмная — когда фон Telegram тёмный (или ?theme=dark). Цвета Telegram
+   на страницу не накладываются (applyTheme): все разделы выглядят одинаково у любой темы клиента.
+   Контраст на светлой теме (на белом / на фоне страницы): --ink 17,6 / 16,0; --muted 6,4 / 5,9;
+   --accent 6,8 / 6,1; --good 5,4; --warn 5,9; --stop 6,5. На тёмной: --muted 7,2; --accent 6,6 на карточке. */
+:root,html[data-theme="light"]{--paper:#F4F2FB;--card:#FFFFFF;--soft:#F1EEFB;--soft2:#F8F7FD;--ink:#16142E;--muted:#5E5A7A;--line:#E3DFF2;
+  --accent:#5B3CD9;--accent-dim:#6D4AE8;--accent-bg:rgba(109,74,232,.10);--accent-line:rgba(109,74,232,.38);
+  --grad:linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);--good:#177A41;--gold:#8A5A00;--warn:#8A5A00;--stop:#B3261E;
+  --on-accent:#FFFFFF;--on-stop:#FFFFFF;--brand-a:#1D2C8F;--brand-b:#177A41;
+  --btn-line:#C9C2E6;--btn-hover:rgba(91,60,217,.06);--focus:#5B3CD9;--link:#5B3CD9;
+  --shadow:0 1px 2px rgba(22,20,46,.04),0 6px 20px rgba(22,20,46,.05);
   --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
   --rail:60px;--side:248px;--s1:8px;--s2:12px;--s3:16px;--s4:24px}
-/* светлая тема: включается, когда Telegram присылает светлый фон (или ?theme=light для проверки).
-   Цвета статусов подобраны под белый фон: каждый — не меньше 4,5:1. */
-html[data-theme="light"]{--paper:#F5F7F9;--card:#FFFFFF;--ink:#101C26;--muted:#56646F;--line:#DDE4E9;--soft:#EDF1F4;
-  --accent:#177A41;--accent-dim:#177A41;--gold:#8A5A00;--warn:#8A5A00;--stop:#B3261E;--on-accent:#FFFFFF;--on-stop:#FFFFFF;
-  --brand-a:#1D2C8F;--brand-b:#177A41}
+html[data-theme="dark"]{--paper:#0F0E1A;--card:#17152A;--soft:#1F1C36;--soft2:#1A1830;--ink:#ECEAF7;--muted:#A5A1C4;--line:#2E2A4A;
+  --accent:#A993FF;--accent-dim:#7C5CF0;--accent-bg:rgba(169,147,255,.12);--accent-line:rgba(169,147,255,.40);
+  --good:#4CC684;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;--on-accent:#FFFFFF;--on-stop:#0F0E1A;--brand-a:#A993FF;--brand-b:#4CC684;
+  --btn-line:#4A4570;--btn-hover:rgba(255,255,255,.06);--focus:#A993FF;--link:#A993FF;--shadow:none}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;
@@ -171,7 +183,7 @@ body.side-open #side .brand div{display:block}
 #nav button i{font-style:normal;font-size:18px;line-height:1}
 #nav button u{text-decoration:none;font-size:9.5px;max-width:var(--rail);padding:0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #nav button span{display:none;font-size:13.5px}
-#nav button.on{color:var(--accent);-webkit-text-fill-color:var(--accent);background:rgba(46,211,162,.10);box-shadow:inset 3px 0 0 var(--accent)}
+#nav button.on{color:var(--accent);-webkit-text-fill-color:var(--accent);background:var(--accent-bg);box-shadow:inset 3px 0 0 var(--accent)}
 #nav cite{position:absolute;top:5px;right:8px;font:700 10px var(--mono);font-style:normal;background:var(--stop);color:var(--on-stop);-webkit-text-fill-color:var(--on-stop);border-radius:8px;padding:0 5px}
 #nav cite:empty{display:none}
 body.side-open #nav button{flex-direction:row;justify-content:flex-start;gap:12px;min-height:48px;padding:6px 12px 6px 0;text-align:left}
@@ -188,10 +200,10 @@ body.side-open #side .whoami.hidden{display:none}
 #sideLang{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
 #sideLang button{width:44px;min-height:34px;padding:0;margin:0;border:1px solid transparent;border-radius:8px;background:transparent;
   font:700 11.5px/1 var(--sans);letter-spacing:.02em;color:var(--muted);-webkit-text-fill-color:var(--muted);cursor:pointer}
-#sideLang button[aria-pressed="true"]{color:var(--accent);-webkit-text-fill-color:var(--accent);background:rgba(46,211,162,.10);border-color:rgba(46,211,162,.35)}
+#sideLang button[aria-pressed="true"]{color:var(--accent);-webkit-text-fill-color:var(--accent);background:var(--accent-bg);border-color:var(--accent-line)}
 body.side-open #sideLang{flex-direction:row;gap:6px;padding:12px}
 body.side-open #sideLang button{flex:1 1 0;width:auto;min-height:44px;font-size:13px;border-color:var(--line)}
-body.side-open #sideLang button[aria-pressed="true"]{border-color:rgba(46,211,162,.35)}
+body.side-open #sideLang button[aria-pressed="true"]{border-color:var(--accent-line)}
 #nav button:focus-visible,#side .burger:focus-visible,#sideLang button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
 /* шаги регистрации */
 .step{display:flex;align-items:center;gap:10px;margin-bottom:4px}
@@ -221,8 +233,8 @@ label.chk input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}#side{transition:none}}
 /* ---------- уровни риска: зелёный → тёмно-красный; цвет всегда рядом с названием уровня ---------- */
-:root{--lv1:#3FBE74;--lv2:#D9C04A;--lv3:#E8913A;--lv4:#E5584F;--lv5:#B8323F;--track:#222B33}
-html[data-theme="light"]{--lv1:#1E8A4C;--lv2:#9A7B00;--lv3:#C25E0C;--lv4:#C62F28;--lv5:#7E1420;--track:#E4E9ED}
+:root,html[data-theme="light"]{--lv1:#1E8A4C;--lv2:#9A7B00;--lv3:#C25E0C;--lv4:#C62F28;--lv5:#7E1420;--track:#E9E5F6}
+html[data-theme="dark"]{--lv1:#3FBE74;--lv2:#D9C04A;--lv3:#E8913A;--lv4:#E5584F;--lv5:#B8323F;--track:#2A2645}
 .lv1{--lv:var(--lv1)}.lv2{--lv:var(--lv2)}.lv3{--lv:var(--lv3)}.lv4{--lv:var(--lv4)}.lv5{--lv:var(--lv5)}
 .lvchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.02em;
   border:1px solid var(--lv,var(--line));border-radius:999px;padding:2px 10px;color:var(--ink);white-space:nowrap}
@@ -596,8 +608,8 @@ body.side-open #nav{gap:2px;padding:8px}
 body.side-open #nav button{min-height:48px;border-radius:12px;padding:6px 10px 6px 6px;gap:12px}
 body.side-open #nav button i{width:32px;height:32px;border-radius:9px;background:var(--soft);display:inline-flex;align-items:center;justify-content:center;font-size:16px}
 body.side-open #nav button span{font-size:15px;font-weight:600}
-body.side-open #nav button.on{box-shadow:none;background:rgba(46,211,162,.10)}
-body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+body.side-open #nav button.on{box-shadow:none;background:var(--accent-bg)}
+body.side-open #nav button.on i{background:var(--grad);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
 /* SegmentedControl: один трек, выбранный сегмент — светлее */
 .chips{display:flex;flex-wrap:wrap;gap:2px;padding:2px;background:var(--soft);border:1px solid var(--line);border-radius:12px;width:max-content;max-width:100%}
 .chip{min-height:40px;flex:1 1 auto;border:0;border-radius:10px;padding:6px 16px;background:transparent}
@@ -655,60 +667,145 @@ body.side-open #nav button.on i{background:var(--accent-dim);color:var(--on-acce
 .segsel button[aria-pressed="true"]{border-color:var(--accent-dim);background:var(--soft)}
 .segsel button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
-/* ---------- ИИ-сюрвейер: лента диалога ---------- */
-#tab-chat{max-width:900px;margin:0 auto}
-.chat-feed{display:flex;flex-direction:column;gap:10px;min-height:40vh;padding-bottom:var(--s2)}
-.bub{max-width:88%;border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:14.5px;overflow-wrap:anywhere}
-.bub p{margin:0 0 6px}
-.bub p:last-child{margin-bottom:0}
-.bub.ai{align-self:flex-start;background:var(--card);border-bottom-left-radius:6px}
-.bub.me{align-self:flex-end;background:var(--soft);border-bottom-right-radius:6px}
-.bub.warn{border-color:var(--warn)}
-.bub.wide{max-width:100%;align-self:stretch}
-.bub.typing{color:var(--muted)}
-.bub .eyebrow{margin:0 0 6px}
-.bub .h3{margin:var(--s3) 0 6px;font:700 13px var(--sans);color:var(--muted)}
-.bub input,.bub select,.bub textarea{width:100%}
+/* ---------- ИИ-сюрвейер: мастер «Фото → Проверить → Анализ» (заказчик 28.09.2026) ---------- */
+/* место под закреплённую кнопку внизу; в Telegram её роль играет MainButton */
+#tab-chat{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
+body.in-tg #tab-chat{padding-bottom:var(--s4)}
+/* полоса шагов: тонкая линия сверху, номер и название под ней; активный шаг — фиолетовый */
+.wz-steps{list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 var(--s4);padding:0}
+.wz-steps li{min-width:0}
+.wz-steps button{width:100%;min-height:44px;margin:0;padding:8px 2px 2px;background:none;border:0;border-top:3px solid var(--line);border-radius:0;
+  color:var(--muted);-webkit-text-fill-color:var(--muted);font:600 12.5px/1.25 var(--sans);text-align:center;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wz-steps button b{font-weight:700;margin-right:3px}
+.wz-steps li.done button{border-top-color:var(--accent-line);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.wz-steps li.on button{border-top-color:var(--accent);color:var(--accent);-webkit-text-fill-color:var(--accent);font-weight:700}
+.wz-steps button:disabled{cursor:default}
+.wz-steps button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wz-h{margin:0 0 8px;font:800 24px/1.2 var(--sans);letter-spacing:-.015em}
+.wz-lead{margin:0 0 var(--s4);color:var(--muted);font-size:15px;line-height:1.5;max-width:60ch}
+/* шаг 1: две большие плитки, зона перетаскивания, список файлов */
+.wz-tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.wz-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:108px;margin:0;padding:16px 10px;
+  background:var(--soft);border:1px solid var(--line);border-radius:16px;color:var(--ink);-webkit-text-fill-color:var(--ink);
+  font:600 14px/1.25 var(--sans);text-align:center;cursor:pointer;transition:border-color .12s,background-color .12s}
+.wz-tile svg{width:26px;height:26px;color:var(--accent)}
+.wz-tile:hover{border-color:var(--accent-line)}
+.wz-tile:focus-visible,.wz-drop:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wz-drop{display:flex;align-items:center;justify-content:center;width:100%;min-height:68px;margin:12px 0 0;padding:14px;
+  border:1.5px dashed var(--btn-line);border-radius:16px;background:var(--soft2);color:var(--muted);-webkit-text-fill-color:var(--muted);
+  font:500 13px/1.4 var(--sans);text-align:center;cursor:pointer}
+.wz-drop.over{border-color:var(--accent);background:var(--accent-bg);color:var(--ink);-webkit-text-fill-color:var(--ink)}
+.wz-prev{margin-bottom:var(--s3)}
+.wz-prev p{margin:0 0 10px}
+.wz-files{margin-top:var(--s3);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 4px;box-shadow:var(--shadow)}
+.wz-files .eyebrow{margin:0 0 2px}
+.wz-file{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.wz-file:last-child{border-bottom:0}
+.wz-file .ic{width:40px;height:40px;border-radius:10px;background:var(--soft);display:flex;align-items:center;justify-content:center;
+  font:700 10px/1 var(--mono);color:var(--accent);overflow:hidden;text-transform:uppercase}
+.wz-file .ic img{width:100%;height:100%;object-fit:cover;display:block}
+.wz-file>span{min-width:0}
+.wz-file b{display:block;font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wz-file small{display:block;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.wz-file .st{font:600 12px var(--sans);white-space:nowrap}
+.wz-file .bar{grid-column:2/-1;height:4px;border-radius:2px;background:var(--soft);overflow:hidden}
+.wz-file .bar i{display:block;height:100%;background:var(--grad);transition:width .2s}
+.wz-file .rm{min-height:44px;min-width:44px;margin:0;padding:0 6px;border:0;background:none;color:var(--link);-webkit-text-fill-color:var(--link);
+  font:600 13px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.wz-file .rm:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+/* шаг 2: выбор продукта — список как в «Тарифной политике» */
+.pgroups{margin-top:10px;max-height:440px;overflow:auto;overscroll-behavior:contain;border:1px solid var(--line);border-radius:16px;background:var(--soft2)}
+.pgroups .pad{margin:0;padding:14px}
+.pgroup{padding:0 14px}
+.pgroup+.pgroup{border-top:1px solid var(--line)}
+.pgroup h4{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:14px 0 4px;
+  font:800 11.5px/1.3 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pgroup h4 span{min-width:0}
+.pgroup h4 button{flex:none;min-height:32px;margin:0;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:var(--card);
+  color:var(--link);-webkit-text-fill-color:var(--link);font:600 11.5px/1.2 var(--sans);letter-spacing:0;text-transform:none;cursor:pointer}
+.prow,.ppick{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:2px 12px;align-items:start;text-align:left;color:var(--ink)}
+.prow{width:100%;min-height:52px;margin:0;padding:11px 0;background:none;border:0;border-bottom:1px solid var(--line);border-radius:0;
+  -webkit-text-fill-color:var(--ink);font:inherit;cursor:pointer}
+.pgroup .prow:last-child{border-bottom:0}
+.prow code,.ppick code{font:700 13px/1.45 var(--mono);color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.prow>span,.ppick>span{min-width:0;font-size:14px;line-height:1.4;overflow-wrap:break-word}
+.prow small,.ppick small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted);-webkit-text-fill-color:var(--muted)}
+.prow b,.ppick b{font:700 12.5px/1.45 var(--mono);text-align:right;max-width:8.5em;overflow-wrap:break-word}
+.prow:hover>span{text-decoration:underline;text-underline-offset:3px}
+.prow[aria-pressed="true"]{background:var(--accent-bg);box-shadow:inset 3px 0 0 var(--accent);margin:0 -14px;padding:11px 14px;width:calc(100% + 28px)}
+.prow:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.ppick{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--soft2)}
+/* дополнительные и итоговые блоки: карточка со сворачиваемым содержимым */
+details.sec{background:var(--card);border:1px solid var(--line);border-radius:16px;margin:0 0 var(--s2);box-shadow:var(--shadow);min-width:0}
+details.sec>summary{list-style:none;display:flex;align-items:center;gap:12px;min-height:56px;padding:12px 16px;cursor:pointer;border-radius:16px}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary>span{flex:1 1 auto;min-width:0}
+details.sec>summary b{display:block;font:700 15px/1.3 var(--sans)}
+details.sec>summary small{display:block;margin-top:2px;font-size:12.5px;line-height:1.4;color:var(--muted)}
+details.sec>summary::after{content:"";flex:none;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);
+  transform:rotate(45deg);transition:transform .15s}
+details.sec[open]>summary::after{transform:rotate(-135deg);margin:4px 4px 0 0}
+details.sec>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-width:0}
+details.sec .card,body.cine details.sec .card{background:none;border:0;border-radius:0;padding:0;margin:0 0 var(--s2);box-shadow:none;
+  -webkit-backdrop-filter:none;backdrop-filter:none}
+#wzRisks .card>.eyebrow:first-child,#wzScn .card>.eyebrow:first-child,#wzLevel .card>.eyebrow:first-child{display:none}
+#wzLevel .gauge{display:none}
+details.sec .card+.card{border-top:1px solid var(--line);padding-top:var(--s2)}
+/* шаг 3: главное крупно */
+.wz-res .res-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3)}
+.res-gauge{flex:none;width:150px;text-align:center}
+.res-gauge svg{width:100%;height:auto;display:block}
+.res-score{font:700 22px/1 var(--mono);margin-top:-6px}
+.res-score small{font:500 12px var(--sans);color:var(--muted)}
+.res-main{flex:1 1 200px;min-width:0}
+.res-prem{font:800 30px/1.15 var(--mono);letter-spacing:-.01em;margin:8px 0 2px;overflow-wrap:anywhere}
+.res-sub{margin:0;color:var(--muted);font-size:13px}
+.res-fr{margin-top:var(--s2);padding:10px 12px;border-radius:12px;background:var(--soft);font-size:13.5px}
+.res-fr b{display:block}
+.res-fr span{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+.qa-item{border-top:1px solid var(--line);padding:10px 0}
+.qa-item:first-child{border-top:0}
+.qa-item .q{margin:0 0 4px;font-weight:700;overflow-wrap:anywhere}
+.qa-item .a{margin:0;white-space:pre-line;overflow-wrap:anywhere}
+.qa-item .a.warn{color:var(--warn)}
+.askrow{display:flex;gap:8px;align-items:flex-end;margin-top:var(--s2)}
+.askrow textarea{flex:1 1 auto;min-height:48px;max-height:140px;resize:none}
+.askrow .btn{flex:none}
+@media (max-width:599px){.askrow{flex-direction:column;align-items:stretch}.askrow .btn{width:100%}}
+.kv.disc b.miss{color:var(--muted);font-weight:400}
+#wzUnd .rows>div>span{overflow-wrap:break-word}
+#wzUnd .rows>div>b{white-space:normal;max-width:55%;font:600 13px/1.4 var(--sans)}
+/* закреплённая кнопка шага: внизу экрана, в колонке содержимого (вне Telegram) */
+.wz-bar{position:fixed;left:calc(var(--rail) + env(safe-area-inset-left));right:0;bottom:0;z-index:45;background:var(--card);
+  border-top:1px solid var(--line);padding:12px var(--s3) calc(env(safe-area-inset-bottom) + 12px)}
+body.side-wide .wz-bar{left:calc(var(--side) + env(safe-area-inset-left))}
+.wz-bar>div{max-width:720px;margin:0 auto;display:flex;gap:8px}
+.wz-bar .btn{flex:1 1 auto;min-height:52px;font-size:15px;border-radius:14px}
+body.in-tg .wz-bar{display:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
 .chips .chip{min-height:44px;padding:8px 14px;border:1px solid var(--line);border-radius:22px;background:transparent;
   color:var(--ink);font:600 13.5px var(--sans);cursor:pointer}
-.chips .chip[aria-pressed="true"]{border-color:var(--accent-dim);background:var(--soft)}
+.chips .chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);-webkit-text-fill-color:var(--accent)}
 .chips .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 /* чек-лист документов: получено или нет */
 .chk>div{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
 .chk>div:last-child{border-bottom:0}
 .chk i{font-style:normal;font-weight:700;line-height:1.5}
-.chk i.ok{color:var(--accent)}
+.chk i.ok{color:var(--good)}
 .chk i.no{color:var(--stop)}
 .chk small{display:block;color:var(--muted);font-size:11.5px}
-.upbar{height:4px;border-radius:2px;background:var(--soft);margin-top:8px;overflow:hidden}
-.upbar i{display:block;height:100%;background:var(--accent);transition:width .2s}
-/* итог: спидометр меньше, рядом премия и ставка */
-.reshead{display:flex;flex-wrap:wrap;gap:var(--s2) var(--s3);align-items:center}
-.gauge.sm{flex:none;width:150px}
-.gauge.sm svg{width:100%;height:auto}
-.reskpi{flex:1 1 200px;display:flex;flex-wrap:wrap;gap:10px var(--s3);align-items:baseline}
-.reskpi>div>b{display:block;font:700 18px var(--mono)}
-.reskpi>div>span{font-size:11.5px;color:var(--muted)}
 .opts{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
 @media (min-width:700px){.opts{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.opt-card{border:1px solid var(--line);border-radius:12px;padding:10px 12px}
-.opt-card.on{border-color:var(--accent-dim);background:var(--soft)}
+.opt-card{border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
+.opt-card.on{border-color:var(--accent);background:var(--accent-bg)}
 .opt-card>b{display:block;font:700 16px var(--mono);margin:2px 0}
 .opt-card .btn{margin-top:8px;width:100%}
-/* строка ввода: скрепка, поле, отправка — всегда видна снизу */
-.chat-bar{position:sticky;bottom:0;z-index:5;display:flex;gap:8px;align-items:flex-end;
-  background:var(--paper);padding:8px 0 calc(env(safe-area-inset-bottom) + 8px);border-top:1px solid var(--line)}
-.chat-bar textarea{flex:1 1 auto;min-height:44px;max-height:140px;resize:none;overflow:auto;padding:11px 12px;
-  border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:15px var(--sans)}
-.chat-bar .icon{flex:none;width:44px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;
-  border:1px solid var(--line);border-radius:12px;background:transparent;color:var(--ink);cursor:pointer}
-.chat-bar .icon:focus-visible,.chat-bar textarea:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.chat-bar .icon svg{width:20px;height:20px}
 /* файл можно бросить в любое место экрана */
 .dropzone{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
-  background:rgba(15,20,24,.86);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font:700 18px var(--sans);text-align:center;padding:var(--s4)}
-.dropzone span{border:3px dashed var(--accent);border-radius:18px;padding:var(--s4) var(--s4)}
+  background:rgba(22,20,46,.82);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font:700 18px var(--sans);text-align:center;padding:var(--s4)}
+.dropzone span{border:3px dashed #A993FF;border-radius:18px;padding:var(--s4) var(--s4)}
 .dropzone.hidden{display:none}
 /* в Telegram основное действие шага и «Назад» — нативные MainButton и BackButton, дубли на странице прячем */
 body.in-tg .tg-main,body.in-tg .tg-back{display:none}
@@ -721,15 +818,14 @@ body.cine{background:transparent}            /* фон рисует слой #ap
 body.cine .wrap{position:relative;z-index:1}
 #appbg img{position:absolute;inset:-6%;width:112%;height:112%;object-fit:cover;filter:blur(26px) saturate(115%);
   opacity:0;transform:translate3d(0,var(--par,0px),0) scale(1.06);transition:opacity .5s ease}
-#appbg img.on{opacity:.4}
-html[data-theme="light"] #appbg img.on{opacity:.12}
-#appbg::after{content:"";position:absolute;inset:0;
-  background:linear-gradient(180deg,rgba(15,20,24,.50),rgba(15,20,24,.82))}
-html[data-theme="light"] #appbg::after{background:linear-gradient(180deg,rgba(245,247,249,.72),rgba(245,247,249,.92))}
+#appbg img.on{opacity:.06}
+html[data-theme="dark"] #appbg img.on{opacity:.3}
+#appbg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(244,242,251,.80),rgba(244,242,251,.95))}
+html[data-theme="dark"] #appbg::after{background:linear-gradient(180deg,rgba(15,14,26,.55),rgba(15,14,26,.86))}
 body.fx-lite #appbg img{display:none}
-/* карточки на этом фоне: стекло и мягкая тень */
-body.cine .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
-html[data-theme="light"] body.cine .card{box-shadow:0 8px 24px rgba(16,28,38,.08)}
+/* карточки на этом фоне: белые, мягкая тень; на тёмной теме — лёгкое стекло */
+body.cine .card{box-shadow:var(--shadow)}
+html[data-theme="dark"] body.cine .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
 /* переход между вкладками: 200 мс, лёгкий сдвиг снизу */
 [data-section]:not(.hidden){animation:secIn .2s cubic-bezier(.22,.61,.36,1) both}
 @keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -765,6 +861,41 @@ body:not(.side-open) .links{display:none}
 .askadm .note{margin-top:4px;font:400 11px/1.4 var(--sans);color:var(--muted)}
 .reqs .ways{margin:2px 0 0;font:400 13px/1.4 var(--sans);color:var(--muted);overflow-wrap:anywhere}
 
+
+/* =====================================================================================
+   Единый вид всех разделов (заказчик 28.09.2026): колонка до 720px по центру, строка заголовка
+   раздела сверху, зелёный остаётся только для «всё в порядке», акцент — фиолетовый.
+   ===================================================================================== */
+.wrap{max-width:752px;padding-top:0}
+@media (min-width:600px){.wrap{padding-top:0}}
+/* строка заголовка: название раздела по центру, INSON справа */
+.topbar{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;
+  min-height:52px;margin:0 calc(-1 * var(--s3)) var(--s3);padding:env(safe-area-inset-top) var(--s3) 0;background:var(--paper);
+  border-bottom:1px solid var(--line)}
+@media (min-width:600px){.topbar{margin:0 calc(-1 * var(--s4)) var(--s4);padding-left:var(--s4);padding-right:var(--s4)}}
+.topbar .tb-title{grid-column:2;margin:0;font:700 16px/1.25 var(--sans);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
+.topbar .logo{grid-column:3;justify-self:end;font:800 16px/1 var(--sans);letter-spacing:.02em;color:var(--ink)}
+/* в колонке 720px широкие сетки не раскрываются: всё в одну колонку, поля — не больше двух в ряд */
+@media (min-width:1100px){.dash{grid-template-columns:minmax(0,1fr)}.dash>.card{grid-column:1/-1}
+  .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .kv.disc{grid-template-columns:minmax(110px,200px) minmax(0,1fr)}}
+@media (min-width:1180px){.grid2,.cards{grid-template-columns:minmax(0,1fr)}}
+@media (min-width:1000px){.cards.people{grid-template-columns:minmax(0,1fr)}}
+.card{box-shadow:var(--shadow)}
+.sec-head h1{font-size:24px;letter-spacing:-.015em}
+input,select,textarea{background:var(--soft2);border-color:var(--line);border-radius:12px}
+input:focus,select:focus,textarea:focus{border-color:var(--accent-line)}
+/* «всё в порядке» — зелёным, остальное — палитрой */
+.ok,.down,.dev.ok,.trend.down,.prob.high{color:var(--good)}
+.check.ok i{background:var(--good)}
+.verdict.ok{color:var(--good);border-color:var(--good)}
+.banner.ok{border-color:var(--good);color:var(--good)}
+.tag{border-color:var(--accent-line)}
+.segsel button[aria-pressed="true"],.tile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg)}
+.chip[aria-pressed="true"]{color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.plist button[aria-pressed="true"]{background:var(--accent-bg)}
+.banner{background:var(--card);border-radius:12px}
+.tgopen{box-shadow:var(--shadow)}
 </style>
 
 <aside id="side">
@@ -823,6 +954,8 @@ body:not(.side-open) .links{display:none}
 
 
 <div class="wrap">
+  <!-- строка заголовка раздела: название по центру (ставит paintTop), INSON справа -->
+  <header class="topbar" id="topbar"><span aria-hidden="true"></span><div class="tb-title" id="topTitle" role="heading" aria-level="1"></div><b class="logo">INSON</b></header>
   <!-- страница открыта не в Telegram: ведём в мини-апп, там вход автоматический -->
   <div class="tgopen hidden" id="tgOpenBar">
     <a class="btn btn-primary" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
@@ -836,23 +969,15 @@ body:not(.side-open) .links{display:none}
   <div id="screen-app" class="hidden">
 
 
-  <!-- ИИ-сюрвейер: один диалог — анализ, расчёт и файлы вместе (задача 223) -->
+  <!-- ИИ-сюрвейер: мастер из трёх шагов «Фото → Проверить → Анализ» (заказчик 28.09.2026).
+       Шаги рисует JS в #wzBody; закреплённая кнопка внизу — для браузера, в Telegram — MainButton. -->
   <section id="tab-chat" data-section="chat" class="hidden">
-    <div class="chat-feed" id="chatFeed" role="log" aria-live="polite"
-      data-i18n-aria="tg.chat.feed_aria" aria-label="Диалог с ИИ-сюрвейером"></div>
-    <div class="chat-bar">
-      <button type="button" class="icon" id="chatClip" data-i18n-aria="tg.chat.attach" aria-label="Прикрепить файлы"
-        data-i18n-title="tg.chat.attach" title="Прикрепить файлы">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="2"
-          stroke-linecap="round" d="M21 11.5 12.5 20a5 5 0 0 1-7-7l8-8a3.5 3.5 0 0 1 5 5l-8 8a2 2 0 0 1-3-3l7.5-7.5"/></svg></button>
-      <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" hidden>
-      <textarea id="chatText" rows="1" maxlength="2000" enterkeyhint="send"
-        data-i18n-aria="tg.chat.ph" aria-label="Спросите или опишите объект — ИИ ответит"></textarea>
-      <button type="button" class="icon" id="chatSend" data-i18n-aria="tg.chat.send" aria-label="Отправить"
-        data-i18n-title="tg.chat.send" title="Отправить">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor"
-          d="M3 20.5 21 12 3 3.5 3 10l12 2-12 2z"/></svg></button>
-    </div>
+    <ol class="wz-steps" id="wzSteps" data-i18n-aria="tg.wz.steps_aria" aria-label="Шаги анализа"></ol>
+    <div id="wzBody"></div>
+    <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.wz.no_docs">Без документов</button></div></div>
+    <!-- «Галерея / файлы»: несколько файлов сразу; «Камера»: снимок с задней камеры телефона -->
+    <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png" hidden>
+    <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
   </section>
 
@@ -1014,11 +1139,12 @@ const okHtml = t => '<span class="ok">' + esc(t) + "</span>";
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 const navTitle = (key, ru) => T("tg.nav." + key, ru);
 
-/* ---------- Telegram: готовность, разворот, цвета поверх наших ---------- */
-/* Цвета Telegram берём только для фона страницы (bg_color), фона карточек (secondary_bg_color)
-   и основного текста (text_color) — и только если контраст текста к фону по формуле WCAG не ниже 4,5:1.
-   К кнопкам и ссылкам-кнопкам цвета Telegram не применяются никогда: у них свои явные цвета (ui-kit выше).
-   Светлый или тёмный набор наших цветов выбирается по яркости фона Telegram. */
+/* ---------- Telegram: готовность, разворот, светлая или тёмная тема ---------- */
+/* У мини-аппа своя палитра (заказчик 28.09.2026): лавандовый фон, белые карточки, фиолетовый акцент.
+   Telegram решает только, светлая она или тёмная, — по яркости своего фона (bg_color, section_bg_color)
+   или по colorScheme. Цвета Telegram на страницу не накладываются: ни на фон и текст, ни на кнопки
+   (у кнопок свои явные цвета — ui-kit выше), иначе разделы выглядели бы по-разному у разных тем клиента.
+   Шапку и фон самого клиента красим в наш цвет фона — так мини-апп не отделяется от рамки Telegram. */
 function hexColor(s){
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(s || "").trim());
   if (!m) return null;
@@ -1030,42 +1156,25 @@ function luminance(hex){
     .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 }
-function contrast(a, b){
-  const x = luminance(a), y = luminance(b);
-  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
-}
-const THEME_URL = new URLSearchParams(location.search).get("theme");   // ?theme=light — для проверки
-if (THEME_URL === "light" || THEME_URL === "dark") document.documentElement.dataset.theme = THEME_URL;
+const THEME_URL = new URLSearchParams(location.search).get("theme");   // ?theme=dark — проверка тёмной темы
+/* светлая — по умолчанию, в том числе в обычном браузере */
+document.documentElement.dataset.theme = THEME_URL === "dark" ? "dark" : "light";
 function applyTheme(){
   if (!TG) return;
-  const p = TG.themeParams || {};
   const root = document.documentElement;
-  ["--paper", "--card", "--ink", "--muted", "--sec-head"].forEach(v => root.style.removeProperty(v));
-  // как в клиенте Telegram: фон страницы — secondary_bg_color, секции (карточки) — section_bg_color
-  const bg = hexColor(p.secondary_bg_color) || hexColor(p.bg_color);
-  const card = hexColor(p.section_bg_color) || hexColor(p.bg_color);
-  const ink = hexColor(p.text_color), hint = hexColor(p.hint_color), head = hexColor(p.section_header_text_color);
   if (!(THEME_URL === "light" || THEME_URL === "dark")) {
-    // вне Telegram (обычный браузер) цветов темы нет — остаёмся на своей тёмной теме
-    const base = hexColor(p.bg_color) || bg;
-    const light = base ? luminance(base) > 0.4 : !!(TG.initData && TG.colorScheme === "light");
-    root.dataset.theme = light ? "light" : "dark";
+    const p = TG.themeParams || {};
+    const base = hexColor(p.bg_color) || hexColor(p.section_bg_color) || hexColor(p.secondary_bg_color);
+    const dark = base ? luminance(base) < 0.4 : !!(TG.initData && TG.colorScheme === "dark");
+    root.dataset.theme = dark ? "dark" : "light";
   }
-  const cs = getComputedStyle(root);
-  const ours = n => hexColor(cs.getPropertyValue(n)) || "#000000";
-  const ourInk = ours("--ink"), muted = ours("--muted");
-  // фон годится, если на нём читаются и наш основной, и наш второстепенный текст
-  const bgOk = x => x && contrast(ourInk, x) >= 4.5 && contrast(muted, x) >= 4.5;
-  const paper = bgOk(bg) ? bg : ours("--paper");
-  const cardUse = bgOk(card) ? card : ours("--card");
-  if (paper !== ours("--paper")) root.style.setProperty("--paper", paper);
-  if (cardUse !== ours("--card")) root.style.setProperty("--card", cardUse);
-  // тексты Telegram — только если читаются и на фоне страницы, и на фоне карточек (WCAG 4,5:1)
-  const reads = x => x && contrast(x, paper) >= 4.5 && contrast(x, cardUse) >= 4.5;
-  if (reads(ink)) root.style.setProperty("--ink", ink);
-  if (reads(hint)) root.style.setProperty("--muted", hint);
-  if (reads(head)) root.style.setProperty("--sec-head", head);
+  const paper = hexColor(getComputedStyle(root).getPropertyValue("--paper"));
+  if (paper && TG.initData) {
+    tgCallEarly(() => TG.setHeaderColor(paper));
+    tgCallEarly(() => TG.setBackgroundColor(paper));
+  }
 }
+function tgCallEarly(f){ try { f(); } catch (e) { /* старая версия клиента: цвета рамки не меняются */ } }
 if (TG) {
   try {
     TG.ready();
@@ -1269,6 +1378,7 @@ function openTab(key){
   if (!WIDE.matches) sideOpen(false);          // на телефоне панель закрывается, видно раздел
   window.scrollTo(0, 0);
   if (typeof appBg === "function") appBg(key); // фон раздела: размытая картинка под содержимым
+  paintTop();
   if (LOADERS[key]) LOADERS[key]();
   syncTgButtons();
 }
@@ -1305,14 +1415,17 @@ function syncTgButtons(){
     else if (TAB === "osgor") { text = T("tg.os.calc", "Рассчитать"); fn = osCalc; }
     else if (TAB === "legal") { text = T("tg.lg.send", "Спросить"); fn = lgAsk; off = LG.busy; }
     else if (TAB === "chat") {
-      const b = $("#chatMain");
-      if (b) { text = b.textContent; fn = pressBtn("#chatMain"); off = b.disabled; }
+      // мастер: нижняя кнопка — действие шага, «Назад» в шапке — на шаг раньше без потери введённого
+      text = wzMainLabel(); fn = wzMain; off = CH.busy;
+      back = CH.wz > 1 ? wzBack : null;
     }
   }
   TGB.main = fn; TGB.back = back;
   if (TG.MainButton) tgCall(() => {
     if (!text) { TG.MainButton.hide(); return; }
     TG.MainButton.setText(text);
+    // цвет кнопки — наш фиолетовый, а не цвет темы Telegram
+    if (TG.MainButton.setParams) TG.MainButton.setParams({color: "#6D4AE8", text_color: "#FFFFFF"});
     if (off && !TGB.busy) TG.MainButton.disable(); else TG.MainButton.enable();
     TG.MainButton.show();
   });
@@ -1354,8 +1467,17 @@ window.addEventListener("i18n:changed", repaintCurrent);
 
 /* подписи, которые JS держит сам (у них нет data-i18n: текст меняется по ходу работы) */
 function paintStatic(){
-  const inp = $("#chatText");
-  if (inp) inp.placeholder = T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит");
+  paintTop();
+}
+/* строка заголовка: название раздела; у мастера — название шага, как на снимке «Фото и документы» */
+function paintTop(){
+  const t = $("#topTitle");
+  if (!t) return;
+  let s = "";
+  if (TAB === "chat") {
+    s = [T("tg.wz.top1", "Фото и документы"), T("tg.wz.top2", "Проверка данных"), T("tg.wz.top3", "Анализ риска")][(CH.wz || 1) - 1];
+  } else if (TAB) s = navFull(TAB);
+  t.textContent = s || T("tg.title", "Сюрвейер INSON");
 }
 function paintMode(){
   const m = ME.mode ? modeName(ME.mode) : "";
@@ -1517,7 +1639,7 @@ $("#outBtn").onclick = async () => {
   await api("/auth/logout", {method: "POST"});
   setToken(null);
   CH.sid = "";
-  try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
+  try { sessionStorage.removeItem(CH_KEY); sessionStorage.removeItem(WZ_KEY); } catch (e) {}
   try { sessionStorage.removeItem(VIEW_KEY); } catch (e) {}
   VIEW_USER = false;
   USERS = null;
@@ -1978,31 +2100,77 @@ function calcChainRow(x){
 function calcRepaint(){ calcPaint(); }
 
 /* =====================================================================================
-   ИИ-сюрвейер: один диалог вместо вкладок «Аналитика» и «Фото» (задача 223).
-   Данные: POST /chat/start  — начать диалог (и вопрос «старый или новый договор»);
-           POST /chat/answer — чип или заполненные поля;
-           POST /chat/upload — файлы (договор, общий PDF, фото, Excel) одним действием;
-           POST /chat/analyze — ставка, франшиза и пояснение;
-           POST /chat/message — свободный вопрос к ИИ;
-           POST /chat/lang   — смена языка: свободный текст переводится, подписи берём из словаря;
-           GET  /chat/state  — восстановление диалога после перезагрузки.
-   Сервер присылает карточки (text, checklist, fields, chips, result) — интерфейс их рисует.
-   Лента перерисовывается по карточкам; поля ввода не трогаем, пока человек печатает, —
-   меняется только та карточка, где нажали чип. Курсор в поле остаётся на месте.
+   ИИ-сюрвейер: мастер из трёх шагов вместо ленты чата (заказчик 28.09.2026, снимки
+   «Фото и документы» и «Тарифы»).
+     1 «Фото»      — камера, галерея и файлы, перетаскивание, вставка из буфера. Файлы копятся
+                     в списке (их можно убрать) и уходят на сервер одним POST /chat/upload по «Дальше».
+     2 «Проверить» — что система поняла из документов (пометка «из договора — проверьте»), каких
+                     документов не хватает, четыре обязательных поля и «Дополнительно».
+     3 «Анализ»    — итог крупно сверху, подробности в сворачиваемых блоках, вопрос ИИ.
+   Данные — те же вызовы сервера, что и у ленты:
+           POST /chat/start, /chat/answer, /chat/upload, /chat/analyze, /chat/message, /chat/lang,
+           GET  /chat/state?session_id=… — восстановление после перезагрузки;
+           GET  /reference/products, /reference/classes, /reference/checklists — список продуктов;
+           GET  /analytics/risk/fields, /analytics/risk/docs; POST /analytics/risk (mode quick) — подробности.
+   Сервер по-прежнему отвечает карточками (text, chips, checklist, fields, result): мастер разбирает
+   их в своё состояние (wzCards), а не рисует лентой. По шагам можно ходить назад — введённое хранится
+   в CH.draft и в sessionStorage. Пока человек печатает, поле не перерисовывается: меняются только
+   списки и сообщения рядом (wzPart).
    ===================================================================================== */
-const AN = {res: null, scn: "EML", fields: null};           // дашборд читает AN.res
+const AN = {res: null, scn: "EML", fields: null, group: null};   // карточки подробностей читают AN.res
 const MONEY_UNIT = "сум";                                   // единица денежных полей в ответе сервера
 const CH_KEY = "surveyor_chat";
+const WZ_KEY = "surveyor_wizard";
 const CH_REGION = "surveyor_region";
-const CH_MAX_FILES = 10;
-const CH = {sid: "", step: "", state: {must: {}, optional: {}}, ai: {}, feed: [], booted: false,
-  busy: false, err: "", draft: {must: {}, optional: {}}, pick: [], res: null, meta: null, metaErr: "",
-  presets: null, q: "", upPct: 0, upName: "", tr: {}, relang: false, detail: false, full: null, fullErr: ""};
+const CH_MAX_FILES = 10;                   // столько файлов принимает POST /chat/upload за раз (surveyor_chat.MAX_FILES)
+const CH_MAX_MB = 15;                      // предел одного файла на сервере (surveyor_chat.MAX_BYTES)
+const CH_EXT = ["pdf", "docx", "xlsx", "jpg", "jpeg", "png"];
+const CH_QA_MAX = 6;                       // столько вопросов ИИ держим на шаге «Анализ»
+const CH = {sid: "", step: "", state: {must: {}, optional: {}}, ai: {}, booted: false, busy: false, err: "",
+  draft: {must: {}, optional: {}}, dirty: {must: {}, optional: {}}, res: null, meta: null, metaErr: "",
+  tr: {}, relang: false, full: null, fullErr: "", fullSeq: 0, prev: null, mode: "", notes: [], checklist: [],
+  fieldsOpt: [], need: null, needKey: "", needErr: "", qa: [], asking: false, choice: "", wz: 1,
+  queue: [], sent: [], fromDoc: {}, upPct: 0, prodQ: "", prodOpen: false, optOpen: false, open: {},
+  errs: {}, refs: null, refsErr: "", seq: 0, later: false, codeMap: null, codeKey: ""};
+
+const ICON_CAM = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+const ICON_IMG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></svg>';
 
 function chatSave(){ try { sessionStorage.setItem(CH_KEY, CH.sid); } catch (e) {} }
 function chatLoadSid(){ try { return sessionStorage.getItem(CH_KEY) || ""; } catch (e) { return ""; } }
+/* мастер помнит до закрытия вкладки: шаг, отправленные файлы, пометки «из договора», черновик полей, вопросы ИИ */
+function wzSave(){
+  try {
+    sessionStorage.setItem(WZ_KEY, JSON.stringify({sid: CH.sid, wz: CH.wz, sent: CH.sent, fromDoc: CH.fromDoc,
+      notes: CH.notes, draft: CH.draft, dirty: CH.dirty, choice: CH.choice, mode: CH.mode,
+      qa: CH.qa.filter(x => !x.pending)}));
+  } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
+}
+function wzLoad(sid){
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem(WZ_KEY) || "null"); } catch (e) { s = null; }
+  if (!s || typeof s !== "object" || s.sid !== sid) return null;
+  CH.wz = [1, 2, 3].indexOf(s.wz) >= 0 ? s.wz : 1;
+  CH.sent = Array.isArray(s.sent) ? s.sent : [];
+  CH.fromDoc = s.fromDoc && typeof s.fromDoc === "object" ? s.fromDoc : {};
+  CH.notes = Array.isArray(s.notes) ? s.notes : [];
+  CH.qa = Array.isArray(s.qa) ? s.qa.slice(-CH_QA_MAX) : [];
+  CH.choice = typeof s.choice === "string" ? s.choice : "";
+  CH.mode = typeof s.mode === "string" ? s.mode : "";
+  return s;
+}
+/* правки, которые человек сделал, но ещё не отправил на сервер, — поверх состояния сервера */
+function wzRestoreDraft(s){
+  ["must", "optional"].forEach(sc => {
+    const d = (s.dirty && s.dirty[sc]) || {}, v = (s.draft && s.draft[sc]) || {};
+    Object.keys(d).forEach(k => {
+      CH.dirty[sc][k] = 1;
+      if (v[k] == null || v[k] === "") delete CH.draft[sc][k]; else CH.draft[sc][k] = v[k];
+    });
+  });
+}
 
-/* ---------- справочники для полей: классы, продукты, регионы ---------- */
+/* ---------- справочники: поля класса, регионы, продукты ---------- */
 async function chatMeta(cls){
   const q = "?class_code=" + encodeURIComponent(cls || "") + "&mode=quick";
   const r = await api("/analytics/risk/fields" + q);
@@ -2010,10 +2178,85 @@ async function chatMeta(cls){
   CH.metaErr = "";
   CH.meta = r.data;
   AN.fields = r.data;
+  AN.group = r.data.group || null;
+  wzDefsAdd(r.data);
+  wzRegionNorm();
 }
-async function chatPresets(){
-  const r = await api("/analytics/risk/presets");
-  CH.presets = r.ok ? (r.data.presets || []) : [];
+/* описания полей всех групп (имущество 8/9 и транспорт 3): подписи и варианты для значений из
+   документов и для текстов сервера нужны, даже пока класс ещё не выбран */
+const WZ_DEFS = {};
+function wzDefsAdd(meta){
+  ((meta && (meta.must_full || meta.must)) || []).concat((meta && meta.optional) || []).forEach(f => {
+    if (f && f.key && !WZ_DEFS[f.key]) WZ_DEFS[f.key] = f;
+  });
+}
+let WZ_DEFS_ASKED = false;
+function chatDefs(){
+  if (WZ_DEFS_ASKED) return Promise.resolve();
+  WZ_DEFS_ASKED = true;
+  return Promise.all(["8/9", "3"].map(c => api("/analytics/risk/fields?mode=quick&class_code=" + encodeURIComponent(c))
+    .then(r => { if (r.ok) wzDefsAdd(r.data); })));
+}
+/* регион из документа приходит ключом справочника («region:…») — показываем и отправляем название */
+function wzRegionNorm(){
+  const cur = CH.draft.must.region;
+  if (!cur || !CH.meta) return;
+  const hit = (CH.meta.regions || []).filter(r => r && typeof r === "object" && r.key === cur)[0];
+  if (hit && hit.name) {
+    CH.draft.must.region = hit.name;
+    CH.dirty.must.region = 1;
+  }
+}
+/* список продуктов «как в тарифной политике»: тот же справочник, что у «Калькулятора» */
+async function chatRefs(){
+  if (CH.refs) return;
+  const [p, c, l] = await Promise.all([api("/reference/products"), api("/reference/classes"), api("/reference/checklists")]);
+  if (!p.ok || !c.ok) { CH.refsErr = p.error || c.error; return; }
+  CH.refsErr = "";
+  CH.refs = {products: (p.data || []).filter(x => !(x.status === "тест")), classes: c.data || [], lists: l.ok ? (l.data || []) : []};
+}
+function wzProd(code){ return ((CH.refs && CH.refs.products) || []).filter(p => p.code === code)[0] || null; }
+function wzClassesOf(p){
+  if (!p) return [];
+  if (Array.isArray(p.classes)) return p.classes;
+  return String(p.classes || "").split(",").map(x => x.trim()).filter(Boolean);
+}
+function wzClsName(code, fallback){
+  const c = ((CH.refs && CH.refs.classes) || []).filter(x => x.code === code)[0];
+  return T("tg.wz.cls." + code, fallback || (c && c.name) || code);
+}
+/* ставка справа в строке продукта: число — как в тарифной политике, без ставки — «по программе».
+   Ставки не придумываем: текст берётся из справочника продуктов (rate_text, pricing_mode). */
+function wzRate(p){
+  const t = String(p.rate_text || "").trim();
+  const m = /^(\d+(?:[.,]\d+)?)\s*%\s*(\S+)?$/.exec(t);
+  if (m && (!m[2] || /^\S{1,6}\.$/.test(m[2]))) {
+    const d = (m[1].split(/[.,]/)[1] || "").length;
+    return nf(Number(m[1].replace(",", ".")), d) + " %" + (m[2] ? " " + T("tg.wz.rate_fixed", "фикс.") : "");
+  }
+  switch (p.pricing_mode) {
+    case "программа": return T("tg.wz.rate_program", "по программе");
+    case "по согласованию": return T("tg.wz.rate_agreed", "по согласованию с ЦО");
+    case "генеральный договор": return T("tg.wz.rate_general", "по генеральному договору");
+    case "нормативный акт": return T("tg.wz.rate_act", "по нормативному акту");
+  }
+  if (!t) return T("tg.wz.rate_program", "по программе");
+  return I18N_LANG === "ru" ? t : T("tg.wz.rate_several", "несколько ставок");
+}
+/* «документов: N» — столько документов попросит анализ по продукту. Та же логика, что
+   app/analysis_docs.required_docs без типа объекта: свой чек-лист продукта, иначе общий список
+   и строки его классов; строки оформления договора (заявление-анкета) не считаются. */
+function wzDocCount(p){
+  const L = (CH.refs && CH.refs.lists) || [];
+  if (!L.length) return null;
+  const an = L.filter(c => !c.scope || c.scope === "анализ");
+  const names = {};
+  an.forEach(c => { if (c.scope_type === "продукт" && c.scope_code === p.code) names[c.doc_name] = 1; });
+  if (Object.keys(names).length) return Object.keys(names).length;
+  wzClassesOf(p).forEach(cls => an.forEach(c => {
+    if (c.scope_type === "всегда" || (!(c.scope_type === "продукт") && c.scope_code === cls)) names[c.doc_name] = 1;
+  }));
+  return Object.keys(names).length;
 }
 
 /* вид документа и состояние разбора — как их называет сервер */
@@ -2041,133 +2284,354 @@ function upStatus(s){
   return {cls: "", text: s || "—"};
 }
 
-/* ---------- лента ---------- */
-function chatPush(who, card){ CH.feed.push({who: who, card: card}); }
-function chatCards(list){ (list || []).forEach(c => chatPush("ai", c)); }
+/* служебные слова в текстах сервера — человеческими подписями: «mixed» → «Смешанные конструкции»,
+   «calibrated=0» → «не калибровано», «(what_if)» убираем. Подписи вариантов — из словаря по полям класса. */
+function wzCodeMap(){
+  const key = I18N_LANG + "|" + ((CH.meta && CH.meta.class_code) || "") + "|" + Object.keys(WZ_DEFS).length;
+  if (CH.codeMap && CH.codeKey === key && CH.codeMeta === CH.meta) return CH.codeMap;
+  const m = {}, meta = CH.meta || {};
+  (meta.must_full || meta.must || []).concat(meta.optional || []).concat(Object.keys(WZ_DEFS).map(k => WZ_DEFS[k])).forEach(f => (f.options || []).forEach(o => {
+    if (o && o.code != null && /^[a-z0-9_]+$/.test(String(o.code)) && !m[o.code]) m[o.code] = optLabel(f, o);
+  }));
+  CH.codeMap = m; CH.codeKey = key; CH.codeMeta = CH.meta;
+  return m;
+}
+function human(s){
+  if (s == null) return "";
+  let t = String(s);
+  if (!/[a-z]/.test(t)) return t;
+  const m = wzCodeMap();
+  const un = T("tg.wz.uncal_word", "не калибровано");
+  t = t.replace(/«([a-z0-9_]+)»/g, (all, code) => m[code] ? "«" + m[code] + "»" : all);
+  t = t.replace(/\(\s*calibrated\s*=\s*0\s*\)/g, "(" + un + ")");
+  t = t.replace(/calibrated\s*=\s*0/g, un);
+  t = t.replace(/calibrated\s*=\s*1/g, T("tg.wz.cal_word", "калибровано"));
+  t = t.replace(/\s*\(what_if\)/g, "");
+  return t;
+}
+const hx = s => esc(human(s));
 
+/* ---------- ответ сервера: состояние и карточки ---------- */
 function chatApply(d){
   if (!d) return;
   if (d.session_id) { CH.sid = d.session_id; chatSave(); }
   if (d.step) CH.step = d.step;
+  if (d.ai) CH.ai = d.ai;
   if (d.state) {
     CH.state = d.state;
-    CH.draft = {must: Object.assign({}, d.state.must || {}), optional: Object.assign({}, d.state.optional || {})};
+    CH.prev = d.state.previous_contract || null;
+    ["must", "optional"].forEach(sc => {
+      const next = Object.assign({}, d.state[sc] || {});
+      Object.keys(CH.dirty[sc] || {}).forEach(k => {
+        const v = CH.draft[sc][k];
+        if (v == null || v === "") delete next[k]; else next[k] = v;
+      });
+      CH.draft[sc] = next;
+    });
   }
-  if (d.ai) CH.ai = d.ai;
+}
+/* карточки сервера — в состояние мастера */
+function wzCards(cards, from){
+  (cards || []).forEach(c => {
+    switch (c.type) {
+      case "text": if (from === "upload" && c.text) CH.notes.push({text: String(c.text), tone: c.tone || ""}); break;
+      case "chips": break;                    // «прошлый или новый договор» мастер спрашивает сам (CH.prev)
+      case "checklist": CH.checklist = (c.items || []).filter(x => x && keepDoc(x.name)); break;
+      case "fields": if (c.scope === "optional") CH.fieldsOpt = c.fields || []; break;
+      case "result": CH.res = c; break;
+    }
+  });
 }
 
 async function loadChat(){
-  if (CH.booted) { chatPaint(); return; }
+  if (CH.booted) { wzPaint(true); return; }
   CH.booted = true;
-  chatPaint();
+  wzPaint(true);
+  chatRefs().then(() => { wzPart("prod"); wzPart("lead"); });
+  chatDefs().then(() => { wzPart("und"); wzPart("more"); });
   const sid = chatLoadSid();
   if (sid) {
     const r = await api("/chat/state?session_id=" + encodeURIComponent(sid));
     if (r.ok) {
+      const saved = wzLoad(sid);
       chatApply(r.data);
-      (r.data.messages || []).forEach(m => {
-        if (m.kind === "text" && m.text) chatPush(m.role === "user" ? "me" : "ai", {type: "text", text: m.text});
-      });
-      chatCards(r.data.cards);
-      chatPaint();
-      chatMeta(CH.state.must && CH.state.must.class_code).then(chatPaint);
-      chatPresets().then(chatPaint);
+      if (saved) wzRestoreDraft(saved);
+      else {
+        CH.wz = r.data.state && r.data.state.has_analysis ? 3 : 1;
+        CH.qa = wzQaFromLog(r.data.messages || []);
+      }
+      wzCards(r.data.cards);
+      if (CH.wz === 3 && !CH.res) CH.wz = 2;
+      wzPaint(true);
+      await chatMeta(CH.draft.must.class_code || "");
+      wzPaint();
+      if (CH.wz === 2) wzNeed();
+      if (CH.wz === 3) chatFull();
       return;
     }
   }
   await chatStart();
 }
+/* вопросы и ответы ИИ из журнала диалога — после перезагрузки страницы */
+function wzQaFromLog(msgs){
+  const out = [];
+  msgs.forEach((m, i) => {
+    if (!m || m.kind !== "text" || m.role !== "user" || !m.text) return;
+    const next = msgs[i + 1];
+    if (next && next.role === "assistant" && next.kind === "text" && next.text) out.push({q: m.text, a: next.text});
+  });
+  return out.slice(-CH_QA_MAX);
+}
 
-async function chatStart(){
-  CH.feed = [];
-  CH.res = null;
-  AN.res = null;
+/* новый анализ; keep=true — прежняя сессия истекла, введённые поля переносим в новую */
+async function chatStart(keep){
+  const hadFiles = CH.sent.some(f => f.ok);
+  if (!keep) {
+    CH.queue.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
+    Object.assign(CH, {res: null, full: null, fullErr: "", queue: [], checklist: [], fieldsOpt: [],
+      need: null, needKey: "", needErr: "", qa: [], choice: "", errs: {}, prodQ: "", prodOpen: false,
+      optOpen: false, open: {}, mode: "", wz: 1, draft: {must: {}, optional: {}}, dirty: {must: {}, optional: {}},
+      state: {must: {}, optional: {}}});
+    AN.res = null;
+  }
+  CH.sent = []; CH.fromDoc = {}; CH.notes = [];
+  const keepDraft = keep ? JSON.parse(JSON.stringify(CH.draft)) : null;
   CH.busy = true;
-  chatPaint();
+  CH.err = "";
+  wzPaint(true);
   const r = await api("/chat/start", jsonOpts("POST", {lang: I18N_LANG}));
   CH.busy = false;
-  if (!r.ok) { CH.err = r.error; chatPaint(); return; }
-  CH.err = "";
+  if (!r.ok) { CH.err = r.error; wzPaint(true); return false; }
   chatApply(r.data);
-  chatCards(r.data.cards);
-  chatPaint();
-  chatMeta("").then(chatPaint);
-  chatPresets().then(chatPaint);
+  if (keepDraft) {
+    CH.draft = keepDraft;
+    ["must", "optional"].forEach(sc => Object.keys(CH.draft[sc]).forEach(k => { CH.dirty[sc][k] = 1; }));
+    if (hadFiles) CH.err = T("tg.wz.session_new", "Прежний сеанс истёк — начали новый. Введённые поля сохранены, файлы загрузите заново.");
+  } else wzSeedRegion();
+  wzCards(r.data.cards);
+  wzSave();
+  wzPaint(true);
+  await chatMeta(CH.draft.must.class_code || "");
+  wzPaint();
+  return true;
+}
+/* регион из прошлого раза — чтобы не выбирать его каждый раз */
+function wzSeedRegion(){
+  if (CH.draft.must.region) return;
+  let saved = "";
+  try { saved = localStorage.getItem(CH_REGION) || ""; } catch (e) {}
+  if (saved) { CH.draft.must.region = saved; CH.dirty.must.region = 1; }
 }
 
 /* ---------- запросы ---------- */
-async function chatPost(url, body, mine){
-  if (mine) chatPush("me", {type: "text", text: mine});
+async function chatPost(url, body, retried){
   CH.busy = true;
   CH.err = "";
-  chatPaint();
+  wzBarPaint();
   const r = await api(url, jsonOpts("POST", Object.assign({session_id: CH.sid, lang: I18N_LANG}, body)));
   CH.busy = false;
   if (!r.ok) {
-    // сессии нет (404) — начинаем диалог заново, остальные отказы показываем словами сервера
-    if (r.status === 404) { try { sessionStorage.removeItem(CH_KEY); } catch (e) {} CH.sid = ""; await chatStart(); return null; }
+    // сессии нет (истекла через 7 дней) — начинаем новую с тем же вводом и повторяем запрос один раз
+    if (r.status === 404 && !retried) {
+      try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
+      CH.sid = "";
+      if (await chatStart(true)) return chatPost(url, body, true);
+      return null;
+    }
     CH.err = r.error;
-    chatPaint();
     return null;
   }
   chatApply(r.data);
-  chatCards(r.data.cards);
+  wzCards(r.data.cards);
   if (r.data.source) CH.lastSource = r.data.source;
-  chatPaint();
   return r.data;
 }
 
-function chatChip(key, value, label){
+/* ---------- шаги ---------- */
+function wzGo(k){
+  if (k === CH.wz || CH.busy) return;
+  if (k === 3 && !CH.res) return;
+  CH.wz = k;
+  CH.err = "";
+  wzSave();
   haptic("select");
-  chatPost("/chat/answer", {key: key, value: value}, label);
+  wzPaint(true);
+  window.scrollTo(0, 0);
+  if (k === 2) wzNeed();
+  if (k === 3 && !CH.full) chatFull();
+}
+function wzBack(){ if (CH.wz > 1) wzGo(CH.wz - 1); }
+function wzMainLabel(){
+  if (CH.wz === 1) {
+    if (CH.busy && CH.queue.length) return T("tg.wz.uploading", "Загружаю… {n}%", {n: CH.upPct || 0});
+    return CH.queue.length || CH.sent.length ? T("tg.wz.next", "Дальше") : T("tg.wz.no_docs", "Без документов");
+  }
+  if (CH.wz === 2) return CH.busy ? T("tg.wz.counting", "Считаем…") : T("tg.wz.count", "Считаем");
+  return T("tg.chat.refine", "Уточнить");
+}
+function wzMain(){
+  if (CH.busy) return;
+  if (CH.wz === 1) wzNext1();
+  else if (CH.wz === 2) wzCalc();
+  else wzRefine();
+}
+function wzBarPaint(){
+  const b = $("#chatMain");
+  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy; }
+  syncTgButtons();
+}
+function wzStepsPaint(){
+  const ol = $("#wzSteps");
+  if (!ol) return;
+  const names = [T("tg.wz.s1", "Фото"), T("tg.wz.s2", "Проверить"), T("tg.wz.s3", "Анализ")];
+  ol.innerHTML = names.map((n, i) => {
+    const k = i + 1, can = k < 3 || !!CH.res;
+    return '<li class="' + (k === CH.wz ? "on" : k < CH.wz ? "done" : "") + '"><button type="button" data-wz="' + k + '"'
+      + (can ? "" : " disabled") + (k === CH.wz ? ' aria-current="step"' : "") + "><b>" + k + "</b> " + esc(n) + "</button></li>";
+  }).join("");
+  ol.querySelectorAll("[data-wz]").forEach(b => { b.onclick = () => wzGo(Number(b.dataset.wz)); });
+}
+/* поле, в котором человек сейчас печатает, — внутри этого узла? */
+function typing(el){
+  const f = document.activeElement;
+  if (!f || !el || !el.contains(f)) return false;
+  return (f.tagName === "INPUT" && f.type !== "file" && f.type !== "checkbox") || f.tagName === "TEXTAREA" || f.tagName === "SELECT";
+}
+/* весь шаг; без force — не во время ввода: тогда перерисуем, когда поле потеряет фокус */
+function wzPaint(force){
+  const box = $("#wzBody");
+  if (!box) return;
+  wzStepsPaint();
+  paintTop();
+  if (!force && typing(box)) { CH.later = true; wzBarPaint(); return; }
+  CH.later = false;
+  box.innerHTML = CH.wz === 3 ? wzStep3Html() : CH.wz === 2 ? wzStep2Html() : wzStep1Html();
+  wzBarPaint();
+  if (CH.wz === 3) chatPaintDash();
+}
+/* одна часть шага — не трогая поле, в котором человек печатает */
+function wzPart(name){
+  const map = {prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], docs: ["wzDocs", wzDocsNeedHtml],
+    region: ["wzRegion", wzRegionHtml], more: ["wzMoreBox", wzMoreHtml], qa: ["wzQa", wzQaHtml],
+    files: ["wzFiles", wzFilesHtml], lead: ["wzLead", wzObjLead], und: ["wzUnd", wzUnderstoodHtml]};
+  const m = map[name];
+  const el = m && document.getElementById(m[0]);
+  if (!el) return;
+  if (typing(el)) { CH.later = true; return; }
+  el.innerHTML = m[1]();
 }
 
-async function chatFields(scope){
-  const fields = Object.assign({}, CH.draft[scope] || {});
-  const d = await chatPost("/chat/answer", {key: "fields", scope: scope, fields: fields});
-  if (d && scope === "must") chatMeta(CH.draft.must.class_code || "").then(chatPaint);
+/* ---------- шаг 1: фото и документы ---------- */
+function wzStep1Html(){
+  const off = CH.ai && CH.ai.connected === false;
+  return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Сфотографируйте объект")) + "</h2>"
+    + '<p class="wz-lead">' + esc(T("tg.wz.s1_lead", "Сфотографируйте объект — ИИ определит, что это, и сразу оценит. Если данных мало, запросит документ.")) + "</p>"
+    + wzPrevHtml()
+    + '<div class="wz-tiles">'
+    + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Камера")) + "</span></button>"
+    + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Галерея / файлы")) + "</span></button>"
+    + "</div>"
+    + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
+    + '<p class="hint">' + esc(T("tg.wz.formats", "PDF, DOCX, XLSX, JPG, PNG · до {n} файлов за раз, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
+    + (off ? '<p class="note warn">' + esc(T("tg.wz.ai_off", "ИИ сейчас не подключён: фото приложим к анализу, но данные с них не считаем — введите их на следующем шаге.")) + "</p>" : "")
+    + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
+    + '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
 }
-
-async function chatAnalyze(mode){
-  const opt = Object.assign({}, CH.draft.optional || {});
-  const was = (CH.state && CH.state.optional) || {};
-  if (JSON.stringify(opt) !== JSON.stringify(was)) await chatPost("/chat/answer", {key: "fields", scope: "optional", fields: opt});
-  const d = await chatPost("/chat/analyze", {mode: mode || "quick"});
-  if (d) haptic("success");
+/* «по прошлому договору или по новому» — пока файлы не отправлены: выбор «по новому» очищает поля на сервере */
+function wzPrevHtml(){
+  const p = CH.prev;
+  if (!p || CH.sent.length) return "";
+  const what = p.object_type || (p.product_code ? p.product_code + (wzProd(p.product_code) ? " · " + wzProd(p.product_code).name : "") : "")
+    || (p.class_code ? T("tg.wz.cls_line", "Класс {c}", {c: p.class_code}) : "");
+  return '<div class="card wz-prev"><p class="eyebrow">' + esc(T("tg.wz.prev_title", "Прошлый договор")) + "</p>"
+    + "<p>" + esc(T("tg.wz.prev_q", "Нашли ваш прошлый расчёт: {what}. Считаем по нему или по новому договору?", {what: what || "—"})) + "</p>"
+    + '<div class="segsel" role="group">'
+    + '<button type="button" data-mode="previous" aria-pressed="' + (CH.mode === "previous") + '">' + esc(T("tg.wz.prev_old", "По прошлому договору")) + "</button>"
+    + '<button type="button" data-mode="new" aria-pressed="' + (CH.mode === "new") + '">' + esc(T("tg.wz.prev_new", "По новому")) + "</button>"
+    + "</div></div>";
 }
-
-async function chatSend(){
-  const el = $("#chatText");
-  const text = (el.value || "").trim();
-  if (!text || CH.busy) return;
-  el.value = "";
-  el.style.height = "auto";
-  await chatPost("/chat/message", {text: text}, text);
+function extOf(name){ const m = /\.([a-z0-9]{1,5})$/i.exec(String(name || "")); return m ? m[1] : "?"; }
+function sizeName(b){
+  const n = Number(b) || 0;
+  return n >= 1048576 ? T("tg.wz.mb", "{n} МБ", {n: nf(n / 1048576, 1)}) : T("tg.wz.kb", "{n} КБ", {n: nf(Math.max(1, n / 1024), 0)});
 }
-
-/* ---------- файлы: скрепка, перетаскивание, вставка из буфера ---------- */
-async function chatUpload(files){
-  const list = Array.prototype.slice.call(files || []).slice(0, CH_MAX_FILES);
+function wzFilesHtml(){
+  if (!CH.sent.length && !CH.queue.length) return "";
+  const sent = CH.sent.map(f => {
+    const st = f.ok ? upStatus(f.status) : {cls: "stop", text: f.error || T("tg.an.st_error", "ошибка чтения")};
+    return '<div class="wz-file"><span class="ic" aria-hidden="true">' + esc(extOf(f.name)) + "</span>"
+      + "<span><b>" + esc(f.name || "—") + "</b><small>" + esc((f.ok ? kindName(f.kind) + " · " : "") + st.text) + "</small></span>"
+      + '<span class="st ' + (f.ok ? "ok" : "err") + '">' + esc(f.ok ? T("tg.wz.sent", "отправлен") : T("tg.wz.not_taken", "не принят")) + "</span></div>";
+  }).join("");
+  const queued = CH.queue.map(q => '<div class="wz-file"><span class="ic" aria-hidden="true">'
+      + (q.url ? '<img src="' + esc(q.url) + '" alt="">' : esc(extOf(q.name))) + "</span>"
+      + "<span><b>" + esc(q.name) + "</b><small>" + esc(sizeName(q.size) + " · " + (CH.busy ? T("tg.wz.sending", "отправляю…") : T("tg.wz.queued", "уйдёт по кнопке «Дальше»"))) + "</small></span>"
+      + (CH.busy ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>"
+        : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
+      + (CH.busy ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "") + "</div>").join("");
+  return '<div class="wz-files"><p class="eyebrow">' + esc(T("tg.wz.files_title", "Файлы · {n}", {n: CH.sent.length + CH.queue.length})) + "</p>"
+    + queued + sent + "</div>"
+    + (CH.sent.length ? '<p class="hint">' + esc(T("tg.wz.sent_hint", "Отправленные файлы уже разобраны и вошли в анализ — убрать их можно, только начав заново."))
+      + ' <button type="button" class="btn btn-link btn-sm" data-go="restart">' + esc(T("tg.wz.start_over", "Начать заново")) + "</button></p>" : "");
+}
+function wzAddFiles(files){
+  const list = Array.prototype.slice.call(files || []);
   if (!list.length || CH.busy) return;
-  if (!CH.sid) await chatStart();
+  const bad = [];
+  let over = false;
+  list.forEach(f => {
+    const name = String(f.name || "");
+    const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
+    const type = String(f.type || "");
+    const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type);
+    if (!okType) { bad.push(T("tg.wz.bad_format", "{name}: такой формат не читается — нужен PDF, DOCX, XLSX, JPG или PNG.", {name: name || "?"})); return; }
+    if (f.size > CH_MAX_MB * 1048576) { bad.push(T("tg.wz.too_big", "{name}: файл больше {mb} МБ — сожмите его или разделите.", {name: name, mb: CH_MAX_MB})); return; }
+    if (CH.queue.length >= CH_MAX_FILES) { over = true; return; }
+    const img = /^image\//.test(type);
+    CH.queue.push({id: ++CH.seq, file: f, size: f.size,
+      name: name || ("photo-" + CH.seq + "." + (type === "image/png" ? "png" : "jpg")),
+      url: img && window.URL && URL.createObjectURL ? URL.createObjectURL(f) : ""});
+  });
+  if (over) bad.push(T("tg.wz.too_many", "За раз уходит не больше {n} файлов — остальные добавьте после отправки.", {n: CH_MAX_FILES}));
+  CH.err = bad.join(" ");
+  haptic(bad.length ? "warning" : "select");
+  if (CH.wz !== 1) { CH.wz = 1; wzSave(); }
+  wzPaint(true);
+}
+function wzRemove(id){
+  const q = CH.queue.filter(x => x.id === id)[0];
+  if (!q || CH.busy) return;
+  if (q.url) URL.revokeObjectURL(q.url);
+  CH.queue = CH.queue.filter(x => x !== q);
+  CH.err = "";
+  haptic("select");
+  wzPart("files");
+  wzBarPaint();
+}
+function chatProgress(){
+  document.querySelectorAll("#wzFiles .bar i").forEach(i => { i.style.width = (CH.upPct || 0) + "%"; });
+  document.querySelectorAll("#wzFiles .st").forEach(s => { if (!s.classList.contains("ok") && !s.classList.contains("err")) s.textContent = nf(CH.upPct || 0, 0) + "%"; });
+  wzBarPaint();
+}
+async function wzNext1(){
+  if (!CH.queue.length) { wzGo(2); return; }
+  await chatUpload();
+}
+/* файлы из списка — одним POST /chat/upload (session_id + files), с прогрессом */
+async function chatUpload(retried){
+  if (!CH.sid && !(await chatStart(true))) return;
+  const list = CH.queue.slice(0, CH_MAX_FILES);
+  if (!list.length || CH.busy) return;
   const fd = new FormData();
   fd.append("session_id", CH.sid);
-  list.forEach(f => fd.append("files", f));
+  list.forEach(q => fd.append("files", q.file, q.name));
   CH.busy = true;
   CH.err = "";
   CH.upPct = 0;
-  CH.upName = list.map(f => f.name).join(", ");
-  chatPush("me", {type: "files", names: list.map(f => f.name)});
-  chatPaint();
-  const done = data => {
-    CH.busy = false;
-    CH.upName = "";
-    chatApply(data);
-    chatCards(data.cards);
-    if (data.files) chatPush("ai", {type: "files_got", files: data.files, extracted: data.extracted});
-    chatPaint();
-  };
-  await new Promise(resolve => {
+  tgBusy(true);
+  wzPaint(true);
+  const before = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {})};
+  const res = await new Promise(resolve => {
     const x = new XMLHttpRequest();
     x.open("POST", "/chat/upload");
     if (TOKEN) x.setRequestHeader("Authorization", "Bearer " + TOKEN);
@@ -2175,319 +2639,565 @@ async function chatUpload(files){
     x.onload = () => {
       let j = null;
       try { j = JSON.parse(x.responseText); } catch (e) { j = null; }
-      // 413 (много файлов), 415 (формат), 429 (частые запросы) — показываем текстом сервера
-      if (x.status >= 400) { CH.busy = false; CH.upName = ""; CH.err = (j && (j.detail || j.error)) || why(x.status, j); chatPaint(); }
-      else done(j || {});
-      resolve();
+      resolve({status: x.status, j: j});
     };
-    x.onerror = () => { CH.busy = false; CH.upName = ""; CH.err = T("tg.err.offline", "сервер не отвечает"); chatPaint(); resolve(); };
+    x.onerror = () => resolve({status: 0, j: null});
     x.send(fd);
   });
-}
-function chatProgress(){
-  const el = $("#chatUp");
-  if (el) el.style.width = CH.upPct + "%";
-}
-
-function chatPickFiles(){ const f = $("#chatFile"); if (f) f.click(); }
-
-/* ---------- смена языка ---------- */
-/* Структурные подписи берём из словаря, свободный текст ИИ переводит сервер (POST /chat/lang).
-   Перевод кладём в кэш по «язык + текст», поэтому назад и вперёд язык переключается мгновенно. */
-function chatFree(){
-  const out = [];
-  CH.feed.forEach(it => {
-    const c = it.card || {};
-    if (c.type === "text" && c.text && it.who === "ai") out.push(c.text);
-    if (c.type === "result" && c.narrative) out.push(c.narrative);
-  });
-  return out.filter((x, i) => out.indexOf(x) === i).slice(0, 10);
-}
-function chatTr(text){
-  const box = CH.tr[I18N_LANG] || {};
-  return box[text] || text;
-}
-async function chatRelang(){
-  chatPaint();
-  if (!CH.sid) return;
-  const box = CH.tr[I18N_LANG] = CH.tr[I18N_LANG] || {};
-  const need = chatFree().filter(t => !box[t]);
-  CH.relang = true;
-  chatPaint();
-  const r = await api("/chat/lang", jsonOpts("POST", {session_id: CH.sid, lang: I18N_LANG, translate: need}));
-  CH.relang = false;
-  if (r.ok) {
-    (r.data.translated || []).forEach((t, i) => { if (need[i] && t && t.text) box[need[i]] = t.text; });
-    chatApply(r.data);
-    if (CH.res && (r.data.cards || []).some(c => c.type === "result")) {
-      // итог сервер пересобрал на новом языке — заменяем карточку в ленте, ленту не дублируем
-      const fresh = (r.data.cards || []).filter(c => c.type === "result")[0];
-      CH.feed.forEach(it => { if (it.card && it.card.type === "result") it.card = fresh; });
-      CH.res = fresh;
-    }
+  CH.busy = false;
+  tgBusy(false);
+  if (!res.status) { CH.err = T("tg.err.offline", "сервер не отвечает"); haptic("error"); wzPaint(true); return; }
+  if (res.status === 404 && !retried) {             // сессия истекла — новая и ещё одна попытка
+    try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
+    CH.sid = "";
+    if (await chatStart(true)) return chatUpload(true);
+    return;
   }
-  chatPaint();
-}
-
-/* ---------- отрисовка ленты ---------- */
-function chatPaint(){
-  const box = $("#chatFeed");
-  if (!box) return;
-  box.innerHTML = CH.feed.map((it, i) => chatItemHtml(it, i)).join("")
-    + (CH.busy ? '<div class="bub ai typing">' + spin(T("tg.chat.thinking", "думаю…")) + "</div>" : "")
-    + (CH.relang ? '<div class="bub ai typing">' + spin(T("tg.chat.translating", "перевожу…")) + "</div>" : "")
-    + (CH.err ? '<div class="bub ai warn">' + errHtml(CH.err) + "</div>" : "");
-  chatBind(box);
-  chatScroll();
-  syncTgButtons();
-}
-function chatScroll(){
-  const last = $("#chatFeed").lastElementChild;
-  if (last && last.scrollIntoView) last.scrollIntoView({block: "end"});
-}
-function chatRepaintCard(i){
-  const node = document.querySelector('[data-ci="' + i + '"]');
-  if (!node) { chatPaint(); return; }
-  node.outerHTML = chatItemHtml(CH.feed[i], i);
-  chatBind($("#chatFeed"));
-  syncTgButtons();
-}
-
-function chatItemHtml(it, i){
-  const c = it.card || {};
-  const open = '<div class="bub ' + (it.who === "me" ? "me" : "ai")
-    + (c.tone === "warn" ? " warn" : "") + (c.type === "result" ? " wide res" : "")
-    + (c.type === "fields" || c.type === "checklist" ? " wide" : "") + '" data-ci="' + i + '">';
-  return open + chatCardHtml(c, i) + "</div>";
-}
-
-function chatCardHtml(c, i){
-  switch (c.type) {
-    case "text": return chatTextHtml(c);
-    case "chips": return chatChipsHtml(c, i);
-    case "checklist": return chatCheckHtml(c, i);
-    case "fields": return chatFieldsHtml(c, i);
-    case "files": return chatFilesMineHtml(c);
-    case "files_got": return chatFilesGotHtml(c);
-    case "result": return chatResultHtml(c, i);
-    default: return esc(c.text || "");
+  // 413 (много файлов), 415 (формат), 429 (частые запросы) — показываем словами сервера
+  if (res.status >= 400) { CH.err = (res.j && (res.j.detail || res.j.error)) || why(res.status, res.j); haptic("error"); wzPaint(true); return; }
+  const d = res.j || {};
+  const files = Array.isArray(d.files) ? d.files : [];
+  CH.notes = [];
+  chatApply(d);
+  wzCards(d.cards, "upload");
+  // пометка «из договора — проверьте»: поля, которые сервер заполнил из этой пачки файлов
+  const src = files.some(f => f && f.ok && f.kind === "договор") ? "contract" : "doc";
+  ["must", "optional"].forEach(sc => Object.keys((CH.state && CH.state[sc]) || {}).forEach(k => {
+    const was = before[sc][k], now = CH.state[sc][k];
+    if ((was == null || was === "") && now != null && now !== "" && !CH.dirty[sc][k]) CH.fromDoc[sc + "." + k] = src;
+  }));
+  files.forEach(f => CH.sent.push({name: String((f && f.name) || ""), ok: !!(f && f.ok), kind: (f && f.kind) || "",
+    status: (f && f.status) || "", error: f && f.error ? String(f.error) : "", closes: Array.isArray(f && f.closes) ? f.closes : []}));
+  list.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
+  CH.queue = CH.queue.filter(q => list.indexOf(q) < 0);
+  if (!files.some(f => f && f.ok)) {
+    CH.err = T("tg.wz.none_taken", "Ни один файл не принят — причины в списке. Проверьте формат и размер или продолжите без документов.");
+    haptic("error");
+    wzSave();
+    wzPaint(true);
+    return;
   }
+  haptic("success");
+  CH.wz = CH.queue.length ? 1 : 2;
+  wzSave();
+  wzPaint(true);
+  window.scrollTo(0, 0);
+  await chatMeta(CH.draft.must.class_code || "");
+  wzPart("region"); wzPart("more"); wzPart("prod"); wzPart("und");
+  if (CH.wz === 2) wzNeed();
 }
-function chatTextHtml(c){
-  return String(chatTr(c.text) || "").split("\n").filter(x => x.trim())
-    .map(x => "<p>" + esc(x) + "</p>").join("");
-}
-function chatChipsHtml(c, i){
-  return (c.title ? '<p class="eyebrow">' + esc(c.title) + "</p>" : "")
-    + '<div class="chips">' + (c.items || []).map(x =>
-      '<button type="button" class="chip" data-chip="' + esc(c.key) + '" data-val="' + esc(x.value) + '">'
-      + esc(x.label || x.value) + "</button>").join("") + "</div>";
+async function wzMode(v){
+  if (CH.busy) return;
+  haptic("select");
+  const region = CH.draft.must.region;
+  CH.dirty = {must: {}, optional: {}};
+  tgBusy(true);
+  const d = await chatPost("/chat/answer", {key: "contract_mode", value: v});
+  tgBusy(false);
+  if (d) {
+    CH.mode = v;
+    CH.fromDoc = {};
+    if (!CH.draft.must.region && region) { CH.draft.must.region = region; CH.dirty.must.region = 1; }
+  }
+  wzSave();
+  wzPaint(true);
+  if (d) wzMetaFor();
 }
 
-/* чек-лист документов: что уже есть и чего не хватает; основание — из ответа сервера */
-function chatCheckHtml(c, i){
-  const items = (c.items || []).filter(x => keepDoc(x.name));
-  const miss = items.filter(x => !x.ok).length;
-  return '<p class="eyebrow">' + esc(c.title || T("tg.chat.checklist", "Что должно быть внутри")) + "</p>"
-    + '<div class="chk">' + items.map(x =>
-      '<div><i class="' + (x.ok ? "ok" : "no") + '" aria-hidden="true">' + (x.ok ? "✓" : "✗") + "</i>"
-      + "<span>" + esc(x.name || "") + (x.why ? "<small>" + esc(x.why) + "</small>" : "") + "</span></div>").join("")
+/* ---------- шаг 2: проверить ---------- */
+function wzStep2Html(){
+  return '<h2 class="wz-h">' + esc(T("tg.wz.s2_title", "Проверьте данные")) + "</h2>"
+    + '<p class="wz-lead">' + esc(CH.sent.length
+      ? T("tg.wz.s2_lead_docs", "Мы заполнили то, что нашли в документах. Проверьте значения и добавьте недостающее.")
+      : T("tg.wz.s2_lead", "Заполните четыре обязательных поля — остальное система подставит сама и пометит.")) + "</p>"
+    + '<div id="wzUnd">' + wzUnderstoodHtml() + "</div>"
+    + '<div class="card"><h2>' + esc(T("tg.wz.must_title", "Обязательные данные")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.wz.must_sub", "Продукт или класс, страховая сумма, стоимость объекта и регион.")) + "</p>"
+    + '<div id="wzProd">' + wzProdHtml() + "</div>"
+    + '<div class="hero2">' + ["sum_insured", "object_value"].map(wzMoneyHtml).join("") + "</div>"
+    + '<div id="wzRegion">' + wzRegionHtml() + "</div>"
     + "</div>"
-    + (c.basis ? '<p class="note">' + esc(c.basis) + "</p>" : "")
-    + (miss ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
-        + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "");
+    + '<div id="wzDocs">' + wzDocsNeedHtml() + "</div>"
+    + '<div id="wzMoreBox">' + wzMoreHtml() + "</div>"
+    + '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
 }
-
-function chatFilesMineHtml(c){
-  return '<p class="eyebrow">' + esc(T("tg.chat.sent_files", "Отправил файлы")) + "</p>"
-    + (c.names || []).map(n => "<div>" + esc(n) + "</div>").join("")
-    + (CH.upName ? '<div class="upbar"><i id="chatUp" style="width:' + CH.upPct + '%"></i></div>' : "");
+function wzDocTag(sc, key){
+  const s = CH.fromDoc[sc + "." + key];
+  if (!s) return "";
+  return ' <span class="tag pfmark">' + esc(s === "contract" ? T("tg.wz.from_contract", "из договора — проверьте") : T("tg.wz.from_doc", "из документа — проверьте")) + "</span>";
 }
-function chatFilesGotHtml(c){
-  const got = c.files || [];
-  return '<p class="eyebrow">' + esc(T("tg.chat.files_read", "Что нашёл в файлах")) + "</p>"
-    + '<div class="chk">' + got.map(f => {
-      const st = f.ok ? upStatus(f.status) : {cls: "stop", text: f.error || ""};
-      return '<div><i class="' + (f.ok ? "ok" : "no") + '" aria-hidden="true">' + (f.ok ? "✓" : "✗") + "</i>"
-        + "<span>" + esc(f.name || "") + "<small>" + esc(kindName(f.kind) + (st.text ? " · " + st.text : ""))
-        + ((f.filled || []).length ? " · " + esc(T("tg.chat.filled_n", "подставлено полей: {n}", {n: f.filled.length})) : "")
-        + "</small></span></div>";
-    }).join("") + "</div>";
+function wzFieldDef(k){
+  const meta = CH.meta || {};
+  return (meta.must_full || meta.must || []).concat(meta.optional || []).filter(f => f.key === k)[0] || WZ_DEFS[k] || {key: k, label: k};
 }
-
-/* ---------- карточка полей ---------- */
-function chatFieldsHtml(c, i){
-  const scope = c.scope === "optional" ? "optional" : "must";
-  const main = i === CH.feed.length - 1 ? ' id="chatMain"' : "";
-  return '<p class="eyebrow">' + esc(c.title || "") + "</p>"
-    + (c.note ? '<p class="note">' + esc(c.note) + "</p>" : "")
-    + (scope === "must" ? chatMustHtml(c, i) : chatOptionalHtml(c, i))
-    + '<div class="actions">'
-    + (scope === "must"
-        ? '<button type="button" class="btn btn-primary tg-main"' + main + ' data-go="must" data-ci="' + i + '">'
-          + esc(T("tg.chat.go_must", "Готово — считаем")) + "</button>"
-        : '<button type="button" class="btn btn-primary tg-main"' + main + ' data-go="analyze" data-ci="' + i + '">'
-          + esc(T("tg.chat.analyze", "Рассчитать")) + "</button>"
-          + '<button type="button" class="btn btn-secondary" data-go="full" data-ci="' + i + '">'
-          + esc(T("tg.chat.analyze_full", "Подробный расчёт")) + "</button>")
+function wzValue(k, v){
+  const f = wzFieldDef(k);
+  if (k === "sum_insured" || k === "object_value" || f.unit === MONEY_UNIT) return money(v);
+  if (k === "product_code") { const p = wzProd(v); return p ? v + " · " + p.name : String(v); }
+  if (k === "class_code") return String(v).split("/").map(c => c + " · " + wzClsName(c)).join(", ");
+  if (k === "region") return wzRegionName(v);
+  const o = (f.options || []).filter(x => String(x.code) === String(v))[0];
+  if (o) return optLabel(f, o);
+  if (v && typeof v === "object") {
+    return Object.keys(v).filter(s => v[s] != null && v[s] !== "").map(s => subLabel(k, s) + ": " + (typeof v[s] === "number" ? fmt(v[s]) : String(v[s]))).join(" · ") || "—";
+  }
+  return human(String(v)) + (f.unit ? " " + unitName(f.unit) : "");
+}
+function wzUnderstoodHtml(){
+  if (!CH.sent.length) return "";
+  const rows = Object.keys(CH.fromDoc).map(id => {
+    const at = id.indexOf("."), sc = id.slice(0, at), k = id.slice(at + 1);
+    const v = CH.draft[sc] && CH.draft[sc][k];
+    if (v == null || v === "") return "";
+    return "<div><span>" + esc(fieldLabel(wzFieldDef(k))) + "<small>" + esc(CH.fromDoc[id] === "contract"
+        ? T("tg.wz.from_contract", "из договора — проверьте") : T("tg.wz.from_doc", "из документа — проверьте")) + "</small></span>"
+      + "<b>" + esc(wzValue(k, v)) + "</b></div>";
+  }).join("");
+  const ok = CH.sent.filter(f => f.ok).length;
+  return '<div class="card"><h2>' + esc(T("tg.wz.understood", "Что система поняла из документов")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.wz.understood_sub", "Файлов разобрано: {n} из {all}. Значения ниже уже стоят в полях — проверьте их.", {n: ok, all: CH.sent.length})) + "</p>"
+    + (rows ? '<div class="rows">' + rows + "</div>"
+      : '<p class="note">' + esc(T("tg.wz.understood_none", "Значений для полей в файлах не нашлось — введите их ниже.")) + "</p>")
+    + CH.notes.map(n => '<p class="note' + (n.tone === "warn" ? " warn" : "") + '">' + hx(chatTr(n.text)) + "</p>").join("")
     + "</div>";
 }
 
-/* четыре обязательных поля: класс или продукт, сумма, стоимость, регион */
-function chatMustHtml(c, i){
-  const fields = c.fields || [];
-  const by = k => fields.filter(f => f.key === k)[0];
-  const sums = ["sum_insured", "object_value"].map(by).filter(Boolean);
-  const rest = fields.filter(f => ["class_code", "product_code", "region", "sum_insured", "object_value"].indexOf(f.key) < 0);
-  return chatClassHtml(i)
-    + '<div class="hero2">' + sums.map(f => chatMoneyHtml(f, i)).join("") + "</div>"
-    + chatRegionHtml(i)
-    + rest.map(f => chatFieldHtml(f, "must", i)).join("");
+/* продукт или класс: список как в «Тарифной политике» — поиск, группы по классам, код, название,
+   «документов: N», ставка справа */
+function wzProdRow(p, pressed, asPick){
+  const n = wzDocCount(p);
+  const inner = "<code>" + esc(p.code) + "</code><span>" + esc(p.name || "")
+    + (n != null ? "<small>" + esc(T("tg.wz.docs_n", "документов: {n}", {n: n})) + "</small>" : "") + "</span>"
+    + "<b>" + esc(wzRate(p)) + "</b>";
+  return asPick ? '<div class="ppick">' + inner + "</div>"
+    : '<button type="button" class="prow" data-prod="' + esc(p.code) + '" aria-pressed="' + (!!pressed) + '">' + inner + "</button>";
 }
-function chatClassHtml(i){
-  const cls = CH.draft.must.class_code || "";
-  const prod = CH.draft.must.product_code || "";
-  if (CH.metaErr) return '<p class="note err">' + esc(T("tg.chat.meta_failed", "Список классов не загрузился: {reason}", {reason: CH.metaErr})) + "</p>";
-  const classes = (CH.meta && CH.meta.classes) || [];
-  const presets = CH.presets || [];
-  const found = chatProducts();
-  return '<div class="h3">' + esc(T("tg.an.f.class_code", "Класс страхования")) + "</div>"
-    + (presets.length ? '<div class="chips">' + presets.slice(0, 6).map(p =>
-        '<button type="button" class="chip" data-preset="' + esc(p.key) + '" data-ci="' + i + '"'
-        + ' aria-pressed="' + (cls && p.class_code === cls) + '">'
-        + esc(T(p.i18n_key || ("preset." + p.key), p.title || p.key)) + "</button>").join("") + "</div>" : "")
-    + '<div class="segsel">' + classes.slice(0, 8).map(cl =>
-        '<button type="button" data-cls="' + esc(cl.code) + '" data-ci="' + i + '" aria-pressed="' + (cls === cl.code) + '">'
-        + esc(cl.code + " · " + cl.name) + "</button>").join("") + "</div>"
-    + '<label class="f" for="chatQ">' + esc(T("tg.chat.find_product", "Найти продукт среди всех")) + "</label>"
-    + '<input id="chatQ" type="search" autocomplete="off" enterkeyhint="search" data-ci="' + i + '" value="' + esc(CH.q) + '"'
-    + ' placeholder="' + esc(T("tg.an.find_ph", "код или слово, например 0807 или склад")) + '">'
-    + (CH.q ? '<div class="plist">' + found.slice(0, 12).map(p =>
-        '<button type="button" data-prod="' + esc(p.code) + '" data-ci="' + i + '" aria-pressed="' + (prod === p.code) + '">'
-        + "<b>" + esc(p.code) + "</b><span>" + esc(p.name) + "</span></button>").join("")
-      + (found.length ? "" : '<div class="none">' + esc(T("tg.an.found_none", "Ничего не нашлось. Проверьте код или выберите «все классы».")) + "</div>")
-      + "</div>" : "")
-    + '<p class="note">' + esc(prod ? T("tg.an.picked_product", "Продукт {c} · {n}", {c: prod, n: chatProdName(prod)})
-        : cls ? T("tg.an.class_only", "Класс {c}, продукт не выбран", {c: cls})
-        : T("tg.an.pick_hint", "Выберите продукт из списка или хотя бы класс.")) + "</p>";
+function wzProdHtml(){
+  const m = CH.draft.must, code = m.product_code || "", cls = m.class_code || "";
+  const err = CH.errs.class_code;
+  const p = code ? wzProd(code) : null;
+  let pick = "";
+  if (p) pick = wzProdRow(p, true, true);
+  else if (code) pick = '<div class="ppick"><code>' + esc(code) + "</code><span>" + esc(T("tg.wz.prod_unknown", "продукт из прошлого расчёта")) + "</span><b></b></div>";
+  else if (cls) pick = '<div class="ppick"><code>' + esc(cls) + "</code><span>" + esc(String(cls).split("/").map(c => wzClsName(c)).join(", "))
+    + "<small>" + esc(T("tg.wz.class_only_hint", "только класс — продукт не выбран")) + "</small></span><b></b></div>";
+  const open = !pick || CH.prodOpen;
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f"' + (open ? ' for="wzProdQ"' : "") + ">"
+    + esc(T("tg.wz.prod_label", "Продукт или класс")) + wzDocTag("must", code ? "product_code" : "class_code") + "</label>"
+    + (pick && !open ? pick + '<div class="qadd"><button type="button" data-prodopen="1">' + esc(T("tg.wz.prod_change", "Изменить")) + "</button></div>" : "")
+    + (open ? '<input id="wzProdQ" type="search" autocomplete="off" enterkeyhint="search" value="' + esc(CH.prodQ) + '" placeholder="'
+        + esc(T("tg.wz.prod_ph", "Код или название продукта")) + '">'
+        + '<div class="pgroups" id="wzProdList">' + wzProdListHtml() + "</div>"
+        + (pick ? '<div class="qadd"><button type="button" data-prodclose="1">' + esc(T("tg.wz.prod_keep", "Оставить выбранный")) + "</button></div>" : "")
+      : "")
+    + '<span class="ferr" id="wzErr-class_code">' + esc(err || "") + "</span></div>";
 }
-function chatProducts(){
-  const q = String(CH.q || "").trim().toLowerCase();
-  const all = (CH.meta && CH.meta.products) || [];
-  if (!q) return [];
-  return all.filter(p => String(p.code).toLowerCase().indexOf(q) === 0
-    || String(p.name || "").toLowerCase().indexOf(q) >= 0);
+function wzProdListHtml(){
+  if (CH.refsErr) return '<p class="note err pad">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: CH.refsErr})) + "</p>";
+  const R = CH.refs;
+  if (!R) return '<p class="note pad">' + spin(T("common.loading", "загружаю…")) + "</p>";
+  const q = String(CH.prodQ || "").trim().toLowerCase();
+  const cur = CH.draft.must.product_code || "";
+  const hit = p => !q || String(p.code).toLowerCase().indexOf(q) === 0 || String(p.name || "").toLowerCase().indexOf(q) >= 0;
+  const groups = R.classes.map(c => {
+    const all = R.products.filter(p => wzClassesOf(p)[0] === c.code);
+    const byClass = q && (String(c.code).toLowerCase() === q || wzClsName(c.code, c.name).toLowerCase().indexOf(q) >= 0);
+    return {c: c, items: byClass ? all : all.filter(hit)};
+  }).filter(g => g.items.length);
+  if (!groups.length) return '<p class="note pad">' + esc(T("tg.wz.found_none", "Ничего не нашлось — проверьте код или напишите часть названия.")) + "</p>";
+  return groups.map(g => '<div class="pgroup"><h4><span>' + esc(g.c.code + ". " + wzClsName(g.c.code, g.c.name)) + "</span>"
+      + '<button type="button" data-clsonly="' + esc(g.c.code) + '">' + esc(T("tg.wz.class_pick", "Весь класс")) + "</button></h4>"
+      + g.items.map(p => wzProdRow(p, p.code === cur)).join("") + "</div>").join("");
 }
-function chatProdName(code){
-  const p = ((CH.meta && CH.meta.products) || []).filter(x => x.code === code)[0];
-  return p ? p.name : "";
+function wzPickProduct(code){
+  const p = wzProd(code);
+  if (!p) return;
+  const cls = wzClassesOf(p);
+  CH.draft.must.product_code = code;
+  if (cls.length) CH.draft.must.class_code = cls.join("/");
+  CH.dirty.must.product_code = CH.dirty.must.class_code = 1;
+  wzPicked();
 }
-function chatMoneyHtml(f, i){
-  const id = "chf-" + f.key;
-  const v = CH.draft.must[f.key];
-  const other = f.key === "sum_insured" ? "object_value" : "sum_insured";
-  return '<div class="hero"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + "</label>"
-    + '<input id="' + id + '" type="text" inputmode="numeric" enterkeyhint="done" data-money="1" data-fk="' + esc(f.key) + '"'
-    + ' data-scope="must" value="' + esc(v == null ? "" : Number(v).toLocaleString(LOC())) + '">'
-    + '<span class="unit">' + esc(unitName(f.unit)) + "</span>"
-    + '<div class="qadd" data-for="' + esc(f.key) + '" data-ci="' + i + '">'
+function wzPickClass(code){
+  delete CH.draft.must.product_code;
+  CH.draft.must.class_code = code;
+  CH.dirty.must.product_code = CH.dirty.must.class_code = 1;
+  wzPicked();
+}
+function wzPicked(){
+  CH.prodOpen = false;
+  CH.prodQ = "";
+  wzClearErr("class_code");
+  haptic("select");
+  wzSave();
+  wzPart("prod");
+  wzNeed();
+  wzMetaFor();
+}
+/* поля и регионы зависят от класса: догружаем и перерисовываем только их */
+function wzMetaFor(){
+  chatMeta(CH.draft.must.class_code || "").then(() => { wzPart("region"); wzPart("more"); wzPart("und"); });
+}
+function wzMoneyHtml(key){
+  const id = "wzf-" + key, v = CH.draft.must[key], err = CH.errs[key];
+  const other = key === "sum_insured" ? "object_value" : "sum_insured";
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="' + id + '">' + esc(fieldLabel({key: key})) + ' <span class="unit">' + esc(SUM()) + "</span>" + wzDocTag("must", key) + "</label>"
+    + '<input id="' + id + '" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" data-money="1" data-fk="' + key + '" data-scope="must"'
+    + ' value="' + esc(v == null || v === "" ? "" : Number(v).toLocaleString(LOC())) + '" placeholder="0">'
+    + '<div class="qadd" data-for="' + key + '">'
     + '<button type="button" data-add="1000000">' + esc(T("tg.chat.add_mln", "+млн")) + "</button>"
     + '<button type="button" data-add="1000000000">' + esc(T("tg.chat.add_bln", "+млрд")) + "</button>"
-    + '<button type="button" data-copy="' + esc(other) + '">'
-    + esc(f.key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div></div>";
+    + '<button type="button" data-copy="' + other + '">'
+    + esc(key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div>"
+    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
-function chatRegionHtml(i){
+function wzRegionHtml(){
   const regions = (CH.meta && CH.meta.regions) || [];
   const cur = CH.draft.must.region || "";
-  const top = regions.slice(0, 8);
-  return '<div class="h3">' + esc(T("tg.an.f.region", "Регион")) + "</div>"
-    + '<div class="chips">' + top.map(r => {
-      const name = typeof r === "string" ? r : (r.name || r.code);
-      return '<button type="button" class="chip" data-region="' + esc(name) + '" data-ci="' + i + '"'
-        + ' aria-pressed="' + (cur === name) + '">' + esc(name) + "</button>";
-    }).join("") + "</div>"
-    + '<input id="chf-region" type="text" data-fk="region" data-scope="must" value="' + esc(cur) + '"'
-    + ' placeholder="' + esc(T("tg.chat.region_ph", "или впишите регион")) + '">';
+  const names = regions.map(r => typeof r === "string" ? r : (r && (r.name || r.code))).filter(Boolean);
+  if (cur && names.indexOf(cur) < 0) names.unshift(cur);
+  const err = CH.errs.region;
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzf-region">' + esc(fieldLabel({key: "region"})) + wzDocTag("must", "region") + "</label>"
+    + '<select id="wzf-region" data-fk="region" data-scope="must">'
+    + '<option value="">' + esc(T("tg.wz.region_pick", "Выберите регион")) + "</option>"
+    + names.map(n => '<option value="' + esc(n) + '"' + (n === cur ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select>"
+    + (CH.metaErr ? '<span class="hint err">' + esc(T("tg.chat.meta_failed", "Список классов не загрузился: {reason}", {reason: CH.metaErr})) + "</span>"
+      : !regions.length ? '<span class="hint">' + spin(T("common.loading", "загружаю…")) + "</span>" : "")
+    + '<span class="ferr" id="wzErr-region">' + esc(err || "") + "</span></div>";
 }
-
-/* «что ещё уточнить»: человек сам выбирает поля, выбранные раскрываются */
-function chatOptionalHtml(c, i){
-  const fields = (c.fields || []).filter(f => f.key !== "documents");
-  const on = k => CH.pick.indexOf(k) >= 0 || CH.draft.optional[k] != null;
-  return '<div class="chips">' + fields.map(f =>
-      '<button type="button" class="chip" data-opt="' + esc(f.key) + '" data-ci="' + i + '" aria-pressed="' + on(f.key) + '">'
-      + esc(fieldLabel(f)) + "</button>").join("") + "</div>"
-    + '<div class="fgrid">' + fields.filter(f => on(f.key)).map(f => chatFieldHtml(f, "optional", i)).join("") + "</div>";
+/* каких документов не хватает: список — GET /analytics/risk/docs по продукту или классу,
+   «есть» — если файл его закрыл (closes в ответе загрузки) или так сказал чек-лист сервера */
+async function wzNeed(){
+  const m = CH.draft.must;
+  const key = (m.product_code || "") + "|" + (m.class_code || "");
+  if (!m.product_code && !m.class_code) { CH.need = null; CH.needKey = ""; CH.needErr = ""; wzPart("docs"); return; }
+  if (key === CH.needKey && (CH.need || CH.needErr)) { wzPart("docs"); return; }
+  CH.needKey = key; CH.need = null; CH.needErr = "";
+  wzPart("docs");
+  const q = "?product_code=" + encodeURIComponent(m.product_code || "") + "&class_code=" + encodeURIComponent(m.product_code ? "" : (m.class_code || ""));
+  const r = await api("/analytics/risk/docs" + q);
+  if (key !== CH.needKey) return;
+  if (r.ok) CH.need = {required: ((r.data && r.data.required) || []).map(x => x && (x.doc_name || x.name)).filter(Boolean), basis: (r.data && r.data.basis_text) || ""};
+  else CH.needErr = r.error;
+  wzPart("docs");
 }
-
-function chatFieldHtml(f, scope, i){
+function wzDocsNeedHtml(){
+  const m = CH.draft.must;
+  const head = '<div class="card"><h2>' + esc(T("tg.wz.docs_title", "Каких документов не хватает")) + "</h2>";
+  if (!m.product_code && !m.class_code) return head + '<p class="note">' + esc(T("tg.wz.docs_pick_first", "Выберите продукт или класс — покажем, какие документы нужны.")) + "</p></div>";
+  if (CH.needErr) return head + '<p class="note err">' + esc(T("tg.wz.docs_failed", "Список документов не загрузился: {reason}", {reason: CH.needErr})) + "</p></div>";
+  if (!CH.need) return head + '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>";
+  const got = {};
+  CH.sent.forEach(f => (f.closes || []).forEach(n => { got[n] = 1; }));
+  CH.checklist.forEach(x => { if (x.ok) got[x.name] = 1; });
+  const req = CH.need.required.filter(keepDoc);
+  const miss = req.filter(n => !got[n]), have = req.filter(n => got[n]);
+  return head
+    + '<p class="sub">' + esc(miss.length
+      ? T("tg.wz.docs_miss_n", "Не хватает {n} из {all}. Анализ посчитаем и без них — с пометкой о допущениях.", {n: miss.length, all: req.length})
+      : T("tg.wz.docs_all", "Все нужные документы есть.")) + "</p>"
+    + '<div class="chk">'
+    + miss.map(n => '<div><i class="no" aria-hidden="true">✗</i><span>' + esc(n) + "</span></div>").join("")
+    + have.map(n => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(n) + "<small>" + esc(T("tg.wz.doc_have", "есть в загруженных файлах")) + "</small></span></div>").join("")
+    + "</div>"
+    + (CH.need.basis ? '<p class="note">' + hx(CH.need.basis) + "</p>" : "")
+    + (miss.length ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
+      + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "")
+    + "</div>";
+}
+/* «Дополнительно»: поля, которые система иначе подставит сама (тип объекта, конструкция, срок…),
+   и уточнения по влиянию на ставку — в порядке, который прислал сервер */
+function wzAssumed(key){
+  const a = ((CH.meta && CH.meta.will_assume) || []).filter(x => x && x.key === key)[0];
+  return a ? T("tg.wz.assumed", "Если не заполнить: {v}", {v: human(a.value_label != null ? a.value_label : a.value)}) : "";
+}
+function wzMoreHtml(){
+  const meta = CH.meta || {};
+  const hiddenKeys = meta.hidden_keys || [];
+  const hidden = (meta.must_full || []).filter(f => hiddenKeys.indexOf(f.key) >= 0);
+  const opt = (CH.fieldsOpt.length ? CH.fieldsOpt : (meta.optional || [])).filter(f => f && f.key !== "documents");
+  if (!hidden.length && !opt.length) return "";
+  const n = hidden.filter(f => CH.draft.must[f.key] != null && CH.draft.must[f.key] !== "").length
+    + opt.filter(f => CH.draft.optional[f.key] != null && CH.draft.optional[f.key] !== "").length;
+  return '<details class="sec" id="wzMore"' + (CH.optOpen ? " open" : "") + '><summary><span><b>' + esc(T("tg.wz.more", "Дополнительно"))
+    + (n ? " · " + esc(T("tg.wz.more_n", "заполнено {n}", {n: n})) : "") + "</b><small>"
+    + esc(T("tg.wz.more_sub", "Уточните объект — ставка станет точнее. Незаполненное система подставит и пометит.")) + "</small></span></summary>"
+    + '<div class="in"><div class="fgrid">'
+    + hidden.map(f => chatFieldHtml(f, "must")).join("") + opt.map(f => chatFieldHtml(f, "optional")).join("")
+    + "</div></div></details>";
+}
+function chatFieldHtml(f, scope){
   const id = "chf-" + f.key;
   const v = CH.draft[scope][f.key];
   const opts = f.options || [];
-  const why = f.why ? '<span class="hint">' + esc(f.why) + "</span>" : "";
+  const hint = [f.why ? human(f.why) : "", scope === "must" ? wzAssumed(f.key) : ""].filter(Boolean).join(" · ");
+  const why = hint ? '<span class="hint">' + esc(hint) + "</span>" : "";
+  const tag = wzDocTag(scope, f.key);
   if (opts.length && opts.length <= 5) {
-    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + "</label>"
-      + '<div class="segsel">' + opts.map(o =>
-        '<button type="button" data-set="' + esc(f.key) + '" data-scope="' + scope + '" data-ci="' + i + '"'
+    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + tag + "</label>"
+      + '<div class="segsel" role="group">' + opts.map(o =>
+        '<button type="button" data-set="' + esc(f.key) + '" data-scope="' + scope + '"'
         + ' data-value="' + esc(o.code) + '" aria-pressed="' + (String(v) === String(o.code)) + '">'
         + esc(optLabel(f, o)) + "</button>").join("") + "</div>" + why + "</div>";
   }
   if (opts.length) {
-    return '<div class="full"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + "</label>"
+    return '<div class="full"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + tag + "</label>"
       + '<select id="' + id + '" data-fk="' + esc(f.key) + '" data-scope="' + scope + '">'
       + '<option value="">' + esc(T("common.not_set", "не задан")) + "</option>"
       + opts.map(o => '<option value="' + esc(o.code) + '"' + (String(v) === String(o.code) ? " selected" : "") + ">"
         + esc(optLabel(f, o)) + "</option>").join("") + "</select>" + why + "</div>";
   }
   if (f.type === "object" && (f.fields || []).length) {
-    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + "</label><div class=\"two\">"
+    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + tag + "</label><div class=\"two keep\">"
       + f.fields.map(sf => {
         const sv = (v && typeof v === "object") ? v[sf.key] : "";
-        return "<div><label class=\"f\" for=\"" + id + "-" + sf.key + "\">" + esc(subLabel(f.key, sf.key)) + "</label>"
-          + '<input id="' + id + "-" + sf.key + '" type="text" inputmode="numeric" data-fk="' + esc(f.key)
+        return "<div><label class=\"f\" for=\"" + id + "-" + esc(sf.key) + "\">" + esc(subLabel(f.key, sf.key)) + "</label>"
+          + '<input id="' + id + "-" + esc(sf.key) + '" type="text" inputmode="decimal" autocomplete="off" data-fk="' + esc(f.key)
           + '" data-sub="' + esc(sf.key) + '" data-scope="' + scope + '" value="' + esc(sv == null ? "" : sv) + '"></div>';
       }).join("") + "</div>" + why + "</div>";
   }
   const numeric = f.type === "number";
-  return '<div><label class="f" for="' + id + '">' + esc(fieldLabel(f))
-    + (f.unit ? " <span>" + esc(unitName(f.unit)) + "</span>" : "") + "</label>"
-    + '<input id="' + id + '" type="text"' + (numeric ? ' inputmode="numeric"' : "")
-    + (f.unit === MONEY_UNIT ? ' data-money="1"' : "")
-    + ' data-fk="' + esc(f.key) + '" data-scope="' + scope + '" value="' + esc(v == null ? "" : v) + '">' + why + "</div>";
+  const money = f.unit === MONEY_UNIT;
+  return '<div><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + tag
+    + (f.unit ? ' <span class="unit">' + esc(unitName(f.unit)) + "</span>" : "") + "</label>"
+    + '<input id="' + id + '" type="text" autocomplete="off"' + (money ? ' inputmode="numeric" data-money="1"' : numeric ? ' inputmode="decimal" data-num="1"' : "")
+    + ' data-fk="' + esc(f.key) + '" data-scope="' + scope + '" value="'
+    + esc(v == null ? "" : money ? Number(v).toLocaleString(LOC()) : v) + '">' + why + "</div>";
+}
+function wzClearErr(key){
+  if (!CH.errs[key]) return;
+  delete CH.errs[key];
+  const e = $("#wzErr-" + key);
+  if (e) { e.textContent = ""; if (e.parentNode) e.parentNode.classList.remove("bad"); }
+}
+/* ввод в поле: значение запоминаем, форму не перерисовываем — курсор остаётся на месте */
+function wzFieldInput(el){
+  if (el.dataset.money) groupDigitsLive(el);
+  const sc = el.dataset.scope === "optional" ? "optional" : "must", key = el.dataset.fk, raw = String(el.value || "").trim();
+  CH.dirty[sc][key] = 1;
+  const val = x => el.dataset.money ? num(x) : (el.dataset.num || el.dataset.sub) ? (isNaN(dec(x)) ? x : dec(x)) : x;
+  if (el.dataset.sub) {
+    const cur = Object.assign({}, (CH.draft[sc][key] && typeof CH.draft[sc][key] === "object") ? CH.draft[sc][key] : {});
+    if (raw === "") delete cur[el.dataset.sub]; else cur[el.dataset.sub] = val(raw);
+    if (Object.keys(cur).length) CH.draft[sc][key] = cur; else delete CH.draft[sc][key];
+  } else if (raw === "") delete CH.draft[sc][key];
+  else CH.draft[sc][key] = val(raw);
+  if (key === "region") { try { localStorage.setItem(CH_REGION, raw); } catch (e) {} }
+  wzClearErr(key);
+  wzSave();
+}
+function wzSetOpt(b){
+  const sc = b.dataset.scope === "optional" ? "optional" : "must", k = b.dataset.set, v = b.dataset.value;
+  const on = String(CH.draft[sc][k]) === String(v);
+  if (on) delete CH.draft[sc][k]; else CH.draft[sc][k] = v;
+  CH.dirty[sc][k] = 1;
+  b.parentNode.querySelectorAll("[data-set]").forEach(x => x.setAttribute("aria-pressed", String(!on && x === b)));
+  haptic("select");
+  wzSave();
+}
+function wzQuickAdd(b){
+  const key = b.parentNode.dataset.for, m = CH.draft.must;
+  if (!key) return;
+  if (b.dataset.add) m[key] = (num(m[key]) || 0) + Number(b.dataset.add);
+  else { const v = num(m[b.dataset.copy]); if (!v) return; m[key] = v; }
+  CH.dirty.must[key] = 1;
+  const el = $("#wzf-" + key);
+  if (el) el.value = Number(m[key]).toLocaleString(LOC());
+  wzClearErr(key);
+  haptic("select");
+  wzSave();
+}
+function wzFocusField(key){
+  setTimeout(() => {
+    const el = $("#chf-" + key) || $("#wzf-" + key) || document.querySelector('[data-set="' + key + '"]');
+    if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
+  }, 60);
+}
+/* «Считаем»: проверка четырёх полей, поля — на сервер, затем быстрый анализ */
+async function wzCalc(){
+  const m = CH.draft.must, e = {};
+  if (!m.class_code && !m.product_code) e.class_code = T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
+  ["sum_insured", "object_value"].forEach(k => { if (!(Number(m[k]) > 0)) e[k] = T("tg.wz.err_money", "Введите сумму больше нуля, в сумах."); });
+  if (!m.region) e.region = T("tg.wz.err_region", "Выберите регион — от него зависят сейсмичность и статистика.");
+  CH.errs = e;
+  if (Object.keys(e).length) {
+    CH.err = T("tg.wz.err_fix", "Заполните отмеченные поля — без них расчёт не начать.");
+    haptic("error");
+    wzPaint(true);
+    const first = ["class_code", "sum_insured", "object_value", "region"].filter(k => e[k])[0];
+    wzFocusField(first === "class_code" ? "prod" : first);
+    const bad = $("#wzErr-" + first);
+    if (bad && bad.scrollIntoView) bad.scrollIntoView({block: "center"});
+    return;
+  }
+  CH.err = "";
+  tgBusy(true);
+  CH.busy = true;
+  wzBarPaint();
+  // пустые поля отправляем как null: сервер удаляет их из состояния
+  const send = sc => {
+    const out = Object.assign({}, CH.draft[sc]);
+    Object.keys((CH.state && CH.state[sc]) || {}).forEach(k => { if (!(k in out)) out[k] = null; });
+    return out;
+  };
+  let d = await chatPost("/chat/answer", {key: "fields", scope: "must", fields: send("must")});
+  if (d) {
+    const opt = send("optional");
+    if (Object.keys(opt).length) d = await chatPost("/chat/answer", {key: "fields", scope: "optional", fields: opt});
+  }
+  if (d) {
+    CH.dirty = {must: {}, optional: {}};
+    CH.busy = true;
+    wzBarPaint();
+    d = await chatPost("/chat/analyze", {mode: "quick"});
+  }
+  CH.busy = false;
+  tgBusy(false);
+  if (!d) { haptic("error"); wzPaint(true); return; }
+  if (d.ok === false) {
+    (d.missing || []).forEach(k => { CH.errs[k] = T("tg.wz.err_missing", "Заполните это поле."); });
+    const warn = (d.cards || []).filter(c => c.type === "text" && c.text)[0];
+    CH.err = warn ? human(warn.text) : T("tg.wz.err_fix", "Заполните отмеченные поля — без них расчёт не начать.");
+    haptic("error");
+    wzPaint(true);
+    return;
+  }
+  CH.full = null;
+  CH.fullErr = "";
+  CH.choice = "";
+  CH.wz = 3;
+  wzSave();
+  haptic("success");
+  wzPaint(true);
+  window.scrollTo(0, 0);
+  chatFull();
+}
+function wzRefine(){
+  CH.optOpen = true;
+  wzGo(2);
+  setTimeout(() => { const b = $("#wzMoreBox"); if (b && b.scrollIntoView) b.scrollIntoView({block: "start", behavior: "smooth"}); }, 80);
 }
 
-/* ---------- итог ---------- */
-function chatResultHtml(c, i){
-  CH.res = c;
-  const s = c.summary || {};
-  const lv = c.level || {};
-  const fr = c.franchise || {};
-  return '<div class="reshead">'
-    + '<div class="gauge sm">' + gaugeSvg(lv.score, lv.scale) + "</div>"
-    + '<div class="reskpi">' + lvChip(lv.name)
-    + "<div><b>" + esc(money(s.premium)) + "</b><span>" + esc(T("tg.an.premium", "Страховая премия")) + "</span></div>"
-    + "<div><b>" + esc(pct(s.rate_applied_pct)) + "</b><span>" + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span></div>"
-    + (s.rate_min_pct != null ? "<div><b>" + esc(pct(s.rate_min_pct)) + "</b><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span></div>" : "")
-    + "</div></div>"
-    + '<p class="note warn">' + esc(T("tg.chat.uncal", "Часть коэффициентов ещё не калибрована на статистике компании — ставка предварительная, её подтверждает андеррайтер.")) + "</p>"
-    + chatOptionsHtml(fr, i)
-    + chatFranchiseHtml(fr)
-    + chatNarrativeHtml(c)
-    + chatAssumeHtml(c, i)
-    + chatDocsHtml(c)
-    + '<details class="opt" ' + (CH.detail ? "open" : "") + ' id="chatMore"><summary>'
-    + esc(T("tg.chat.more", "Подробнее: сценарии, риски, рынок")) + "</summary>"
-    + '<div id="chatDash">' + (CH.fullErr ? '<p class="note err">' + esc(CH.fullErr) + "</p>"
-        : CH.full ? "" : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>") + "</div></details>"
+/* ---------- шаг 3: анализ ---------- */
+function wzRegionName(v){
+  const hit = ((CH.meta && CH.meta.regions) || []).filter(r => r && typeof r === "object" && (r.key === v || r.name === v))[0];
+  return hit && hit.name ? hit.name : String(v == null ? "" : v);
+}
+function wzObjLead(){
+  const s = (CH.res && CH.res.summary) || {};
+  const p = s.product_code ? wzProd(s.product_code) : null;
+  return esc([s.product_code ? s.product_code + (p ? " · " + p.name : "") : (s.class_code ? T("tg.wz.cls_line", "Класс {c}", {c: s.class_code}) : ""),
+    s.object_type, s.region ? wzRegionName(s.region) : ""].filter(Boolean).join(" · "));
+}
+function wzSec(id, title, sub, body){
+  return '<details class="sec" data-sec="' + id + '"' + (CH.open[id] ? " open" : "") + "><summary><span><b>" + esc(title) + "</b>"
+    + (sub ? "<small>" + esc(sub) + "</small>" : "") + '</span></summary><div class="in">' + body + "</div></details>";
+}
+/* франшиза одной строкой: то же решение, что в полном блоке */
+function frHead(fr){
+  if (!fr) return "";
+  if (!fr.ok) {
+    return T("tg.chat.fr_none", "Франшизу система пока не советует: {why}",
+      {why: fr.reason || fr.message || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")});
+  }
+  const f = fr.franchise || {};
+  const code = fr.decision_code || "";
+  const notNeeded = T("tg.chat.fr_not_needed", "Франшиза не требуется");
+  return code === "statutory"
+    ? T("tg.chat.fr_statutory", "Франшиза не применяется: обязательный вид, тариф по нормативному акту")
+    : code === "no_franchise" ? notNeeded : (f.text || fr.decision || notNeeded);
+}
+function wzStep3Html(){
+  const c = CH.res;
+  if (!c) return '<p class="note">' + esc(T("tg.wz.no_result", "Анализа ещё нет — заполните данные на шаге «Проверить».")) + "</p>";
+  const s = c.summary || {}, lv = c.level || {}, fr = c.franchise || {};
+  const i = lvIdx(lv.level);
+  const score = Number(lv.score);
+  const opts = (fr && fr.options) || [];
+  const docs = chatDocsHtml(c);
+  const miss = ((c.documents || {}).missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name))).length;
+  const nar = chatNarrativeHtml(c);
+  return '<h2 class="wz-h">' + esc(T("tg.wz.s3_title", "Итог анализа")) + "</h2>"
+    + '<p class="wz-lead" id="wzLead">' + wzObjLead() + "</p>"
+    + '<div class="card wz-res"><div class="res-top">'
+    + (lv.score == null || isNaN(score) ? "" : '<div class="res-gauge ' + (i == null ? "" : "lv" + (i + 1)) + '">' + gaugeSvg(score, lv.scale)
+      + '<div class="res-score">' + esc(nf(score, 1)) + " <small>" + esc(T("tg.wz.of100", "из 100")) + "</small></div></div>")
+    + '<div class="res-main"><p class="eyebrow">' + esc(T("tg.an.level", "Уровень риска")) + "</p>" + lvChip(lv.level)
+    + '<div class="res-prem">' + esc(money(s.premium)) + "</div>"
+    + '<p class="res-sub">' + esc(T("tg.wz.prem_sub", "страховая премия · ставка {r} годовых", {r: pct(s.rate_applied_pct, 3)})) + "</p></div></div>"
+    + '<div class="seg">'
+    + '<div class="main"><span>' + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span><b>" + esc(pct(s.rate_applied_pct, 3)) + "</b></div>"
+    + (s.rate_min_pct != null ? "<div><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span><b>" + esc(pct(s.rate_min_pct, 3)) + "</b></div>" : "")
+    + "<div><span>" + esc(T("tg.an.sum_insured", "Страховая сумма")) + '</span><b title="' + esc(money(s.sum_insured)) + '">' + esc(compact(s.sum_insured)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.an.object_value", "Стоимость имущества")) + '</span><b title="' + esc(money(s.object_value)) + '">' + esc(compact(s.object_value)) + "</b></div>"
+    + "</div>"
+    + '<div class="res-fr"><b>' + hx(frHead(fr)) + "</b>"
+    + (fr.ok && fr.premium_effect && fr.premium_effect.delta ? "<span>" + esc(T("tg.chat.fr_alt_delta", "Изменение премии: {d}", {d: money(fr.premium_effect.delta)})) + "</span>" : "")
+    + "</div>"
+    + '<div id="wzItv"></div>'
+    + '<p class="note warn" style="margin:var(--s2) 0 0">' + esc(T("tg.chat.uncal", "Часть коэффициентов ещё не калибрована на статистике компании — ставка предварительная, её подтверждает андеррайтер.")) + "</p>"
+    + "</div>"
+    + wzSec("fr", T("tg.chat.fr_title", "Франшиза по ситуации"), T("tg.wz.sec_fr_sub", "решение, основания, чем заменить, почему так"), '<div id="wzFr">' + chatFranchiseHtml(fr) + "</div>")
+    + (opts.length ? wzSec("opts", T("tg.chat.options", "Варианты тарифа"), T("tg.wz.sec_opts_sub", "базовый, с франшизой, с мероприятиями"), '<div id="wzOpts">' + chatOptionsHtml(fr) + "</div>") : "")
+    + wzSec("value", T("tg.wz.sec_value", "Оценка стоимости"), T("tg.wz.sec_value_sub", "страховая сумма к стоимости объекта"), '<div id="wzValue"></div>')
+    + wzSec("risks", T("tg.wz.sec_risks", "Риски и факторы"), T("tg.wz.sec_risks_sub", "что поднимает и что снижает премию"), '<div id="wzRisks"></div>' + chatAssumeHtml(c))
+    + wzSec("scn", T("tg.wz.sec_scn", "Сценарии убытка: PML, EML, MFL"), T("tg.wz.sec_scn_sub", "сколько можно потерять и что остаётся на компании"), '<div id="wzScn"></div>')
+    + wzSec("level", T("tg.wz.sec_level", "Как посчитан уровень риска"), T("tg.wz.sec_level_sub", "вклад каждого показателя в балл"), '<div id="wzLevel"></div>')
+    + wzSec("region", T("tg.wz.sec_region", "Статистика региона и рынок"), T("tg.wz.sec_region_sub", "показатели статистического агентства и рынка страхования"), '<div id="wzRegStats"></div>')
+    + (docs ? wzSec("docs", T("tg.an.docs_block", "Документы"), miss ? T("tg.an.docs_missing", "Не хватает · {n}", {n: miss}) : T("tg.wz.docs_all", "Все нужные документы есть."), docs) : "")
+    + (nar ? wzSec("why", T("tg.chat.explain", "Пояснение"), "", nar) : "")
+    + '<div class="card"><h2>' + esc(T("tg.wz.ask_title", "Вопрос ИИ-сюрвейеру")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.wz.ask_sub", "Про этот объект: что изменить, чтобы снизить премию, какие документы важнее.")) + "</p>"
+    + '<div id="wzQa">' + wzQaHtml() + "</div>"
+    + '<div class="askrow"><textarea id="wzAskText" rows="1" maxlength="2000" enterkeyhint="send" aria-label="' + esc(T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит"))
+    + '" placeholder="' + esc(T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит")) + '"></textarea>'
+    + '<button type="button" class="btn btn-secondary" data-go="ask">' + esc(T("tg.chat.send", "Отправить")) + "</button></div>"
+    + '<div class="msg" id="wzAskMsg" role="status"></div></div>'
     + '<div class="actions">'
-    + '<button type="button" class="btn btn-primary tg-main"' + (i === CH.feed.length - 1 ? ' id="chatMain"' : "") + ' data-go="refine">' + esc(T("tg.chat.refine", "Уточнить")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.chat.restart", "Новый анализ")) + "</button>"
     + '<button type="button" class="btn btn-secondary" data-go="legal">' + esc(T("tg.chat.ask_legal", "Спросить специалиста")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.chat.restart", "Новый анализ")) + "</button>"
     + "</div>";
+}
+function wzQaHtml(){
+  if (!CH.qa.length) return "";
+  return CH.qa.map(x => '<div class="qa-item"><p class="q">' + esc(x.q) + "</p>"
+    + (x.pending ? '<p class="a note">' + spin(T("tg.chat.thinking", "думаю…")) + "</p>"
+      : '<p class="a' + (x.warn ? " warn" : "") + '">' + hx(chatTr(x.a || "")) + "</p>"
+        + (x.src ? '<p class="note"><span class="tag' + (x.src === "правила" ? " off" : "") + '">'
+          + esc(x.src === "правила" ? T("tg.chat.src_rules", "правила") : T("tg.chat.src_ai", "ИИ")) + "</span></p>" : ""))
+    + "</div>").join("");
+}
+/* свободный вопрос ИИ — POST /chat/message; перерисовывается только список ответов, поле не трогаем */
+async function wzAsk(){
+  const el = $("#wzAskText");
+  const text = String((el && el.value) || "").trim();
+  const msg = $("#wzAskMsg");
+  if (!text) { if (msg) msg.innerHTML = errHtml(T("tg.wz.ask_empty", "Напишите вопрос — хотя бы несколько слов.")); if (el) el.focus(); return; }
+  if (CH.asking) return;
+  if (msg) msg.innerHTML = "";
+  el.value = "";
+  el.style.height = "";
+  const item = {q: text, pending: true};
+  CH.qa.push(item);
+  CH.qa = CH.qa.slice(-CH_QA_MAX);
+  CH.asking = true;
+  wzPart("qa");
+  const r = await api("/chat/message", jsonOpts("POST", {session_id: CH.sid, text: text, lang: I18N_LANG}));
+  CH.asking = false;
+  delete item.pending;
+  if (!r.ok) { item.a = T("tg.wz.ask_failed", "Ответ не получен: {reason}. Спросите ещё раз.", {reason: r.error}); item.warn = true; haptic("error"); }
+  else {
+    const c = ((r.data && r.data.cards) || []).filter(x => x.type === "text")[0] || {};
+    item.a = String(c.text || "");
+    item.warn = c.tone === "warn";
+    item.src = r.data.source || "";
+  }
+  wzSave();
+  wzPart("qa");
 }
 
 /* три варианта тарифа: базовый, с франшизой, с мероприятиями — как их посчитал сервер */
-function chatOptionsHtml(fr, i){
+function chatOptionsHtml(fr){
   const opts = (fr && fr.options) || [];
   if (!opts.length) return "";
   const name = o => o.title || {base: T("tg.chat.opt_base", "Базовый"),
@@ -2503,15 +3213,14 @@ function chatOptionsHtml(fr, i){
                     : T("tg.chat.opt_dearer", "Дороже на {d}", {d: money(d)});
     return '<p class="note ' + (d < 0 ? "ok" : "warn") + '">' + esc(t + share) + "</p>";
   };
-  return '<div class="h3">' + esc(T("tg.chat.options", "Варианты тарифа")) + "</div>"
-    + '<div class="opts">' + opts.map(o =>
-      '<div class="opt-card' + (CH.choice === o.key ? " on" : "") + '"><p class="eyebrow">' + esc(name(o)) + "</p>"
+  return '<div class="opts">' + opts.map(o =>
+      '<div class="opt-card' + (CH.choice === o.key ? " on" : "") + '"><p class="eyebrow">' + hx(name(o)) + "</p>"
       + "<b>" + esc(money(o.premium)) + "</b>"
       + (rate(o) != null ? '<span class="note">' + esc(T("tg.chat.opt_rate", "ставка {r}", {r: pct(rate(o))})) + "</span>" : "")
       + deltaHtml(o)
-      + ((o.what || o.text) ? '<p class="note">' + esc(o.what || o.text) + "</p>" : "")
-      + (o.how ? '<p class="note">' + esc(T("tg.chat.opt_how", "Как посчитано: {t}", {t: o.how})) + "</p>" : "")
-      + '<button type="button" class="btn btn-secondary btn-sm" data-choose="' + esc(o.key) + '" data-ci="' + i + '">'
+      + ((o.what || o.text) ? '<p class="note">' + hx(o.what || o.text) + "</p>" : "")
+      + (o.how ? '<p class="note">' + esc(T("tg.chat.opt_how", "Как посчитано: {t}", {t: human(o.how)})) + "</p>" : "")
+      + '<button type="button" class="btn btn-secondary btn-sm" data-choose="' + esc(o.key) + '" aria-pressed="' + (CH.choice === o.key) + '">'
       + esc(CH.choice === o.key ? T("tg.chat.chosen", "Выбран") : T("tg.chat.choose", "Выбрать")) + "</button></div>").join("")
     + "</div>";
 }
@@ -2519,25 +3228,23 @@ function chatOptionsHtml(fr, i){
 function frLinesHtml(src){
   const list = Array.isArray(src) ? src : String(src == null ? "" : src).split("\n");
   return list.map(x => String(x == null ? "" : x).trim()).filter(Boolean)
-    .map(x => '<p class="note">' + esc(x) + "</p>").join("");
+    .map(x => '<p class="note">' + hx(x) + "</p>").join("");
 }
 /* Франшиза: решение, риск, эффект на премию, что можно вместо франшизы, четыре основания
-   и совет по тарифу — по структуре ответа app/franchise.recommend_franchise. */
+   и совет по тарифу — по структуре ответа app/franchise.recommend_franchise.
+   Тексты сервера проходят через human(): служебные коды заменены подписями. */
 function chatFranchiseHtml(fr){
   if (!fr) return "";
   if (!fr.ok) {
-    return '<p class="note warn">' + esc(T("tg.chat.fr_none", "Франшизу система пока не советует: {why}",
-      {why: fr.reason || fr.message || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")})) + "</p>";
+    return '<p class="note warn">' + hx(frHead(fr)) + "</p>";
   }
   const f = fr.franchise || {};
   const code = fr.decision_code || "";
   const per = (f.peril && typeof f.peril === "object") ? f.peril : null;
   const notNeeded = T("tg.chat.fr_not_needed", "Франшиза не требуется");
-  const head = code === "statutory"
-    ? T("tg.chat.fr_statutory", "Франшиза не применяется: обязательный вид, тариф по нормативному акту")
-    : code === "no_franchise" ? notNeeded : (f.text || fr.decision || notNeeded);
+  const head = frHead(fr);
   let h = '<div class="h3">' + esc(T("tg.chat.fr_title", "Франшиза по ситуации")) + "</div>"
-    + "<p><b>" + esc(head) + "</b></p>";
+    + "<p><b>" + hx(head) + "</b></p>";
   if (code === "no_franchise") {
     h += '<p class="note">' + esc(T("tg.chat.fr_no_grounds",
       "Ни одно из четырёх оснований для франшизы не сработало — разбор в блоке «Почему так».")) + "</p>";
@@ -2550,26 +3257,26 @@ function chatFranchiseHtml(fr){
     h += '<p class="note">' + esc(T("tg.chat.fr_peril", "По риску «{name}»: франшиза {p} = {a} с каждого убытка от этого риска",
       {name: per.name || per.code || "", p: pct(per.pct == null ? f.peril_pct : per.pct, 1),
        a: money(f.peril_amount)})) + "</p>";
-    if (per.why) h += '<p class="note">' + esc(per.why) + "</p>";
+    if (per.why) h += '<p class="note">' + hx(per.why) + "</p>";
   }
   const eff = (fr.premium_effect && typeof fr.premium_effect === "object") ? fr.premium_effect : {};
-  if (eff.formula) h += '<p class="note">' + esc(eff.formula) + "</p>";
+  if (eff.formula) h += '<p class="note">' + hx(eff.formula) + "</p>";
   const own = fr.options_custom;
   if (own && own.premium != null) {
     h += '<p class="note">' + esc(T("tg.chat.fr_custom", "{t}: премия {p}",
-      {t: own.title || notNeeded, p: money(own.premium)})) + "</p>";
+      {t: human(own.title || notNeeded), p: money(own.premium)})) + "</p>";
   }
 
   const alts = (fr.alternatives || []).filter(a => a && (a.title || a.what));
   if (alts.length) {
     h += '<div class="h3">' + esc(T("tg.chat.fr_alts", "Вместо франшизы можно")) + "</div>"
-      + alts.map(a => '<div class="asm"><div><b>' + esc(a.title || "") + "</b>"
-        + (a.what ? "<span>" + esc(a.what) + "</span>" : "")
-        + (a.effect ? "<span>" + esc(a.effect) + "</span>"
+      + alts.map(a => '<div class="asm"><div><b>' + hx(a.title || "") + "</b>"
+        + (a.what ? "<span>" + hx(a.what) + "</span>" : "")
+        + (a.effect ? "<span>" + hx(a.effect) + "</span>"
           : (a.premium_delta != null ? "<span>" + esc(T("tg.chat.fr_alt_delta", "Изменение премии: {d}",
               {d: money(a.premium_delta)})) + "</span>" : ""))
-        + (a.why ? "<span>" + esc(a.why) + "</span>" : "")
-        + (a.legal_ref ? "<span>" + esc(a.legal_ref) + "</span>" : "")
+        + (a.why ? "<span>" + hx(a.why) + "</span>" : "")
+        + (a.legal_ref ? "<span>" + hx(a.legal_ref) + "</span>" : "")
         + "</div></div>").join("");
   }
 
@@ -2580,9 +3287,9 @@ function chatFranchiseHtml(fr){
       + "<span>" + esc(T("tg.chat.fr_grounds_n", "оснований: {n} из {all}", {n: yes, all: gr.length}))
       + "</span></summary><div class=\"chk\">"
       + gr.map(x => '<div><i class="' + (x.ok ? "ok" : "no") + '" aria-hidden="true">' + (x.ok ? "✓" : "✗")
-        + "</i><span>" + esc((x.title || x.code || "") + " — "
+        + "</i><span>" + hx((x.title || x.code || "") + " — "
           + (x.ok ? T("tg.chat.fr_ground_yes", "есть") : T("tg.chat.fr_ground_no", "нет")))
-        + (x.why ? "<small>" + esc(x.why) + "</small>" : "") + "</span></div>").join("")
+        + (x.why ? "<small>" + hx(x.why) + "</small>" : "") + "</span></div>").join("")
       + "</div></details>";
   }
 
@@ -2608,22 +3315,22 @@ function chatFranchiseHtml(fr){
   }
   return h;
 }
+/* пояснение: от ИИ или по правилам — так и подписано (narrative_source) */
 function chatNarrativeHtml(c){
   const text = c.narrative && String(c.narrative).trim();
   if (!text) return "";
   const src = c.narrative_source;
-  return '<div class="h3">' + esc(T("tg.chat.explain", "Пояснение"))
-    + ' <span class="tag' + (src === "ии" || src === "ai" ? "" : " off") + '">'
-    + esc(src === "ии" || src === "ai" ? T("tg.chat.src_ai", "ИИ") : T("tg.chat.src_rules", "правила")) + "</span></div>"
-    + chatTextHtml({text: text});
+  return '<p><span class="tag' + (src === "ии" || src === "ai" ? "" : " off") + '">'
+    + esc(src === "ии" || src === "ai" ? T("tg.chat.src_ai", "ИИ") : T("tg.chat.src_rules", "правила")) + "</span></p>"
+    + String(chatTr(text)).split("\n").filter(x => x.trim()).map(x => "<p>" + hx(x) + "</p>").join("");
 }
-function chatAssumeHtml(c, i){
+function chatAssumeHtml(c){
   const list = c.assumptions || [];
   if (!list.length) return "";
   return '<div class="h3">' + esc(T("tg.an.assumed_title", "Возьмём по умолчанию")) + "</div>"
-    + list.map(x => '<div class="asm"><div><b>' + esc((x.label || x.key) + ": " + (x.value_label || x.value)) + "</b>"
-      + "<span>" + esc(x.why || T("tg.an.assumed_note", "взято по умолчанию — уточните")) + "</span></div>"
-      + '<button type="button" class="btn btn-secondary btn-sm" data-fix="' + esc(x.key) + '" data-ci="' + i + '">'
+    + list.map(x => '<div class="asm"><div><b>' + esc(fieldLabel(wzFieldDef(x.key)) + ": " + human(x.value_label != null ? x.value_label : x.value)) + "</b>"
+      + "<span>" + hx(x.why || T("tg.an.assumed_note", "взято по умолчанию — уточните")) + "</span></div>"
+      + '<button type="button" class="btn btn-secondary btn-sm" data-fix="' + esc(x.key) + '">'
       + esc(T("tg.an.assumed_edit", "Изменить")) + "</button></div>").join("");
 }
 function chatDocsHtml(c){
@@ -2631,160 +3338,186 @@ function chatDocsHtml(c){
   const items = (d.items || []).filter(x => keepDoc(x.name || x.kind));
   const missing = (d.missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name)));
   if (!items.length && !missing.length) return "";
-  return '<div class="h3">' + esc(T("tg.an.docs_block", "Документы")) + "</div>"
-    + '<div class="chk">'
-    + items.map(x => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(x.name || x.kind || "") + "</span></div>").join("")
+  return '<div class="chk">'
+    + items.map(x => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(x.name || kindName(x.kind)) + "</span></div>").join("")
     + missing.map(x => '<div><i class="no" aria-hidden="true">✗</i><span>' + esc(typeof x === "string" ? x : (x.name || "")) + "</span></div>").join("")
-    + "</div>";
+    + "</div>"
+    + (missing.length ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
+      + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "");
 }
 
-/* «Подробнее»: сценарии, риски, рынок и регион — те же карточки дашборда, что и раньше.
-   Полный разбор считает POST /analytics/risk по тем же данным диалога. */
+/* Подробности шага «Анализ»: POST /analytics/risk в быстром режиме по тем же данным диалога —
+   сценарии, риски, регион и рынок (те же карточки, что были в дашборде). Итог наверху — из /chat/analyze. */
 async function chatFull(){
-  if (CH.full || CH.busy) { chatPaintDash(); return; }
-  const body = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {}), mode: "full"};
-  const r = await api("/analytics/risk", jsonOpts("POST", body));
-  if (!r.ok) { CH.fullErr = r.error; chatPaintDash(); return; }
+  if (!CH.res) return;
+  const seq = ++CH.fullSeq;
   CH.fullErr = "";
-  CH.full = r.data;
-  AN.res = r.data;
+  const body = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {}), mode: "quick"};
+  const r = await api("/analytics/risk", jsonOpts("POST", body));
+  if (seq !== CH.fullSeq) return;
+  if (!r.ok) CH.fullErr = r.error;
+  else { CH.full = r.data; AN.res = r.data; }
   chatPaintDash();
 }
-function chatPaintDash(){
-  const box = $("#chatDash");
-  if (!box) return;
-  const r = CH.full;
-  if (!r) { box.innerHTML = CH.fullErr ? '<p class="note err">' + esc(CH.fullErr) + "</p>" : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; return; }
-  box.innerHTML = '<div class="dash">'
-    + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r)
+function itvHtml(r){
+  const itv = ((r || {}).summary || {}).insurance_to_value || {};
+  if (!itv.title && !itv.detail) return "";
+  const cls = itv.status === "ok" ? "" : itv.status === "stop" ? "stop" : "warn";
+  return '<div class="itv ' + cls + '"><div><b>' + hx(itv.title || T("tg.an.itv", "Страховая сумма к стоимости")) + "</b><span>"
+    + hx([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) + "</span></div></div>";
+}
+function wzValueHtml(r){
+  const s = r.summary || {};
+  const ratio = Number(s.ratio_sum_to_value);
+  const parts = s.parts || [];
+  return '<div class="seg" style="margin-top:0">'
+    + "<div><span>" + esc(T("tg.an.object_value", "Стоимость имущества")) + "</span><b>" + esc(money(s.object_value)) + "</b></div>"
+    + "<div><span>" + esc(T("tg.an.sum_insured", "Страховая сумма")) + "</span><b>" + esc(money(s.sum_insured)) + "</b></div>"
+    + (s.ratio_sum_to_value != null && !isNaN(ratio) ? "<div><span>" + esc(T("tg.wz.ratio", "Сумма к стоимости")) + "</span><b>" + esc(pct(ratio * 100, 1)) + "</b></div>" : "")
+    + "</div>"
+    + itvHtml(r)
+    + (parts.length > 1
+      ? '<div class="h3">' + esc(T("tg.an.parts", "По классам — ставка проверяется по каждому отдельно")) + '</div><div class="chain">'
+        + parts.map(p => "<div><span>" + esc(T("tg.an.part_line", "Класс {c} · продукт {p}", {c: p.class_code, p: p.product_code || "—"}))
+          + (p.product_name ? " · " + esc(p.product_name) : "") + "</span><b>" + esc(compact(p.premium)) + " · " + esc(pct(p.rate_applied_pct, 4)) + "</b></div>").join("") + "</div>"
+      : "");
+}
+/* Что сказать клиенту — ст. 63 Закона о страховой деятельности: цена, покрытые и исключённые риски,
+   недострахование, возврат премии, порядок претензий. Чего сервер не присылает — так и пишем. */
+function wzSayHtml(r){
+  const s = (CH.res && CH.res.summary) || {};
+  const rs = r.summary || {}, itv = rs.insurance_to_value || {};
+  const covered = (r.risks || []).filter(x => x && Number(x.share_of_net_pct) > 0).map(x => x.name).filter(Boolean);
+  const none = T("tg.wz.say_none", "в системе этих данных нет — возьмите из правил страхования продукта");
+  const row = (t, v, miss) => "<span>" + esc(t) + "</span><b" + (miss ? ' class="miss"' : "") + ">" + esc(v) + "</b>";
+  return '<p class="sub">' + esc(T("tg.wz.say_lead", "До заключения договора клиенту сообщают эти условия — простыми словами.")) + "</p>"
+    + '<div class="kv disc">'
+    + row(T("tg.wz.say_price", "Цена"), money(s.premium) + " · " + T("tg.an.premium_for", "за {n} мес. · ставка {r} годовых",
+        {n: nf(rs.term_months || 12, 0), r: pct(s.rate_applied_pct, 3)}))
+    + row(T("tg.wz.say_covered", "Покрытые риски"), covered.length ? covered.join(", ") : none, !covered.length)
+    + row(T("tg.wz.say_excluded", "Исключённые риски"), none, true)
+    + row(T("tg.wz.say_under", "Недострахование"), itv.detail ? human([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) : none, !itv.detail)
+    + row(T("tg.wz.say_refund", "Возврат премии"), none, true)
+    + row(T("tg.wz.say_claims", "Порядок претензий"), none, true)
     + "</div>";
-  box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); }; });
+}
+function chatPaintDash(){
+  const r = CH.full;
+  const fill = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const ids = ["wzValue", "wzRisks", "wzScn", "wzLevel", "wzRegStats", "wzSay"];
+  if (!r) {
+    const wait = CH.fullErr
+      ? '<p class="note err">' + esc(T("tg.wz.full_failed", "Подробности не загрузились: {reason}", {reason: CH.fullErr})) + "</p>"
+      : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>";
+    ids.forEach(id => fill(id, wait));
+    fill("wzItv", "");
+    return;
+  }
+  fill("wzItv", itvHtml(r));
+  fill("wzValue", wzValueHtml(r));
+  fill("wzRisks", anRisksCard(r));
+  fill("wzScn", anScenariosCard(r));
+  fill("wzLevel", anLevelCard(r));
+  fill("wzRegStats", anRegionCard(r) + anExtStatsCard(r) + anMarketCard(r));
+  fill("wzSay", wzSayHtml(r));
+  document.querySelectorAll("#wzScn [data-scn]").forEach(b => {
+    b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); };
+  });
   anPaintScenario();
 }
 
-/* ---------- обработчики карточек ---------- */
-function chatBind(box){
-  box.querySelectorAll("[data-chip]").forEach(b => {
-    b.onclick = () => chatChip(b.dataset.chip, b.dataset.val, b.textContent);
-  });
-  box.querySelectorAll("[data-upload]").forEach(b => { b.onclick = chatPickFiles; });
-  box.querySelectorAll("[data-preset]").forEach(b => {
-    b.onclick = () => {
-      const p = (CH.presets || []).filter(x => x.key === b.dataset.preset)[0];
-      if (!p) return;
-      CH.draft.must.class_code = p.class_code || CH.draft.must.class_code;
-      if (p.object_type) CH.draft.must.object_type = p.object_type;
-      haptic("select");
-      chatMeta(CH.draft.must.class_code).then(() => chatRepaintCard(Number(b.dataset.ci)));
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-cls]").forEach(b => {
-    b.onclick = () => {
-      CH.draft.must.class_code = b.dataset.cls;
-      CH.draft.must.product_code = "";
-      haptic("select");
-      chatMeta(b.dataset.cls).then(() => chatRepaintCard(Number(b.dataset.ci)));
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-prod]").forEach(b => {
-    b.onclick = () => {
-      const p = ((CH.meta && CH.meta.products) || []).filter(x => x.code === b.dataset.prod)[0];
-      CH.draft.must.product_code = b.dataset.prod;
-      if (p && (p.classes || []).length) CH.draft.must.class_code = p.classes.join("/");
-      haptic("select");
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-region]").forEach(b => {
-    b.onclick = () => {
-      CH.draft.must.region = b.dataset.region;
-      try { localStorage.setItem(CH_REGION, b.dataset.region); } catch (e) {}
-      haptic("select");
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-opt]").forEach(b => {
-    b.onclick = () => {
-      const k = b.dataset.opt;
-      const at = CH.pick.indexOf(k);
-      if (at >= 0) { CH.pick.splice(at, 1); delete CH.draft.optional[k]; } else CH.pick.push(k);
-      haptic("select");
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-set]").forEach(b => {
-    b.onclick = () => {
-      CH.draft[b.dataset.scope][b.dataset.set] = b.dataset.value;
-      haptic("select");
-      chatRepaintCard(Number(b.dataset.ci));
-    };
-  });
-  box.querySelectorAll("[data-fix]").forEach(b => {
-    b.onclick = () => {
-      if (CH.pick.indexOf(b.dataset.fix) < 0) CH.pick.push(b.dataset.fix);
-      chatPost("/chat/answer", {key: "next", value: "refine"});
-    };
-  });
-  box.querySelectorAll("[data-choose]").forEach(b => {
-    b.onclick = () => { CH.choice = b.dataset.choose; haptic("select"); chatRepaintCard(Number(b.dataset.ci)); };
-  });
-  box.querySelectorAll("[data-go]").forEach(b => {
-    b.onclick = () => {
-      const go = b.dataset.go;
-      if (go === "must") chatFields("must");
-      else if (go === "analyze") chatAnalyze("quick");
-      else if (go === "full") chatAnalyze("full");
-      else if (go === "refine") chatPost("/chat/answer", {key: "next", value: "refine"});
-      else if (go === "restart") chatStart();
-      else if (go === "legal") chatToLegal();
-    };
-  });
-  // ввод в поля: значение запоминаем, карточку не перерисовываем — курсор остаётся на месте
-  box.querySelectorAll("[data-fk]").forEach(el => {
-    el.oninput = () => {
-      if (el.dataset.money) groupDigitsLive(el);
-      const scope = el.dataset.scope;
-      const key = el.dataset.fk;
-      const raw = el.value;
-      if (el.dataset.sub) {
-        const cur = Object.assign({}, CH.draft[scope][key] || {});
-        cur[el.dataset.sub] = num(raw) || "";
-        CH.draft[scope][key] = cur;
-        return;
-      }
-      CH.draft[scope][key] = (el.dataset.money || el.inputMode === "numeric") ? num(raw) : raw;
-      if (!raw) delete CH.draft[scope][key];
-    };
-  });
-  box.querySelectorAll(".qadd button").forEach(b => {
-    b.onclick = () => {
-      const key = b.parentNode.dataset.for;
-      const el = $("#chf-" + key);
-      if (b.dataset.add) CH.draft.must[key] = (num(CH.draft.must[key]) || 0) + Number(b.dataset.add);
-      else CH.draft.must[key] = num(CH.draft.must[b.dataset.copy]) || 0;
-      if (el) el.value = Number(CH.draft.must[key]).toLocaleString(LOC());
-      haptic("select");
-    };
-  });
-  const q = box.querySelector("#chatQ");
-  if (q) {
-    q.oninput = () => {
-      CH.q = q.value;
-      const i = Number(q.dataset.ci);
-      const at = q.selectionStart;
-      chatRepaintCard(i);
-      const again = $("#chatQ");
-      if (again) { again.focus(); try { again.setSelectionRange(at, at); } catch (e) {} }
-    };
+/* ---------- смена языка ---------- */
+/* Подписи берём из словаря, свободный текст ИИ и сервера переводит сервер (POST /chat/lang).
+   Перевод кладём в кэш по «язык + текст», поэтому назад и вперёд язык переключается мгновенно.
+   Введённое не теряется: поля берут значения из CH.draft. */
+function chatFree(){
+  const out = [];
+  CH.notes.forEach(n => { if (n && n.text) out.push(n.text); });
+  CH.qa.forEach(x => { if (x && x.a) out.push(x.a); });
+  if (CH.res && CH.res.narrative) out.push(String(CH.res.narrative));
+  return out.filter((x, i) => out.indexOf(x) === i).slice(0, 10);
+}
+function chatTr(text){
+  const box = CH.tr[I18N_LANG] || {};
+  return box[text] || text;
+}
+async function chatRelang(){
+  wzPaint(true);
+  if (!CH.sid) return;
+  const box = CH.tr[I18N_LANG] = CH.tr[I18N_LANG] || {};
+  const need = chatFree().filter(t => !box[t]);
+  CH.relang = true;
+  const r = await api("/chat/lang", jsonOpts("POST", {session_id: CH.sid, lang: I18N_LANG, translate: need}));
+  CH.relang = false;
+  if (r.ok) {
+    (r.data.translated || []).forEach((t, i) => { if (need[i] && t && t.text) box[need[i]] = t.text; });
+    const hadRes = !!CH.res;
+    chatApply(r.data);
+    // итог сервер пересобрал на новом языке — заменяем его, остальное состояние мастера не трогаем
+    const fresh = (r.data.cards || []).filter(c => c.type === "result")[0];
+    if (hadRes && fresh) CH.res = fresh;
   }
-  const more = box.querySelector("#chatMore");
-  if (more) more.ontoggle = () => { CH.detail = more.open; if (more.open) chatFull(); };
-  if (more && more.open && CH.full) chatPaintDash();
+  wzPaint();
 }
 
-/* «Спросить юриста»: открываем раздел «Юрист» и переносим туда вопрос по объекту */
+/* ---------- обработчики шага: одни на весь #wzBody (списки перерисовываются без перепривязки) ---------- */
+function wzClick(e){
+  const t = e.target.closest("button");
+  const box = $("#wzBody");
+  if (!t || !box.contains(t)) return;
+  const d = t.dataset;
+  if (d.pick === "cam") { $("#chatCam").click(); return; }
+  if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
+  if (d.rm) { wzRemove(Number(d.rm)); return; }
+  if (d.mode) { wzMode(d.mode); return; }
+  if (d.prodopen) { CH.prodOpen = true; wzPart("prod"); const q = $("#wzProdQ"); if (q) q.focus(); return; }
+  if (d.prodclose) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); return; }
+  if (d.prod) { wzPickProduct(d.prod); return; }
+  if (d.clsonly) { wzPickClass(d.clsonly); return; }
+  if (d.add || d.copy) { wzQuickAdd(t); return; }
+  if (d.set) { wzSetOpt(t); return; }
+  if (d.choose) {
+    CH.choice = CH.choice === d.choose ? "" : d.choose;
+    haptic("select");
+    wzSave();
+    const o = $("#wzOpts");
+    if (o) o.innerHTML = chatOptionsHtml((CH.res || {}).franchise);
+    return;
+  }
+  if (d.fix) { CH.optOpen = true; wzGo(2); wzFocusField(d.fix); return; }
+  if (d.upload) { $("#chatFile").click(); wzGo(1); return; }
+  if (d.go === "restart") { haptic("select"); chatStart(); return; }
+  if (d.go === "legal") { chatToLegal(); return; }
+  if (d.go === "ask") { wzAsk(); return; }
+}
+function wzInput(e){
+  const el = e.target;
+  if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
+  if (el.id === "wzAskText") { el.style.height = "auto"; el.style.height = Math.min(140, el.scrollHeight) + "px"; return; }
+  if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
+}
+function wzChange(e){
+  const el = e.target;
+  if (el.tagName === "SELECT" && el.dataset.fk) wzFieldInput(el);
+}
+function wzToggle(e){
+  const el = e.target;
+  if (!el || el.tagName !== "DETAILS") return;
+  if (el.id === "wzMore") CH.optOpen = el.open;
+  else if (el.dataset.sec) CH.open[el.dataset.sec] = el.open;
+}
+function wzKey(e){
+  const el = e.target;
+  if (el.id === "wzAskText" && e.key === "Enter" && (e.ctrlKey || e.metaKey || (!e.shiftKey && WIDE.matches))) { e.preventDefault(); wzAsk(); }
+  if (el.id === "wzProdQ" && e.key === "Enter") {
+    e.preventDefault();
+    const only = document.querySelectorAll("#wzProdList [data-prod]");
+    if (only.length === 1) wzPickProduct(only[0].dataset.prod);
+  }
+  if (el.id === "wzProdQ" && e.key === "Escape" && (CH.draft.must.product_code || CH.draft.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
+}
+
+/* «Спросить специалиста»: открываем раздел «Специалист» и переносим туда вопрос по объекту */
 function chatToLegal(){
   const s = (CH.state && CH.state.must) || {};
   const q = T("tg.chat.legal_q", "Объект: {o}, класс {c}. Что закон требует сказать клиенту при заключении договора?",
@@ -2793,24 +3526,27 @@ function chatToLegal(){
   lgAsk(q);
 }
 
-/* ---------- строка ввода: текст, скрепка, перетаскивание, буфер ---------- */
+/* ---------- файлы: плитки, перетаскивание в любое место экрана, вставка из буфера ---------- */
 function chatBoot(){
-  const text = $("#chatText");
-  text.addEventListener("input", () => {
-    text.style.height = "auto";
-    text.style.height = Math.min(140, text.scrollHeight) + "px";
-  });
-  text.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey && WIDE.matches) { e.preventDefault(); chatSend(); }
-  });
-  $("#chatSend").onclick = chatSend;
-  $("#chatClip").onclick = chatPickFiles;
-  $("#chatFile").onchange = e => { chatUpload(e.target.files); e.target.value = ""; };
-  // перетащить файл можно в любое место экрана: подсвечиваем всю область
+  const box = $("#wzBody");
+  box.addEventListener("click", wzClick);
+  box.addEventListener("input", wzInput);
+  box.addEventListener("change", wzChange);
+  box.addEventListener("toggle", wzToggle, true);          // toggle не всплывает — ловим на погружении
+  box.addEventListener("keydown", wzKey);
+  // отложенная перерисовка: данные пришли, пока человек печатал, — рисуем, когда он ушёл из поля
+  box.addEventListener("focusout", () => setTimeout(() => { if (CH.later && !typing(box)) wzPaint(); }, 0));
+  $("#chatMain").onclick = wzMain;
+  $("#chatFile").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
+  $("#chatCam").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
   let depth = 0;
-  const zone = on => { $("#chatDrop").classList.toggle("hidden", !on); };
+  const zone = on => {
+    $("#chatDrop").classList.toggle("hidden", !on);
+    const d = $("#wzDrop");
+    if (d) d.classList.toggle("over", !!on);
+  };
   document.addEventListener("dragenter", e => {
-    if (TAB !== "chat" || !e.dataTransfer || (e.dataTransfer.types || []).indexOf("Files") < 0) return;
+    if (TAB !== "chat" || !e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") < 0) return;
     depth++;
     zone(true);
   });
@@ -2822,19 +3558,15 @@ function chatBoot(){
     zone(false);
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
       e.preventDefault();
-      chatUpload(e.dataTransfer.files);
+      wzAddFiles(e.dataTransfer.files);
     }
   });
-  // вставка из буфера: скриншот или файл прямо в ленту
+  // вставка из буфера: скриншот или файл — в список шага «Фото»
   document.addEventListener("paste", e => {
     if (TAB !== "chat" || !e.clipboardData) return;
     const files = Array.prototype.slice.call(e.clipboardData.files || []);
-    if (files.length) { e.preventDefault(); chatUpload(files); }
+    if (files.length) { e.preventDefault(); wzAddFiles(files); }
   });
-  // на телефоне снимок делает камера, на компьютере — обычный выбор файла
-  if (!WIDE.matches) $("#chatFile").setAttribute("capture", "environment");
-  const saved = (function(){ try { return localStorage.getItem(CH_REGION) || ""; } catch (e) { return ""; } })();
-  if (saved) CH.draft.must.region = saved;
 }
 
 chatBoot();
@@ -2886,7 +3618,8 @@ function subLabel(parent, key){
 
 /* ---------- уровни риска ---------- */
 function lvIdx(name){
-  const scale = (AN.res && AN.res.level && AN.res.level.scale) || [];
+  // шкала из подробного анализа, а пока он грузится — из итога /chat/analyze
+  const scale = (AN.res && AN.res.level && AN.res.level.scale) || (CH.res && CH.res.level && CH.res.level.scale) || [];
   const i = scale.findIndex(x => x.name === name);
   return i < 0 ? null : i;
 }
@@ -2977,51 +3710,8 @@ function periodName(p){
   return s;
 }
 
-/* ---------- дашборд ---------- */
-function anPaintDash(){
-  const box = $("#anDash");
-  const r = AN.res;
-  if (!box || !r) return;
-  box.innerHTML = '<div class="dash">'
-    + anAiCard(r) + anDocsCard(r)
-    + anLevelCard(r) + anOverviewCard(r) + anScenariosCard(r) + anRisksCard(r) + anMarketCard(r) + anRegionCard(r) + anExtStatsCard(r)
-    + "</div>";
-  box.querySelectorAll("[data-scn]").forEach(b => { b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); }; });
-  anPaintScenario();
-}
-
-/* разбор ИИ: текст — только если ИИ его вернул; иначе честный статус с сервера, без имитации */
-function anAiCard(r){
-  const text = r.ai_summary && String(r.ai_summary).trim();
-  return '<div class="card w8"><p class="eyebrow">' + esc(T("tg.an.ai", "Разбор ИИ"))
-    + (text ? "" : ' <span class="tag off">' + esc(T("tg.an.ai_off_tag", "без ИИ")) + "</span>") + "</p>"
-    + (text ? '<div class="ai-text">' + esc(text) + "</div>" : "")
-    + '<p class="note' + (text ? "" : " ai-off") + '">' + esc(r.ai_status || T("tg.an.ai_unknown", "Сервер не сообщил, подключён ли ИИ.")) + "</p>"
-    + (text ? "" : '<p class="note">' + esc(T("tg.an.ai_off_hint", "Все цифры ниже посчитаны по правилам, справочникам и статистике — без ИИ.")) + "</p>")
-    + "</div>";
-}
-/* документы: что получено и чего не хватает по чек-листу */
-function anDocsCard(r){
-  const d = r.documents || {};
-  const items = (d.items || []).filter(x => keepDoc(x.name || x.kind));
-  const missing = (d.missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name)));
-  const p = d.completeness_docs_pct != null ? Number(d.completeness_docs_pct) : null;
-  return '<div class="card w4"><p class="eyebrow">' + esc(T("tg.an.docs_block", "Документы")) + "</p>"
-    + (p != null ? '<div class="docpct"><b>' + esc(nf(p, 0)) + "%</b><span>"
-      + esc(T("tg.an.docs_closed", "обязательных закрыто {c} из {n}", {c: d.closed || 0, n: d.required_total || 0})) + "</span></div>"
-      + '<div class="bars"><div class="bar"><b style="width:' + Math.max(0, Math.min(100, p)) + '%"></b></div></div>' : "")
-    + '<div class="h3">' + esc(T("tg.an.docs_got", "Получено · {n}", {n: items.length})) + "</div>"
-    + (items.length
-      ? '<div class="files">' + items.map(i => "<div><span>" + esc(kindName(i.kind))
-        + (i.insurance_contract ? " · " + esc(T("tg.an.is_contract", "договор страхования")) : "") + "</span><b>"
-        + esc(i.closes && i.closes.length ? T("tg.an.closes_n", "закрывает {n}", {n: i.closes.length}) : upStatus(i.status).text) + "</b></div>").join("") + "</div>"
-      : '<p class="note">' + esc(T("tg.an.docs_got_none", "Файлы не загружали — анализ по введённым данным.")) + "</p>")
-    + (missing.length
-      ? '<details class="how"><summary>' + esc(T("tg.an.docs_missing", "Не хватает · {n}", {n: missing.length})) + "</summary><ul>"
-        + missing.map(n => "<li>" + esc(n) + "</li>").join("") + "</ul></details>" : "")
-    + (d.note ? '<p class="note">' + esc(d.note) + "</p>" : "")
-    + "</div>";
-}
+/* ---------- карточки подробностей шага «Анализ» ---------- */
+function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
 
 function anLevelCard(r){
   const L = r.level || {};
@@ -3033,44 +3723,12 @@ function anLevelCard(r){
     + '<div class="comp">' + comps.map(c =>
       "<div><span>" + esc(c.name) + '</span><i><b style="width:' + Math.max(0, Math.min(100, Number(c.points) || 0)) + '%"></b></i><em>+'
       + esc(nf(c.contribution || 0, 1)) + "</em></div>").join("") + "</div>"
-    + (L.override ? '<p class="note warn">' + esc(typeof L.override === "string" ? L.override : (L.override.why || L.override.text || "")) + "</p>" : "")
+    + (L.override ? '<p class="note warn">' + hx(typeof L.override === "string" ? L.override : (L.override.why || L.override.text || "")) + "</p>" : "")
     + '<details class="how"><summary>' + esc(T("tg.an.how", "Как считали")) + "</summary><ul>"
-    + (L.explanation || []).map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>"
+    + (L.explanation || []).map(x => "<li>" + hx(x) + "</li>").join("") + "</ul>"
     + "<p>" + esc(T("tg.an.level_scale", "Балл 0–100: сумма вкладов (баллы × вес). Шкала: {s}.",
       {s: (L.scale || []).map((x, k) => lvName(k, x.name) + " " + x.from + "–" + x.to).join(", ")})) + "</p></details>"
-    + (L.calibrated === 0 ? '<p class="note warn">' + esc(T("tg.an.uncal_level", "Шкала экспертная, не калибрована (calibrated=0): веса и пороги ещё не подтверждены убытками компании.")) + "</p>" : "")
-    + "</div>";
-}
-
-function anOverviewCard(r){
-  const s = r.summary || {};
-  const itv = s.insurance_to_value || {};
-  const cls = itv.status === "ok" ? "" : itv.status === "stop" ? "stop" : "warn";
-  const parts = s.parts || [];
-  return '<div class="card w8"><p class="eyebrow">' + esc(T("tg.an.overview", "Краткий обзор")) + "</p>"
-    // главная цифра на две колонки, суммы — по одной; четыре ставки — одним блоком с сегментами
-    + '<div class="kpis">'
-    + '<div class="kpi hero"><span>' + esc(T("tg.an.premium", "Страховая премия")) + "</span><b>" + esc(money(s.premium)) + "</b>"
-    + "<em>" + esc(T("tg.an.premium_for", "за {n} мес. · ставка {r} годовых", {n: nf(s.term_months || 12, 0), r: pct(s.rate_applied_pct, 4)})) + "</em></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.sum_insured", "Страховая сумма")) + '</span><b title="' + esc(money(s.sum_insured)) + '">' + esc(compact(s.sum_insured)) + "</b></div>"
-    + '<div class="kpi"><span>' + esc(T("tg.an.object_value", "Стоимость имущества")) + '</span><b title="' + esc(money(s.object_value)) + '">' + esc(compact(s.object_value)) + "</b></div>"
-    + "</div>"
-    + '<div class="seg-t">' + esc(T("tg.seg.rates", "Ставки, годовых")) + "</div>"
-    + '<div class="seg">'
-    + '<div class="main"><span>' + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span><b>" + esc(pct(s.rate_applied_pct, 4)) + "</b></div>"
-    + "<div><span>" + esc(T("tg.an.rate_technical", "Ставка техническая")) + "</span><b>" + esc(pct(s.rate_technical_pct, 4)) + "</b></div>"
-    + "<div><span>" + esc(T("tg.an.rate_net", "Нетто-ставка")) + "</span><b>" + esc(pct(s.rate_net_pct, 4)) + "</b></div>"
-    + "<div><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span><b>" + esc(pct(s.rate_min_pct, 3)) + "</b></div>"
-    + "</div>"
-    + '<div class="itv ' + cls + '"><div><b>' + esc(itv.title || T("tg.an.itv", "Страховая сумма к стоимости")) + "</b><span>"
-    + esc([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) + "</span></div></div>"
-    + (parts.length > 1
-      ? '<div class="h3">' + esc(T("tg.an.parts", "По классам — ставка проверяется по каждому отдельно")) + '</div><div class="chain">'
-        + parts.map(p => "<div><span>" + esc(T("tg.an.part_line", "Класс {c} · продукт {p}", {c: p.class_code, p: p.product_code || "—"}))
-          + (p.product_name ? " · " + esc(p.product_name) : "") + "</span><b>" + esc(compact(p.premium)) + " · " + esc(pct(p.rate_applied_pct, 4)) + "</b></div>").join("") + "</div>"
-      : "")
-    + ((s.notes || []).length ? '<details class="how"><summary>' + esc(T("tg.an.notes", "Пояснения к расчёту")) + "</summary><ul>"
-      + s.notes.map(x => "<li>" + esc(x) + "</li>").join("") + (s.rates_note ? "<li>" + esc(s.rates_note) + "</li>" : "") + "</ul></details>" : "")
+    + (L.calibrated === 0 ? '<p class="note warn">' + esc(T("tg.an.uncal_level", "Шкала экспертная, не калибрована: веса и пороги ещё не подтверждены убытками компании.")) + "</p>" : "")
     + "</div>";
 }
 
@@ -3109,7 +3767,7 @@ function anScenariosCard(r){
     + '<div class="chips" role="group" aria-label="' + esc(T("tg.an.scenarios", "Сценарии убытка")) + '">'
     + ["EML", "PML", "MFL"].filter(k => sc[k]).map(k => '<button type="button" class="chip" data-scn="' + k + '" aria-pressed="' + (AN.scn === k) + '">' + k + "</button>").join("")
     + "</div><div id=\"anScn\" class=\"scd\"></div>"
-    + '<p class="warnline">' + esc(T("tg.an.expert_warn", "Допущения сценариев экспертные (calibrated=0): доли гибели и простоя не подтверждены статистикой компании."))
+    + '<p class="warnline">' + esc(T("tg.an.expert_warn", "Допущения сценариев экспертные, не калиброваны: доли гибели и простоя не подтверждены статистикой компании."))
     + (temp ? " " + esc(T("tg.an.funds_temp", "Собственные средства и резервы — временные цифры до данных бухгалтерии.")) : "") + "</p>"
     + "</div>";
 }
@@ -3133,7 +3791,7 @@ function anPaintScenario(){
         [T("tg.an.ret_excess", "Сверх удержания"), esc(money(t.excess))],
         [T("tg.an.ret_limit20", "Лимит на один риск (20%)"), esc(money(t.limit_per_risk))],
         [T("tg.an.ret_lines", "По таблице линий"), esc(money(t.line_retention))]])
-      + (t.explain ? '<p class="note">' + esc(t.explain) + "</p>" : "");
+      + (t.explain ? '<p class="note">' + hx(t.explain) + "</p>" : "");
   }
   if (x.tariff) {
     const t = x.tariff;
@@ -3143,7 +3801,7 @@ function anPaintScenario(){
         [T("tg.an.expected_loss", "Ожидаемый убыток в год"), esc(money(t.expected_annual_loss))],
         [T("tg.an.event_prob", "Частота такого события"), esc(pct(t.implied_event_probability_pct, 2)) + " · " + esc(T("tg.an.once_in", "раз в {n} лет", {n: fmt(t.implied_return_period_years)}))],
         [T("tg.an.rate_on_scn", "Ставка на сценарий"), esc(pct(t.rate_on_scenario_pct, 4))]])
-      + (t.explain ? '<p class="note">' + esc(t.explain) + "</p>" : "");
+      + (t.explain ? '<p class="note">' + hx(t.explain) + "</p>" : "");
   }
   if (x.catastrophe) {
     const t = x.catastrophe;
@@ -3152,7 +3810,7 @@ function anPaintScenario(){
     extra = '<div class="h3">' + esc(T("tg.an.catastrophe", "Катастрофа и перестрахование")) + (t.status === "временно" ? ' <span class="tag off">' + esc(T("common.temporary", "временно")) + "</span>" : "") + "</div>"
       + '<div class="itv ' + (need > 0 ? "warn" : "") + '"><div><b>' + esc(need > 0
         ? T("tg.an.reins_need", "Требует перестрахования (оценочно): {v}", {v: money(need)})
-        : T("tg.an.reins_none", "Перестрахование по сценарию не требуется (оценочно)")) + "</b><span>" + esc(t.note || "") + "</span></div></div>"
+        : T("tg.an.reins_none", "Перестрахование по сценарию не требуется (оценочно)")) + "</b><span>" + hx(t.note || "") + "</span></div></div>"
       + kvRows([[T("tg.an.retained", "Остаётся на компании"), esc(money(t.retained))],
         [T("tg.an.reins_share", "Доля перестрахования"), esc(pct(t.reinsurance_share_pct, 1))],
         z ? [T("tg.an.zone", "Накопление в зоне {z} баллов", {z: z.zone}), esc(T("tg.an.zone_v", "{n} объектов в системе, {s} + этот объект", {n: fmt(z.objects_in_system), s: compact(z.sum_insured_in_system)}))] : null]);
@@ -3170,9 +3828,9 @@ function anPaintScenario(){
     + (x.retention && x.retention.formula ? "<p><code>" + esc(x.retention.formula) + "</code></p>" : "")
     + (x.tariff && x.tariff.formula ? "<p><code>" + esc(x.tariff.formula) + "</code></p>" : "")
     + (x.catastrophe && x.catastrophe.formula ? "<p><code>" + esc(x.catastrophe.formula) + "</code></p>" : "")
-    + "<ul>" + (x.assumptions || []).map(a => "<li>" + esc(a.text || a) + "</li>").join("") + "</ul>"
-    + (!vehicle && x.level_basis ? "<p>" + esc(x.level_basis) + "</p>" : "")
-    + (x.note ? "<p>" + esc(x.note) + "</p>" : "") + "</details>";
+    + "<ul>" + (x.assumptions || []).map(a => "<li>" + hx(a.text || a) + "</li>").join("") + "</ul>"
+    + (!vehicle && x.level_basis ? "<p>" + hx(x.level_basis) + "</p>" : "")
+    + (x.note ? "<p>" + hx(x.note) + "</p>" : "") + "</details>";
 }
 
 function anRisksCard(r){
@@ -3196,12 +3854,12 @@ function anRisksCard(r){
     + (tops.length ? tops.map(d => "<div><span>" + esc(d.factor) + "<small>" + esc(d.option) + " · " + esc(d.effect) + "</small></span><b class=\"up\">+"
       + esc(compact(d.premium_effect)) + " " + esc(SUM()) + "</b></div>").join("") : '<div class="note">' + esc(T("common.none", "нет")) + "</div>") + "</div>"
     + '<div class="h3">' + esc(T("tg.an.reducers", "Что снижает риск и премию")) + '</div><div class="reducers">'
-    + (red.length ? red.slice(0, 6).map(d => "<div><span>" + esc(d.text)
+    + (red.length ? red.slice(0, 6).map(d => "<div><span>" + hx(d.text)
       + "<small>" + (d.mandatory ? esc(T("tg.an.mandatory", "обязательно")) + (d.deadline_days ? " · " + esc(T("tg.an.deadline", "срок {n} дн.", {n: d.deadline_days})) : "") + " · " : "")
-      + esc(d.why || "") + "</small></span><b class=\"down\">"
+      + hx(d.why || "") + "</small></span><b class=\"down\">"
       + (d.premium_delta != null ? (d.premium_delta > 0 ? "+" : "−") + esc(compact(Math.abs(d.premium_delta))) + " " + esc(SUM()) : "—") + "</b></div>").join("")
       : '<div class="note">' + esc(T("tg.an.nothing_reduce", "Дешевле уже не сделать без потери защиты.")) + "</div>") + "</div>"
-    + '<p class="note warn" style="margin-top:var(--s2)">' + esc(T("tg.an.uncal_coef", "Коэффициенты экспертные, не калиброваны (calibrated=0).")) + "</p>"
+    + '<p class="note warn" style="margin-top:var(--s2)">' + esc(T("tg.an.uncal_coef", "Коэффициенты экспертные, не калиброваны.")) + "</p>"
     + "</div>";
 }
 
@@ -3242,7 +3900,7 @@ function anMarketCard(r){
       + "</div>" : "")
     + '<details class="how"><summary>' + esc(T("tg.an.caveats", "Оговорки и формулы")) + "</summary><ul>"
     + (M.formula ? Object.keys(M.formula).map(k => "<li><code>" + esc(M.formula[k]) + "</code></li>").join("") : "")
-    + (M.caveats || []).concat((r.market || {}).notes || []).concat(cmp.note ? [cmp.note] : []).map(x => "<li>" + esc(x) + "</li>").join("")
+    + (M.caveats || []).concat((r.market || {}).notes || []).concat(cmp.note ? [cmp.note] : []).map(x => "<li>" + hx(x) + "</li>").join("")
     + "</ul></details>"
     + anSourcesBar((r.market || {}).sources || [])
     + "</div>";
@@ -3290,7 +3948,7 @@ function anRegionCard(r){
         + spark(x.series, v => k === "penetration" ? nf(v, 2) + "%" : nf(v, 1)) + "<div>" + srcLinks(x.src) + "</div></div>";
     }).join("") + "</div>" : '<div class="note">' + esc(T("tg.an.region_none", "Показателей по региону нет.")) + "</div>")
     + '<details class="how"><summary>' + esc(T("tg.an.caveats", "Оговорки и формулы")) + "</summary><ul>"
-    + keys.map(k => { const x = ind[k]; return [x.formula, x.note].concat(x.limits || []).filter(Boolean).map(t => "<li>" + esc(indName(k, x.name) + ": " + t) + "</li>").join(""); }).join("")
+    + keys.map(k => { const x = ind[k]; return [x.formula, x.note].concat(x.limits || []).filter(Boolean).map(t => "<li>" + hx(indName(k, x.name) + ": " + t) + "</li>").join(""); }).join("")
     + "</ul></details></div>";
 }
 
@@ -3349,7 +4007,7 @@ function anExtStatsCard(r){
         + "<b>" + esc(extVal(i.value, i.unit)) + ((tr || pc) ? "<small>" + tr + (tr && pc ? " · " : "") + esc(pc) + "</small>" : "") + "</b></div>";
     }).join("") + "</div>"
     + ((r.external_stats && r.external_stats.applicable === false && r.external_stats.why)
-        ? '<p class="note">' + esc(T("tg.an.ext_not_scored", "В уровень риска не вошло")) + ": " + esc(r.external_stats.why) + "</p>" : "")
+        ? '<p class="note">' + esc(T("tg.an.ext_not_scored", "В уровень риска не вошло")) + ": " + hx(r.external_stats.why) + "</p>" : "")
     + anSourcesBar(srcs)
     + "</div>";
 }
@@ -3680,7 +4338,7 @@ async function admThresholds(body){
     + '<div class="actions"><button type="button" class="btn btn-primary" id="thSave">' + esc(T("tg.adm.th_save", "Сохранить пороги")) + "</button>"
     + '<button type="button" class="btn btn-secondary" id="thReset">' + esc(T("tg.adm.th_reset", "Вернуть значения по умолчанию")) + "</button></div>"
     + '<div class="note msg" id="thMsg"></div>'
-    + (th.calibrated === 0 ? '<p class="note warn">' + esc(T("tg.adm.th_uncal", "Шкала экспертная (calibrated=0), пока нет выгрузок убытков компании.")) + "</p>" : "")
+    + (th.calibrated === 0 ? '<p class="note warn">' + esc(T("tg.adm.th_uncal", "Шкала экспертная, не калибрована — пока нет выгрузок убытков компании.")) + "</p>" : "")
     + ((ADM.th.history || []).length ? '<details class="how"><summary>' + esc(T("tg.os.brv_history", "История ({n})", {n: ADM.th.history.length})) + '</summary><div class="chain">'
       + ADM.th.history.map(h => "<div><span>" + esc(when(h.created_at) + " · " + (h.created_by || "")) + "</span><b>" + esc(h.note || "") + "</b></div>").join("") + "</div></details>" : "");
   $("#thSave").onclick = async () => {

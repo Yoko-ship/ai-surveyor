@@ -7,20 +7,21 @@
 <style>
 /* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
    Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
-   Контраст белого текста: основная #1D2C8F — 11,6:1; успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
+   Контраст белого текста: основная — фиолетовый градиент #6D4AE8 → #4B2FC9 (5,5:1 на светлом краю, 8,2:1 на тёмном;
+   решение заказчика 28.09.2026); успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
    опасная #A4231C — 7,4:1. Высота не меньше 44px. */
 :root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
 html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
 .btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:10px;
+  box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:12px;
   font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
   cursor:pointer;transition:background-color .12s,border-color .12s}
 .btn svg{flex:none;width:18px;height:18px}
 .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
-.btn-primary,.btn-primary:visited{background:#1D2C8F;border-color:#4A5BC4;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
-.btn-primary:hover:not(:disabled){background:#16236F;border-color:#6B7BD6;color:#FFFFFF}
-.btn-primary:active:not(:disabled){background:#111B57}
+.btn-primary,.btn-primary:visited{background:#5B3CD9 linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);border-color:#5B3CD9;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
+.btn-primary:hover:not(:disabled){background:#4B2FC9 linear-gradient(135deg,#5E3DDB 0%,#3F25B0 100%);border-color:#4B2FC9;color:#FFFFFF}
+.btn-primary:active:not(:disabled){background:#3A22A3}
 .btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
 .btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
 .btn-success:active:not(:disabled){background:#0E5230}

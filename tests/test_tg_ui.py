@@ -417,10 +417,16 @@ def check_ui_kit(html):
     # старые классы кнопок в мини-аппе больше не используются
     old = re.findall(r'<button[^>]*class="(?:go|ghost|no)"', html)
     assert not old, "остались старые классы кнопок: " + str(old[:5])
-    # тема Telegram: только фон и основной текст, с проверкой контраста; button_color не применяется
+    # тема Telegram (28.09.2026): своя палитра INSON, Telegram выбирает только светлую или тёмную —
+    # ни кнопки (button_color), ни фон и текст страницы его цветами не перекрашиваются
     assert "button_color" not in html and "link_color" not in html, "цвета кнопок Telegram снова накладываются на страницу"
-    assert "function contrast(" in html and ">= 4.5" in html, "нет проверки контраста перед применением цветов Telegram"
-    print("20. ui-kit кнопок один на три страницы, тема Telegram кнопки не трогает, контраст проверяется — ок")
+    left = [v for v in ("--paper", "--card", "--ink", "--muted") if f'root.style.setProperty("{v}"' in html]
+    assert not left, "цвета Telegram снова перекрашивают страницу: " + ", ".join(left)
+    assert "function applyTheme(" in html and "luminance(base)" in html, "светлая или тёмная тема не выбирается по фону Telegram"
+    assert 'dataset.theme = THEME_URL === "dark" ? "dark" : "light"' in html, "светлая тема не по умолчанию"
+    # основная кнопка — фиолетовый градиент, белый текст (контраст 5,5:1 и 8,2:1 — в комментарии ui-kit)
+    assert "linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%)" in kit, "основная кнопка не фиолетовым градиентом"
+    print("20. ui-kit кнопок один на три страницы, основная — фиолетовый градиент, тема Telegram страницу не перекрашивает — ок")
 
 
 def check_removed_tabs(html):
@@ -431,7 +437,8 @@ def check_removed_tabs(html):
 
 
 def check_chat_tab(html):
-    """Задача 223: «Аналитика», «Расчёт» и «Фото» сведены в диалог ИИ-сюрвейера."""
+    """Задача 223: «Аналитика», «Расчёт» и «Фото» сведены в ИИ-сюрвейера; с 28.09.2026 — мастер
+    из трёх шагов «Фото → Проверить → Анализ» вместо ленты. Серверные вызовы те же."""
     must = {
         'id="tab-chat"': "нет раздела «ИИ-сюрвейер»",
         'data-section="chat"': "раздел не подключён к меню",
@@ -454,20 +461,55 @@ def check_chat_tab(html):
         'case "fields"': "карточка полей не рисуется",
         'case "chips"': "быстрые ответы не рисуются",
         'case "result"': "итог не рисуется",
-        "gaugeSvg(lv.score": "в итоге нет спидометра уровня риска",
+        "gaugeSvg(score, lv.scale)": "в итоге нет спидометра уровня риска",
         "chatOptionsHtml": "нет трёх вариантов тарифа",
         "narrative_source": "не показано, ИИ это или правила",
         "anScenariosCard(r)": "«Подробнее» не переиспользует карточки дашборда",
         'inputmode="numeric"': "суммы без цифровой клавиатуры",
         "keepDoc(": "«Заявление-анкета» не убрано из чек-листов",
         'HIDE_CHECKS = ["disclosure", "premium_unpaid"]': "скрытые проверки не отфильтрованы",
+        # мастер (заказчик 28.09.2026)
+        'id="wzSteps"': "нет полосы шагов «Фото · Проверить · Анализ»",
+        'T("tg.wz.s1", "Фото")': "нет шага «Фото»",
+        'T("tg.wz.s2", "Проверить")': "нет шага «Проверить»",
+        'T("tg.wz.s3", "Анализ")': "нет шага «Анализ»",
+        'data-pick="cam"': "нет плитки «Камера»",
+        'data-pick="files"': "нет плитки «Галерея / файлы»",
+        'id="chatCam" accept="image/*" capture="environment"': "«Камера» не открывает заднюю камеру",
+        'T("tg.wz.no_docs", "Без документов")': "нет кнопки «Без документов»",
+        'T("tg.wz.next", "Дальше")': "кнопка не меняется на «Дальше», когда файлы есть",
+        "data-rm=": "загруженный файл нельзя убрать",
+        'T("tg.wz.from_contract", "из договора — проверьте")': "значения из договора не помечены «проверьте»",
+        'T("tg.wz.prod_ph", "Код или название продукта")': "нет поиска продукта по коду или названию",
+        'T("tg.wz.docs_n", "документов: {n}"': "в списке продуктов нет числа документов",
+        'T("tg.wz.rate_program", "по программе")': "продукт без ставки не подписан «по программе»",
+        '"/reference/products"': "продукты берутся не из справочника",
+        '"/analytics/risk/docs"': "не показано, каких документов не хватает",
+        'data-mode="previous"': "пропал вопрос «по прошлому договору или по новому»",
+        '"contract_mode"': "выбор договора не уходит на сервер",
+        'T("tg.wz.count", "Считаем")': "нет кнопки «Считаем»",
+        "chatFranchiseHtml(fr)": "в итоге нет блока франшизы",
+        'T("tg.chat.fr_not_needed", "Франшиза не требуется")': "нет решения «Франшиза не требуется»",
+        'data-go="ask"': "на шаге «Анализ» нет поля вопроса ИИ",
+        'T("tg.chat.refine", "Уточнить")': "нет кнопки «Уточнить»",
+        'T("tg.chat.restart", "Новый анализ")': "нет кнопки «Новый анализ»",
+        'T("tg.chat.ask_legal", "Спросить специалиста")': "нет кнопки «Спросить специалиста»",
+        "back = CH.wz > 1 ? wzBack : null": "«Назад» Telegram не ведёт на шаг раньше",
+        "function human(": "служебные слова сервера (calibrated=0, mixed, food, none) не заменяются подписями",
+        'id="topbar"': "нет строки заголовка раздела",
     }
     miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "диалог ИИ-сюрвейера: " + "; ".join(miss)
-    gone = ["function wzQuick(", "function wzStep1(", "function loadPhotosTab(", 'id="anDash"']
+    assert not miss, "мастер ИИ-сюрвейера: " + "; ".join(miss)
+    assert "fr.grounds_checked" in html and "fr.alternatives" in html, "в блоке франшизы нет оснований или альтернатив"
+    gone = ["function wzQuick(", "function wzStep1(", "function loadPhotosTab(", 'id="anDash"',
+            'id="chatFeed"', 'class="chat-bar"', "function chatItemHtml(", "function chatRepaintCard("]
     left = [k for k in gone if k in html]
-    assert not left, "остался старый мастер аналитики: " + ", ".join(left)
-    print("22. диалог ИИ-сюрвейера: карточки, файлы, анализ, язык, восстановление сессии — ок")
+    assert not left, "осталась старая лента или старый мастер аналитики: " + ", ".join(left)
+    # на экран не выводится «calibrated=0»: в подписях словаря его больше нет
+    ru = _json.loads((Path(__file__).resolve().parent.parent / "app" / "i18n" / "ru.json").read_text(encoding="utf-8"))
+    raw = [k for k, v in ru.items() if k.startswith("tg.") and "calibrated" in str(v)]
+    assert not raw, "в подписях мини-аппа осталось служебное «calibrated»: " + ", ".join(raw)
+    print("22. мастер ИИ-сюрвейера: шаги, файлы, продукты, франшиза, вопрос ИИ, язык, восстановление — ок")
 
 
 def check_calc_tab(html):
