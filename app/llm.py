@@ -342,20 +342,20 @@ def _friendly(err: Exception) -> str:
     return f"Ошибка обращения к ИИ: {type(err).__name__}"
 
 
-def _post(url: str, body: dict, headers: dict) -> dict:
+def _post(url: str, body: dict, headers: dict, timeout: Optional[float] = None) -> dict:
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), method="POST",
                                  headers={"Content-Type": "application/json",
                                           "User-Agent": "INSON-surveyor/1.0", **headers})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_SEC) as r:
+    with urllib.request.urlopen(req, timeout=timeout or TIMEOUT_SEC) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
-def _request(messages: list, max_tokens: int, temperature: float) -> dict:
+def _request(messages: list, max_tokens: int, temperature: float, timeout: Optional[float] = None) -> dict:
     """OpenAI-совместимый вызов (kimi, openai)."""
     return _post(base_url() + "/chat/completions",
                  {"model": model(), "messages": messages,
                   "max_tokens": max_tokens, "temperature": temperature},
-                 {"Authorization": "Bearer " + api_key()})
+                 {"Authorization": "Bearer " + api_key()}, timeout)
 
 
 # ---------- Gemini ----------
@@ -444,10 +444,11 @@ def _gemini_body(messages: list, max_tokens: int, temperature: float, file_parts
     return body
 
 
-def _request_gemini(messages: list, max_tokens: int, temperature: float, file_parts: list) -> dict:
+def _request_gemini(messages: list, max_tokens: int, temperature: float, file_parts: list,
+                    timeout: Optional[float] = None) -> dict:
     url = f"{base_url()}/models/{model()}:generateContent"
     return _post(url, _gemini_body(messages, max_tokens, temperature, file_parts),
-                 {"x-goog-api-key": api_key()})
+                 {"x-goog-api-key": api_key()}, timeout)
 
 
 TRUNCATED = "ответ обрезан: модель не уложилась в лимит вывода"
@@ -478,12 +479,16 @@ def _gemini_usage(data: dict) -> dict:
 
 
 def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: float = 0.2,
-             files: Optional[list] = None) -> dict:
+             files: Optional[list] = None, timeout: Optional[float] = None,
+             retries: Optional[int] = None) -> dict:
     """
     Низкий уровень: готовый список сообщений (роли system/user/assistant) и вложения.
     Маскировка персональных данных обязательна и делается здесь — обойти её нельзя.
+    timeout — секунд на запрос (по умолчанию TIMEOUT_SEC), retries — повторов (по умолчанию RETRIES);
+    retries=0 — ровно одна попытка, без повтора и без второго запроса при обрыве ответа.
     Возвращает {"text", "ok", "notes", "ms", "reason"}; text=None, если ИИ недоступен.
     """
+    retries = RETRIES if retries is None else max(0, int(retries))
     last_error["text"] = None
     notes = []
     if not enabled():
@@ -502,16 +507,22 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
         else:
             notes.append("Текущий провайдер ИИ не принимает файлы — отправлен только текст")
     last_err = None
-    for attempt in range(RETRIES + 1):
+    for attempt in range(retries + 1):
         t0 = time.time()
         try:
             if provider() == "gemini":
-                data = _request_gemini(safe, max_tokens, temperature, file_parts)
+                data = _request_gemini(safe, max_tokens, temperature, file_parts, timeout)
                 text, finish = _gemini_text(data)
                 usage = _gemini_usage(data)
+                if _looks_cut(text, finish) and retries == 0:
+                    ms = (time.time() - t0) * 1000
+                    _log_call(purpose, ms, False, usage, TRUNCATED)
+                    last_error["text"] = TRUNCATED
+                    return {"text": None, "ok": False, "notes": notes, "ms": int(ms), "reason": TRUNCATED}
                 if _looks_cut(text, finish):
                     # одна попытка с увеличенным лимитом; если и она обрывается — не выдаём обрубок
-                    data = _request_gemini(safe, min(int(max_tokens) * 3, 8192), temperature, file_parts)
+                    data = _request_gemini(safe, min(int(max_tokens) * 3, 8192), temperature, file_parts,
+                                           timeout)
                     text, finish = _gemini_text(data)
                     usage = _gemini_usage(data)
                     if _looks_cut(text, finish):
@@ -521,7 +532,7 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
                         return {"text": None, "ok": False, "notes": notes, "ms": int(ms),
                                 "reason": TRUNCATED}
             else:
-                data = _request(safe, max_tokens, temperature)
+                data = _request(safe, max_tokens, temperature, timeout)
                 text = (data.get("choices") or [{}])[0].get("message", {}).get("content")
                 usage = data.get("usage") or {}
             ms = (time.time() - t0) * 1000
@@ -533,7 +544,7 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
             _log_call(purpose, (time.time() - t0) * 1000, False, error=_friendly(e))
             if isinstance(e, urllib.error.HTTPError) and e.code in (400, 401, 403, 404):
                 break                    # повтор не поможет
-            if attempt < RETRIES:        # 429 и 5xx: ждём с нарастающей паузой
+            if attempt < retries:        # 429 и 5xx: ждём с нарастающей паузой
                 # 503 у Gemini — «модель перегружена»: повтор через 2 с обычно проходит
                 busy = isinstance(e, urllib.error.HTTPError) and e.code == 503
                 time.sleep(2 if busy else RETRY_BASE_SEC * (2 ** attempt))

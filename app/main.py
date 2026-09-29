@@ -21,6 +21,7 @@
   GET  /analytics/risk/presets, GET|PUT /analytics/risk/last, GET /analytics/risk/fields?mode=quick —
        быстрый режим аналитики: пресеты, последний выбор формы, четыре обязательных поля
   GET  /osgor/activities, POST /osgor/quick, /osgor/assess — ОСГОР (app/osgor.py)
+  POST /act/photos, /act/make, GET /act/{id}[.docx|.pdf] — сюрвейерский акт, лёгкая версия (app/act.py)
   POST /admin/tariff-versions, /admin/min-rates, /admin/coefficients, /admin/products, PUT /admin/financials
   GET  /requests/{id}/explain           — объяснение расчёта клиенту (ИИ, без него — шаблон)
   GET  /llm/status, POST /llm/ping, GET /llm/calls — состояние и журнал обращений к ИИ
@@ -118,6 +119,12 @@ def _analysis_cleanup():
     background.run_loop("analysis-cleanup", analysis_docs.cleanup, first_delay=120, every=3600)
 
 
+def _act_cleanup():
+    """Сюрвейерский акт (app/act.py): фото живут 24 часа, акты — 7 дней; раз в час убираем просроченные."""
+    from . import act
+    background.run_loop("act-cleanup", act.cleanup, first_delay=150, every=3600)
+
+
 DEMO_SEED_TIMEOUT_SEC = 600
 
 
@@ -159,6 +166,7 @@ def startup():
     background.start("stats-refresh", _scheduler)
     background.start("inbox-watcher", _inbox_watcher)
     background.start("analysis-cleanup", _analysis_cleanup)
+    background.start("act-cleanup", _act_cleanup)
     from . import team
     team.start_scheduler()
     try:                                   # открытые данные агентства статистики: раз в сутки
@@ -1009,7 +1017,8 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("exports", "exports_router"), ("i18n", "i18n_router"),
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
                     ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),
-                    ("legal", "legal_router"), ("surveyor_chat", "surveyor_chat_router")):
+                    ("legal", "legal_router"), ("surveyor_chat", "surveyor_chat_router"),
+                    ("act", "act_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

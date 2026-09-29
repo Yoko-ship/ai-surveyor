@@ -47,6 +47,7 @@
 import hashlib
 import hmac
 import os
+import re
 import secrets
 from typing import Optional
 from urllib.parse import quote
@@ -116,12 +117,17 @@ GUEST_GET_EXACT = {
     "/analytics/risk/documents",       # свои файлы для анализа: вкладка «Фото» гостя
     "/chat/state",                     # диалог ИИ-сюрвейера: своё состояние по cookie gid
 }
-GUEST_GET_PREFIX = ("/reference/", "/stat/indicators/", "/analytics/risk/document/")
+GUEST_GET_PREFIX = ("/reference/", "/stat/indicators/", "/analytics/risk/document/",
+                    "/act/")                         # сюрвейерский акт: свой — проверяет app/act.py
 GUEST_POST_EXACT = {"/calculate", "/osgor/quick", "/osgor/assess", "/legal/ask",
                     "/analytics/risk", "/analytics/risk/document",
                     # диалог ИИ-сюрвейера (app/surveyor_chat.py): один сценарий вместо трёх вкладок
                     "/chat/start", "/chat/message", "/chat/upload", "/chat/answer",
-                    "/chat/analyze", "/chat/lang"}
+                    "/chat/analyze", "/chat/lang",
+                    # сюрвейерский акт, лёгкая версия (app/act.py): фото и формирование акта
+                    "/act/photos", "/act/make"}
+# отправка своего акта ботом (app/act.py): владельца и подпись Telegram проверяет обработчик
+GUEST_POST_RE = re.compile(r"/act/[0-9a-f]{16}/send")
 GUEST_PUT_EXACT = {"/analytics/risk/last"}             # свой последний выбор формы, без сумм и ПД
 GUEST_DELETE_PREFIX = ("/analytics/risk/document/",)   # удалить свой файл раньше срока
 
@@ -136,6 +142,8 @@ GUEST_BUCKET = {
     ("POST", "/chat/analyze"): "analysis",
     ("POST", "/chat/upload"): "upload",
     ("POST", "/chat/message"): "legal",
+    # /act/photos здесь не считаем: app/act.py считает фото гостя по числу файлов (limits.guest_photos_per_hour)
+    ("POST", "/act/make"): "analysis",
 }
 # страницы, на которых гостю выдаётся cookie заранее: файл он загрузит уже с ней
 GUEST_COOKIE_PATHS = {"/tg", "/tg/me", "/tg/auth", "/tg/status"}
@@ -156,6 +164,7 @@ ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"
                      # справочники, которые админ правит из мини-приложения (задача 144)
                      ("PUT", "/osgor/brv"),            # размер БРВ для ОСГОР
                      ("PUT", "/analytics/risk/thresholds"),   # пороги уровня риска аналитики
+                     ("PUT", "/act/settings"),         # пороги лёгкого движка акта (app/act.py)
                      ("POST", "/legal/reindex")}       # пересборка индекса законодательства (app/legal.py)
 # то же по началу пути: у удаления нормы износа код в адресе (/valuation/norms/{code}),
 # и точное совпадение из ADMIN_METHOD_PATH его не ловило
@@ -245,7 +254,7 @@ def guest_allowed(method: str, path: str) -> bool:
     if m in ("GET", "HEAD"):
         return path in GUEST_GET_EXACT or path.startswith(GUEST_GET_PREFIX)
     if m == "POST":
-        return path in GUEST_POST_EXACT
+        return path in GUEST_POST_EXACT or bool(GUEST_POST_RE.fullmatch(path))
     if m == "PUT":
         return path in GUEST_PUT_EXACT
     if m == "DELETE":

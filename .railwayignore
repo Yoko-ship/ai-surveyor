@@ -4,6 +4,7 @@ data/photos/
 data/backups/
 data/analysis/
 data/chat/
+data/act/
 sandbox/
 *.log
 # база и данные клиентов не публикуются: база собирается на сервере, статистика подтягивается сама

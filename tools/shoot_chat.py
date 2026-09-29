@@ -1,12 +1,15 @@
 """
-Скриншоты вкладки «ИИ-сюрвейер» на копии базы (задача 223; мастер из трёх шагов — 28.09.2026).
+Скриншоты вкладки «ИИ-сюрвейер», лёгкая версия (ТЗ 2.0 от 29.09.2026): «Фото → Проверить → Акт».
 
 Поднимает временный экземпляр сервера (tools/perf_check.Instance — копия базы, рабочая не трогается),
 запускает headless Edge с отладочным портом и водит страницу по шагам через CDP (стандартная
-библиотека, без пакетов): шаг «Фото» → файл договора (sandbox/flow150_contract.docx) → шаг «Проверить»
-(в том числе открытый список продуктов) → «Считаем» → шаг «Анализ» на 390 и 1440 px → узбекский →
-тёмная тема и соседние разделы. Складывает PNG в sandbox/, печатает горизонтальную прокрутку,
-служебные слова на экране (undefined, null, calibrated…) и ошибки консоли страницы.
+библиотека, без пакетов). Сети к языковой модели у временного сервера нет, поэтому ответ POST /act/photos
+подменяется настоящим ответом сервера из sandbox/act_demo_photos.json (+ одно значение с таблички,
+чтобы было видно расхождение источников). Дальше всё настоящее: POST /act/make и GET /act/{id}?lang=uz.
+Путь: шаг «Фото» пустой → три снимка в списке → «Читаю фото…» → шаг «Проверить» с распознанным →
+«Сформировать акт» → шаг «Акт» на 390 и 1440 px → узбекский → «Новый акт» → «Без фото» → тёмная тема
+и соседние разделы. Складывает PNG в sandbox/, печатает горизонтальную прокрутку, служебные слова
+на экране (undefined, null, calibrated…) и ошибки консоли страницы.
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
@@ -32,7 +35,9 @@ from perf_check import Instance  # noqa: E402
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 PORT, DBG = 8123, 9223
 OUT = ROOT / "sandbox"
-SAMPLE = ROOT / "sandbox" / "flow150_contract.docx"      # учебный договор, без данных клиентов
+PHOTOS_SAMPLE = ROOT / "sandbox" / "act_demo_photos.json"        # настоящий ответ POST /act/photos
+FILES = [ROOT / "sandbox" / "gen" / "test_1.jpg", ROOT / "sandbox" / "gen" / "test_2.jpg",
+         ROOT / "sandbox" / "docx_p0.png"]                       # картинки без данных людей
 
 # что не должно попадать на экран: пустые значения и служебные слова сервера
 LEAKS = r"""(() => {
@@ -163,16 +168,44 @@ def set_files(ws, selector, paths):
     ws.call("DOM.setFileInputFiles", files=[str(x) for x in paths], nodeId=node)
 
 
+def wait_event(ws, method, timeout=20.0):
+    """Ждёт событие CDP (например, Fetch.requestPaused); уже пришедшие берёт из ws.events."""
+    end = time.time() + timeout
+    while time.time() < end:
+        for e in list(ws.events):
+            if e.get("method") == method:
+                ws.events.remove(e)
+                return e.get("params") or {}
+        ws.s.settimeout(max(0.1, end - time.time()))
+        try:
+            msg = ws.recv()
+        except (socket.timeout, OSError):
+            break
+        finally:
+            ws.s.settimeout(60)
+        if "method" in msg:
+            ws.events.append(msg)
+    return None
+
+
+def photos_answer():
+    """Ответ /act/photos из образца + значение с таблички, расходящееся с маркировкой (как в ТЗ, п. 8.6)."""
+    d = json.loads(PHOTOS_SAMPLE.read_text(encoding="utf-8"))
+    # index — номер файла в запросе (по нему страница сопоставляет ответ); третий файл «не поместился в запрос»
+    d["files"] = [dict(f, name=p.name, index=i + 1, read_by_ai=i < 2) for i, (f, p) in enumerate(zip(d["files"], FILES))]
+    d["not_sent"] = [3]
+    d["recognized"].insert(4, {"key": "curb_mass", "label": "Снаряжённая масса", "value": "36170 kg", "source": "plate",
+                               "source_label": "с заводской таблички", "note": None, "file": "f3", "check": True,
+                               "check_label": "проверьте"})
+    return json.dumps(d, ensure_ascii=False).encode("utf-8")
+
+
 FILL_STEP2 = """(async () => {
   for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250));
-  if (!CH.draft.must.product_code && !CH.draft.must.class_code) wzPickProduct("0807");
-  const m = CH.draft.must;
-  if (!(Number(m.sum_insured) > 0)) m.sum_insured = 1000000000;
-  if (!(Number(m.object_value) > 0)) m.object_value = 1200000000;
-  for (let i = 0; i < 40 && !(CH.meta && (CH.meta.regions || []).length); i++) await new Promise(r => setTimeout(r, 250));
-  const r = (CH.meta && CH.meta.regions) || [];
-  if (!m.region && r.length) m.region = typeof r[1] === "string" ? r[1] : (r[1] || r[0]).name;
-  ["product_code", "class_code", "sum_insured", "object_value", "region"].forEach(k => { CH.dirty.must[k] = 1; });
+  wzPickProduct("0318");
+  Object.assign(CH.must, {sum_insured: 2945000000, object_value: 3100000000, region: "tashkent_region"});
+  Object.assign(CH.opt, {location: "open_area", losses_count: "0"});
+  wzSave();
   wzPaint(true);
 })()"""
 
@@ -201,55 +234,82 @@ def main():
             ws = WS(url)
             for dom in ("Page", "Runtime", "Log", "DOM"):
                 ws.call(dom + ".enable")
+            # /act/photos отвечает образцом: у временного сервера нет сети к модели
+            ws.call("Fetch.enable", patterns=[{"urlPattern": "*/act/photos*", "requestStage": "Request"}])
             ws.call("Emulation.setDeviceMetricsOverride", width=390, height=900, deviceScaleFactor=2, mobile=True)
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg")
             time.sleep(7)
             bad = []
-            # шаг 1 «Фото»: пусто — внизу «Без документов» (обложки нет, сразу раздел)
+            # шаг 1 «Фото»: пусто — внизу «Без фото», подсказка ракурсов по всем видам объектов
             bad.append(shot(ws, "chat_step1_390.png", 390))
 
-            # файл договора в списке: строка файла, «Убрать», кнопка «Дальше»
-            if SAMPLE.exists():
-                set_files(ws, "#chatFile", [SAMPLE])
-                time.sleep(1.5)
-                bad.append(shot(ws, "chat_step1_file_390.png", 390))
-                js(ws, 'document.querySelector("#chatMain").click()', 12)      # «Дальше» — загрузка
+            # три снимка в списке: превью, «Убрать», кнопка «Дальше»
+            set_files(ws, "#chatFile", FILES)
+            time.sleep(1.5)
+            bad.append(shot(ws, "chat_step1_file_390.png", 390))
+            js(ws, 'document.querySelector("#chatMain").click()', 0.2)       # «Дальше» — POST /act/photos
+            paused = wait_event(ws, "Fetch.requestPaused")
+            if paused:
+                time.sleep(0.6)
+                js(ws, "window.scrollTo(0, 0)", 0.2)
+                bad.append(shot(ws, "chat_step1_reading_390.png", 390))
+                ws.call("Fetch.fulfillRequest", requestId=paused["requestId"], responseCode=200,
+                        responseHeaders=[{"name": "Content-Type", "value": "application/json; charset=utf-8"}],
+                        body=base64.b64encode(photos_answer()).decode())
             else:
-                print("  нет sandbox/flow150_contract.docx — шаг «Фото» без файла")
-                js(ws, 'document.querySelector("#chatMain").click()', 3)       # «Без документов»
-            print("  после «Дальше»: шаг", js(ws, "CH.wz"), "| файлов отправлено:", js(ws, "CH.sent.length"),
-                  "| из документа:", js(ws, "Object.keys(CH.fromDoc).join(', ')") or "—")
+                print("  запрос /act/photos не пойман — шаг «Проверить» без распознанного")
+            time.sleep(2)
+            print("  после «Дальше»: шаг", js(ws, "CH.wz"), "| распознано:", js(ws, "CH.rec.length"),
+                  "| не хватает ракурсов:", js(ws, "CH.missingViews.join(', ')") or "—", "| ошибка:", js(ws, "CH.err") or "нет")
 
-            # шаг 2 «Проверить»: продукт, суммы, регион — то, чего нет в договоре
-            js(ws, FILL_STEP2, 4)
+            # шаг 2 «Проверить»: распознанное с источниками и расхождением, продукт, суммы, регион
+            js(ws, FILL_STEP2, 3)
             js(ws, "window.scrollTo(0, 0)", 0.3)
-            bad.append(shot(ws, "chat_step2_390.png", 390))
-            # список продуктов «как в тарифной политике»
+            bad.append(shot(ws, "chat_step2_390.png", 390, cap=5000))
+            # исправление значения сотрудником: источник меняется на «введено сотрудником»
+            js(ws, """(() => { const el = document.querySelector('[data-rec="1"]'); el.value = 'XCMG Group';
+                       el.dispatchEvent(new Event('input', {bubbles: true})); el.value = 'XCMG';
+                       el.dispatchEvent(new Event('input', {bubbles: true})); })()""", 0.3)
+            js(ws, 'CH.optOpen = true; wzPart("more")', 0.5)
+            bad.append(shot(ws, "chat_step2_more_390.png", 390, cap=6000))
             js(ws, 'CH.prodOpen = true; wzPart("prod"); window.scrollTo(0, 0)', 1)
             bad.append(shot(ws, "chat_step2_products_390.png", 390, cap=2400))
             js(ws, 'CH.prodOpen = false; CH.prodQ = ""; wzPart("prod")', 0.5)
 
-            # «Считаем» → шаг 3 «Анализ»
-            js(ws, 'document.querySelector("#chatMain").click()', 14)
-            print("  после «Считаем»: шаг", js(ws, "CH.wz"), "| ошибка:", js(ws, "CH.err") or "нет",
-                  "| подробности:", "есть" if js(ws, "!!CH.full") else js(ws, "CH.fullErr") or "грузятся")
+            # «Сформировать акт» → шаг 3 «Акт» (настоящий POST /act/make)
+            js(ws, 'document.querySelector("#chatMain").click()', 6)
+            print("  после «Сформировать акт»: шаг", js(ws, "CH.wz"), "| акт:", js(ws, "CH.act && CH.act.number") or "нет",
+                  "| решение:", js(ws, "CH.act && CH.act.decision.code") or "—",
+                  "| расхождений:", js(ws, "CH.act ? CH.act.discrepancies.length : -1"), "| ошибка:", js(ws, "CH.err") or "нет")
             js(ws, "window.scrollTo(0, 0)", 0.5)
-            bad.append(shot(ws, "chat_step3_390.png", 390))
-            # все блоки подробностей открыты — внутри не должно быть служебных слов и переполнения
-            js(ws, 'Object.assign(CH.open, {fr: true, opts: true, value: true, risks: true, scn: true, level: true,'
-                   ' region: true, docs: true, why: true, say: true}); wzPaint(true)', 3)
-            bad.append(shot(ws, "chat_step3_open_390.png", 390, cap=16000, scale=1))
-            js(ws, "Object.keys(CH.open).forEach(k => { CH.open[k] = false; }); CH.open.fr = true; wzPaint(true)", 1.5)
-            bad.append(shot(ws, "chat_step3_1440.png", 1440, cap=6000, scale=1))
+            bad.append(shot(ws, "chat_step3_390.png", 390, cap=9000))
+            bad.append(shot(ws, "chat_step3_1440.png", 1440, cap=7000, scale=1))
+            # как шаг «Акт» выглядит в Telegram: кнопки «Прислать … в чат» и ответ «нажмите Старт у бота»
+            # (headless Edge не Telegram — подставляем разметку тех же функций страницы)
+            js(ws, """(() => { const b = document.querySelector('.act-btns');
+                       b.innerHTML = ['docx', 'pdf'].map(actSendBtnHtml).join('') + b.querySelector('[data-go="copy"]').outerHTML;
+                       actMsg(errHtml(T('tg.act.send_start', 'Бот пока не может вам написать. Откройте бота, нажмите «Старт» и вернитесь — затем отправьте акт ещё раз.'))
+                         + '<div class="act-send-more"><button type="button" class="btn btn-secondary">'
+                         + esc(T('tg.act.open_bot', 'Открыть бота')) + '</button><button type="button" class="btn btn-secondary">'
+                         + esc(T('tg.act.send_again', 'Отправить ещё раз')) + '</button></div>'); window.scrollTo(0, 0); })()""", 0.5)
+            bad.append(shot(ws, "chat_step3_tg_390.png", 390, cap=2600))
+            js(ws, "wzPaint(true)", 0.5)
 
-            # узбекский: подписи из словаря, свободный текст переводит сервер; введённое не теряется
-            js(ws, "Object.keys(CH.open).forEach(k => { CH.open[k] = false; }); wzPaint(true)", 0.5)
-            js(ws, "document.querySelector('[data-lang-pick=\"uz\"]').click()", 8)
-            bad.append(shot(ws, "chat_step3_uz_390.png", 390))
-            js(ws, "wzGo(2)", 2)
-            bad.append(shot(ws, "chat_step2_uz_390.png", 390))
-            print("  после смены языка: сумма", js(ws, "CH.draft.must.sum_insured"), "| регион", js(ws, "CH.draft.must.region"))
-            js(ws, "document.querySelector('[data-lang-pick=\"ru\"]').click()", 5)
+            # узбекский: подписи из словаря, акт — GET /act/{id}?lang=uz; введённое не теряется
+            js(ws, "document.querySelector('[data-lang-pick=\"uz\"]').click()", 4)
+            print("  узбекский: язык акта", js(ws, "CH.act && CH.act.lang"), "| регион в полях:", js(ws, "CH.must.region"))
+            js(ws, "window.scrollTo(0, 0)", 0.3)
+            bad.append(shot(ws, "chat_step3_uz_390.png", 390, cap=9000))
+            js(ws, "wzGo(2)", 1.5)
+            bad.append(shot(ws, "chat_step2_uz_390.png", 390, cap=5000))
+            js(ws, "document.querySelector('[data-lang-pick=\"ru\"]').click()", 3)
+
+            # «Новый акт» → «Без фото»: сразу шаг 2 без распознанного
+            js(ws, "wzGo(3)", 1)
+            js(ws, "document.querySelector('[data-go=\"restart\"]').click()", 1)
+            js(ws, 'document.querySelector("#chatMain").click()', 1)
+            js(ws, "window.scrollTo(0, 0)", 0.3)
+            bad.append(shot(ws, "chat_nophoto_390.png", 390, cap=3000))
 
             # остальные разделы в той же палитре
             js(ws, 'openTab("calc")', 3)

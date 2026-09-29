@@ -1230,3 +1230,44 @@ CREATE TABLE IF NOT EXISTS admin_requests (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_admin_requests_pending ON admin_requests(user_id)
     WHERE status = 'ожидает';
 CREATE INDEX IF NOT EXISTS ix_admin_requests_status ON admin_requests(status);
+
+-- ---------------------------------------------------------------------------
+-- Сюрвейерский акт, лёгкая версия (ТЗ 2.0 от 29.09.2026; app/act.py, app/act_engine.py).
+-- Те же определения создаются при каждом обращении к /act/* (act.ensure_tables) — сервер
+-- с уже существующей базой работает без tools/db_build.py.
+-- ---------------------------------------------------------------------------
+-- пороги лёгкого движка: уровень риска, поправки 0/20/50 %, износ; новая правка — новая строка
+CREATE TABLE IF NOT EXISTS act_settings (
+    id            INTEGER PRIMARY KEY,
+    created_at    TEXT NOT NULL,
+    created_by    TEXT,
+    settings_json TEXT NOT NULL,
+    calibrated    INTEGER NOT NULL DEFAULT 0,   -- 0 = экспертные значения
+    note          TEXT
+);
+-- загрузка фото и снимков документов: живёт 24 часа, файлы — DATA_DIR/act/<id>/.
+-- result_json — ракурсы, распознанные поля объекта и повреждения; ПД сюда не попадают
+CREATE TABLE IF NOT EXISTS act_uploads (
+    id           TEXT PRIMARY KEY,               -- случайный токен
+    owner_key    TEXT NOT NULL,                  -- 'u:<id>' | 'g:<guest_id>' (app/guest.py)
+    user_id      INTEGER NOT NULL DEFAULT 0,
+    files_json   TEXT NOT NULL DEFAULT '[]',
+    result_json  TEXT NOT NULL DEFAULT '{}',
+    created_at   TEXT NOT NULL,
+    expires_at   TEXT NOT NULL
+);
+-- акт: живёт 7 дней; act_json — структурированные данные, текст собирается по языку при выдаче
+CREATE TABLE IF NOT EXISTS acts (
+    id                TEXT PRIMARY KEY,          -- 16 случайных hex-знаков
+    owner_key         TEXT NOT NULL,
+    user_id           INTEGER NOT NULL DEFAULT 0,
+    lang              TEXT NOT NULL DEFAULT 'ru',
+    tariff_version_id INTEGER,                   -- версия тарифа, по которой считали
+    settings_id       INTEGER,                   -- версия act_settings (NULL = по умолчанию)
+    act_json          TEXT NOT NULL,
+    created_at        TEXT NOT NULL,
+    expires_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_act_uploads_expires ON act_uploads (expires_at);
+CREATE INDEX IF NOT EXISTS idx_acts_expires ON acts (expires_at);
+CREATE INDEX IF NOT EXISTS idx_acts_owner ON acts (owner_key, created_at);

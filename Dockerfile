@@ -4,9 +4,17 @@
 FROM python:3.12-slim
 WORKDIR /srv
 ENV PYTHONIOENCODING=utf-8 PYTHONUNBUFFERED=1 PORT=8000
+# Название страховщика в шапке акта; для другого страховщика задаётся переменной окружения
+ENV INSURER_NAME="INSON"
 
 # Слои — от редко меняющегося к часто меняющемуся: при правке кода пакеты и отчёты НАПП
 # берутся из кэша сборки, заново выполняются только последние шаги.
+# Шрифт DejaVu Sans для PDF акта (app/act.py): в slim-образе нет шрифтов с узбекской ʻ и кириллицей.
+# Системный пакет образа, не python-пакет проекта; списки apt удаляются, чтобы не раздувать образ.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends fonts-dejavu-core \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

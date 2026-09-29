@@ -235,14 +235,14 @@ def check_guest_screen(uids, html):
 
 
 def check_guest_photos(html):
-    """Файлы гостя теперь грузятся прямо в диалог: скрепка, перетаскивание, буфер обмена."""
-    must = {'"/chat/upload"': "файлы не уходят в диалог",
+    """Фото гостя (лёгкая версия, 29.09.2026): камера, галерея, перетаскивание, буфер — одним POST /act/photos."""
+    must = {'"/act/photos"': "фото не уходят на распознавание",
             'id="chatFile"': "нет поля выбора файлов",
-            'accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.heic,.heif,.bmp,.gif,image/*"': "форматы файлов не ограничены",
-            'function wzToJpeg': "картинки других форматов (WEBP и т.п.) не переводятся в JPG",
-            'errHtml(CH.err)': "отказ сервера (413, 415, 429) показывается не его словами"}
+            'accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,image/*,application/pdf"': "форматы файлов не ограничены фото и PDF",
+            'function wzToJpeg': "картинки других форматов (WEBP, HEIC) не переводятся в JPG",
+            'errHtml(CH.err)': "отказ сервера (413, 422, 429) показывается не его словами"}
     miss = [why for key, why in must.items() if key not in html]
-    assert not miss, "файлы в диалоге: " + "; ".join(miss)
+    assert not miss, "фото объекта: " + "; ".join(miss)
     # гостевое меню сервера рисуется целиком
     st, me = call("GET", "/tg/me")
     keys = [n["key"] for n in me["nav"]]
@@ -250,7 +250,7 @@ def check_guest_photos(html):
     merged = {"analytics": "chat", "photos": "chat"}
     assert all(f'data-section="{merged.get(k, k)}"' in html for k in keys), "не все разделы гостя есть в разметке"
     assert "const GUEST_NAV = [" in html, "нет запасного меню гостя, если сервер не ответил"
-    print("5a. файлы гостя уходят в диалог: скрепка, форматы, ответ сервера своими словами — ок")
+    print("5a. фото гостя уходят на /act/photos: камера, форматы, ответ сервера своими словами — ок")
 
 
 def check_flow(uids, prod):
@@ -438,79 +438,114 @@ def check_removed_tabs(html):
 
 
 def check_chat_tab(html):
-    """Задача 223: «Аналитика», «Расчёт» и «Фото» сведены в ИИ-сюрвейера; с 28.09.2026 — мастер
-    из трёх шагов «Фото → Проверить → Анализ» вместо ленты. Серверные вызовы те же."""
+    """Вкладка «ИИ-сюрвейер», лёгкая версия (ТЗ 2.0 от 29.09.2026): мастер «Фото → Проверить → Акт»
+    на app/act.py. Лента чата, подробный анализ (/chat/*, /analytics/risk) и спидометр убраны."""
     must = {
         'id="tab-chat"': "нет раздела «ИИ-сюрвейер»",
         'data-section="chat"': "раздел не подключён к меню",
-        '"/chat/start"': "диалог не начинается",
-        '"/chat/answer"': "ответы на чипы и поля не уходят",
-        '"/chat/upload"': "файлы не уходят одним действием",
-        '"/chat/analyze"': "анализ не запускается",
-        '"/chat/message"': "свободный вопрос к ИИ не уходит",
-        '"/chat/lang"': "смена языка не переводит свободный текст",
-        '"/chat/state?session_id="': "диалог не восстанавливается после перезагрузки",
+        '"/act/photos"': "фото не уходят на распознавание",
+        '"/act/make"': "акт не формируется",
+        '"/act/" + encodeURIComponent(id) + "?lang="': "при смене языка и после перезагрузки акт не берётся на языке интерфейса",
+        '"." + kind + "?lang="': "Word и PDF скачиваются не на языке интерфейса",
+        'data-dl="docx"': "в браузере нет кнопки «Скачать Word»",
+        'data-dl="pdf"': "в браузере нет кнопки «Скачать PDF»",
+        # в Telegram файл акта присылает бот (POST /act/{id}/send): скачивание из WebView не работает
+        '"/act/" + encodeURIComponent(id) + "/send"': "в Telegram акт не присылается ботом в чат",
+        'T("tg.act.send_docx", "Прислать Word в чат")': "нет кнопки «Прислать Word в чат»",
+        'T("tg.act.send_pdf", "Прислать PDF в чат")': "нет кнопки «Прислать PDF в чат»",
+        "initData: (TG && TG.initData)": "в запросе отправки нет initData",
+        "lang: I18N_LANG, initData": "акт присылается не на языке интерфейса",
+        'd.code === "start_bot"': "не объяснено, что нужно нажать «Старт» у бота",
+        'data-go="openbot"': "нет кнопки «Открыть бота»",
+        "TG.openTelegramLink(url)": "бот открывается не через openTelegramLink",
+        'd.code === "limit"': "лимит отправок не объяснён своими словами",
+        'T("tg.act.sent", "Акт отправлен в чат с ботом.")': "нет сообщения об отправке",
+        'data-go="copy"': "нет кнопки «Скопировать текст акта»",
+        "navigator.clipboard": "текст акта не копируется",
+        # файлы ответа сопоставляются по index, а не по имени
+        "const byIndex = (list, r)": "файлы ответа сопоставляются не по номеру в запросе",
+        'f.read_by_ai === false': "не помечен файл, который модель не прочитала",
+        'T("tg.act.st_not_read", "не прочитан: не поместился в запрос")': "нет пометки «не прочитан»",
+        "REGIONS.indexOf(m.region) >= 0 ? m.region": "регион уходит не кодом",
         '"dragenter"': "файл нельзя перетащить на экран",
         '"drop"': "нет обработчика отпускания файла",
         '"paste"': "файл из буфера обмена не вставляется",
         'id="chatDrop"': "нет подсветки «Отпустите, чтобы загрузить»",
-        'capture': "на телефоне скрепка не открывает камеру",
-        "function chatRelang(": "лента не перерисовывается при смене языка",
-        "CH.tr[I18N_LANG]": "переводы не кэшируются на клиенте",
-        'sessionStorage.setItem(CH_KEY': "номер диалога не переживает перезагрузку",
-        'case "checklist"': "карточка чек-листа не рисуется",
-        'case "fields"': "карточка полей не рисуется",
-        'case "chips"': "быстрые ответы не рисуются",
-        'case "result"': "итог не рисуется",
-        "gaugeSvg(score, lv.scale)": "в итоге нет спидометра уровня риска",
-        "chatOptionsHtml": "нет трёх вариантов тарифа",
-        "narrative_source": "не показано, ИИ это или правила",
-        "anScenariosCard(r)": "«Подробнее» не переиспользует карточки дашборда",
+        'id="chatCam" accept="image/*" capture="environment"': "«Камера» не открывает заднюю камеру",
+        "function chatRelang(": "шаг не перерисовывается при смене языка",
+        "sessionStorage.setItem(CH_KEY": "состояние мастера не переживает перезагрузку",
         'inputmode="numeric"': "суммы без цифровой клавиатуры",
-        "keepDoc(": "«Заявление-анкета» не убрано из чек-листов",
-        'HIDE_CHECKS = ["disclosure", "premium_unpaid"]': "скрытые проверки не отфильтрованы",
-        # мастер (заказчик 28.09.2026)
-        'id="wzSteps"': "нет полосы шагов «Фото · Проверить · Анализ»",
+        # шаги
+        'id="wzSteps"': "нет полосы шагов",
         'T("tg.wz.s1", "Фото")': "нет шага «Фото»",
         'T("tg.wz.s2", "Проверить")': "нет шага «Проверить»",
-        'T("tg.wz.s3", "Анализ")': "нет шага «Анализ»",
+        'T("tg.act.s3", "Акт")': "третий шаг называется не «Акт»",
         'data-pick="cam"': "нет плитки «Камера»",
         'data-pick="files"': "нет плитки «Галерея / файлы»",
-        'id="chatCam" accept="image/*" capture="environment"': "«Камера» не открывает заднюю камеру",
-        'T("tg.wz.no_docs", "Без документов")': "нет кнопки «Без документов»",
+        'T("tg.act.no_photos", "Без фото")': "нет кнопки «Без фото»",
         'T("tg.wz.next", "Дальше")': "кнопка не меняется на «Дальше», когда файлы есть",
+        'T("tg.act.reading", "Читаю фото…")': "пока модель читает фото, индикатора нет",
+        "CH.warning": "предупреждение сервера о данных людей не показывается",
+        "VIEW_GROUPS": "нужные ракурсы не подсказываются по классу",
         "data-rm=": "загруженный файл нельзя убрать",
-        'T("tg.wz.from_contract", "из договора — проверьте")': "значения из договора не помечены «проверьте»",
+        # шаг 2
+        "data-rec=": "распознанное нельзя исправить",
+        'o.source : "input"': "исправленное значение не помечается как ввод сотрудника",
+        'T("tg.act.check", "проверьте")': "у распознанного нет пометки «проверьте»",
+        "function recDisc(": "расхождение источников не подсвечивается",
+        'T("tg.act.damages_none", "На фото повреждений не видно.")': "не сказано, что повреждений не видно",
+        'data-go="addphoto"': "нет кнопки «Добавить фото»",
+        "CH.suggest": "класс по фото не предлагается",
         'T("tg.wz.prod_ph", "Код или название продукта")': "нет поиска продукта по коду или названию",
         'T("tg.wz.docs_n", "документов: {n}"': "в списке продуктов нет числа документов",
         'T("tg.wz.rate_program", "по программе")': "продукт без ставки не подписан «по программе»",
         '"/reference/products"': "продукты берутся не из справочника",
-        '"/analytics/risk/docs"': "не показано, каких документов не хватает",
-        'data-mode="previous"': "пропал вопрос «по прошлому договору или по новому»",
-        '"contract_mode"': "выбор договора не уходит на сервер",
-        'T("tg.wz.count", "Считаем")': "нет кнопки «Считаем»",
-        "chatFranchiseHtml(fr)": "в итоге нет блока франшизы",
-        'T("tg.chat.fr_not_needed", "Франшиза не требуется")': "нет решения «Франшиза не требуется»",
-        'data-go="ask"': "на шаге «Анализ» нет поля вопроса ИИ",
-        'T("tg.chat.refine", "Уточнить")': "нет кнопки «Уточнить»",
-        'T("tg.chat.restart", "Новый анализ")': "нет кнопки «Новый анализ»",
+        'id="wzMore"': "нет блока «Дополнительно»",
+        "losses_3y": "убытки за три года не уходят в акт",
+        "want_lower_premium": "просьба клиента снизить премию не уходит в акт",
+        "ERR_FIELD": "ошибки 422 не показываются у своего поля",
+        'T("tg.act.make", "Сформировать акт")': "нет кнопки «Сформировать акт»",
+        # шаг 3
+        "function decName(": "решение не показано крупно",
+        'T("tg.act.lv.moderate", "умеренный")': "нет трёх уровней риска",
+        'T("tg.act.uncal", "поправка не калибрована")': "некалиброванная поправка не помечена на экране",
+        "function actDocHtml(": "акт не показан как документ",
+        "a.footer": "нет строки о подтверждении андеррайтером",
+        'T("tg.act.fix", "Исправить данные")': "нет кнопки «Исправить данные»",
+        'T("tg.act.new", "Новый акт")': "нет кнопки «Новый акт»",
         'T("tg.chat.ask_legal", "Спросить специалиста")': "нет кнопки «Спросить специалиста»",
         "back = CH.wz > 1 ? wzBack : null": "«Назад» Telegram не ведёт на шаг раньше",
-        "function human(": "служебные слова сервера (calibrated=0, mixed, food, none) не заменяются подписями",
+        'color: "#6D4AE8"': "основная кнопка Telegram не фиолетовая",
         'id="topbar"': "нет строки заголовка раздела",
     }
     miss = [why for key, why in must.items() if key not in html]
     assert not miss, "мастер ИИ-сюрвейера: " + "; ".join(miss)
-    assert "fr.grounds_checked" in html and "fr.alternatives" in html, "в блоке франшизы нет оснований или альтернатив"
-    gone = ["function wzQuick(", "function wzStep1(", "function loadPhotosTab(", 'id="anDash"',
-            'id="chatFeed"', 'class="chat-bar"', "function chatItemHtml(", "function chatRepaintCard("]
+    gone = ["/chat/start", "/chat/answer", "/chat/upload", "/chat/analyze", "/chat/message", "/chat/lang",
+            "/chat/state", "/analytics/risk/fields", "/analytics/risk/docs", '"/analytics/risk"',
+            "function gaugeSvg(", "function anScenariosCard(", "function anRegionCard(", "function anMarketCard(",
+            "function anExtStatsCard(", "function anLevelCard(", "function chatOptionsHtml(",
+            "function chatFranchiseHtml(", "function wzAsk(", "function wzSayHtml(", 'data-go="ask"',
+            "tg.wz.say_", "tg.wz.sec_", "function wzQuick(", "function loadPhotosTab(", 'id="chatFeed"',
+            # пересылка коротким текстом со ссылкой заменена отправкой файла ботом (29.09.2026)
+            "https://t.me/share/url", "function actShare(", 'data-go="share"', "tg.act.share",
+            "r && r.name === q.name"]
     left = [k for k in gone if k in html]
-    assert not left, "осталась старая лента или старый мастер аналитики: " + ", ".join(left)
+    assert not left, "во вкладке осталось то, чего нет в лёгкой версии: " + ", ".join(left)
+    # «Спросить специалиста» открывает вкладку без заранее вбитого вопроса
+    assert 'if (d.go === "legal") { openTab("legal"); return; }' in html, "«Спросить специалиста» подставляет вопрос"
+    # имена файлов в sessionStorage не сохраняются
+    save = re.search(r"function wzSave\(\)\{(.*?)\n\}", html, re.S)
+    assert save and "name" not in save.group(1) and "queue" not in save.group(1), "в sessionStorage уходят имена файлов"
+    root = Path(__file__).resolve().parent.parent / "app" / "i18n"
+    for lang in ("ru", "uz", "en"):
+        d = _json.loads((root / f"{lang}.json").read_text(encoding="utf-8"))
+        old = [k for k in d if k.startswith(("tg.wz.say_", "tg.wz.sec_say"))]
+        assert not old, f"{lang}: остались ключи удалённого блока: " + ", ".join(old)
     # на экран не выводится «calibrated=0»: в подписях словаря его больше нет
-    ru = _json.loads((Path(__file__).resolve().parent.parent / "app" / "i18n" / "ru.json").read_text(encoding="utf-8"))
+    ru = _json.loads((root / "ru.json").read_text(encoding="utf-8"))
     raw = [k for k, v in ru.items() if k.startswith("tg.") and "calibrated" in str(v)]
     assert not raw, "в подписях мини-аппа осталось служебное «calibrated»: " + ", ".join(raw)
-    print("22. мастер ИИ-сюрвейера: шаги, файлы, продукты, франшиза, вопрос ИИ, язык, восстановление — ок")
+    print("22. мастер ИИ-сюрвейера (лёгкая версия): фото, распознанное с правкой, четыре поля, акт, Word/PDF (в Telegram — ботом в чат), копия текста — ок")
 
 
 def check_calc_tab(html):
@@ -539,7 +574,6 @@ def check_compact_and_view(html):
         ".fg>div.half": "короткие поля не стоят по два в ряд",
         ".kpi.hero{grid-column:span 2}": "главная цифра KPI не на две колонки",
         "@media (max-width:599px){" + chr(10) + "  .tblwrap": "таблицы на телефоне не становятся карточками строк",
-        "function anExtStatsCard(": "нет карточки «Статистика по рискам региона» (external_stats)",
         '"surveyor_view"': "режим пользователя не помнится в sessionStorage",
         'q.get("mode") === "user"': "адрес /tg?mode=user не включает режим пользователя",
         'id="viewToggle"': "нет переключателя «Режим пользователя» в левой панели",

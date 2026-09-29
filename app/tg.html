@@ -233,12 +233,6 @@ label.chk input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent
 @keyframes s{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){.spin{animation-duration:2s}#side{transition:none}}
 /* ---------- уровни риска: зелёный → тёмно-красный; цвет всегда рядом с названием уровня ---------- */
-:root,html[data-theme="light"]{--lv1:#1E8A4C;--lv2:#9A7B00;--lv3:#C25E0C;--lv4:#C62F28;--lv5:#7E1420;--track:#E9E5F6}
-html[data-theme="dark"]{--lv1:#3FBE74;--lv2:#D9C04A;--lv3:#E8913A;--lv4:#E5584F;--lv5:#B8323F;--track:#2A2645}
-.lv1{--lv:var(--lv1)}.lv2{--lv:var(--lv2)}.lv3{--lv:var(--lv3)}.lv4{--lv:var(--lv4)}.lv5{--lv:var(--lv5)}
-.lvchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;letter-spacing:.02em;
-  border:1px solid var(--lv,var(--line));border-radius:999px;padding:2px 10px;color:var(--ink);white-space:nowrap}
-.lvchip:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--lv,var(--muted))}
 /* ---------- открыть в Telegram (страница открыта в обычном браузере) ---------- */
 .tgopen{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;background:var(--card);border:1px solid var(--line);
   border-radius:14px;padding:12px var(--s3);margin-bottom:var(--s3)}
@@ -249,7 +243,7 @@ html[data-theme="dark"]{--lv1:#3FBE74;--lv2:#D9C04A;--lv3:#E8913A;--lv4:#E5584F;
 .an-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:var(--s2)}
 .an-head h2{margin:0}
 .meter{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);white-space:nowrap}
-.meter i{display:block;width:84px;height:6px;border-radius:3px;background:var(--track);overflow:hidden}
+.meter i{display:block;width:84px;height:6px;border-radius:3px;background:var(--soft);overflow:hidden}
 .meter i b{display:block;height:100%;background:var(--accent);border-radius:3px}
 .meter em{font:600 12px var(--mono);font-style:normal;color:var(--ink)}
 .fgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s2)}
@@ -277,12 +271,6 @@ label.flag input{width:22px;height:22px;min-height:22px;flex:none;accent-color:v
 .an-sum{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
 .an-sum p{margin:0;font-size:13.5px;min-width:0;overflow-wrap:anywhere}
 .an-sum p b{font-family:var(--mono);font-weight:600}
-/* ---------- аналитика: дашборд ---------- */
-.dash{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s2);align-items:start}
-.dash>.card{margin:0}
-@media (min-width:1100px){
-  .dash{grid-template-columns:repeat(12,minmax(0,1fr))}
-  .w4{grid-column:span 4}.w5{grid-column:span 5}.w6{grid-column:span 6}.w7{grid-column:span 7}.w8{grid-column:span 8}.w12{grid-column:1/-1}}
 .card h2 .tag{vertical-align:2px}
 .eyebrow{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
 .kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
@@ -297,17 +285,6 @@ label.flag input{width:22px;height:22px;min-height:22px;flex:none;accent-color:v
 .itv.warn{border-left-color:var(--warn)}.itv.stop{border-left-color:var(--stop)}
 .itv b{display:block}
 .itv span{color:var(--muted)}
-.gauge{display:flex;flex-direction:column;align-items:center}
-.gauge svg{width:100%;max-width:260px;height:auto;display:block}
-.gauge .score{font:700 40px/1 var(--mono);margin-top:-8px}
-.gauge .lvchip{margin-top:8px;font-size:13px}
-.comp{font-size:12.5px;margin-top:var(--s2)}
-.comp>div{display:grid;grid-template-columns:minmax(0,1fr) 56px 46px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
-.comp>div:last-child{border-bottom:0}
-.comp span{min-width:0;overflow-wrap:anywhere}
-.comp i{display:block;height:6px;border-radius:3px;background:var(--track);overflow:hidden}
-.comp i b{display:block;height:100%;border-radius:3px;background:var(--muted)}
-.comp em{font:600 12px var(--mono);font-style:normal;text-align:right}
 details.how{margin-top:var(--s2);font-size:12.5px;color:var(--muted)}
 details.how>summary{cursor:pointer;min-height:36px;display:flex;align-items:center;color:var(--link);font-weight:600}
 details.how>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
@@ -319,53 +296,11 @@ details.how code{font-family:var(--mono);font-size:12px;color:var(--ink);overflo
   -webkit-text-fill-color:var(--muted);font:700 13px var(--sans)}
 .chip[aria-pressed="true"]{border-color:var(--accent-dim);color:var(--ink);-webkit-text-fill-color:var(--ink);background:var(--soft)}
 .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.scn{margin:8px 0 14px}
-.scn .top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;font-size:12.5px}
-.scn .top b{font:700 13px var(--mono)}
-.scn .top span{color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.scn .top em{font:600 13px var(--mono);font-style:normal;white-space:nowrap}
-.track{position:relative;height:14px;border-radius:4px;background:var(--track);margin-top:5px}
-.track>b{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--lv,var(--accent))}
-.track>i{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
-.axis{display:flex;justify-content:space-between;font:11px var(--mono);color:var(--muted);margin-top:4px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-top:6px}
-.legend i{display:inline-block;width:2px;height:12px;background:var(--ink);vertical-align:-2px;margin-right:6px}
-.scd{border-top:1px solid var(--line);padding-top:var(--s2);margin-top:4px}
-.scd h3{margin:0 0 4px;font-size:14px}
 .warnline{font-size:12.5px;color:var(--warn);margin-top:var(--s2)}
-.bars{font-size:12.5px}
-.bars>div{padding:6px 0;border-bottom:1px solid var(--line)}
-.bars>div:last-child{border-bottom:0}
-.bars .top{display:flex;justify-content:space-between;gap:10px}
-.bars .top span{min-width:0;overflow-wrap:anywhere}
-.bars .top em{font:600 12.5px var(--mono);font-style:normal;white-space:nowrap}
-.bars .bar{height:6px;border-radius:3px;background:var(--track);margin-top:5px;overflow:hidden}
-.bars .bar b{display:block;height:100%;background:var(--accent);border-radius:3px}
-.bars .bar b.cat{background:var(--lv3)}
-.bars .drv{color:var(--muted);font-size:11.5px;margin-top:3px}
-.drivers>div,.reducers>div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
-.drivers>div:last-child,.reducers>div:last-child{border-bottom:0}
-.drivers span,.reducers span{min-width:0;overflow-wrap:anywhere}
-.drivers small,.reducers small{display:block;color:var(--muted);font-size:11.5px}
-.drivers b,.reducers b{font:600 13px var(--mono);white-space:nowrap}
-.up{color:var(--stop)}.down{color:var(--accent)}
-.mk{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-@media (min-width:600px){.mk{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.mkt{background:var(--soft);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
-.mkt>span{display:block;font-size:11.5px;color:var(--muted)}
-.mkt>b{display:block;font:600 20px/1.2 var(--mono);margin:3px 0 2px}
-.mkt>em{display:block;font-style:normal;font-size:11.5px;color:var(--muted)}
-.spark{display:block;width:100%;height:56px;margin-top:6px;overflow:visible}
-.spark path.l{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
-.spark path.a{fill:var(--accent);opacity:.10}
-.spark circle{fill:var(--card);stroke:var(--accent);stroke-width:2}
-.spark circle.hit{fill:transparent;stroke:none}
-.spark text{font:10px var(--mono);fill:var(--muted)}
 .src{display:inline-flex;align-items:center;gap:4px;font-size:11px;color:var(--link);-webkit-text-fill-color:var(--link);text-decoration:underline;text-underline-offset:2px;
   margin-top:4px;min-height:24px;overflow-wrap:anywhere}
 .srcbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--line);margin-top:var(--s2);padding-top:var(--s1);font-size:12px;color:var(--muted)}
 .srcbar a{color:var(--link);-webkit-text-fill-color:var(--link)}
-.dev.pos{color:var(--warn)}.dev.neg{color:var(--stop)}.dev.ok{color:var(--accent)}
 /* «Подробнее» в итоге чата: карточки дашборда в одну колонку на телефоне, в две — на компьютере */
 .kv.disc{grid-template-columns:minmax(120px,220px) minmax(0,1fr);gap:8px 16px}
 .kv.disc b{font-family:var(--sans);font-weight:600;text-align:left}
@@ -423,7 +358,6 @@ ul.notes li{margin:2px 0}
 .hero2>div{min-width:0}
 .hero2 label.f{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;font-size:14px;color:var(--ink)}
 .hero2 input{font:600 22px/1.2 var(--mono);min-height:56px}
-.tag.pfmark{margin-left:0;font-weight:700;letter-spacing:0}
 .an-sum-act{display:flex;flex-wrap:wrap;gap:8px}
 @media (max-width:599px){.an-sum-act{width:100%}.an-sum-act .btn{flex:1 1 140px}}
 .docpct{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
@@ -529,9 +463,6 @@ ul.notes li{margin:2px 0}
 .kpi.hero{grid-column:span 2}
 .kpi{display:flex;flex-direction:column;justify-content:space-between}
 /* дашборд: карточки одного ряда — одной высоты */
-@media (min-width:1100px){.dash{align-items:stretch}}
-.dash>.card{display:flex;flex-direction:column}
-.dash>.card>.srcbar:last-child,.dash>.card>.warnline:last-child,.dash>.card>p.note.warn:last-child{margin-top:auto;padding-top:var(--s1)}
 /* ряды-карточки: название + вторичное мелко под ним, число справа (вместо узких колонок) */
 .rows>div{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
 .rows>div:last-child{border-bottom:0}
@@ -539,7 +470,6 @@ ul.notes li{margin:2px 0}
 .rows>div>span small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
 .rows>div>b{font:600 13px var(--mono);text-align:right;white-space:nowrap}
 .rows>div>b small{display:block;font:400 11.5px var(--sans);color:var(--muted);white-space:normal}
-.trend.up{color:var(--warn)}
 @media (min-width:900px){.rows.split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:var(--s4)}}.trend.down{color:var(--accent)}
 /* таблицы справочников: на телефоне строки становятся карточками */
 .tbl td small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px;font-family:var(--sans)}
@@ -655,19 +585,14 @@ body.side-open #nav button.on i{background:var(--grad);color:var(--on-accent);-w
   color:var(--muted);font:600 12.5px var(--mono);cursor:pointer}
 .qadd button:hover{background:var(--soft);color:var(--ink)}
 .qadd button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-.asm{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 10px;border:1px dashed var(--line);
   border-radius:10px;padding:8px 11px;margin-top:8px;font-size:12.5px}
-.asm>div{flex:1 1 62%;min-width:0}
-.asm b{font-weight:700}
-.asm span{display:block;color:var(--muted);font-size:11.5px}
-.asm button{flex:none}
 .segsel{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .segsel button{min-height:40px;padding:8px 13px;border:1px solid var(--line);border-radius:10px;background:transparent;
   color:var(--ink);font:600 13px var(--sans);cursor:pointer}
 .segsel button[aria-pressed="true"]{border-color:var(--accent-dim);background:var(--soft)}
 .segsel button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
-/* ---------- ИИ-сюрвейер: мастер «Фото → Проверить → Анализ» (заказчик 28.09.2026) ---------- */
+/* ---------- ИИ-сюрвейер, лёгкая версия: мастер «Фото → Проверить → Акт» (палитра заказчика 28.09.2026) ---------- */
 /* место под закреплённую кнопку внизу; в Telegram её роль играет MainButton */
 #tab-chat{padding-bottom:calc(92px + env(safe-area-inset-bottom))}
 body.in-tg #tab-chat{padding-bottom:var(--s4)}
@@ -696,8 +621,6 @@ body.in-tg #tab-chat{padding-bottom:var(--s4)}
   border:1.5px dashed var(--btn-line);border-radius:16px;background:var(--soft2);color:var(--muted);-webkit-text-fill-color:var(--muted);
   font:500 13px/1.4 var(--sans);text-align:center;cursor:pointer}
 .wz-drop.over{border-color:var(--accent);background:var(--accent-bg);color:var(--ink);-webkit-text-fill-color:var(--ink)}
-.wz-prev{margin-bottom:var(--s3)}
-.wz-prev p{margin:0 0 10px}
 .wz-files{margin-top:var(--s3);background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px 14px 4px;box-shadow:var(--shadow)}
 .wz-files .eyebrow{margin:0 0 2px}
 .wz-file{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
@@ -748,35 +671,94 @@ details.sec>summary::after{content:"";flex:none;width:8px;height:8px;margin:0 4p
 details.sec[open]>summary::after{transform:rotate(-135deg);margin:4px 4px 0 0}
 details.sec>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-width:0}
-details.sec .card,body.cine details.sec .card{background:none;border:0;border-radius:0;padding:0;margin:0 0 var(--s2);box-shadow:none;
-  -webkit-backdrop-filter:none;backdrop-filter:none}
-#wzRisks .card>.eyebrow:first-child,#wzScn .card>.eyebrow:first-child,#wzLevel .card>.eyebrow:first-child{display:none}
-#wzLevel .gauge{display:none}
-details.sec .card+.card{border-top:1px solid var(--line);padding-top:var(--s2)}
-/* шаг 3: главное крупно */
-.wz-res .res-top{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2) var(--s3)}
-.res-gauge{flex:none;width:150px;text-align:center}
-.res-gauge svg{width:100%;height:auto;display:block}
-.res-score{font:700 22px/1 var(--mono);margin-top:-6px}
-.res-score small{font:500 12px var(--sans);color:var(--muted)}
-.res-main{flex:1 1 200px;min-width:0}
-.res-prem{font:800 30px/1.15 var(--mono);letter-spacing:-.01em;margin:8px 0 2px;overflow-wrap:anywhere}
-.res-sub{margin:0;color:var(--muted);font-size:13px}
-.res-fr{margin-top:var(--s2);padding:10px 12px;border-radius:12px;background:var(--soft);font-size:13.5px}
-.res-fr b{display:block}
-.res-fr span{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
-.qa-item{border-top:1px solid var(--line);padding:10px 0}
-.qa-item:first-child{border-top:0}
-.qa-item .q{margin:0 0 4px;font-weight:700;overflow-wrap:anywhere}
-.qa-item .a{margin:0;white-space:pre-line;overflow-wrap:anywhere}
-.qa-item .a.warn{color:var(--warn)}
-.askrow{display:flex;gap:8px;align-items:flex-end;margin-top:var(--s2)}
-.askrow textarea{flex:1 1 auto;min-height:48px;max-height:140px;resize:none}
-.askrow .btn{flex:none}
-@media (max-width:599px){.askrow{flex-direction:column;align-items:stretch}.askrow .btn{width:100%}}
-.kv.disc b.miss{color:var(--muted);font-weight:400}
-#wzUnd .rows>div>span{overflow-wrap:break-word}
-#wzUnd .rows>div>b{white-space:normal;max-width:55%;font:600 13px/1.4 var(--sans)}
+/* шаг 1: модель читает фото; какие снимки нужны; предупреждение о данных людей — мелко и спокойно */
+.wz-reading{display:flex;gap:12px;align-items:center;margin-top:var(--s3);padding:12px 14px;border:1px solid var(--accent-line);border-radius:16px;background:var(--accent-bg)}
+.wz-reading .spin{flex:none;width:18px;height:18px}
+.wz-reading b{display:block;font-size:14px}
+.wz-reading small{display:block;font-size:12.5px;color:var(--muted)}
+.wz-file small.err{color:var(--stop)}
+.wz-file small.warn{color:var(--warn)}
+.act-send-more{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--s2)}
+.act-send-more .btn{flex:1 1 150px}
+.wz-need{margin-top:var(--s3)}
+.wz-need>p:not(.note){margin:0 0 6px;font-size:14px}
+.wz-need>p.note{margin:10px 0 0}
+.vw{margin:0}
+.vw>div{padding:8px 0;border-bottom:1px solid var(--line)}
+.vw>div:last-child{border-bottom:0}
+.vw dt{font-weight:700;font-size:13.5px}
+.vw dd{margin:2px 0 0;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.wz-warn{margin:var(--s3) 0 0;font-size:12px;line-height:1.45;color:var(--muted);max-width:62ch}
+/* шаг 2: распознанное — значение правится на месте; расхождение источников подсвечено */
+.rec{padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.rec-h{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.rec-h b{font-size:13px;font-weight:700;color:var(--muted)}
+.rec .tag.warn{margin-left:0;border-color:var(--warn);color:var(--warn)}
+.rec-tag,.rec-hint{display:none}
+.rec.disc{margin:8px 0;padding:10px 12px;border:1px solid var(--warn);border-radius:12px}
+.rec.disc .rec-tag{display:inline-block}
+.rec.disc .rec-hint{display:block;margin:8px 0 0;font-size:12.5px}
+.rec-i{display:grid;gap:3px;margin-top:6px;min-width:0}
+.rec-i small{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.dmg{margin:4px 0 0;padding-left:18px;font-size:13.5px}
+.dmg li{margin:2px 0;overflow-wrap:anywhere}
+.wz-miss{margin-top:var(--s3);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
+.wz-miss p{margin:0 0 4px;font-size:14px;overflow-wrap:anywhere}
+.wz-miss .actions{margin-top:10px}
+.wz-sug{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin:0 0 10px;font-size:13px;color:var(--muted)}
+.wz-sug button{min-height:36px;padding:5px 12px;border:1px solid var(--accent-line);border-radius:999px;background:var(--accent-bg);
+  color:var(--accent);-webkit-text-fill-color:var(--accent);font:600 13px var(--sans);cursor:pointer}
+.wz-sug button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+/* шаг 3: решение и главные цифры крупно, цвет полосы слева — по решению */
+.act-sum{border-left:4px solid var(--warn)}
+.act-sum.ok{border-left-color:var(--good)}
+.act-sum.stop{border-left-color:var(--stop)}
+.act-dec{font:800 26px/1.2 var(--sans);letter-spacing:-.015em;margin:0 0 var(--s3);color:var(--warn)}
+.act-sum.ok .act-dec{color:var(--good)}
+.act-sum.stop .act-dec{color:var(--stop)}
+.act-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (min-width:600px){.act-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.act-kpis>div{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
+.act-kpis span{display:block;font-size:11.5px;line-height:1.3;color:var(--muted)}
+.act-kpis b{display:block;margin-top:3px;font:700 17px/1.3 var(--mono);overflow-wrap:anywhere}
+.act-kpis em{display:block;margin-top:2px;font-style:normal;font-size:11.5px;line-height:1.35;color:var(--muted)}
+.act-kpis b.lvname{font-family:var(--sans);font-weight:800}
+.act-kpis em.ok{color:var(--good)}
+.act-kpis em.warn{color:var(--warn)}
+.lvbar{display:flex;gap:3px;margin-top:7px}
+.lvbar u{flex:1 1 0;height:6px;border-radius:3px;background:var(--line)}
+.lvbar.lv-low u.on{background:var(--good)}
+.lvbar.lv-moderate u.on{background:var(--warn)}
+.lvbar.lv-high u.on{background:var(--stop)}
+.act-line{margin:var(--s2) 0 0;font-size:14px;overflow-wrap:anywhere}
+.act-line.warn{color:var(--warn)}
+.act-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--s3)}
+.act-btns .btn{flex:1 1 150px}
+/* акт как документ: шапка, пять разделов, таблицы «название — значение — примечание» */
+.act-doc{padding:var(--s4) var(--s3)}
+@media (min-width:600px){.act-doc{padding:28px}}
+.act-ins{margin:0 0 4px;text-align:center;font-size:13px;font-weight:700;color:var(--muted)}
+.act-title{margin:0 0 var(--s3);text-align:center;font:800 15px/1.35 var(--sans);letter-spacing:.03em;overflow-wrap:anywhere}
+.act-rows{margin-top:6px;font-size:13.5px}
+.act-rows>div{display:grid;grid-template-columns:minmax(0,38%) minmax(0,1fr);gap:2px 12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.act-rows>div:last-child{border-bottom:0}
+.act-rows span{min-width:0;color:var(--muted);overflow-wrap:anywhere}
+.act-rows b{min-width:0;font-weight:600;overflow-wrap:anywhere}
+.act-rows small{grid-column:2;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.act-rows>div.disc{box-shadow:inset 3px 0 0 var(--warn);padding-left:10px}
+@media (max-width:599px){.act-rows>div{grid-template-columns:minmax(0,1fr)}.act-rows span{font-size:12px}.act-rows small{grid-column:1}}
+.act-s{margin-top:var(--s4)}
+.act-s h3{display:flex;align-items:center;gap:10px;margin:0 0 8px;font:800 16px/1.3 var(--sans)}
+.act-s h3 span{flex:none;display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;
+  background:var(--accent-bg);color:var(--accent);font:700 13px/1 var(--mono)}
+.act-s p{margin:0 0 8px;font-size:14px;line-height:1.55;overflow-wrap:anywhere}
+.act-list{margin-top:var(--s2)}
+.act-list h4{margin:0 0 4px;font-size:13px;font-weight:700}
+.act-list ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.act-list li{margin:3px 0;overflow-wrap:anywhere}
+.act-list.disc{padding:10px 12px;border:1px solid var(--warn);border-radius:12px}
+.act-list li.disc{color:var(--warn);font-weight:600}
+.act-foot{margin:var(--s4) 0 0;padding-top:var(--s2);border-top:1px solid var(--line);font-size:13.5px;font-weight:700;font-style:italic}
 /* закреплённая кнопка шага: внизу экрана, в колонке содержимого (вне Telegram) */
 .wz-bar{position:fixed;left:calc(var(--rail) + env(safe-area-inset-left));right:0;bottom:0;z-index:45;background:var(--card);
   border-top:1px solid var(--line);padding:12px var(--s3) calc(env(safe-area-inset-bottom) + 12px)}
@@ -789,19 +771,6 @@ body.in-tg .wz-bar{display:none}
   color:var(--ink);font:600 13.5px var(--sans);cursor:pointer}
 .chips .chip[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-bg);color:var(--accent);-webkit-text-fill-color:var(--accent)}
 .chips .chip:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
-/* чек-лист документов: получено или нет */
-.chk>div{display:flex;gap:9px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--line);font-size:13.5px}
-.chk>div:last-child{border-bottom:0}
-.chk i{font-style:normal;font-weight:700;line-height:1.5}
-.chk i.ok{color:var(--good)}
-.chk i.no{color:var(--stop)}
-.chk small{display:block;color:var(--muted);font-size:11.5px}
-.opts{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
-@media (min-width:700px){.opts{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.opt-card{border:1px solid var(--line);border-radius:12px;padding:10px 12px;min-width:0}
-.opt-card.on{border-color:var(--accent);background:var(--accent-bg)}
-.opt-card>b{display:block;font:700 16px var(--mono);margin:2px 0}
-.opt-card .btn{margin-top:8px;width:100%}
 /* файл можно бросить в любое место экрана */
 .dropzone{position:fixed;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;
   background:rgba(22,20,46,.82);color:#FFFFFF;-webkit-text-fill-color:#FFFFFF;font:700 18px var(--sans);text-align:center;padding:var(--s4)}
@@ -832,12 +801,6 @@ html[data-theme="dark"] body.cine .card{-webkit-backdrop-filter:blur(10px);backd
 body.fx-still [data-section]:not(.hidden){animation:none}
 @media (prefers-reduced-motion:reduce){[data-section]:not(.hidden){animation:none}}
 /* полосы результата вырастают, спидометр проявляется — при каждой отрисовке */
-body.cine .bars .bar b{transform-origin:left center;animation:growIn .55s cubic-bezier(.22,.61,.36,1) both}
-@keyframes growIn{from{transform:scaleX(0);opacity:.4}to{transform:none;opacity:1}}
-body.cine .gauge svg{animation:gaugeIn .5s cubic-bezier(.22,.61,.36,1) both}
-@keyframes gaugeIn{from{opacity:0;transform:translateY(10px) scale(.96)}to{opacity:1;transform:none}}
-body.fx-still .bars .bar b,body.fx-still .gauge svg{animation:none}
-@media (prefers-reduced-motion:reduce){.bars .bar b,.gauge svg{animation:none !important}}
 
 /* карточка «Способы входа» в левой панели */
 .links{margin:10px 8px 4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}
@@ -876,7 +839,7 @@ body:not(.side-open) .links{display:none}
 .topbar .tb-title{grid-column:2;margin:0;font:700 16px/1.25 var(--sans);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:62vw}
 .topbar .logo{grid-column:3;justify-self:end;font:800 16px/1 var(--sans);letter-spacing:.02em;color:var(--ink)}
 /* в колонке 720px широкие сетки не раскрываются: всё в одну колонку, поля — не больше двух в ряд */
-@media (min-width:1100px){.dash{grid-template-columns:minmax(0,1fr)}.dash>.card{grid-column:1/-1}
+@media (min-width:1100px){
   .fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
   .kv.disc{grid-template-columns:minmax(110px,200px) minmax(0,1fr)}}
 @media (min-width:1180px){.grid2,.cards{grid-template-columns:minmax(0,1fr)}}
@@ -969,14 +932,14 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent-line)}
   <div id="screen-app" class="hidden">
 
 
-  <!-- ИИ-сюрвейер: мастер из трёх шагов «Фото → Проверить → Анализ» (заказчик 28.09.2026).
+  <!-- ИИ-сюрвейер, лёгкая версия (ТЗ 2.0 от 29.09.2026): мастер «Фото → Проверить → Акт».
        Шаги рисует JS в #wzBody; закреплённая кнопка внизу — для браузера, в Telegram — MainButton. -->
   <section id="tab-chat" data-section="chat" class="hidden">
     <ol class="wz-steps" id="wzSteps" data-i18n-aria="tg.wz.steps_aria" aria-label="Шаги анализа"></ol>
     <div id="wzBody"></div>
-    <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.wz.no_docs">Без документов</button></div></div>
-    <!-- «Галерея / файлы»: несколько файлов сразу; «Камера»: снимок с задней камеры телефона -->
-    <input type="file" id="chatFile" multiple accept=".pdf,.docx,.xlsx,.jpg,.jpeg,.png,.webp,.heic,.heif,.bmp,.gif,image/*" hidden>
+    <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.act.no_photos">Без фото</button></div></div>
+    <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
+    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,image/*,application/pdf" hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
   </section>
@@ -1416,7 +1379,7 @@ function syncTgButtons(){
     else if (TAB === "legal") { text = T("tg.lg.send", "Спросить"); fn = lgAsk; off = LG.busy; }
     else if (TAB === "chat") {
       // мастер: нижняя кнопка — действие шага, «Назад» в шапке — на шаг раньше без потери введённого
-      text = wzMainLabel(); fn = wzMain; off = CH.busy;
+      text = wzMainLabel(); fn = wzMain; off = CH.busy || !!CH.sending;
       back = CH.wz > 1 ? wzBack : null;
     }
   }
@@ -1475,7 +1438,7 @@ function paintTop(){
   if (!t) return;
   let s = "";
   if (TAB === "chat") {
-    s = [T("tg.wz.top1", "Фото и документы"), T("tg.wz.top2", "Проверка данных"), T("tg.wz.top3", "Анализ риска")][(CH.wz || 1) - 1];
+    s = [T("tg.wz.top1", "Фото и документы"), T("tg.wz.top2", "Проверка данных"), T("tg.act.top3", "Сюрвейерский акт")][(CH.wz || 1) - 1];
   } else if (TAB) s = navFull(TAB);
   t.textContent = s || T("tg.title", "Сюрвейер INSON");
 }
@@ -1638,8 +1601,7 @@ async function loadMe(){
 $("#outBtn").onclick = async () => {
   await api("/auth/logout", {method: "POST"});
   setToken(null);
-  CH.sid = "";
-  try { sessionStorage.removeItem(CH_KEY); sessionStorage.removeItem(WZ_KEY); } catch (e) {}
+  actReset();                     // акт и фото принадлежали вошедшему — после выхода начинаем с чистого листа
   try { sessionStorage.removeItem(VIEW_KEY); } catch (e) {}
   VIEW_USER = false;
   USERS = null;
@@ -2100,114 +2062,181 @@ function calcChainRow(x){
 function calcRepaint(){ calcPaint(); }
 
 /* =====================================================================================
-   ИИ-сюрвейер: мастер из трёх шагов вместо ленты чата (заказчик 28.09.2026, снимки
-   «Фото и документы» и «Тарифы»).
-     1 «Фото»      — камера, галерея и файлы, перетаскивание, вставка из буфера. Файлы копятся
-                     в списке (их можно убрать) и уходят на сервер одним POST /chat/upload по «Дальше».
-     2 «Проверить» — что система поняла из документов (пометка «из договора — проверьте»), каких
-                     документов не хватает, четыре обязательных поля и «Дополнительно».
-     3 «Анализ»    — итог крупно сверху, подробности в сворачиваемых блоках, вопрос ИИ.
-   Данные — те же вызовы сервера, что и у ленты:
-           POST /chat/start, /chat/answer, /chat/upload, /chat/analyze, /chat/message, /chat/lang,
-           GET  /chat/state?session_id=… — восстановление после перезагрузки;
-           GET  /reference/products, /reference/classes, /reference/checklists — список продуктов;
-           GET  /analytics/risk/fields, /analytics/risk/docs; POST /analytics/risk (mode quick) — подробности.
-   Сервер по-прежнему отвечает карточками (text, chips, checklist, fields, result): мастер разбирает
-   их в своё состояние (wzCards), а не рисует лентой. По шагам можно ходить назад — введённое хранится
-   в CH.draft и в sessionStorage. Пока человек печатает, поле не перерисовывается: меняются только
-   списки и сообщения рядом (wzPart).
+   ИИ-сюрвейер — лёгкая версия (ТЗ 2.0 от 29.09.2026: docs/ТЗ — Мини-приложение ИИ-сюрвейер (лёгкая версия).md).
+   Мастер из трёх шагов:
+     1 «Фото»      — камера, галерея и файлы, перетаскивание, вставка из буфера. Файлы копятся в списке
+                     и по «Дальше» уходят одним POST /act/photos (до 10 файлов; JPG, PNG, PDF — WEBP и HEIC
+                     переводятся в JPG здесь же). Снимки читает языковая модель; пока читает — «Читаю фото…».
+     2 «Проверить» — распознанное (у каждого значения источник и «проверьте», любое можно исправить;
+                     разные значения одного поля из разных источников — расхождение), видимые повреждения,
+                     каких ракурсов не хватает, четыре обязательных поля и «Дополнительно».
+     3 «Акт»       — крупно: решение, уровень риска (три уровня), тариф и премия, франшиза, сумма к стоимости;
+                     ниже — сам акт из пяти разделов; Word и PDF (в Telegram бот присылает файл в чат,
+                     в браузере — скачивание), копия текста, «Исправить данные», «Новый акт».
+   Данные: POST /act/photos, POST /act/make, GET /act/{id}?lang=…, GET /act/{id}.docx|.pdf?lang=…,
+           POST /act/{id}/send (app/act.py);
+           GET /reference/products, /reference/classes, /reference/checklists — список продуктов.
+   Все цифры акта считает сервер (app/act_engine.py): страница их только показывает.
+   В sessionStorage — шаг, введённые поля, номер сессии фото, распознанные значения и id акта. Имена файлов,
+   заметки модели и тексты сервера не сохраняются. Пока человек печатает, поле не перерисовывается (wzPart).
    ===================================================================================== */
-const AN = {res: null, scn: "EML", fields: null, group: null};   // карточки подробностей читают AN.res
-const MONEY_UNIT = "сум";                                   // единица денежных полей в ответе сервера
-const CH_KEY = "surveyor_chat";
-const WZ_KEY = "surveyor_wizard";
+const CH_KEY = "surveyor_act";
 const CH_REGION = "surveyor_region";
-const CH_MAX_FILES = 10;                   // столько файлов принимает POST /chat/upload за раз (surveyor_chat.MAX_FILES)
-const CH_MAX_MB = 15;                      // предел одного файла на сервере (surveyor_chat.MAX_BYTES)
-const CH_EXT = ["pdf", "docx", "xlsx", "jpg", "jpeg", "png"];
-const CH_QA_MAX = 6;                       // столько вопросов ИИ держим на шаге «Анализ»
-const CH = {sid: "", step: "", state: {must: {}, optional: {}}, ai: {}, booted: false, busy: false, err: "",
-  draft: {must: {}, optional: {}}, dirty: {must: {}, optional: {}}, res: null, meta: null, metaErr: "",
-  tr: {}, relang: false, full: null, fullErr: "", fullSeq: 0, prev: null, mode: "", notes: [], checklist: [],
-  fieldsOpt: [], need: null, needKey: "", needErr: "", qa: [], asking: false, choice: "", wz: 1,
-  queue: [], sent: [], fromDoc: {}, upPct: 0, prodQ: "", prodOpen: false, optOpen: false, open: {},
-  errs: {}, refs: null, refsErr: "", seq: 0, later: false, codeMap: null, codeKey: ""};
+const CH_MAX_FILES = 10;                   // app/act.py: MAX_FILES
+const CH_MAX_MB = 15;                      // app/act.py: MAX_BYTES
+const CH_EXT = ["pdf", "jpg", "jpeg", "png"];
+const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue: [], upPct: 0, filesDirty: false,
+  session: "", ai: null, photoCount: 0, rec: [], damages: [], missingViews: [], requiredViews: [], suggest: [],
+  msg: "", notes: [], warning: "", upLang: "", stale: false,
+  must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
+  refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false};
 
 const ICON_CAM = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
 const ICON_IMG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></svg>';
 
-function chatSave(){ try { sessionStorage.setItem(CH_KEY, CH.sid); } catch (e) {} }
-function chatLoadSid(){ try { return sessionStorage.getItem(CH_KEY) || ""; } catch (e) { return ""; } }
-/* мастер помнит до закрытия вкладки: шаг, отправленные файлы, пометки «из договора», черновик полей, вопросы ИИ */
-function wzSave(){
-  try {
-    sessionStorage.setItem(WZ_KEY, JSON.stringify({sid: CH.sid, wz: CH.wz, sent: CH.sent, fromDoc: CH.fromDoc,
-      notes: CH.notes, draft: CH.draft, dirty: CH.dirty, choice: CH.choice, mode: CH.mode,
-      qa: CH.qa.filter(x => !x.pending)}));
-  } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
-}
-function wzLoad(sid){
-  let s = null;
-  try { s = JSON.parse(sessionStorage.getItem(WZ_KEY) || "null"); } catch (e) { s = null; }
-  if (!s || typeof s !== "object" || s.sid !== sid) return null;
-  CH.wz = [1, 2, 3].indexOf(s.wz) >= 0 ? s.wz : 1;
-  CH.sent = Array.isArray(s.sent) ? s.sent : [];
-  CH.fromDoc = s.fromDoc && typeof s.fromDoc === "object" ? s.fromDoc : {};
-  CH.notes = Array.isArray(s.notes) ? s.notes : [];
-  CH.qa = Array.isArray(s.qa) ? s.qa.slice(-CH_QA_MAX) : [];
-  CH.choice = typeof s.choice === "string" ? s.choice : "";
-  CH.mode = typeof s.mode === "string" ? s.mode : "";
-  return s;
-}
-/* правки, которые человек сделал, но ещё не отправил на сервер, — поверх состояния сервера */
-function wzRestoreDraft(s){
-  ["must", "optional"].forEach(sc => {
-    const d = (s.dirty && s.dirty[sc]) || {}, v = (s.draft && s.draft[sc]) || {};
-    Object.keys(d).forEach(k => {
-      CH.dirty[sc][k] = 1;
-      if (v[k] == null || v[k] === "") delete CH.draft[sc][k]; else CH.draft[sc][k] = v[k];
-    });
-  });
-}
-
-/* ---------- справочники: поля класса, регионы, продукты ---------- */
-async function chatMeta(cls){
-  const q = "?class_code=" + encodeURIComponent(cls || "") + "&mode=quick";
-  const r = await api("/analytics/risk/fields" + q);
-  if (!r.ok) { CH.metaErr = r.error; return; }
-  CH.metaErr = "";
-  CH.meta = r.data;
-  AN.fields = r.data;
-  AN.group = r.data.group || null;
-  wzDefsAdd(r.data);
-  wzRegionNorm();
-}
-/* описания полей всех групп (имущество 8/9 и транспорт 3): подписи и варианты для значений из
-   документов и для текстов сервера нужны, даже пока класс ещё не выбран */
-const WZ_DEFS = {};
-function wzDefsAdd(meta){
-  ((meta && (meta.must_full || meta.must)) || []).concat((meta && meta.optional) || []).forEach(f => {
-    if (f && f.key && !WZ_DEFS[f.key]) WZ_DEFS[f.key] = f;
-  });
-}
-let WZ_DEFS_ASKED = false;
-function chatDefs(){
-  if (WZ_DEFS_ASKED) return Promise.resolve();
-  WZ_DEFS_ASKED = true;
-  return Promise.all(["8/9", "3"].map(c => api("/analytics/risk/fields?mode=quick&class_code=" + encodeURIComponent(c))
-    .then(r => { if (r.ok) wzDefsAdd(r.data); })));
-}
-/* регион из документа приходит ключом справочника («region:…») — показываем и отправляем название */
-function wzRegionNorm(){
-  const cur = CH.draft.must.region;
-  if (!cur || !CH.meta) return;
-  const hit = (CH.meta.regions || []).filter(r => r && typeof r === "object" && r.key === cur)[0];
-  if (hit && hit.name) {
-    CH.draft.must.region = hit.name;
-    CH.dirty.must.region = 1;
+/* ---------- подписи: поля распознавания, источники, ракурсы, места, регионы (те же слова, что в акте) ---------- */
+function recLabel(key, fallback){
+  switch (key) {
+    case "object_type": return T("tg.act.f.object_type", "Тип объекта");
+    case "brand": return T("tg.act.f.brand", "Марка");
+    case "model": return T("tg.act.f.model", "Модель");
+    case "manufacture_date": return T("tg.act.f.manufacture_date", "Дата изготовления");
+    case "year": return T("tg.act.f.year", "Год выпуска");
+    case "serial_no": return T("tg.act.f.serial_no", "Заводской (серийный) номер");
+    case "manufacturer": return T("tg.act.f.manufacturer", "Производитель");
+    case "engine_no": return T("tg.act.f.engine_no", "Номер двигателя");
+    case "engine_model": return T("tg.act.f.engine_model", "Модель двигателя");
+    case "engine_power": return T("tg.act.f.engine_power", "Мощность двигателя");
+    case "curb_mass": return T("tg.act.f.curb_mass", "Снаряжённая масса");
+    case "payload": return T("tg.act.f.payload", "Грузоподъёмность");
+    case "dimensions": return T("tg.act.f.dimensions", "Габариты");
+    case "color": return T("tg.act.f.color", "Цвет");
+    case "mileage": return T("tg.act.f.mileage", "Пробег / моточасы");
+    case "location": return T("tg.act.f.location", "Место эксплуатации");
+    default: return fallback || key;
   }
 }
-/* список продуктов «как в тарифной политике»: тот же справочник, что у «Калькулятора» */
+function srcName(s){
+  switch (s) {
+    case "photo": return T("tg.act.src.photo", "с фото объекта");
+    case "plate": return T("tg.act.src.plate", "с заводской таблички");
+    case "document": return T("tg.act.src.document", "из документа");
+    case "marking": return T("tg.act.src.marking", "с маркировки на кузове");
+    case "input": return T("tg.act.src.input", "введено сотрудником");
+    default: return "";
+  }
+}
+function viewName(v){
+  switch (v) {
+    case "front": return T("tg.act.view.front", "спереди");
+    case "back": return T("tg.act.view.back", "сзади");
+    case "left": return T("tg.act.view.left", "левый борт");
+    case "right": return T("tg.act.view.right", "правый борт");
+    case "plate": return T("tg.act.view.plate", "заводская табличка");
+    case "odometer": return T("tg.act.view.odometer", "счётчик пробега или моточасов");
+    case "document": return T("tg.act.view.document", "снимок документа");
+    case "interior": return T("tg.act.view.interior", "внутри");
+    case "facade": return T("tg.act.view.facade", "фасад");
+    case "roof": return T("tg.act.view.roof", "кровля");
+    case "electrical": return T("tg.act.view.electrical", "электрощит");
+    case "fire_safety": return T("tg.act.view.fire_safety", "средства пожаротушения");
+    case "general": return T("tg.act.view.general", "общий вид");
+    case "installation": return T("tg.act.view.installation", "место установки");
+    case "packaging": return T("tg.act.view.packaging", "упаковка");
+    case "marking": return T("tg.act.view.marking", "маркировка");
+    case "transport": return T("tg.act.view.transport", "транспорт");
+    default: return T("tg.act.view.other", "другое");
+  }
+}
+const LOCATIONS = ["open_area", "construction", "port", "guarded", "closed_storage", "other"];
+function locName(c){
+  switch (c) {
+    case "open_area": return T("tg.act.loc.open_area", "открытая площадка");
+    case "construction": return T("tg.act.loc.construction", "строительная площадка");
+    case "port": return T("tg.act.loc.port", "порт");
+    case "guarded": return T("tg.act.loc.guarded", "охраняемая территория");
+    case "closed_storage": return T("tg.act.loc.closed_storage", "закрытое хранение");
+    default: return T("tg.act.loc.other", "другое место");
+  }
+}
+/* регион уходит в акт кодом (tashkent_region): сервер находит его в словаре tg.act.reg.* и печатает на языке акта */
+const REGIONS = ["tashkent_city", "tashkent_region", "andijan", "bukhara", "jizzakh", "kashkadarya", "navoi",
+  "namangan", "samarkand", "surkhandarya", "syrdarya", "fergana", "khorezm", "karakalpakstan"];
+function regionName(c){
+  switch (c) {
+    case "tashkent_city": return T("tg.act.reg.tashkent_city", "город Ташкент");
+    case "tashkent_region": return T("tg.act.reg.tashkent_region", "Ташкентская область");
+    case "andijan": return T("tg.act.reg.andijan", "Андижанская область");
+    case "bukhara": return T("tg.act.reg.bukhara", "Бухарская область");
+    case "jizzakh": return T("tg.act.reg.jizzakh", "Джизакская область");
+    case "kashkadarya": return T("tg.act.reg.kashkadarya", "Кашкадарьинская область");
+    case "navoi": return T("tg.act.reg.navoi", "Навоийская область");
+    case "namangan": return T("tg.act.reg.namangan", "Наманганская область");
+    case "samarkand": return T("tg.act.reg.samarkand", "Самаркандская область");
+    case "surkhandarya": return T("tg.act.reg.surkhandarya", "Сурхандарьинская область");
+    case "syrdarya": return T("tg.act.reg.syrdarya", "Сырдарьинская область");
+    case "fergana": return T("tg.act.reg.fergana", "Ферганская область");
+    case "khorezm": return T("tg.act.reg.khorezm", "Хорезмская область");
+    case "karakalpakstan": return T("tg.act.reg.karakalpakstan", "Республика Каракалпакстан");
+    default: return "";
+  }
+}
+/* нужные ракурсы по виду объекта — таблица ТЗ, п. 5 (та же, что REQUIRED_VIEWS в app/act_engine.py) */
+const VIEW_GROUPS = [
+  {g: "vehicle", cls: ["3", "4"], views: ["front", "back", "left", "right", "plate", "odometer", "document"]},
+  {g: "property", cls: ["8", "9"], views: ["facade", "roof", "interior", "electrical", "fire_safety"]},
+  {g: "equipment", cls: ["8", "9"], views: ["general", "plate", "installation"]},
+  {g: "cargo", cls: ["7"], views: ["packaging", "marking", "transport"]}];
+function groupName(g){
+  switch (g) {
+    case "vehicle": return T("tg.act.grp.vehicle", "Транспорт и спецтехника");
+    case "property": return T("tg.act.grp.property", "Здание, помещение");
+    case "equipment": return T("tg.act.grp.equipment", "Оборудование");
+    default: return T("tg.act.grp.cargo", "Груз");
+  }
+}
+
+/* ---------- состояние: sessionStorage до закрытия вкладки ---------- */
+function wzSave(){
+  try {
+    sessionStorage.setItem(CH_KEY, JSON.stringify({wz: CH.wz, session: CH.session, ai: CH.ai, photos: CH.photoCount,
+      rec: CH.rec.map(r => ({key: r.key, value: r.value, source: r.source, file: r.file || null, orig: r.orig || null})),
+      damages: CH.damages.map(d => ({what: d.what, where: d.where || null})),
+      missing: CH.missingViews, required: CH.requiredViews, suggest: CH.suggest,
+      must: CH.must, opt: CH.opt, act: CH.actId}));
+  } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
+}
+function wzLoad(){
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem(CH_KEY) || "null"); } catch (e) { s = null; }
+  if (!s || typeof s !== "object") return;
+  const arr = v => Array.isArray(v) ? v : [];
+  const obj = v => v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  CH.wz = [1, 2, 3].indexOf(s.wz) >= 0 ? s.wz : 1;
+  CH.session = typeof s.session === "string" ? s.session : "";
+  CH.ai = typeof s.ai === "boolean" ? s.ai : null;
+  CH.photoCount = Number(s.photos) || 0;
+  CH.rec = arr(s.rec).filter(r => r && typeof r.key === "string" && r.value != null)
+    .map(r => ({key: r.key, value: String(r.value), source: String(r.source || "photo"), file: r.file || null,
+      orig: r.orig && typeof r.orig === "object" ? {value: String(r.orig.value == null ? "" : r.orig.value), source: String(r.orig.source || "")} : null}));
+  CH.damages = arr(s.damages).filter(d => d && d.what).map(d => ({what: String(d.what), where: d.where ? String(d.where) : null}));
+  CH.missingViews = arr(s.missing).map(String);
+  CH.requiredViews = arr(s.required).map(String);
+  CH.suggest = arr(s.suggest).map(String);
+  CH.must = obj(s.must);
+  CH.opt = obj(s.opt);
+  CH.actId = typeof s.act === "string" && /^[0-9a-f]{16}$/.test(s.act) ? s.act : "";
+  CH.stale = CH.photoCount > 0;           // файлы в памяти страницы не пережили перезагрузку
+}
+/* регион из прошлого раза — чтобы не выбирать его каждый раз */
+function wzSeedRegion(){
+  if (CH.must.region) return;
+  let saved = "";
+  try { saved = localStorage.getItem(CH_REGION) || ""; } catch (e) {}
+  if (REGIONS.indexOf(saved) >= 0) CH.must.region = saved;
+}
+
+/* ---------- справочник продуктов: тот же, что у «Калькулятора» ---------- */
 async function chatRefs(){
   if (CH.refs) return;
   const [p, c, l] = await Promise.all([api("/reference/products"), api("/reference/classes"), api("/reference/checklists")]);
@@ -2243,9 +2272,7 @@ function wzRate(p){
   if (!t) return T("tg.wz.rate_program", "по программе");
   return I18N_LANG === "ru" ? t : T("tg.wz.rate_several", "несколько ставок");
 }
-/* «документов: N» — столько документов попросит анализ по продукту. Та же логика, что
-   app/analysis_docs.required_docs без типа объекта: свой чек-лист продукта, иначе общий список
-   и строки его классов; строки оформления договора (заявление-анкета) не считаются. */
+/* «документов: N» по продукту — та же логика, что app/analysis_docs.required_docs без типа объекта */
 function wzDocCount(p){
   const L = (CH.refs && CH.refs.lists) || [];
   if (!L.length) return null;
@@ -2258,234 +2285,52 @@ function wzDocCount(p){
   }));
   return Object.keys(names).length;
 }
-
-/* вид документа и состояние разбора — как их называет сервер */
-function kindName(k){
-  switch (k) {
-    case "договор": return T("tg.an.kind.contract", "договор");
-    case "техпаспорт": return T("tg.an.kind.passport", "техпаспорт");
-    case "кадастр": return T("tg.an.kind.cadastre", "кадастр");
-    case "отчёт оценщика": return T("tg.an.kind.valuation", "отчёт оценщика");
-    case "выписка": return T("tg.an.kind.statement", "выписка");
-    case "штатное расписание": return T("tg.an.kind.staff", "штатное расписание");
-    case "фото объекта": return T("tg.an.kind.photo", "фото объекта");
-    case "таблица": return T("tg.chat.kind_table", "таблица");
-    case "прочее": return T("tg.an.kind.other", "вид не определён");
-    default: return k || T("tg.an.kind.other", "вид не определён");
-  }
-}
-function upStatus(s){
-  if (s === "разобран") return {cls: "ok", text: T("tg.an.st_ok", "распознан")};
-  if (s === "частично") return {cls: "warn", text: T("tg.an.st_partial", "распознан частично")};
-  if (s === "нужно распознавание") return {cls: "warn", text: T("tg.an.st_ocr", "скан без текста")};
-  if (s === "не поддерживается") return {cls: "stop", text: T("tg.an.st_unsupported", "формат не читается")};
-  if (s === "ошибка") return {cls: "stop", text: T("tg.an.st_error", "ошибка чтения")};
-  if (s === "принят") return {cls: "ok", text: T("tg.chat.st_taken", "принят")};
-  return {cls: "", text: s || "—"};
-}
-
-/* служебные слова в текстах сервера — человеческими подписями: «mixed» → «Смешанные конструкции»,
-   «calibrated=0» → «не калибровано», «(what_if)» убираем. Подписи вариантов — из словаря по полям класса. */
-function wzCodeMap(){
-  const key = I18N_LANG + "|" + ((CH.meta && CH.meta.class_code) || "") + "|" + Object.keys(WZ_DEFS).length;
-  if (CH.codeMap && CH.codeKey === key && CH.codeMeta === CH.meta) return CH.codeMap;
-  const m = {}, meta = CH.meta || {};
-  (meta.must_full || meta.must || []).concat(meta.optional || []).concat(Object.keys(WZ_DEFS).map(k => WZ_DEFS[k])).forEach(f => (f.options || []).forEach(o => {
-    if (o && o.code != null && /^[a-z0-9_]+$/.test(String(o.code)) && !m[o.code]) m[o.code] = optLabel(f, o);
-  }));
-  CH.codeMap = m; CH.codeKey = key; CH.codeMeta = CH.meta;
-  return m;
-}
-function human(s){
-  if (s == null) return "";
-  let t = String(s);
-  if (!/[a-z]/.test(t)) return t;
-  const m = wzCodeMap();
-  const un = T("tg.wz.uncal_word", "не калибровано");
-  t = t.replace(/«([a-z0-9_]+)»/g, (all, code) => m[code] ? "«" + m[code] + "»" : all);
-  t = t.replace(/\(\s*calibrated\s*=\s*0\s*\)/g, "(" + un + ")");
-  t = t.replace(/calibrated\s*=\s*0/g, un);
-  t = t.replace(/calibrated\s*=\s*1/g, T("tg.wz.cal_word", "калибровано"));
-  t = t.replace(/\s*\(what_if\)/g, "");
-  return t;
-}
-const hx = s => esc(human(s));
-
-/* ---------- ответ сервера: состояние и карточки ---------- */
-function chatApply(d){
-  if (!d) return;
-  if (d.session_id) { CH.sid = d.session_id; chatSave(); }
-  if (d.step) CH.step = d.step;
-  if (d.ai) CH.ai = d.ai;
-  if (d.state) {
-    CH.state = d.state;
-    CH.prev = d.state.previous_contract || null;
-    ["must", "optional"].forEach(sc => {
-      const next = Object.assign({}, d.state[sc] || {});
-      Object.keys(CH.dirty[sc] || {}).forEach(k => {
-        const v = CH.draft[sc][k];
-        if (v == null || v === "") delete next[k]; else next[k] = v;
-      });
-      CH.draft[sc] = next;
-    });
-  }
-}
-/* карточки сервера — в состояние мастера */
-function wzCards(cards, from){
-  (cards || []).forEach(c => {
-    switch (c.type) {
-      case "text": if (from === "upload" && c.text) CH.notes.push({text: String(c.text), tone: c.tone || ""}); break;
-      case "chips": break;                    // «прошлый или новый договор» мастер спрашивает сам (CH.prev)
-      case "checklist": CH.checklist = (c.items || []).filter(x => x && keepDoc(x.name)); break;
-      case "fields": if (c.scope === "optional") CH.fieldsOpt = c.fields || []; break;
-      case "result": CH.res = c; break;
-    }
-  });
-}
-
-async function loadChat(){
-  if (CH.booted) { wzPaint(true); return; }
-  CH.booted = true;
-  wzPaint(true);
-  chatRefs().then(() => { wzPart("prod"); wzPart("lead"); });
-  chatDefs().then(() => { wzPart("und"); wzPart("more"); });
-  const sid = chatLoadSid();
-  if (sid) {
-    const r = await api("/chat/state?session_id=" + encodeURIComponent(sid));
-    if (r.ok) {
-      const saved = wzLoad(sid);
-      chatApply(r.data);
-      if (saved) wzRestoreDraft(saved);
-      else {
-        CH.wz = r.data.state && r.data.state.has_analysis ? 3 : 1;
-        CH.qa = wzQaFromLog(r.data.messages || []);
-      }
-      wzCards(r.data.cards);
-      if (CH.wz === 3 && !CH.res) CH.wz = 2;
-      wzPaint(true);
-      await chatMeta(CH.draft.must.class_code || "");
-      wzPaint();
-      if (CH.wz === 2) wzNeed();
-      if (CH.wz === 3) chatFull();
-      return;
-    }
-  }
-  await chatStart();
-}
-/* вопросы и ответы ИИ из журнала диалога — после перезагрузки страницы */
-function wzQaFromLog(msgs){
-  const out = [];
-  msgs.forEach((m, i) => {
-    if (!m || m.kind !== "text" || m.role !== "user" || !m.text) return;
-    const next = msgs[i + 1];
-    if (next && next.role === "assistant" && next.kind === "text" && next.text) out.push({q: m.text, a: next.text});
-  });
-  return out.slice(-CH_QA_MAX);
-}
-
-/* новый анализ; keep=true — прежняя сессия истекла, введённые поля переносим в новую */
-async function chatStart(keep){
-  const hadFiles = CH.sent.some(f => f.ok);
-  if (!keep) {
-    CH.queue.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
-    Object.assign(CH, {res: null, full: null, fullErr: "", queue: [], checklist: [], fieldsOpt: [],
-      need: null, needKey: "", needErr: "", qa: [], choice: "", errs: {}, prodQ: "", prodOpen: false,
-      optOpen: false, open: {}, mode: "", wz: 1, draft: {must: {}, optional: {}}, dirty: {must: {}, optional: {}},
-      state: {must: {}, optional: {}}});
-    AN.res = null;
-  }
-  CH.sent = []; CH.fromDoc = {}; CH.notes = [];
-  const keepDraft = keep ? JSON.parse(JSON.stringify(CH.draft)) : null;
-  CH.busy = true;
-  CH.err = "";
-  wzPaint(true);
-  const r = await api("/chat/start", jsonOpts("POST", {lang: I18N_LANG}));
-  CH.busy = false;
-  if (!r.ok) { CH.err = r.error; wzPaint(true); return false; }
-  chatApply(r.data);
-  if (keepDraft) {
-    CH.draft = keepDraft;
-    ["must", "optional"].forEach(sc => Object.keys(CH.draft[sc]).forEach(k => { CH.dirty[sc][k] = 1; }));
-    if (hadFiles) CH.err = T("tg.wz.session_new", "Прежний сеанс истёк — начали новый. Введённые поля сохранены, файлы загрузите заново.");
-  } else wzSeedRegion();
-  wzCards(r.data.cards);
-  wzSave();
-  wzPaint(true);
-  await chatMeta(CH.draft.must.class_code || "");
-  wzPaint();
-  return true;
-}
-/* регион из прошлого раза — чтобы не выбирать его каждый раз */
-function wzSeedRegion(){
-  if (CH.draft.must.region) return;
-  let saved = "";
-  try { saved = localStorage.getItem(CH_REGION) || ""; } catch (e) {}
-  if (saved) { CH.draft.must.region = saved; CH.dirty.must.region = 1; }
-}
-
-/* ---------- запросы ---------- */
-async function chatPost(url, body, retried){
-  CH.busy = true;
-  CH.err = "";
-  wzBarPaint();
-  const r = await api(url, jsonOpts("POST", Object.assign({session_id: CH.sid, lang: I18N_LANG}, body)));
-  CH.busy = false;
-  if (!r.ok) {
-    // сессии нет (истекла через 7 дней) — начинаем новую с тем же вводом и повторяем запрос один раз
-    if (r.status === 404 && !retried) {
-      try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
-      CH.sid = "";
-      if (await chatStart(true)) return chatPost(url, body, true);
-      return null;
-    }
-    CH.err = r.error;
-    return null;
-  }
-  chatApply(r.data);
-  wzCards(r.data.cards);
-  if (r.data.source) CH.lastSource = r.data.source;
-  return r.data;
+/* класс объекта для подсказки ракурсов: выбранный класс или первый класс продукта */
+function wzClass(){
+  const m = CH.must;
+  if (m.product_code) return wzClassesOf(wzProd(m.product_code))[0] || m.class_code || "";
+  return m.class_code || "";
 }
 
 /* ---------- шаги ---------- */
 function wzGo(k){
   if (k === CH.wz || CH.busy) return;
-  if (k === 3 && !CH.res) return;
+  if (k === 3 && !CH.act) return;
   CH.wz = k;
   CH.err = "";
   wzSave();
   haptic("select");
   wzPaint(true);
   window.scrollTo(0, 0);
-  if (k === 2) wzNeed();
-  if (k === 3 && !CH.full) chatFull();
 }
 function wzBack(){ if (CH.wz > 1) wzGo(CH.wz - 1); }
 function wzMainLabel(){
   if (CH.wz === 1) {
-    if (CH.busy && CH.queue.length) return T("tg.wz.uploading", "Загружаю… {n}%", {n: CH.upPct || 0});
-    return CH.queue.length || CH.sent.length ? T("tg.wz.next", "Дальше") : T("tg.wz.no_docs", "Без документов");
+    if (CH.busy) return CH.phase === "read" ? T("tg.act.reading_btn", "Читаю фото…") : T("tg.wz.uploading", "Загружаю… {n}%", {n: CH.upPct || 0});
+    return CH.queue.length || CH.photoCount ? T("tg.wz.next", "Дальше") : T("tg.act.no_photos", "Без фото");
   }
-  if (CH.wz === 2) return CH.busy ? T("tg.wz.counting", "Считаем…") : T("tg.wz.count", "Считаем");
-  return T("tg.chat.refine", "Уточнить");
+  if (CH.wz === 2) return CH.busy ? T("tg.act.making", "Формирую акт…") : T("tg.act.make", "Сформировать акт");
+  if (!IN_TG) return T("tg.act.dl_pdf", "Скачать PDF");
+  return CH.sending === "pdf" ? T("tg.act.sending_btn", "Отправляю…") : T("tg.act.send_pdf", "Прислать PDF в чат");
 }
 function wzMain(){
   if (CH.busy) return;
   if (CH.wz === 1) wzNext1();
-  else if (CH.wz === 2) wzCalc();
-  else wzRefine();
+  else if (CH.wz === 2) actMake();
+  else if (IN_TG) actSend("pdf");
+  else actDownload("pdf");
 }
 function wzBarPaint(){
   const b = $("#chatMain");
-  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy; }
+  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy || (CH.wz === 3 && (!CH.act || !!CH.sending)); }
   syncTgButtons();
 }
 function wzStepsPaint(){
   const ol = $("#wzSteps");
   if (!ol) return;
-  const names = [T("tg.wz.s1", "Фото"), T("tg.wz.s2", "Проверить"), T("tg.wz.s3", "Анализ")];
+  const names = [T("tg.wz.s1", "Фото"), T("tg.wz.s2", "Проверить"), T("tg.act.s3", "Акт")];
   ol.innerHTML = names.map((n, i) => {
-    const k = i + 1, can = k < 3 || !!CH.res;
+    const k = i + 1, can = k < 3 || !!CH.act;
     return '<li class="' + (k === CH.wz ? "on" : k < CH.wz ? "done" : "") + '"><button type="button" data-wz="' + k + '"'
       + (can ? "" : " disabled") + (k === CH.wz ? ' aria-current="step"' : "") + "><b>" + k + "</b> " + esc(n) + "</button></li>";
   }).join("");
@@ -2507,48 +2352,35 @@ function wzPaint(force){
   CH.later = false;
   box.innerHTML = CH.wz === 3 ? wzStep3Html() : CH.wz === 2 ? wzStep2Html() : wzStep1Html();
   wzBarPaint();
-  if (CH.wz === 3) chatPaintDash();
 }
 /* одна часть шага — не трогая поле, в котором человек печатает */
 function wzPart(name){
-  const map = {prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], docs: ["wzDocs", wzDocsNeedHtml],
-    region: ["wzRegion", wzRegionHtml], more: ["wzMoreBox", wzMoreHtml], qa: ["wzQa", wzQaHtml],
-    files: ["wzFiles", wzFilesHtml], lead: ["wzLead", wzObjLead], und: ["wzUnd", wzUnderstoodHtml]};
+  const map = {files: ["wzFiles", wzFilesHtml], views: ["wzViews", wzViewsHtml], rec: ["wzRec", wzRecHtml],
+    prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], region: ["wzRegion", wzRegionHtml],
+    more: ["wzMoreBox", wzMoreHtml]};
   const m = map[name];
   const el = m && document.getElementById(m[0]);
   if (!el) return;
   if (typing(el)) { CH.later = true; return; }
   el.innerHTML = m[1]();
 }
+const msgHtml = () => '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
 
-/* ---------- шаг 1: фото и документы ---------- */
+/* ---------- шаг 1: фото и снимки документов ---------- */
 function wzStep1Html(){
-  const off = CH.ai && CH.ai.connected === false;
   return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Сфотографируйте объект")) + "</h2>"
-    + '<p class="wz-lead">' + esc(T("tg.wz.s1_lead", "Сфотографируйте объект — ИИ определит, что это, и сразу оценит. Если данных мало, запросит документ.")) + "</p>"
-    + wzPrevHtml()
+    + '<p class="wz-lead">' + esc(T("tg.act.s1_lead", "Снимите объект и документы на него. Приложение прочитает снимки и подскажет, каких ракурсов не хватает.")) + "</p>"
     + '<div class="wz-tiles">'
     + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Камера")) + "</span></button>"
     + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Галерея / файлы")) + "</span></button>"
     + "</div>"
     + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
-    + '<p class="hint">' + esc(T("tg.wz.formats", "PDF, DOCX, XLSX, JPG, PNG · до {n} файлов за раз, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
-    + (off ? '<p class="note warn">' + esc(T("tg.wz.ai_off", "ИИ сейчас не подключён: фото приложим к анализу, но данные с них не считаем — введите их на следующем шаге.")) + "</p>" : "")
+    + '<p class="hint">' + esc(T("tg.act.formats", "JPG, PNG, WEBP, HEIC, PDF · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
-    + '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
-}
-/* «по прошлому договору или по новому» — пока файлы не отправлены: выбор «по новому» очищает поля на сервере */
-function wzPrevHtml(){
-  const p = CH.prev;
-  if (!p || CH.sent.length) return "";
-  const what = p.object_type || (p.product_code ? p.product_code + (wzProd(p.product_code) ? " · " + wzProd(p.product_code).name : "") : "")
-    || (p.class_code ? T("tg.wz.cls_line", "Класс {c}", {c: p.class_code}) : "");
-  return '<div class="card wz-prev"><p class="eyebrow">' + esc(T("tg.wz.prev_title", "Прошлый договор")) + "</p>"
-    + "<p>" + esc(T("tg.wz.prev_q", "Нашли ваш прошлый расчёт: {what}. Считаем по нему или по новому договору?", {what: what || "—"})) + "</p>"
-    + '<div class="segsel" role="group">'
-    + '<button type="button" data-mode="previous" aria-pressed="' + (CH.mode === "previous") + '">' + esc(T("tg.wz.prev_old", "По прошлому договору")) + "</button>"
-    + '<button type="button" data-mode="new" aria-pressed="' + (CH.mode === "new") + '">' + esc(T("tg.wz.prev_new", "По новому")) + "</button>"
-    + "</div></div>";
+    + '<div id="wzViews">' + wzViewsHtml() + "</div>"
+    + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
+      : T("tg.act.warn_pd", "Не загружайте документы с данными людей (паспорт, ФИО, адрес): снимки уходят в языковую модель как картинки. Сервер тестовый.")) + "</p>"
+    + msgHtml();
 }
 function extOf(name){ const m = /\.([a-z0-9]{1,5})$/i.exec(String(name || "")); return m ? m[1] : "?"; }
 function sizeName(b){
@@ -2556,30 +2388,55 @@ function sizeName(b){
   return n >= 1048576 ? T("tg.wz.mb", "{n} МБ", {n: nf(n / 1048576, 1)}) : T("tg.wz.kb", "{n} КБ", {n: nf(Math.max(1, n / 1024), 0)});
 }
 function wzFilesHtml(){
-  if (!CH.sent.length && !CH.queue.length) return "";
-  const sent = CH.sent.map(f => {
-    const st = f.ok ? upStatus(f.status) : {cls: "stop", text: f.error || T("tg.an.st_error", "ошибка чтения")};
-    return '<div class="wz-file"><span class="ic" aria-hidden="true">' + esc(extOf(f.name)) + "</span>"
-      + "<span><b>" + esc(f.name || "—") + "</b><small>" + esc((f.ok ? kindName(f.kind) + " · " : "") + st.text) + "</small></span>"
-      + '<span class="st ' + (f.ok ? "ok" : "err") + '">' + esc(f.ok ? T("tg.wz.sent", "отправлен") : T("tg.wz.not_taken", "не принят")) + "</span></div>";
-  }).join("");
-  const queued = CH.queue.map(q => '<div class="wz-file"><span class="ic" aria-hidden="true">'
+  const reading = CH.busy && CH.phase === "read"
+    ? '<div class="wz-reading" role="status"><span class="spin"></span><div><b>' + esc(T("tg.act.reading", "Читаю фото…"))
+      + "</b><small>" + esc(T("tg.act.reading_sub", "Обычно это занимает несколько секунд. Не закрывайте приложение.")) + "</small></div></div>"
+    : "";
+  if (!CH.queue.length) {
+    return reading + (CH.stale && CH.photoCount
+      ? '<p class="note">' + esc(T("tg.act.stale", "Прежние фото ({n}) уже прочитаны — распознанное на шаге «Проверить». Страница перезагружалась, поэтому самих файлов здесь нет: если нужно добавить снимки, загрузите заново все, чтобы акт учёл каждый ракурс.", {n: CH.photoCount})) + "</p>"
+      : "");
+  }
+  const rows = CH.queue.map(q => {
+    let state, cls = "";
+    if (CH.busy && !q.error) state = CH.phase === "read" ? T("tg.act.st_reading", "читаю…") : T("tg.wz.sending", "отправляю…");
+    else if (q.error) { state = q.error; cls = "err"; }
+    else if (q.sent && q.notRead) { state = T("tg.act.st_not_read", "не прочитан: не поместился в запрос"); cls = "warn"; }
+    else if (q.sent) state = q.view ? T("tg.act.st_view", "прочитан · {v}", {v: viewName(q.view)}) : T("tg.act.st_sent", "прочитан");
+    else state = T("tg.act.st_queued", "уйдёт по кнопке «Дальше»");
+    return '<div class="wz-file' + (q.error ? " bad" : "") + '"><span class="ic" aria-hidden="true">'
       + (q.url ? '<img src="' + esc(q.url) + '" alt="">' : esc(extOf(q.name))) + "</span>"
-      + "<span><b>" + esc(q.name) + "</b><small>" + esc(sizeName(q.size) + " · " + (CH.busy ? T("tg.wz.sending", "отправляю…") : T("tg.wz.queued", "уйдёт по кнопке «Дальше»"))) + "</small></span>"
-      + (CH.busy ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>"
+      + "<span><b>" + esc(q.name) + '</b><small class="' + cls + '">' + esc(sizeName(q.size) + " · " + state) + "</small></span>"
+      + (CH.busy ? (CH.phase === "upload" ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>" : '<span class="st"></span>')
         : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
-      + (CH.busy ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "") + "</div>").join("");
-  return '<div class="wz-files"><p class="eyebrow">' + esc(T("tg.wz.files_title", "Файлы · {n}", {n: CH.sent.length + CH.queue.length})) + "</p>"
-    + queued + sent + "</div>"
-    + (CH.sent.length ? '<p class="hint">' + esc(T("tg.wz.sent_hint", "Отправленные файлы уже разобраны и вошли в анализ — убрать их можно, только начав заново."))
-      + ' <button type="button" class="btn btn-link btn-sm" data-go="restart">' + esc(T("tg.wz.start_over", "Начать заново")) + "</button></p>" : "");
+      + (CH.busy && CH.phase === "upload" ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "") + "</div>";
+  }).join("");
+  return reading + '<div class="wz-files"><p class="eyebrow">' + esc(T("tg.wz.files_title", "Файлы · {n}", {n: CH.queue.length})) + "</p>"
+    + rows + "</div>";
+}
+/* какие снимки нужны: после чтения — чего не хватает, до него — таблица по классу (или вся) */
+function wzViewsHtml(){
+  if (CH.photoCount && CH.ai && CH.requiredViews.length) {
+    if (!CH.missingViews.length) return '<p class="note ok">' + esc(T("tg.act.views_all", "Все нужные ракурсы есть.")) + "</p>";
+    return '<div class="card wz-need"><h2>' + esc(T("tg.act.views_miss_title", "Не хватает снимков")) + "</h2>"
+      + "<p>" + esc(CH.missingViews.map(viewName).join(", ")) + "</p>"
+      + '<p class="note">' + esc(T("tg.act.views_skip", "Продолжить можно и без них — в акте это будет отмечено.")) + "</p></div>";
+  }
+  const cls = wzClass();
+  const mine = VIEW_GROUPS.filter(g => g.cls.indexOf(cls) >= 0);
+  const list = mine.length ? mine : VIEW_GROUPS;
+  return '<div class="card wz-need"><h2>' + esc(T("tg.act.views_title", "Какие снимки нужны")) + "</h2>"
+    + '<p class="sub">' + esc(mine.length ? T("tg.act.views_by_class", "По выбранному классу страхования.")
+      : T("tg.act.views_all_kinds", "Выберите подходящую строку. Когда выберете класс или загрузите фото, подскажем точнее.")) + "</p>"
+    + '<dl class="vw">' + list.map(g => "<div><dt>" + esc(groupName(g.g)) + "</dt><dd>" + esc(g.views.map(viewName).join(", ")) + "</dd></div>").join("") + "</dl>"
+    + '<p class="note">' + esc(T("tg.act.views_docs", "Техпаспорт, паспорт самоходной машины, лист технических параметров или кадастровый документ снимайте и загружайте так же, как фото.")) + "</p></div>";
 }
 /* Картинки других форматов (WEBP, GIF, BMP, AVIF, HEIC — если браузер умеет их открыть) переводим
-   в JPG прямо в браузере: сервер получает привычный формат. Не открылась — вернём null. */
+   в JPG прямо в браузере: сервер принимает JPG, PNG и PDF. Не открылась — вернём null. */
 const WZ_CONVERT = /\.(webp|gif|bmp|avif|heic|heif|jfif|tiff?)$/i;
 function wzNeedsConvert(f){
   const name = String(f.name || ""), type = String(f.type || "");
-  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png)$/i.test(name)) return false;
+  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png|pdf)$/i.test(name) || type === "application/pdf") return false;
   return /^image\//.test(type) || WZ_CONVERT.test(name);
 }
 function wzToJpeg(f){
@@ -2625,16 +2482,17 @@ async function wzAddFiles(files){
     const name = String(f.name || "");
     const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
     const type = String(f.type || "");
-    const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type);
-    if (!okType) { bad.push(T("tg.wz.bad_format", "{name}: такой формат не читается — нужен PDF, DOCX, XLSX, JPG или PNG.", {name: name || "?"})); return; }
+    const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf";
+    if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC или PDF.", {name: name || "?"})); return; }
     if (f.size > CH_MAX_MB * 1048576) { bad.push(T("tg.wz.too_big", "{name}: файл больше {mb} МБ — сожмите его или разделите.", {name: name, mb: CH_MAX_MB})); return; }
     if (CH.queue.length >= CH_MAX_FILES) { over = true; return; }
     const img = /^image\//.test(type);
-    CH.queue.push({id: ++CH.seq, file: f, size: f.size,
+    CH.queue.push({id: ++CH.seq, file: f, size: f.size, sent: false, error: "", view: null,
       name: name || ("photo-" + CH.seq + "." + (type === "image/png" ? "png" : "jpg")),
       url: img && window.URL && URL.createObjectURL ? URL.createObjectURL(f) : ""});
+    CH.filesDirty = true;
   });
-  if (over) bad.push(T("tg.wz.too_many", "За раз уходит не больше {n} файлов — остальные добавьте после отправки.", {n: CH_MAX_FILES}));
+  if (over) bad.push(T("tg.act.too_many", "В акт идёт не больше {n} файлов — уберите лишние, чтобы добавить другие.", {n: CH_MAX_FILES}));
   CH.err = bad.join(" ");
   haptic(bad.length ? "warning" : "select");
   if (CH.wz !== 1) { CH.wz = 1; wzSave(); }
@@ -2645,6 +2503,7 @@ function wzRemove(id){
   if (!q || CH.busy) return;
   if (q.url) URL.revokeObjectURL(q.url);
   CH.queue = CH.queue.filter(x => x !== q);
+  if (q.sent) CH.filesDirty = true;           // принятый файл убрали — пришлём оставшиеся заново
   CH.err = "";
   haptic("select");
   wzPart("files");
@@ -2652,32 +2511,37 @@ function wzRemove(id){
 }
 function chatProgress(){
   document.querySelectorAll("#wzFiles .bar i").forEach(i => { i.style.width = (CH.upPct || 0) + "%"; });
-  document.querySelectorAll("#wzFiles .st").forEach(s => { if (!s.classList.contains("ok") && !s.classList.contains("err")) s.textContent = nf(CH.upPct || 0, 0) + "%"; });
+  document.querySelectorAll("#wzFiles .st").forEach(s => { s.textContent = CH.phase === "upload" ? nf(CH.upPct || 0, 0) + "%" : ""; });
   wzBarPaint();
 }
-async function wzNext1(){
-  if (!CH.queue.length) { wzGo(2); return; }
-  await chatUpload();
+function wzNext1(){
+  const live = CH.queue.filter(q => !q.error);
+  if (live.length && (CH.filesDirty || live.some(q => !q.sent))) { actUpload(); return; }
+  wzGo(2);
 }
-/* файлы из списка — одним POST /chat/upload (session_id + files), с прогрессом */
-async function chatUpload(retried){
-  if (!CH.sid && !(await chatStart(true))) return;
-  const list = CH.queue.slice(0, CH_MAX_FILES);
+/* все файлы из списка — одним POST /act/photos: сервер не дописывает файлы в прежнюю сессию, поэтому при
+   добавлении снимков уходит весь список заново, а исправленные сотрудником значения остаются */
+async function actUpload(){
+  const list = CH.queue.filter(q => !q.error).slice(0, CH_MAX_FILES);
   if (!list.length || CH.busy) return;
   const fd = new FormData();
-  fd.append("session_id", CH.sid);
   list.forEach(q => fd.append("files", q.file, q.name));
+  fd.append("lang", I18N_LANG);
+  if (CH.must.product_code) fd.append("product_code", CH.must.product_code);
+  else if (CH.must.class_code) fd.append("class_code", CH.must.class_code);
   CH.busy = true;
+  CH.phase = "upload";
   CH.err = "";
   CH.upPct = 0;
   tgBusy(true);
   wzPaint(true);
-  const before = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {})};
   const res = await new Promise(resolve => {
     const x = new XMLHttpRequest();
-    x.open("POST", "/chat/upload");
+    x.open("POST", "/act/photos");
     if (TOKEN) x.setRequestHeader("Authorization", "Bearer " + TOKEN);
     x.upload.onprogress = e => { if (e.lengthComputable) { CH.upPct = Math.round(e.loaded / e.total * 100); chatProgress(); } };
+    // файлы ушли — дальше их читает модель: «Читаю фото…»
+    x.upload.onload = () => { CH.phase = "read"; wzPart("files"); wzBarPaint(); };
     x.onload = () => {
       let j = null;
       try { j = JSON.parse(x.responseText); } catch (e) { j = null; }
@@ -2687,125 +2551,168 @@ async function chatUpload(retried){
     x.send(fd);
   });
   CH.busy = false;
+  CH.phase = "";
   tgBusy(false);
+  const j = res.j || {};
   if (!res.status) { CH.err = T("tg.err.offline", "сервер не отвечает"); haptic("error"); wzPaint(true); return; }
-  if (res.status === 404 && !retried) {             // сессия истекла — новая и ещё одна попытка
-    try { sessionStorage.removeItem(CH_KEY); } catch (e) {}
-    CH.sid = "";
-    if (await chatStart(true)) return chatUpload(true);
-    return;
-  }
-  // 413 (много файлов), 415 (формат), 429 (частые запросы) — показываем словами сервера
-  if (res.status >= 400) { CH.err = (res.j && (res.j.detail || res.j.error)) || why(res.status, res.j); haptic("error"); wzPaint(true); return; }
-  const d = res.j || {};
-  const files = Array.isArray(d.files) ? d.files : [];
-  CH.notes = [];
-  chatApply(d);
-  wzCards(d.cards, "upload");
-  // пометка «из договора — проверьте»: поля, которые сервер заполнил из этой пачки файлов
-  const src = files.some(f => f && f.ok && f.kind === "договор") ? "contract" : "doc";
-  ["must", "optional"].forEach(sc => Object.keys((CH.state && CH.state[sc]) || {}).forEach(k => {
-    const was = before[sc][k], now = CH.state[sc][k];
-    if ((was == null || was === "") && now != null && now !== "" && !CH.dirty[sc][k]) CH.fromDoc[sc + "." + k] = src;
-  }));
-  files.forEach(f => CH.sent.push({name: String((f && f.name) || ""), ok: !!(f && f.ok), kind: (f && f.kind) || "",
-    status: (f && f.status) || "", error: f && f.error ? String(f.error) : "", closes: Array.isArray(f && f.closes) ? f.closes : []}));
-  list.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
-  CH.queue = CH.queue.filter(q => list.indexOf(q) < 0);
-  if (!files.some(f => f && f.ok)) {
-    CH.err = T("tg.wz.none_taken", "Ни один файл не принят — причины в списке. Проверьте формат и размер или продолжите без документов.");
+  if (res.status >= 400) {
+    // 413 — больше 10 файлов, 422 — ни один не принят (причины у файлов), 429 — слишком часто: словами сервера
+    actMarkRejected(list, j.rejected || []);
+    CH.err = typeof j.detail === "string" && j.detail ? j.detail : why(res.status, j);
+    if (j.warning) { CH.warning = String(j.warning); CH.upLang = I18N_LANG; }
     haptic("error");
-    wzSave();
     wzPaint(true);
     return;
   }
+  actApplyPhotos(j, list);
   haptic("success");
-  CH.wz = CH.queue.length ? 1 : 2;
+  CH.wz = 2;
   wzSave();
   wzPaint(true);
   window.scrollTo(0, 0);
-  await chatMeta(CH.draft.must.class_code || "");
-  wzPart("region"); wzPart("more"); wzPart("prod"); wzPart("und");
-  if (CH.wz === 2) wzNeed();
 }
-async function wzMode(v){
-  if (CH.busy) return;
-  haptic("select");
-  const region = CH.draft.must.region;
-  CH.dirty = {must: {}, optional: {}};
-  tgBusy(true);
-  const d = await chatPost("/chat/answer", {key: "contract_mode", value: v});
-  tgBusy(false);
-  if (d) {
-    CH.mode = v;
-    CH.fromDoc = {};
-    if (!CH.draft.must.region && region) { CH.draft.must.region = region; CH.dirty.must.region = 1; }
-  }
-  wzSave();
-  wzPaint(true);
-  if (d) wzMetaFor();
+/* файл из ответа сервера → файл в списке: по index — порядковому номеру файла в запросе (с 1).
+   Имя не годится: сервер скрывает в нём персональные данные, и у двух файлов оно может совпасть. */
+const byIndex = (list, r) => {
+  const i = r && Number(r.index);
+  return Number.isInteger(i) && i >= 1 && i <= list.length ? list[i - 1] : null;
+};
+function actMarkRejected(list, rejected){
+  (Array.isArray(rejected) ? rejected : []).forEach(r => {
+    const q = byIndex(list, r);
+    if (!q) return;
+    q.error = String(r.error || T("tg.wz.not_taken", "не принят"));
+    q.sent = false;
+    q.notRead = false;
+  });
+}
+function actApplyPhotos(d, list){
+  actMarkRejected(list, d.rejected || []);
+  const files = Array.isArray(d.files) ? d.files : [];
+  files.forEach(f => {
+    const q = byIndex(list, f);
+    if (!q || q.error) return;
+    q.sent = true;
+    q.view = f.view || null;
+    // модель работала, но этот файл в запрос к ней не поместился
+    q.notRead = !!d.ai && f.read_by_ai === false;
+  });
+  CH.filesDirty = false;
+  CH.stale = false;
+  CH.session = String(d.session || "");
+  CH.ai = !!d.ai;
+  CH.photoCount = files.length;
+  CH.upLang = d.lang || I18N_LANG;
+  CH.msg = String(d.message || "");
+  CH.notes = Array.isArray(d.notes) ? d.notes.map(String) : [];
+  CH.warning = String(d.warning || "");
+  // правки сотрудника переживают новое распознавание: его значение встаёт на место того, что он исправил
+  const edited = CH.rec.filter(r => r.source === "input");
+  const fresh = (Array.isArray(d.recognized) ? d.recognized : []).filter(r => r && r.key && r.value != null && String(r.value).trim())
+    .map(r => ({key: String(r.key), value: String(r.value), source: String(r.source || "photo"), file: r.file || null,
+      label: r.label || "", note: r.note || "", orig: {value: String(r.value), source: String(r.source || "photo")}}));
+  edited.forEach(e => {
+    const at = fresh.findIndex(r => r.key === e.key && e.orig && r.orig.value === e.orig.value && r.orig.source === e.orig.source);
+    if (at >= 0) fresh[at] = e; else fresh.push(e);
+  });
+  CH.rec = fresh;
+  CH.damages = (Array.isArray(d.damages) ? d.damages : []).filter(x => x && x.what).map(x => ({what: String(x.what), where: x.where ? String(x.where) : null}));
+  CH.missingViews = (d.missing_views || []).map(v => String(v.code || v));
+  CH.requiredViews = (d.required_views || []).map(v => String(v.code || v));
+  CH.suggest = (d.suggest_classes || []).map(String);
 }
 
 /* ---------- шаг 2: проверить ---------- */
 function wzStep2Html(){
   return '<h2 class="wz-h">' + esc(T("tg.wz.s2_title", "Проверьте данные")) + "</h2>"
-    + '<p class="wz-lead">' + esc(CH.sent.length
-      ? T("tg.wz.s2_lead_docs", "Мы заполнили то, что нашли в документах. Проверьте значения и добавьте недостающее.")
-      : T("tg.wz.s2_lead", "Заполните четыре обязательных поля — остальное система подставит сама и пометит.")) + "</p>"
-    + '<div id="wzUnd">' + wzUnderstoodHtml() + "</div>"
+    + '<p class="wz-lead">' + esc(CH.photoCount
+      ? T("tg.act.s2_lead_photos", "Проверьте, что прочитано с фото, и заполните четыре обязательных поля.")
+      : T("tg.act.s2_lead", "Заполните четыре обязательных поля — остальное можно не заполнять.")) + "</p>"
+    + '<div id="wzRec">' + wzRecHtml() + "</div>"
     + '<div class="card"><h2>' + esc(T("tg.wz.must_title", "Обязательные данные")) + "</h2>"
     + '<p class="sub">' + esc(T("tg.wz.must_sub", "Продукт или класс, страховая сумма, стоимость объекта и регион.")) + "</p>"
     + '<div id="wzProd">' + wzProdHtml() + "</div>"
     + '<div class="hero2">' + ["sum_insured", "object_value"].map(wzMoneyHtml).join("") + "</div>"
     + '<div id="wzRegion">' + wzRegionHtml() + "</div>"
     + "</div>"
-    + '<div id="wzDocs">' + wzDocsNeedHtml() + "</div>"
     + '<div id="wzMoreBox">' + wzMoreHtml() + "</div>"
-    + '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
+    + msgHtml();
 }
-function wzDocTag(sc, key){
-  const s = CH.fromDoc[sc + "." + key];
-  if (!s) return "";
-  return ' <span class="tag pfmark">' + esc(s === "contract" ? T("tg.wz.from_contract", "из договора — проверьте") : T("tg.wz.from_doc", "из документа — проверьте")) + "</span>";
+const normVal = v => String(v == null ? "" : v).toUpperCase().replace(/[\s.,]/g, "");
+/* поля распознавания по порядку первого появления; у каждого — все источники */
+function recGroups(){
+  const order = [], by = {};
+  CH.rec.forEach((r, i) => {
+    if (!by[r.key]) { by[r.key] = []; order.push(r.key); }
+    by[r.key].push(i);
+  });
+  return order.map(k => ({key: k, idx: by[k]}));
 }
-function wzFieldDef(k){
-  const meta = CH.meta || {};
-  return (meta.must_full || meta.must || []).concat(meta.optional || []).filter(f => f.key === k)[0] || WZ_DEFS[k] || {key: k, label: k};
+function recDisc(idx){
+  const vals = {};
+  idx.forEach(i => { const v = normVal(CH.rec[i].value); if (v) vals[v] = 1; });
+  return Object.keys(vals).length > 1;
 }
-function wzValue(k, v){
-  const f = wzFieldDef(k);
-  if (k === "sum_insured" || k === "object_value" || f.unit === MONEY_UNIT) return money(v);
-  if (k === "product_code") { const p = wzProd(v); return p ? v + " · " + p.name : String(v); }
-  if (k === "class_code") return String(v).split("/").map(c => c + " · " + wzClsName(c)).join(", ");
-  if (k === "region") return wzRegionName(v);
-  const o = (f.options || []).filter(x => String(x.code) === String(v))[0];
-  if (o) return optLabel(f, o);
-  if (v && typeof v === "object") {
-    return Object.keys(v).filter(s => v[s] != null && v[s] !== "").map(s => subLabel(k, s) + ": " + (typeof v[s] === "number" ? fmt(v[s]) : String(v[s]))).join(" · ") || "—";
+function recSrcLine(r){
+  return srcName(r.source) + (r.source === "input" ? "" : " · " + T("tg.act.check", "проверьте"));
+}
+function wzRecHtml(){
+  const addBtn = '<button type="button" class="btn btn-secondary btn-sm" data-go="addphoto">' + esc(T("tg.act.add_photo", "Добавить фото")) + "</button>";
+  if (!CH.photoCount) {
+    return '<div class="card"><h2>' + esc(T("tg.act.no_insp_title", "Осмотр по фото")) + "</h2>"
+      + '<p class="sub">' + esc(T("tg.act.no_insp", "Фото не загружены — в акте разделы осмотра будут помечены «осмотр не проводился».")) + "</p>"
+      + '<div class="actions">' + addBtn + "</div></div>";
   }
-  return human(String(v)) + (f.unit ? " " + unitName(f.unit) : "");
-}
-function wzUnderstoodHtml(){
-  if (!CH.sent.length) return "";
-  const rows = Object.keys(CH.fromDoc).map(id => {
-    const at = id.indexOf("."), sc = id.slice(0, at), k = id.slice(at + 1);
-    const v = CH.draft[sc] && CH.draft[sc][k];
-    if (v == null || v === "") return "";
-    return "<div><span>" + esc(fieldLabel(wzFieldDef(k))) + "<small>" + esc(CH.fromDoc[id] === "contract"
-        ? T("tg.wz.from_contract", "из договора — проверьте") : T("tg.wz.from_doc", "из документа — проверьте")) + "</small></span>"
-      + "<b>" + esc(wzValue(k, v)) + "</b></div>";
+  const groups = recGroups();
+  let h = '<div class="card"><h2>' + esc(T("tg.act.rec_title", "Распознано")) + "</h2>";
+  if (CH.ai) h += '<p class="sub">' + esc(T("tg.act.rec_sub", "Модель прочитала фото и снимки документов и может ошибаться. Проверьте каждое значение — исправить можно прямо здесь.")) + "</p>";
+  else {
+    h += '<p class="note warn">' + esc(T("tg.act.rec_off", "Фото сохранены, но прочитать их не удалось — введите данные сами. В акте раздел осмотра будет помечен.")) + "</p>";
+    if (CH.msg && CH.upLang === I18N_LANG) h += '<p class="note">' + esc(CH.msg) + "</p>";
+  }
+  if (CH.upLang === I18N_LANG) h += CH.notes.map(n => '<p class="note warn">' + esc(n) + "</p>").join("");
+  if (CH.ai && !groups.length) h += '<p class="note">' + esc(T("tg.act.rec_none", "С фото не удалось прочитать ни одного значения — введите данные ниже.")) + "</p>";
+  h += groups.map(g => {
+    const disc = recDisc(g.idx), label = recLabel(g.key, (CH.rec[g.idx[0]] || {}).label);
+    return '<div class="rec' + (disc ? " disc" : "") + '" data-key="' + esc(g.key) + '"><div class="rec-h"><b>' + esc(label) + "</b>"
+      + '<span class="tag warn rec-tag">' + esc(T("tg.act.disc_tag", "расхождение")) + "</span></div>"
+      + g.idx.map(i => {
+        const r = CH.rec[i];
+        return '<div class="rec-i"><input id="wzr-' + i + '" type="text" autocomplete="off" maxlength="120" data-rec="' + i + '" value="' + esc(r.value)
+          + '" aria-label="' + esc(label + ", " + srcName(r.source)) + '"><small id="wzrs-' + i + '">' + esc(recSrcLine(r)) + "</small></div>";
+      }).join("")
+      + '<p class="note warn rec-hint">' + esc(T("tg.act.disc_hint", "Значения из разных источников не совпадают. Оставьте верное: при расхождении приоритет у документа с печатью производителя, решение за андеррайтером.")) + "</p>"
+      + "</div>";
   }).join("");
-  const ok = CH.sent.filter(f => f.ok).length;
-  return '<div class="card"><h2>' + esc(T("tg.wz.understood", "Что система поняла из документов")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.wz.understood_sub", "Файлов разобрано: {n} из {all}. Значения ниже уже стоят в полях — проверьте их.", {n: ok, all: CH.sent.length})) + "</p>"
-    + (rows ? '<div class="rows">' + rows + "</div>"
-      : '<p class="note">' + esc(T("tg.wz.understood_none", "Значений для полей в файлах не нашлось — введите их ниже.")) + "</p>")
-    + CH.notes.map(n => '<p class="note' + (n.tone === "warn" ? " warn" : "") + '">' + hx(chatTr(n.text)) + "</p>").join("")
-    + "</div>";
+  if (CH.ai) {
+    h += '<div class="h3">' + esc(T("tg.act.damages", "Видимые повреждения")) + "</div>"
+      + (CH.damages.length
+        ? '<ul class="dmg">' + CH.damages.map(d => "<li>" + esc(d.what + (d.where ? " (" + d.where + ")" : "")) + "</li>").join("") + "</ul>"
+        : '<p class="note">' + esc(T("tg.act.damages_none", "На фото повреждений не видно.")) + "</p>");
+  }
+  if (CH.missingViews.length) {
+    h += '<div class="wz-miss"><p><b>' + esc(T("tg.act.views_miss_title", "Не хватает снимков")) + ":</b> " + esc(CH.missingViews.map(viewName).join(", ")) + "</p>"
+      + '<p class="note">' + esc(T("tg.act.views_skip", "Продолжить можно и без них — в акте это будет отмечено.")) + "</p>"
+      + '<div class="actions">' + addBtn + "</div></div>";
+  } else h += '<div class="actions">' + addBtn + "</div>";
+  return h + "</div>";
+}
+/* правка распознанного: значение и источник меняются на месте, поле не перерисовывается */
+function recInput(el){
+  const i = Number(el.dataset.rec), r = CH.rec[i];
+  if (!r) return;
+  r.value = String(el.value || "");
+  const o = r.orig;
+  r.source = o && r.value.trim() === o.value ? o.source : "input";
+  const s = $("#wzrs-" + i);
+  if (s) s.textContent = recSrcLine(r);
+  const box = el.closest(".rec");
+  if (box) box.classList.toggle("disc", recDisc(recGroups().filter(g => g.key === r.key)[0].idx));
+  wzSave();
 }
 
 /* продукт или класс: список как в «Тарифной политике» — поиск, группы по классам, код, название,
-   «документов: N», ставка справа */
+   «документов: N», ставка справа; класс по фото — подсказкой сверху */
 function wzProdRow(p, pressed, asPick){
   const n = wzDocCount(p);
   const inner = "<code>" + esc(p.code) + "</code><span>" + esc(p.name || "")
@@ -2815,31 +2722,36 @@ function wzProdRow(p, pressed, asPick){
     : '<button type="button" class="prow" data-prod="' + esc(p.code) + '" aria-pressed="' + (!!pressed) + '">' + inner + "</button>";
 }
 function wzProdHtml(){
-  const m = CH.draft.must, code = m.product_code || "", cls = m.class_code || "";
-  const err = CH.errs.class_code;
+  const m = CH.must, code = m.product_code || "", cls = m.class_code || "";
+  const err = CH.errs.prod;
   const p = code ? wzProd(code) : null;
   let pick = "";
   if (p) pick = wzProdRow(p, true, true);
-  else if (code) pick = '<div class="ppick"><code>' + esc(code) + "</code><span>" + esc(T("tg.wz.prod_unknown", "продукт из прошлого расчёта")) + "</span><b></b></div>";
-  else if (cls) pick = '<div class="ppick"><code>' + esc(cls) + "</code><span>" + esc(String(cls).split("/").map(c => wzClsName(c)).join(", "))
+  else if (code) pick = '<div class="ppick"><code>' + esc(code) + "</code><span>" + esc(code) + "</span><b></b></div>";
+  else if (cls) pick = '<div class="ppick"><code>' + esc(cls) + "</code><span>" + esc(wzClsName(cls))
     + "<small>" + esc(T("tg.wz.class_only_hint", "только класс — продукт не выбран")) + "</small></span><b></b></div>";
   const open = !pick || CH.prodOpen;
+  const sug = !pick && CH.suggest.length
+    ? '<div class="wz-sug"><span>' + esc(T("tg.act.suggest", "По фото похоже на класс:")) + "</span>"
+      + CH.suggest.map(c => '<button type="button" data-clsonly="' + esc(c) + '">' + esc(c + " · " + wzClsName(c)) + "</button>").join("") + "</div>"
+    : "";
   return '<div class="' + (err ? "bad" : "") + '"><label class="f"' + (open ? ' for="wzProdQ"' : "") + ">"
-    + esc(T("tg.wz.prod_label", "Продукт или класс")) + wzDocTag("must", code ? "product_code" : "class_code") + "</label>"
+    + esc(T("tg.wz.prod_label", "Продукт или класс")) + "</label>"
+    + sug
     + (pick && !open ? pick + '<div class="qadd"><button type="button" data-prodopen="1">' + esc(T("tg.wz.prod_change", "Изменить")) + "</button></div>" : "")
     + (open ? '<input id="wzProdQ" type="search" autocomplete="off" enterkeyhint="search" value="' + esc(CH.prodQ) + '" placeholder="'
         + esc(T("tg.wz.prod_ph", "Код или название продукта")) + '">'
         + '<div class="pgroups" id="wzProdList">' + wzProdListHtml() + "</div>"
         + (pick ? '<div class="qadd"><button type="button" data-prodclose="1">' + esc(T("tg.wz.prod_keep", "Оставить выбранный")) + "</button></div>" : "")
       : "")
-    + '<span class="ferr" id="wzErr-class_code">' + esc(err || "") + "</span></div>";
+    + '<span class="ferr" id="wzErr-prod">' + esc(err || "") + "</span></div>";
 }
 function wzProdListHtml(){
   if (CH.refsErr) return '<p class="note err pad">' + esc(T("tg.refs_failed", "Справочники не загрузились: {reason}", {reason: CH.refsErr})) + "</p>";
   const R = CH.refs;
   if (!R) return '<p class="note pad">' + spin(T("common.loading", "загружаю…")) + "</p>";
   const q = String(CH.prodQ || "").trim().toLowerCase();
-  const cur = CH.draft.must.product_code || "";
+  const cur = CH.must.product_code || "";
   const hit = p => !q || String(p.code).toLowerCase().indexOf(q) === 0 || String(p.name || "").toLowerCase().indexOf(q) >= 0;
   const groups = R.classes.map(c => {
     const all = R.products.filter(p => wzClassesOf(p)[0] === c.code);
@@ -2854,36 +2766,28 @@ function wzProdListHtml(){
 function wzPickProduct(code){
   const p = wzProd(code);
   if (!p) return;
-  const cls = wzClassesOf(p);
-  CH.draft.must.product_code = code;
-  if (cls.length) CH.draft.must.class_code = cls.join("/");
-  CH.dirty.must.product_code = CH.dirty.must.class_code = 1;
+  CH.must.product_code = code;
+  CH.must.class_code = wzClassesOf(p)[0] || "";
   wzPicked();
 }
 function wzPickClass(code){
-  delete CH.draft.must.product_code;
-  CH.draft.must.class_code = code;
-  CH.dirty.must.product_code = CH.dirty.must.class_code = 1;
+  delete CH.must.product_code;
+  CH.must.class_code = code;
   wzPicked();
 }
 function wzPicked(){
   CH.prodOpen = false;
   CH.prodQ = "";
-  wzClearErr("class_code");
+  wzClearErr("prod");
   haptic("select");
   wzSave();
   wzPart("prod");
-  wzNeed();
-  wzMetaFor();
-}
-/* поля и регионы зависят от класса: догружаем и перерисовываем только их */
-function wzMetaFor(){
-  chatMeta(CH.draft.must.class_code || "").then(() => { wzPart("region"); wzPart("more"); wzPart("und"); });
 }
 function wzMoneyHtml(key){
-  const id = "wzf-" + key, v = CH.draft.must[key], err = CH.errs[key];
+  const id = "wzf-" + key, v = CH.must[key], err = CH.errs[key];
   const other = key === "sum_insured" ? "object_value" : "sum_insured";
-  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="' + id + '">' + esc(fieldLabel({key: key})) + ' <span class="unit">' + esc(SUM()) + "</span>" + wzDocTag("must", key) + "</label>"
+  const label = key === "sum_insured" ? T("tg.an.f.sum_insured", "Страховая сумма") : T("tg.an.f.object_value", "Стоимость объекта");
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="' + id + '">' + esc(label) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
     + '<input id="' + id + '" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" data-money="1" data-fk="' + key + '" data-scope="must"'
     + ' value="' + esc(v == null || v === "" ? "" : Number(v).toLocaleString(LOC())) + '" placeholder="0">'
     + '<div class="qadd" data-for="' + key + '">'
@@ -2894,117 +2798,56 @@ function wzMoneyHtml(key){
     + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
 function wzRegionHtml(){
-  const regions = (CH.meta && CH.meta.regions) || [];
-  const cur = CH.draft.must.region || "";
-  const names = regions.map(r => typeof r === "string" ? r : (r && (r.name || r.code))).filter(Boolean);
-  if (cur && names.indexOf(cur) < 0) names.unshift(cur);
-  const err = CH.errs.region;
-  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzf-region">' + esc(fieldLabel({key: "region"})) + wzDocTag("must", "region") + "</label>"
+  const cur = CH.must.region || "", err = CH.errs.region;
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzf-region">' + esc(T("tg.an.f.region", "Регион")) + "</label>"
     + '<select id="wzf-region" data-fk="region" data-scope="must">'
     + '<option value="">' + esc(T("tg.wz.region_pick", "Выберите регион")) + "</option>"
-    + names.map(n => '<option value="' + esc(n) + '"' + (n === cur ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select>"
-    + (CH.metaErr ? '<span class="hint err">' + esc(T("tg.chat.meta_failed", "Список классов не загрузился: {reason}", {reason: CH.metaErr})) + "</span>"
-      : !regions.length ? '<span class="hint">' + spin(T("common.loading", "загружаю…")) + "</span>" : "")
+    + REGIONS.map(c => '<option value="' + c + '"' + (c === cur ? " selected" : "") + ">" + esc(regionName(c)) + "</option>").join("") + "</select>"
     + '<span class="ferr" id="wzErr-region">' + esc(err || "") + "</span></div>";
 }
-/* каких документов не хватает: список — GET /analytics/risk/docs по продукту или классу,
-   «есть» — если файл его закрыл (closes в ответе загрузки) или так сказал чек-лист сервера */
-async function wzNeed(){
-  const m = CH.draft.must;
-  const key = (m.product_code || "") + "|" + (m.class_code || "");
-  if (!m.product_code && !m.class_code) { CH.need = null; CH.needKey = ""; CH.needErr = ""; wzPart("docs"); return; }
-  if (key === CH.needKey && (CH.need || CH.needErr)) { wzPart("docs"); return; }
-  CH.needKey = key; CH.need = null; CH.needErr = "";
-  wzPart("docs");
-  const q = "?product_code=" + encodeURIComponent(m.product_code || "") + "&class_code=" + encodeURIComponent(m.product_code ? "" : (m.class_code || ""));
-  const r = await api("/analytics/risk/docs" + q);
-  if (key !== CH.needKey) return;
-  if (r.ok) CH.need = {required: ((r.data && r.data.required) || []).map(x => x && (x.doc_name || x.name)).filter(Boolean), basis: (r.data && r.data.basis_text) || ""};
-  else CH.needErr = r.error;
-  wzPart("docs");
+/* «Дополнительно»: необязательные поля лёгкого движка (ТЗ, п. 6 и 8.1–8.4) */
+const OPT_KEYS = ["year", "location", "guard", "losses_count", "losses_small", "losses_amount", "want_lower", "price_new", "purchase_year"];
+function optInput(key, label, kind, hint){
+  const v = CH.opt[key], err = CH.errs[key];
+  const money = kind === "money";
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzo-' + key + '">' + esc(label)
+    + (money ? ' <span class="unit">' + esc(SUM()) + "</span>" : "") + "</label>"
+    + '<input id="wzo-' + key + '" type="text" autocomplete="off" inputmode="numeric" data-fk="' + key + '" data-scope="opt"'
+    + (money ? ' data-money="1"' : ' data-int="1" maxlength="4"')
+    + ' value="' + esc(v == null || v === "" ? "" : money ? Number(v).toLocaleString(LOC()) : v) + '">'
+    + (hint ? '<span class="hint">' + esc(hint) + "</span>" : "")
+    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
-function wzDocsNeedHtml(){
-  const m = CH.draft.must;
-  const head = '<div class="card"><h2>' + esc(T("tg.wz.docs_title", "Каких документов не хватает")) + "</h2>";
-  if (!m.product_code && !m.class_code) return head + '<p class="note">' + esc(T("tg.wz.docs_pick_first", "Выберите продукт или класс — покажем, какие документы нужны.")) + "</p></div>";
-  if (CH.needErr) return head + '<p class="note err">' + esc(T("tg.wz.docs_failed", "Список документов не загрузился: {reason}", {reason: CH.needErr})) + "</p></div>";
-  if (!CH.need) return head + '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>";
-  const got = {};
-  CH.sent.forEach(f => (f.closes || []).forEach(n => { got[n] = 1; }));
-  CH.checklist.forEach(x => { if (x.ok) got[x.name] = 1; });
-  const req = CH.need.required.filter(keepDoc);
-  const miss = req.filter(n => !got[n]), have = req.filter(n => got[n]);
-  return head
-    + '<p class="sub">' + esc(miss.length
-      ? T("tg.wz.docs_miss_n", "Не хватает {n} из {all}. Анализ посчитаем и без них — с пометкой о допущениях.", {n: miss.length, all: req.length})
-      : T("tg.wz.docs_all", "Все нужные документы есть.")) + "</p>"
-    + '<div class="chk">'
-    + miss.map(n => '<div><i class="no" aria-hidden="true">✗</i><span>' + esc(n) + "</span></div>").join("")
-    + have.map(n => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(n) + "<small>" + esc(T("tg.wz.doc_have", "есть в загруженных файлах")) + "</small></span></div>").join("")
+function optYesNo(key, label){
+  const v = CH.opt[key], err = CH.errs[key];
+  return '<div class="full' + (err ? " bad" : "") + '"><label class="f">' + esc(label) + "</label>"
+    + '<div class="segsel" role="group" aria-label="' + esc(label) + '">'
+    + '<button type="button" data-set="' + key + '" data-value="yes" aria-pressed="' + (v === "yes") + '">' + esc(T("tg.act.yes", "да")) + "</button>"
+    + '<button type="button" data-set="' + key + '" data-value="no" aria-pressed="' + (v === "no") + '">' + esc(T("tg.act.no", "нет")) + "</button>"
     + "</div>"
-    + (CH.need.basis ? '<p class="note">' + hx(CH.need.basis) + "</p>" : "")
-    + (miss.length ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
-      + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "")
-    + "</div>";
-}
-/* «Дополнительно»: поля, которые система иначе подставит сама (тип объекта, конструкция, срок…),
-   и уточнения по влиянию на ставку — в порядке, который прислал сервер */
-function wzAssumed(key){
-  const a = ((CH.meta && CH.meta.will_assume) || []).filter(x => x && x.key === key)[0];
-  return a ? T("tg.wz.assumed", "Если не заполнить: {v}", {v: human(a.value_label != null ? a.value_label : a.value)}) : "";
+    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
 function wzMoreHtml(){
-  const meta = CH.meta || {};
-  const hiddenKeys = meta.hidden_keys || [];
-  const hidden = (meta.must_full || []).filter(f => hiddenKeys.indexOf(f.key) >= 0);
-  const opt = (CH.fieldsOpt.length ? CH.fieldsOpt : (meta.optional || [])).filter(f => f && f.key !== "documents");
-  if (!hidden.length && !opt.length) return "";
-  const n = hidden.filter(f => CH.draft.must[f.key] != null && CH.draft.must[f.key] !== "").length
-    + opt.filter(f => CH.draft.optional[f.key] != null && CH.draft.optional[f.key] !== "").length;
+  const n = OPT_KEYS.filter(k => CH.opt[k] != null && CH.opt[k] !== "").length;
+  const loc = CH.opt.location || "";
   return '<details class="sec" id="wzMore"' + (CH.optOpen ? " open" : "") + '><summary><span><b>' + esc(T("tg.wz.more", "Дополнительно"))
     + (n ? " · " + esc(T("tg.wz.more_n", "заполнено {n}", {n: n})) : "") + "</b><small>"
-    + esc(T("tg.wz.more_sub", "Уточните объект — ставка станет точнее. Незаполненное система подставит и пометит.")) + "</small></span></summary>"
+    + esc(T("tg.act.more_sub", "Год, место эксплуатации, охрана, убытки — по ним уточняется уровень риска. Можно не заполнять.")) + "</small></span></summary>"
     + '<div class="in"><div class="fgrid">'
-    + hidden.map(f => chatFieldHtml(f, "must")).join("") + opt.map(f => chatFieldHtml(f, "optional")).join("")
+    + optInput("year", T("tg.act.f.year", "Год выпуска"), "year")
+    + '<div class="' + (CH.errs.location ? "bad" : "") + '"><label class="f" for="wzo-location">' + esc(T("tg.act.f.location", "Место эксплуатации")) + "</label>"
+    + '<select id="wzo-location" data-fk="location" data-scope="opt"><option value="">' + esc(T("common.not_set", "не задан")) + "</option>"
+    + LOCATIONS.map(c => '<option value="' + c + '"' + (c === loc ? " selected" : "") + ">" + esc(locName(c)) + "</option>").join("") + "</select>"
+    + '<span class="ferr" id="wzErr-location">' + esc(CH.errs.location || "") + "</span></div>"
+    + optYesNo("guard", T("tg.act.guard", "Охрана объекта"))
+    + '<div class="full"><div class="h3">' + esc(T("tg.act.losses", "Убытки за три года")) + "</div></div>"
+    + optInput("losses_count", T("tg.act.losses_count", "Всего убытков"), "int")
+    + optInput("losses_small", T("tg.act.losses_small", "Из них мелких"), "int")
+    + optInput("losses_amount", T("tg.act.losses_amount", "Сумма убытков"), "money")
+    + optYesNo("want_lower", T("tg.act.want_lower", "Клиент просит снизить премию"))
+    + optInput("price_new", T("tg.act.price_new", "Цена покупки"), "money", T("tg.act.price_hint", "С годом покупки покажем стоимость с учётом износа — как ориентир."))
+    + optInput("purchase_year", T("tg.act.purchase_year", "Год покупки"), "year")
     + "</div></div></details>";
-}
-function chatFieldHtml(f, scope){
-  const id = "chf-" + f.key;
-  const v = CH.draft[scope][f.key];
-  const opts = f.options || [];
-  const hint = [f.why ? human(f.why) : "", scope === "must" ? wzAssumed(f.key) : ""].filter(Boolean).join(" · ");
-  const why = hint ? '<span class="hint">' + esc(hint) + "</span>" : "";
-  const tag = wzDocTag(scope, f.key);
-  if (opts.length && opts.length <= 5) {
-    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + tag + "</label>"
-      + '<div class="segsel" role="group">' + opts.map(o =>
-        '<button type="button" data-set="' + esc(f.key) + '" data-scope="' + scope + '"'
-        + ' data-value="' + esc(o.code) + '" aria-pressed="' + (String(v) === String(o.code)) + '">'
-        + esc(optLabel(f, o)) + "</button>").join("") + "</div>" + why + "</div>";
-  }
-  if (opts.length) {
-    return '<div class="full"><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + tag + "</label>"
-      + '<select id="' + id + '" data-fk="' + esc(f.key) + '" data-scope="' + scope + '">'
-      + '<option value="">' + esc(T("common.not_set", "не задан")) + "</option>"
-      + opts.map(o => '<option value="' + esc(o.code) + '"' + (String(v) === String(o.code) ? " selected" : "") + ">"
-        + esc(optLabel(f, o)) + "</option>").join("") + "</select>" + why + "</div>";
-  }
-  if (f.type === "object" && (f.fields || []).length) {
-    return '<div class="full"><label class="f">' + esc(fieldLabel(f)) + tag + "</label><div class=\"two keep\">"
-      + f.fields.map(sf => {
-        const sv = (v && typeof v === "object") ? v[sf.key] : "";
-        return "<div><label class=\"f\" for=\"" + id + "-" + esc(sf.key) + "\">" + esc(subLabel(f.key, sf.key)) + "</label>"
-          + '<input id="' + id + "-" + esc(sf.key) + '" type="text" inputmode="decimal" autocomplete="off" data-fk="' + esc(f.key)
-          + '" data-sub="' + esc(sf.key) + '" data-scope="' + scope + '" value="' + esc(sv == null ? "" : sv) + '"></div>';
-      }).join("") + "</div>" + why + "</div>";
-  }
-  const numeric = f.type === "number";
-  const money = f.unit === MONEY_UNIT;
-  return '<div><label class="f" for="' + id + '">' + esc(fieldLabel(f)) + tag
-    + (f.unit ? ' <span class="unit">' + esc(unitName(f.unit)) + "</span>" : "") + "</label>"
-    + '<input id="' + id + '" type="text" autocomplete="off"' + (money ? ' inputmode="numeric" data-money="1"' : numeric ? ' inputmode="decimal" data-num="1"' : "")
-    + ' data-fk="' + esc(f.key) + '" data-scope="' + scope + '" value="'
-    + esc(v == null ? "" : money ? Number(v).toLocaleString(LOC()) : v) + '">' + why + "</div>";
 }
 function wzClearErr(key){
   if (!CH.errs[key]) return;
@@ -3015,34 +2858,29 @@ function wzClearErr(key){
 /* ввод в поле: значение запоминаем, форму не перерисовываем — курсор остаётся на месте */
 function wzFieldInput(el){
   if (el.dataset.money) groupDigitsLive(el);
-  const sc = el.dataset.scope === "optional" ? "optional" : "must", key = el.dataset.fk, raw = String(el.value || "").trim();
-  CH.dirty[sc][key] = 1;
-  const val = x => el.dataset.money ? num(x) : (el.dataset.num || el.dataset.sub) ? (isNaN(dec(x)) ? x : dec(x)) : x;
-  if (el.dataset.sub) {
-    const cur = Object.assign({}, (CH.draft[sc][key] && typeof CH.draft[sc][key] === "object") ? CH.draft[sc][key] : {});
-    if (raw === "") delete cur[el.dataset.sub]; else cur[el.dataset.sub] = val(raw);
-    if (Object.keys(cur).length) CH.draft[sc][key] = cur; else delete CH.draft[sc][key];
-  } else if (raw === "") delete CH.draft[sc][key];
-  else CH.draft[sc][key] = val(raw);
+  if (el.dataset.int && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
+  const box = el.dataset.scope === "opt" ? CH.opt : CH.must, key = el.dataset.fk, raw = String(el.value || "").trim();
+  if (raw === "") delete box[key];
+  else box[key] = el.dataset.money ? num(raw) : raw;
   if (key === "region") { try { localStorage.setItem(CH_REGION, raw); } catch (e) {} }
   wzClearErr(key);
+  if (key === "losses_count" || key === "losses_small" || key === "losses_amount") wzClearErr("losses_count");
   wzSave();
 }
 function wzSetOpt(b){
-  const sc = b.dataset.scope === "optional" ? "optional" : "must", k = b.dataset.set, v = b.dataset.value;
-  const on = String(CH.draft[sc][k]) === String(v);
-  if (on) delete CH.draft[sc][k]; else CH.draft[sc][k] = v;
-  CH.dirty[sc][k] = 1;
+  const k = b.dataset.set, v = b.dataset.value;
+  const on = CH.opt[k] === v;
+  if (on) delete CH.opt[k]; else CH.opt[k] = v;
   b.parentNode.querySelectorAll("[data-set]").forEach(x => x.setAttribute("aria-pressed", String(!on && x === b)));
+  wzClearErr(k);
   haptic("select");
   wzSave();
 }
 function wzQuickAdd(b){
-  const key = b.parentNode.dataset.for, m = CH.draft.must;
+  const key = b.parentNode.dataset.for, m = CH.must;
   if (!key) return;
   if (b.dataset.add) m[key] = (num(m[key]) || 0) + Number(b.dataset.add);
   else { const v = num(m[b.dataset.copy]); if (!v) return; m[key] = v; }
-  CH.dirty.must[key] = 1;
   const el = $("#wzf-" + key);
   if (el) el.value = Number(m[key]).toLocaleString(LOC());
   wzClearErr(key);
@@ -3051,491 +2889,406 @@ function wzQuickAdd(b){
 }
 function wzFocusField(key){
   setTimeout(() => {
-    const el = $("#chf-" + key) || $("#wzf-" + key) || document.querySelector('[data-set="' + key + '"]');
+    const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod")) : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
     if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
   }, 60);
 }
-/* «Считаем»: проверка четырёх полей, поля — на сервер, затем быстрый анализ */
-async function wzCalc(){
-  const m = CH.draft.must, e = {};
-  if (!m.class_code && !m.product_code) e.class_code = T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
-  ["sum_insured", "object_value"].forEach(k => { if (!(Number(m[k]) > 0)) e[k] = T("tg.wz.err_money", "Введите сумму больше нуля, в сумах."); });
-  if (!m.region) e.region = T("tg.wz.err_region", "Выберите регион — от него зависят сейсмичность и статистика.");
-  CH.errs = e;
-  if (Object.keys(e).length) {
-    CH.err = T("tg.wz.err_fix", "Заполните отмеченные поля — без них расчёт не начать.");
-    haptic("error");
-    wzPaint(true);
-    const first = ["class_code", "sum_insured", "object_value", "region"].filter(k => e[k])[0];
-    wzFocusField(first === "class_code" ? "prod" : first);
-    const bad = $("#wzErr-" + first);
-    if (bad && bad.scrollIntoView) bad.scrollIntoView({block: "center"});
-    return;
+
+/* ---------- «Сформировать акт»: POST /act/make ---------- */
+const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_insured", object_value: "object_value",
+  region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
+  want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new"};
+function errText(field){
+  switch (field) {
+    case "prod": return T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
+    case "sum_insured": case "object_value": case "losses_amount": case "price_new":
+      return T("tg.act.err_money", "Введите сумму больше нуля, в сумах.");
+    case "region": return T("tg.act.err_region", "Выберите регион из списка.");
+    case "year": case "purchase_year": return T("tg.act.err_year", "Год — четыре цифры, не раньше 1950 и не позже текущего.");
+    case "losses_count": return T("tg.act.err_losses", "Убытков — целое число; мелких не больше, чем всех.");
+    default: return T("tg.act.err_value", "Проверьте значение.");
   }
+}
+function actBody(){
+  const m = CH.must, o = CH.opt;
+  // регион — кодом из списка (сервер сам подпишет его на языке акта); не из списка — словами, как есть
+  const region = REGIONS.indexOf(m.region) >= 0 ? m.region : String(m.region || "");
+  const must = {sum_insured: Number(m.sum_insured), object_value: Number(m.object_value), region: region};
+  if (m.product_code) must.product_code = m.product_code; else must.class_code = m.class_code;
+  const opt = {};
+  if (o.year) opt.year = Number(o.year);
+  if (o.location) opt.location = o.location;
+  if (o.guard) opt.guard = o.guard === "yes";
+  if (o.want_lower) opt.want_lower_premium = o.want_lower === "yes";
+  if (o.losses_count != null || o.losses_small != null || o.losses_amount != null) {
+    opt.losses_3y = {count: o.losses_count != null ? Number(o.losses_count) : null,
+      small_count: o.losses_small != null ? Number(o.losses_small) : null,
+      amount: o.losses_amount != null ? Number(o.losses_amount) : null};
+  }
+  if (o.price_new) opt.price_new = Number(o.price_new);
+  if (o.purchase_year) opt.purchase_year = Number(o.purchase_year);
+  const body = {lang: I18N_LANG, must: must, optional: opt};
+  if (CH.session) {
+    body.session = CH.session;
+    body.recognized = CH.rec.filter(r => String(r.value || "").trim())
+      .map(r => ({key: r.key, value: String(r.value).trim(), source: r.source, file: r.file || null}));
+    body.damages = CH.damages.map(d => ({what: d.what, where: d.where}));
+  }
+  return body;
+}
+async function actMake(){
+  const m = CH.must, o = CH.opt, e = {};
+  if (!m.class_code && !m.product_code) e.prod = errText("prod");
+  ["sum_insured", "object_value"].forEach(k => { if (!(Number(m[k]) > 0)) e[k] = errText(k); });
+  if (!m.region) e.region = errText("region");
+  ["year", "purchase_year"].forEach(k => { if (o[k] && !/^\d{4}$/.test(String(o[k]))) e[k] = errText(k); });
+  if (o.losses_small != null && o.losses_count != null && Number(o.losses_small) > Number(o.losses_count)) e.losses_count = errText("losses_count");
+  if (Object.keys(e).length) { actShowErrors(e); return; }
+  CH.errs = {};
   CH.err = "";
-  tgBusy(true);
   CH.busy = true;
+  tgBusy(true);
   wzBarPaint();
-  // пустые поля отправляем как null: сервер удаляет их из состояния
-  const send = sc => {
-    const out = Object.assign({}, CH.draft[sc]);
-    Object.keys((CH.state && CH.state[sc]) || {}).forEach(k => { if (!(k in out)) out[k] = null; });
-    return out;
-  };
-  let d = await chatPost("/chat/answer", {key: "fields", scope: "must", fields: send("must")});
-  if (d) {
-    const opt = send("optional");
-    if (Object.keys(opt).length) d = await chatPost("/chat/answer", {key: "fields", scope: "optional", fields: opt});
-  }
-  if (d) {
-    CH.dirty = {must: {}, optional: {}};
-    CH.busy = true;
-    wzBarPaint();
-    d = await chatPost("/chat/analyze", {mode: "quick"});
-  }
+  const msg = $("#wzBody .msg");
+  if (msg) msg.innerHTML = spin(T("tg.act.making_hint", "Формирую акт — обычно это занимает до 20 секунд."));
+  const r = await api("/act/make", jsonOpts("POST", actBody()));
   CH.busy = false;
   tgBusy(false);
-  if (!d) { haptic("error"); wzPaint(true); return; }
-  if (d.ok === false) {
-    (d.missing || []).forEach(k => { CH.errs[k] = T("tg.wz.err_missing", "Заполните это поле."); });
-    const warn = (d.cards || []).filter(c => c.type === "text" && c.text)[0];
-    CH.err = warn ? human(warn.text) : T("tg.wz.err_fix", "Заполните отмеченные поля — без них расчёт не начать.");
+  if (!r.ok) {
+    const errs = r.status === 422 && r.data && r.data.errors && typeof r.data.errors === "object" ? r.data.errors : null;
+    if (errs && Object.keys(errs).length) {
+      const mapped = {};
+      Object.keys(errs).forEach(k => { const f = ERR_FIELD[k]; if (f) mapped[f] = errText(f); });
+      if (Object.keys(mapped).length) { actShowErrors(mapped); return; }
+    }
+    // 422 без понятного поля — своими словами, а не списком служебных имён полей сервера
+    const d = r.data && typeof r.data.detail === "string" ? r.data.detail : "";
+    CH.err = T("tg.act.make_failed", "Акт не сформирован: {reason}", {reason: r.status === 422
+      ? T("tg.act.err_server", "сервер не принял данные — проверьте поля и попробуйте ещё раз") : (d || r.error)});
     haptic("error");
     wzPaint(true);
     return;
   }
-  CH.full = null;
-  CH.fullErr = "";
-  CH.choice = "";
+  CH.act = r.data;
+  CH.actId = String(r.data.id || "");
+  CH.actErr = "";
   CH.wz = 3;
   wzSave();
   haptic("success");
   wzPaint(true);
   window.scrollTo(0, 0);
-  chatFull();
 }
-function wzRefine(){
-  CH.optOpen = true;
-  wzGo(2);
-  setTimeout(() => { const b = $("#wzMoreBox"); if (b && b.scrollIntoView) b.scrollIntoView({block: "start", behavior: "smooth"}); }, 80);
+function actShowErrors(e){
+  CH.errs = e;
+  CH.err = T("tg.act.err_fix", "Исправьте отмеченные поля — без них акт не сформировать.");
+  if (OPT_KEYS.some(k => e[k])) CH.optOpen = true;
+  haptic("error");
+  wzPaint(true);
+  const first = ["prod", "sum_insured", "object_value", "region"].concat(OPT_KEYS).filter(k => e[k])[0];
+  if (first) wzFocusField(first);
 }
 
-/* ---------- шаг 3: анализ ---------- */
-function wzRegionName(v){
-  const hit = ((CH.meta && CH.meta.regions) || []).filter(r => r && typeof r === "object" && (r.key === v || r.name === v))[0];
-  return hit && hit.name ? hit.name : String(v == null ? "" : v);
-}
-function wzObjLead(){
-  const s = (CH.res && CH.res.summary) || {};
-  const p = s.product_code ? wzProd(s.product_code) : null;
-  return esc([s.product_code ? s.product_code + (p ? " · " + p.name : "") : (s.class_code ? T("tg.wz.cls_line", "Класс {c}", {c: s.class_code}) : ""),
-    s.object_type, s.region ? wzRegionName(s.region) : ""].filter(Boolean).join(" · "));
-}
-function wzSec(id, title, sub, body){
-  return '<details class="sec" data-sec="' + id + '"' + (CH.open[id] ? " open" : "") + "><summary><span><b>" + esc(title) + "</b>"
-    + (sub ? "<small>" + esc(sub) + "</small>" : "") + '</span></summary><div class="in">' + body + "</div></details>";
-}
-/* франшиза одной строкой: то же решение, что в полном блоке */
-function frHead(fr){
-  if (!fr) return "";
-  if (!fr.ok) {
-    return T("tg.chat.fr_none", "Франшизу система пока не советует: {why}",
-      {why: fr.reason || fr.message || T("tg.chat.fr_no_module", "модуль франшизы ещё не подключён")});
+/* ---------- шаг 3: акт ---------- */
+function decName(code){
+  switch (code) {
+    case "accept": return T("tg.act.dec.accept", "Принять");
+    case "accept_with_clauses": return T("tg.act.dec.accept_with_clauses", "Принять с оговорками");
+    case "decline": return T("tg.act.dec.decline", "Отказать");
+    default: return T("tg.act.na", "данные недоступны");
   }
-  const f = fr.franchise || {};
-  const code = fr.decision_code || "";
-  const notNeeded = T("tg.chat.fr_not_needed", "Франшиза не требуется");
-  return code === "statutory"
-    ? T("tg.chat.fr_statutory", "Франшиза не применяется: обязательный вид, тариф по нормативному акту")
-    : code === "no_franchise" ? notNeeded : (f.text || fr.decision || notNeeded);
 }
+function levelName(code){
+  switch (code) {
+    case "low": return T("tg.act.lv.low", "низкий");
+    case "moderate": return T("tg.act.lv.moderate", "умеренный");
+    case "high": return T("tg.act.lv.high", "высокий");
+    default: return T("tg.act.na", "данные недоступны");
+  }
+}
+function verdictName(v){
+  switch (v) {
+    case "normal": return T("tg.act.v.normal", "в норме");
+    case "under": return T("tg.act.v.under", "недострахование");
+    case "over": return T("tg.act.v.over", "превышение");
+    default: return "";
+  }
+}
+function actRate(a){
+  const r = a.rate || {};
+  if (r.applied_pct == null || isNaN(Number(r.applied_pct))) return T("tg.act.rate_undefined", "не определён");
+  return pct(r.applied_pct, Number(r.applied_pct) % 1 ? (String(r.applied_pct).split(".")[1] || "").length : 0);
+}
+function actRateNote(a){
+  const r = a.rate || {};
+  if (r.mode === "statutory") return T("tg.act.rate_statutory", "по нормативному акту, без поправок");
+  if (r.mode === "undefined" || r.mode === "statutory_undefined") return T("tg.act.rate_undefined_sub", "ставку задаёт андеррайтер");
+  return r.calibrated ? "" : T("tg.act.uncal", "поправка не калибрована");
+}
+function actPremium(a){
+  const p = a.premium || {};
+  return p.amount == null || isNaN(Number(p.amount)) ? T("tg.act.na", "данные недоступны") : money(p.amount);
+}
+function actFile(kind){ return "/act/" + encodeURIComponent(CH.act.id) + "." + kind + "?lang=" + encodeURIComponent(I18N_LANG); }
 function wzStep3Html(){
-  const c = CH.res;
-  if (!c) return '<p class="note">' + esc(T("tg.wz.no_result", "Анализа ещё нет — заполните данные на шаге «Проверить».")) + "</p>";
-  const s = c.summary || {}, lv = c.level || {}, fr = c.franchise || {};
-  const i = lvIdx(lv.level);
-  const score = Number(lv.score);
-  const opts = (fr && fr.options) || [];
-  const docs = chatDocsHtml(c);
-  const miss = ((c.documents || {}).missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name))).length;
-  const nar = chatNarrativeHtml(c);
-  return '<h2 class="wz-h">' + esc(T("tg.wz.s3_title", "Итог анализа")) + "</h2>"
-    + '<p class="wz-lead" id="wzLead">' + wzObjLead() + "</p>"
-    + '<div class="card wz-res"><div class="res-top">'
-    + (lv.score == null || isNaN(score) ? "" : '<div class="res-gauge ' + (i == null ? "" : "lv" + (i + 1)) + '">' + gaugeSvg(score, lv.scale)
-      + '<div class="res-score">' + esc(nf(score, 1)) + " <small>" + esc(T("tg.wz.of100", "из 100")) + "</small></div></div>")
-    + '<div class="res-main"><p class="eyebrow">' + esc(T("tg.an.level", "Уровень риска")) + "</p>" + lvChip(lv.level)
-    + '<div class="res-prem">' + esc(money(s.premium)) + "</div>"
-    + '<p class="res-sub">' + esc(T("tg.wz.prem_sub", "страховая премия · ставка {r} годовых", {r: pct(s.rate_applied_pct, 3)})) + "</p></div></div>"
-    + '<div class="seg">'
-    + '<div class="main"><span>' + esc(T("tg.an.rate_applied", "Ставка применённая")) + "</span><b>" + esc(pct(s.rate_applied_pct, 3)) + "</b></div>"
-    + (s.rate_min_pct != null ? "<div><span>" + esc(T("tg.an.rate_min", "Минимум по продукту")) + "</span><b>" + esc(pct(s.rate_min_pct, 3)) + "</b></div>" : "")
-    + "<div><span>" + esc(T("tg.an.sum_insured", "Страховая сумма")) + '</span><b title="' + esc(money(s.sum_insured)) + '">' + esc(compact(s.sum_insured)) + "</b></div>"
-    + "<div><span>" + esc(T("tg.an.object_value", "Стоимость имущества")) + '</span><b title="' + esc(money(s.object_value)) + '">' + esc(compact(s.object_value)) + "</b></div>"
+  const a = CH.act;
+  if (!a) {
+    return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
+      + (CH.actBusy ? '<p class="note">' + spin(T("tg.act.loading", "Загружаю акт…")) + "</p>"
+        : '<p class="note' + (CH.actErr ? " err" : "") + '">' + esc(CH.actErr || T("tg.act.no_act", "Акта ещё нет — заполните данные на шаге «Проверить».")) + "</p>");
+  }
+  const dec = (a.decision || {}).code || "", risk = a.risk || {}, val = a.value || {}, prem = a.premium || {};
+  const tone = dec === "accept" ? "ok" : dec === "decline" ? "stop" : "warn";
+  const lv = risk.level, lvI = ["low", "moderate", "high"].indexOf(lv);
+  const disc = (a.discrepancies || []).length;
+  const ratio = val.ratio_pct == null || isNaN(Number(val.ratio_pct)) ? T("tg.act.na", "данные недоступны") : pct(val.ratio_pct, Number(val.ratio_pct) % 1 ? 2 : 0);
+  const rateNote = actRateNote(a);
+  return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
+    + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
+    + '<div class="card act-sum ' + tone + '">'
+    + '<p class="eyebrow">' + esc(T("tg.act.dec_title", "Рекомендация")) + "</p>"
+    + '<div class="act-dec">' + esc(decName(dec)) + "</div>"
+    + '<div class="act-kpis">'
+    + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
+    + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
+    + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
+    + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>" + (rateNote ? "<em>" + esc(rateNote) + "</em>" : "") + "</div>"
+    + "<div><span>" + esc(T("tg.act.premium", "Премия")) + "</span><b>" + esc(actPremium(a)) + "</b>"
+    + (prem.term_days ? "<em>" + esc(T("tg.act.term", "за {n} дн.", {n: prem.term_days})) + "</em>" : "") + "</div>"
+    + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
+    + (verdictName(val.verdict) ? '<em class="' + (val.verdict === "normal" ? "ok" : "warn") + '">' + esc(verdictName(val.verdict)) + "</em>" : "") + "</div>"
     + "</div>"
-    + '<div class="res-fr"><b>' + hx(frHead(fr)) + "</b>"
-    + (fr.ok && fr.premium_effect && fr.premium_effect.delta ? "<span>" + esc(T("tg.chat.fr_alt_delta", "Изменение премии: {d}", {d: money(fr.premium_effect.delta)})) + "</span>" : "")
+    + '<p class="act-line"><b>' + esc(T("tg.act.franchise", "Франшиза")) + ":</b> " + esc((a.franchise || {}).text || T("tg.act.na", "данные недоступны")) + "</p>"
+    + (disc ? '<p class="act-line warn"><b>' + esc(T("tg.act.disc_n", "Расхождения в данных: {n}", {n: disc})) + "</b> "
+      + esc(T("tg.act.disc_where", "— выделены в акте, проверьте до выдачи полиса.")) + "</p>" : "")
+    + '<div class="act-btns">'
+    + (IN_TG ? ["docx", "pdf"].map(actSendBtnHtml).join("")
+      : '<a class="btn btn-secondary" data-dl="docx" href="' + esc(actFile("docx")) + '" download>' + esc(T("tg.act.dl_docx", "Скачать Word")) + "</a>"
+        + '<a class="btn btn-secondary" data-dl="pdf" href="' + esc(actFile("pdf")) + '" download>' + esc(T("tg.act.dl_pdf", "Скачать PDF")) + "</a>")
+    + '<button type="button" class="btn btn-secondary" data-go="copy">' + esc(T("tg.act.copy", "Скопировать текст акта")) + "</button>"
     + "</div>"
-    + '<div id="wzItv"></div>'
-    + '<p class="note warn" style="margin:var(--s2) 0 0">' + esc(T("tg.chat.uncal", "Часть коэффициентов ещё не калибрована на статистике компании — ставка предварительная, её подтверждает андеррайтер.")) + "</p>"
+    + '<div class="msg" id="actMsg" role="status"></div>'
     + "</div>"
-    + wzSec("fr", T("tg.chat.fr_title", "Франшиза по ситуации"), T("tg.wz.sec_fr_sub", "решение, основания, чем заменить, почему так"), '<div id="wzFr">' + chatFranchiseHtml(fr) + "</div>")
-    + (opts.length ? wzSec("opts", T("tg.chat.options", "Варианты тарифа"), T("tg.wz.sec_opts_sub", "базовый, с франшизой, с мероприятиями"), '<div id="wzOpts">' + chatOptionsHtml(fr) + "</div>") : "")
-    + wzSec("value", T("tg.wz.sec_value", "Оценка стоимости"), T("tg.wz.sec_value_sub", "страховая сумма к стоимости объекта"), '<div id="wzValue"></div>')
-    + wzSec("risks", T("tg.wz.sec_risks", "Риски и факторы"), T("tg.wz.sec_risks_sub", "что поднимает и что снижает премию"), '<div id="wzRisks"></div>' + chatAssumeHtml(c))
-    + wzSec("scn", T("tg.wz.sec_scn", "Сценарии убытка: PML, EML, MFL"), T("tg.wz.sec_scn_sub", "сколько можно потерять и что остаётся на компании"), '<div id="wzScn"></div>')
-    + wzSec("level", T("tg.wz.sec_level", "Как посчитан уровень риска"), T("tg.wz.sec_level_sub", "вклад каждого показателя в балл"), '<div id="wzLevel"></div>')
-    + wzSec("region", T("tg.wz.sec_region", "Статистика региона и рынок"), T("tg.wz.sec_region_sub", "показатели статистического агентства и рынка страхования"), '<div id="wzRegStats"></div>')
-    + (docs ? wzSec("docs", T("tg.an.docs_block", "Документы"), miss ? T("tg.an.docs_missing", "Не хватает · {n}", {n: miss}) : T("tg.wz.docs_all", "Все нужные документы есть."), docs) : "")
-    + (nar ? wzSec("why", T("tg.chat.explain", "Пояснение"), "", nar) : "")
-    + '<div class="card"><h2>' + esc(T("tg.wz.ask_title", "Вопрос ИИ-сюрвейеру")) + "</h2>"
-    + '<p class="sub">' + esc(T("tg.wz.ask_sub", "Про этот объект: что изменить, чтобы снизить премию, какие документы важнее.")) + "</p>"
-    + '<div id="wzQa">' + wzQaHtml() + "</div>"
-    + '<div class="askrow"><textarea id="wzAskText" rows="1" maxlength="2000" enterkeyhint="send" aria-label="' + esc(T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит"))
-    + '" placeholder="' + esc(T("tg.chat.ph", "Спросите или опишите объект — ИИ ответит")) + '"></textarea>'
-    + '<button type="button" class="btn btn-secondary" data-go="ask">' + esc(T("tg.chat.send", "Отправить")) + "</button></div>"
-    + '<div class="msg" id="wzAskMsg" role="status"></div></div>'
+    + actDocHtml(a)
     + '<div class="actions">'
+    + '<button type="button" class="btn btn-secondary" data-go="fix">' + esc(T("tg.act.fix", "Исправить данные")) + "</button>"
+    + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.act.new", "Новый акт")) + "</button>"
     + '<button type="button" class="btn btn-secondary" data-go="legal">' + esc(T("tg.chat.ask_legal", "Спросить специалиста")) + "</button>"
-    + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.chat.restart", "Новый анализ")) + "</button>"
     + "</div>";
 }
-function wzQaHtml(){
-  if (!CH.qa.length) return "";
-  return CH.qa.map(x => '<div class="qa-item"><p class="q">' + esc(x.q) + "</p>"
-    + (x.pending ? '<p class="a note">' + spin(T("tg.chat.thinking", "думаю…")) + "</p>"
-      : '<p class="a' + (x.warn ? " warn" : "") + '">' + hx(chatTr(x.a || "")) + "</p>"
-        + (x.src ? '<p class="note"><span class="tag' + (x.src === "правила" ? " off" : "") + '">'
-          + esc(x.src === "правила" ? T("tg.chat.src_rules", "правила") : T("tg.chat.src_ai", "ИИ")) + "</span></p>" : ""))
-    + "</div>").join("");
+function actRowsHtml(rows, discLabels, cls){
+  if (!rows || !rows.length) return "";
+  return '<div class="act-rows' + (cls ? " " + cls : "") + '">' + rows.map(r =>
+    '<div' + (discLabels.indexOf(r.label) >= 0 ? ' class="disc"' : "") + "><span>" + esc(r.label) + "</span><b>" + esc(r.value) + "</b>"
+      + (r.note ? "<small>" + esc(r.note) + "</small>" : "") + "</div>").join("") + "</div>";
 }
-/* свободный вопрос ИИ — POST /chat/message; перерисовывается только список ответов, поле не трогаем */
-async function wzAsk(){
-  const el = $("#wzAskText");
-  const text = String((el && el.value) || "").trim();
-  const msg = $("#wzAskMsg");
-  if (!text) { if (msg) msg.innerHTML = errHtml(T("tg.wz.ask_empty", "Напишите вопрос — хотя бы несколько слов.")); if (el) el.focus(); return; }
-  if (CH.asking) return;
-  if (msg) msg.innerHTML = "";
-  el.value = "";
-  el.style.height = "";
-  const item = {q: text, pending: true};
-  CH.qa.push(item);
-  CH.qa = CH.qa.slice(-CH_QA_MAX);
-  CH.asking = true;
-  wzPart("qa");
-  const r = await api("/chat/message", jsonOpts("POST", {session_id: CH.sid, text: text, lang: I18N_LANG}));
-  CH.asking = false;
-  delete item.pending;
-  if (!r.ok) { item.a = T("tg.wz.ask_failed", "Ответ не получен: {reason}. Спросите ещё раз.", {reason: r.error}); item.warn = true; haptic("error"); }
-  else {
-    const c = ((r.data && r.data.cards) || []).filter(x => x.type === "text")[0] || {};
-    item.a = String(c.text || "");
-    item.warn = c.tone === "warn";
-    item.src = r.data.source || "";
-  }
-  wzSave();
-  wzPart("qa");
+/* акт как документ: шапка, пять разделов, строка о подтверждении андеррайтером; расхождения выделены */
+function actDocHtml(a){
+  const discText = (a.discrepancies || []).map(d => d.text);
+  const discLabels = (a.discrepancies || []).map(d => d.label);
+  return '<article class="card act-doc">'
+    + (a.insurer_known ? '<p class="act-ins">' + esc(a.insurer) + "</p>" : "")
+    + '<h2 class="act-title">' + esc(a.title) + "</h2>"
+    + actRowsHtml(a.header, [], "act-head")
+    + (a.sections || []).map(s => '<section class="act-s"><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3>"
+      + (s.paragraphs || []).map(p => "<p>" + esc(p) + "</p>").join("")
+      + actRowsHtml(s.rows, s.n === 1 ? discLabels : [])
+      + (s.lists || []).map(li => {
+        const hot = (li.items || []).some(x => discText.indexOf(x) >= 0);
+        return '<div class="act-list' + (hot ? " disc" : "") + '"><h4>' + esc(li.title) + "</h4><ul>"
+          + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + esc(x) + "</li>").join("") + "</ul></div>";
+      }).join("")
+      + "</section>").join("")
+    + '<p class="act-foot">' + esc(a.footer) + "</p>"
+    + "</article>";
 }
-
-/* три варианта тарифа: базовый, с франшизой, с мероприятиями — как их посчитал сервер */
-function chatOptionsHtml(fr){
-  const opts = (fr && fr.options) || [];
-  if (!opts.length) return "";
-  const name = o => o.title || {base: T("tg.chat.opt_base", "Базовый"),
-    franchise: T("tg.chat.opt_franchise", "С франшизой"),
-    measures: T("tg.chat.opt_measures", "С мероприятиями")}[o.key] || o.key;
-  const rate = o => (o.rate_applied_pct != null ? o.rate_applied_pct : o.rate_pct);
-  const deltaHtml = o => {
-    const d = Number(o.delta || 0);
-    if (o.key === "base") return "";                         // базовый вариант сам себе точка отсчёта
-    if (!d) return '<p class="note">' + esc(T("tg.chat.opt_same", "Премия не меняется")) + "</p>";
-    const share = (o.delta_pct == null || isNaN(Number(o.delta_pct))) ? "" : " (" + pct(Math.abs(Number(o.delta_pct)), 1) + ")";
-    const t = d < 0 ? T("tg.chat.opt_cheaper", "Дешевле на {d}", {d: money(-d)})
-                    : T("tg.chat.opt_dearer", "Дороже на {d}", {d: money(d)});
-    return '<p class="note ' + (d < 0 ? "ok" : "warn") + '">' + esc(t + share) + "</p>";
-  };
-  return '<div class="opts">' + opts.map(o =>
-      '<div class="opt-card' + (CH.choice === o.key ? " on" : "") + '"><p class="eyebrow">' + hx(name(o)) + "</p>"
-      + "<b>" + esc(money(o.premium)) + "</b>"
-      + (rate(o) != null ? '<span class="note">' + esc(T("tg.chat.opt_rate", "ставка {r}", {r: pct(rate(o))})) + "</span>" : "")
-      + deltaHtml(o)
-      + ((o.what || o.text) ? '<p class="note">' + hx(o.what || o.text) + "</p>" : "")
-      + (o.how ? '<p class="note">' + esc(T("tg.chat.opt_how", "Как посчитано: {t}", {t: human(o.how)})) + "</p>" : "")
-      + '<button type="button" class="btn btn-secondary btn-sm" data-choose="' + esc(o.key) + '" aria-pressed="' + (CH.choice === o.key) + '">'
-      + esc(CH.choice === o.key ? T("tg.chat.chosen", "Выбран") : T("tg.chat.choose", "Выбрать")) + "</button></div>").join("")
-    + "</div>";
+/* полный текст акта — для буфера обмена */
+function actText(a){
+  const L = [];
+  if (a.insurer_known) L.push(a.insurer);
+  L.push(a.title);
+  (a.header || []).forEach(r => L.push(r.label + ": " + r.value));
+  (a.sections || []).forEach(s => {
+    L.push("", s.n + ". " + s.title);
+    (s.paragraphs || []).forEach(p => L.push(p));
+    (s.rows || []).forEach(r => L.push(r.label + ": " + r.value + (r.note ? " (" + r.note + ")" : "")));
+    (s.lists || []).forEach(li => { L.push(li.title + ":"); (li.items || []).forEach(x => L.push("• " + x)); });
+  });
+  L.push("", a.footer);
+  return L.join("\n");
 }
-/* строки сервера (список или текст с переводами строк) — каждая своим абзацем */
-function frLinesHtml(src){
-  const list = Array.isArray(src) ? src : String(src == null ? "" : src).split("\n");
-  return list.map(x => String(x == null ? "" : x).trim()).filter(Boolean)
-    .map(x => '<p class="note">' + hx(x) + "</p>").join("");
+function actMsg(html){ const m = $("#actMsg"); if (m) m.innerHTML = html; }
+/* скачать в обычном браузере: ссылка на файл */
+function actDownload(kind){
+  if (!CH.act) return;
+  const a = document.createElement("a");
+  a.href = actFile(kind);
+  a.download = "";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
-/* Франшиза: решение, риск, эффект на премию, что можно вместо франшизы, четыре основания
-   и совет по тарифу — по структуре ответа app/franchise.recommend_franchise.
-   Тексты сервера проходят через human(): служебные коды заменены подписями. */
-function chatFranchiseHtml(fr){
-  if (!fr) return "";
-  if (!fr.ok) {
-    return '<p class="note warn">' + hx(frHead(fr)) + "</p>";
-  }
-  const f = fr.franchise || {};
-  const code = fr.decision_code || "";
-  const per = (f.peril && typeof f.peril === "object") ? f.peril : null;
-  const notNeeded = T("tg.chat.fr_not_needed", "Франшиза не требуется");
-  const head = frHead(fr);
-  let h = '<div class="h3">' + esc(T("tg.chat.fr_title", "Франшиза по ситуации")) + "</div>"
-    + "<p><b>" + hx(head) + "</b></p>";
-  if (code === "no_franchise") {
-    h += '<p class="note">' + esc(T("tg.chat.fr_no_grounds",
-      "Ни одно из четырёх оснований для франшизы не сработало — разбор в блоке «Почему так».")) + "</p>";
-  }
-  if (f.pct) {
-    h += '<p class="note">' + esc(T("tg.chat.fr_amount", "По договору: {p} страховой суммы = {a} с каждого убытка",
-      {p: pct(f.pct, 2), a: money(f.amount)})) + "</p>";
-  }
-  if (per) {
-    h += '<p class="note">' + esc(T("tg.chat.fr_peril", "По риску «{name}»: франшиза {p} = {a} с каждого убытка от этого риска",
-      {name: per.name || per.code || "", p: pct(per.pct == null ? f.peril_pct : per.pct, 1),
-       a: money(f.peril_amount)})) + "</p>";
-    if (per.why) h += '<p class="note">' + hx(per.why) + "</p>";
-  }
-  const eff = (fr.premium_effect && typeof fr.premium_effect === "object") ? fr.premium_effect : {};
-  if (eff.formula) h += '<p class="note">' + hx(eff.formula) + "</p>";
-  const own = fr.options_custom;
-  if (own && own.premium != null) {
-    h += '<p class="note">' + esc(T("tg.chat.fr_custom", "{t}: премия {p}",
-      {t: human(own.title || notNeeded), p: money(own.premium)})) + "</p>";
-  }
-
-  const alts = (fr.alternatives || []).filter(a => a && (a.title || a.what));
-  if (alts.length) {
-    h += '<div class="h3">' + esc(T("tg.chat.fr_alts", "Вместо франшизы можно")) + "</div>"
-      + alts.map(a => '<div class="asm"><div><b>' + hx(a.title || "") + "</b>"
-        + (a.what ? "<span>" + hx(a.what) + "</span>" : "")
-        + (a.effect ? "<span>" + hx(a.effect) + "</span>"
-          : (a.premium_delta != null ? "<span>" + esc(T("tg.chat.fr_alt_delta", "Изменение премии: {d}",
-              {d: money(a.premium_delta)})) + "</span>" : ""))
-        + (a.why ? "<span>" + hx(a.why) + "</span>" : "")
-        + (a.legal_ref ? "<span>" + hx(a.legal_ref) + "</span>" : "")
-        + "</div></div>").join("");
-  }
-
-  const gr = (fr.grounds_checked || []).filter(x => x && (x.title || x.why || x.code));
-  if (gr.length) {
-    const yes = gr.filter(x => x.ok).length;
-    h += '<details class="opt"><summary>' + esc(T("tg.chat.fr_why_title", "Почему так"))
-      + "<span>" + esc(T("tg.chat.fr_grounds_n", "оснований: {n} из {all}", {n: yes, all: gr.length}))
-      + "</span></summary><div class=\"chk\">"
-      + gr.map(x => '<div><i class="' + (x.ok ? "ok" : "no") + '" aria-hidden="true">' + (x.ok ? "✓" : "✗")
-        + "</i><span>" + hx((x.title || x.code || "") + " — "
-          + (x.ok ? T("tg.chat.fr_ground_yes", "есть") : T("tg.chat.fr_ground_no", "нет")))
-        + (x.why ? "<small>" + hx(x.why) + "</small>" : "") + "</span></div>").join("")
-      + "</div></details>";
-  }
-
-  const ta = (fr.tariff_advice && typeof fr.tariff_advice === "object") ? fr.tariff_advice : null;
-  if (ta) {
-    const rows = [[T("tg.an.rate_applied", "Ставка применённая"), ta.rate_applied_pct],
-                  [T("tg.chat.fr_rate_tech", "Ставка техническая"), ta.rate_technical_pct],
-                  [T("tg.chat.fr_rate_net", "Нетто-ставка"), ta.rate_net_pct],
-                  [T("tg.an.rate_min", "Минимум по продукту"), ta.rate_min_pct],
-                  [T("tg.chat.fr_rate_market", "Ориентир рынка"), ta.rate_market_pct]]
-      .filter(r => r[1] != null && !isNaN(Number(r[1])));
-    h += '<div class="h3">' + esc(T("tg.chat.fr_advice_title", "Совет по тарифу")) + "</div>"
-      + (rows.length ? '<div class="kv">' + rows.map(r => "<span>" + esc(r[0]) + "</span><b>"
-          + esc(pct(r[1], 4)) + "</b>").join("") + "</div>" : "")
-      + frLinesHtml(ta.lines);
-  }
-
-  const ex = (Array.isArray(fr.explanation) && fr.explanation.length) ? fr.explanation : fr.llm_text;
-  const exHtml = frLinesHtml(ex);
-  if (exHtml) {
-    h += '<details class="opt"><summary>' + esc(T("tg.chat.fr_full", "Разбор франшизы: как считали"))
-      + "</summary>" + exHtml + "</details>";
-  }
-  return h;
+/* ---------- в Telegram: бот присылает файл акта в чат (POST /act/{id}/send) ----------
+   Скачивание из WebView Telegram на телефоне не работает, поэтому файл собирает сервер и отправляет бот.
+   Кто человек, сервер узнаёт по initData мини-приложения; акт отправляется только тому, кто его сформировал. */
+function actSendLabel(kind){
+  if (CH.sending === kind) return T("tg.act.sending_btn", "Отправляю…");
+  return kind === "docx" ? T("tg.act.send_docx", "Прислать Word в чат") : T("tg.act.send_pdf", "Прислать PDF в чат");
 }
-/* пояснение: от ИИ или по правилам — так и подписано (narrative_source) */
-function chatNarrativeHtml(c){
-  const text = c.narrative && String(c.narrative).trim();
-  if (!text) return "";
-  const src = c.narrative_source;
-  return '<p><span class="tag' + (src === "ии" || src === "ai" ? "" : " off") + '">'
-    + esc(src === "ии" || src === "ai" ? T("tg.chat.src_ai", "ИИ") : T("tg.chat.src_rules", "правила")) + "</span></p>"
-    + String(chatTr(text)).split("\n").filter(x => x.trim()).map(x => "<p>" + hx(x) + "</p>").join("");
+function actSendBtnHtml(kind){
+  return '<button type="button" class="btn btn-secondary" data-send="' + kind + '"' + (CH.sending ? " disabled" : "")
+    + (CH.sending === kind ? ' aria-busy="true"' : "") + ">" + esc(actSendLabel(kind)) + "</button>";
 }
-function chatAssumeHtml(c){
-  const list = c.assumptions || [];
-  if (!list.length) return "";
-  return '<div class="h3">' + esc(T("tg.an.assumed_title", "Возьмём по умолчанию")) + "</div>"
-    + list.map(x => '<div class="asm"><div><b>' + esc(fieldLabel(wzFieldDef(x.key)) + ": " + human(x.value_label != null ? x.value_label : x.value)) + "</b>"
-      + "<span>" + hx(x.why || T("tg.an.assumed_note", "взято по умолчанию — уточните")) + "</span></div>"
-      + '<button type="button" class="btn btn-secondary btn-sm" data-fix="' + esc(x.key) + '">'
-      + esc(T("tg.an.assumed_edit", "Изменить")) + "</button></div>").join("");
+/* кнопки отправки — на месте, без перерисовки шага: сообщение под ними остаётся */
+function actSendPaint(){
+  document.querySelectorAll("#wzBody [data-send]").forEach(b => {
+    b.disabled = !!CH.sending;
+    if (b.closest(".act-btns")) b.textContent = actSendLabel(b.dataset.send);
+    if (CH.sending === b.dataset.send) b.setAttribute("aria-busy", "true"); else b.removeAttribute("aria-busy");
+  });
+  wzBarPaint();
 }
-function chatDocsHtml(c){
-  const d = c.documents || {};
-  const items = (d.items || []).filter(x => keepDoc(x.name || x.kind));
-  const missing = (d.missing || []).filter(x => keepDoc(typeof x === "string" ? x : (x && x.name)));
-  if (!items.length && !missing.length) return "";
-  return '<div class="chk">'
-    + items.map(x => '<div><i class="ok" aria-hidden="true">✓</i><span>' + esc(x.name || kindName(x.kind)) + "</span></div>").join("")
-    + missing.map(x => '<div><i class="no" aria-hidden="true">✗</i><span>' + esc(typeof x === "string" ? x : (x.name || "")) + "</span></div>").join("")
-    + "</div>"
-    + (missing.length ? '<div class="actions"><button type="button" class="btn btn-secondary btn-sm" data-upload="1">'
-      + esc(T("tg.chat.upload_missing", "Загрузить недостающее")) + "</button></div>" : "");
-}
-
-/* Подробности шага «Анализ»: POST /analytics/risk в быстром режиме по тем же данным диалога —
-   сценарии, риски, регион и рынок (те же карточки, что были в дашборде). Итог наверху — из /chat/analyze. */
-async function chatFull(){
-  if (!CH.res) return;
-  const seq = ++CH.fullSeq;
-  CH.fullErr = "";
-  const body = {must: Object.assign({}, CH.state.must || {}), optional: Object.assign({}, CH.state.optional || {}), mode: "quick"};
-  const r = await api("/analytics/risk", jsonOpts("POST", body));
-  if (seq !== CH.fullSeq) return;
-  if (!r.ok) CH.fullErr = r.error;
-  else { CH.full = r.data; AN.res = r.data; }
-  chatPaintDash();
-}
-function itvHtml(r){
-  const itv = ((r || {}).summary || {}).insurance_to_value || {};
-  if (!itv.title && !itv.detail) return "";
-  const cls = itv.status === "ok" ? "" : itv.status === "stop" ? "stop" : "warn";
-  return '<div class="itv ' + cls + '"><div><b>' + hx(itv.title || T("tg.an.itv", "Страховая сумма к стоимости")) + "</b><span>"
-    + hx([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) + "</span></div></div>";
-}
-function wzValueHtml(r){
-  const s = r.summary || {};
-  const ratio = Number(s.ratio_sum_to_value);
-  const parts = s.parts || [];
-  return '<div class="seg" style="margin-top:0">'
-    + "<div><span>" + esc(T("tg.an.object_value", "Стоимость имущества")) + "</span><b>" + esc(money(s.object_value)) + "</b></div>"
-    + "<div><span>" + esc(T("tg.an.sum_insured", "Страховая сумма")) + "</span><b>" + esc(money(s.sum_insured)) + "</b></div>"
-    + (s.ratio_sum_to_value != null && !isNaN(ratio) ? "<div><span>" + esc(T("tg.wz.ratio", "Сумма к стоимости")) + "</span><b>" + esc(pct(ratio * 100, 1)) + "</b></div>" : "")
-    + "</div>"
-    + itvHtml(r)
-    + (parts.length > 1
-      ? '<div class="h3">' + esc(T("tg.an.parts", "По классам — ставка проверяется по каждому отдельно")) + '</div><div class="chain">'
-        + parts.map(p => "<div><span>" + esc(T("tg.an.part_line", "Класс {c} · продукт {p}", {c: p.class_code, p: p.product_code || "—"}))
-          + (p.product_name ? " · " + esc(p.product_name) : "") + "</span><b>" + esc(compact(p.premium)) + " · " + esc(pct(p.rate_applied_pct, 4)) + "</b></div>").join("") + "</div>"
-      : "");
-}
-/* Что сказать клиенту — ст. 63 Закона о страховой деятельности: цена, покрытые и исключённые риски,
-   недострахование, возврат премии, порядок претензий. Чего сервер не присылает — так и пишем. */
-function wzSayHtml(r){
-  const s = (CH.res && CH.res.summary) || {};
-  const rs = r.summary || {}, itv = rs.insurance_to_value || {};
-  const covered = (r.risks || []).filter(x => x && Number(x.share_of_net_pct) > 0).map(x => x.name).filter(Boolean);
-  const none = T("tg.wz.say_none", "в системе этих данных нет — возьмите из правил страхования продукта");
-  const row = (t, v, miss) => "<span>" + esc(t) + "</span><b" + (miss ? ' class="miss"' : "") + ">" + esc(v) + "</b>";
-  return '<p class="sub">' + esc(T("tg.wz.say_lead", "До заключения договора клиенту сообщают эти условия — простыми словами.")) + "</p>"
-    + '<div class="kv disc">'
-    + row(T("tg.wz.say_price", "Цена"), money(s.premium) + " · " + T("tg.an.premium_for", "за {n} мес. · ставка {r} годовых",
-        {n: nf(rs.term_months || 12, 0), r: pct(s.rate_applied_pct, 3)}))
-    + row(T("tg.wz.say_covered", "Покрытые риски"), covered.length ? covered.join(", ") : none, !covered.length)
-    + row(T("tg.wz.say_excluded", "Исключённые риски"), none, true)
-    + row(T("tg.wz.say_under", "Недострахование"), itv.detail ? human([itv.detail, itv.legal_ref].filter(Boolean).join(" · ")) : none, !itv.detail)
-    + row(T("tg.wz.say_refund", "Возврат премии"), none, true)
-    + row(T("tg.wz.say_claims", "Порядок претензий"), none, true)
-    + "</div>";
-}
-function chatPaintDash(){
-  const r = CH.full;
-  const fill = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
-  const ids = ["wzValue", "wzRisks", "wzScn", "wzLevel", "wzRegStats", "wzSay"];
-  if (!r) {
-    const wait = CH.fullErr
-      ? '<p class="note err">' + esc(T("tg.wz.full_failed", "Подробности не загрузились: {reason}", {reason: CH.fullErr})) + "</p>"
-      : '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>";
-    ids.forEach(id => fill(id, wait));
-    fill("wzItv", "");
+async function actSend(kind){
+  if (!CH.act || CH.sending || (kind !== "pdf" && kind !== "docx")) return;
+  const id = String(CH.act.id || CH.actId);
+  CH.sending = kind;
+  tgBusy(true);
+  actSendPaint();
+  actMsg(spin(T("tg.act.sending", "Отправляю акт в чат с ботом…")));
+  const r = await api("/act/" + encodeURIComponent(id) + "/send",
+    jsonOpts("POST", {format: kind, lang: I18N_LANG, initData: (TG && TG.initData) || ""}));
+  CH.sending = "";
+  tgBusy(false);
+  actSendPaint();
+  if (r.ok) {
+    haptic("success");
+    actMsg(okHtml(T("tg.act.sent", "Акт отправлен в чат с ботом.")));
     return;
   }
-  fill("wzItv", itvHtml(r));
-  fill("wzValue", wzValueHtml(r));
-  fill("wzRisks", anRisksCard(r));
-  fill("wzScn", anScenariosCard(r));
-  fill("wzLevel", anLevelCard(r));
-  fill("wzRegStats", anRegionCard(r) + anExtStatsCard(r) + anMarketCard(r));
-  fill("wzSay", wzSayHtml(r));
-  document.querySelectorAll("#wzScn [data-scn]").forEach(b => {
-    b.onclick = () => { AN.scn = b.dataset.scn; haptic("select"); anPaintScenario(); };
-  });
-  anPaintScenario();
-}
-
-/* ---------- смена языка ---------- */
-/* Подписи берём из словаря, свободный текст ИИ и сервера переводит сервер (POST /chat/lang).
-   Перевод кладём в кэш по «язык + текст», поэтому назад и вперёд язык переключается мгновенно.
-   Введённое не теряется: поля берут значения из CH.draft. */
-function chatFree(){
-  const out = [];
-  CH.notes.forEach(n => { if (n && n.text) out.push(n.text); });
-  CH.qa.forEach(x => { if (x && x.a) out.push(x.a); });
-  if (CH.res && CH.res.narrative) out.push(String(CH.res.narrative));
-  return out.filter((x, i) => out.indexOf(x) === i).slice(0, 10);
-}
-function chatTr(text){
-  const box = CH.tr[I18N_LANG] || {};
-  return box[text] || text;
-}
-async function chatRelang(){
-  wzPaint(true);
-  if (!CH.sid) return;
-  const box = CH.tr[I18N_LANG] = CH.tr[I18N_LANG] || {};
-  const need = chatFree().filter(t => !box[t]);
-  CH.relang = true;
-  const r = await api("/chat/lang", jsonOpts("POST", {session_id: CH.sid, lang: I18N_LANG, translate: need}));
-  CH.relang = false;
-  if (r.ok) {
-    (r.data.translated || []).forEach((t, i) => { if (need[i] && t && t.text) box[need[i]] = t.text; });
-    const hadRes = !!CH.res;
-    chatApply(r.data);
-    // итог сервер пересобрал на новом языке — заменяем его, остальное состояние мастера не трогаем
-    const fresh = (r.data.cards || []).filter(c => c.type === "result")[0];
-    if (hadRes && fresh) CH.res = fresh;
+  haptic("error");
+  const d = r.data || {};
+  if (d.code === "start_bot") {
+    // бот не может написать первым: человек ещё не нажал «Старт» или остановил бота
+    actMsg(errHtml(T("tg.act.send_start", "Бот пока не может вам написать. Откройте бота, нажмите «Старт» и вернитесь — затем отправьте акт ещё раз."))
+      + '<div class="act-send-more">'
+      + '<button type="button" class="btn btn-secondary" data-go="openbot">' + esc(T("tg.act.open_bot", "Открыть бота")) + "</button>"
+      + '<button type="button" class="btn btn-secondary" data-send="' + kind + '">' + esc(T("tg.act.send_again", "Отправить ещё раз")) + "</button>"
+      + "</div>");
+    return;
   }
-  wzPaint();
+  if (d.code === "limit") {
+    const min = Math.max(1, Math.ceil((Number(d.retry_after_sec) || 0) / 60));
+    actMsg(errHtml(T("tg.act.send_limit", "Отправок за час больше, чем можно. Повторите через {n} мин. — или скопируйте текст акта.", {n: min})));
+    return;
+  }
+  // остальное (404, 422, 503 bot_off, 403 bad_init_data, 409 no_telegram, 502 telegram_error) — словами сервера на языке lang
+  actMsg(errHtml(typeof d.detail === "string" && d.detail ? d.detail : r.error));
+}
+function actOpenBot(){
+  const url = "https://t.me/" + encodeURIComponent(botName());
+  haptic("select");
+  if (TG && TG.openTelegramLink) tgCall(() => TG.openTelegramLink(url));
+  else window.open(url, "_blank", "noopener");
+}
+function actCopy(){
+  const text = actText(CH.act);
+  const done = () => { haptic("success"); actMsg(okHtml(T("tg.act.copied", "Текст акта скопирован — вставьте его в сообщение или документ."))); };
+  const fallback = () => {
+    try {
+      const t = document.createElement("textarea");
+      t.value = text;
+      t.setAttribute("readonly", "");
+      t.style.position = "fixed";
+      t.style.opacity = "0";
+      document.body.appendChild(t);
+      t.select();
+      const ok = document.execCommand("copy");
+      t.remove();
+      if (ok) done(); else actMsg(errHtml(T("tg.act.copy_failed", "Скопировать не получилось — выделите текст акта и скопируйте вручную.")));
+    } catch (e) { actMsg(errHtml(T("tg.act.copy_failed", "Скопировать не получилось — выделите текст акта и скопируйте вручную."))); }
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+  else fallback();
+}
+/* акт с сервера на текущем языке: после перезагрузки и при смене языка */
+async function actFetch(){
+  const id = CH.actId, lang = I18N_LANG;
+  if (!id) return;
+  CH.actBusy = true;
+  CH.actErr = "";
+  if (!CH.act && CH.wz === 3) wzPaint(true);
+  const r = await api("/act/" + encodeURIComponent(id) + "?lang=" + encodeURIComponent(lang));
+  CH.actBusy = false;
+  if (id !== CH.actId || lang !== I18N_LANG) return;       // успели начать новый акт или сменить язык ещё раз
+  if (!r.ok) {
+    if (r.status === 404) {
+      CH.act = null;
+      CH.actId = "";
+      if (CH.wz === 3) CH.wz = 2;
+      CH.err = T("tg.act.gone", "Акт не найден: он хранится 7 дней и открывается только у того, кто его сформировал. Сформируйте акт заново.");
+      wzSave();
+    } else CH.actErr = T("tg.act.load_failed", "Акт не загрузился: {reason}", {reason: r.error});
+    if (TAB === "chat") wzPaint(true);
+    return;
+  }
+  CH.act = r.data;
+  if (TAB === "chat") wzPaint(CH.wz === 3);
+}
+function actReset(){
+  CH.queue.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
+  Object.assign(CH, {wz: 1, queue: [], filesDirty: false, session: "", ai: null, photoCount: 0, rec: [], damages: [],
+    missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
+    must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false});
+  wzSeedRegion();
+  wzSave();
+  wzPaint(true);
+  window.scrollTo(0, 0);
 }
 
-/* ---------- обработчики шага: одни на весь #wzBody (списки перерисовываются без перепривязки) ---------- */
+async function loadChat(){
+  if (CH.booted) { wzPaint(true); return; }
+  CH.booted = true;
+  wzLoad();
+  wzSeedRegion();
+  if (CH.wz === 3 && !CH.actId) CH.wz = 2;
+  wzPaint(true);
+  chatRefs().then(() => { wzPart("prod"); wzPart("views"); });
+  if (CH.actId) actFetch();
+}
+
+/* ---------- смена языка: подписи из словаря; акт сервер отдаёт на новом языке (GET /act/{id}?lang=) ---------- */
+function chatRelang(){
+  wzPaint(true);
+  if (CH.act && CH.act.lang !== I18N_LANG) actFetch();
+}
+
+/* ---------- обработчики шага: одни на весь #wzBody (части перерисовываются без перепривязки) ---------- */
 function wzClick(e){
-  const t = e.target.closest("button");
+  const t = e.target.closest("button, a[data-dl]");
   const box = $("#wzBody");
   if (!t || !box.contains(t)) return;
   const d = t.dataset;
+  if (d.dl) return;                                  // обычная ссылка на файл — в браузере
+  if (d.send) { actSend(d.send); return; }
   if (d.pick === "cam") { $("#chatCam").click(); return; }
   if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
   if (d.rm) { wzRemove(Number(d.rm)); return; }
-  if (d.mode) { wzMode(d.mode); return; }
   if (d.prodopen) { CH.prodOpen = true; wzPart("prod"); const q = $("#wzProdQ"); if (q) q.focus(); return; }
   if (d.prodclose) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); return; }
   if (d.prod) { wzPickProduct(d.prod); return; }
   if (d.clsonly) { wzPickClass(d.clsonly); return; }
   if (d.add || d.copy) { wzQuickAdd(t); return; }
   if (d.set) { wzSetOpt(t); return; }
-  if (d.choose) {
-    CH.choice = CH.choice === d.choose ? "" : d.choose;
-    haptic("select");
-    wzSave();
-    const o = $("#wzOpts");
-    if (o) o.innerHTML = chatOptionsHtml((CH.res || {}).franchise);
-    return;
-  }
-  if (d.fix) { CH.optOpen = true; wzGo(2); wzFocusField(d.fix); return; }
-  if (d.upload) { $("#chatFile").click(); wzGo(1); return; }
-  if (d.go === "restart") { haptic("select"); chatStart(); return; }
-  if (d.go === "legal") { chatToLegal(); return; }
-  if (d.go === "ask") { wzAsk(); return; }
+  if (d.go === "addphoto") { wzGo(1); return; }
+  if (d.go === "fix") { wzGo(2); return; }
+  if (d.go === "restart") { haptic("select"); actReset(); return; }
+  if (d.go === "legal") { openTab("legal"); return; }
+  if (d.go === "copy") { actCopy(); return; }
+  if (d.go === "openbot") { actOpenBot(); return; }
 }
 function wzInput(e){
   const el = e.target;
   if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
-  if (el.id === "wzAskText") { el.style.height = "auto"; el.style.height = Math.min(140, el.scrollHeight) + "px"; return; }
+  if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
   if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
 }
 function wzChange(e){
@@ -3544,28 +3297,16 @@ function wzChange(e){
 }
 function wzToggle(e){
   const el = e.target;
-  if (!el || el.tagName !== "DETAILS") return;
-  if (el.id === "wzMore") CH.optOpen = el.open;
-  else if (el.dataset.sec) CH.open[el.dataset.sec] = el.open;
+  if (el && el.tagName === "DETAILS" && el.id === "wzMore") CH.optOpen = el.open;
 }
 function wzKey(e){
   const el = e.target;
-  if (el.id === "wzAskText" && e.key === "Enter" && (e.ctrlKey || e.metaKey || (!e.shiftKey && WIDE.matches))) { e.preventDefault(); wzAsk(); }
   if (el.id === "wzProdQ" && e.key === "Enter") {
     e.preventDefault();
     const only = document.querySelectorAll("#wzProdList [data-prod]");
     if (only.length === 1) wzPickProduct(only[0].dataset.prod);
   }
-  if (el.id === "wzProdQ" && e.key === "Escape" && (CH.draft.must.product_code || CH.draft.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
-}
-
-/* «Спросить специалиста»: открываем раздел «Специалист» и переносим туда вопрос по объекту */
-function chatToLegal(){
-  const s = (CH.state && CH.state.must) || {};
-  const q = T("tg.chat.legal_q", "Объект: {o}, класс {c}. Что закон требует сказать клиенту при заключении договора?",
-    {o: s.object_type || s.product_code || "—", c: s.class_code || "—"});
-  openTab("legal");
-  lgAsk(q);
+  if (el.id === "wzProdQ" && e.key === "Escape" && (CH.must.product_code || CH.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
 }
 
 /* ---------- файлы: плитки, перетаскивание в любое место экрана, вставка из буфера ---------- */
@@ -3613,58 +3354,7 @@ function chatBoot(){
 
 chatBoot();
 
-/* ---------- подписи полей: ключи словаря, запас — подпись сервера ---------- */
-function fieldLabel(f){
-  switch (f.key) {
-    case "class_code": return T("tg.an.f.class_code", "Класс страхования");
-    case "product_code": return T("tg.an.f.product_code", "Продукт");
-    case "object_type": return T("tg.an.f.object_type", "Тип объекта");
-    case "sum_insured": return T("tg.an.f.sum_insured", "Страховая сумма");
-    case "object_value": return T("tg.an.f.object_value", "Стоимость объекта");
-    case "region": return T("tg.an.f.region", "Регион");
-    case "term_months": return T("tg.an.f.term_months", "Срок страхования");
-    default: return T("tg.an.f." + fkey(f), f.label || f.key);
-  }
-}
-/* «protection» у имущества — защита объекта, у транспорта — противоугонная система: ключи разные */
-function fkey(f){ return f.key === "protection" && AN.fields && AN.fields.group === "vehicle" ? "protection_vehicle" : f.key; }
-function optLabel(f, o){ return T("tg.an.o." + fkey(f) + "." + o.code, o.label || o.code); }
-/* сервер может прислать код единицы (unit_code) — тогда подпись по ключу unit.<код> */
-function unitName(u, code){
-  if (code) return T("unit." + code, u || code);
-  switch (u) {
-    case "сум": return T("common.sum", "сум");
-    case "мес.": return T("tg.u.months", "мес.");
-    case "баллов": return T("tg.u.points", "баллов");
-    case "км": return T("common.km", "км");
-    case "м": return T("tg.u.m", "м");
-    case "% суммы": return T("tg.u.pct_sum", "% суммы");
-    default: return u || "";
-  }
-}
-function subLabel(parent, key){
-  switch (parent + "." + key) {
-    case "losses_3y.count": return T("tg.an.sf.losses_count", "Количество");
-    case "losses_3y.amount": return T("tg.an.sf.losses_amount", "Сумма");
-    case "deductible.pct": return T("tg.an.sf.ded_pct", "Процент");
-    case "deductible.amount": return T("tg.an.sf.ded_amount", "Сумма");
-    case "compartments.count": return T("tg.an.sf.comp_count", "Число отсеков");
-    case "compartments.largest_value": return T("tg.an.sf.comp_largest", "Стоимость наибольшего");
-    case "neighbours.gap_m": return T("tg.an.sf.gap", "Разрыв");
-    case "neighbours.note": return T("tg.an.sf.note", "Примечание");
-    case "bi.monthly_amount": return T("tg.an.sf.bi_month", "В месяц");
-    case "bi.recovery_months": return T("tg.an.sf.bi_recovery", "Восстановление");
-    default: return key;
-  }
-}
-
-/* ---------- уровни риска ---------- */
-function lvIdx(name){
-  // шкала из подробного анализа, а пока он грузится — из итога /chat/analyze
-  const scale = (AN.res && AN.res.level && AN.res.level.scale) || (CH.res && CH.res.level && CH.res.level.scale) || [];
-  const i = scale.findIndex(x => x.name === name);
-  return i < 0 ? null : i;
-}
+/* ---------- уровни риска для админки порогов (Настройки → пороги) ---------- */
 function lvName(i, fallback){
   switch (i) {
     case 0: return T("tg.an.lv1", "Низкий");
@@ -3675,386 +3365,7 @@ function lvName(i, fallback){
     default: return fallback || "—";
   }
 }
-function lvChip(name){
-  const i = lvIdx(name);
-  return '<span class="lvchip ' + (i == null ? "" : "lv" + (i + 1)) + '">' + esc(lvName(i, name)) + "</span>";
-}
-
-/* спидометр: полукруг из цветных дуг по шкале уровней, стрелка на балле */
-function gaugeSvg(score, scale){
-  const cx = 110, cy = 112, r = 88;
-  const pt = (v, rr) => { const a = Math.PI * (1 - Math.max(0, Math.min(100, v)) / 100); return [cx + rr * Math.cos(a), cy - rr * Math.sin(a)]; };
-  const arc = (a, b) => { const p = pt(a, r), q = pt(b, r); return "M" + p[0].toFixed(1) + " " + p[1].toFixed(1) + " A" + r + " " + r + " 0 0 1 " + q[0].toFixed(1) + " " + q[1].toFixed(1); };
-  let s = '<svg viewBox="0 0 220 124" role="img" aria-label="' + esc(T("tg.an.gauge_aria", "Балл риска {s} из 100", {s: nf(score, 1)})) + '">';
-  s += '<path d="' + arc(0, 100) + '" fill="none" stroke="var(--track)" stroke-width="18"/>';
-  (scale || []).forEach((x, i) => {
-    s += '<path d="' + arc(x.from + (i ? 0.8 : 0), x.to - (i < scale.length - 1 ? 0.8 : 0)) + '" fill="none" stroke="var(--lv' + (i + 1) + ')" stroke-width="18"'
-      + (i === 0 ? ' stroke-linecap="butt"' : "") + "><title>" + esc(lvName(i, x.name) + ": " + x.from + "–" + x.to) + "</title></path>";
-  });
-  (scale || []).slice(1).forEach(x => {
-    const p = pt(x.from, r + 17);
-    s += '<text x="' + p[0].toFixed(1) + '" y="' + (p[1] + 3).toFixed(1) + '" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="var(--mono)">' + x.from + "</text>";
-  });
-  const n = pt(score, r - 26);
-  s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + n[0].toFixed(1) + '" y2="' + n[1].toFixed(1) + '" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/>';
-  s += '<circle cx="' + cx + '" cy="' + cy + '" r="6" fill="var(--ink)"/></svg>';
-  return s;
-}
-
-/* мини-график ряда: подписи по оси — кварталы (или годы у годовых рядов) */
-function quarterOf(p){
-  if (!p || !p.date) return p && p.period ? String(p.period) : "";
-  const d = new Date(p.date + "T00:00:00");
-  if (isNaN(d)) return String(p.period || "");
-  if (d.getDate() === 1) d.setDate(0);          // срез «на 1 июля» — это итог II квартала
-  return T("tg.an.q", "{q} кв. {y}", {q: Math.floor(d.getMonth() / 3) + 1, y: d.getFullYear()});
-}
-function spark(series, fmtv){
-  const pts = (series || []).filter(x => x && x.value != null && !isNaN(Number(x.value)));
-  if (pts.length < 2) return "";
-  const W = 300, H = 58, top = 6, bottom = 16;
-  const vals = pts.map(x => Number(x.value));
-  let lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
-  if (hi === lo) { hi += 1; lo -= 1; }
-  const X = i => 6 + i * (W - 12) / (pts.length - 1);
-  const Y = v => top + (hi - v) / (hi - lo) * (H - top - bottom);
-  const line = pts.map((x, i) => (i ? "L" : "M") + X(i).toFixed(1) + " " + Y(Number(x.value)).toFixed(1)).join(" ");
-  const area = line + " L" + X(pts.length - 1).toFixed(1) + " " + (H - bottom) + " L" + X(0).toFixed(1) + " " + (H - bottom) + " Z";
-  const last = pts.length - 1;
-  let s = '<svg class="spark" viewBox="0 0 ' + W + " " + H + '" role="img" aria-label="'
-    + esc(T("tg.an.spark_aria", "Динамика: {a} → {b}", {a: fmtv(vals[0]), b: fmtv(vals[last])})) + '">'
-    + '<path class="a" d="' + area + '"/><path class="l" d="' + line + '"/>';
-  pts.forEach((x, i) => {
-    s += '<circle class="hit" cx="' + X(i).toFixed(1) + '" cy="' + Y(vals[i]).toFixed(1) + '" r="9"><title>' + esc(quarterOf(x) + ": " + fmtv(vals[i])) + "</title></circle>";
-  });
-  s += '<circle cx="' + X(last).toFixed(1) + '" cy="' + Y(vals[last]).toFixed(1) + '" r="3.5"/>';
-  s += '<text x="6" y="' + (H - 3) + '">' + esc(quarterOf(pts[0])) + "</text>";
-  s += '<text x="' + (W - 6) + '" y="' + (H - 3) + '" text-anchor="end">' + esc(quarterOf(pts[last])) + "</text></svg>";
-  return s;
-}
-
-/* источник числа: src ссылается на market.sources[].id */
-function srcLinks(src){
-  const all = (AN.res && AN.res.market && AN.res.market.sources) || [];
-  const ids = Array.isArray(src) ? src : (src ? [src] : []);
-  const seen = {};
-  return ids.map(id => all.filter(s => s.id === id)[0]).filter(Boolean).filter(s => {
-    const k = s.url || s.domain; if (seen[k]) return false; seen[k] = 1; return true;
-  }).map(s => '<a class="src" href="' + esc(s.url) + '" target="_blank" rel="noopener" title="' + esc(s.title || "") + '">'
-    + esc(T("tg.an.src", "источник: {d}", {d: s.domain || s.url})) + (s.as_of ? " · " + esc(dateOnly(s.as_of)) : "") + "</a>").join(" ");
-}
-function periodName(p){
-  const s = String(p || "");
-  let m = /^(\d{4}) · (\d+) мес\.$/.exec(s);
-  if (m) return T("tg.an.period_m", "{y} · {m} мес.", {y: m[1], m: m[2]});
-  m = /^(\d{4}) год$/.exec(s);
-  if (m) return T("tg.an.period_y", "{y} год", {y: m[1]});
-  return s;
-}
-
-/* ---------- карточки подробностей шага «Анализ» ---------- */
 function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
-
-function anLevelCard(r){
-  const L = r.level || {};
-  const i = lvIdx(L.level);
-  const comps = (L.components || []).filter(c => c.applicable !== false);
-  return '<div class="card w4"><p class="eyebrow">' + esc(T("tg.an.level", "Уровень риска")) + "</p>"
-    + '<div class="gauge ' + (i == null ? "" : "lv" + (i + 1)) + '">' + gaugeSvg(Number(L.score) || 0, L.scale)
-    + '<div class="score">' + esc(nf(L.score || 0, 1)) + "</div>" + lvChip(L.level) + "</div>"
-    + '<div class="comp">' + comps.map(c =>
-      "<div><span>" + esc(c.name) + '</span><i><b style="width:' + Math.max(0, Math.min(100, Number(c.points) || 0)) + '%"></b></i><em>+'
-      + esc(nf(c.contribution || 0, 1)) + "</em></div>").join("") + "</div>"
-    + (L.override ? '<p class="note warn">' + hx(typeof L.override === "string" ? L.override : (L.override.why || L.override.text || "")) + "</p>" : "")
-    + '<details class="how"><summary>' + esc(T("tg.an.how", "Как считали")) + "</summary><ul>"
-    + (L.explanation || []).map(x => "<li>" + hx(x) + "</li>").join("") + "</ul>"
-    + "<p>" + esc(T("tg.an.level_scale", "Балл 0–100: сумма вкладов (баллы × вес). Шкала: {s}.",
-      {s: (L.scale || []).map((x, k) => lvName(k, x.name) + " " + x.from + "–" + x.to).join(", ")})) + "</p></details>"
-    + (L.calibrated === 0 ? '<p class="note warn">' + esc(T("tg.an.uncal_level", "Шкала экспертная, не калибрована: веса и пороги ещё не подтверждены убытками компании.")) + "</p>" : "")
-    + "</div>";
-}
-
-function scnPurpose(p){
-  switch (p) {
-    case "retention": return T("tg.an.p.retention", "лимит собственного удержания");
-    case "tariff": return T("tg.an.p.tariff", "стандартный тариф");
-    case "catastrophe": return T("tg.an.p.catastrophe", "катастрофа и перестрахование");
-    default: return p || "";
-  }
-}
-function anScenariosCard(r){
-  const sc = r.scenarios || {};
-  const sum = Number((r.summary || {}).sum_insured) || 0;
-  const vehicle = AN.group === "vehicle";
-  const ret = r.retention || {};
-  const lim = Number(ret.retention_limit) || 0;
-  const limPct = sum ? Math.min(100, lim / sum * 100) : 0;
-  const temp = ret.status === "временно";
-  const rows = ["EML", "PML", "MFL"].filter(k => sc[k]).map(k => {
-    const x = sc[k];
-    const w = sum ? Math.max(0.5, Math.min(100, x.amount / sum * 100)) : 0;
-    const i = vehicle ? null : lvIdx(x.level);
-    return '<div class="scn"><div class="top"><b>' + k + "</b><span>" + esc(scnPurpose(x.purpose)) + "</span><em>"
-      + esc(compact(x.amount)) + (vehicle ? "" : " · " + esc(pct(x.pct_of_sum, 1))) + "</em></div>"
-      + '<div class="track ' + (i == null ? "" : "lv" + (i + 1)) + '" title="' + esc(money(x.amount)) + '"><b style="width:' + w.toFixed(1) + '%"></b>'
-      + (lim ? '<i style="left:calc(' + limPct.toFixed(1) + '% - 1px)"></i>' : "") + "</div></div>";
-  }).join("");
-  return '<div class="card w7"><p class="eyebrow">' + esc(T("tg.an.scenarios", "Сценарии убытка")) + "</p>"
-    + '<p class="sub">' + esc(vehicle ? T("tg.an.scn_hint_vehicle", "Суммы убытка по сценариям; черта — лимит собственного удержания. Для транспорта доля суммы почти всегда 100%, поэтому уровень по доле не показываем.")
-      : T("tg.an.scn_hint", "Полоса — доля страховой суммы; черта — лимит собственного удержания.")) + "</p>"
-    + rows
-    + '<div class="axis"><span>0</span><span>' + esc(T("tg.an.axis_sum", "страховая сумма {v}", {v: compact(sum)})) + "</span></div>"
-    + (lim ? '<div class="legend"><span><i></i>' + esc(T("tg.an.retention_mark", "лимит удержания {v}", {v: compact(lim)}))
-      + (lim > sum ? " " + esc(T("tg.an.retention_above", "(выше страховой суммы)")) : "") + (temp ? ' <span class="tag off">' + esc(T("common.temporary", "временно")) + "</span>" : "") + "</span></div>" : "")
-    + '<div class="chips" role="group" aria-label="' + esc(T("tg.an.scenarios", "Сценарии убытка")) + '">'
-    + ["EML", "PML", "MFL"].filter(k => sc[k]).map(k => '<button type="button" class="chip" data-scn="' + k + '" aria-pressed="' + (AN.scn === k) + '">' + k + "</button>").join("")
-    + "</div><div id=\"anScn\" class=\"scd\"></div>"
-    + '<p class="warnline">' + esc(T("tg.an.expert_warn", "Допущения сценариев экспертные, не калиброваны: доли гибели и простоя не подтверждены статистикой компании."))
-    + (temp ? " " + esc(T("tg.an.funds_temp", "Собственные средства и резервы — временные цифры до данных бухгалтерии.")) : "") + "</p>"
-    + "</div>";
-}
-
-function kvRows(rows){
-  return '<div class="kv pairs">' + rows.filter(x => x && x[1] != null && x[1] !== "").map(x => "<span>" + esc(x[0]) + "</span><b>" + x[1] + "</b>").join("") + "</div>";
-}
-function anPaintScenario(){
-  const box = $("#anScn");
-  if (!box || !AN.res) return;
-  const sc = AN.res.scenarios || {};
-  document.querySelectorAll("[data-scn]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.scn === AN.scn)));
-  const x = sc[AN.scn];
-  if (!x) { box.innerHTML = ""; return; }
-  const vehicle = AN.group === "vehicle";
-  let extra = "";
-  if (x.retention) {
-    const t = x.retention;
-    extra = '<div class="h3">' + esc(T("tg.an.retention", "Собственное удержание")) + (t.status === "временно" ? ' <span class="tag off">' + esc(T("common.temporary", "временно")) + "</span>" : "") + "</div>"
-      + kvRows([[T("tg.an.ret_amount", "Оставляем на себе"), esc(money(t.retention))],
-        [T("tg.an.ret_excess", "Сверх удержания"), esc(money(t.excess))],
-        [T("tg.an.ret_limit20", "Лимит на один риск (20%)"), esc(money(t.limit_per_risk))],
-        [T("tg.an.ret_lines", "По таблице линий"), esc(money(t.line_retention))]])
-      + (t.explain ? '<p class="note">' + hx(t.explain) + "</p>" : "");
-  }
-  if (x.tariff) {
-    const t = x.tariff;
-    extra = '<div class="h3">' + esc(T("tg.an.tariff", "Тариф по сценарию")) + "</div>"
-      + kvRows([[T("tg.an.rate_technical", "Ставка техническая"), esc(pct(t.rate_technical_pct, 4))],
-        [T("tg.an.rate_net", "Нетто-ставка"), esc(pct(t.rate_net_pct, 4))],
-        [T("tg.an.expected_loss", "Ожидаемый убыток в год"), esc(money(t.expected_annual_loss))],
-        [T("tg.an.event_prob", "Частота такого события"), esc(pct(t.implied_event_probability_pct, 2)) + " · " + esc(T("tg.an.once_in", "раз в {n} лет", {n: fmt(t.implied_return_period_years)}))],
-        [T("tg.an.rate_on_scn", "Ставка на сценарий"), esc(pct(t.rate_on_scenario_pct, 4))]])
-      + (t.explain ? '<p class="note">' + hx(t.explain) + "</p>" : "");
-  }
-  if (x.catastrophe) {
-    const t = x.catastrophe;
-    const need = Number(t.reinsurance_need) || 0;
-    const z = t.zone_accumulation || null;
-    extra = '<div class="h3">' + esc(T("tg.an.catastrophe", "Катастрофа и перестрахование")) + (t.status === "временно" ? ' <span class="tag off">' + esc(T("common.temporary", "временно")) + "</span>" : "") + "</div>"
-      + '<div class="itv ' + (need > 0 ? "warn" : "") + '"><div><b>' + esc(need > 0
-        ? T("tg.an.reins_need", "Требует перестрахования (оценочно): {v}", {v: money(need)})
-        : T("tg.an.reins_none", "Перестрахование по сценарию не требуется (оценочно)")) + "</b><span>" + hx(t.note || "") + "</span></div></div>"
-      + kvRows([[T("tg.an.retained", "Остаётся на компании"), esc(money(t.retained))],
-        [T("tg.an.reins_share", "Доля перестрахования"), esc(pct(t.reinsurance_share_pct, 1))],
-        z ? [T("tg.an.zone", "Накопление в зоне {z} баллов", {z: z.zone}), esc(T("tg.an.zone_v", "{n} объектов в системе, {s} + этот объект", {n: fmt(z.objects_in_system), s: compact(z.sum_insured_in_system)}))] : null]);
-  }
-  box.innerHTML = "<h3>" + esc(x.title || AN.scn) + "</h3>"
-    + kvRows([[T("tg.an.scn_amount", "Убыток по сценарию"), esc(money(x.amount))],
-      vehicle ? null : [T("tg.an.scn_share", "Доля страховой суммы"), esc(pct(x.pct_of_sum, 1)) + " " + lvChip(x.level)],
-      [T("tg.an.scn_purpose", "Для чего"), esc(scnPurpose(x.purpose))],
-      x.dominant ? [T("tg.an.scn_dominant", "Главная причина"), esc(x.dominant)] : null,
-      x.property_loss != null ? [T("tg.an.scn_property", "Имущество"), esc(money(x.property_loss))] : null,
-      x.bi_loss ? [T("tg.an.scn_bi", "Перерыв в производстве"), esc(money(x.bi_loss))] : null])
-    + extra
-    + '<details class="how"><summary>' + esc(T("tg.an.how", "Как считали")) + "</summary>"
-    + (x.formula ? "<p><code>" + esc(x.formula) + "</code></p>" : "")
-    + (x.retention && x.retention.formula ? "<p><code>" + esc(x.retention.formula) + "</code></p>" : "")
-    + (x.tariff && x.tariff.formula ? "<p><code>" + esc(x.tariff.formula) + "</code></p>" : "")
-    + (x.catastrophe && x.catastrophe.formula ? "<p><code>" + esc(x.catastrophe.formula) + "</code></p>" : "")
-    + "<ul>" + (x.assumptions || []).map(a => "<li>" + hx(a.text || a) + "</li>").join("") + "</ul>"
-    + (!vehicle && x.level_basis ? "<p>" + hx(x.level_basis) + "</p>" : "")
-    + (x.note ? "<p>" + hx(x.note) + "</p>" : "") + "</details>";
-}
-
-function anRisksCard(r){
-  const risks = (r.risks || []).filter(x => Number(x.share_of_net_pct) > 0).sort((a, b) => b.share_of_net_pct - a.share_of_net_pct);
-  const top = risks.slice(0, 7), rest = risks.slice(7);
-  const restSum = rest.reduce((s, x) => s + Number(x.share_of_net_pct), 0);
-  const maxv = top.length ? top[0].share_of_net_pct : 100;
-  const bar = (name, v, cat, drv, cls) => "<div><div class=\"top\"><span>" + esc(name)
-    + (cls ? ' <span class="note">· ' + esc(T("tg.an.class_n", "класс {c}", {c: cls})) + "</span>" : "")
-    + (cat ? ' <span class="tag off">' + esc(T("tg.an.cat", "катастрофа")) + "</span>" : "") + "</span><em>" + esc(pct(v, 1)) + "</em></div>"
-    + '<div class="bar"><b class="' + (cat ? "cat" : "") + '" style="width:' + (v / maxv * 100).toFixed(1) + '%"></b></div>'
-    + (drv ? '<div class="drv">' + esc(drv) + "</div>" : "") + "</div>";
-  const drvText = x => (x.drivers || []).filter(d => d.multiplier !== 1).slice(0, 2).map(d => d.factor + " " + d.effect).join(" · ");
-  const tops = r.top_drivers || [];
-  const red = r.reducers || [];
-  return '<div class="card w5"><p class="eyebrow">' + esc(T("tg.an.risks", "Риски и драйверы")) + "</p>"
-    + '<p class="sub">' + esc(T("tg.an.risks_hint", "Доля каждого риска в нетто-ставке.")) + "</p>"
-    + '<div class="bars">' + top.map(x => bar(x.name, x.share_of_net_pct, x.catastrophic, drvText(x), x.class_code)).join("")
-    + (rest.length ? bar(T("tg.an.other_risks", "Прочие ({n})", {n: rest.length}), restSum, false, "", "") : "") + "</div>"
-    + '<div class="h3">' + esc(T("tg.an.top_drivers", "Что сильнее всего поднимает премию")) + '</div><div class="drivers">'
-    + (tops.length ? tops.map(d => "<div><span>" + esc(d.factor) + "<small>" + esc(d.option) + " · " + esc(d.effect) + "</small></span><b class=\"up\">+"
-      + esc(compact(d.premium_effect)) + " " + esc(SUM()) + "</b></div>").join("") : '<div class="note">' + esc(T("common.none", "нет")) + "</div>") + "</div>"
-    + '<div class="h3">' + esc(T("tg.an.reducers", "Что снижает риск и премию")) + '</div><div class="reducers">'
-    + (red.length ? red.slice(0, 6).map(d => "<div><span>" + hx(d.text)
-      + "<small>" + (d.mandatory ? esc(T("tg.an.mandatory", "обязательно")) + (d.deadline_days ? " · " + esc(T("tg.an.deadline", "срок {n} дн.", {n: d.deadline_days})) : "") + " · " : "")
-      + hx(d.why || "") + "</small></span><b class=\"down\">"
-      + (d.premium_delta != null ? (d.premium_delta > 0 ? "+" : "−") + esc(compact(Math.abs(d.premium_delta))) + " " + esc(SUM()) : "—") + "</b></div>").join("")
-      : '<div class="note">' + esc(T("tg.an.nothing_reduce", "Дешевле уже не сделать без потери защиты.")) + "</div>") + "</div>"
-    + '<p class="note warn" style="margin-top:var(--s2)">' + esc(T("tg.an.uncal_coef", "Коэффициенты экспертные, не калиброваны.")) + "</p>"
-    + "</div>";
-}
-
-function anMarketCard(r){
-  const M = (r.market || {}).market || {};
-  const cmp = r.market_compare || {};
-  const dv = M.deviation || {};
-  const devCls = dv.pct == null ? "" : Math.abs(dv.pct) <= 25 ? "ok" : dv.pct > 0 ? "pos" : "neg";
-  const sh = M.inson_share || {};
-  const f3 = v => pct(v, 3), f1 = v => pct(v, 1);
-  const tile = (label, value, em, sp, src) => '<div class="mkt"><span>' + esc(label) + "</span><b>" + value + "</b>"
-    + (em ? "<em>" + em + "</em>" : "") + (sp || "") + (src ? "<div>" + src + "</div>" : "") + "</div>";
-  if (!M.rate_pct && !cmp.market_rate_pct) {
-    return '<div class="card w7"><p class="eyebrow">' + esc(T("tg.an.market", "Рынок и статистика")) + '</p><div class="note">'
-      + esc(T("tg.an.market_none", "Рыночных данных по этому классу нет.")) + "</div></div>";
-  }
-  return '<div class="card w7"><p class="eyebrow">' + esc(T("tg.an.market", "Рынок и статистика")) + "</p>"
-    + '<p class="sub">' + esc(M.row_name || "") + "</p>"
-    + '<div class="mk">'
-    + tile(T("tg.an.mk_rate", "Средняя ставка рынка"), esc(pct(M.rate_pct, 3)),
-      esc(periodName(M.rate_period)) + (M.rate_full_year_pct != null ? " · " + esc(T("tg.an.full_year", "за {p}: {v}", {p: periodName(M.rate_full_year_period), v: pct(M.rate_full_year_pct, 3)})) : ""),
-      spark(M.rate_series, f3), srcLinks(M.rate_src))
-    + tile(T("tg.an.mk_our", "Наша ставка к рынку"), esc(pct(M.our_rate_pct != null ? M.our_rate_pct : cmp.our_rate_pct, 4)),
-      '<span class="dev ' + devCls + '">' + esc(dv.pp != null ? (dv.pp > 0 ? "+" : "") + nf(dv.pp, 3) + " " + T("common.pp", "п.п.") : "—")
-      + " · " + esc(dv.pct != null ? (dv.pct > 0 ? "+" : "") + nf(dv.pct, 1) + "%" : "—") + "</span>"
-      + (dv.pct != null ? " " + esc(dv.pct > 25 ? T("tg.an.dev_above", "дороже рынка") : dv.pct < -25 ? T("tg.an.dev_below", "дешевле рынка — проверьте достаточность") : T("tg.an.dev_near", "около рынка")) : ""),
-      "", srcLinks(dv.src))
-    + tile(T("tg.an.mk_lr", "Убыточность рынка"), esc(pct(M.loss_ratio_pct, 1)),
-      esc(periodName(M.loss_ratio_period)) + (M.loss_ratio_full_year_pct != null ? " · " + esc(T("tg.an.full_year", "за {p}: {v}", {p: periodName(M.rate_full_year_period), v: pct(M.loss_ratio_full_year_pct, 1)})) : ""),
-      spark(M.loss_ratio_series, f1), srcLinks(M.loss_ratio_src))
-    + tile(T("tg.an.mk_share", "Доля INSON на рынке"), esc(sh.market_pct != null ? pct(sh.market_pct, 2) : "—"),
-      esc(periodName(sh.period)) + (sh.by_class_pct == null ? " · " + esc(T("tg.an.share_class_na", "по классу — нет данных")) : ""),
-      spark(sh.series, v => pct(v, 2)), srcLinks(sh.src))
-    + "</div>"
-    + (M.premiums ? '<div class="kv" style="margin-top:var(--s2)"><span>' + esc(T("tg.an.mk_premiums", "Премии рынка по классу, {p}", {p: periodName(M.premiums.period)}))
-      + "</span><b>" + esc(T("tg.an.mln_sum", "{v} млн сум", {v: fmt(M.premiums.value)})) + "</b>"
-      + (M.payouts ? "<span>" + esc(T("tg.an.mk_payouts", "Выплаты рынка, {p}", {p: periodName(M.payouts.period)})) + "</span><b>" + esc(T("tg.an.mln_sum", "{v} млн сум", {v: fmt(M.payouts.value)})) + "</b>" : "")
-      + "</div>" : "")
-    + '<details class="how"><summary>' + esc(T("tg.an.caveats", "Оговорки и формулы")) + "</summary><ul>"
-    + (M.formula ? Object.keys(M.formula).map(k => "<li><code>" + esc(M.formula[k]) + "</code></li>").join("") : "")
-    + (M.caveats || []).concat((r.market || {}).notes || []).concat(cmp.note ? [cmp.note] : []).map(x => "<li>" + hx(x) + "</li>").join("")
-    + "</ul></details>"
-    + anSourcesBar((r.market || {}).sources || [])
-    + "</div>";
-}
-function anSourcesBar(src){
-  const seen = {};
-  const list = src.filter(s => { const k = s.domain || s.url; if (!k || seen[k]) return false; seen[k] = 1; return true; });
-  if (!list.length) return "";
-  return '<div class="srcbar"><span>' + esc(T("tg.an.sources", "Источники:")) + "</span>"
-    + list.map(s => '<a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(T("tg.an.read_in", "Читать в источнике {d}", {d: s.domain})) + "</a>").join("") + "</div>";
-}
-
-function indName(k, fb){
-  switch (k) {
-    case "population": return T("tg.an.ind.population", "Население");
-    case "grp": return T("tg.an.ind.grp", "ВРП");
-    case "grp_per_capita": return T("tg.an.ind.grp_pc", "ВРП на душу");
-    case "penetration": return T("tg.an.ind.penetration", "Проникновение страхования");
-    case "house_price_index": return T("tg.an.ind.house", "Индекс цен на жильё");
-    case "construction_price_index": return T("tg.an.ind.construction", "Индекс цен в строительстве");
-    default: return fb || k;
-  }
-}
-function indValue(k, x){
-  const v = x.value;
-  switch (k) {
-    case "population": return T("tg.an.indv.population", "{v} тыс. чел.", {v: nf(v, 1)});
-    case "grp": return T("tg.an.indv.grp", "{v} млрд сум", {v: fmt(v)});
-    case "grp_per_capita": return T("tg.an.indv.grp_pc", "{v} тыс. сум", {v: fmt(v)});
-    case "penetration": return T("tg.an.indv.penetration", "{v}% ВРП", {v: nf(v, 2)});
-    default: return nf(v, 1) + "%";
-  }
-}
-function anRegionCard(r){
-  const R = (r.market || {}).region || {};
-  const ind = R.indicators || {};
-  const order = ["population", "grp", "grp_per_capita", "penetration", "house_price_index", "construction_price_index"];
-  const keys = order.filter(k => ind[k] && ind[k].value != null);
-  return '<div class="card w5"><p class="eyebrow">' + esc(T("tg.an.region", "Регион: {name}", {name: R.name || "—"})) + "</p>"
-    + '<p class="sub">' + esc(T("tg.an.region_hint", "Статистика агентства и проникновение страхования.")) + "</p>"
-    + (keys.length ? '<div class="mk">' + keys.map(k => {
-      const x = ind[k];
-      return '<div class="mkt"><span>' + esc(indName(k, x.name)) + "</span><b>" + esc(indValue(k, x)) + "</b><em>"
-        + esc(String(x.period || "")) + (x.level && x.level !== "регион" ? " · " + esc(T("tg.an.republic", "по республике")) : "") + "</em>"
-        + spark(x.series, v => k === "penetration" ? nf(v, 2) + "%" : nf(v, 1)) + "<div>" + srcLinks(x.src) + "</div></div>";
-    }).join("") + "</div>" : '<div class="note">' + esc(T("tg.an.region_none", "Показателей по региону нет.")) + "</div>")
-    + '<details class="how"><summary>' + esc(T("tg.an.caveats", "Оговорки и формулы")) + "</summary><ul>"
-    + keys.map(k => { const x = ind[k]; return [x.formula, x.note].concat(x.limits || []).filter(Boolean).map(t => "<li>" + hx(indName(k, x.name) + ": " + t) + "</li>").join(""); }).join("")
-    + "</ul></details></div>";
-}
-
-/* Статистика по рискам региона: блок external_stats из /analytics/risk (статистика агентства по рискам
-   класса и региона). Показываем, только если блок пришёл. Строки: название и период мелко под ним — слева,
-   значение, динамика и «на душу» — справа. Под блоком — ссылки «Читать в источнике». */
-function extItems(r){
-  const x = r.external_stats;
-  if (!x) return [];
-  // сервер (app/risk_stats.external_block) отдаёт показатели в поле indicators
-  const list = Array.isArray(x) ? x : (Array.isArray(x.indicators) ? x.indicators : (Array.isArray(x.items) ? x.items : []));
-  return list.filter(i => i && (i.name || i.value != null));
-}
-function extVal(v, unit){
-  if (v == null || v === "") return "—";
-  const n = Number(v);
-  const t = isNaN(n) ? String(v) : (Math.abs(n) >= 1000 ? fmt(n) : nf(n, Math.abs(n) < 10 && n % 1 ? 2 : 1));
-  return t + (unit ? " " + unit : "");
-}
-function extTrend(t){
-  if (t == null || t === "") return "";
-  const n = Number(t);
-  if (!isNaN(n)) return '<span class="trend ' + (n > 0 ? "up" : n < 0 ? "down" : "") + '">' + (n > 0 ? "↑ +" : n < 0 ? "↓ −" : "") + esc(nf(Math.abs(n), 1)) + "%</span>";
-  return '<span class="trend">' + esc(t) + "</span>";
-}
-function extLevel(l){
-  if (l == null || l === "") return "";
-  // сервер присылает объект {region, country, ratio, diff_pct, text}; число — старый формат
-  const n = Number(typeof l === "object" ? l.ratio : l);
-  return isNaN(n) ? (typeof l === "object" ? "" : String(l)) : T("tg.an.ext_vs_country", "×{v} к стране", {v: nf(n, 2)});
-}
-/* src: ссылка, объект {url, domain, title} или id из market.sources */
-function extSrc(src){
-  const all = (AN.res && AN.res.market && AN.res.market.sources) || [];
-  return (Array.isArray(src) ? src : [src]).map(x => {
-    if (!x) return null;
-    if (typeof x === "object") return x.url ? {url: x.url, domain: x.domain || hostOf(x.url), title: x.title || x.name || ""} : null;
-    if (/^https?:\/\//.test(String(x))) return {url: String(x), domain: hostOf(String(x)), title: ""};
-    return all.filter(s => s.id === x)[0] || null;
-  }).filter(Boolean);
-}
-function hostOf(u){ try { return new URL(u).hostname.replace(/^www\./, ""); } catch (e) { return u; } }
-function anExtStatsCard(r){
-  const items = extItems(r);
-  if (!items.length) return "";
-  const srcs = [];
-  items.forEach(i => extSrc(i.src).forEach(x => srcs.push(x)));
-  return '<div class="card w12"><p class="eyebrow">' + esc(T("tg.an.ext_title", "Статистика по рискам региона")) + "</p>"
-    + '<p class="sub">' + esc(T("tg.an.ext_hint", "Показатели статистического агентства по рискам этого класса в регионе.")) + "</p>"
-    + '<div class="rows split">' + items.map(i => {
-      const under = [i.period ? periodName(i.period) : "", extLevel(i.level_vs_country)].filter(Boolean).join(" · ");
-      const pcv = i.per_1000 != null && i.per_1000 !== "" ? i.per_1000 : i.per_capita;
-      const pc = pcv != null && pcv !== "" ? T("tg.an.ext_per_1000", "на 1 000 жителей: {v}", {v: extVal(pcv, "")}) : "";
-      const tr = extTrend(i.trend_pct != null ? i.trend_pct : i.trend);
-      return "<div><span>" + esc(i.name || "—") + (under ? "<small>" + esc(under) + "</small>" : "") + "</span>"
-        + "<b>" + esc(extVal(i.value, i.unit)) + ((tr || pc) ? "<small>" + tr + (tr && pc ? " · " : "") + esc(pc) + "</small>" : "") + "</b></div>";
-    }).join("") + "</div>"
-    + ((r.external_stats && r.external_stats.applicable === false && r.external_stats.why)
-        ? '<p class="note">' + esc(T("tg.an.ext_not_scored", "В уровень риска не вошло")) + ": " + hx(r.external_stats.why) + "</p>" : "")
-    + anSourcesBar(srcs)
-    + "</div>";
-}
-
-/* Что сказать клиенту — ст. 63 Закона о страховой деятельности */
 
 /* =====================================================================================
    ОСГОР: калькулятор премии (POST /osgor/quick), подсказка ОКЭД по мере ввода (GET /osgor/activities).

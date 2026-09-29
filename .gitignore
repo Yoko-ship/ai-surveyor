@@ -15,6 +15,7 @@ data/inbox/portfolio/
 # материалы клиентов: договоры для анализа и переписка чата
 data/analysis/
 data/chat/
+data/act/
 # внутренние документы компании и извлечённые тексты — только на локальной машине
 library/*
 !library/catalog.json
