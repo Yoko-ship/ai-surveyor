@@ -5,7 +5,8 @@
     set PYTHONIOENCODING=utf-8
     sandbox\\.venv\\Scripts\\python.exe tests\\test_act.py
 
-Всё — во временной копии базы (tests/tmpdb.py) и во временной папке файлов. Сеть и модель подменяются:
+Всё — во временной копии базы (tests/tmpdb.py) и во временной папке файлов.
+Дополнения 29.09.2026 (проверки 21–27): сценарии PML/EML/MFL, разбор документов, франшиза, рекомендации. Сеть и модель подменяются:
 llm.chat_raw отдаёт заготовленный ответ, llm._post бросает исключение (любой выход в сеть = ошибка теста).
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
@@ -1207,6 +1208,798 @@ def check_misc():
     shutil.rmtree(new_dir, ignore_errors=True)
 
 
+# ------------------------------------------------------------------ 21–27. дополнения 29.09.2026
+
+DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+CONTRACT = Path(__file__).resolve().parent.parent / "sandbox" / "flow150_contract.docx"
+WH_MUST = {"product_code": "0808", "sum_insured": 1_000_000_000, "object_value": 1_200_000_000,
+           "region": "Ташкент"}
+WH_OPT = {"object_kind": "warehouse", "protection": "alarm", "losses_3y": {"count": 0, "small_count": 0}}
+
+
+def fresh():
+    guest.reset()
+    act.reset_limits()
+
+
+def docx_bytes(lines, extra_parts=None) -> bytes:
+    """Минимальный DOCX: абзацы из строк (и лишние части архива, если нужны)."""
+    ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    body = "".join(f"<w:p><w:r><w:t>{ln}</w:t></w:r></w:p>" for ln in lines)
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="{ns}"><w:body>{body}</w:body></w:document>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr("word/document.xml", xml)
+        for name, data in (extra_parts or {}).items():
+            z.writestr(name, data)
+    return buf.getvalue()
+
+
+def docx_bomb(mb=60) -> bytes:
+    """DOCX с частью из нулей: в файле — десятки килобайт, после распаковки — mb мегабайт."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", '<?xml version="1.0"?><w:document/>')
+        z.writestr("word/media/zero.bin", b"\x00" * (mb * 1024 * 1024))
+    return buf.getvalue()
+
+
+def ra_same(con, must, optional):
+    """Расчёт risk_analytics напрямую — тем же быстрым режимом, что и акт."""
+    from app import risk_analytics as ra
+    m, o, a = ra.apply_defaults(con, must, optional)
+    return ra.analyze(con, m, o, assumptions=a)
+
+
+# сценарий акта ← сценарий risk_analytics (там названия EML и PML переставлены, модуль не меняем)
+MAP_RA = {"PML": "EML", "EML": "PML", "MFL": "MFL"}
+SCEN_REPORT = {}                          # цифры сценариев для отчёта (печатаются в конце)
+
+
+def order_ok(sc: dict) -> bool:
+    return sc["pml"]["amount"] <= sc["eml"]["amount"] <= sc["mfl"]["amount"]
+
+
+def check_scenarios():
+    print("21. Сценарии PML / EML / MFL — сверка с risk_analytics (порядок заказчика PML ≤ EML ≤ MFL)")
+    fresh()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    sc = a.get("scenarios") or {}
+    ok("автокран: блок сценариев есть", st == 200 and sc.get("available") and sc.get("rule") == "vehicle", sc)
+    with db.tx() as con:
+        an = ra_same(con, {"class_code": "3", "product_code": "0318", "object_type": CRANE_TYPE,
+                           "sum_insured": CRANE_MUST["sum_insured"], "object_value": CRANE_MUST["object_value"],
+                           "region": CRANE_MUST["region"], "vehicle_type": "special"},
+                     {"losses_3y": {"count": 0, "amount": 0, "small_count": 0}})
+    # порядок заказчика PML ≤ EML ≤ MFL: PML акта = EML модуля («защита сработала»), EML акта = PML модуля
+    for s in ("PML", "EML", "MFL"):
+        src = MAP_RA[s]
+        ok(f"автокран: {s} акта = {src} risk_analytics", sc[s.lower()]["amount"] == round(an["scenarios"][src]["amount"])
+           and sc[s.lower()]["pct"] == round(an["scenarios"][src]["amount"] / CRANE_MUST["sum_insured"] * 100, 1)
+           and sc[s.lower()]["source_scenario"] == src, (sc.get(s.lower()), an["scenarios"][src]["amount"]))
+    ok("автокран: PML ≤ EML ≤ MFL", order_ok(sc), [sc[k]["amount"] for k in ("pml", "eml", "mfl")])
+    ok("автокран: PML — крупная авария с ремонтом (50 %), без слов про отсутствие защиты",
+       sc["pml"]["pct"] == 50.0 and "авария" in sc["pml"]["what"] and "нет" not in sc["pml"]["what"].split("—")[0]
+       and "противоугон" not in sc["pml"]["what"], sc["pml"])
+    ok("автокран без противоугонной: EML 100 % — угон или гибель, подпись про отсутствие системы",
+       sc["eml"]["pct"] == 100.0 and "угон" in sc["eml"]["what"] and "нет" in sc["eml"]["what"], sc["eml"])
+    ok("автокран: MFL 100 % — защита не сработала", sc["mfl"]["pct"] == 100.0 and "не сработала" in sc["mfl"]["what"])
+    ret = an["retention"]
+    ok("лимит удержания = risk_analytics", sc["retention"]["limit"] == ret["retention_limit"]
+       and sc["retention"]["known"] is (ret["retention_limit"] is not None), (sc["retention"], ret.get("retention_limit")))
+    lim = sc["retention"]["limit"]
+    ok("удержание сравнивается с EML: compared_with = eml, превышение = EML − лимит",
+       sc["retention"]["compared_with"] == "eml"
+       and (lim is None or sc["retention"]["eml_excess"] == max(sc["eml"]["amount"] - lim, 0)), sc["retention"])
+    ok("MFL сверх удержания — отдельной справкой (mfl_excess)",
+       lim is None or sc["retention"]["mfl_excess"] == max(sc["mfl"]["amount"] - lim, 0), sc["retention"])
+    ok("что взято по умолчанию — в assumptions с пометкой (противоугонная влияет на EML)",
+       any(x["code"] == "as_protection_veh_eml" and "EML" in x["text"] for x in sc["assumptions"])
+       and all("по умолчанию" in x["text"] for x in sc["assumptions"]), sc["assumptions"])
+    ok("how: честно о перестановке названий в risk_analytics",
+       any("переставлены" in h and "PML акта = EML модуля" in h for h in sc["how"]), sc["how"])
+    ok("calibrated = 0", sc["calibrated"] == 0 and sc["pml"]["calibrated"] == 0)
+    rows = {r["label"]: r for r in a["sections"][3]["rows"]}
+    ok("раздел 4: строки PML, EML, MFL и лимит удержания",
+       {"PML — вероятный максимальный убыток", "EML — оценочный максимальный убыток",
+        "MFL — максимально возможный убыток", "Лимит собственного удержания"} <= set(rows), list(rows))
+    ok("раздел 4: определения заказчика (штатно / частично / отказ; удержание — с EML)",
+       any("сработала штатно" in p and "сработала частично" in p and "отказе защиты" in p
+           and "сравнивается лимит собственного удержания" in p for p in a["sections"][3]["paragraphs"]))
+    ok("раздел 4: порядок строк PML, EML, MFL и плитки для экрана в том же порядке",
+       [r["label"][:3] for r in a["sections"][3]["rows"] if r["label"][:3] in ("PML", "EML", "MFL")] == ["PML", "EML", "MFL"]
+       and [x["name"] for x in sc["tiles"]] == ["PML", "EML", "MFL"] and sc["tiles"][0]["label"].startswith("PML —"))
+    if lim is not None:
+        note = rows["Лимит собственного удержания"]["note"]
+        ok("строка удержания: сравнение с EML и справка по MFL", "EML" in note and "MFL" in note, note)
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, object_kind="truck_crane", protection="tracker")})
+    sc2 = a2["scenarios"]
+    ok("спутниковый поиск — EML ниже (75 %), PML 50 %, MFL 100 %",
+       sc2["eml"]["pct"] == 75.0 and sc2["pml"]["pct"] == 50.0 and sc2["mfl"]["pct"] == 100.0
+       and "противоугонная система есть" in sc2["eml"]["what"], sc2["eml"])
+    ok("спутниковый поиск: PML ≤ EML ≤ MFL", order_ok(sc2))
+    SCEN_REPORT["crane"] = {k: (sc[k]["amount"], sc[k]["pct"]) for k in ("pml", "eml", "mfl")}
+    SCEN_REPORT["crane_tracker"] = {k: (sc2[k]["amount"], sc2[k]["pct"]) for k in ("pml", "eml", "mfl")}
+
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    sc = a["scenarios"]
+    with db.tx() as con:
+        an = ra_same(con, {"class_code": "9", "product_code": "0808", "object_type": "Склад",
+                           "sum_insured": WH_MUST["sum_insured"], "object_value": WH_MUST["object_value"],
+                           "region": WH_MUST["region"], "activity": "warehouse"},
+                     {"protection": "alarm", "losses_3y": {"count": 0, "small_count": 0}})
+    ok("склад класса 9: правило класса 9", sc["available"] and sc["rule"] == "property9", sc)
+    ok("склад класса 9: PML/EML/MFL акта = EML/PML/MFL risk_analytics",
+       all(sc[s.lower()]["amount"] == round(an["scenarios"][MAP_RA[s]]["amount"]) for s in ("PML", "EML", "MFL")),
+       ([sc[s.lower()]["amount"] for s in ("PML", "EML", "MFL")],
+        [an["scenarios"][s]["amount"] for s in ("PML", "EML", "MFL")]))
+    ok("склад класса 9: PML ≤ EML ≤ MFL", order_ok(sc), [sc[k]["amount"] for k in ("pml", "eml", "mfl")])
+    ok("склад класса 9: подписи — состояние защиты и «помещения не указаны»",
+       sc["pml"]["what"].startswith("защита сработала штатно") and sc["eml"]["what"].startswith("защита сработала частично")
+       and sc["mfl"]["what"].startswith("защита не сработала") and "не указаны" in sc["pml"]["what"],
+       [sc[k]["what"] for k in ("pml", "eml", "mfl")])
+    ok("склад: сумма ниже стоимости — доля в объяснении", any("0,8333" in h for h in sc["how"]), sc["how"])
+    SCEN_REPORT["wh9"] = {k: (sc[k]["amount"], sc[k]["pct"]) for k in ("pml", "eml", "mfl")}
+    must8 = {"product_code": "0807", "sum_insured": 5_000_000_000, "object_value": 5_000_000_000, "region": "Ташкент"}
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": must8,
+                                       "optional": {"object_kind": "warehouse", "seismic_zone": 9,
+                                                    "construction": "reinforced"}})
+    with db.tx() as con:
+        an = ra_same(con, {"class_code": "8", "product_code": "0807", "object_type": "Склад", "sum_insured": 5e9,
+                           "object_value": 5e9, "region": "Ташкент", "construction": "reinforced",
+                           "activity": "warehouse"}, {"seismic_zone": 9})
+    sc = a["scenarios"]
+    ok("склад класса 8 в 9-балльной зоне: сценарии = risk_analytics (со сменой названий)",
+       sc["rule"] == "property8"
+       and all(sc[s.lower()]["amount"] == round(an["scenarios"][MAP_RA[s]]["amount"]) for s in ("PML", "EML", "MFL")),
+       sc)
+    ok("склад класса 8 (9 баллов): PML ≤ EML ≤ MFL", order_ok(sc), [sc[k]["amount"] for k in ("pml", "eml", "mfl")])
+    ok("склад класса 8 (9 баллов): формула названа сценарием акта",
+       all((sc[k]["formula"] or "").startswith(k.upper() + " =") for k in ("pml", "eml", "mfl")),
+       [sc[k]["formula"] for k in ("pml", "eml", "mfl")])
+    ok("склад класса 8 (9 баллов): MFL — пожар всего объекта (отсеки не указаны)",
+       "пожар" in sc["mfl"]["what"] and "отсеки не указаны" in sc["mfl"]["what"], sc["mfl"]["what"])
+    SCEN_REPORT["wh8_zone9"] = {k: (sc[k]["amount"], sc[k]["pct"]) for k in ("pml", "eml", "mfl")}
+    # сейсмозона не указана: MFL — полное уничтожение, подпись говорит именно это
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": must8,
+                                       "optional": {"object_kind": "warehouse", "construction": "reinforced",
+                                                    "protection": "sprinkler"}})
+    sc = a["scenarios"]
+    ok("склад класса 8 без сейсмозоны: PML ≤ EML ≤ MFL", order_ok(sc), [sc[k]["amount"] for k in ("pml", "eml", "mfl")])
+    ok("склад класса 8 без сейсмозоны: MFL — «полное уничтожение: сейсмозона не указана», 100 %",
+       "полное уничтожение" in sc["mfl"]["what"] and "сейсмозона не указана" in sc["mfl"]["what"]
+       and sc["mfl"]["pct"] == 100.0 and "полное уничтожение" in sc["mfl"]["formula"], sc["mfl"])
+    ok("склад класса 8 без сейсмозоны: PML и EML — пожар, отсеки не указаны (весь объект)",
+       all("пожар" in sc[k]["what"] and "отсеки не указаны" in sc[k]["what"] for k in ("pml", "eml")),
+       [sc[k]["what"] for k in ("pml", "eml")])
+    SCEN_REPORT["wh8_sprinkler"] = {k: (sc[k]["amount"], sc[k]["pct"]) for k in ("pml", "eml", "mfl")}
+    pcts = [sc[k]["pct_text"] for k in ("pml", "eml", "mfl")]
+    ok("проценты сценариев — одинаковое число знаков", len({len(re.sub(r"[^\d,.]", "", p).partition(",")[2]) for p in pcts}) == 1,
+       pcts)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(WH_MUST, product_code="0701"), "optional": {}})
+    ok("груз (класс 7): сценарий честно «не считается»", st == 200 and a["scenarios"]["available"] is False
+       and "не считается" in a["scenarios"]["note"] and a["scenarios"]["pml"] is None, a.get("scenarios"))
+    ok("груз: в разделе 4 строка «не считается»",
+       any(r["label"] == "PML / EML / MFL" and r["value"] == "не считается" for r in a["sections"][3]["rows"]))
+    # собственных средств нет — удержание «не задан»
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT * FROM company_financials")
+        con.execute("DELETE FROM company_financials")
+    try:
+        st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": CRANE_OPT})
+    finally:
+        with db.tx() as con:
+            for r in saved:
+                cols = list(r)
+                con.execute(f"INSERT INTO company_financials ({','.join(cols)}) VALUES ({','.join('?' * len(cols))})",
+                            [r[c] for c in cols])
+    ret = a["scenarios"]["retention"]
+    ok("без собственных средств и резервов — лимит «не задан»",
+       ret["known"] is False and ret["limit"] is None and "не задан" in ret["basis"], ret)
+
+
+def check_documents():
+    print("22. Разбор документов DOCX/XLSX/PDF с текстом — без модели")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    CALLS.clear()
+    st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+    ok("учебный договор принят", st == 200 and b.get("ok"), (st, b))
+    ok("модель не вызывалась", not CALLS, len(CALLS))
+    rec = {(r["key"], r["value"]): r for r in b["recognized"]}
+    ok("recognized: страховая сумма, стоимость, срок, регион, тип, конструкция, год",
+       {("sum_insured", "4 200 000 000"), ("object_value", "5 000 000 000"), ("term_days", "365"),
+        ("region", "город Ташкент"), ("object_type", "склад готовой продукции"), ("construction", "кирпич"),
+        ("year", "2012")} <= set(rec), list(rec))
+    ok("у каждого значения source = document и «проверьте»",
+       all(r["source"] == "document" and r["check_label"] == "проверьте" and "из документа" in r["note"]
+           for r in b["recognized"]))
+    pf = b.get("prefill") or {}
+    ok("prefill: сумма, стоимость, регион, срок — с источником",
+       pf.get("sum_insured", {}).get("value") == 4_200_000_000 and pf.get("object_value", {}).get("value") == 5e9
+       and pf.get("region", {}).get("code") == "tashkent_city" and pf.get("term_days", {}).get("value") == 365
+       and all(v["source"] == "document" and v["check_label"] == "из документа, проверьте" for v in pf.values()), pf)
+    ok("файл помечен как разобранный, в модель не ушёл",
+       b["files"][0]["parsed"] and not b["files"][0]["read_by_ai"] and b["files"][0]["view"] == "document")
+    ok("ИНН организации из договора не взят", "301234567" not in _json.dumps(b, ensure_ascii=False))
+    st, a = call("POST", "/act/make", {"session": b["session"], "lang": "ru",
+                                       "must": dict(WH_MUST, sum_insured=4_000_000_000, object_value=5_000_000_000),
+                                       "optional": {}})
+    dk = {d["key"]: d for d in a["discrepancies"]}
+    ok("расхождение: страховая сумма в документе и во вводе", "sum_insured" in dk
+       and dk["sum_insured"]["priority"] == "document" and "4 200 000 000" in dk["sum_insured"]["text"], dk)
+    ok("стоимость совпала — расхождения нет", "object_value" not in dk)
+    ok("документ засчитан как представленный", a["inspection"]["documents"] is True)
+    s1 = {r["label"]: r for r in a["sections"][0]["rows"]}
+    ok("раздел 1: конструкция из документа", s1.get("Конструкция, материал стен", {}).get("value") == "кирпич", s1)
+
+    # ФИО, паспорт, ПИНФЛ, адрес проживания — не извлекаются и не хранятся
+    lines = ["ЗАЯВЛЕНИЕ НА СТРАХОВАНИЕ ИМУЩЕСТВА", "Страхователь: Иванов Иван Иванович",
+             "Паспорт: AA1234567", "ПИНФЛ: 31234567890123", "Адрес проживания: г. Ташкент, ул. Навои, 5",
+             "Телефон: +998 90 123 45 67", "Страховая сумма: 1 000 000 000 сум", "Материал стен: кирпич"]
+    st, b = upload([("zayavlenie.docx", DOCX_MIME, docx_bytes(lines))], {"lang": "ru", "product_code": "0808"})
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("заявление разобрано: сумма взята", any(r["key"] == "sum_insured" for r in b.get("recognized") or []), dump[:400])
+    ok("ФИО, паспорт, ПИНФЛ, адрес проживания и телефон не извлечены",
+       not any(x in dump for x in ("Иванов", "AA1234567", "31234567890123", "Навои", "123 45 67")), dump[:600])
+    with db.tx() as con:
+        stored = _json.dumps(db.rows(con, "SELECT result_json, files_json FROM act_uploads WHERE id=?", b["session"]),
+                             ensure_ascii=False)
+        journal = _json.dumps(db.rows(con, "SELECT detail FROM audit WHERE entity=?", f"act_upload:{b['session']}"),
+                              ensure_ascii=False)
+    ok("в базе и в журнале данных людей нет",
+       not any(x in stored + journal for x in ("Иванов", "AA1234567", "31234567890123", "Навои")))
+    ok("в журнале — только счётчики", "parsed_docs" in journal and "1 000 000 000" not in journal, journal[:300])
+
+    # XLSX-выгрузка по технике: марка, модель, год, VIN, госномер
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    for row in (["Заявление на страхование спецтехники"], ["Страховая сумма", "2 945 000 000 сум"],
+                ["Стоимость имущества", "3 100 000 000 сум"], ["Марка", "XCMG"], ["Модель", "QY50K5D"],
+                ["Год выпуска", "2026"], ["Заводской номер (VIN)", "LXGCPA393TA006921"],
+                ["Государственный номер", "01 A 123 BC"]):
+        ws.append(row)
+    buf = io.BytesIO()
+    wb.save(buf)
+    CALLS.clear()
+    st, b = upload([("vygruzka.xlsx", XLSX_MIME, buf.getvalue())], {"lang": "ru", "product_code": "0318"})
+    got = {(r["key"], r["value"]) for r in b.get("recognized") or []}
+    ok("XLSX: марка, модель, год, VIN, госномер, сумма — из документа",
+       {("brand", "XCMG"), ("model", "QY50K5D"), ("year", "2026"), ("serial_no", "LXGCPA393TA006921"),
+        ("reg_no", "01 A 123 BC"), ("sum_insured", "2 945 000 000")} <= got and not CALLS, got)
+
+    # PDF с текстовым слоем — парсером; скан — модели
+    doc = pymupdf.open()
+    page = doc.new_page()
+    font = act._fonts()[0]
+    tw = pymupdf.TextWriter(page.rect)
+    for k, ln in enumerate(["ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА № 7/2026", "Страховая сумма: 1 000 000 000 сум",
+                            "Стоимость имущества: 1 100 000 000 сум",
+                            "Адрес объекта: Самаркандская область, г. Самарканд", "Срок страхования: 12 месяцев"]):
+        tw.append((72, 72 + 18 * k), ln, font=font, fontsize=11)
+    tw.write_text(page)
+    CALLS.clear()
+    st, b = upload([("dogovor.pdf", "application/pdf", doc.tobytes())], {"lang": "ru", "product_code": "0808"})
+    ok("PDF с текстом разобран без модели", st == 200 and not CALLS and b["files"][0]["parsed"]
+       and (b.get("prefill") or {}).get("region", {}).get("code") == "samarkand", b.get("prefill"))
+    CALLS.clear()
+    st, b = upload([("scan.pdf", "application/pdf", pdf_pages(1))], {"lang": "ru"})
+    ok("скан PDF без текста — читает модель", st == 200 and len(CALLS) == 1 and not b["files"][0]["parsed"])
+
+    # ограничения: zip-бомба, DTD, макросы
+    bomb = docx_bomb(60)
+    st, b = upload([("bomb.docx", DOCX_MIME, bomb)], {"lang": "ru"})
+    ok("zip-бомба в DOCX отклонена до распаковки", st == 422 and b["rejected"]
+       and "слишком большой" in b["rejected"][0]["error"] and len(bomb) < 1024 * 1024, (st, b, len(bomb)))
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("word/document.xml", '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY a "aaaa">]><w:document/>')
+    st, b = upload([("dtd.docx", DOCX_MIME, buf.getvalue())], {"lang": "ru"})
+    ok("DOCX с DTD/ENTITY отклонён", st == 422 and "DTD" in b["rejected"][0]["error"], b)
+    st, b = upload([("macro.docx", DOCX_MIME, docx_bytes(["Страховая сумма: 1 000 000 000 сум"],
+                                                          {"word/vbaProject.bin": b"\x00" * 100}))], {"lang": "ru"})
+    ok("макросы не исполняются — только пометка", st == 200 and any("макрос" in n for n in b["notes"]), b.get("notes"))
+    set_limits(doc_max_unzip_mb=1)
+    try:
+        st, b = upload([("contract.docx", DOCX_MIME, docx_bomb(2))], {"lang": "ru"})
+        ok("предел распаковки — из настроек (1 МБ)", st == 422, st)
+    finally:
+        clear_settings()
+    st, b = upload([("x.zip", "application/zip", docx_bomb(1).replace(b"word/document.xml", b"other/documen.xml"))],
+                   {"lang": "ru"})
+    ok("прочий zip — формат не принимается", st == 422 and "DOCX или XLSX" in b["rejected"][0]["error"], b)
+
+
+def check_franchise_apply():
+    print("23. Франшиза: предложение по основанию, франшиза сотрудника, обязательный вид")
+    from app import franchise as frm
+    from app.risk_analytics import load_thresholds
+    fresh()
+    with db.tx() as con:
+        th = load_thresholds(con)
+        base, floor, applied = expected_rate(con, 20)            # умеренный уровень: без фото, открытая площадка
+    S = CRANE_MUST["sum_insured"]
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": CRANE_OPT})
+    fr = a["franchise"]
+    ok("без оснований: «Франшиза не требуется», статус none, премия не меняется",
+       fr["text"] == "Франшиза не требуется" and fr["status"] == "none" and not fr["applied"]
+       and fr["premium_after"] == fr["premium_before"] == a["premium"]["amount"] and fr["delta"] == 0, fr)
+    ok("без оснований: альтернативы есть (мероприятия, сумма к стоимости)",
+       {x["code"] for x in fr["alternatives"]} >= {"alt_sum_up"} and fr["how"], fr["alternatives"])
+
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, losses_3y={"count": 2, "small_count": 2})})
+    fr = a["franchise"]
+    ok("основание есть: статус proposed, тип безусловная", fr["status"] == "proposed"
+       and fr["type"] == "unconditional" and fr["needed"], fr)
+    ok("размер — внутри вилки порогов", fr["size"]["from_pct"] <= fr["size_pct"] <= fr["size"]["to_pct"]
+       and fr["size_amount"] == round(S * fr["size_pct"] / 100), fr)
+    ok("множитель — из franchise.what_if (экспертная кривая)", abs(fr["multiplier"] - frm._mult(th, fr["size_pct"])) < 1e-4,
+       (fr["multiplier"], frm._mult(th, fr["size_pct"])))
+    rate = a["rate"]["applied_pct"]
+    want_rate = max(round(rate * fr["multiplier"], 4), a["rate"]["min_pct"] or 0)
+    ok("премия с франшизой = ставка акта × множитель, не ниже минимума",
+       fr["premium_after"] == round(want_rate / 100 * S) and fr["rate_after"] == want_rate, (fr, want_rate))
+    ok("предложенная франшиза в премию акта не включена", a["premium"]["amount"] == fr["premium_before"]
+       and a["premium"]["franchise_applied"] is False and "андеррайтер" in fr["text"])
+
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, deductible={"pct": 1, "type": "unconditional"})})
+    fr = a["franchise"]
+    hand_rate = max(round(applied * 0.85, 4), floor)          # 1 % по справочнику коэффициентов: ×0,85
+    hand = round(hand_rate / 100 * S)
+    ok("своя франшиза сотрудника 1 %: премия пересчитана руками", a["premium"]["amount"] == hand
+       and fr["premium_after"] == hand and fr["premium_before"] == round(applied / 100 * S), (a["premium"], hand))
+    ok("текст «Франшиза применена по решению сотрудника»",
+       fr["text"].startswith("Франшиза применена по решению сотрудника") and fr["applied"]
+       and fr["applied_by"] == "employee", fr["text"])
+    rows = {r["label"]: r for r in a["sections"][3]["rows"]}
+    ok("раздел 4: та же премия и ставка с франшизой",
+       rows["Страховая премия"]["value"] == act.money(hand, "ru")
+       and rows["Ставка с учётом франшизы"]["value"] == act.pct(hand_rate, "ru")
+       and act.money(round(applied / 100 * S), "ru") in rows["Страховая премия"]["note"], rows.get("Страховая премия"))
+    ok("андеррайтеру — подтвердить франшизу", any("франшизу, применённую" in c for c in a["decision"]["checks"]))
+    ok("how: множитель и ставка акта, премия старого движка не переносится",
+       any("what_if" in h for h in fr["how"]) and any("не переносится" in h for h in fr["how"]), fr["how"])
+    applied_id = a["id"]
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, deductible={"amount": 29_450_000})})
+    ok("франшиза суммой = 1 %", a2["franchise"]["size_pct"] == 1.0 and a2["premium"]["amount"] == hand, a2["franchise"])
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, deductible={"pct": 7})})
+    ok("выше потолка класса 3 (5 %) — предупреждение, решение андеррайтера",
+       a2["franchise"]["warning"] and "потолка" in a2["franchise"]["warning"] and a2["franchise"]["applied"], a2["franchise"])
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, deductible={"pct": 80})})
+    ok("франшиза 80 % — ошибка ввода 422", st == 422 and "deductible" in a2.get("errors", {}), a2)
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, deductible={"pct": 1, "amount": 5})})
+    ok("pct и amount вместе — 422", st == 422, a2)
+    must = {"product_code": "0820", "sum_insured": 1_000_000_000, "object_value": 1_000_000_000, "region": "Ташкент"}
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": must,
+                                        "optional": {"deductible": {"pct": 1}, "location": "construction"}})
+    fr = a2["franchise"]
+    ok("обязательный вид: франшиза сотрудника не применена, премия по акту",
+       st == 200 and fr["status"] == "statutory" and not fr["applied"]
+       and a2["premium"]["amount"] == a2["premium"]["before_franchise"] and "обязательным видам" in fr["warning"], fr)
+    # низкий уровень: ставка уже на минимуме продукта — франшиза премию не снижает, и акт говорит об этом
+    low = dict(CRANE_OPT, object_kind="truck_crane", year=date.today().year, condition="new",
+               documents_provided=True, deductible={"pct": 1})
+    st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": low})
+    fr = a2["franchise"]
+    ok("ставка на минимуме: премия с франшизой не ниже минимальной ставки",
+       a2["risk"]["level"] == "low" and fr["floor_applied"] and a2["premium"]["amount"] == round(floor / 100 * S)
+       and "минимальную ставку" in fr["text"], (a2["risk"]["level"], fr))
+    return applied_id, hand
+
+
+def check_measures():
+    print("24. Рекомендации страхователю")
+    fresh()
+    with db.tx() as con:
+        _b, floor, applied = expected_rate(con, 20)
+    S = CRANE_MUST["sum_insured"]
+    P = round(applied / 100 * S)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ms = {m["code"]: m for m in a["measures"]}
+    ok("спецтехника на открытой площадке: охраняемая стоянка и спутниковый мониторинг",
+       {"sp_parking_guarded", "sp_gps", "sp_crane_setup", "sp_operator"} <= set(ms), list(ms))
+    ok("эффект мероприятия — из справочника коэффициентов (−10 %)",
+       ms["sp_parking_guarded"]["effect_pct"] == -10.0 and ms["sp_gps"]["effect_pct"] == -10.0, ms["sp_gps"])
+    ok("без эффекта — «на ставку не влияет, снижает вероятность убытка»",
+       ms["sp_operator"]["premium_delta"] is None and "снижает вероятность" in ms["sp_operator"]["effect_text"])
+    want = max(round(P * 0.9 * 0.9), round(floor / 100 * S))
+    summ = a["measures_summary"]
+    ok("скидки перемножаются и не ниже минимальной ставки продукта",
+       summ["premium_after"] == want and summ["premium_before"] == P, (summ, want))
+    ok("каждое мероприятие: что, зачем, срок, calibrated=0",
+       all(m["text"] and m["why"] and m["deadline_days"] and m["calibrated"] == 0 for m in a["measures"]))
+    s5 = a["sections"][4]
+    li = next((x for x in s5["lists"] if x["title"] == "Рекомендации страхователю"), None)
+    ok("раздел 5: подраздел «Рекомендации страхователю»", li and len(li["items"]) == len(a["measures"])
+       and "Зачем:" in li["items"][0] and "Срок:" in li["items"][0], li)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane", guard=True)})
+    ok("под охраной — охраняемая стоянка не нужна", "sp_parking_guarded" not in {m["code"] for m in a["measures"]})
+
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    ms = {m["code"]: m for m in a["measures"]}
+    ok("склад класса 9: мероприятия таблицы preventive_measures и хранение на стеллажах",
+       {"burglary_protection", "inventory_control", "wh_storage"} <= set(ms)
+       and ms["burglary_protection"]["source"] == "preventive_measures", list(ms))
+    ok("склад: сумма 1 млрд — охранная сигнализация обязательна, срок 60 дней",
+       ms["burglary_protection"]["mandatory"] and ms["burglary_protection"]["deadline_days"] == 60,
+       ms["burglary_protection"])
+    st, u = call("GET", f"/act/{a['id']}", params={"lang": "uz"})
+    ok("uz: мероприятия таблицы переведены", not re.search(r"[А-Яа-яЁё]", " ".join(
+        m["text"] + m["why"] for m in u["measures"])), [m["text"] for m in u["measures"]])
+    must8 = {"product_code": "0807", "sum_insured": 5_000_000_000, "object_value": 5_000_000_000, "region": "Ташкент"}
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": must8,
+                                       "optional": {"object_kind": "warehouse", "construction": "wood"}})
+    ms = {m["code"]: m for m in a["measures"]}
+    ok("склад класса 8 из дерева: огнезащитная обработка со скидкой (из движка)",
+       "fire_treatment" in ms and ms["fire_treatment"]["effect_pct"] and ms["fire_treatment"]["effect_pct"] < 0
+       and ms["fire_treatment"]["mandatory"], ms.get("fire_treatment"))
+    must = {"product_code": "0820", "sum_insured": 1_000_000_000, "object_value": 1_000_000_000, "region": "Ташкент"}
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": must, "optional": {}})
+    ok("обязательный вид: скидок на премию нет", all(m["premium_delta"] is None for m in a["measures"]))
+
+
+def check_new_langs(aid):
+    print("25. Новые блоки на трёх языках")
+    for lang in ("uz", "en"):
+        st, a = call("GET", f"/act/{aid}", params={"lang": lang})
+        fr = a["franchise"]
+        texts = ([r["label"] for s in a["sections"] for r in s["rows"]]
+                 + [r.get("note") or "" for r in a["sections"][3]["rows"]]
+                 + [li["title"] for s in a["sections"] for li in s["lists"]]
+                 + [p for s in a["sections"] for p in s["paragraphs"]]
+                 + [fr["text"], fr["type_label"] or ""] + fr["how"] + [x["text"] for x in fr["alternatives"]]
+                 + [a["scenarios"][k]["what"] for k in ("pml", "eml", "mfl")] + a["scenarios"]["how"]
+                 + [x["text"] for x in a["scenarios"]["assumptions"]] + [a["scenarios"]["retention"]["basis"]]
+                 + [m["text"] + " " + m["why"] + " " + m["effect_text"] for m in a["measures"]]
+                 + [a["measures_summary"]["text"] or ""])
+        cyr = [x for x in texts if re.search(r"[А-Яа-яЁё]", x or "")]
+        ok(f"{lang}: сценарии, франшиза, мероприятия без кириллицы", not cyr, cyr[:4])
+    st, a = call("GET", f"/act/{aid}", params={"lang": "en"})
+    ok("en: франшиза применена сотрудником", a["franchise"]["text"].startswith("Deductible applied by staff"))
+
+
+def check_new_files(aid, hand):
+    print("26. Word и PDF содержат новые блоки и ту же премию")
+    st, blob, h = call("GET", f"/act/{aid}.docx", raw=True)
+    xml = zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8")
+    plain = re.sub(r"<[^>]+>", "", xml)
+    need = ["PML — вероятный максимальный убыток", "EML — оценочный максимальный убыток",
+            "MFL — максимально возможный убыток", "Лимит собственного удержания", "Рекомендации страхователю",
+            "Франшиза применена по решению сотрудника", "Ставка с учётом франшизы", act.money(hand, "ru")]
+    ok("DOCX: сценарии, франшиза, рекомендации, премия с франшизой", all(x in plain for x in need),
+       [x for x in need if x not in plain])
+    st, blob, h = call("GET", f"/act/{aid}.pdf", raw=True)
+    text = pdf_text(pymupdf.open(stream=blob, filetype="pdf"))
+    flat = [x.replace(" ", " ") for x in need]           # pdf_text приводит неразрывный пробел к обычному
+    ok("PDF: те же блоки и премия", all(x in text for x in flat), [x for x in flat if x not in text])
+    st, a = call("GET", f"/act/{aid}")
+    ok("премия в JSON, в разделе 4 и в файлах одна", a["premium"]["amount"] == hand
+       and a["premium"]["text"] == act.money(hand, "ru"))
+
+
+def check_speed():
+    print("27. Акт формируется быстро и без сети")
+    import time as _t
+    fresh()
+    CALLS.clear()
+    t0 = _t.monotonic()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, deductible={"pct": 1})})
+    sec = _t.monotonic() - t0
+    ok("акт со всеми блоками — меньше 2 секунд, без модели", st == 200 and sec < 2 and not CALLS, sec)
+    with db.tx() as con:
+        rows = db.rows(con, "SELECT detail FROM audit WHERE entity=?", f"act:{a['id']}")
+    ok("в журнале — статус франшизы и счётчики, без значений",
+       rows and '"franchise": "applied"' in rows[0]["detail"] and "29 450 000" not in rows[0]["detail"], rows)
+
+
+# ------------------------------------------------------------------ 28–35. замечания контролёра (30.09.2026)
+
+def xlsx_big(rows, cols, sheets=1) -> bytes:
+    from openpyxl import Workbook
+    wb = Workbook()
+    ws = wb.active
+    words = ["склад", "сумма", "Ташкент", "объект", "qiymat", "ombor", "value", "итого", "страхование"]
+    for s in range(sheets):
+        if s:
+            ws = wb.create_sheet(f"Лист {s + 1}")
+        for r in range(rows):
+            ws.append([f"{words[(r + c) % len(words)]} {r}-{c} {words[(r * c) % len(words)]}" for c in range(cols)])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def check_doc_limits():
+    print("28. Разбор документов: пределы до разбора, срок внутри циклов, не больше двух одновременно")
+    import threading
+    import time as _t
+    from app import act_extras as ax, docparse as D, ingest
+    fresh()
+    CALLS.clear()
+    for rows, cols, sheets, name in ((500, 60, 1, "500 × 60"), (2000, 3, 3, "2000 строк × 3 листа")):
+        blob = xlsx_big(rows, cols, sheets)
+        t0 = _t.monotonic()
+        st, b = upload([("big.xlsx", XLSX_MIME, blob)], {"lang": "ru", "product_code": "0808"})
+        sec = _t.monotonic() - t0
+        ok(f"XLSX {name} ({len(blob) // 1024} КБ) — быстрее 3 с", st == 200 and sec < 3, (st, round(sec, 2)))
+        ok(f"XLSX {name}: честная пометка «прочитана только часть»",
+           any("только часть документа" in n for n in b.get("notes") or []) and b["files"][0]["parsed"], b.get("notes"))
+    ok("большие XLSX в модель не уходили", not CALLS, len(CALLS))
+    # пределы работают до разбора: листов, строк, колонок, длина ячейки
+    folder = Path(tempfile.mkdtemp(prefix="act-lim-"))
+    try:
+        p = folder / "w.xlsx"
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.append(["x" * 900, "короткая"])
+        ws.append([f"c{c}" for c in range(40)])
+        for r in range(300):
+            ws.append([f"r{r}", "a", "b"])
+        for s in range(4):
+            wb.create_sheet(f"S{s}").append(["лист", s])
+        wb.save(p)
+        got = ax.read_limited(p, {})
+        t1 = got["tables"][0]["rows"]
+        ok("предел: не больше 3 листов", len(got["tables"]) == 3, [t["name"] for t in got["tables"]])
+        ok("предел: не больше 200 строк и 30 колонок с листа",
+           len(t1) == 200 and max(len(r) for r in t1) == 30 and got["tables"][0]["обрезан"],
+           (len(t1), max(len(r) for r in t1)))
+        ok("предел: ячейка и строка не длиннее 500 знаков",
+           all(len(" | ".join(r)) <= 500 for r in t1) and all(len(ln) <= 500 for ln in got["text"].splitlines()))
+        ok("предел: отметка truncated", got["truncated"] is True)
+        small = ax.read_limited(p, {"doc_max_cells": 100})
+        ok("предел ячеек на файл — из настроек (100)", sum(len([c for c in r if c]) for t in small["tables"]
+                                                             for r in t["rows"]) <= 100, small["tables"][0]["rows"][:2])
+        # учебный договор: тот же prefill и те же значения, что у прежнего разбора без пределов
+        with db.tx() as con:
+            old = ax.parse_document(con, CONTRACT, "8")
+            new = ax.parse_document_limited(con, CONTRACT, "8", {})
+        ok("flow150_contract.docx: prefill и значения те же, что без пределов",
+           old["prefill"] == new["prefill"] and old["items"] == new["items"] and not new["notes"], (old, new))
+        r_old, r_new = ingest.read_file(CONTRACT), ax.read_limited(CONTRACT, {})
+        ok("потоковое чтение DOCX = ingest.read_docx (текст и таблицы)",
+           r_old["text"] == r_new["text"] and r_old["tables"] == r_new["tables"])
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+    # кэш свёртки: поведение прежнее, список карты — свой у каждого вызова
+    s = "Sugʻurta summasi: 1 000 000 сум"
+    f1, i1 = D.fold_map(s)
+    f2, i2 = D._fold_map_raw(s)
+    i1.append(-1)
+    ok("fold_map из кэша = прежний расчёт, карта не делится между вызовами",
+       (f1, i1[:-1]) == (f2, i2) and D.fold_map(s)[1] == i2 and D.fold(s) == f2)
+    # срок: проверка внутри цикла освобождает поток — разбор возвращается, поток не остаётся висеть
+    orig = ingest.detect_language
+    ingest.detect_language = lambda text: (_t.sleep(0.4), orig(text))[1]
+    set_limits(doc_parse_sec=0.2)
+    try:
+        before = threading.active_count()
+        t0 = _t.monotonic()
+        st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+        sec = _t.monotonic() - t0
+        ok("срок одного файла: «не разобран: слишком большой», запрос продолжается",
+           st == 200 and not b["files"][0]["parsed"] and any("слишком большой" in n for n in b["notes"])
+           and sec < 2, (st, b.get("notes"), sec))
+        ok("поток разбора освобождён (лишних потоков нет)", threading.active_count() <= before,
+           (before, threading.active_count()))
+        with db.tx() as con:
+            j = db.rows(con, "SELECT detail FROM audit WHERE entity=? AND action='акт: документ не разобран'",
+                        f"act_upload:{b['session']}")
+        ok("превышение срока — в журнале", j and "timeout" in j[0]["detail"], j)
+    finally:
+        ingest.detect_language = orig
+        clear_settings()
+    # срок на все документы запроса: второй файл уже не разбирается
+    ingest.detect_language = lambda text: (_t.sleep(0.35), orig(text))[1]
+    set_limits(doc_parse_sec=5, doc_parse_total_sec=0.3)
+    try:
+        st, b = upload([("a.docx", DOCX_MIME, CONTRACT.read_bytes()), ("b.docx", DOCX_MIME, CONTRACT.read_bytes())],
+                       {"lang": "ru", "product_code": "0808"})
+        ok("общий срок запроса: оба файла помечены, ответ есть",
+           st == 200 and not any(f["parsed"] for f in b["files"])
+           and len(b["documents"]) == 2 and all(d["notes"] for d in b["documents"]), (st, b.get("documents")))
+    finally:
+        ingest.detect_language = orig
+        clear_settings()
+    # не больше двух документов одновременно: оба места заняты — файл честно «сервер занят»
+    ok("мест для разбора — два", ax.PARSE_SLOTS == 2)
+    took = [ax.parse_slot(0), ax.parse_slot(0)]
+    ok("третий документ места не получает", not ax.parse_slot(0))
+    set_limits(doc_parse_total_sec=0.3)
+    try:
+        st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+        ok("семафор занят: «сервер занят разбором», запрос не падает",
+           st == 200 and any("сервер занят" in n for n in b["notes"]) and not b["files"][0]["parsed"], b.get("notes"))
+    finally:
+        for x in took:
+            if x:
+                ax.parse_slot_release()
+        clear_settings()
+    st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+    ok("места освобождены — договор снова разбирается", st == 200 and b["files"][0]["parsed"])
+    errs = ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"], doc_max_rows=5)})
+    ok("настройки: предел строк проверяется", any("doc_max_rows" in e for e in errs), errs)
+    ok("настройки по умолчанию: 5000 ячеек, 200 строк, 30 колонок, 3 листа, 500 знаков, 200 000 знаков, 5 с и 10 с",
+       {k: ae.DEFAULT_SETTINGS["limits"][k] for k in ax.DOC_LIMITS} == ax.DOC_LIMITS
+       and not ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"])}))
+
+
+def check_dtd_prolog():
+    print("29. DTD/ENTITY ищется во всём прологе XML, а не в первых 4096 байтах")
+    from app import act_extras as ax
+    fresh()
+    xml = ('<?xml version="1.0"?><!--' + "x" * 5000 + '--><!DOCTYPE x [<!ENTITY a "aaaa">]>'
+           '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("word/document.xml", xml)
+    st, b = upload([("dtd5000.docx", DOCX_MIME, buf.getvalue())], {"lang": "ru"})
+    ok("комментарий 5000 байт перед DOCTYPE — файл отклонён", st == 422 and "DTD" in b["rejected"][0]["error"], (st, b))
+    long_c = b'<?xml version="1.0"?><!--' + b"-" * 3 + b"y" * 200_000 + b'-->\n<!ENTITY e "x"><r/>'
+    ok("комментарий 200 КБ (через границы кусков) — ENTITY найдена", ax.xml_prolog_has_dtd(io.BytesIO(long_c), 10 ** 7))
+    ok("обычный XML с комментарием и инструкцией — годится",
+       not ax.xml_prolog_has_dtd(io.BytesIO(b'\xef\xbb\xbf<?xml version="1.0"?>\n<!-- c --><?pi x?><r><!-- <!DOCTYPE --></r>'),
+                                 10 ** 6))
+    ok("UTF-16 с DOCTYPE — отклоняется", ax.xml_prolog_has_dtd(
+        io.BytesIO('<?xml version="1.0" encoding="UTF-16"?><!DOCTYPE r><r/>'.encode("utf-16")), 10 ** 6))
+    ok("DOCTYPE после корня (в тексте) не ищется — пролог закончился", not ax.xml_prolog_has_dtd(
+        io.BytesIO(b"<r>" + b"z" * 10 + b"&lt;!DOCTYPE</r>"), 10 ** 6))
+    st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+    ok("настоящий договор проверку проходит", st == 200 and b["files"][0]["parsed"])
+
+
+def check_fr_proposed():
+    print("30. Предложенная франшиза: минимум ставки и множитель выше 2 %")
+    fresh()
+    with db.tx() as con:
+        _b, floor, _a = expected_rate(con, 0)
+    S = CRANE_MUST["sum_insured"]
+    low = dict(CRANE_OPT, object_kind="truck_crane", year=date.today().year, condition="new",
+               documents_provided=True, want_lower_premium=True)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": low})
+    fr = a["franchise"]
+    ok("низкий уровень + просьба клиента: франшиза предложена", fr["status"] == "proposed" and fr["size_pct"] > 0, fr)
+    ok("предложенная упирается в минимум: floor_applied и то же пояснение, что у применённой",
+       fr["floor_applied"] is True and fr["premium_after"] == round(floor / 100 * S)
+       and "минимальную ставку продукта" in fr["text"], (fr["floor_applied"], fr["text"]))
+    # высокий уровень (вилка 5–10 %, потолок класса 3 — 5 %): вилка 5 % — одно число, множитель — продолжение кривой
+    fr_hi = {"code": "fr_advise_range", "needed": True, "status": "proposed", "type": "unconditional",
+             "size": {"from_pct": 5.0, "to_pct": 5.0, "from_amount": S * 0.05, "to_amount": S * 0.05},
+             "size_pct": 5.0, "size_amount": round(S * 0.05), "premium_before": 100, "premium_after": 90,
+             "floor_applied": True, "engine": {"extrapolated": True},
+             "how": [{"code": "frh_size", "params": {"from": 5.0, "to": 5.0, "pct": 5.0, "losses": 0}},
+                     {"code": "frh_apply", "params": {}}]}
+    text = act._fr_text(fr_hi, "ru")
+    ok("вилка с равными границами — «5 %», а не «от 5 % до 5 %»", "франшизу 5 %" in text and "от 5" not in text, text)
+    ok("предложенная выше 2 %: «экспертное продолжение», и пояснение о минимуме", "экспертное продолжение" in text
+       and "минимальную ставку продукта" in text, text)
+    how = act._fr_how_text(fr_hi["how"][0], "ru")
+    ok("как посчитано: вилка «ровно 5 %»", "ровно 5 %" in how and "–" not in how, how)
+    for lang in ("uz", "en"):
+        tx_ = act._fr_text(fr_hi, lang)
+        ok(f"{lang}: пояснения о минимуме и о 2 % переведены", not re.search(r"[А-Яа-яЁё]", tx_), tx_)
+
+
+def check_alt_base():
+    print("31. «Вместо франшизы можно»: все варианты — от премии без франшизы")
+    fresh()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane",
+                                                        deductible={"pct": 1, "type": "unconditional"})})
+    fr = a["franchise"]
+    P = a["premium"]["before_franchise"]
+    alts = fr["alternatives"]
+    ok("франшиза применена, премия акта с ней ниже базы", fr["applied"] and a["premium"]["amount"] < P, a["premium"])
+    ok("у каждого варианта база — премия без франшизы",
+       alts and all(x["base_premium"] == P for x in alts), [(x["code"], x.get("base_premium")) for x in alts])
+    ok("premium_delta = premium − премия без франшизы",
+       all(x["premium"] is None or x["premium_delta"] == x["premium"] - P for x in alts),
+       [(x["code"], x["premium"], x["premium_delta"]) for x in alts])
+    m = next((x for x in alts if x["code"] == "alt_measures"), None)
+    want = a["measures_summary"]
+    ok("мероприятия вместо франшизы: скидки от базы без франшизы",
+       m is not None and m["premium"] == P + m["premium_delta"] and m["premium_delta"] < 0, (m, want))
+    ok("в тексте каждого варианта — «Вместо франшизы»", all(x["text"].startswith("Вместо франшизы") for x in alts),
+       [x["text"] for x in alts])
+    st, u = call("GET", f"/act/{a['id']}", params={"lang": "en"})
+    ok("en: «Instead of a deductible», ссылка на норму — по-английски",
+       all(x["text"].startswith("Instead of a deductible") for x in u["franchise"]["alternatives"])
+       and all(not re.search(r"[А-Яа-яЁё]", x["legal_ref"] or "") for x in u["franchise"]["alternatives"]),
+       u["franchise"]["alternatives"])
+
+
+def check_protection_other():
+    print("32. Защита для класса без списка — не ошибка, а пометка")
+    fresh()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(WH_MUST, product_code="0701"),
+                                       "optional": {"protection": "alarm"}})
+    ok("груз (класс 7) с protection — 200, не ошибка ввода", st == 200 and a.get("ok"), (st, a.get("errors")))
+    asm = [x["text"] for x in a["scenarios"]["assumptions"]]
+    ok("пометка в «принято по умолчанию»", any("для этого класса" in x and "не учтено" in x for x in asm), asm)
+    ok("в разделе 4 есть список «Принято по умолчанию»",
+       any(li["title"] == "Принято по умолчанию (уточните)" for li in a["sections"][3]["lists"]))
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": dict(CRANE_OPT, protection="sprinkler")})
+    ok("класс 3 с кодом защиты имущества (sprinkler) — по-прежнему 422", st == 422 and "protection" in a.get("errors", {}), a)
+
+
+def check_lang_fields():
+    print("33. uz/en: формула и ссылка на норму — не на чужом языке")
+    fresh()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ok("ru: формула есть, ссылка — «Положение № 1806, п. 15»", a["scenarios"]["pml"]["formula"]
+       and a["scenarios"]["retention"]["legal_ref"] == "Положение № 1806, п. 15", a["scenarios"]["retention"])
+    for lang, ref in (("uz", "1806-son Nizom, 15-band"), ("en", "Regulation No. 1806, para. 15")):
+        st, u = call("GET", f"/act/{a['id']}", params={"lang": lang})
+        sc = u["scenarios"]
+        ok(f"{lang}: formula = null у всех трёх сценариев", all(sc[k]["formula"] is None for k in ("pml", "eml", "mfl")))
+        ok(f"{lang}: legal_ref удержания — на языке акта", sc["retention"]["legal_ref"] == ref, sc["retention"]["legal_ref"])
+        texts = [sc["definitions"], sc["retention"]["text"] or ""] + [x["label"] + " " + x["what"] + " " + x["pct_text"]
+                                                                        for x in sc["tiles"]]
+        ok(f"{lang}: определения, плитки и удержание без кириллицы", not any(re.search(r"[А-Яа-яЁё]", x) for x in texts),
+           texts)
+
+
+def check_minor():
+    print("34. Мелочи: управляющие байты, проценты, подпись года")
+    src = (Path(act.__file__)).read_bytes()
+    bad = [b for b in src if (b < 32 and b not in (9, 10, 13)) or b == 127]
+    ok("в app/act.py нет сырых управляющих символов", not bad, bad[:5])
+    ok("сигнатура zip записана как b\"PK\\x03\\x04\"", b'b"PK\\x03\\x04"' in src)
+    ok("_format_of по-прежнему узнаёт DOCX", act._format_of(docx_bytes(["Страховая сумма: 1 сум"])) == "docx")
+    sc = {"available": True, "order": "classic", "class_code": "9", "rule": "property9", "k": 1,
+          "items": {s: {"amount": p * 10, "pct": p, "what": "sc_w_c9", "state": "sc_state_" + s.lower()}
+                    for s, p in (("PML", 15.0), ("EML", 37.5), ("MFL", 100.0))},
+          "retention": {"known": False}, "assumptions": []}
+    v = act._scenarios_view(sc, {"class_code": "9"}, "ru")["json"]
+    ok("проценты рядом — одинаково: 15,0 % · 37,5 % · 100,0 %",
+       [v[k]["pct_text"] for k in ("pml", "eml", "mfl")] == ["15,0 %", "37,5 %", "100,0 %"],
+       [v[k]["pct_text"] for k in ("pml", "eml", "mfl")])
+    sc["items"]["EML"]["pct"] = 40.0
+    v = act._scenarios_view(sc, {"class_code": "9"}, "en")["json"]
+    ok("все целые — без дроби: 15% · 40% · 100%", [v[k]["pct_text"] for k in ("pml", "eml", "mfl")] == ["15%", "40%", "100%"])
+    fresh()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    labels = [r["label"] for r in a["sections"][0]["rows"]]
+    ok("здание: «Год постройки»", "Год постройки" in labels and "Год выпуска" not in labels, labels)
+    for lang, want in (("uz", "Qurilgan yili"), ("en", "Year built")):
+        st, u = call("GET", f"/act/{a['id']}", params={"lang": lang})
+        ok(f"{lang}: здание — «{want}»", want in [r["label"] for r in u["sections"][0]["rows"]])
+    st, a = call("POST", "/act/make", {"lang": "en", "must": CRANE_MUST, "optional": CRANE_OPT})
+    labels = [r["label"] for r in a["sections"][0]["rows"]]
+    ok("техника: «Year of manufacture»", "Year of manufacture" in labels and "Year built" not in labels, labels)
+
+
+def check_screen():
+    print("35. Экран: плитки сценариев из ответа сервера, сброс пометок «из документа»")
+    html = (Path(act.__file__).parent / "tg.html").read_text(encoding="utf-8")
+    body = html[html.index("function actScenHtml"):html.index("function actMeasuresHtml")]
+    ok("плитки берутся из scenarios.tiles (порядок и подписи сервера)", "s.tiles" in body and "x.label" in body
+       and "x.pct_text" in body, body[:300])
+    ok("удержание: текст сервера (сравнение с EML)", "r.text" in body)
+    pre = html[html.index("function wzApplyPrefill"):html.index("function preTag")]
+    ok("wzApplyPrefill: пометка остаётся только у значений из нового ответа",
+       "delete CH.pre[k]" in pre and "CH.preDoc" in pre, pre[-300:])
+    call_site = html[html.index("CH.preDoc = {};"):html.index("function wzApplyPrefill")]
+    ok("новая загрузка без prefill тоже сбрасывает пометки", "wzApplyPrefill(d.prefill && typeof d.prefill" in call_site
+       and ": {})" in call_site, call_site)
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -1236,12 +2029,31 @@ def main():
             check_budget()
             check_sources()
             check_misc()
+            check_scenarios()
+            check_documents()
+            fr_aid, fr_hand = check_franchise_apply()
+            check_measures()
+            check_new_langs(fr_aid)
+            check_new_files(fr_aid, fr_hand)
+            check_speed()
+            check_doc_limits()
+            check_dtd_prolog()
+            check_fr_proposed()
+            check_alt_base()
+            check_protection_other()
+            check_lang_fields()
+            check_minor()
+            check_screen()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
         llm.chat_raw, llm.enabled, llm.supports_files, llm._post = (ORIG["chat_raw"], ORIG["enabled"],
                                                                     ORIG["supports_files"], ORIG["post"])
         shutil.rmtree(folder, ignore_errors=True)
+    if SCEN_REPORT:
+        print("\nсценарии (сумма, % страховой суммы):")
+        for k, v in SCEN_REPORT.items():
+            print("  ", k, v)
     print(f"\nитог: ок {passed}, плохо {failed}")
     return 1 if failed else 0
 

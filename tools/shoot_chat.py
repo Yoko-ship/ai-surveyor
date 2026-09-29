@@ -6,9 +6,12 @@
 библиотека, без пакетов). Сети к языковой модели у временного сервера нет, поэтому ответ POST /act/photos
 подменяется настоящим ответом сервера из sandbox/act_demo_photos.json (+ одно значение с таблички,
 чтобы было видно расхождение источников). Дальше всё настоящее: POST /act/make и GET /act/{id}?lang=uz.
-Путь: шаг «Фото» пустой → три снимка в списке → «Читаю фото…» → шаг «Проверить» с распознанным →
-«Сформировать акт» → шаг «Акт» на 390 и 1440 px → узбекский → «Новый акт» → «Без фото» → тёмная тема
-и соседние разделы. Складывает PNG в sandbox/, печатает горизонтальную прокрутку, служебные слова
+Путь: шаг «Фото» пустой → учебный договор sandbox/flow150_contract.docx (разбирается сервером без модели,
+настоящий POST /act/photos) → шаг «Проверить» с подставленными суммой, стоимостью, сроком и регионом
+«из документа — проверьте» → «Новый акт» → три снимка в списке → «Читаю фото…» → шаг «Проверить»
+с распознанным → «Сформировать акт» (без франшизы) → блок «Франшиза» раскрыт, своя 1 % → шаг «Акт»
+с применённой франшизой на 390 и 1440 px → узбекский → предложенная франшиза и «Применить» →
+«Новый акт» → «Без фото» → тёмная тема и соседние разделы. Складывает PNG в sandbox/, печатает горизонтальную прокрутку, служебные слова
 на экране (undefined, null, calibrated…) и ошибки консоли страницы.
 
 Запуск из корня проекта:
@@ -38,6 +41,7 @@ OUT = ROOT / "sandbox"
 PHOTOS_SAMPLE = ROOT / "sandbox" / "act_demo_photos.json"        # настоящий ответ POST /act/photos
 FILES = [ROOT / "sandbox" / "gen" / "test_1.jpg", ROOT / "sandbox" / "gen" / "test_2.jpg",
          ROOT / "sandbox" / "docx_p0.png"]                       # картинки без данных людей
+CONTRACT = ROOT / "sandbox" / "flow150_contract.docx"            # учебный договор: разбирается без модели
 
 # что не должно попадать на экран: пустые значения и служебные слова сервера
 LEAKS = r"""(() => {
@@ -234,14 +238,28 @@ def main():
             ws = WS(url)
             for dom in ("Page", "Runtime", "Log", "DOM"):
                 ws.call(dom + ".enable")
-            # /act/photos отвечает образцом: у временного сервера нет сети к модели
-            ws.call("Fetch.enable", patterns=[{"urlPattern": "*/act/photos*", "requestStage": "Request"}])
             ws.call("Emulation.setDeviceMetricsOverride", width=390, height=900, deviceScaleFactor=2, mobile=True)
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg")
             time.sleep(7)
             bad = []
             # шаг 1 «Фото»: пусто — внизу «Без фото», подсказка ракурсов по всем видам объектов
             bad.append(shot(ws, "chat_step1_390.png", 390))
+
+            # учебный договор DOCX: настоящий POST /act/photos, сервер разбирает его без модели и сети
+            set_files(ws, "#chatFile", [CONTRACT])
+            time.sleep(1)
+            js(ws, 'document.querySelector("#chatMain").click()', 5)
+            print("  договор: шаг", js(ws, "CH.wz"), "| prefill:", js(ws, "JSON.stringify({s: CH.must.sum_insured, v: CH.must.object_value, "
+                  "r: CH.must.region, t: CH.opt.term_days, pre: Object.keys(CH.pre)})"),
+                  "| документы:", js(ws, "JSON.stringify(CH.docs)"), "| ошибка:", js(ws, "CH.err") or "нет")
+            js(ws, "window.scrollTo(0, 0)", 0.3)
+            bad.append(shot(ws, "chat_step2_doc_390.png", 390, cap=5000))
+            js(ws, "wzGo(1)", 1)
+            bad.append(shot(ws, "chat_step1_doc_390.png", 390, cap=2600))
+            js(ws, "actReset()", 1)
+
+            # дальше /act/photos отвечает образцом: у временного сервера нет сети к модели
+            ws.call("Fetch.enable", patterns=[{"urlPattern": "*/act/photos*", "requestStage": "Request"}])
 
             # три снимка в списке: превью, «Убрать», кнопка «Дальше»
             set_files(ws, "#chatFile", FILES)
@@ -282,7 +300,24 @@ def main():
                   "| решение:", js(ws, "CH.act && CH.act.decision.code") or "—",
                   "| расхождений:", js(ws, "CH.act ? CH.act.discrepancies.length : -1"), "| ошибка:", js(ws, "CH.err") or "нет")
             js(ws, "window.scrollTo(0, 0)", 0.5)
+            print("  без франшизы: статус", js(ws, "CH.act && CH.act.franchise.status"), "| премия", js(ws, "CH.act && CH.act.premium.amount"),
+                  "| сценарии:", js(ws, "CH.act && CH.act.scenarios.available"), "| мероприятий:", js(ws, "CH.act ? CH.act.measures.length : -1"))
             bad.append(shot(ws, "chat_step3_390.png", 390, cap=9000))
+
+            # шаг 2: блок «Франшиза» раскрыт — своя безусловная 1 % от страховой суммы
+            js(ws, "wzGo(2)", 1)
+            js(ws, 'CH.optOpen = true; wzPart("more")', 0.5)
+            js(ws, """(() => { document.querySelector('[data-fr="on"][data-value="yes"]').click();
+                       const el = document.querySelector('#wzo-frval'); el.value = '1';
+                       el.dispatchEvent(new Event('input', {bubbles: true}));
+                       document.querySelector('#wzFr').scrollIntoView({block: 'start'}); })()""", 0.8)
+            bad.append(shot(ws, "chat_step2_fr_390.png", 390, cap=7000))
+            js(ws, 'document.querySelector("#chatMain").click()', 6)
+            print("  франшиза 1 %: статус", js(ws, "CH.act && CH.act.franchise.status"),
+                  "| было → стало", js(ws, "CH.act && [CH.act.franchise.premium_before, CH.act.franchise.premium_after].join(' → ')"),
+                  "| франшиза, сум", js(ws, "CH.act && CH.act.franchise.size_amount"), "| ошибка:", js(ws, "CH.err") or "нет")
+            js(ws, "window.scrollTo(0, 0)", 0.5)
+            bad.append(shot(ws, "chat_step3_fr_390.png", 390, cap=9000))
             bad.append(shot(ws, "chat_step3_1440.png", 1440, cap=7000, scale=1))
             # как шаг «Акт» выглядит в Telegram: кнопки «Прислать … в чат» и ответ «нажмите Старт у бота»
             # (headless Edge не Telegram — подставляем разметку тех же функций страницы)
@@ -303,6 +338,18 @@ def main():
             js(ws, "wzGo(2)", 1.5)
             bad.append(shot(ws, "chat_step2_uz_390.png", 390, cap=5000))
             js(ws, "document.querySelector('[data-lang-pick=\"ru\"]').click()", 3)
+
+            # предложенная франшиза: мелкие убытки за три года — система советует, сотрудник применяет одной кнопкой
+            js(ws, 'CH.fr = FR_OFF(); Object.assign(CH.opt, {losses_count: "2", losses_small: "2"}); wzSave(); wzPaint(true)', 0.5)
+            js(ws, 'document.querySelector("#chatMain").click()', 6)
+            print("  предложение: статус", js(ws, "CH.act && CH.act.franchise.status"), "| размер",
+                  js(ws, "CH.act && CH.act.franchise.size_pct"), "| премия с ней", js(ws, "CH.act && CH.act.franchise.premium_after"))
+            js(ws, "window.scrollTo(0, 0)", 0.5)
+            bad.append(shot(ws, "chat_step3_prop_390.png", 390, cap=3200))
+            js(ws, "(() => { const b = document.querySelector('[data-go=\"frapply\"]'); if (b) b.click(); })()", 7)
+            print("  после «Применить»: шаг", js(ws, "CH.wz"), "| статус", js(ws, "CH.act && CH.act.franchise.status"),
+                  "| в блоке шага 2:", js(ws, "JSON.stringify(CH.fr)"))
+            js(ws, 'CH.fr = FR_OFF(); Object.assign(CH.opt, {losses_count: "0"}); delete CH.opt.losses_small; wzSave()', 0.2)
 
             # «Новый акт» → «Без фото»: сразу шаг 2 без распознанного
             js(ws, "wzGo(3)", 1)

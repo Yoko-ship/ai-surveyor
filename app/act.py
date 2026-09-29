@@ -8,10 +8,18 @@
 формируется целиком (литературная связка разделов моделью убрана 29.09.2026 — решение и списки
 всегда из шаблонов).
 
+Дополнения 29.09.2026 (app/act_extras.py, считают существующие модули): сценарии PML/EML/MFL и лимит
+удержания (risk_analytics), разбор DOCX/XLSX/PDF с текстом без модели (ingest, analysis_docs, docparse),
+применение франшизы (franchise.what_if — множитель к ставке акта), рекомендации страхователю
+(preventive_measures через reducers и docs/act_measures.json).
+
 Адреса (гостям открыты, как /chat/*; лимит актов — app/guest.py через app/guard.py, лимит фото гостя
 по числу файлов и общий лимит распознаваний на сервер — здесь, настройки limits):
   POST /act/photos            — фото и снимки документов (multipart: files[], lang, class_code, product_code);
+                                JPG/PNG/PDF-сканы — модели; DOCX, XLSX и PDF с текстом — парсерам (prefill);
                                 Content-Length проверяется до чтения тела (413/411)
+                                разбор документа — в пределах limits.doc_* (строки, колонки, листы, знаки),
+                                со сроком на файл и на запрос; одновременно не больше двух на сервер
   POST /act/make              — акт по четырём полям + необязательным + распознанному (в сеть не ходит)
   GET  /act/{id}              — акт (JSON), ?lang=ru|uz|en — тот же акт на другом языке
   GET  /act/{id}.docx, .pdf   — выгрузка
@@ -44,6 +52,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 
 from . import act_engine as ae
+from . import act_extras as ax
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
 from .act_texts import money, pct, t
@@ -71,7 +80,12 @@ SEND_FORMATS = {"docx": "application/vnd.openxmlformats-officedocument.wordproce
 DOC_NAME_HINTS = ("doc", "scan", "sheet", "plate", "passport", "pasport", "скан", "док", "лист", "таблич",
                   "паспорт", "техпас", "hujjat")
 
-FMT_MIME = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf"}
+FMT_MIME = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf",
+            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
+DOC_FMTS = ("docx", "xlsx")               # документы с текстом: разбираются парсерами, в модель не уходят
+# значения документа, которые похожи на ПД по шаблону, но являются данными объекта
+PD_KEEP = {"reg_no": "[ГОСНОМЕР]", "cadastre_no": "[КАДАСТР]"}
 MODEL_SOURCES = ("photo", "plate", "document", "marking")
 CONDITIONS = ("new", "good", "worn", "damaged")
 CLASS_HINTS = ("special_machinery", "vehicle", "building", "equipment", "cargo", "other")
@@ -316,6 +330,8 @@ def _drop_orphans(con) -> int:
 def _format_of(blob: bytes) -> Optional[str]:
     if blob[:4] == b"%PDF":
         return "pdf"
+    if blob[:4] == b"PK\x03\x04":
+        return ax.zip_format(blob)
     if blob[:3] == b"\xff\xd8\xff":
         return "jpg"
     if blob[:8] == b"\x89PNG\r\n\x1a\n":
@@ -516,9 +532,13 @@ def pd_like(key: str, value: str) -> bool:
     в номере или модели агрегата, если в значении есть буквы (чистые 9 цифр — возможный ИНН или телефон).
     """
     value = str(value or "")
+    if key in ae.NUMBER_KEYS and re.fullmatch(r"[\d\s.,]+", value):
+        return False                     # сумма или срок из документа — число, а не телефон или ИНН
     if not llm.has_pd(value):
         return False
     found = _placeholders(llm.mask_pd(value)) - _placeholders(value)
+    if key in PD_KEEP:
+        found.discard(PD_KEEP[key])      # госномер и кадастровый номер — данные объекта
     if key in ("manufacturer", "brand") and _company_only(value):
         found.discard("[ФИО]")
     if key in ("serial_no", "engine_no", "model", "engine_model") \
@@ -577,8 +597,8 @@ def parse_model(text: str, n: int) -> Optional[dict]:
         val = _s(f.get("value"), 120)
         if key not in ae.FIELD_KEYS or not val:
             continue
-        if pd_like(key, val):
-            dropped += 1
+        if key == "reg_no" or pd_like(key, val):
+            dropped += 1                 # госномер модели не принимаем: ей запрещено его читать
             continue
         src = str(f.get("source") or "photo").strip().lower()
         src = src if src in MODEL_SOURCES else "photo"
@@ -707,11 +727,11 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
 #  Распознанное: подписи и выбор значения
 # --------------------------------------------------------------------------- #
 
-def recognized_view(items: list, lang: str, file_ids: Optional[dict] = None) -> list:
+def recognized_view(items: list, lang: str, file_ids: Optional[dict] = None, group: Optional[str] = None) -> list:
     """Распознанное для экрана: подпись поля, источник словами и пометка «проверьте»."""
     out = []
     for r in items:
-        out.append({"key": r["key"], "label": tx.label(tx.FIELD_LABELS, r["key"], lang), "value": r["value"],
+        out.append({"key": r["key"], "label": tx.field_label(r["key"], lang, group), "value": r["value"],
                     "source": r["source"], "source_label": tx.label(tx.SOURCE_LABELS, r["source"], lang),
                     "note": r.get("note"), "file": (file_ids or {}).get(r.get("file"), r.get("file_id")),
                     "check": True, "check_label": t("check_mark", lang)})
@@ -830,7 +850,12 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                              "error": t("ph_too_big", lang, mb=MAX_BYTES // (1024 * 1024))})
             continue
         fmt = _format_of(blob)
-        err = check_content(blob, fmt, limits, lang) if fmt else t("ph_format", lang)
+        info = {}
+        if fmt in DOC_FMTS:
+            code, info = ax.zip_check(blob, limits)
+            err = t(code, lang) if code else None
+        else:
+            err = check_content(blob, fmt, limits, lang) if fmt else t("ph_format", lang)
         if err:
             rejected.append({"index": i, "name": name, "error": err})
             continue
@@ -839,16 +864,60 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         path = folder / f"{fid}.{fmt}"
         path.write_bytes(blob)
         saved.append({"id": fid, "index": i, "name": name, "orig_name": orig, "fmt": fmt, "mime": FMT_MIME[fmt],
-                      "size": len(blob), "path": db.stored_path(path), "blob": blob})
+                      "size": len(blob), "path": db.stored_path(path), "blob": blob, "full": path,
+                      "macros": bool(info.get("macros"))})
     if not saved:
         shutil.rmtree(folder, ignore_errors=True)
         return _fail(request, t("ph_none", lang), 422, rejected=rejected, ai=False,
                      warning=t("warn_pd", lang))
 
-    rec = recognize(saved, lang, limits)
+    with db.tx() as con:
+        ensure_tables(con)
+        cls = _class_of(con, class_code, product_code)
+    # документы с текстовым слоем (DOCX, XLSX, PDF с текстом) — парсерами, без модели; сканы — модели.
+    # Пределы текста и сроки (limits.doc_*): файл — doc_parse_sec, все документы запроса —
+    # doc_parse_total_sec; одновременно на сервере разбирается не больше ax.PARSE_SLOTS документов.
+    parsed, parse_errors = {}, []
+    dl = ax.doc_limits(limits)
+    t_docs = time.monotonic()
+    for f in saved:
+        if f["fmt"] not in DOC_FMTS and f["fmt"] != "pdf":
+            continue
+        left = float(dl["doc_parse_total_sec"]) - (time.monotonic() - t_docs)
+        res = None
+        if left <= 0:
+            res = {"text_layer": False, "status": "timeout", "kind": None, "items": [], "prefill": {},
+                   "notes": ["doc_timeout"]}
+        elif not ax.parse_slot(left):
+            res = {"text_layer": False, "status": "busy", "kind": None, "items": [], "prefill": {},
+                   "notes": ["doc_busy"]}
+        else:
+            try:
+                left = float(dl["doc_parse_total_sec"]) - (time.monotonic() - t_docs)
+                with db.tx() as con:
+                    res = ax.parse_document_limited(con, f["full"], cls or "", dl,
+                                                    min(float(dl["doc_parse_sec"]), max(left, 0.0)))
+            except Exception as e:       # ошибка разбора не роняет загрузку, но и не глотается
+                parse_errors.append({"format": f["fmt"], "error": type(e).__name__})
+                res = {"text_layer": False, "kind": None, "items": [], "prefill": {}, "notes": ["doc_unreadable"]}
+            finally:
+                ax.parse_slot_release()
+        if res.get("status") in ("timeout", "busy"):
+            parse_errors.append({"format": f["fmt"], "error": res["status"]})
+        if f["fmt"] == "pdf" and not res["text_layer"] and not set(res["notes"]) & {
+                "doc_unreadable", "doc_timeout", "doc_busy"}:
+            continue                     # скан без текста — его читает модель
+        if f["macros"]:
+            res["notes"].append("doc_macros")
+        parsed[f["id"]] = res
+    model_files = [f for f in saved if f["id"] not in parsed]
+    if model_files:
+        rec = recognize(model_files, lang, limits)
+    else:
+        rec = {"ok": False, "reason": None, "sent": [], "not_sent": []}
     sent = rec.get("sent") or []
     # номер файла в запросе к модели → id загруженного файла
-    model_to_id = {k + 1: saved[i]["id"] for k, i in enumerate(sent)}
+    model_to_id = {k + 1: model_files[i]["id"] for k, i in enumerate(sent)}
     views = {model_to_id[k]: v for k, v in (rec.get("views") or {}).items() if k in model_to_id}
     doc_kinds = {model_to_id[k]: v for k, v in (rec.get("document_kinds") or {}).items() if k in model_to_id}
     fields = []
@@ -856,20 +925,55 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         fields.append({**f, "file_id": model_to_id.get(f.get("file"))})
     damages = [{"what": d["what"], "where": d.get("where"), "file": model_to_id.get(d.get("file"))}
                for d in rec.get("damages") or []]
-    not_sent = [saved[i]["index"] for i in rec.get("not_sent") or []]
+    not_sent = [model_files[i]["index"] for i in rec.get("not_sent") or []]
+
+    # значения из разобранных документов: источник «документ», пометка «проверьте», ПД отбрасываются
+    doc_fields, prefill, doc_notes, dropped_doc, doc_list = [], {}, [], 0, []
+    for f in saved:
+        res = parsed.get(f["id"])
+        if res is None:
+            continue
+        n_before = len(doc_fields)
+        if res.get("text_layer"):
+            views[f["id"]] = "document"
+            if res.get("kind"):
+                doc_kinds[f["id"]] = tx.label(tx.DOC_KIND_LABELS, res["kind"], lang)
+        for it in res.get("items") or []:
+            if pd_like(it["key"], it["value"]):
+                dropped_doc += 1
+                continue
+            if any(d["key"] == it["key"] and d["value"] == it["value"] for d in doc_fields):
+                continue
+            doc_fields.append({"key": it["key"], "value": it["value"], "source": "document", "file": None,
+                               "file_id": f["id"], "note": t("doc_parsed_note", lang), "parsed": True})
+        for k, v in (res.get("prefill") or {}).items():
+            if k not in prefill:
+                prefill[k] = {"value": v, "source": "document", "file": f["id"]}
+        for c in res.get("notes") or []:
+            if c not in doc_notes:
+                doc_notes.append(c)
+        doc_list.append({"file": f["id"], "index": f["index"], "kind": res.get("kind"),
+                         "kind_label": tx.label(tx.DOC_KIND_LABELS, res["kind"], lang) if res.get("kind") else None,
+                         "text_layer": bool(res.get("text_layer")), "values": len(doc_fields) - n_before,
+                         "notes": [t(c, lang) for c in res.get("notes") or []]})
+    if "region" in prefill:
+        prefill["region"]["code"] = region_code(prefill["region"]["value"])
+    all_fields = fields + doc_fields
+    parsed_ok = sum(1 for r in parsed.values() if r.get("text_layer"))
+
     with db.tx() as con:
         ensure_tables(con)
         cleanup(con)
-        cls = _class_of(con, class_code, product_code)
         kind = rec.get("object_kind")
         kind_text = tx.OBJECT_KINDS[kind][0] if kind and tx.OBJECT_KINDS[kind][0] else ""
         group = ae.object_group(cls, kind_text, rec.get("class_hint") or "")
         seen = sorted(set(views.values()))
         missing = ae.missing_views(group, seen) if rec.get("ok") else ae.required_views(group)
         stored = {"ai": bool(rec.get("ok")), "reason": rec.get("reason"), "views": views,
-                  "document_kinds": doc_kinds, "fields": fields, "damages": damages,
+                  "document_kinds": doc_kinds, "fields": all_fields, "damages": damages,
                   "object_kind": kind, "class_hint": rec.get("class_hint"), "condition": rec.get("condition"),
-                  "files": len(saved), "not_sent": not_sent, "lang": lang}
+                  "files": len(saved), "photo_files": len(model_files), "parsed_docs": parsed_ok,
+                  "prefill": prefill, "doc_notes": doc_notes, "not_sent": not_sent, "lang": lang}
         now = _now()
         # в базе о файле — только порядковый номер, формат, размер и путь: имени файла нет
         keep = ("id", "index", "fmt", "mime", "size", "path")
@@ -886,22 +990,34 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         db.audit(con, _who(user, owner), "акт: фото загружены", f"act_upload:{sid}",
                  {"files": len(saved), "rejected": len(rejected), "ai": bool(rec.get("ok")),
                   "fields": len(fields), "damages": len(damages), "views": view_count,
-                  "not_sent": len(not_sent), "dropped_pd": rec.get("dropped") or 0})
-    if rec.get("ok"):
-        message = t("ph_ok", lang, n=len(fields)) if fields else t("ph_empty", lang)
-    else:
-        message = t("ph_ai_off", lang, reason=rec.get("reason") or t("ai_not_connected", lang))
+                  "not_sent": len(not_sent), "dropped_pd": (rec.get("dropped") or 0) + dropped_doc,
+                  "parsed_docs": parsed_ok, "doc_fields": len(doc_fields)})
+        for e in parse_errors:
+            db.audit(con, _who(user, owner), "акт: документ не разобран", f"act_upload:{sid}", e)
     notes = []
+    if model_files:
+        if rec.get("ok"):
+            message = t("ph_ok", lang, n=len(fields)) if fields else t("ph_empty", lang)
+        else:
+            message = t("ph_ai_off", lang, reason=rec.get("reason") or t("ai_not_connected", lang))
+        if parsed:
+            notes.append(t("ph_docs_ok", lang, n=parsed_ok, k=len(doc_fields)))
+    else:
+        message = t("ph_docs_ok", lang, n=parsed_ok, k=len(doc_fields))
     if rec.get("ok") and not_sent:
         notes.append(t("ph_not_sent", lang, files=", ".join(str(n) for n in not_sent), mb=limits["ai_max_mb"]))
+    notes += [t(c, lang) for c in doc_notes]
+    model_ids = {f["id"] for f in model_files}
     return _reply(request, {
         "ok": True, "session": sid, "lang": lang,
         "files": [{"id": f["id"], "index": f["index"], "name": f["name"], "view": views.get(f["id"]),
                    "view_label": tx.label(tx.VIEW_LABELS, views[f["id"]], lang) if f["id"] in views else None,
                    "document_kind": doc_kinds.get(f["id"]),
-                   "read_by_ai": bool(rec.get("ok")) and f["index"] not in not_sent} for f in saved],
+                   "read_by_ai": bool(rec.get("ok")) and f["id"] in model_ids and f["index"] not in not_sent,
+                   "parsed": bool((parsed.get(f["id"]) or {}).get("text_layer")),
+                   "format": f["fmt"]} for f in saved],
         "rejected": rejected,
-        "recognized": recognized_view(fields, lang),
+        "recognized": recognized_view(all_fields, lang, group=group),
         "damages": damages,
         "object_kind": ({"code": kind, "label": tx.label({k: v[1] for k, v in tx.OBJECT_KINDS.items()}, kind, lang)}
                         if kind else None),
@@ -915,9 +1031,19 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "message": message,
         "notes": notes,
         "not_sent": not_sent,
+        "documents": doc_list,
+        "prefill": prefill_view(prefill, lang) if prefill else None,
         "warning": t("warn_pd", lang),
         "expires_in_hours": PHOTO_TTL_SEC // 3600,
     })
+
+
+def prefill_view(prefill: dict, lang: str) -> dict:
+    """Подсказка для шага 2: значения из документа с источником и пометкой «из документа, проверьте»."""
+    out = {}
+    for k, v in prefill.items():
+        out[k] = {**v, "label": tx.label(tx.FIELD_LABELS, k, lang), "check_label": t("prefill_check", lang)}
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -1086,6 +1212,55 @@ def validate(con, body: dict) -> tuple:
         else:
             o["payer_type"] = payer
 
+    # уточнения для сценариев убытка (risk_analytics); чего нет — берётся по умолчанию с пометкой
+    prot = opt.get("protection")
+    if prot not in (None, ""):
+        codes = ax.PROT_CODES.get(ccode)
+        if not codes:
+            # у класса нет списка защиты (он есть только у 3, 8, 9) — значение не учитывается,
+            # в акте об этом пометка в «принято по умолчанию» (as_protection_ignored)
+            o["protection_ignored"] = True
+        elif prot not in codes:
+            errs["protection"] = "одно из: " + ", ".join(codes)
+        else:
+            o["protection"] = prot
+    try:
+        o["seismic_zone"] = _int_in(opt.get("seismic_zone"), 5, 10)
+    except ValueError:
+        errs["seismic_zone"] = "целое число баллов от 5 до 10"
+    for key, allowed in (("construction", ax.CONSTRUCTIONS), ("activity", ax.ACTIVITIES)):
+        v = opt.get(key)
+        if v not in (None, ""):
+            if v not in allowed:
+                errs[key] = "одно из: " + ", ".join(allowed)
+            else:
+                o[key] = v
+    # франшиза сотрудника: {pct | amount, type}; по обязательным видам не применяется (решает build_data)
+    ded = opt.get("deductible")
+    o["deductible"] = None
+    if ded not in (None, "", {}):
+        if not isinstance(ded, dict):
+            errs["deductible"] = "объект {pct | amount, type}"
+        else:
+            p, a = ded.get("pct"), ded.get("amount")
+            ftype = str(ded.get("type") or "unconditional").strip()
+            pv = _money_in(p) if p not in (None, "") else None
+            av = _money_in(a) if a not in (None, "") else None
+            if ftype not in ax.FR_TYPES:
+                errs["deductible"] = "type: " + ", ".join(ax.FR_TYPES)
+            elif (p not in (None, "") and pv is None) or (a not in (None, "") and av is None):
+                errs["deductible"] = "pct и amount — числа"
+            elif pv is None and av is None:
+                errs["deductible"] = "нужен pct (% страховой суммы) или amount (сумы)"
+            elif pv is not None and av is not None:
+                errs["deductible"] = "укажите что-то одно: pct или amount"
+            elif pv is not None and not 0 < pv <= 50:
+                errs["deductible"] = "pct больше 0 и не больше 50 % страховой суммы"
+            elif av is not None and not (0 < av <= (m.get("sum_insured") or MAX_SUM) * 0.5):
+                errs["deductible"] = "amount больше 0 и не больше половины страховой суммы"
+            else:
+                o["deductible"] = {"pct": pv, "amount": av, "type": ftype}
+
     # распознанное с правками сотрудника: только известные поля, значения без ПД
     rec = body.get("recognized")
     items, dropped = [], 0
@@ -1217,7 +1392,8 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         recognized = [{"key": f["key"], "value": f["value"], "source": f["source"], "note": f.get("note"),
                        "file_id": f.get("file_id")} for f in upload.get("fields") or []]
     damages = clean["damages"] if clean.get("damages") is not None else (upload.get("damages") or [])
-    photos = int(upload.get("files") or 0)
+    # фото и сканы, ушедшие в модель; документы с текстом разобраны отдельно и осмотром не считаются
+    photos = int(upload.get("photo_files", upload.get("files")) or 0)
     ai_ok = bool(upload.get("ai")) and photos > 0
     views_seen = sorted(set((upload.get("views") or {}).values()))
 
@@ -1227,6 +1403,12 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     group = ae.object_group(cls, f"{kind_type or ''} {obj_text} {o.get('object_type') or ''}",
                             upload.get("class_hint") or "")
     otype = ae.match_object_type(ref, cls, kind_type, o.get("object_type"))
+    # для сценариев и мероприятий вид объекта можно понять и по тексту документа («склад готовой продукции»)
+    kind_ra = kind or _kind_from_text(f"{obj_text} {o.get('object_type') or ''}")
+    otype_ra = otype or ae.match_object_type(ref, cls, (tx.OBJECT_KINDS.get(kind_ra) or (None,))[0], None)
+    # продукт «спецтехника» без фото: для сценариев и мероприятий это спецтехника, а не легковой транспорт
+    special_product = "спецтехник" in str((product or {}).get("name") or "").lower()
+    group_ra = "special" if group == "vehicle" and special_product else group
 
     y = o.get("year")
     if y is None:
@@ -1257,7 +1439,41 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                       risk["level"], th, statutory, cls, m["sum_insured"])
     fr["thresholds_source"] = {k: v for k, v in (th.get("_source") or {}).items() if k in ("id", "what")}
     clauses = ae.clauses(group, clause_catalog())
-    disc = ae.discrepancies(recognized, {"year": o.get("year")})
+    disc = ae.discrepancies(recognized, {"year": o.get("year"), "sum_insured": m["sum_insured"],
+                                         "object_value": m["object_value"], "term_days": o.get("term_days")})
+
+    # сценарии, франшиза и мероприятия — существующими модулями на тех же входных данных, что акт
+    block_errors = []
+    ctx = ax.ra_context(con, cls=cls, product_code=m.get("product_code"), otype=otype_ra, group=group_ra, kind=kind_ra,
+                        S=m["sum_insured"], V=m["object_value"], region=m["region"], term_days=o.get("term_days"),
+                        year=y, o=o, recognized=recognized)
+    if not ctx.get("ok"):
+        block_errors.append({"block": "risk_analytics", "error": ctx.get("error")})
+    scen = ax.scenarios(ctx, cls, m["sum_insured"])
+    if o.get("protection_ignored"):
+        scen["assumptions"] = list(scen.get("assumptions") or []) + [{"code": "as_protection_ignored", "params": {}}]
+    try:
+        fr = ax.franchise(con, ctx, fr, rate_res, cls=cls, S=m["sum_insured"], level=risk["level"],
+                          statutory=statutory, requested=o.get("deductible"), th=th)
+    except Exception as e:               # блок не посчитан — акт всё равно формируется
+        block_errors.append({"block": "franchise", "error": type(e).__name__})
+        fr.update(status="error", applied=False, how=[], alternatives=[], error=type(e).__name__)
+    premium_final = fr["premium_after"] if fr.get("applied") and fr.get("premium_after") is not None \
+        else rate_res["premium"]
+    rate_final = fr["rate_after"] if fr.get("applied") and fr.get("rate_after") is not None \
+        else rate_res["applied_pct"]
+    try:
+        meas = ax.measures(con, ctx, rate_res, cls=cls, group=group_ra, kind=kind_ra, S=m["sum_insured"],
+                           V=m["object_value"], o=o, location=location, statutory=statutory, th=th,
+                           premium=premium_final)
+    except Exception as e:
+        block_errors.append({"block": "measures", "error": type(e).__name__})
+        meas = {"items": [], "total": {"count": 0}, "error": type(e).__name__}
+    if fr.get("status") not in ("error",):
+        try:
+            fr["alternatives"] = ax.alternatives(ctx, rate_res, m["sum_insured"], meas, th)
+        except Exception as e:
+            block_errors.append({"block": "alternatives", "error": type(e).__name__})
 
     present = {r["key"] for r in recognized if r.get("value")}
     if any(r["key"] == "manufacture_date" for r in recognized) or o.get("year"):
@@ -1274,8 +1490,14 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                   "missing_views": missing_v, "damages": damages, "documents": documents,
                   "document_kinds": sorted(set((upload.get("document_kinds") or {}).values())),
                   "recognized": bool(recognized), "session": clean.get("session"),
-                  "session_missing": session_missing, "upload_lang": upload.get("lang")}
+                  "session_missing": session_missing, "upload_lang": upload.get("lang"),
+                  "parsed_docs": int(upload.get("parsed_docs") or 0)}
     dec = ae.decision(risk, rate_res, value, fr, disc, inspection, missing_key, st)
+    if fr.get("applied"):
+        # франшиза сотрудника — условие договора: андеррайтер подтверждает, «принять без оговорок» уже нельзя
+        dec["checks"].append({"code": "c_fr_applied", "params": {}})
+        if dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
     cls_row = db.rows(con, "SELECT name FROM classes WHERE code=?", cls)
     return {
         "insurer": insurer_name(st),
@@ -1292,7 +1514,21 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         "missing": missing, "tariff_version_id": tariff_version(con, "регулятор" if statutory else "компания"),
         "settings_id": (st.get("_source") or {}).get("id"), "calibrated": ae.CALIBRATED,
         "dropped_pd": clean.get("dropped_pd") or 0,
+        # дополнения 29.09.2026: одна премия на весь акт — с учётом применённой франшизы
+        "premium_final": {"amount": premium_final, "rate_pct": rate_final,
+                          "franchise_applied": bool(fr.get("applied"))},
+        "scenarios": scen, "measures": meas, "block_errors": block_errors,
     }
+
+
+_KIND_BY_TYPE = {"Склад": "warehouse", "Офис": "office", "Магазин": "shop", "Производство": "production",
+                 "Гостиница": "hotel", "Жильё": "dwelling", "Машины и оборудование": "equipment"}
+
+
+def _kind_from_text(text: str) -> Optional[str]:
+    """Вид объекта по словам документа — только однозначное совпадение (analysis_docs._one)."""
+    from .analysis_docs import OBJECT_TYPE_WORDS, _one
+    return _KIND_BY_TYPE.get(_one(text, OBJECT_TYPE_WORDS) or "")
 
 
 def _location_from_text(text: str) -> Optional[str]:
@@ -1355,23 +1591,23 @@ def _text(item: dict, lang: str) -> str:
     return t(item["code"], lang, **params)
 
 
-def _check_text(c: dict, lang: str) -> str:
+def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
     p = c.get("params") or {}
     if c["code"] == "c_disc":
-        return t("c_disc", lang, label=tx.label(tx.FIELD_LABELS, p["key"], lang))
+        return t("c_disc", lang, label=tx.field_label(p["key"], lang, group))
     if c["code"] == "c_views":
         return t("c_views", lang, views=", ".join(tx.label(tx.VIEW_LABELS, v, lang) for v in p["views"]))
     if c["code"] == "c_missing":
-        return t("c_missing", lang, what=", ".join(tx.label(tx.FIELD_LABELS, k, lang).lower() for k in p["keys"]))
+        return t("c_missing", lang, what=", ".join(tx.field_label(k, lang, group).lower() for k in p["keys"]))
     return t(c["code"], lang)
 
 
-def _disc_text(d: dict, lang: str) -> str:
+def _disc_text(d: dict, lang: str, group: Optional[str] = None) -> str:
     parts = []
     for g in d["values"]:
         where = _and(lang).join(tx.label(tx.SOURCE_IN, s, lang) for s in g["sources"])
         parts.append(f"{where} {g['value']}")
-    return t("disc_line", lang, label=tx.label(tx.FIELD_LABELS, d["key"], lang), values=", ".join(parts))
+    return t("disc_line", lang, label=tx.field_label(d["key"], lang, group), values=", ".join(parts))
 
 
 def _row(label: str, value, note=None) -> dict:
@@ -1392,7 +1628,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                                        else must["product_code"]) if must.get("product_code") else NA)]
     kind = D.get("object_kind")
     for key in ae.FIELDS_BY_GROUP.get(D["group"], []):
-        label = tx.label(tx.FIELD_LABELS, key, lang)
+        label = tx.field_label(key, lang, D["group"])
         if key == "location" and opt.get("location"):
             rows1.append(_row(label, tx.label(tx.LOCATION_LABELS, opt["location"], lang),
                               tx.label(tx.SOURCE_LABELS, "input", lang)))
@@ -1415,6 +1651,11 @@ def render(D: dict, lang: str, meta: dict) -> dict:
             note += "; " + t("also_in", lang, what="; ".join(
                 f"{r['value']} ({tx.label(tx.SOURCE_LABELS, r['source'], lang)})" for r in others[:3]))
         rows1.append(_row(label, best["value"], note))
+    for key in ae.EXTRA_ROW_KEYS:
+        best = preferred(rec, key)
+        if best:
+            rows1.append(_row(tx.field_label(key, lang, D["group"]), best["value"],
+                              tx.label(tx.SOURCE_LABELS, best["source"], lang) + ", " + t("check_mark", lang)))
     rows1.append(_row(t("region", lang), region_label(must, lang)))
     if opt.get("guard") is not None:
         rows1.append(_row(t("guard", lang), t("yes" if opt["guard"] else "no", lang)))
@@ -1446,6 +1687,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                 d["what"] + (f" ({d['where']})" if d.get("where") else "") for d in ins["damages"])))
         else:
             rows2.append(_row(t("damages", lang), t("damages_none", lang)))
+    if ins.get("parsed_docs"):
+        rows2.append(_row(t("docs_parsed", lang), str(ins["parsed_docs"])))
     rows2.append(_row(t("documents", lang), (t("docs_given", lang) + (
         " (" + ", ".join(ins["document_kinds"]) + ")" if ins.get("document_kinds") else ""))
         if ins["documents"] else t("docs_not_given", lang)))
@@ -1483,16 +1726,22 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     rule_text = t("level_rule", lang, net=minus(risk["net"]), low=minus(rule["low_max_net"]),
                   high=minus(rule["high_min_net"]), k=rule["min_known"])
     mode = rate_res["mode"]
+    pf = _premium_final(D)
     rows4 = [_row(t("level", lang), level_label, t("uncalibrated", lang))]
     if mode == "tariff":
         rows4 += [_row(t("applied_rate", lang), pct(rate_res["applied_pct"], lang),
-                       t("min_applied", lang) if rate_res["min_applied"] else None),
-                  _row(t("base_rate", lang), pct(rate_res["base_pct"], lang)),
+                       t("min_applied", lang) if rate_res["min_applied"] else None)]
+        if pf["franchise_applied"]:
+            rows4.append(_row(t("rate_with_fr", lang), pct(pf["rate_pct"], lang),
+                              t("min_applied", lang) if fr.get("floor_applied") else None))
+        prem_note = t("premium_term", lang, days=rate_res["term_days"])
+        if pf["franchise_applied"]:
+            prem_note += "; " + t("premium_no_fr", lang, before=money(rate_res["premium"], lang))
+        rows4 += [_row(t("base_rate", lang), pct(rate_res["base_pct"], lang)),
                   _row(t("adj", lang), "+" + pct(rate_res["adj_pct"], lang), t("uncalibrated", lang)),
                   _row(t("min_rate", lang), pct(rate_res["min_pct"], lang) if rate_res["min_pct"] is not None
                        else NA),
-                  _row(t("premium", lang), money(rate_res["premium"], lang),
-                       t("premium_term", lang, days=rate_res["term_days"]))]
+                  _row(t("premium", lang), money(pf["amount"], lang), prem_note)]
     elif mode == "statutory":
         rows4 += [_row(t("applied_rate", lang), pct(rate_res["applied_pct"], lang), t("rate_by_act", lang)),
                   _row(t("adj", lang), t("adj_none_statutory", lang)),
@@ -1503,19 +1752,29 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                   _row(t("premium", lang), NA)]
     fr_text = _fr_text(fr, lang)
     rows4.append(_row(t("franchise", lang), fr_text))
+    scv = _scenarios_view(D.get("scenarios"), must, lang)
+    rows4 += scv["rows"]
     lists4 = [{"title": t("factors", lang), "items": factors + [rule_text]},
               {"title": t("how_title", lang),
                "items": [_text(h, lang) for h in rate_res["how"]]}]
     if fr.get("grounds"):
         lists4.append({"title": t("fr_grounds", lang), "items": [_text(g, lang) for g in fr["grounds"]]})
+    fr_how = [_fr_how_text(h, lang) for h in fr.get("how") or []]
+    if fr_how:
+        lists4.append({"title": t("fr_how_title", lang), "items": fr_how})
+    fr_alts = [_alt_view(a, lang) for a in fr.get("alternatives") or []]
+    if fr_alts:
+        lists4.append({"title": t("fr_alt_title", lang), "items": [a["text"] for a in fr_alts]})
+    lists4 += scv["lists"]
     p4 = []
     if D.get("multi_class"):
         p4.append(t("multi_class_note", lang, classes=", ".join(must.get("product_classes") or [])))
-    if not fr.get("needed") and fr.get("code") == "fr_not_needed":
+    if not fr.get("needed") and fr.get("code") == "fr_not_needed" and fr.get("status") in (None, "none"):
         p4.append(fr_text + ": " + t("fr_none_grounds", lang) + ". " + t("fr_alt", lang))
     if D["clauses"]:
         lists4.append({"title": t("clauses", lang),
                        "items": [f"{c.get(lang) or c.get('ru')} ({t('expert', lang)})" for c in D["clauses"]]})
+    p4.append(scv["paragraph"])
     s4 = {"n": 4, "title": t("s4", lang), "paragraphs": p4, "rows": rows4, "lists": lists4}
 
     # ---------- раздел 5 ----------
@@ -1523,18 +1782,22 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     p5 = [t(dec["code"], lang)]
     lists5 = []
     if D["discrepancies"]:
-        lists5.append({"title": t("disc_title", lang), "items": [_disc_text(d, lang) for d in D["discrepancies"]]})
+        lists5.append({"title": t("disc_title", lang), "items": [_disc_text(d, lang, D["group"]) for d in D["discrepancies"]]})
         p5.append(t("disc_priority", lang))
     else:
         p5.append(t("disc_none", lang))
-    checks = [_check_text(c, lang) for c in dec["checks"]]
+    checks = [_check_text(c, lang, D["group"]) for c in dec["checks"]]
     if checks:
         lists5.append({"title": t("checks_title", lang), "items": checks})
-    missing_labels = [tx.label(tx.FIELD_LABELS, k, lang) for k in D["missing"]]
+    missing_labels = [tx.field_label(k, lang, D["group"]) for k in D["missing"]]
     if ins.get("session_missing"):
         missing_labels.append(t("session_not_found", lang))
     if missing_labels:
         lists5.append({"title": t("missing_title", lang), "items": missing_labels})
+    msv = _measures_view(D.get("measures"), lang)
+    lists5.append({"title": t("ms_title", lang), "items": [m["line"] for m in msv["items"]] or [t("ms_none", lang)]})
+    if msv["summary"].get("text"):
+        p5.append(msv["summary"]["text"])
     s5 = {"n": 5, "title": t("s5", lang), "paragraphs": p5, "rows": [], "lists": lists5}
 
     sections = [s1, s2, s3, s4, s5]
@@ -1560,40 +1823,310 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                  "base_source": rate_res["base_source"], "object_type": rate_res["object_type"],
                  "product_code": rate_res["product_code"], "class_code": rate_res["class_code"],
                  "calibrated": ae.CALIBRATED, "how": [_text(h, lang) for h in rate_res["how"]],
-                 "tariff_version_id": D.get("tariff_version_id"),
+                 "tariff_version_id": D.get("tariff_version_id"), "final_pct": pf["rate_pct"],
                  "multi_class": bool(D.get("multi_class")),
                  "product_classes": (must.get("product_classes") or [])},
-        "premium": {"amount": rate_res["premium"], "term_days": rate_res["term_days"], "currency": "UZS",
-                    "text": money(rate_res["premium"], lang) if rate_res["premium"] is not None else NA},
+        "premium": {"amount": pf["amount"], "term_days": rate_res["term_days"], "currency": "UZS",
+                    "text": money(pf["amount"], lang) if pf["amount"] is not None else NA,
+                    "before_franchise": rate_res["premium"], "rate_pct": pf["rate_pct"],
+                    "franchise_applied": pf["franchise_applied"]},
         "value": {"ratio_pct": value["ratio_pct"], "verdict": value["verdict"], "text": vtext,
                   "legal_ref": value["legal_ref"], "legal_ref_text": legal,
                   "depreciated": value.get("depreciated")},
         "franchise": {"needed": bool(fr.get("needed")), "text": fr_text,
                       "grounds": [{"code": g["code"], "text": _text(g, lang)} for g in fr.get("grounds") or []],
-                      **({"size": fr["size"]} if fr.get("size") else {})},
+                      **({"size": fr["size"]} if fr.get("size") else {}),
+                      **_franchise_extra(fr, fr_how, fr_alts, lang)},
+        "scenarios": scv["json"],
+        "measures": [m["json"] for m in msv["items"]],
+        "measures_summary": msv["summary"],
         "clauses": [{"code": c["code"], "text": c.get(lang) or c.get("ru"), "expert": True,
                      "calibrated": ae.CALIBRATED} for c in D["clauses"]],
-        "discrepancies": [{"key": d["key"], "label": tx.label(tx.FIELD_LABELS, d["key"], lang),
+        "discrepancies": [{"key": d["key"], "label": tx.field_label(d["key"], lang, D["group"]),
                            "values": [{"value": g["value"], "sources": g["sources"],
                                        "source_labels": [tx.label(tx.SOURCE_LABELS, s, lang) for s in g["sources"]]}
                                       for g in d["values"]],
-                           "priority": d["priority"], "text": _disc_text(d, lang)} for d in D["discrepancies"]],
+                           "priority": d["priority"], "text": _disc_text(d, lang, D["group"])} for d in D["discrepancies"]],
         "decision": {"code": dec["code"].replace("d_", ""), "text": t(dec["code"], lang), "checks": checks},
         "missing": missing_labels,
         "inspection": {"done": bool(ins["photos"] and ins["ai"]), "photos": ins["photos"],
                        "views_seen": ins["views_seen"], "missing_views": ins["missing_views"],
                        "damages": ins["damages"], "documents": ins["documents"]},
-        "recognized": recognized_view(rec, lang),
+        "recognized": recognized_view(rec, lang, group=D["group"]),
         "footer": t("footer", lang),
         "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}"},
     }
 
 
+def _premium_final(D: dict) -> dict:
+    """Премия акта: с учётом применённой франшизы; в старых актах (до 29.09.2026) — премия ставки."""
+    pf = D.get("premium_final")
+    if pf:
+        return pf
+    return {"amount": D["rate"]["premium"], "rate_pct": D["rate"]["applied_pct"], "franchise_applied": False}
+
+
+def _signed(x, lang: str) -> str:
+    if x is None:
+        return t("na", lang)
+    return ("−" if x < 0 else "+") + money(abs(x), lang)
+
+
+def _num4(x, lang: str) -> str:
+    s = f"{float(x):.4f}".rstrip("0").rstrip(".")
+    return s if lang == "en" else s.replace(".", ",")
+
+
+_PCT_KEYS = ("pct", "from", "to", "rate", "rate_after", "raw", "min", "cap")
+_MONEY_KEYS = ("amount", "base", "with", "premium", "before", "after", "sum", "value")
+
+
+def _fmt_params(params: dict, lang: str) -> dict:
+    out = {}
+    for k, v in (params or {}).items():
+        name = {"from": "from_", "with": "with_"}.get(k, k)
+        if v is None:
+            out[name] = t("na", lang)
+        elif k in _PCT_KEYS:
+            out[name] = pct(v, lang)
+        elif k == "delta":
+            out[name] = _signed(v, lang)
+        elif k in _MONEY_KEYS:
+            out[name] = money(v, lang)
+        elif k == "mult":
+            out[name] = _num4(v, lang)
+        elif k == "type":
+            out[name] = tx.label(tx.FR_TYPE_LABELS, v, lang)
+        else:
+            out[name] = v
+    return out
+
+
+def _fr_how_text(item: dict, lang: str) -> str:
+    p = item.get("params") or {}
+    code = item["code"]
+    if code == "frh_size" and p.get("from") is not None and p.get("from") == p.get("to"):
+        code = "frh_size_one"                     # вилка с равными границами
+    return t(code, lang, **_fmt_params(p, lang))
+
+
+def _alt_view(a: dict, lang: str) -> dict:
+    ref = a.get("legal_ref")
+    return {"code": a["code"], "text": t(a["code"], lang, **_fmt_params(a.get("params"), lang)),
+            "premium": a.get("premium"), "premium_delta": a.get("premium_delta"),
+            "base_premium": a.get("base_premium"),
+            "legal_ref": tx.label(tx.LEGAL_REFS, ref, lang) if ref else None, "calibrated": ae.CALIBRATED}
+
+
+def _franchise_extra(fr: dict, how: list, alts: list, lang: str) -> dict:
+    """Новые поля блока franchise (29.09.2026). В старых актах их нет — отдаются значения «нет франшизы»."""
+    w = fr.get("warning")
+    return {"status": fr.get("status") or ("statutory" if fr.get("code") == "fr_statutory" else
+                                           "proposed" if fr.get("needed") else "none"),
+            "applied": bool(fr.get("applied")), "applied_by": fr.get("applied_by"),
+            "type": fr.get("type"),
+            "type_label": tx.label(tx.FR_TYPE_LABELS, fr["type"], lang) if fr.get("type") else None,
+            "size_pct": fr.get("size_pct", 0.0), "size_amount": fr.get("size_amount", 0), "cap_pct": fr.get("cap_pct"),
+            "premium_before": fr.get("premium_before"), "premium_after": fr.get("premium_after"),
+            "delta": fr.get("delta"), "delta_pct": fr.get("delta_pct"),
+            "rate_before": fr.get("rate_before"), "rate_after": fr.get("rate_after"),
+            "multiplier": fr.get("multiplier", 1.0), "floor_applied": bool(fr.get("floor_applied")),
+            "how": how, "alternatives": alts,
+            "warning": t(w["code"], lang, **_fmt_params(w.get("params"), lang)) if w else None,
+            "calibrated": ae.CALIBRATED}
+
+
+def _scenarios_view(sc: Optional[dict], must: dict, lang: str) -> dict:
+    """Строки раздела 4, абзац с определениями, списки «как посчитано» и JSON блока scenarios."""
+    NA = t("na", lang)
+    sc = sc or {"available": False, "reason": "sc_na_error", "class_code": must.get("class_code")}
+    # порядок заказчика PML ≤ EML ≤ MFL (с 29.09.2026); старые сохранённые акты — прежние тексты
+    classic = sc.get("order") == ax.SCENARIO_ORDER
+    defs = t("sc_defs_classic" if classic else "sc_defs", lang)
+    js = {"available": bool(sc.get("available")), "class_code": sc.get("class_code"), "rule": sc.get("rule"),
+          "order": sc.get("order") or "legacy", "pml": None, "eml": None, "mfl": None, "tiles": [],
+          "retention": None, "how": [], "assumptions": [], "note": None, "definitions": defs,
+          "calibrated": ae.CALIBRATED}
+    rows, lists = [], []
+    js["assumptions"] = [{"code": a["code"], "text": _assumption_text(a, lang),
+                          "note": "принято по умолчанию" if lang == "ru" else t("sc_assumptions_title", lang)}
+                         for a in sc.get("assumptions") or []]
+    if not sc.get("available"):
+        note = t(sc.get("reason") or "sc_na_error", lang)
+        js["note"] = note
+        rows.append(_row("PML / EML / MFL", t("sc_na", lang), note))
+        if js["assumptions"]:
+            lists.append({"title": t("sc_assumptions_title", lang), "items": [a["text"] for a in js["assumptions"]]})
+        return {"rows": rows, "lists": lists, "paragraph": defs, "json": js}
+    # проценты трёх сценариев — с одинаковым числом знаков: все целые — без дроби, иначе один знак
+    pcts = [sc["items"][s]["pct"] for s in ("PML", "EML", "MFL")]
+    digits = 0 if all(p is not None and float(p) == int(p) for p in pcts) else 1
+    for s, lab in (("PML", "sc_pml"), ("EML", "sc_eml"), ("MFL", "sc_mfl")):
+        it = sc["items"][s]
+        what = _scenario_what(it, lang)
+        pct_text = tx.pct_fixed(it["pct"], lang, digits)
+        js[s.lower()] = {"amount": round(it["amount"]), "pct": it["pct"], "pct_text": pct_text, "what": what,
+                         "what_code": it["what"], "state_code": it.get("state"),
+                         "source_scenario": it.get("source_scenario"),
+                         # формула собрана модулем по-русски — на другом языке акта её не отдаём
+                         "formula": it.get("formula") if lang == "ru" else None, "calibrated": ae.CALIBRATED}
+        js["tiles"].append({"code": s.lower(), "name": s, "label": t(lab, lang), "amount": round(it["amount"]),
+                            "pct": it["pct"], "pct_text": pct_text, "what": what})
+        rows.append(_row(t(lab, lang), t("sc_value", lang, amount=money(it["amount"], lang), pct=pct_text), what))
+    ret = sc.get("retention") or {}
+    tail = None
+    if ret.get("known"):
+        basis = t("sc_ret_basis", lang, own=money(ret.get("own_funds"), lang), res=money(ret.get("reserves"), lang),
+                  limit=money(ret.get("limit_per_risk"), lang), cls=ret.get("line_class") or sc.get("class_code"),
+                  line=money(ret.get("line_retention"), lang) if ret.get("line_retention") is not None else NA,
+                  ret=money(ret.get("limit"), lang))
+        status = t("sc_ret_temporary" if ret.get("status") == "temporary" else "sc_ret_reported", lang)
+        ex = ret.get("mfl_excess")
+        if ret.get("compared_with") == "eml":
+            ee = ret.get("eml_excess")
+            tail = (t("sc_ret_eml_excess", lang, x=money(ee, lang)) if ee else t("sc_ret_eml_within", lang)) + "; " + \
+                (t("sc_ret_mfl_excess", lang, x=money(ex, lang)) if ex else t("sc_ret_mfl_within", lang))
+        else:
+            tail = t("sc_ret_excess", lang, x=money(ex, lang)) if ex else t("sc_ret_within", lang)
+        rows.append(_row(t("sc_retention", lang), money(ret.get("limit"), lang), status + "; " + tail))
+    else:
+        basis = t("sc_ret_unknown", lang)
+        rows.append(_row(t("sc_retention", lang), t("sc_ret_unknown", lang)))
+    legal = ret.get("legal_ref")
+    js["retention"] = {"limit": ret.get("limit"), "known": bool(ret.get("known")), "basis": basis,
+                       "status": ret.get("status"), "limit_per_risk": ret.get("limit_per_risk"),
+                       "line_retention": ret.get("line_retention"), "compared_with": ret.get("compared_with"),
+                       "eml_excess": ret.get("eml_excess"), "within": ret.get("within"),
+                       "mfl_excess": ret.get("mfl_excess"), "text": tail,
+                       "legal_ref": tx.label(tx.LEGAL_REFS, legal, lang) if legal else None}
+    how = [t("sc_how_source", lang, cls=sc.get("class_code"), rule=t("sc_rule_" + sc["rule"], lang))]
+    if classic:
+        how.append(t("sc_how_names", lang))
+    if sc["rule"] != "vehicle" and (sc.get("k") or 1) < 1:
+        how.append(t("sc_how_k", lang, k=_num4(sc["k"], lang)))
+    how.append(basis)
+    js["how"] = how
+    lists.append({"title": t("sc_how_title", lang), "items": how})
+    if js["assumptions"]:
+        lists.append({"title": t("sc_assumptions_title", lang), "items": [a["text"] for a in js["assumptions"]]})
+    return {"rows": rows, "lists": lists, "paragraph": defs, "json": js}
+
+
+def _scenario_what(it: dict, lang: str) -> str:
+    """Подпись сценария: состояние защиты (у имущества) и причина — ровно то, что посчитано."""
+    what = t(it["what"], lang, **(it.get("what_params") or {}))
+    if it.get("state"):
+        what = t(it["state"], lang) + ": " + what
+    return what
+
+
+def _assumption_text(a: dict, lang: str) -> str:
+    p = dict(a.get("params") or {})
+    v = p.get("value")
+    if a["code"] == "as_object_type":
+        p["value"] = _otype_label(v, lang) if v else t("na", lang)
+    elif v is not None and a["code"] in ("as_construction", "as_activity", "as_vehicle_type"):
+        p["value"] = tx.label(tx.RA_VALUE_LABELS, v, lang)
+    return t(a["code"], lang, **p)
+
+
+def _measures_view(ms: Optional[dict], lang: str) -> dict:
+    """Рекомендации страхователю: строки для раздела 5 и JSON (measures[], measures_summary)."""
+    ms = ms or {"items": [], "total": {"count": 0}}
+    out = []
+    for it in ms.get("items") or []:
+        text = (it.get("text") or {}).get(lang) or (it.get("text") or {}).get("ru") or ""
+        why = (it.get("why") or {}).get(lang) or (it.get("why") or {}).get("ru") or ""
+        eff = None
+        if it.get("effect_pct") is not None:
+            eff = ("−" if it["effect_pct"] < 0 else "+") + pct(abs(it["effect_pct"]), lang, 1)
+        if it.get("premium_delta"):
+            effect = t("ms_effect", lang, effect=eff, delta=_signed(it["premium_delta"], lang))
+        elif (ms.get("total") or {}).get("statutory"):
+            effect = t("ms_effect_statutory", lang)
+        elif it.get("effect_pct") is not None and it.get("premium_delta") == 0:
+            effect = t("ms_effect_zero", lang)
+        elif it.get("effect_pct") is not None:
+            effect = t("ms_effect_pct", lang, effect=eff)
+        else:
+            effect = t("ms_effect_na", lang)
+        deadline = t("ms_deadline_default" if it.get("deadline_default") else "ms_deadline", lang,
+                     n=it.get("deadline_days"))
+        line = t("ms_item", lang, text=text.rstrip("."), why=why if why.endswith(".") else why + ".",
+                 deadline=deadline.rstrip("."), mandatory=t("ms_mandatory", lang) if it.get("mandatory") else "",
+                 effect=effect)
+        out.append({"line": line, "json": {
+            "code": it["code"], "text": text, "why": why, "effect_pct": it.get("effect_pct"),
+            "premium_delta": it.get("premium_delta"), "mandatory": bool(it.get("mandatory")),
+            "deadline_days": it.get("deadline_days"), "deadline_default": bool(it.get("deadline_default")),
+            "legal_ref": it.get("legal_ref"), "source": it.get("source"), "effect_text": effect,
+            "calibrated": ae.CALIBRATED}})
+    tot = ms.get("total") or {}
+    summary = {"count": tot.get("count", 0), "with_effect": tot.get("with_effect", 0),
+               "premium_before": tot.get("premium_before"), "premium_after": tot.get("premium_after"),
+               "delta": tot.get("delta"), "floor_applied": bool(tot.get("floor_applied")), "text": None,
+               "calibrated": ae.CALIBRATED}
+    if tot.get("delta"):
+        summary["text"] = t("ms_total", lang, after=money(tot["premium_after"], lang),
+                            before=money(tot["premium_before"], lang))
+        if tot.get("floor_applied"):
+            summary["text"] += " " + t("ms_total_floor", lang)
+    return {"items": out, "summary": summary}
+
+
 def _fr_text(fr: dict, lang: str) -> str:
+    status = fr.get("status")
+    if status == "applied":
+        params = dict(type=tx.label(tx.FR_TYPE_LABELS, fr.get("type") or "unconditional", lang),
+                      pct=pct(fr.get("size_pct"), lang), amount=money(fr.get("size_amount"), lang))
+        if _fr_effect_done(fr):
+            text = t("fr_applied", lang, before=money(fr.get("premium_before"), lang),
+                     after=money(fr.get("premium_after"), lang), **params)
+            text += _fr_effect_notes(fr, lang)
+        else:
+            text = t("fr_applied_na", lang, **params)
+        w = fr.get("warning")
+        if w:
+            text += " " + t(w["code"], lang, **_fmt_params(w.get("params"), lang))
+        return text
+    if status == "statutory" and fr.get("warning"):
+        return t("fr_statutory", lang) + ". " + t("fr_w_statutory", lang)
+    base = _fr_text_base(fr, lang)
+    if status == "proposed" and fr.get("size_pct"):
+        params = dict(type=tx.label(tx.FR_TYPE_LABELS, fr.get("type") or "unconditional", lang),
+                      pct=pct(fr["size_pct"], lang), amount=money(fr.get("size_amount"), lang))
+        if _fr_effect_done(fr):
+            base += t("fr_proposed_tail", lang, before=money(fr.get("premium_before"), lang),
+                      after=money(fr.get("premium_after"), lang), **params)
+            base += _fr_effect_notes(fr, lang)
+        else:
+            base += t("fr_proposed_tail_na", lang, **params)
+    return base
+
+
+def _fr_effect_notes(fr: dict, lang: str) -> str:
+    """Пояснения к премии с франшизой (и применённой, и предложенной): упёрлась в минимум, множитель выше 2 %."""
+    out = ""
+    if fr.get("floor_applied"):
+        out += " " + t("fr_floor_note", lang)
+    if (fr.get("engine") or {}).get("extrapolated"):
+        out += " " + t("fr_extrapolated_note", lang)
+    return out
+
+
+def _fr_effect_done(fr: dict) -> bool:
+    """Эффект франшизы на премию акта посчитан (есть шаг «ставка акта × множитель»)."""
+    return any(h.get("code") == "frh_apply" for h in fr.get("how") or [])
+
+
+def _fr_text_base(fr: dict, lang: str) -> str:
     code = fr.get("code") or "fr_not_needed"
     if code == "fr_advise_range":
         s = fr["size"]
-        if s["from_pct"] <= 0:
+        if s["from_pct"] == s["to_pct"]:           # вилка с равными границами — одно число, а не «от 5 % до 5 %»
+            rng = pct(s["to_pct"], lang)
+            amount = money(s["to_amount"], lang)
+        elif s["from_pct"] <= 0:
             rng = t("fr_range_upto", lang, to=pct(s["to_pct"], lang))
             amount = t("fr_range_upto", lang, to=money(s["to_amount"], lang))
         else:
@@ -1651,7 +2184,11 @@ def act_make(request: Request, body: dict = Body(...)):
                   "decision": D["decision"]["code"], "photos": D["inspection"]["photos"],
                   "ai": D["inspection"]["ai"], "discrepancies": len(D["discrepancies"]),
                   "dropped_pd": D.get("dropped_pd") or 0, "sources_downgraded": D.get("sources_downgraded") or 0,
-                  "lang": lang})
+                  "lang": lang, "franchise": D["franchise"].get("status"),
+                  "scenarios": bool((D.get("scenarios") or {}).get("available")),
+                  "measures": len((D.get("measures") or {}).get("items") or [])})
+        for e in D.get("block_errors") or []:
+            db.audit(con, _who(user, owner), "акт: блок не посчитан", f"act:{aid}", e)
     return _reply(request, out)
 
 

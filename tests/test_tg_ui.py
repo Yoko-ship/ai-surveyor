@@ -238,7 +238,7 @@ def check_guest_photos(html):
     """Фото гостя (лёгкая версия, 29.09.2026): камера, галерея, перетаскивание, буфер — одним POST /act/photos."""
     must = {'"/act/photos"': "фото не уходят на распознавание",
             'id="chatFile"': "нет поля выбора файлов",
-            'accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,image/*,application/pdf"': "форматы файлов не ограничены фото и PDF",
+            'accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,': "форматы файлов не ограничены фото, PDF, DOCX и XLSX",
             'function wzToJpeg': "картинки других форматов (WEBP, HEIC) не переводятся в JPG",
             'errHtml(CH.err)': "отказ сервера (413, 422, 429) показывается не его словами"}
     miss = [why for key, why in must.items() if key not in html]
@@ -517,6 +517,38 @@ def check_chat_tab(html):
         "back = CH.wz > 1 ? wzBack : null": "«Назад» Telegram не ведёт на шаг раньше",
         'color: "#6D4AE8"': "основная кнопка Telegram не фиолетовая",
         'id="topbar"': "нет строки заголовка раздела",
+        # 29.09.2026: документы без модели, prefill, уточнения сценариев, франшиза, PML/EML/MFL, рекомендации
+        'CH_EXT = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"]': "DOCX и XLSX не принимаются",
+        'T("tg.act.st_parsed", "документ разобран")': "у разобранного документа нет пометки «документ разобран»",
+        "docKindName(q.kind, q.kindLabel)": "не показан вид разобранного документа",
+        "function wzApplyPrefill(": "prefill из документа не подставляется",
+        'T("tg.act.pre_mark", "из документа — проверьте")': "у подставленного значения нет пометки «из документа — проверьте»",
+        "cur == null || cur === \"\" || CH.pre[key]": "prefill затирает то, что сотрудник ввёл сам",
+        "opt.term_days = Number(o.term_days)": "срок страхования не уходит в акт",
+        "opt.protection = o.protection": "защита объекта не уходит в акт",
+        "opt.seismic_zone = Number(o.seismic_zone)": "сейсмическая зона не уходит в акт",
+        "opt.construction = o.construction": "конструкция не уходит в акт",
+        "opt.activity = o.activity": "деятельность не уходит в акт",
+        'PROT_CODES = {"3": ["none", "alarm", "immo", "tracker"], "8": ["none", "alarm", "alarm_guard", "sprinkler"]}':
+            "варианты защиты не совпадают с сервером (act_extras.PROT_CODES)",
+        "opt.deductible = f.unit === \"amount\"": "франшиза сотрудника не уходит в акт",
+        'T("tg.act.fr_off", "Не применять")': "нет переключателя «Не применять / Применить свою»",
+        'p.pricing_mode === "нормативный акт"': "для обязательных видов блок франшизы не скрывается",
+        "deductible: \"fr\"": "ошибка франшизы 422 не показывается у блока",
+        "function actFrHtml(": "франшиза в сводке акта не показана",
+        'data-go="frapply"': "у предложенной франшизы нет кнопки «Применить»",
+        "function actFrApply(": "«Применить» не возвращает на шаг 2 и не пересобирает акт",
+        "f.warning": "предупреждение о потолке франшизы не показано",
+        "function actScenHtml(": "нет плиток PML / EML / MFL",
+        'T("tg.act.ret_title", "Лимит собственного удержания")': "нет строки лимита собственного удержания",
+        'T("tg.act.ret_unknown", "не задан")': "не сказано, что лимит удержания не задан",
+        'T("tg.act.ret_temp"': "временные собственные средства не помечены на экране",
+        'T("tg.act.sc_assumed", "Принято по умолчанию · {n}"': "допущения не свёрнуты в «Принято по умолчанию»",
+        "function actMeasuresHtml(": "нет блока «Рекомендации страхователю»",
+        "a.measures_summary": "нет итога рекомендаций",
+        'T("tg.act.alt_title", "Вместо франшизы можно")': "нет блока «Вместо франшизы можно»",
+        '<details class="act-s"': "разделы акта не сворачиваются",
+        "fr: CH.fr": "франшиза не хранится в sessionStorage",
     }
     miss = [why for key, why in must.items() if key not in html]
     assert not miss, "мастер ИИ-сюрвейера: " + "; ".join(miss)

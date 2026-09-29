@@ -1090,17 +1090,20 @@ def _apply_pattern(name: str, value: str) -> Optional[str]:
     return None
 
 
-def extract_fields(text: str, tables: list, kind: str, language: str = None) -> List[dict]:
+def extract_fields(text: str, tables: list, kind: str, language: str = None, *,
+                   use_llm: bool = True, with_reg_no: bool = False) -> List[dict]:
     """
     Поля документа регулярками и подписями. Персональные данные не извлекаются (PD-01).
     Каждое поле: ключ, название, значение, откуда взято, уверенность и метод.
+    use_llm=False — техпаспорт и кадастр без ИИ-дозаполнения; with_reg_no — госномер ТС (по запросу).
     """
     lines = _lines(text, tables)
     out, seen = [], set()
 
     # техпаспорт и кадастр разбирает docparse — там подписи, нормы и предупреждения
     if kind in D.FIELDS:
-        parsed = D.parse_text(text if not tables else "\n".join(lines), kind)
+        parsed = D.parse_text(text if not tables else "\n".join(lines), kind, with_reg_no=with_reg_no,
+                              use_llm=use_llm)
         for it in parsed.get("поля") or []:
             if it.get("значение") is None or it["поле"] in seen:
                 continue
@@ -1192,6 +1195,7 @@ def _find_labelled(lines: List[str], field: dict) -> Optional[dict]:
     for use_fold in (False, True):
         labels = field["folded"] if use_fold else sorted(field["labels"], key=len, reverse=True)
         for i, line in enumerate(lines):
+            D.tick()                               # срок разбора акта (без срока — ничего не делает)
             if D.is_personal_label(line):          # строка про человека — пропускаем (PD-01)
                 continue
             got = D._tail_after_label(line, labels, use_fold)
@@ -1533,6 +1537,7 @@ def extract_contract_terms(text: str, tables: list = None) -> List[dict]:
         if pattern == "money":
             mv = None
             for ln in lines:                   # строка с подписью целиком: там и множитель, и валюта
+                D.tick()
                 if D.is_personal_label(ln):
                     continue
                 got = D._tail_after_label(ln, [hit["label"]], False) or \

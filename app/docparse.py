@@ -27,7 +27,11 @@
 """
 import json
 import re
+import threading
+import time
+from contextlib import contextmanager
 from datetime import date
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
@@ -37,6 +41,37 @@ from pydantic import BaseModel
 from . import db
 
 router = APIRouter()
+
+
+# --------------------------------------------------------------------------- #
+# Срок разбора (app/act.py): проверяется внутри циклов поиска подписей, чтобы поток
+# действительно освобождался. Срок не задан (все прежние вызовы) — проверка ничего не делает.
+# --------------------------------------------------------------------------- #
+
+class ParseTimeout(Exception):
+    """Разбор документа не уложился в отведённое время."""
+
+
+_deadline = threading.local()
+
+
+@contextmanager
+def deadline_scope(seconds: Optional[float]):
+    """Срок разбора для текущего потока: tick() после него бросает ParseTimeout."""
+    prev = getattr(_deadline, "at", None)
+    _deadline.at = (time.monotonic() + max(0.0, float(seconds))) if seconds is not None else None
+    if prev is not None and _deadline.at is not None:
+        _deadline.at = min(prev, _deadline.at)       # вложенный срок не продлевает внешний
+    try:
+        yield
+    finally:
+        _deadline.at = prev
+
+
+def tick() -> None:
+    at = getattr(_deadline, "at", None)
+    if at is not None and time.monotonic() > at:
+        raise ParseTimeout()
 
 ROOT = Path(__file__).resolve().parent.parent
 LAWYER_NOTE = ROOT / "docs" / "Документы объекта — поля для автозаполнения.md"
@@ -406,6 +441,13 @@ REGIONS = {
 }
 
 
+# Кэш по строке: поиск подписей проходит каждую строку документа для каждого поля (десятки раз),
+# и без кэша свёртка одной и той же строки считалась заново — разбор XLSX 200×60 шёл 30+ секунд.
+# Длинные тексты (весь документ целиком) не кэшируются: они считаются один раз и заняли бы память.
+FOLD_CACHE_MAX_LEN = 4000
+FOLD_CACHE_SIZE = 16384
+
+
 def norm(text: str) -> str:
     """
     Текст к единому виду для сравнения подписей: нижний регистр, один апостроф, без ё.
@@ -414,6 +456,17 @@ def norm(text: str) -> str:
     (docs/ingest_dicts.json, токены «[a-zа-яўқғҳ']+» — кириллица и апостроф обязаны сохраниться).
     Свёртка узбекской латиницы и кириллицы сделана отдельной функцией fold() ниже.
     """
+    if text and isinstance(text, str) and len(text) <= FOLD_CACHE_MAX_LEN:
+        return _norm_cached(text)
+    return _norm_raw(text)
+
+
+@lru_cache(maxsize=FOLD_CACHE_SIZE)
+def _norm_cached(text: str) -> str:
+    return _norm_raw(text)
+
+
+def _norm_raw(text: str) -> str:
     t = (text or "").lower().replace("ё", "е")
     for a in APOSTROPHES:
         t = t.replace(a, "'")
@@ -506,6 +559,19 @@ def fold_map(text: str, lang: str = None):
     lang: "en" — узбекские правила не применять совсем; другой язык — применять ко всему;
     не указан — решаем по каждому слову (см. _english_flags).
     """
+    if text and isinstance(text, str) and len(text) <= FOLD_CACHE_MAX_LEN:
+        folded, idx = _fold_map_cached(text, lang)
+        return folded, list(idx)           # копия: вызывающий получает свой список, как раньше
+    return _fold_map_raw(text, lang)
+
+
+@lru_cache(maxsize=FOLD_CACHE_SIZE)
+def _fold_map_cached(text: str, lang: Optional[str]):
+    folded, idx = _fold_map_raw(text, lang)
+    return folded, tuple(idx)
+
+
+def _fold_map_raw(text: str, lang: str = None):
     src = norm(text)                       # нижний регистр, ё→е, один апостроф
     en_src = _english_flags(src, lang)
     buf, idx, en = [], [], []
@@ -548,7 +614,9 @@ def fold_map(text: str, lang: str = None):
 
 def fold(text: str, lang: str = None) -> str:
     """Свёрнутое написание строки — для сравнения подписей и маркеров на четырёх написаниях."""
-    return fold_map(text, lang)[0]
+    if text and isinstance(text, str) and len(text) <= FOLD_CACHE_MAX_LEN:
+        return _fold_map_cached(text, lang)[0]
+    return _fold_map_raw(text, lang)[0]
 
 
 def _normalize_labels():
@@ -615,6 +683,17 @@ def is_object_label(line: str) -> bool:
 
 def is_personal_label(line: str) -> bool:
     """Строка подписана как персональные данные — значение из неё не берём (PD-01)."""
+    if line and isinstance(line, str) and len(line) <= FOLD_CACHE_MAX_LEN:
+        return _is_personal_cached(line)
+    return _is_personal_raw(line)
+
+
+@lru_cache(maxsize=FOLD_CACHE_SIZE)
+def _is_personal_cached(line: str) -> bool:
+    return _is_personal_raw(line)
+
+
+def _is_personal_raw(line: str) -> bool:
     n = norm(line)
     f = fold(line)                       # второй заход: другое написание той же подписи
     if any(p in n for p in PERSONAL_LABELS) or any(p in f for p in PERSONAL_FOLDED):
@@ -793,6 +872,7 @@ def find_field(lines: List[str], field: dict) -> Optional[dict]:
         if not use:
             continue
         for i, line in enumerate(lines):
+            tick()
             if is_personal_label(line):             # строка про человека — пропускаем целиком
                 continue
             got = _tail_after_label(line, use, use_fold)
@@ -880,8 +960,9 @@ def ai_fill(fields: list, values: dict, for_valuation: dict, text: str, doc_kind
     return filled
 
 
-def parse_text(text: str, doc_kind: str, with_reg_no: bool = False) -> dict:
-    """Разбор готового текста документа. Отдельно от чтения файла — так его удобно проверять тестом."""
+def parse_text(text: str, doc_kind: str, with_reg_no: bool = False, use_llm: bool = True) -> dict:
+    """Разбор готового текста документа. Отдельно от чтения файла — так его удобно проверять тестом.
+    use_llm=False — без ИИ-дозаполнения (сюрвейерский акт разбирает документы только подписями)."""
     if doc_kind not in FIELDS:
         raise ValueError("разбираем только: " + ", ".join(DOC_KINDS))
     lines = [ln.strip() for ln in (text or "").splitlines()]
@@ -927,7 +1008,7 @@ def parse_text(text: str, doc_kind: str, with_reg_no: bool = False) -> dict:
                        "пояснение": m["why"], "норма": m["norm"],
                        "подтверждено_нормой": True, "сверено_с_бланком": False})
 
-    ai = ai_fill(fields, values, for_valuation, text, doc_kind)
+    ai = ai_fill(fields, values, for_valuation, text, doc_kind) if use_llm else {}
     found += len(ai)
 
     total = len(FIELDS[doc_kind])

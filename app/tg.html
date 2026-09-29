@@ -759,6 +759,81 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .act-list.disc{padding:10px 12px;border:1px solid var(--warn);border-radius:12px}
 .act-list li.disc{color:var(--warn);font-weight:600}
 .act-foot{margin:var(--s4) 0 0;padding-top:var(--s2);border-top:1px solid var(--line);font-size:13.5px;font-weight:700;font-style:italic}
+/* разделы акта сворачиваются: заголовок раздела — кнопка */
+.act-doc-top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin:0 0 var(--s2)}
+.act-doc-top .eyebrow{margin:0;white-space:nowrap}
+.act-doc-top .btn-link{flex:0 1 auto;width:auto;min-height:44px;padding:0 4px;font-size:13.5px;text-align:right}
+details.act-s{border-top:1px solid var(--line);margin-top:var(--s3);padding-top:4px}
+details.act-s>summary{list-style:none;display:flex;align-items:center;gap:10px;min-height:48px;cursor:pointer;border-radius:10px}
+details.act-s>summary::-webkit-details-marker{display:none}
+details.act-s>summary h3{flex:1 1 auto;min-width:0;margin:0}
+details.act-s>summary::after{content:"";flex:none;width:8px;height:8px;margin:0 6px 4px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+details.act-s[open]>summary::after{transform:rotate(-135deg);margin:4px 6px 0 0}
+details.act-s>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+details.act-s[open]>summary{margin-bottom:6px}
+/* шаг 1–2: разобранный документ и значения «из документа» */
+.wz-file small.ok{color:var(--good)}
+.note.doc-ok{margin:0 0 6px;color:var(--good);font-weight:600}
+.pre-tag{display:inline-block;padding:1px 8px;border:1px solid var(--accent-line);border-radius:6px;background:var(--accent-bg);
+  color:var(--accent);-webkit-text-fill-color:var(--accent);font:600 11px/1.5 var(--sans);letter-spacing:0;text-transform:none}
+.hint.pre-diff{color:var(--warn)}
+input.w-short{max-width:220px}
+/* франшиза в «Дополнительно» */
+.fr-set{margin-top:var(--s2);padding-top:var(--s2);border-top:1px solid var(--line)}
+.fr-set .segsel{margin-top:6px}
+.fr-val{display:flex;align-items:center;gap:8px;max-width:260px;margin-top:8px}
+.fr-val input{flex:1 1 auto;min-width:0}
+.fr-val .unit{flex:none;font-weight:600;color:var(--muted)}
+.fr-val.bad input{border-color:var(--stop)}
+.fr-set.flash{animation:frflash 1.6s ease-out}
+@keyframes frflash{0%{background:var(--accent-bg)}100%{background:transparent}}
+@media (prefers-reduced-motion:reduce){.fr-set.flash{animation:none}}
+/* шаг 3: франшиза в сводке */
+.fr-box{color:var(--ink);margin-top:var(--s3);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
+.fr-box.prop{border-color:var(--accent-line);background:var(--accent-bg)}
+.fr-h{margin:0;color:var(--ink);font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.fr-sub{margin:4px 0 0;font-size:13px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.fr-move{margin:6px 0 0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+.fr-move span{color:var(--muted)}
+.fr-move s{color:var(--muted);font-family:var(--mono)}
+.fr-move b{font:700 16px/1.3 var(--mono)}
+.fr-move em{display:inline-block;font-style:normal;font-size:12.5px;color:var(--good)}
+.fr-warn{margin:8px 0 0;font-size:13px;line-height:1.45;color:var(--warn);font-weight:600}
+.fr-box .btn{margin-top:10px}
+details.mini{margin-top:8px}
+details.mini>summary{display:list-item;padding:8px 0;cursor:pointer;color:var(--link);-webkit-text-fill-color:var(--link);font-size:13px;font-weight:600}
+details.mini>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+details.mini ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--ink)}
+details.mini li{margin:3px 0;overflow-wrap:anywhere}
+/* шаг 3: сценарии, рекомендации, альтернативы франшизе */
+.act-card h2{margin-bottom:10px}
+.sc-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+@media (min-width:600px){.sc-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.sc-t{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
+.sc-t p{margin:0;font-size:12px;line-height:1.35;color:var(--muted)}
+.sc-t p b{margin-right:6px;color:var(--ink);font:800 13px/1.35 var(--mono)}
+.sc-t strong{display:block;margin-top:4px;font:700 17px/1.3 var(--mono);overflow-wrap:anywhere}
+.sc-t span{display:block;font-size:12.5px;font-weight:600;color:var(--accent)}
+.sc-t small{display:block;margin-top:4px;font-size:12.5px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.sc-ret{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:14px}
+.sc-ret span{color:var(--muted)}
+.sc-ret b{font:700 15px/1.3 var(--mono)}
+.sc-ret small{flex:1 0 100%;font-size:12.5px;color:var(--muted)}
+.sc-ret small.warn{color:var(--warn)}
+.act-card>.note{margin:8px 0 0}
+.ms{list-style:none;margin:0;padding:0}
+.ms li{padding:10px 0;border-top:1px solid var(--line);min-width:0}
+.ms li:first-child{border-top:0;padding-top:4px}
+.ms li.must{box-shadow:inset 3px 0 0 var(--warn);padding-left:12px}
+.ms-t{margin:0;font-size:14px;font-weight:600;line-height:1.45;overflow-wrap:anywhere}
+.ms-t .tag.must{border-color:var(--warn);color:var(--warn);margin-left:8px}
+.ms-why{margin:3px 0 0;font-size:13px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.ms-meta{display:flex;flex-wrap:wrap;gap:2px 14px;margin:5px 0 0;font-size:12.5px;line-height:1.4}
+.ms-meta span{overflow-wrap:anywhere}
+.ms-meta span.ok{color:var(--good)}
+.ms-sum{margin:6px 0 0;padding-top:10px;border-top:1px solid var(--line);font-size:13.5px;line-height:1.5;overflow-wrap:anywhere}
+.alt{margin:0;padding-left:18px;font-size:14px;line-height:1.5}
+.alt li{margin:4px 0;overflow-wrap:anywhere}
 /* закреплённая кнопка шага: внизу экрана, в колонке содержимого (вне Telegram) */
 .wz-bar{position:fixed;left:calc(var(--rail) + env(safe-area-inset-left));right:0;bottom:0;z-index:45;background:var(--card);
   border-top:1px solid var(--line);padding:12px var(--s3) calc(env(safe-area-inset-bottom) + 12px)}
@@ -939,7 +1014,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent-line)}
     <div id="wzBody"></div>
     <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.act.no_photos">Без фото</button></div></div>
     <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
-    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,image/*,application/pdf" hidden>
+    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
   </section>
@@ -2065,8 +2140,11 @@ function calcRepaint(){ calcPaint(); }
    ИИ-сюрвейер — лёгкая версия (ТЗ 2.0 от 29.09.2026: docs/ТЗ — Мини-приложение ИИ-сюрвейер (лёгкая версия).md).
    Мастер из трёх шагов:
      1 «Фото»      — камера, галерея и файлы, перетаскивание, вставка из буфера. Файлы копятся в списке
-                     и по «Дальше» уходят одним POST /act/photos (до 10 файлов; JPG, PNG, PDF — WEBP и HEIC
-                     переводятся в JPG здесь же). Снимки читает языковая модель; пока читает — «Читаю фото…».
+                     и по «Дальше» уходят одним POST /act/photos (до 10 файлов; JPG, PNG, PDF, DOCX, XLSX — WEBP
+                     и HEIC переводятся в JPG здесь же). Снимки читает языковая модель; DOCX, XLSX и PDF с текстом
+                     сервер разбирает без неё («документ разобран · вид»), их prefill подставляется на шаге 2.
+                     Шаг 2 «Дополнительно»: защита, сейсмичность, конструкция, деятельность (по классу) и франшиза
+                     сотрудника; шаг 3: франшиза (применена / предложена), PML/EML/MFL, рекомендации, альтернативы.
      2 «Проверить» — распознанное (у каждого значения источник и «проверьте», любое можно исправить;
                      разные значения одного поля из разных источников — расхождение), видимые повреждения,
                      каких ракурсов не хватает, четыре обязательных поля и «Дополнительно».
@@ -2084,9 +2162,14 @@ const CH_KEY = "surveyor_act";
 const CH_REGION = "surveyor_region";
 const CH_MAX_FILES = 10;                   // app/act.py: MAX_FILES
 const CH_MAX_MB = 15;                      // app/act.py: MAX_BYTES
-const CH_EXT = ["pdf", "jpg", "jpeg", "png"];
+const CH_EXT = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"];
+// DOCX и XLSX сервер разбирает без модели (app/act_extras.parse_document); текстовый PDF — тоже
+const MIME_DOCS = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+const FR_OFF = () => ({on: false, type: "unconditional", unit: "pct", pct: "", amount: null});
 const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue: [], upPct: 0, filesDirty: false,
-  session: "", ai: null, photoCount: 0, rec: [], damages: [], missingViews: [], requiredViews: [], suggest: [],
+  session: "", ai: null, photoCount: 0, modelN: 0, rec: [], damages: [], missingViews: [], requiredViews: [], suggest: [],
+  docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
   msg: "", notes: [], warning: "", upLang: "", stale: false,
   must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
   refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false};
@@ -2113,9 +2196,79 @@ function recLabel(key, fallback){
     case "color": return T("tg.act.f.color", "Цвет");
     case "mileage": return T("tg.act.f.mileage", "Пробег / моточасы");
     case "location": return T("tg.act.f.location", "Место эксплуатации");
+    // значения из разобранных документов (DOCX, XLSX, PDF с текстом)
+    case "sum_insured": return T("tg.an.f.sum_insured", "Страховая сумма");
+    case "object_value": return T("tg.an.f.object_value", "Стоимость объекта");
+    case "term_days": return T("tg.act.f.term_days", "Срок страхования, дней");
+    case "region": return T("tg.an.f.region", "Регион");
+    case "construction": return T("tg.act.f.construction", "Конструкция, материал стен");
+    case "reg_no": return T("tg.act.f.reg_no", "Государственный номер");
+    case "cadastre_no": return T("tg.act.f.cadastre_no", "Кадастровый номер");
     default: return fallback || key;
   }
 }
+/* вид разобранного документа: код сервера (DOC_KIND_LABELS в app/act_texts.py) → подпись на языке интерфейса */
+function docKindName(code, fallback){
+  switch (code) {
+    case "договор": return T("tg.act.dk.contract", "договор");
+    case "техпаспорт": return T("tg.act.dk.tech_passport", "техпаспорт");
+    case "кадастр": return T("tg.act.dk.cadastre", "кадастровый документ");
+    case "отчёт оценщика": return T("tg.act.dk.valuation", "отчёт оценщика");
+    case "выписка": return T("tg.act.dk.statement", "выписка");
+    case "штатное расписание": return T("tg.act.dk.staff_list", "штатное расписание");
+    case "прочее": return T("tg.act.dk.other", "документ");
+    default: return fallback ? String(fallback) : "";
+  }
+}
+/* уточнения для сценариев убытка — те значения, что принимает POST /act/make
+   (app/act_extras.py: PROT_CODES, CONSTRUCTIONS, ACTIVITIES; подписи — app/risk_analytics.py и act_texts.RA_VALUE_LABELS) */
+const PROT_CODES = {"3": ["none", "alarm", "immo", "tracker"], "8": ["none", "alarm", "alarm_guard", "sprinkler"]};
+const CONSTRUCTIONS = ["reinforced", "mixed", "wood"];
+const ACTIVITIES = ["office", "warehouse", "food", "flammable"];
+const SEISMIC = ["5", "6", "7", "8", "9", "10"];
+const FR_TYPES = ["unconditional", "conditional", "peril"];
+const isProp = cls => cls === "8" || cls === "9";
+function protCodes(cls){ return cls === "3" ? PROT_CODES["3"] : isProp(cls) ? PROT_CODES["8"] : []; }
+function protName(cls, c){
+  if (cls === "3") {
+    switch (c) {
+      case "none": return T("tg.act.prot3.none", "нет противоугонной системы");
+      case "alarm": return T("tg.act.prot3.alarm", "сигнализация");
+      case "immo": return T("tg.act.prot3.immo", "сигнализация и иммобилайзер");
+      default: return T("tg.act.prot3.tracker", "спутниковый поиск");
+    }
+  }
+  switch (c) {
+    case "none": return T("tg.act.prot8.none", "нет сигнализации и охраны");
+    case "alarm": return T("tg.act.prot8.alarm", "пожарная сигнализация");
+    case "alarm_guard": return T("tg.act.prot8.alarm_guard", "сигнализация и охрана");
+    default: return T("tg.act.prot8.sprinkler", "сигнализация, охрана, спринклеры");
+  }
+}
+function consName(c){
+  switch (c) {
+    case "reinforced": return T("tg.act.cons.reinforced", "железобетон, кирпич");
+    case "mixed": return T("tg.act.cons.mixed", "смешанные конструкции");
+    default: return T("tg.act.cons.wood", "дерево, сэндвич-панели");
+  }
+}
+function actvName(c){
+  switch (c) {
+    case "office": return T("tg.act.actv.office", "офис, торговля");
+    case "warehouse": return T("tg.act.actv.warehouse", "склад общего назначения");
+    case "food": return T("tg.act.actv.food", "пищевое производство");
+    default: return T("tg.act.actv.flammable", "работа с горючими материалами");
+  }
+}
+function frTypeName(c){
+  switch (c) {
+    case "conditional": return T("tg.act.frt.conditional", "условная");
+    case "peril": return T("tg.act.frt.peril", "по отдельному риску");
+    default: return T("tg.act.frt.unconditional", "безусловная");
+  }
+}
+/* число знаков после запятой — сколько есть у значения (до 4) */
+const dp = v => Number(v) % 1 ? Math.min(4, (String(v).split(".")[1] || "").length) : 0;
 function srcName(s){
   switch (s) {
     case "photo": return T("tg.act.src.photo", "с фото объекта");
@@ -2203,6 +2356,9 @@ function wzSave(){
       rec: CH.rec.map(r => ({key: r.key, value: r.value, source: r.source, file: r.file || null, orig: r.orig || null})),
       damages: CH.damages.map(d => ({what: d.what, where: d.where || null})),
       missing: CH.missingViews, required: CH.requiredViews, suggest: CH.suggest,
+      // разобранные документы — только номер в запросе, вид и число значений; франшиза и пометки «из документа»
+      docs: CH.docs.map(d => ({index: d.index, kind: d.kind, text_layer: d.text_layer, values: d.values})), model: CH.modelN,
+      pre: CH.pre, preDoc: CH.preDoc, seeded: CH.seeded, fr: CH.fr,
       must: CH.must, opt: CH.opt, act: CH.actId}));
   } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
 }
@@ -2225,6 +2381,15 @@ function wzLoad(){
   CH.suggest = arr(s.suggest).map(String);
   CH.must = obj(s.must);
   CH.opt = obj(s.opt);
+  CH.docs = arr(s.docs).filter(d => d && Number.isInteger(d.index))
+    .map(d => ({index: d.index, kind: d.kind ? String(d.kind) : null, text_layer: !!d.text_layer, values: Number(d.values) || 0}));
+  CH.modelN = Number(s.model) || 0;
+  CH.pre = obj(s.pre);
+  CH.preDoc = obj(s.preDoc);
+  CH.seeded = !!s.seeded;
+  const f = obj(s.fr);
+  CH.fr = {on: !!f.on, type: FR_TYPES.indexOf(f.type) >= 0 ? f.type : "unconditional", unit: f.unit === "amount" ? "amount" : "pct",
+    pct: typeof f.pct === "string" ? f.pct.slice(0, 6) : "", amount: Number(f.amount) > 0 ? Number(f.amount) : null};
   CH.actId = typeof s.act === "string" && /^[0-9a-f]{16}$/.test(s.act) ? s.act : "";
   CH.stale = CH.photoCount > 0;           // файлы в памяти страницы не пережили перезагрузку
 }
@@ -2233,7 +2398,7 @@ function wzSeedRegion(){
   if (CH.must.region) return;
   let saved = "";
   try { saved = localStorage.getItem(CH_REGION) || ""; } catch (e) {}
-  if (REGIONS.indexOf(saved) >= 0) CH.must.region = saved;
+  if (REGIONS.indexOf(saved) >= 0) { CH.must.region = saved; CH.seeded = true; }   // регион из документа его заменит
 }
 
 /* ---------- справочник продуктов: тот же, что у «Калькулятора» ---------- */
@@ -2357,7 +2522,7 @@ function wzPaint(force){
 function wzPart(name){
   const map = {files: ["wzFiles", wzFilesHtml], views: ["wzViews", wzViewsHtml], rec: ["wzRec", wzRecHtml],
     prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], region: ["wzRegion", wzRegionHtml],
-    more: ["wzMoreBox", wzMoreHtml]};
+    more: ["wzMoreBox", wzMoreHtml], fr: ["wzFr", wzFrHtml], term: ["wzTerm", wzTermHtml]};
   const m = map[name];
   const el = m && document.getElementById(m[0]);
   if (!el) return;
@@ -2375,7 +2540,8 @@ function wzStep1Html(){
     + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Галерея / файлы")) + "</span></button>"
     + "</div>"
     + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
-    + '<p class="hint">' + esc(T("tg.act.formats", "JPG, PNG, WEBP, HEIC, PDF · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
+    + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
+    + '<p class="hint">' + esc(T("tg.act.formats_docs", "Договор, заявление или выписку в Word, Excel или PDF с текстом приложение разберёт само, без модели: сумму, стоимость, срок и регион подставит на следующем шаге.")) + "</p>"
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
     + '<div id="wzViews">' + wzViewsHtml() + "</div>"
     + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
@@ -2401,6 +2567,14 @@ function wzFilesHtml(){
     let state, cls = "";
     if (CH.busy && !q.error) state = CH.phase === "read" ? T("tg.act.st_reading", "читаю…") : T("tg.wz.sending", "отправляю…");
     else if (q.error) { state = q.error; cls = "err"; }
+    else if (q.sent && q.parsed) {
+      // документ с текстом разобран сервером без модели: вид документа и сколько значений взято
+      const kind = docKindName(q.kind, q.kindLabel);
+      state = T("tg.act.st_parsed", "документ разобран") + (kind ? " · " + kind : "")
+        + (q.values ? " · " + T("tg.act.st_values", "значений: {n}", {n: q.values}) : "");
+      cls = "ok";
+    }
+    else if (q.sent && q.isDoc) { state = T("tg.act.st_doc_empty", "документ не разобран — введите данные сами"); cls = "warn"; }
     else if (q.sent && q.notRead) { state = T("tg.act.st_not_read", "не прочитан: не поместился в запрос"); cls = "warn"; }
     else if (q.sent) state = q.view ? T("tg.act.st_view", "прочитан · {v}", {v: viewName(q.view)}) : T("tg.act.st_sent", "прочитан");
     else state = T("tg.act.st_queued", "уйдёт по кнопке «Дальше»");
@@ -2436,7 +2610,8 @@ function wzViewsHtml(){
 const WZ_CONVERT = /\.(webp|gif|bmp|avif|heic|heif|jfif|tiff?)$/i;
 function wzNeedsConvert(f){
   const name = String(f.name || ""), type = String(f.type || "");
-  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png|pdf)$/i.test(name) || type === "application/pdf") return false;
+  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png|pdf|docx|xlsx)$/i.test(name) || type === "application/pdf"
+      || MIME_DOCS.indexOf(type) >= 0) return false;
   return /^image\//.test(type) || WZ_CONVERT.test(name);
 }
 function wzToJpeg(f){
@@ -2482,8 +2657,9 @@ async function wzAddFiles(files){
     const name = String(f.name || "");
     const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
     const type = String(f.type || "");
-    const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf";
-    if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC или PDF.", {name: name || "?"})); return; }
+    const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf"
+      || MIME_DOCS.indexOf(type) >= 0;
+    if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC, PDF, DOCX или XLSX. Старые DOC и XLS пересохраните в новом формате.", {name: name || "?"})); return; }
     if (f.size > CH_MAX_MB * 1048576) { bad.push(T("tg.wz.too_big", "{name}: файл больше {mb} МБ — сожмите его или разделите.", {name: name, mb: CH_MAX_MB})); return; }
     if (CH.queue.length >= CH_MAX_FILES) { over = true; return; }
     const img = /^image\//.test(type);
@@ -2589,14 +2765,24 @@ function actMarkRejected(list, rejected){
 function actApplyPhotos(d, list){
   actMarkRejected(list, d.rejected || []);
   const files = Array.isArray(d.files) ? d.files : [];
+  const docs = (Array.isArray(d.documents) ? d.documents : []).filter(x => x && Number.isInteger(Number(x.index)));
   files.forEach(f => {
     const q = byIndex(list, f);
     if (!q || q.error) return;
+    const doc = docs.filter(x => Number(x.index) === Number(f.index))[0] || null;
     q.sent = true;
     q.view = f.view || null;
-    // модель работала, но этот файл в запрос к ней не поместился
-    q.notRead = !!d.ai && f.read_by_ai === false;
+    q.parsed = !!f.parsed;
+    q.isDoc = f.format === "docx" || f.format === "xlsx";
+    q.kind = doc && doc.kind ? String(doc.kind) : null;
+    q.kindLabel = doc && doc.kind_label ? String(doc.kind_label) : "";
+    q.values = doc ? Number(doc.values) || 0 : 0;
+    // модель работала, но этот снимок в запрос к ней не поместился (разобранный документ в модель и не уходит)
+    q.notRead = !!d.ai && f.read_by_ai === false && !q.parsed && !q.isDoc;
   });
+  CH.docs = docs.map(x => ({index: Number(x.index), kind: x.kind ? String(x.kind) : null, text_layer: !!x.text_layer,
+    values: Number(x.values) || 0}));
+  CH.modelN = files.filter(f => !f.parsed && f.format !== "docx" && f.format !== "xlsx").length;
   CH.filesDirty = false;
   CH.stale = false;
   CH.session = String(d.session || "");
@@ -2620,6 +2806,48 @@ function actApplyPhotos(d, list){
   CH.missingViews = (d.missing_views || []).map(v => String(v.code || v));
   CH.requiredViews = (d.required_views || []).map(v => String(v.code || v));
   CH.suggest = (d.suggest_classes || []).map(String);
+  CH.preDoc = {};
+  wzApplyPrefill(d.prefill && typeof d.prefill === "object" ? d.prefill : {});
+}
+/* prefill из документа → поля шага 2 с пометкой «из документа — проверьте».
+   Что сотрудник уже ввёл сам, не затирается: значение документа остаётся подсказкой «в документе: …».
+   Регион, подставленный из прошлого раза (а не выбранный сейчас), документ заменяет. */
+function wzApplyPrefill(pf){
+  const take = (key, box, value) => {
+    CH.preDoc[key] = value;
+    const cur = box[key];
+    if (cur == null || cur === "" || CH.pre[key] || (key === "region" && CH.seeded)) {
+      box[key] = value;
+      CH.pre[key] = true;
+      if (key === "region") CH.seeded = false;
+    }
+  };
+  ["sum_insured", "object_value"].forEach(k => {
+    const v = pf[k] && Number(pf[k].value);
+    if (v > 0 && isFinite(v)) take(k, CH.must, v);
+  });
+  const days = pf.term_days && Number(pf.term_days.value);
+  if (Number.isInteger(days) && days >= 1 && days <= 3660) take("term_days", CH.opt, String(days));
+  const rc = pf.region && pf.region.code;
+  if (REGIONS.indexOf(rc) >= 0) take("region", CH.must, rc);
+  // новая загрузка: пометка «из документа» остаётся только у значений, которые есть в новом ответе
+  Object.keys(CH.pre).forEach(k => { if (!(k in CH.preDoc)) delete CH.pre[k]; });
+}
+/* пометка у поля: «из документа — проверьте» или, если сотрудник ввёл своё, «в документе: …» */
+function preTag(key){
+  return CH.pre[key] ? ' <span class="pre-tag" id="wzPre-' + key + '">' + esc(T("tg.act.pre_mark", "из документа — проверьте")) + "</span>" : "";
+}
+function preDiff(key, cur){
+  const dv = CH.preDoc[key];
+  if (CH.pre[key] || dv == null || dv === "" || String(cur == null ? "" : cur) === String(dv)) return "";
+  const shown = key === "region" ? regionName(dv) : key === "term_days" ? T("tg.act.days_n", "{n} дн.", {n: dv}) : money(dv);
+  return '<span class="hint pre-diff">' + esc(T("tg.act.pre_diff", "В документе: {v}. Оставлено ваше значение.", {v: shown})) + "</span>";
+}
+function preClear(key){
+  if (!CH.pre[key]) return;
+  delete CH.pre[key];
+  const t = $("#wzPre-" + key);
+  if (t) t.remove();
 }
 
 /* ---------- шаг 2: проверить ---------- */
@@ -2634,6 +2862,7 @@ function wzStep2Html(){
     + '<div id="wzProd">' + wzProdHtml() + "</div>"
     + '<div class="hero2">' + ["sum_insured", "object_value"].map(wzMoneyHtml).join("") + "</div>"
     + '<div id="wzRegion">' + wzRegionHtml() + "</div>"
+    + '<div id="wzTerm">' + wzTermHtml() + "</div>"
     + "</div>"
     + '<div id="wzMoreBox">' + wzMoreHtml() + "</div>"
     + msgHtml();
@@ -2664,14 +2893,22 @@ function wzRecHtml(){
       + '<div class="actions">' + addBtn + "</div></div>";
   }
   const groups = recGroups();
+  const parsed = CH.docs.filter(d => d.text_layer);
+  const docsOnly = !CH.ai && !CH.modelN && CH.docs.length > 0;
   let h = '<div class="card"><h2>' + esc(T("tg.act.rec_title", "Распознано")) + "</h2>";
   if (CH.ai) h += '<p class="sub">' + esc(T("tg.act.rec_sub", "Модель прочитала фото и снимки документов и может ошибаться. Проверьте каждое значение — исправить можно прямо здесь.")) + "</p>";
+  else if (docsOnly) h += '<p class="sub">' + esc(T("tg.act.rec_docs_sub", "Документы разобраны без модели. Проверьте каждое значение — исправить можно прямо здесь.")) + "</p>";
   else {
     h += '<p class="note warn">' + esc(T("tg.act.rec_off", "Фото сохранены, но прочитать их не удалось — введите данные сами. В акте раздел осмотра будет помечен.")) + "</p>";
     if (CH.msg && CH.upLang === I18N_LANG) h += '<p class="note">' + esc(CH.msg) + "</p>";
   }
+  h += parsed.map(d => {
+    const kind = docKindName(d.kind);
+    return '<p class="note doc-ok">' + esc(T("tg.act.doc_parsed_line", "Документ разобран: {kind} · значений: {n}", {kind: kind || T("tg.act.dk.other", "документ"), n: d.values})) + "</p>";
+  }).join("");
   if (CH.upLang === I18N_LANG) h += CH.notes.map(n => '<p class="note warn">' + esc(n) + "</p>").join("");
   if (CH.ai && !groups.length) h += '<p class="note">' + esc(T("tg.act.rec_none", "С фото не удалось прочитать ни одного значения — введите данные ниже.")) + "</p>";
+  if (docsOnly && !groups.length) h += '<p class="note">' + esc(T("tg.act.rec_none_docs", "Из документов не удалось взять ни одного значения — введите данные ниже.")) + "</p>";
   h += groups.map(g => {
     const disc = recDisc(g.idx), label = recLabel(g.key, (CH.rec[g.idx[0]] || {}).label);
     return '<div class="rec' + (disc ? " disc" : "") + '" data-key="' + esc(g.key) + '"><div class="rec-h"><b>' + esc(label) + "</b>"
@@ -2779,15 +3016,20 @@ function wzPicked(){
   CH.prodOpen = false;
   CH.prodQ = "";
   wzClearErr("prod");
+  // уточнения, которых у нового класса нет, не уходят в акт
+  const cls = wzClass();
+  if (CH.opt.protection && protCodes(cls).indexOf(CH.opt.protection) < 0) delete CH.opt.protection;
+  if (!isProp(cls)) ["seismic_zone", "construction", "activity"].forEach(k => { delete CH.opt[k]; });
   haptic("select");
   wzSave();
   wzPart("prod");
+  wzPart("more");
 }
 function wzMoneyHtml(key){
   const id = "wzf-" + key, v = CH.must[key], err = CH.errs[key];
   const other = key === "sum_insured" ? "object_value" : "sum_insured";
   const label = key === "sum_insured" ? T("tg.an.f.sum_insured", "Страховая сумма") : T("tg.an.f.object_value", "Стоимость объекта");
-  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="' + id + '">' + esc(label) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="' + id + '">' + esc(label) + ' <span class="unit">' + esc(SUM()) + "</span>" + preTag(key) + "</label>"
     + '<input id="' + id + '" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" data-money="1" data-fk="' + key + '" data-scope="must"'
     + ' value="' + esc(v == null || v === "" ? "" : Number(v).toLocaleString(LOC())) + '" placeholder="0">'
     + '<div class="qadd" data-for="' + key + '">'
@@ -2795,18 +3037,146 @@ function wzMoneyHtml(key){
     + '<button type="button" data-add="1000000000">' + esc(T("tg.chat.add_bln", "+млрд")) + "</button>"
     + '<button type="button" data-copy="' + other + '">'
     + esc(key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div>"
+    + preDiff(key, v)
     + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
 function wzRegionHtml(){
   const cur = CH.must.region || "", err = CH.errs.region;
-  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzf-region">' + esc(T("tg.an.f.region", "Регион")) + "</label>"
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzf-region">' + esc(T("tg.an.f.region", "Регион")) + preTag("region") + "</label>"
     + '<select id="wzf-region" data-fk="region" data-scope="must">'
     + '<option value="">' + esc(T("tg.wz.region_pick", "Выберите регион")) + "</option>"
     + REGIONS.map(c => '<option value="' + c + '"' + (c === cur ? " selected" : "") + ">" + esc(regionName(c)) + "</option>").join("") + "</select>"
+    + preDiff("region", cur)
     + '<span class="ferr" id="wzErr-region">' + esc(err || "") + "</span></div>";
 }
+/* срок страхования в днях — необязательный (сервер: term_days 1…3660, без него 365); из договора подставляется */
+function wzTermHtml(){
+  const v = CH.opt.term_days, err = CH.errs.term_days;
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzo-term_days">' + esc(T("tg.act.f.term_days", "Срок страхования, дней")) + preTag("term_days") + "</label>"
+    + '<input id="wzo-term_days" class="w-short" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" maxlength="4" data-int="1" data-fk="term_days" data-scope="opt"'
+    + ' value="' + esc(v == null ? "" : v) + '" placeholder="365">'
+    + '<span class="hint">' + esc(T("tg.act.term_hint", "Необязательно. Не указан — премия считается за 365 дней.")) + "</span>"
+    + preDiff("term_days", v)
+    + '<span class="ferr" id="wzErr-term_days">' + esc(err || "") + "</span></div>";
+}
 /* «Дополнительно»: необязательные поля лёгкого движка (ТЗ, п. 6 и 8.1–8.4) */
-const OPT_KEYS = ["year", "location", "guard", "losses_count", "losses_small", "losses_amount", "want_lower", "price_new", "purchase_year"];
+const OPT_KEYS = ["year", "location", "guard", "protection", "seismic_zone", "construction", "activity",
+  "losses_count", "losses_small", "losses_amount", "want_lower", "price_new", "purchase_year"];
+/* выпадающий список «Дополнительно»; пусто — сервер берёт значение по умолчанию и пишет это в акте */
+function optSelect(key, label, codes, nameFn, hint){
+  const v = CH.opt[key] == null ? "" : String(CH.opt[key]), err = CH.errs[key];
+  return '<div class="' + (err ? "bad" : "") + '"><label class="f" for="wzo-' + key + '">' + esc(label) + "</label>"
+    + '<select id="wzo-' + key + '" data-fk="' + key + '" data-scope="opt"><option value="">' + esc(T("tg.act.opt_unset", "не указано")) + "</option>"
+    + codes.map(c => '<option value="' + esc(c) + '"' + (String(c) === v ? " selected" : "") + ">" + esc(nameFn(c)) + "</option>").join("") + "</select>"
+    + (hint ? '<span class="hint">' + esc(hint) + "</span>" : "")
+    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
+}
+/* обязательный вид страхования (ставка по нормативному акту): франшиза не применяется */
+function wzStatutory(){
+  const p = CH.must.product_code ? wzProd(CH.must.product_code) : null;
+  return !!p && p.pricing_mode === "нормативный акт";
+}
+/* защита объекта, сейсмичность, конструкция, деятельность — только те, что считаются для класса */
+function wzObjHtml(){
+  const cls = wzClass();
+  if (!cls) return '<div class="full"><p class="hint">' + esc(T("tg.act.obj_pick_class", "Защита объекта, сейсмичность и конструкция появятся, когда выберете продукт или класс.")) + "</p></div>";
+  const codes = protCodes(cls);
+  if (!codes.length) return "";
+  let h = optSelect("protection", cls === "3" ? T("tg.act.f.protection3", "Противоугонная система") : T("tg.act.f.protection", "Защита объекта"),
+    codes, c => protName(cls, c), T("tg.act.protection_hint", "Уточняет сценарии убытка PML, EML, MFL."));
+  if (isProp(cls)) {
+    h += optSelect("seismic_zone", T("tg.act.f.seismic_zone", "Сейсмическая зона"), SEISMIC,
+      n => T("tg.act.seismic_n", "{n} баллов", {n: n}), T("tg.act.seismic_hint", "Не указана — MFL считается как полное уничтожение объекта."))
+      + optSelect("construction", T("tg.act.f.construction", "Конструкция, материал стен"), CONSTRUCTIONS, consName)
+      + optSelect("activity", T("tg.act.f.activity", "Деятельность на объекте"), ACTIVITIES, actvName);
+  }
+  return h;
+}
+/* франшиза сотрудника: по умолчанию «Не применять»; для обязательных видов блока нет — только пояснение */
+function frEqText(){
+  const f = CH.fr, S = Number(CH.must.sum_insured) || 0;
+  if (!S) return T("tg.act.fr_need_sum", "Укажите страховую сумму — покажем размер франшизы и в сумах, и в процентах.");
+  if (f.unit === "amount") {
+    const a = Number(f.amount) || 0;
+    return a > 0 ? T("tg.act.fr_eq_pct", "Это {p} страховой суммы. Не больше половины суммы.", {p: pct(a / S * 100, 2)})
+      : T("tg.act.fr_max_amount", "Не больше половины страховой суммы.");
+  }
+  const p = dec(f.pct);
+  return p > 0 && p <= 50 ? T("tg.act.fr_eq_amount", "Это {a}. Не больше 50 % страховой суммы.", {a: money(Math.round(S * p / 100))})
+    : T("tg.act.fr_max_pct", "Не больше 50 % страховой суммы.");
+}
+function frTypeHint(t){
+  switch (t) {
+    case "conditional": return T("tg.act.frh.conditional", "Убыток меньше франшизы не возмещается, больше — возмещается полностью.");
+    case "peril": return T("tg.act.frh.peril", "Франшиза только по одному риску. Её влияние на премию система не считает — решает андеррайтер.");
+    default: return T("tg.act.frh.unconditional", "Из каждого возмещения вычитается размер франшизы.");
+  }
+}
+function wzFrHtml(){
+  const title = '<div class="h3">' + esc(T("tg.act.fr_title", "Франшиза")) + "</div>";
+  if (wzStatutory()) {
+    return title + '<p class="note">' + esc(T("tg.act.fr_statutory_hint", "Обязательный вид страхования: франшиза не применяется, премия — по нормативному акту.")) + "</p>";
+  }
+  const f = CH.fr, err = CH.errs.fr;
+  const seg = (k, v, on, text) => '<button type="button" data-fr="' + k + '" data-value="' + v + '" aria-pressed="' + (!!on) + '">' + esc(text) + "</button>";
+  let h = title + '<div class="segsel" role="group" aria-label="' + esc(T("tg.act.fr_title", "Франшиза")) + '">'
+    + seg("on", "no", !f.on, T("tg.act.fr_off", "Не применять")) + seg("on", "yes", f.on, T("tg.act.fr_on", "Применить свою")) + "</div>";
+  if (!f.on) {
+    return h + '<p class="hint">' + esc(T("tg.act.fr_off_hint", "Без франшизы премия считается полностью. Если основания для франшизы есть, акт предложит её размер — применить можно одной кнопкой.")) + "</p>";
+  }
+  h += '<label class="f">' + esc(T("tg.act.fr_type", "Вид франшизы")) + "</label>"
+    + '<div class="segsel" role="group" aria-label="' + esc(T("tg.act.fr_type", "Вид франшизы")) + '">'
+    + FR_TYPES.map(t => seg("type", t, f.type === t, frTypeName(t))).join("") + "</div>"
+    + '<span class="hint">' + esc(frTypeHint(f.type)) + "</span>"
+    + '<label class="f" for="wzo-frval">' + esc(T("tg.act.fr_size", "Размер")) + "</label>"
+    + '<div class="segsel" role="group" aria-label="' + esc(T("tg.act.fr_size", "Размер")) + '">'
+    + seg("unit", "pct", f.unit === "pct", T("tg.act.fr_unit_pct", "в % от страховой суммы"))
+    + seg("unit", "amount", f.unit === "amount", T("tg.act.fr_unit_amount", "суммой, в сумах")) + "</div>"
+    + '<div class="fr-val' + (err ? " bad" : "") + '"><input id="wzo-frval" type="text" autocomplete="off" enterkeyhint="done" data-frval="1"'
+    + (f.unit === "amount"
+      ? ' inputmode="numeric" value="' + esc(f.amount ? Number(f.amount).toLocaleString(LOC()) : "") + '" placeholder="0"'
+      : ' inputmode="decimal" maxlength="6" value="' + esc(f.pct || "") + '" placeholder="1"')
+    + '><span class="unit">' + esc(f.unit === "amount" ? SUM() : "%") + "</span></div>"
+    + '<span class="hint" id="wzFrEq">' + esc(frEqText()) + "</span>"
+    + '<span class="ferr" id="wzErr-fr">' + esc(err || "") + "</span>";
+  return h;
+}
+function wzFrSet(k, v){
+  const f = CH.fr, S = Number(CH.must.sum_insured) || 0;
+  if (k === "on") f.on = v === "yes";
+  else if (k === "type" && FR_TYPES.indexOf(v) >= 0) f.type = v;
+  else if (k === "unit" && (v === "pct" || v === "amount") && v !== f.unit) {
+    // смена единицы — пересчёт уже введённого размера, чтобы не вводить заново
+    if (v === "amount") { const p = dec(f.pct); f.amount = p > 0 && S ? Math.round(S * p / 100) : null; }
+    else { const a = Number(f.amount) || 0; f.pct = a > 0 && S ? nf(Math.round(a / S * 10000) / 100, dp(Math.round(a / S * 10000) / 100)) : ""; }
+    f.unit = v;
+  }
+  wzClearErr("fr");
+  haptic("select");
+  wzSave();
+  wzPart("fr");
+  wzMoreCount();
+}
+function wzFrInput(el){
+  const f = CH.fr;
+  if (f.unit === "amount") { groupDigitsLive(el); f.amount = num(el.value) || null; }
+  else {
+    // только цифры и один разделитель дробной части
+    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
+    if (c !== el.value) el.value = c;
+    f.pct = c;
+  }
+  const eq = $("#wzFrEq");
+  if (eq) eq.textContent = frEqText();
+  wzClearErr("fr");
+  wzSave();
+}
+/* «Дополнительно · заполнено N» — без перерисовки блока */
+function wzOptCount(){ return OPT_KEYS.filter(k => CH.opt[k] != null && CH.opt[k] !== "").length + (CH.fr.on && !wzStatutory() ? 1 : 0); }
+function wzMoreCount(){
+  const b = $("#wzMoreN");
+  if (b) { const n = wzOptCount(); b.textContent = n ? " · " + T("tg.wz.more_n", "заполнено {n}", {n: n}) : ""; }
+}
 function optInput(key, label, kind, hint){
   const v = CH.opt[key], err = CH.errs[key];
   const money = kind === "money";
@@ -2828,11 +3198,11 @@ function optYesNo(key, label){
     + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
 }
 function wzMoreHtml(){
-  const n = OPT_KEYS.filter(k => CH.opt[k] != null && CH.opt[k] !== "").length;
+  const n = wzOptCount();
   const loc = CH.opt.location || "";
   return '<details class="sec" id="wzMore"' + (CH.optOpen ? " open" : "") + '><summary><span><b>' + esc(T("tg.wz.more", "Дополнительно"))
-    + (n ? " · " + esc(T("tg.wz.more_n", "заполнено {n}", {n: n})) : "") + "</b><small>"
-    + esc(T("tg.act.more_sub", "Год, место эксплуатации, охрана, убытки — по ним уточняется уровень риска. Можно не заполнять.")) + "</small></span></summary>"
+    + '<span id="wzMoreN">' + (n ? " · " + esc(T("tg.wz.more_n", "заполнено {n}", {n: n})) : "") + "</span></b><small>"
+    + esc(T("tg.act.more_sub", "Год, место, охрана и защита, убытки, франшиза — по ним уточняются уровень риска, сценарии убытка и премия. Можно не заполнять.")) + "</small></span></summary>"
     + '<div class="in"><div class="fgrid">'
     + optInput("year", T("tg.act.f.year", "Год выпуска"), "year")
     + '<div class="' + (CH.errs.location ? "bad" : "") + '"><label class="f" for="wzo-location">' + esc(T("tg.act.f.location", "Место эксплуатации")) + "</label>"
@@ -2840,6 +3210,7 @@ function wzMoreHtml(){
     + LOCATIONS.map(c => '<option value="' + c + '"' + (c === loc ? " selected" : "") + ">" + esc(locName(c)) + "</option>").join("") + "</select>"
     + '<span class="ferr" id="wzErr-location">' + esc(CH.errs.location || "") + "</span></div>"
     + optYesNo("guard", T("tg.act.guard", "Охрана объекта"))
+    + wzObjHtml()
     + '<div class="full"><div class="h3">' + esc(T("tg.act.losses", "Убытки за три года")) + "</div></div>"
     + optInput("losses_count", T("tg.act.losses_count", "Всего убытков"), "int")
     + optInput("losses_small", T("tg.act.losses_small", "Из них мелких"), "int")
@@ -2847,6 +3218,7 @@ function wzMoreHtml(){
     + optYesNo("want_lower", T("tg.act.want_lower", "Клиент просит снизить премию"))
     + optInput("price_new", T("tg.act.price_new", "Цена покупки"), "money", T("tg.act.price_hint", "С годом покупки покажем стоимость с учётом износа — как ориентир."))
     + optInput("purchase_year", T("tg.act.purchase_year", "Год покупки"), "year")
+    + '<div class="full fr-set" id="wzFr">' + wzFrHtml() + "</div>"
     + "</div></div></details>";
 }
 function wzClearErr(key){
@@ -2862,9 +3234,12 @@ function wzFieldInput(el){
   const box = el.dataset.scope === "opt" ? CH.opt : CH.must, key = el.dataset.fk, raw = String(el.value || "").trim();
   if (raw === "") delete box[key];
   else box[key] = el.dataset.money ? num(raw) : raw;
-  if (key === "region") { try { localStorage.setItem(CH_REGION, raw); } catch (e) {} }
+  if (key === "region") { try { localStorage.setItem(CH_REGION, raw); } catch (e) {} CH.seeded = false; }
+  preClear(key);                              // сотрудник поправил значение из документа — оно уже его
   wzClearErr(key);
   if (key === "losses_count" || key === "losses_small" || key === "losses_amount") wzClearErr("losses_count");
+  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
+  if (el.dataset.scope === "opt") wzMoreCount();
   wzSave();
 }
 function wzSetOpt(b){
@@ -2874,6 +3249,7 @@ function wzSetOpt(b){
   b.parentNode.querySelectorAll("[data-set]").forEach(x => x.setAttribute("aria-pressed", String(!on && x === b)));
   wzClearErr(k);
   haptic("select");
+  wzMoreCount();
   wzSave();
 }
 function wzQuickAdd(b){
@@ -2883,13 +3259,17 @@ function wzQuickAdd(b){
   else { const v = num(m[b.dataset.copy]); if (!v) return; m[key] = v; }
   const el = $("#wzf-" + key);
   if (el) el.value = Number(m[key]).toLocaleString(LOC());
+  preClear(key);
+  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
   wzClearErr(key);
   haptic("select");
   wzSave();
 }
 function wzFocusField(key){
   setTimeout(() => {
-    const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod")) : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
+    const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod"))
+      : key === "fr" ? ($("#wzo-frval") || document.querySelector("[data-fr]"))
+      : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
     if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
   }, 60);
 }
@@ -2897,7 +3277,8 @@ function wzFocusField(key){
 /* ---------- «Сформировать акт»: POST /act/make ---------- */
 const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_insured", object_value: "object_value",
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
-  want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new"};
+  want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
+  protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr"};
 function errText(field){
   switch (field) {
     case "prod": return T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
@@ -2906,6 +3287,10 @@ function errText(field){
     case "region": return T("tg.act.err_region", "Выберите регион из списка.");
     case "year": case "purchase_year": return T("tg.act.err_year", "Год — четыре цифры, не раньше 1950 и не позже текущего.");
     case "losses_count": return T("tg.act.err_losses", "Убытков — целое число; мелких не больше, чем всех.");
+    case "term_days": return T("tg.act.err_term", "Срок — целое число дней от 1 до 3660. Или оставьте поле пустым.");
+    case "fr": return T("tg.act.err_fr", "Размер франшизы — больше нуля и не больше 50 % страховой суммы (суммой — не больше половины). Или выберите «Не применять».");
+    case "protection": case "seismic_zone": case "construction": case "activity":
+      return T("tg.act.err_pick", "Выберите значение из списка или оставьте «не указано».");
     default: return T("tg.act.err_value", "Проверьте значение.");
   }
 }
@@ -2927,6 +3312,18 @@ function actBody(){
   }
   if (o.price_new) opt.price_new = Number(o.price_new);
   if (o.purchase_year) opt.purchase_year = Number(o.purchase_year);
+  if (o.term_days) opt.term_days = Number(o.term_days);
+  // уточнения сценариев — только допустимые для класса (app/act.py: validate)
+  const cls = wzClass();
+  if (o.protection && protCodes(cls).indexOf(o.protection) >= 0) opt.protection = o.protection;
+  if (isProp(cls)) {
+    if (o.seismic_zone && SEISMIC.indexOf(String(o.seismic_zone)) >= 0) opt.seismic_zone = Number(o.seismic_zone);
+    if (o.construction && CONSTRUCTIONS.indexOf(o.construction) >= 0) opt.construction = o.construction;
+    if (o.activity && ACTIVITIES.indexOf(o.activity) >= 0) opt.activity = o.activity;
+  }
+  // франшиза сотрудника: {pct | amount, type}; по обязательным видам не отправляется
+  const f = CH.fr;
+  if (f.on && !wzStatutory()) opt.deductible = f.unit === "amount" ? {amount: Number(f.amount), type: f.type} : {pct: dec(f.pct), type: f.type};
   const body = {lang: I18N_LANG, must: must, optional: opt};
   if (CH.session) {
     body.session = CH.session;
@@ -2943,6 +3340,13 @@ async function actMake(){
   if (!m.region) e.region = errText("region");
   ["year", "purchase_year"].forEach(k => { if (o[k] && !/^\d{4}$/.test(String(o[k]))) e[k] = errText(k); });
   if (o.losses_small != null && o.losses_count != null && Number(o.losses_small) > Number(o.losses_count)) e.losses_count = errText("losses_count");
+  if (o.term_days && !(/^\d{1,4}$/.test(String(o.term_days)) && Number(o.term_days) >= 1 && Number(o.term_days) <= 3660)) e.term_days = errText("term_days");
+  const f = CH.fr;
+  if (f.on && !wzStatutory()) {
+    const S = Number(m.sum_insured) || 0;
+    if (f.unit === "amount") { const a = Number(f.amount) || 0; if (!(a > 0) || (S > 0 && a > S / 2)) e.fr = errText("fr"); }
+    else { const p = dec(f.pct); if (!(p > 0 && p <= 50)) e.fr = errText("fr"); }
+  }
   if (Object.keys(e).length) { actShowErrors(e); return; }
   CH.errs = {};
   CH.err = "";
@@ -2981,10 +3385,10 @@ async function actMake(){
 function actShowErrors(e){
   CH.errs = e;
   CH.err = T("tg.act.err_fix", "Исправьте отмеченные поля — без них акт не сформировать.");
-  if (OPT_KEYS.some(k => e[k])) CH.optOpen = true;
+  if (OPT_KEYS.some(k => e[k]) || e.fr) CH.optOpen = true;
   haptic("error");
   wzPaint(true);
-  const first = ["prod", "sum_insured", "object_value", "region"].concat(OPT_KEYS).filter(k => e[k])[0];
+  const first = ["prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr"]).filter(k => e[k])[0];
   if (first) wzFocusField(first);
 }
 
@@ -3013,15 +3417,22 @@ function verdictName(v){
     default: return "";
   }
 }
+const frApplied = a => !!(a.franchise && a.franchise.applied) || !!(a.premium && a.premium.franchise_applied);
 function actRate(a){
   const r = a.rate || {};
-  if (r.applied_pct == null || isNaN(Number(r.applied_pct))) return T("tg.act.rate_undefined", "не определён");
-  return pct(r.applied_pct, Number(r.applied_pct) % 1 ? (String(r.applied_pct).split(".")[1] || "").length : 0);
+  // ставка с учётом применённой франшизы (rate.final_pct), иначе — ставка акта
+  const v = frApplied(a) && r.final_pct != null && !isNaN(Number(r.final_pct)) ? r.final_pct : r.applied_pct;
+  if (v == null || isNaN(Number(v))) return T("tg.act.rate_undefined", "не определён");
+  return pct(v, dp(v));
 }
 function actRateNote(a){
   const r = a.rate || {};
   if (r.mode === "statutory") return T("tg.act.rate_statutory", "по нормативному акту, без поправок");
   if (r.mode === "undefined" || r.mode === "statutory_undefined") return T("tg.act.rate_undefined_sub", "ставку задаёт андеррайтер");
+  if (frApplied(a) && r.applied_pct != null && Number(r.final_pct) !== Number(r.applied_pct)) {
+    return T("tg.act.rate_with_fr", "с франшизой; без неё {r}", {r: pct(r.applied_pct, dp(r.applied_pct))})
+      + (r.calibrated ? "" : "; " + T("tg.act.uncal", "поправка не калибрована"));
+  }
   return r.calibrated ? "" : T("tg.act.uncal", "поправка не калибрована");
 }
 function actPremium(a){
@@ -3053,11 +3464,12 @@ function wzStep3Html(){
     + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
     + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>" + (rateNote ? "<em>" + esc(rateNote) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.premium", "Премия")) + "</span><b>" + esc(actPremium(a)) + "</b>"
-    + (prem.term_days ? "<em>" + esc(T("tg.act.term", "за {n} дн.", {n: prem.term_days})) + "</em>" : "") + "</div>"
+    + (prem.term_days || frApplied(a) ? "<em>" + esc([frApplied(a) ? T("tg.act.prem_with_fr", "с франшизой") : "",
+        prem.term_days ? T("tg.act.term", "за {n} дн.", {n: prem.term_days}) : ""].filter(Boolean).join(", ")) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
     + (verdictName(val.verdict) ? '<em class="' + (val.verdict === "normal" ? "ok" : "warn") + '">' + esc(verdictName(val.verdict)) + "</em>" : "") + "</div>"
     + "</div>"
-    + '<p class="act-line"><b>' + esc(T("tg.act.franchise", "Франшиза")) + ":</b> " + esc((a.franchise || {}).text || T("tg.act.na", "данные недоступны")) + "</p>"
+    + actFrHtml(a)
     + (disc ? '<p class="act-line warn"><b>' + esc(T("tg.act.disc_n", "Расхождения в данных: {n}", {n: disc})) + "</b> "
       + esc(T("tg.act.disc_where", "— выделены в акте, проверьте до выдачи полиса.")) + "</p>" : "")
     + '<div class="act-btns">'
@@ -3068,12 +3480,147 @@ function wzStep3Html(){
     + "</div>"
     + '<div class="msg" id="actMsg" role="status"></div>'
     + "</div>"
+    + actScenHtml(a)
+    + actMeasuresHtml(a)
+    + actAltHtml(a)
     + actDocHtml(a)
     + '<div class="actions">'
     + '<button type="button" class="btn btn-secondary" data-go="fix">' + esc(T("tg.act.fix", "Исправить данные")) + "</button>"
     + '<button type="button" class="btn btn-secondary" data-go="restart">' + esc(T("tg.act.new", "Новый акт")) + "</button>"
     + '<button type="button" class="btn btn-secondary" data-go="legal">' + esc(T("tg.chat.ask_legal", "Спросить специалиста")) + "</button>"
     + "</div>";
+}
+const sgnMoney = x => (Number(x) < 0 ? "−" : "+") + money(Math.abs(Number(x)));
+const isNum = x => x != null && x !== "" && !isNaN(Number(x));
+/* франшиза в сводке: применена (было → стало), предложена (карточка с кнопкой «Применить»),
+   не требуется, не применяется по обязательному виду. Цифры — из ответа сервера (franchise). */
+function actFrHtml(a){
+  const f = a.franchise || {};
+  const st = f.status || (f.needed ? "proposed" : "none");
+  const lbl = T("tg.act.franchise", "Франшиза");
+  const size = f.size_pct > 0 ? pct(f.size_pct, dp(f.size_pct)) : "";
+  const amt = f.size_amount > 0 ? money(f.size_amount) : "";
+  const what = [frTypeName(f.type), size].filter(Boolean).join(" ") + (amt ? " — " + amt : "");
+  const warn = f.warning ? '<p class="fr-warn">' + esc(f.warning) + "</p>" : "";
+  const moved = isNum(f.premium_before) && isNum(f.premium_after) && Number(f.premium_after) !== Number(f.premium_before);
+  if (st === "applied") {
+    return '<div class="fr-box on"><p class="fr-h"><b>' + esc(T("tg.act.fr_applied", "Франшиза применена")) + ":</b> " + esc(what) + "</p>"
+      + (moved
+        ? '<p class="fr-move"><span>' + esc(T("tg.act.premium", "Премия")) + ":</span> <s>" + esc(money(f.premium_before)) + "</s> → <b>"
+          + esc(money(f.premium_after)) + "</b> <em>" + esc(sgnMoney(f.delta != null ? f.delta : f.premium_after - f.premium_before)
+          + (isNum(f.delta_pct) ? ", " + (Number(f.delta_pct) < 0 ? "−" : "+") + pct(Math.abs(f.delta_pct), dp(f.delta_pct)) : "")) + "</em></p>"
+        : '<p class="fr-sub">' + esc(f.text || "") + "</p>")
+      + warn + "</div>";
+  }
+  if (st === "proposed") {
+    const can = f.size_pct > 0 && FR_TYPES.indexOf(f.type || "unconditional") >= 0;
+    const grounds = (f.grounds || []).filter(g => g && g.text);
+    return '<div class="fr-box prop"><p class="fr-h"><b>' + esc(T("tg.act.fr_advice", "Система советует франшизу")) + (what ? ":</b> " + esc(what) : "</b>") + "</p>"
+      + '<p class="fr-sub">' + esc(moved && Number(f.premium_after) < Number(f.premium_before)
+        ? T("tg.act.fr_prop_prem", "Премия с ней — {after} вместо {before}. Пока не применена: решает андеррайтер.", {after: money(f.premium_after), before: money(f.premium_before)})
+        : T("tg.act.fr_prop_na", "Влияние на премию не посчитано — решает андеррайтер.")) + "</p>"
+      + (grounds.length ? '<details class="mini"><summary>' + esc(T("tg.act.fr_grounds", "Основания · {n}", {n: grounds.length})) + "</summary><ul>"
+        + grounds.map(g => "<li>" + esc(g.text) + "</li>").join("") + "</ul></details>" : "")
+      + warn
+      + (can ? '<button type="button" class="btn btn-secondary btn-sm" data-go="frapply">' + esc(T("tg.act.fr_apply", "Применить и пересобрать акт")) + "</button>" : "")
+      + "</div>";
+  }
+  if (st === "statutory") {
+    return '<p class="act-line"><b>' + esc(lbl) + ":</b> " + esc(T("tg.act.fr_statutory", "не применяется: обязательный вид страхования")) + "</p>" + warn;
+  }
+  return '<p class="act-line"><b>' + esc(lbl) + ":</b> " + esc(T("tg.act.fr_none", "не требуется")) + "</p>" + warn;
+}
+/* «Применить» у предложенной франшизы: блок франшизы на шаге 2 заполняется её видом и размером, акт пересобирается */
+function actFrApply(){
+  const f = (CH.act && CH.act.franchise) || {};
+  if (!(f.size_pct > 0) || CH.busy) return;
+  CH.fr = {on: true, type: FR_TYPES.indexOf(f.type) >= 0 ? f.type : "unconditional", unit: "pct",
+    pct: nf(f.size_pct, dp(f.size_pct)).replace(/\s/g, ""), amount: null};
+  CH.optOpen = true;
+  CH.errs = {};
+  CH.err = "";
+  CH.wz = 2;
+  wzSave();
+  haptic("select");
+  wzPaint(true);
+  const box = $("#wzFr");
+  if (box) { box.classList.add("flash"); if (box.scrollIntoView) box.scrollIntoView({block: "center"}); }
+  actMake();
+}
+/* сценарии убытка: три плитки, лимит удержания, что принято по умолчанию */
+function scName(k){
+  switch (k) {
+    case "pml": return T("tg.act.sc.pml", "вероятный максимальный убыток");
+    case "eml": return T("tg.act.sc.eml", "оценочный максимальный убыток");
+    default: return T("tg.act.sc.mfl", "максимально возможный убыток");
+  }
+}
+function actScenHtml(a){
+  const s = a.scenarios;
+  if (!s || typeof s !== "object") return "";                   // акт до 29.09.2026 — блока нет
+  const title = '<h2>' + esc(T("tg.act.sc_title", "Сценарии убытка")) + "</h2>";
+  if (!s.available) {
+    return '<div class="card act-card">' + title + '<p class="note">PML / EML / MFL: ' + esc(s.note || T("tg.act.na", "данные недоступны")) + "</p></div>";
+  }
+  // порядок плиток и подписи — из ответа сервера (scenarios.tiles); без него — прежний вид
+  const list = Array.isArray(s.tiles) && s.tiles.length ? s.tiles
+    : ["pml", "eml", "mfl"].filter(k => s[k]).map(k => Object.assign({code: k, name: k.toUpperCase(), label: ""}, s[k]));
+  const tiles = list.map(x => {
+    if (!x || typeof x !== "object") return "";
+    const name = String(x.name || x.code || "").toUpperCase();
+    const label = String(x.label || "").replace(/^\s*[A-Z]{3}\s*[—–-]\s*/, "") || scName(String(x.code || ""));
+    const p = x.pct_text ? String(x.pct_text) : isNum(x.pct) ? pct(x.pct, dp(x.pct) ? 1 : 0) : "";
+    return '<div class="sc-t"><p><b>' + esc(name) + "</b>" + esc(label) + "</p>"
+      + "<strong>" + esc(money(x.amount)) + "</strong>"
+      + (p ? "<span>" + esc(T("tg.act.sc_pct", "{p} страховой суммы", {p: p})) + "</span>" : "")
+      + (x.what ? "<small>" + esc(x.what) + "</small>" : "") + "</div>";
+  }).join("");
+  const r = s.retention || {};
+  const known = !!r.known && isNum(r.limit);
+  const retNote = !known ? "" : r.status === "temporary" ? T("tg.act.ret_temp", "по временным данным о собственных средствах — не отчётность")
+    : r.status === "reported" ? T("tg.act.ret_reported", "по отчётности") : "";
+  // с чем сравнено удержание (EML) и справка по MFL — текстом сервера; старый акт — прежняя строка
+  const excess = !known ? "" : r.text ? String(r.text)
+    : Number(r.mfl_excess) > 0 ? T("tg.act.ret_excess", "MFL выше лимита на {x}", {x: money(r.mfl_excess)}) : "";
+  const warnRet = r.status === "temporary" || Number(r.eml_excess) > 0 || (!r.text && Number(r.mfl_excess) > 0);
+  const asm = (s.assumptions || []).filter(x => x && x.text);
+  return '<div class="card act-card">' + title
+    + '<div class="sc-tiles">' + tiles + "</div>"
+    + '<div class="sc-ret"><span>' + esc(T("tg.act.ret_title", "Лимит собственного удержания")) + "</span><b>"
+    + esc(known ? money(r.limit) : T("tg.act.ret_unknown", "не задан")) + "</b>"
+    + (retNote || excess ? '<small class="' + (warnRet ? "warn" : "") + '">' + esc([retNote, excess].filter(Boolean).join("; ")) + "</small>" : "")
+    + "</div>"
+    + (s.definitions ? '<p class="note">' + esc(String(s.definitions)) + "</p>" : "")
+    + '<p class="note">' + esc(T("tg.act.sc_uncal", "Экспертная оценка: коэффициенты не калиброваны по убыткам компании.")) + "</p>"
+    + (asm.length ? '<details class="mini"><summary>' + esc(T("tg.act.sc_assumed", "Принято по умолчанию · {n}", {n: asm.length})) + "</summary><ul>"
+      + asm.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul></details>" : "")
+    + "</div>";
+}
+/* рекомендации страхователю: что сделать, зачем, срок, влияние на премию; обязательные отмечены */
+function actMeasuresHtml(a){
+  const ms = a.measures;
+  if (!Array.isArray(ms)) return "";
+  const sum = a.measures_summary || {};
+  const title = '<h2>' + esc(T("tg.act.ms_title", "Рекомендации страхователю")) + "</h2>";
+  if (!ms.length) return '<div class="card act-card">' + title + '<p class="note">' + esc(T("tg.act.ms_none", "Дополнительных мероприятий не требуется.")) + "</p></div>";
+  const must = ms.filter(m => m.mandatory).length;
+  return '<div class="card act-card">' + title
+    + '<p class="sub">' + esc(T("tg.act.ms_sub", "Мероприятий: {n}, из них обязательных: {m}.", {n: ms.length, m: must})) + "</p>"
+    + '<ol class="ms">' + ms.map(m => '<li' + (m.mandatory ? ' class="must"' : "") + '><p class="ms-t">' + esc(m.text || "")
+      + (m.mandatory ? '<span class="tag must">' + esc(T("tg.act.ms_mandatory", "обязательно")) + "</span>" : "") + "</p>"
+      + (m.why ? '<p class="ms-why">' + esc(m.why) + "</p>" : "")
+      + '<p class="ms-meta">' + (m.deadline_days ? "<span>" + esc(T("tg.act.ms_deadline", "Срок: {n} дн.", {n: m.deadline_days})) + "</span>" : "")
+      + (m.effect_text ? '<span class="' + (Number(m.premium_delta) < 0 ? "ok" : "") + '">' + esc(m.effect_text) + "</span>" : "") + "</p></li>").join("")
+    + "</ol>"
+    + (sum.text ? '<p class="ms-sum">' + esc(sum.text) + "</p>" : "")
+    + "</div>";
+}
+/* «Вместо франшизы можно»: мероприятия, исключение риска, сумма к стоимости — тексты сервера с эффектом */
+function actAltHtml(a){
+  const alts = ((a.franchise || {}).alternatives || []).filter(x => x && x.text);
+  if (!alts.length) return "";
+  return '<div class="card act-card"><h2>' + esc(T("tg.act.alt_title", "Вместо франшизы можно")) + "</h2>"
+    + '<ul class="alt">' + alts.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul></div>";
 }
 function actRowsHtml(rows, discLabels, cls){
   if (!rows || !rows.length) return "";
@@ -3085,11 +3632,15 @@ function actRowsHtml(rows, discLabels, cls){
 function actDocHtml(a){
   const discText = (a.discrepancies || []).map(d => d.text);
   const discLabels = (a.discrepancies || []).map(d => d.label);
+  const secs = a.sections || [];
   return '<article class="card act-doc">'
+    + '<div class="act-doc-top"><p class="eyebrow">' + esc(T("tg.act.doc_eyebrow", "Текст акта")) + "</p>"
+    + (secs.length ? '<button type="button" class="btn-link" data-go="docall">' + esc(actDocAllLabel()) + "</button>" : "") + "</div>"
     + (a.insurer_known ? '<p class="act-ins">' + esc(a.insurer) + "</p>" : "")
     + '<h2 class="act-title">' + esc(a.title) + "</h2>"
     + actRowsHtml(a.header, [], "act-head")
-    + (a.sections || []).map(s => '<section class="act-s"><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3>"
+    // разделы сворачиваются; 4 и 5 кратко есть в сводке выше, поэтому по умолчанию свёрнуты
+    + secs.map(s => '<details class="act-s" data-sn="' + esc(s.n) + '"' + (actSecOpen(s.n) ? " open" : "") + '><summary><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3></summary>"
       + (s.paragraphs || []).map(p => "<p>" + esc(p) + "</p>").join("")
       + actRowsHtml(s.rows, s.n === 1 ? discLabels : [])
       + (s.lists || []).map(li => {
@@ -3097,9 +3648,25 @@ function actDocHtml(a){
         return '<div class="act-list' + (hot ? " disc" : "") + '"><h4>' + esc(li.title) + "</h4><ul>"
           + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + esc(x) + "</li>").join("") + "</ul></div>";
       }).join("")
-      + "</section>").join("")
+      + "</details>").join("")
     + '<p class="act-foot">' + esc(a.footer) + "</p>"
     + "</article>";
+}
+function actSecOpen(n){ return CH.docOpen[n] != null ? !!CH.docOpen[n] : Number(n) <= 3; }
+function actDocAllOpen(){
+  const all = document.querySelectorAll("#wzBody details.act-s");
+  return all.length > 0 && Array.prototype.every.call(all, d => d.open);
+}
+function actDocAllLabel(){
+  const secs = (CH.act && CH.act.sections) || [];
+  const open = document.querySelector("#wzBody details.act-s") ? actDocAllOpen() : secs.length > 0 && secs.every(s => actSecOpen(s.n));
+  return open ? T("tg.act.doc_collapse", "Свернуть все разделы") : T("tg.act.doc_expand", "Развернуть все разделы");
+}
+function actDocAll(){
+  const open = !actDocAllOpen();
+  document.querySelectorAll("#wzBody details.act-s").forEach(d => { d.open = open; CH.docOpen[d.dataset.sn] = open; });
+  const b = document.querySelector('#wzBody [data-go="docall"]');
+  if (b) b.textContent = actDocAllLabel();
 }
 /* полный текст акта — для буфера обмена */
 function actText(a){
@@ -3237,6 +3804,7 @@ function actReset(){
   CH.queue.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
   Object.assign(CH, {wz: 1, queue: [], filesDirty: false, session: "", ai: null, photoCount: 0, rec: [], damages: [],
     missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
+    modelN: 0, docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
     must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false});
   wzSeedRegion();
   wzSave();
@@ -3278,6 +3846,9 @@ function wzClick(e){
   if (d.clsonly) { wzPickClass(d.clsonly); return; }
   if (d.add || d.copy) { wzQuickAdd(t); return; }
   if (d.set) { wzSetOpt(t); return; }
+  if (d.fr) { wzFrSet(d.fr, d.value); return; }
+  if (d.go === "frapply") { actFrApply(); return; }
+  if (d.go === "docall") { actDocAll(); return; }
   if (d.go === "addphoto") { wzGo(1); return; }
   if (d.go === "fix") { wzGo(2); return; }
   if (d.go === "restart") { haptic("select"); actReset(); return; }
@@ -3289,6 +3860,7 @@ function wzInput(e){
   const el = e.target;
   if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
   if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
+  if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
   if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
 }
 function wzChange(e){
@@ -3298,6 +3870,11 @@ function wzChange(e){
 function wzToggle(e){
   const el = e.target;
   if (el && el.tagName === "DETAILS" && el.id === "wzMore") CH.optOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.sn) {
+    CH.docOpen[el.dataset.sn] = el.open;
+    const b = document.querySelector('#wzBody [data-go="docall"]');
+    if (b) b.textContent = actDocAllLabel();
+  }
 }
 function wzKey(e){
   const el = e.target;

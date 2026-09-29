@@ -57,19 +57,42 @@ DEFAULT_SETTINGS = {
         "ai_deadline_sec": 25,          # общий срок распознавания
         "ai_max_mb": 10,                # суммарный объём вложений в одном запросе к модели
         "send_per_hour": 10,            # отправок акта ботом в час на пользователя
+        # документы DOCX/XLSX (zip внутри): защита от «zip-бомб» до распаковки
+        "doc_max_unzip_mb": 50,         # суммарный распакованный объём частей
+        "doc_max_parts": 2000,          # частей в архиве документа
+        # разбор текста документа (app/act_extras.read_limited): лишнее отбрасывается с пометкой
+        "doc_max_cells": 5000,          # ячеек таблиц и абзацев на файл
+        "doc_max_rows": 200,            # строк с листа (таблицы)
+        "doc_max_cols": 30,             # колонок с листа
+        "doc_max_sheets": 3,            # листов книги XLSX
+        "doc_max_line_chars": 500,      # знаков в ячейке, абзаце и строке таблицы
+        "doc_max_text_chars": 200000,   # знаков текста на файл
+        "doc_parse_sec": 5,             # срок разбора одного файла
+        "doc_parse_total_sec": 10,      # срок разбора всех документов одного запроса
     },
 }
 
 LIMIT_BOUNDS = {"max_image_mp": (1, 200), "pdf_max_pages": (1, 100), "guest_photos_per_hour": (1, 10000),
                 "ai_calls_per_hour": (1, 100000), "ai_timeout_sec": (5, 120), "ai_deadline_sec": (5, 180),
-                "ai_max_mb": (1, 15), "send_per_hour": (1, 1000)}
+                "ai_max_mb": (1, 15), "send_per_hour": (1, 1000),
+                "doc_max_unzip_mb": (1, 500), "doc_max_parts": (10, 100000),
+                "doc_max_cells": (100, 100000), "doc_max_rows": (10, 5000), "doc_max_cols": (2, 200),
+                "doc_max_sheets": (1, 50), "doc_max_line_chars": (50, 10000),
+                "doc_max_text_chars": (1000, 1000000), "doc_parse_sec": (0.1, 60),
+                "doc_parse_total_sec": (0.1, 120)}
 
 VIEWS = ("front", "back", "left", "right", "plate", "odometer", "document", "interior", "facade", "roof",
          "electrical", "fire_safety", "general", "installation", "packaging", "marking", "transport", "other")
 SOURCES = ("document", "plate", "marking", "input", "photo")          # порядок = приоритет показа
 FIELD_KEYS = ("object_type", "brand", "model", "manufacture_date", "year", "serial_no", "manufacturer",
               "engine_no", "engine_model", "engine_power", "curb_mass", "payload", "dimensions", "color",
-              "mileage", "location")
+              "mileage", "location",
+              # из разобранных документов (договор, заявление, техпаспорт, кадастр) — 29.09.2026
+              "sum_insured", "object_value", "term_days", "region", "construction", "reg_no", "cadastre_no")
+# числовые поля документа: сверяются как числа, а не как текст
+NUMBER_KEYS = ("sum_insured", "object_value", "term_days")
+# в разделе 1 показываются, только если значение есть
+EXTRA_ROW_KEYS = ("construction", "reg_no", "cadastre_no")
 LOCATIONS = ("open_area", "construction", "port", "guarded", "closed_storage", "other")
 LOC_UP = ("open_area", "construction", "port")
 LOC_DOWN = ("guarded", "closed_storage")
@@ -229,6 +252,11 @@ def _same(key: str, a, b, brands=()) -> bool:
         return abs(va - vb) <= 0.01 * max(abs(va), abs(vb))
     if key == "year":
         return to_year(a) == to_year(b)
+    if key in NUMBER_KEYS:
+        na, nb = to_number(a), to_number(b)
+        if na is None or nb is None:
+            return _norm_text(a) == _norm_text(b)
+        return abs(na - nb) < 0.5
     drop = brands if key in ("model", "engine_model") else ()
     return _norm_text(a, drop) == _norm_text(b, drop)
 
@@ -529,7 +557,8 @@ def franchise(inputs: dict, level: str, thresholds: dict, statutory: bool = Fals
 #  5. Расхождения
 # ================================================================================================
 
-COMPARE_KEYS = ("curb_mass", "model", "serial_no", "year", "engine_power", "engine_model")
+COMPARE_KEYS = ("curb_mass", "model", "serial_no", "year", "engine_power", "engine_model",
+                "sum_insured", "object_value", "term_days", "reg_no", "cadastre_no")
 
 
 def discrepancies(recognized: list, inputs: Optional[dict] = None) -> list:
@@ -554,6 +583,10 @@ def discrepancies(recognized: list, inputs: Optional[dict] = None) -> list:
         by_key.setdefault(key, []).append({"source": r.get("source") or "photo", "value": str(val)})
     if inputs.get("year"):
         by_key.setdefault("year", []).append({"source": "input", "value": str(inputs["year"])})
+    # суммы и срок из шага 2: сверяются с документом, только если в документе они есть
+    for key in NUMBER_KEYS:
+        if inputs.get(key) is not None and by_key.get(key):
+            by_key[key].append({"source": "input", "value": _plain_number(inputs[key])})
     out = []
     for key in COMPARE_KEYS:
         vals = by_key.get(key) or []
@@ -582,6 +615,12 @@ def discrepancies(recognized: list, inputs: Optional[dict] = None) -> list:
         priority = "document" if any("document" in g["sources"] for g in groups) else None
         out.append({"key": key, "values": groups, "priority": priority})
     return out
+
+
+def _plain_number(x) -> str:
+    """2945000000.0 → «2 945 000 000»: так число читается в строке расхождения."""
+    v = float(x)
+    return f"{v:,.0f}".replace(",", " ") if v == int(v) else f"{v:,.2f}".replace(",", " ")
 
 
 # ================================================================================================
