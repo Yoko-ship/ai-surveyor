@@ -580,6 +580,154 @@ def check_chat_tab(html):
     print("22. мастер ИИ-сюрвейера (лёгкая версия): фото, распознанное с правкой, четыре поля, акт, Word/PDF (в Telegram — ботом в чат), копия текста — ок")
 
 
+def check_market_card(html):
+    """30.09.2026: оценка стоимости по объявлениям OLX на шаге «Проверить» и плитка в акте (app/act_market.py).
+    Сервер на площадки не ходит: ссылки для браузера сотрудника, снимки экрана списка — модель читает цены."""
+    must = {
+        '"/act/market/links?"': "ссылки поиска не запрашиваются",
+        '"/act/market/shots"': "снимки со списком объявлений не уходят на чтение",
+        "function mkHtml(": "нет карточки «Оценка по объявлениям»",
+        'T("tg.mk.title", "Оценка по объявлениям")': "нет заголовка карточки",
+        'T("tg.mk.find_olx", "Найти на OLX")': "нет кнопки «Найти на OLX»",
+        'T("tg.mk.q_label", "Что ищем")': "нет поля «Что ищем», когда марка и модель неизвестны",
+        'T("tg.mk.how2", "Сделайте снимок экрана со списком объявлений (5–10 штук, чтобы были видны цены).")': "нет инструкции в три шага",
+        "TG.openLink(url)": "в Telegram ссылка открывается не во внешнем браузере",
+        'const MK_HOSTS = ["olx.uz", "avtoelon.uz", "uybor.uz", "joymee.uz"]': "ссылки не ограничены четырьмя площадками",
+        'x.protocol !== "https:"': "открываются не только https-ссылки",
+        'if (CH.wz === 2) mkAddFiles(files)': "снимок из буфера на шаге «Проверить» не попадает в оценку",
+        'if (CH.wz === 2) mkAddFiles(e.dataTransfer.files)': "перетаскивание на шаге «Проверить» не попадает в оценку",
+        'id="mkFile"': "нет выбора снимков из галереи/файлов",
+        "wzToJpeg(f)": "WEBP/HEIC не переводятся в JPG",
+        'T("tg.mk.reading", "Читаю объявления…")': "нет индикатора «Читаю объявления…»",
+        "data-mkuse=": "у объявления нет галочки «учитывать»",
+        "data-mkprice=": "цену объявления нельзя исправить",
+        'T("tg.mk.add", "Добавить объявление вручную")': "нет кнопки «Добавить объявление вручную»",
+        "data-mkrate=": "нет поля «Курс доллара»",
+        "MK.info.fxText": "автоматический курс (fx.text) не показан",
+        "function mkEstimate(": "нет предпросмотра медианы",
+        "function mkQuant(": "перцентили считаются не как в act_engine.quantile",
+        "(declared - median) / declared": "расхождение считается не от заявленной стоимости",
+        'T("tg.mk.few", "Объявлений мало (меньше {n}) — оценка ориентировочная."': "при few не сказано, что оценка ориентировочная",
+        'T("tg.mk.sum_none", "Подходящих объявлений нет.")': "при none не сказано, что подходящих объявлений нет",
+        'T("tg.mk.use_median", "Подставить медиану в стоимость объекта")': "нет кнопки «Подставить медиану»",
+        'T("tg.mk.uncal"': "экспертные пороги не помечены как некалиброванные",
+        "opt.market = mk": "объявления не уходят в /act/make",
+        "out.shots_session = MK.ss": "в /act/make не уходит номер загрузки снимков",
+        "function actMvHtml(": "нет плитки «Оценка по объявлениям» в акте",
+        'T("tg.mk.v.refine", "стоимость нужно уточнить")': "нет вывода «стоимость нужно уточнить»",
+        "mv.insured_check": "проверка страховой суммы к уточнённой стоимости не показана",
+        '<div class="srcbar"><span>\' + esc(mv.source_label': "под плиткой нет плашки источника",
+        'T("tg.mk.open_olx", "Открыть поиск на OLX")': "в плашке источника нет кнопки «Открыть поиск на OLX»",
+        "s.source_lines": "строки источника раздела 3 не показаны в акте",
+        "mkReset()": "«Новый акт» не очищает оценку",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "оценка по объявлениям: " + "; ".join(miss)
+    save = re.search(r"function mkSave\(\)\{(.*?)\n\}", html, re.S)
+    assert save and "name" not in save.group(1) and "queue" not in save.group(1), "в sessionStorage уходят имена снимков"
+    assert "MK.ss" in save.group(1) and "listings: MK.listings" in save.group(1) and "rate: MK.rate" in save.group(1), \
+        "в sessionStorage не хранятся номер загрузки, объявления с правками и курс"
+    # названия объявлений — недоверенный текст: только через esc()
+    assert "esc(title)" in html, "название объявления выводится без esc()"
+    print("22а. оценка по объявлениям: ссылки, снимки, правки, медиана, плитка в акте с плашкой источника — ок")
+    check_market_fixes(html)
+
+
+def _fn(html, name):
+    """Текст функции страницы от «function name(» до закрывающей скобки в начале строки."""
+    m = re.search(r"function " + name + r"\(.*?\n\}\n", html, re.S)
+    assert m, f"нет функции {name}"
+    return m.group(0)
+
+
+def check_market_fixes(html):
+    """Замечания контролёра 30.09.2026: правки сотрудника, недоступная загрузка, дата, замена стоимости, округление."""
+    body = _fn(html, "mkBody")
+    for key, why in (('keep(o, "posted_date", r.posted_date)', "дата публикации не уходит в /act/make"),
+                     ("o.date_assumed = !r.posted_date", "признак «дата не видна» не уходит"),
+                     ('keep(o, "site"', "площадка объявления не уходит"),
+                     ('o.source = r.source === "manual" ? "manual" : "shot"', "происхождение объявления не уходит"),
+                     ("out.fx = {rate: MK.fx.rate, by: MK.fx.by", "источник курса от сервера не передаётся"),
+                     ('by: "employee"', "курс сотрудника не помечен как его")):
+        assert key in body, "mkBody: " + why
+    # «введён сотрудником» — только курс из поля сотрудника, а не курс ЦБ, который экран получил от сервера
+    emp = body.index('by: "employee"')
+    assert "mkRateOk(MK.rate)" in body[body.rindex("else", 0, emp):emp], "курс ЦБ уходит как «введён сотрудником»"
+    est = _fn(html, "mkEstimate")
+    assert "Math.round" not in est and "mkRound(" in est, "mkEstimate округляет не как сервер (половина вверх)"
+    assert "const mkRound = x => Math.floor(x + 0.5)" in html, "нет mkRound — округления «половина вверх»"
+    assert 's.code = "no_date"' in est and "R.allow_undated" in est, "объявление без даты попадает в расчёт"
+    assert 's.code = "bad_date"' in est, "дата позже снимка не исключается"
+    assert "cand.length < R.min_listings" in est, "выбросы ищутся и при малом числе объявлений"
+    assert "allow_undated: false" in html, "MK_RULE без allow_undated"
+    sm = _fn(html, "mkSumHtml")
+    assert sm.count('e.verdict !== "few"') >= 2, "кнопка замены стоимости медианой видна при «мало объявлений»"
+    assert "if (!e.used)" in sm and sm.index("if (!e.used)") < sm.index("usemed"), "кнопка видна при «оценки нет»"
+    use = _fn(html, "mkUseMedian")
+    assert "MK.declOrig = decl" in use and 'e.verdict === "few"' in use, "исходная стоимость клиента не запоминается"
+    assert "opt.declared_value_original = MK.declOrig" in html, "исходная стоимость не уходит в /act/make"
+    assert "declOrig: MK.declOrig" in _fn(html, "mkSave"), "исходная стоимость не переживает перезагрузку"
+    assert "const fv = val.final_verdict || val.verdict" in html and "verdictName(fv)" in html, \
+        "плитка «Сумма к стоимости» показывает не итоговый вывод"
+    assert 'T("tg.act.v.refine", "стоимость нужно уточнить")' in html, "нет итогового вывода «стоимость нужно уточнить»"
+    assert 'data-mka="date"' in html and "posted_date: a.date || null" in html, "у ручного объявления нельзя указать дату"
+    for k in ('T("tg.mk.x_date"', 'T("tg.mk.x_bad_date"', 'T("tg.mk.date_missing"', 'T("tg.mk.decl_orig"'):
+        assert k in html, "нет подписи " + k
+    assert "не нужны и не сохраняются" not in html, "предупреждение обещает, что снимки не сохраняются"
+    _run_mk_estimate(html)
+    print("22б. оценка по объявлениям: дата/площадка/курс уходят в акт, без даты — не в расчёт, замена медианой, "
+          "итоговый вывод в плитке, округление как на сервере — ок")
+
+
+def _run_mk_estimate(html):
+    """Предпросмотр страницы (mkEstimate) в node против сервера (act_engine.market_estimate) на одних данных."""
+    import shutil
+    import subprocess
+    from datetime import date as _date
+    from app import act_engine as ae
+    node = shutil.which("node")
+    if not node:
+        print("   (node не найден — сверка mkEstimate с сервером пропущена)")
+        return
+    rule = re.search(r"const MK_RULE = \{.*?\};", html).group(0)
+    js = "\n".join([
+        rule, 'const MK_USD = c => c === "USD" || c === "у.е.";',
+        re.search(r"const mkIso = .*?;\n", html).group(0), re.search(r"const mkRound = .*?;\n", html).group(0),
+        _fn(html, "mkMonthsBefore"), _fn(html, "mkQuant"), _fn(html, "mkEstimate"),
+        "let MK = {}; function mkRateNow(){ return MK.rate; }",
+        "const cases = JSON.parse(process.argv[1]); const out = [];",
+        "for (const c of cases) { MK = {listings: c.listings, shotDate: '2026-09-30', rate: c.rate || null};",
+        "  const e = mkEstimate(); out.push([e.median, e.low, e.high, e.used, e.verdict]); }",
+        "console.log(JSON.stringify(out));"])
+    sd = _date(2026, 9, 30)
+    cases = [
+        # половина — вверх: медиана 2,5 → 3 (round() в Python дал бы 2)
+        [{"price": 2, "posted_date": "2026-09-29"}, {"price": 3, "posted_date": "2026-09-29"}],
+        # без даты и с датой позже снимка — не в расчёте; «старше 6 месяцев» — тоже
+        [{"price": 100, "posted_date": "2026-09-01"}, {"price": 104, "posted_date": None},
+         {"price": 102, "posted_date": "2026-10-03"}, {"price": 101, "posted_date": "2026-02-28"}],
+        # два подходящих: выбросы не ищутся
+        [{"price": 100, "posted_date": "2026-09-29"}, {"price": 1000, "posted_date": "2026-09-29"}],
+        # доллары по курсу и нечётная половина после пересчёта
+        [{"price": 205000, "currency": "USD", "posted_date": "2026-09-29"},
+         {"price": 2_500_000_001, "posted_date": "2026-09-29"}, {"price": 2_400_000_000, "posted_date": "2026-09-20"},
+         {"price": 900_000_000, "posted_date": "2026-09-20"}],
+    ]
+    rates = [None, None, None, 12650.5]
+    payload = [{"listings": [dict({"currency": "UZS", "relevant": True}, **r) for r in c], "rate": rt}
+               for c, rt in zip(cases, rates)]
+    res = subprocess.run([node, "-e", js, _json.dumps(payload)], capture_output=True, text=True, encoding="utf-8",
+                         timeout=60)
+    assert res.returncode == 0, "node: " + res.stderr[-500:]
+    screen = _json.loads(res.stdout)
+    server = []
+    for p in payload:
+        r = ae.market_estimate(p["listings"], shot_date=sd, usd_rate=p["rate"])
+        server.append([r["median"], r["low"], r["high"], r["used"], r["verdict"] if r["verdict"] != "none" else "none"])
+    assert screen == server, f"экран и сервер считают по-разному: {screen} != {server}"
+    assert screen[0][0] == 3 and screen[1][3] == 1 and screen[2][3] == 2, screen
+
+
 def check_calc_tab(html):
     """Заказчик 22.09.2026: «Калькулятор» — отдельная простая вкладка без диалога."""
     must = {
@@ -757,6 +905,7 @@ if __name__ == "__main__":
             # ниже — ожидания к разметке после дизайнера (задача 150)
             check_removed_tabs(html)
             check_chat_tab(html)
+            check_market_card(html)
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)

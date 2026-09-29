@@ -25,6 +25,11 @@
   GET  /act/{id}.docx, .pdf   — выгрузка
   POST /act/{id}/send         — отправить акт файлом в чат с ботом (Telegram), только владельцу
   GET  /act/settings          — пороги лёгкого движка; PUT /act/settings — только администратор
+  GET  /act/market/links      — ссылки поиска на OLX, avtoelon.uz, uybor.uz, joymee.uz для браузера сотрудника
+                                (сервер по ним не ходит: olx.uz закрыт CloudFront, обход защиты запрещён)
+  POST /act/market/shots      — снимки экрана со списком объявлений (до 5 JPG/PNG) → модель читает их одним
+                                запросом → объявления, курс, предварительная медиана (app/act_market.py);
+                                в /act/make — optional.market, блок market_value и текст в разделе 3
 
 Хранение: фото — 24 часа (DATA_DIR/act/<сессия>/, таблица act_uploads), акт — 7 дней (таблица acts);
 очистка — фоновым потоком раз в час и при каждой загрузке. Открыть акт может только тот, кто его создал
@@ -53,6 +58,7 @@ from fastapi.routing import APIRoute
 
 from . import act_engine as ae
 from . import act_extras as ax
+from . import act_market as am
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
 from .act_texts import money, pct, t
@@ -497,9 +503,8 @@ def _placeholders(s: str) -> set:
     return set(re.findall(r"\[[А-ЯЁ\- ]+\]", s or ""))
 
 
-# отчество или «Фамилия И. О.» — внутри названия компании это уже человек
-_PATRONYMIC = re.compile(r"\b[А-ЯЁ][а-яё]+(?:ович|евич|ьич|овна|евна|ична|инична)\b|\b(?:o[ʻ'`‘]?g[ʻ'`‘]?li|qizi)\b",
-                         re.I)
+# отчество или «Фамилия И. О.» — внутри названия компании это уже человек (правило общее с app/act_market.py)
+_PATRONYMIC = am.PATRONYMIC
 
 
 def _has_marker(text: str) -> bool:
@@ -686,6 +691,16 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
     ok=False с честной причиной (фото остаются, акт формируется).
     Возвращает {"ok", "reason", "sent": [индексы saved], "not_sent": [...], ...поля parse_model}.
     """
+    return ask_model(saved, lang, limits, "акт: распознавание фото", SYSTEM_PROMPT,
+                     lambda n: model_prompt(n, lang), parse_model)
+
+
+def ask_model(saved: list, lang: str, limits: Optional[dict], purpose: str, system: str, prompt_of, parse) -> dict:
+    """
+    Общий путь к модели для фото объекта и снимков объявлений: пределы вложений, общий лимит обращений
+    на сервер (AI_CALLS), один запрос без повторов с таймаутом ai_timeout_sec, общий срок ai_deadline_sec,
+    ответ проверяется parse(text, n) по строгой схеме (None — честный отказ).
+    """
     lim = {**ae.DEFAULT_SETTINGS["limits"], **(limits or {})}
     t0 = time.monotonic()
     if not llm.enabled():
@@ -700,9 +715,9 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
         return {"ok": False, "reason": t("ai_busy", lang, n=int(lim["ai_calls_per_hour"])), "sent": [],
                 "not_sent": []}
     deadline = float(lim["ai_deadline_sec"])
-    fut = _AI_POOL.submit(llm.chat_raw, "акт: распознавание фото",
-                          [{"role": "system", "content": SYSTEM_PROMPT},
-                           {"role": "user", "content": model_prompt(len(payload), lang)}],
+    fut = _AI_POOL.submit(llm.chat_raw, purpose,
+                          [{"role": "system", "content": system},
+                           {"role": "user", "content": prompt_of(len(payload))}],
                           max_tokens=4096, temperature=0.1, files=payload,
                           timeout=float(lim["ai_timeout_sec"]), retries=0)
     try:
@@ -717,7 +732,7 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
     if not res.get("text"):
         return {"ok": False, "reason": res.get("reason") or t("ph_bad_json", lang), "sent": sent,
                 "not_sent": not_sent}
-    parsed = parse_model(res["text"], len(payload))
+    parsed = parse(res["text"], len(payload))
     if parsed is None:
         return {"ok": False, "reason": t("ph_bad_json", lang), "sent": sent, "not_sent": not_sent}
     return {"ok": True, "reason": None, "sent": sent, "not_sent": not_sent, **parsed}
@@ -769,6 +784,7 @@ class _BodyLimitRoute(APIRoute):
     Размер тела проверяется по Content-Length ДО чтения: FastAPI разбирает multipart раньше, чем
     вызывает обработчик, поэтому проверка внутри обработчика опоздала бы. Нет Content-Length — 411.
     """
+    max_body = MAX_BODY
 
     def get_route_handler(self):
         handler = super().get_route_handler()
@@ -782,8 +798,8 @@ class _BodyLimitRoute(APIRoute):
                 size = int(raw)
             except ValueError:
                 return _fail(request, t("ph_length_required", lang), 400)
-            if size > MAX_BODY:
-                return _fail(request, t("ph_body_too_big", lang, mb=MAX_BODY // (1024 * 1024)), 413)
+            if size > self.max_body:
+                return _fail(request, t("ph_body_too_big", lang, mb=self.max_body // (1024 * 1024)), 413)
             return await handler(request)
 
         return limited
@@ -1038,6 +1054,311 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     })
 
 
+# --------------------------------------------------------------------------- #
+#  Оценка по объявлениям: ссылки поиска и снимки экрана сотрудника (30.09.2026)
+#  Сервер к площадкам (в том числе olx.uz) не обращается: только адреса и чтение снимков моделью.
+# --------------------------------------------------------------------------- #
+
+MAX_SHOT_BODY = am.MAX_SHOTS * MAX_BYTES + 1024 * 1024
+_FX_CACHE = {}                            # курс ЦБ на дату: (ответ, срок в time.monotonic() или None — навсегда)
+FX_DEADLINE_SEC = 5                       # общий срок ожидания курса при загрузке снимков
+FX_FAIL_TTL_SEC = 600                     # неудачу (нет сети, cbu.uz молчит) повторяем не раньше чем через 10 минут
+# свой пул для курса: медленный cbu.uz не должен занимать потоки, которые ждут ответа модели
+_FX_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="act-fx")
+_FX_INFLIGHT = {}
+_FX_LOCK = threading.Lock()
+
+
+def _photo_query(con, sid: Optional[str], owner: str) -> dict:
+    """Марка, модель, год и вид объекта из своей живой загрузки фото объекта (если она указана)."""
+    if not sid:
+        return {}
+    rows = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=? AND owner_key=? AND expires_at > ?",
+                   str(sid)[:40], owner, _iso(_now()))
+    up = json.loads(rows[0]["result_json"] or "{}") if rows else {}
+    if not up or up.get("kind") == "market":
+        return {}
+    fields = up.get("fields") or []
+    yr = preferred(fields, "year")
+    return {"brand": (preferred(fields, "brand") or {}).get("value"),
+            "model": (preferred(fields, "model") or {}).get("value"),
+            "year": ae.to_year(yr["value"]) if yr else None, "object_kind": up.get("object_kind")}
+
+
+def _market_query(request: Request, session: str, brand: str, model: str, year, object_kind: str,
+                  class_code: str) -> tuple:
+    """(запрос, ошибки): явные параметры сильнее значений из загрузки фото."""
+    user = _user(request)
+    owner = guest.owner_of(request, user)
+    errs = {}
+    q = {}
+    if session:
+        with db.tx() as con:
+            ensure_tables(con)
+            q = _photo_query(con, session, owner or "")
+    for key, v, lim in (("brand", brand, 60), ("model", model, 60)):
+        v = am._s(v, lim)
+        if v:
+            if llm.has_pd(v) and not re.fullmatch(r"[\w\-./ ]+", v, re.A):
+                errs[key] = "похоже на данные человека"
+            else:
+                q[key] = v
+    if year not in (None, ""):
+        try:
+            q["year"] = _int_in(year, 1950, date.today().year + 1)
+        except ValueError:
+            errs["year"] = f"целое число от 1950 до {date.today().year + 1}"
+    if object_kind:
+        if object_kind not in tx.OBJECT_KINDS:
+            errs["object_kind"] = "неизвестный вид объекта"
+        else:
+            q["object_kind"] = object_kind
+    if class_code:
+        q["class_code"] = str(class_code).strip()[:10]
+    return q, errs
+
+
+@router.get("/act/market/links")
+def act_market_links(request: Request, session: str = "", lang: str = "", brand: str = "", model: str = "",
+                     year: str = "", object_kind: str = "", class_code: str = "", region: str = ""):
+    """
+    Ссылки поиска на площадках для браузера сотрудника (OLX, avtoelon.uz, uybor.uz, joymee.uz по виду объекта)
+    и подсказка, что снять на снимке. Сервер только составляет адреса и сам по ним не ходит.
+    """
+    lang = _lang(request, lang)
+    q, errs = _market_query(request, session, brand, model, year, object_kind, class_code)
+    if errs:
+        return _fail(request, "Проверьте поля: " + ", ".join(sorted(errs)), 422, errors=errs)
+    q["group"] = am.group_of(q.get("object_kind"), q.get("class_code"))
+    links = am.search_links(q, lang)
+    if not links:
+        return _fail(request, t("mk_links_none", lang), 422, errors={"query": "brand, model или object_kind"})
+    return _reply(request, {"ok": True, "lang": lang,
+                            "query": {k: q.get(k) for k in ("brand", "model", "year", "object_kind", "class_code",
+                                                            "group")},
+                            "region": am._s(region, 80), "links": links, "hint": t("mk_hint", lang, n=am.MAX_SHOTS),
+                            "shot_tips": am.shot_tips(lang), "max_shots": am.MAX_SHOTS,
+                            "note": t("mk_server_note", lang), "warning": t("mk_warn", lang)})
+
+
+class _ShotsBodyLimitRoute(_BodyLimitRoute):
+    max_body = MAX_SHOT_BODY
+
+
+def _fx_cached(key: str) -> Optional[dict]:
+    """Курс ЦБ из памяти: удачный — на весь день, неудача — FX_FAIL_TTL_SEC (не долбим cbu.uz на каждой загрузке)."""
+    got = _FX_CACHE.get(key)
+    if not got:
+        return None
+    res, until = got
+    if until is not None and time.monotonic() > until:
+        _FX_CACHE.pop(key, None)
+        return None
+    return res
+
+
+def _fx_lookup(today: date) -> dict:
+    """Курс из существующего источника проекта: valuation.fx_rate (ручной курс заказчика → ЦБ РУз, cbu.uz)."""
+    from . import valuation
+    key = today.isoformat()
+    hit = _fx_cached(key)
+    if hit is not None:
+        return hit
+    try:
+        with db.tx() as con:
+            fx = valuation.fx_rate(con, today)
+    except Exception as e:                   # сбой курса не роняет загрузку, но запоминается на 10 минут
+        fx = {"rate": None, "as_of": key, "reason": type(e).__name__}
+    by = "manual_setting" if fx.get("manual") else ("cbu" if fx.get("rate") else None)
+    res = {"rate": fx.get("rate"), "by": by, "as_of": fx.get("as_of"), "reason": fx.get("reason")}
+    if by == "cbu":
+        _FX_CACHE[key] = (res, None)
+    elif by is None:
+        _FX_CACHE[key] = (res, time.monotonic() + FX_FAIL_TTL_SEC)
+    return res
+
+
+def _fx_submit(today: date):
+    """Запрос курса в своём пуле (не в пуле модели); одновременные загрузки ждут один и тот же запрос."""
+    key = today.isoformat()
+    with _FX_LOCK:
+        fut = _FX_INFLIGHT.get(key)
+        if fut is None or fut.done():
+            fut = _FX_POOL.submit(_fx_lookup, today)
+            _FX_INFLIGHT[key] = fut
+        return fut
+
+
+def fx_verify(claim: Optional[dict]) -> Optional[dict]:
+    """
+    Курс, который экран получил от сервера (fx.by = cbu), сверяется с памятью сервера без сети: совпал — это
+    курс ЦБ; не с чем сверить — курс ЦБ по данным экрана, сервером не перепроверен (не «введён сотрудником»).
+    """
+    if not claim or claim.get("by") != "cbu":
+        return None
+    key = claim.get("as_of") or date.today().isoformat()
+    hit = _fx_cached(key)
+    if hit and hit.get("by") == "cbu" and hit.get("rate") and abs(float(hit["rate"]) - float(claim["rate"])) < 0.005:
+        return {"rate": float(hit["rate"]), "by": "cbu", "as_of": hit.get("as_of") or key}
+    return {"rate": float(claim["rate"]), "by": "cbu_unverified", "as_of": key}
+
+
+def act_market_shots(request: Request, files: List[UploadFile] = File(...), session: str = Form(""),
+                     lang: str = Form(""), site: str = Form(""), brand: str = Form(""), model: str = Form(""),
+                     year: str = Form(""), object_kind: str = Form(""), usd_rate: str = Form("")):
+    """
+    Снимки экрана со списком объявлений (до 5 файлов JPG/PNG). Модель читает их одним запросом и возвращает
+    объявления; сервер пересчитывает валюту, считает предварительную медиану и хранит снимки 24 часа.
+    Гостевой лимит — по числу файлов (как у /act/photos), лимит обращений к модели — общий с распознаванием фото.
+    """
+    user = _user(request)
+    owner = guest.owner_of(request, user)
+    lang = _lang(request, lang)
+    if not owner:
+        return _fail(request, "Не удалось опознать сессию — откройте приложение заново", 400)
+    if len(files) > am.MAX_SHOTS:
+        return _fail(request, t("mk_too_many", lang, n=am.MAX_SHOTS), 413)
+    site = str(site or "").strip().lower() or "other"
+    errs = {}
+    if site not in am.SITES:
+        errs["site"] = "одно из: " + ", ".join(am.SITES)
+    rate, rate_err = am.usd_rate_in(usd_rate)
+    if rate_err:
+        errs["usd_rate"] = rate_err
+    q, qerrs = _market_query(request, session, brand, model, year, object_kind, "")
+    errs.update(qerrs)
+    if errs:
+        return _fail(request, "Проверьте поля: " + ", ".join(sorted(errs)), 422, errors=errs)
+    with db.tx() as con:
+        ensure_tables(con)
+        st = load_settings(con)
+    limits = st["limits"]
+    if owner.startswith("g:"):
+        n_max = int(limits["guest_photos_per_hour"])
+        res = GUEST_PHOTOS.take(owner, len(files), n_max)
+        if not res["ok"]:
+            print("акт: лимит снимков гостя", guest.short(owner), res["count"], "/", n_max, flush=True)
+            return _limit_reply(request, t("ph_guest_limit", lang, n=n_max), res)
+    sid = secrets.token_hex(12)
+    folder = DIR / sid
+    try:
+        return _shots(request, user, owner, lang, files, site, q, rate, st, sid, folder)
+    except Exception:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+
+
+router.add_api_route("/act/market/shots", act_market_shots, methods=["POST"],
+                     route_class_override=_ShotsBodyLimitRoute)
+
+
+def _shots(request, user, owner, lang, files, site, q, emp_rate, st, sid, folder):
+    limits = st["limits"]
+    saved, rejected = [], []
+    for i, up in enumerate(files, start=1):
+        name = llm.mask_pd(Path(up.filename or "").name)[:120] or f"file {i}"   # только для ответа
+        blob = up.file.read(MAX_BYTES + 1)
+        if not blob:
+            rejected.append({"index": i, "name": name, "error": t("ph_empty_file", lang)})
+            continue
+        if len(blob) > MAX_BYTES:
+            rejected.append({"index": i, "name": name, "error": t("ph_too_big", lang, mb=MAX_BYTES // (1024 * 1024))})
+            continue
+        fmt = _format_of(blob)
+        err = check_content(blob, fmt, limits, lang) if fmt in ("jpg", "png") else t("mk_format", lang)
+        if err:
+            rejected.append({"index": i, "name": name, "error": err})
+            continue
+        folder.mkdir(parents=True, exist_ok=True)
+        fid = f"s{len(saved) + 1}"
+        path = folder / f"{fid}.{fmt}"
+        path.write_bytes(blob)
+        saved.append({"id": fid, "index": i, "name": name, "orig_name": "", "fmt": fmt, "mime": FMT_MIME[fmt],
+                      "size": len(blob), "path": db.stored_path(path), "blob": blob})
+    if not saved:
+        shutil.rmtree(folder, ignore_errors=True)
+        return _fail(request, t("ph_none", lang), 422, rejected=rejected, ai=False, warning=t("mk_warn", lang))
+
+    today = date.today()
+    # курс ищем параллельно с чтением снимков в своём пуле: к cbu.uz ходит существующий модуль оценки,
+    # не к площадкам; общий срок ожидания — FX_DEADLINE_SEC от начала загрузки
+    fx_fut = _fx_submit(today)
+    t0 = time.monotonic()
+    rec = ask_model(saved, lang, limits, "акт: снимки объявлений", am.SYSTEM_PROMPT,
+                    lambda n: am.model_prompt(n, lang, q, today),
+                    lambda text, n: am.parse_model(text, n, today, site))
+    try:
+        fx = fx_fut.result(timeout=max(0.0, FX_DEADLINE_SEC - (time.monotonic() - t0)))
+    except FutureTimeout:
+        fx = {"rate": None, "by": None, "as_of": today.isoformat(),
+              "reason": f"курс не получен за {FX_DEADLINE_SEC} с"}
+    except Exception as e:                   # курс не должен ронять загрузку, но причина видна
+        fx = {"rate": None, "by": None, "as_of": today.isoformat(), "reason": type(e).__name__}
+    if not fx.get("rate") and emp_rate:
+        fx = {"rate": emp_rate, "by": "employee", "as_of": today.isoformat()}
+    fx_used = fx if fx.get("rate") else None
+    sent = rec.get("sent") or []
+    model_to_id = {k + 1: saved[i]["id"] for k, i in enumerate(sent)}
+    listings = []
+    for r in rec.get("listings") or []:
+        listings.append({**r, "file": model_to_id.get(r.get("file")), "source": "shot", "edited": False})
+    est = ae.market_estimate(listings, settings=st, shot_date=today, usd_rate=(fx_used or {}).get("rate"))
+    usd_needed = not fx_used and any(r.get("currency") in ae.USD_LIKE for r in listings)
+    stored_listings = [{k: r.get(k) for k in am.LISTING_KEYS if k in r} for r in listings]
+    with db.tx() as con:
+        ensure_tables(con)
+        cleanup(con)
+        now = _now()
+        stored = {"kind": "market", "lang": lang, "ai": bool(rec.get("ok")), "reason": rec.get("reason"),
+                  "shot_date": today.isoformat(), "site": site, "query": q, "listings": stored_listings,
+                  "fx": fx_used, "files": len(saved)}
+        keep = ("id", "index", "fmt", "mime", "size", "path")
+        con.execute("INSERT INTO act_uploads (id, owner_key, user_id, files_json, result_json, created_at, "
+                    "expires_at) VALUES (?,?,?,?,?,?,?)",
+                    (sid, owner, (user or {}).get("id") or 0,
+                     json.dumps([{k: f[k] for k in keep} for f in saved], ensure_ascii=False),
+                     json.dumps(stored, ensure_ascii=False), _iso(now),
+                     _iso(now + timedelta(seconds=PHOTO_TTL_SEC))))
+        # в журнал — только счётчики: ни названий, ни цен, ни данных продавцов
+        db.audit(con, _who(user, owner), "акт: снимки объявлений", f"act_upload:{sid}",
+                 {"files": len(saved), "rejected": len(rejected), "ai": bool(rec.get("ok")),
+                  "listings": len(listings), "relevant": sum(1 for r in listings if r.get("relevant")),
+                  "dropped_pd": rec.get("dropped") or 0, "duplicates": rec.get("duplicates") or 0,
+                  "site": site, "fx": (fx_used or {}).get("by")})
+    notes = []
+    if rec.get("ok"):
+        message = t("mk_ok", lang, n=len(listings), k=sum(1 for r in listings if r.get("relevant"))) \
+            if listings else t("mk_empty", lang)
+    else:
+        message = t("mk_ai_off", lang, reason=rec.get("reason") or t("ai_not_connected", lang))
+    if rec.get("dropped"):
+        notes.append(t("mk_pd_dropped", lang, n=rec["dropped"]))
+    if usd_needed:
+        notes.append(t("mk_need_rate", lang))
+    fxv = am.fx_label(fx_used, lang)
+    if fxv:
+        notes.append(fxv["text"])
+    if rec.get("ok") and rec.get("not_sent"):
+        notes.append(t("ph_not_sent", lang, files=", ".join(str(saved[i]["index"]) for i in rec["not_sent"]),
+                       mb=limits["ai_max_mb"]))
+    by_id = {r.get("id"): r for r in est["listings"]}
+    q_links = dict(q, group=am.group_of(q.get("object_kind")))
+    return _reply(request, {
+        "ok": True, "shots_session": sid, "lang": lang, "shot_date": today.isoformat(), "site": site,
+        "site_label": tx.label(tx.SITE_LABELS, site, lang),
+        "files": [{"id": f["id"], "index": f["index"], "name": f["name"], "format": f["fmt"],
+                   "read_by_ai": bool(rec.get("ok")) and k in sent} for k, f in enumerate(saved)],
+        "rejected": rejected,
+        "listings": [am.listing_view(by_id.get(r["id"], r), lang) for r in listings],
+        "estimate": am.estimate_view(est, lang),
+        "fx": fxv, "usd_rate_needed": usd_needed,
+        "query": {k: q.get(k) for k in ("brand", "model", "year", "object_kind")},
+        "links": am.search_links(q_links, lang) if (q.get("brand") or q.get("model") or q.get("object_kind")) else [],
+        "ai": bool(rec.get("ok")), "message": message, "notes": notes,
+        "warning": t("mk_warn", lang), "expires_in_hours": PHOTO_TTL_SEC // 3600,
+    })
+
+
 def prefill_view(prefill: dict, lang: str) -> dict:
     """Подсказка для шага 2: значения из документа с источником и пометкой «из документа, проверьте»."""
     out = {}
@@ -1187,6 +1508,14 @@ def validate(con, body: dict) -> tuple:
             errs["price_new"] = "нужно число больше нуля"
         else:
             o["price_new"] = p
+    # стоимость, которую клиент заявил до того, как сотрудник заменил её медианой объявлений
+    dvo = opt.get("declared_value_original")
+    if dvo not in (None, ""):
+        v = _money_in(dvo)
+        if v is None or v <= 0 or v > MAX_SUM:
+            errs["declared_value_original"] = "нужно число больше нуля"
+        else:
+            o["declared_value_original"] = v
     kind = opt.get("object_kind")
     if kind not in (None, ""):
         if kind not in tx.OBJECT_KINDS:
@@ -1260,6 +1589,12 @@ def validate(con, body: dict) -> tuple:
                 errs["deductible"] = "amount больше 0 и не больше половины страховой суммы"
             else:
                 o["deductible"] = {"pct": pv, "amount": av, "type": ftype}
+
+    # объявления со снимков экрана с правками сотрудника (30.09.2026); в расчёт — act_engine.market_estimate
+    mk, mk_err = am.validate_market(opt.get("market"))
+    if mk_err:
+        errs["market"] = mk_err
+    clean["market"] = mk
 
     # распознанное с правками сотрудника: только известные поля, значения без ПД
     rec = body.get("recognized")
@@ -1381,8 +1716,8 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                        clean["session"], owner, _iso(_now()))
         if rows:
             upload = json.loads(rows[0]["result_json"] or "{}")
-        else:
-            session_missing = True
+        if not rows or upload.get("kind") == "market":   # снимки объявлений — не осмотр объекта
+            upload, session_missing = None, True
     upload = upload or {}
     downgraded = 0
     if clean.get("recognized") is not None:
@@ -1498,6 +1833,13 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         dec["checks"].append({"code": "c_fr_applied", "params": {}})
         if dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
+    market = None
+    if clean.get("market"):
+        market = market_block(con, clean["market"], owner, st, m, o, recognized, kind, cls, group, y)
+        mchecks = am.decision_checks(market)
+        dec["checks"] += mchecks
+        if mchecks and dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
     cls_row = db.rows(con, "SELECT name FROM classes WHERE code=?", cls)
     return {
         "insurer": insurer_name(st),
@@ -1518,7 +1860,78 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         "premium_final": {"amount": premium_final, "rate_pct": rate_final,
                           "franchise_applied": bool(fr.get("applied"))},
         "scenarios": scen, "measures": meas, "block_errors": block_errors,
+        "market": market,
     }
+
+
+def _shots_upload(con, sid: Optional[str], owner: str) -> Optional[dict]:
+    """Своя живая загрузка снимков объявлений (kind = market) или None."""
+    if not sid:
+        return None
+    rows = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=? AND owner_key=? AND expires_at > ?",
+                   sid, owner, _iso(_now()))
+    res = json.loads(rows[0]["result_json"] or "{}") if rows else {}
+    return res if res.get("kind") == "market" else None
+
+
+def fx_offline(con, as_of: date) -> Optional[dict]:
+    """Курс без сети: только ручной курс заказчика из настроек оценки (valuation_settings.fx_rate_manual)."""
+    from . import valuation
+    raw = valuation.setting(con, valuation.SETTING_FX_MANUAL)
+    try:
+        v = float(str(raw).replace(" ", "").replace(",", ".")) if raw not in (None, "") else 0.0
+    except ValueError:
+        v = 0.0
+    return {"rate": v, "by": "manual_setting", "as_of": as_of.isoformat()} if v > 0 else None
+
+
+def market_block(con, mk: dict, owner: str, st: dict, m: dict, o: dict, recognized: list, kind, cls, group, y) -> dict:
+    """
+    Оценка по объявлениям для акта (в сеть не ходит). Объявления — из ввода сотрудника; источник каждого
+    сверяется со своей загрузкой снимков (am.trust_listings), правки сотрудника считаются по всей загрузке.
+    Курс: из загрузки снимков (он получен из источника проекта) → курс ЦБ, который экран получил от сервера
+    (fx.by = cbu, сверка с памятью сервера) → ручной курс заказчика в настройках → курс, введённый сотрудником;
+    иначе доллары не считаются.
+    """
+    shots = _shots_upload(con, mk.get("shots_session"), owner)
+    items = [dict(r) for r in mk["listings"]]
+    src = am.trust_listings(items, shots)
+    edits = src.pop("edits")
+    shot_date = date.today()
+    if shots and shots.get("shot_date"):
+        try:
+            shot_date = date.fromisoformat(shots["shot_date"])
+        except ValueError:
+            pass
+    claim = mk.get("fx_claim")
+    fx = (shots or {}).get("fx") if ((shots or {}).get("fx") or {}).get("by") in ("cbu", "manual_setting") else None
+    if not fx and claim and claim.get("by") == "cbu":
+        fx = fx_verify(claim)
+        fx = fx if fx["by"] == "cbu" else (fx_offline(con, shot_date) or fx)
+    # ручной курс настроек сверяется с настройками же: если его там уже нет, курс экрана не берём
+    fx = fx or fx_offline(con, shot_date)
+    # курс сотрудника — только тот, что он ввёл сам (fx.by = employee или старое поле usd_rate)
+    emp_rate = claim["rate"] if claim and claim.get("by") == "employee" else mk.get("usd_rate")
+    if not fx and emp_rate:
+        fx = {"rate": emp_rate, "by": "employee", "as_of": (claim or {}).get("as_of") or date.today().isoformat()}
+    rate = (fx or {}).get("rate")
+    est = ae.market_estimate(items, declared=m["object_value"], sum_insured=m["sum_insured"], settings=st,
+                             shot_date=shot_date, usd_rate=rate)
+    if shots:
+        # медиана без правок: объявления, как их прочитала модель, по тем же правилам и курсу
+        orig = [dict(r, source="shot") for r in shots.get("listings") or []]
+        est0 = ae.market_estimate(orig, settings=st, shot_date=shot_date, usd_rate=rate)
+        est["median_original"] = est0["median"]
+    q = {"brand": (preferred(recognized, "brand") or {}).get("value"),
+         "model": (preferred(recognized, "model") or {}).get("value"),
+         "year": y, "object_kind": kind, "class_code": cls, "group": group}
+    q.update({k: v for k, v in ((shots or {}).get("query") or {}).items() if v and not q.get(k)})
+    # ссылки поиска собираются при показе акта на его языке (по запросу query); сервер по ним не ходит
+    est.update(fx=fx, query=q, shots_session=mk.get("shots_session"),
+               shots_missing=bool(mk.get("shots_session")) and shots is None,
+               source={**src, "shots": sum(1 for r in items if r.get("source") == "shot" and not r.get("removed"))},
+               edits=edits, dropped_pd=mk.get("dropped_pd") or 0)
+    return est
 
 
 _KIND_BY_TYPE = {"Склад": "warehouse", "Офис": "office", "Магазин": "shop", "Производство": "production",
@@ -1599,6 +2012,8 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
         return t("c_views", lang, views=", ".join(tx.label(tx.VIEW_LABELS, v, lang) for v in p["views"]))
     if c["code"] == "c_missing":
         return t("c_missing", lang, what=", ".join(tx.field_label(k, lang, group).lower() for k in p["keys"]))
+    if c["code"].startswith("c_market_"):
+        return am.check_text(c, lang) or t(c["code"], lang)
     return t(c["code"], lang)
 
 
@@ -1705,10 +2120,17 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         vtext = t("v_normal", lang, ratio=ratio) + " " + t("v_under_small", lang, ratio=ratio, ref=legal)
     else:
         vtext = t("v_normal", lang, ratio=ratio)
+    M = D.get("market")
+    # один итоговый вывод: при «уточнить стоимость» — сумма к заявленной и к уточнённой стоимости и итог
+    final = am.final_verdict(value, M)
+    vtext = am.final_text(value, M, lang, vtext)
+    decl = am.declared_text(opt.get("declared_value_original"), must["object_value"], M, lang)
     rows3 = [_row(t("sum_insured", lang), money(must["sum_insured"], lang)),
-             _row(t("object_value", lang), money(must["object_value"], lang)),
-             _row(t("ratio", lang), ratio),
-             _row(t("verdict", lang), vtext)]
+             _row(t("object_value", lang), money(must["object_value"], lang))]
+    if decl:
+        rows3.append(_row(decl[0], money(opt["declared_value_original"], lang), decl[1]))
+    rows3 += [_row(t("ratio", lang), ratio),
+              _row(t("verdict", lang), vtext)]
     p3 = []
     dep = value.get("depreciated")
     if dep:
@@ -1716,7 +2138,12 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                           t("depr_how", lang, price=money(dep["price_new"], lang),
                             rate=pct(dep["wear_pct_per_year"], lang), years=dep["years"])))
         p3.append(t("depr_note", lang))
-    s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3}
+    if M and M.get("query") is not None:
+        M = dict(M, links=am.search_links(M["query"], lang))
+    mv = am.market_view(M, lang)
+    rows3 += mv["rows"]
+    s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3, "source_lines": mv["source_lines"],
+          "lists": mv["lists"]}
 
     # ---------- раздел 4 ----------
     level_label = tx.label(tx.LEVEL_LABELS, risk["level"], lang)
@@ -1803,6 +2230,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     sections = [s1, s2, s3, s4, s5]
     for s in sections:
         s.setdefault("lists", [])
+        s.setdefault("source_lines", [])      # строки источника сразу под строками раздела
     created = meta["created_at"]
     return {
         "ok": True, "id": meta["id"], "number": meta["number"], "lang": lang,
@@ -1832,7 +2260,14 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                     "franchise_applied": pf["franchise_applied"]},
         "value": {"ratio_pct": value["ratio_pct"], "verdict": value["verdict"], "text": vtext,
                   "legal_ref": value["legal_ref"], "legal_ref_text": legal,
-                  "depreciated": value.get("depreciated")},
+                  "depreciated": value.get("depreciated"),
+                  # итоговый вывод раздела 3 и плитки сводки: normal | under | over | refine
+                  "final_verdict": final, "final_text": vtext,
+                  "refined_ratio_pct": ((M or {}).get("insured_check") or {}).get("ratio_pct")
+                  if final == "refine" else None,
+                  "declared_original": opt.get("declared_value_original"),
+                  "value_source": decl[2] if decl else None},
+        "market_value": mv["json"],
         "franchise": {"needed": bool(fr.get("needed")), "text": fr_text,
                       "grounds": [{"code": g["code"], "text": _text(g, lang)} for g in fr.get("grounds") or []],
                       **({"size": fr["size"]} if fr.get("size") else {}),
@@ -2186,7 +2621,9 @@ def act_make(request: Request, body: dict = Body(...)):
                   "dropped_pd": D.get("dropped_pd") or 0, "sources_downgraded": D.get("sources_downgraded") or 0,
                   "lang": lang, "franchise": D["franchise"].get("status"),
                   "scenarios": bool((D.get("scenarios") or {}).get("available")),
-                  "measures": len((D.get("measures") or {}).get("items") or [])})
+                  "measures": len((D.get("measures") or {}).get("items") or []),
+                  "market": (D.get("market") or {}).get("verdict"),
+                  "market_used": (D.get("market") or {}).get("used")})
         for e in D.get("block_errors") or []:
             db.audit(con, _who(user, owner), "акт: блок не посчитан", f"act:{aid}", e)
     return _reply(request, out)
@@ -2368,6 +2805,8 @@ def build_docx(act: dict) -> bytes:
         if s["rows"]:
             doc.table([[r["label"], str(r["value"]), r.get("note") or ""] for r in s["rows"]],
                       widths=[2900, 3900, TEXT_WIDTH - 6800], header=False)
+        for p in s.get("source_lines") or []:
+            doc.para(p, italic=True, color="555555", size=18, after=60)
         for li in s.get("lists") or []:
             doc.para(li["title"], bold=True, after=60)
             for it in li["items"]:
@@ -2452,6 +2891,8 @@ def build_pdf(act: dict) -> bytes:
         if s["rows"]:
             pdf.table([("", label_w, "l"), ("", CONTENT_W - label_w - note_w, "l"), ("", note_w, "l")],
                       [[r["label"], str(r["value"]), r.get("note") or ""] for r in s["rows"]], header=False)
+        for p in s.get("source_lines") or []:
+            pdf.para(p, size=9, color=GRAY, gap=2)
         for li in s.get("lists") or []:
             pdf.para(li["title"], size=10, bold=True, gap=2)
             for it in li["items"]:

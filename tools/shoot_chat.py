@@ -1,18 +1,28 @@
 """
 Скриншоты вкладки «ИИ-сюрвейер», лёгкая версия (ТЗ 2.0 от 29.09.2026): «Фото → Проверить → Акт».
 
-Поднимает временный экземпляр сервера (tools/perf_check.Instance — копия базы, рабочая не трогается),
-запускает headless Edge с отладочным портом и водит страницу по шагам через CDP (стандартная
-библиотека, без пакетов). Сети к языковой модели у временного сервера нет, поэтому ответ POST /act/photos
-подменяется настоящим ответом сервера из sandbox/act_demo_photos.json (+ одно значение с таблички,
-чтобы было видно расхождение источников). Дальше всё настоящее: POST /act/make и GET /act/{id}?lang=uz.
+Поднимает временный экземпляр сервера (копия базы, рабочая не трогается; как tools/perf_check.Instance, но
+запускается этим же скриптом в режиме --serve), запускает headless Edge с отладочным портом и водит страницу
+по шагам через CDP (стандартная библиотека, без пакетов). Сети к языковой модели у временного сервера нет,
+поэтому ответ POST /act/photos подменяется в браузере сохранённым образцом ответа сервера
+sandbox/act_demo_photos.json (+ одно значение с таблички, чтобы было видно расхождение источников).
+Дальше всё настоящее: POST /act/make и GET /act/{id}?lang=uz.
 Путь: шаг «Фото» пустой → учебный договор sandbox/flow150_contract.docx (разбирается сервером без модели,
 настоящий POST /act/photos) → шаг «Проверить» с подставленными суммой, стоимостью, сроком и регионом
 «из документа — проверьте» → «Новый акт» → три снимка в списке → «Читаю фото…» → шаг «Проверить»
 с распознанным → «Сформировать акт» (без франшизы) → блок «Франшиза» раскрыт, своя 1 % → шаг «Акт»
 с применённой франшизой на 390 и 1440 px → узбекский → предложенная франшиза и «Применить» →
-«Новый акт» → «Без фото» → тёмная тема и соседние разделы. Складывает PNG в sandbox/, печатает горизонтальную прокрутку, служебные слова
-на экране (undefined, null, calibrated…) и ошибки консоли страницы.
+«Новый акт» → «Без фото» → тёмная тема и соседние разделы.
+Оценка по объявлениям (30.09.2026): на шаге «Проверить» карточка «Оценка по объявлениям» пустая (ссылки поиска —
+настоящий GET /act/market/links: сервер только составляет адреса, к olx.uz никто не ходит) → снимок экрана со списком
+объявлений sandbox/mk30/listings.png → «Прочитать объявления»: НАСТОЯЩИЙ POST /act/market/shots — сервер
+сохраняет снимок, считает и хранит загрузку 24 часа. Подменена только функция обращения к модели
+(llm.chat_raw во временном экземпляре): модель недоступна, поэтому она отвечает объявлениями из образца
+sandbox/mk30/shots.json в формате ответа модели. Курса ЦБ у временного сервера нет (сети нет) — курс вводит
+сотрудник в поле «Курс доллара». Дальше настоящий POST /act/make по живой загрузке снимков: в акте источник
+«OLX, объявления на дату, снимки загружены сотрудником». → объявления с отметками и итогом → акт с плиткой
+«Оценка по объявлениям» на 390 и 1440 px и на узбекском. Складывает PNG в sandbox/, печатает горизонтальную
+прокрутку, служебные слова на экране (undefined, null, calibrated…) и ошибки консоли страницы.
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
@@ -38,10 +48,15 @@ from perf_check import Instance  # noqa: E402
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 PORT, DBG = 8123, 9223
 OUT = ROOT / "sandbox"
-PHOTOS_SAMPLE = ROOT / "sandbox" / "act_demo_photos.json"        # настоящий ответ POST /act/photos
+PHOTOS_SAMPLE = ROOT / "sandbox" / "act_demo_photos.json"        # сохранённый образец ответа POST /act/photos
 FILES = [ROOT / "sandbox" / "gen" / "test_1.jpg", ROOT / "sandbox" / "gen" / "test_2.jpg",
          ROOT / "sandbox" / "docx_p0.png"]                       # картинки без данных людей
 CONTRACT = ROOT / "sandbox" / "flow150_contract.docx"            # учебный договор: разбирается без модели
+# образец объявлений (сохранённый ответ POST /act/market/shots): из него собирается ответ подменённой модели;
+# сам POST /act/market/shots во время съёмки — настоящий
+SHOTS_SAMPLE = ROOT / "sandbox" / "mk30" / "shots.json"
+LISTINGS_SHOT = ROOT / "sandbox" / "mk30" / "listings.png"        # снимок экрана со списком объявлений (без продавцов)
+USD_RATE = "12650"                                                # курс, который «вводит сотрудник»: сети к cbu.uz нет
 
 # что не должно попадать на экран: пустые значения и служебные слова сервера
 LEAKS = r"""(() => {
@@ -148,6 +163,89 @@ def shot(ws, name, width, height=900, cap=4000, scale=2):
     return over
 
 
+def shot_el(ws, name, width, selector, scale=2, pad=10):
+    """Снимок одного блока страницы (карточка, раздел акта) — без остальной длинной страницы."""
+    ws.call("Emulation.setDeviceMetricsOverride", width=width, height=900, deviceScaleFactor=scale, mobile=width < 700)
+    time.sleep(0.6)
+    full = int(min(12000, ws.call("Page.getLayoutMetrics")["cssContentSize"]["height"]))
+    ws.call("Emulation.setDeviceMetricsOverride", width=width, height=full, deviceScaleFactor=scale, mobile=width < 700)
+    time.sleep(0.6)
+    r = js(ws, "(() => { const e = document.querySelector(" + json.dumps(selector) + "); if (!e) return null;"
+               " const b = e.getBoundingClientRect(); return [b.left + scrollX, b.top + scrollY, b.width, b.height]; })()")
+    over = js(ws, "document.documentElement.scrollWidth - document.documentElement.clientWidth")
+    if not r:
+        print(f"  {name}: блока {selector} на странице нет")
+    else:
+        x, y, w, h = r
+        clip = {"x": max(0, x - pad), "y": max(0, y - pad), "width": min(width, w + 2 * pad), "height": h + 2 * pad, "scale": 1}
+        data = ws.call("Page.captureScreenshot", format="png", clip=clip, captureBeyondViewport=True)["data"]
+        path = OUT / name
+        path.write_bytes(base64.b64decode(data))
+        leaks = js(ws, LEAKS)
+        print(f"  {name}: {path.stat().st_size // 1024} КБ, горизонтальная прокрутка: {over} px"
+              + (f", НА ЭКРАНЕ: {leaks}" if leaks else ""))
+    ws.call("Emulation.setDeviceMetricsOverride", width=width, height=900, deviceScaleFactor=scale, mobile=width < 700)
+    return over
+
+
+MODEL_KEYS = ("title", "price", "currency", "year", "mileage_km", "hours", "region", "posted", "posted_date", "site",
+              "relevant", "why_excluded")
+
+
+def model_answer() -> str:
+    """Ответ «модели» из образца sandbox/mk30/shots.json — в той схеме, что просит act_market.SCHEMA_HINT."""
+    d = json.loads(SHOTS_SAMPLE.read_text(encoding="utf-8"))
+    rows = [dict({k: r.get(k) for k in MODEL_KEYS}, file=1) for r in d.get("listings") or []]
+    return json.dumps({"listings": rows}, ensure_ascii=False)
+
+
+def serve_fake_model(port: int, copy: Path):
+    """
+    Временный экземпляр сервера (подпроцесс): всё как tools/perf_check.serve, но модель «подключена» —
+    llm.chat_raw отвечает образцом. Загрузка снимков, хранение, курс и /act/make остаются настоящими.
+    """
+    from perf_check import serve
+    from app import llm
+    answer = model_answer()
+
+    def chat_raw(purpose, messages, max_tokens=700, temperature=0.2, files=None, timeout=None, retries=None):
+        if "объявлени" not in str(purpose):
+            return {"text": None, "ok": False, "notes": [], "ms": 0, "reason": "модель недоступна во временном сервере"}
+        return {"text": answer, "ok": True, "notes": [], "ms": 1, "reason": None}
+    llm.enabled = lambda: True
+    llm.supports_files = lambda: True
+    llm.chat_raw = chat_raw
+    serve(port, copy)
+
+
+class ShootInstance(Instance):
+    """Как perf_check.Instance, но подпроцесс — этот скрипт в режиме --serve (с подменённой моделью)."""
+
+    def __enter__(self):
+        import perf_check as pc
+        if pc._port_busy(self.port):
+            raise SystemExit(f"порт {self.port} занят")
+        pc.copy_db(self.db, self.source)
+        self.token = pc.add_perf_admin(self.db)
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("SURVEYOR_DEV", "TG_POLLING", "DEMO_SEED", "STORAGE_DIR")}
+        env.update({"STORAGE_DIR": str(self.dir), "PYTHONIOENCODING": "utf-8", "TG_POLLING": "0", "SURVEYOR_DEV": "1"})
+        self._logf = open(self.log, "w", encoding="utf-8")
+        self.proc = subprocess.Popen([pc.server_python(), str(Path(__file__).resolve()), "--serve", str(self.port),
+                                      str(self.db)], cwd=str(ROOT), env=env, stdout=self._logf,
+                                     stderr=subprocess.STDOUT)
+        deadline = time.time() + 90
+        while time.time() < deadline:
+            if self.proc.poll() is not None:
+                raise SystemExit("временный экземпляр не поднялся:\n" + self.log.read_text(encoding="utf-8")[-3000:])
+            try:
+                urlopen(f"http://127.0.0.1:{self.port}/health", timeout=2).read()
+                return self
+            except OSError:
+                time.sleep(0.2)
+        raise SystemExit("временный экземпляр не ответил на /health за 90 с")
+
+
 def console_errors(ws):
     out = []
     for e in ws.events:
@@ -216,7 +314,7 @@ FILL_STEP2 = """(async () => {
 
 def main():
     OUT.mkdir(exist_ok=True)
-    with Instance(PORT, "dev", keep=False):
+    with ShootInstance(PORT, "dev", keep=False):
         profile = tempfile.mkdtemp(prefix="edge-shoot-")
         edge = subprocess.Popen([EDGE, "--headless=new", f"--remote-debugging-port={DBG}",
                                  f"--user-data-dir={profile}", "--no-first-run", "--disable-gpu",
@@ -259,6 +357,7 @@ def main():
             js(ws, "actReset()", 1)
 
             # дальше /act/photos отвечает образцом: у временного сервера нет сети к модели
+            # /act/market/shots не перехватывается: загрузка снимков объявлений — настоящая
             ws.call("Fetch.enable", patterns=[{"urlPattern": "*/act/photos*", "requestStage": "Request"}])
 
             # три снимка в списке: превью, «Убрать», кнопка «Дальше»
@@ -294,6 +393,36 @@ def main():
             bad.append(shot(ws, "chat_step2_products_390.png", 390, cap=2400))
             js(ws, 'CH.prodOpen = false; CH.prodQ = ""; wzPart("prod")', 0.5)
 
+            # оценка по объявлениям: карточка пустая — ссылки поиска по распознанному (XCMG QY50K5D, автокран)
+            js(ws, "wzPaint(true)", 2.5)
+            print("  ссылки поиска:", js(ws, "JSON.stringify((MK.links ? MK.links.links : []).map(l => l.site + ' ' + l.url))"),
+                  "| ошибка:", js(ws, "MK.linksErr") or "нет")
+            bad.append(shot_el(ws, "chat_step2_market_390.png", 390, "#mkCard"))
+            # снимок экрана со списком → «Прочитать объявления»: настоящий POST /act/market/shots
+            # (во временном сервере подменена только модель — она отвечает образцом sandbox/mk30/shots.json)
+            set_files(ws, "#mkFile", [LISTINGS_SHOT])
+            time.sleep(1)
+            js(ws, 'document.querySelector("[data-mk=read]").click()', 0.05)
+            bad.append(shot_el(ws, "chat_step2_market_reading_390.png", 390, "#mkShots"))
+            for _ in range(60):
+                if not js(ws, "MK.busy"):
+                    break
+                time.sleep(0.25)
+            print("  загрузка снимков:", js(ws, "MK.ss") or "нет", "| сообщение:", js(ws, "MK.info && MK.info.message") or "—",
+                  "| ошибка:", js(ws, "MK.err") or "нет")
+            # курса ЦБ у временного сервера нет (сети нет): сотрудник вводит курс сам — в акте «введён сотрудником»
+            js(ws, """(() => { const el = document.querySelector('#mkRate'); if (!el) return;
+                       el.value = '""" + USD_RATE + """'; el.dispatchEvent(new Event('input', {bubbles: true})); })()""", 0.5)
+            print("  объявления:", js(ws, "MK.listings.length"), "| предпросмотр:",
+                  js(ws, "(() => { const e = mkEstimate(); return [e.median, e.low, e.high, e.used + '/' + e.count, e.verdict,"
+                         " mkDiff(CH.must.object_value, e.median)].join(' | '); })()"), "| ошибка:", js(ws, "MK.err") or "нет")
+            bad.append(shot_el(ws, "chat_step2_market_read_390.png", 390, "#mkCard"))
+            bad.append(shot_el(ws, "chat_step2_market_read_1440.png", 1440, "#mkCard", scale=1))
+            # форма «Добавить объявление вручную» — открыть, посмотреть и закрыть (в акт не уходит)
+            js(ws, 'document.querySelector("[data-mk=addopen]").click()', 0.5)
+            bad.append(shot_el(ws, "chat_step2_market_add_390.png", 390, "#mkAdd"))
+            js(ws, 'document.querySelector("[data-mk=addcancel]").click()', 0.3)
+
             # «Сформировать акт» → шаг 3 «Акт» (настоящий POST /act/make)
             js(ws, 'document.querySelector("#chatMain").click()', 6)
             print("  после «Сформировать акт»: шаг", js(ws, "CH.wz"), "| акт:", js(ws, "CH.act && CH.act.number") or "нет",
@@ -303,6 +432,15 @@ def main():
             print("  без франшизы: статус", js(ws, "CH.act && CH.act.franchise.status"), "| премия", js(ws, "CH.act && CH.act.premium.amount"),
                   "| сценарии:", js(ws, "CH.act && CH.act.scenarios.available"), "| мероприятий:", js(ws, "CH.act ? CH.act.measures.length : -1"))
             bad.append(shot(ws, "chat_step3_390.png", 390, cap=9000))
+            # плитка «Оценка по объявлениям» в сводке и раздел 3 со строками источника
+            print("  оценка в акте:", js(ws, "(() => { const m = CH.act && CH.act.market_value; return m ? [m.verdict, m.median,"
+                                             " m.low + '–' + m.high, m.used + '/' + m.count, m.diff_pct, m.refined_value,"
+                                             " m.insured_check && m.insured_check.ratio_pct, m.source_label].join(' | ') : 'нет'; })()"))
+            bad.append(shot_el(ws, "chat_step3_market_390.png", 390, ".act-sum"))
+            js(ws, "document.querySelectorAll('details.act-s').forEach(d => { d.open = d.dataset.sn === '3'; })", 0.3)
+            bad.append(shot_el(ws, "chat_step3_market_doc_390.png", 390, 'details.act-s[data-sn="3"]'))
+            bad.append(shot_el(ws, "chat_step3_market_1440.png", 1440, ".act-sum", scale=1))
+            js(ws, "wzPaint(true)", 0.5)
 
             # шаг 2: блок «Франшиза» раскрыт — своя безусловная 1 % от страховой суммы
             js(ws, "wzGo(2)", 1)
@@ -335,8 +473,12 @@ def main():
             print("  узбекский: язык акта", js(ws, "CH.act && CH.act.lang"), "| регион в полях:", js(ws, "CH.must.region"))
             js(ws, "window.scrollTo(0, 0)", 0.3)
             bad.append(shot(ws, "chat_step3_uz_390.png", 390, cap=9000))
-            js(ws, "wzGo(2)", 1.5)
+            bad.append(shot_el(ws, "chat_step3_market_uz_390.png", 390, ".act-sum"))
+            js(ws, "document.querySelectorAll('details.act-s').forEach(d => { d.open = d.dataset.sn === '3'; })", 0.3)
+            bad.append(shot_el(ws, "chat_step3_market_doc_uz_390.png", 390, 'details.act-s[data-sn="3"]'))
+            js(ws, "wzGo(2)", 2.5)
             bad.append(shot(ws, "chat_step2_uz_390.png", 390, cap=5000))
+            bad.append(shot_el(ws, "chat_step2_market_uz_390.png", 390, "#mkCard"))
             js(ws, "document.querySelector('[data-lang-pick=\"ru\"]').click()", 3)
 
             # предложенная франшиза: мелкие убытки за три года — система советует, сотрудник применяет одной кнопкой
@@ -380,4 +522,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) > 1 and sys.argv[1] == "--serve":
+        serve_fake_model(int(sys.argv[2]), Path(sys.argv[3]))
+    else:
+        main()

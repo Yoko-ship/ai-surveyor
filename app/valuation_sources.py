@@ -72,7 +72,8 @@ STATUS_DOWN = "источник недоступен"
 STATUS_ROBOTS = "запрещено robots.txt"
 
 _last_request: Dict[str, float] = {}
-_robots_cache: Dict[str, Any] = {}
+_robots_cache: Dict[str, Any] = {}          # домен → (правила или None, причина, когда прочитано)
+ROBOTS_FAIL_TTL_SEC = 600                    # сбой чтения robots.txt не запоминаем навсегда: повтор через 10 минут
 
 _SSL_CTX = ssl.create_default_context()
 
@@ -162,8 +163,10 @@ def robots_check(url: str) -> tuple:
     """
     dom = _domain(url)
     scheme = urllib.parse.urlsplit(url).scheme or "https"
-    if dom in _robots_cache:
-        rp, reason = _robots_cache[dom]
+    got = _robots_cache.get(dom)
+    # прочитанные правила помним до перезапуска; сбой чтения — только ROBOTS_FAIL_TTL_SEC, потом спрашиваем снова
+    if got is not None and (got[0] is not None or time.monotonic() - got[2] < ROBOTS_FAIL_TTL_SEC):
+        rp, reason = got[0], got[1]
     else:
         robots_url = "%s://%s/robots.txt" % (scheme, dom)
         rp, reason = None, ""
@@ -181,7 +184,7 @@ def robots_check(url: str) -> tuple:
                 reason = "robots.txt недоступен (HTTP %d)" % e.code
         except Exception as e:                       # сеть, таймаут, TLS
             reason = "robots.txt недоступен (%s)" % type(e).__name__
-        _robots_cache[dom] = (rp, reason)
+        _robots_cache[dom] = (rp, reason, time.monotonic())
     if rp is None:
         return False, reason or "robots.txt недоступен"
     if rp.can_fetch(USER_AGENT, url) or rp.can_fetch("*", url):

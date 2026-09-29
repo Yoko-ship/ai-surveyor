@@ -22,6 +22,7 @@
        быстрый режим аналитики: пресеты, последний выбор формы, четыре обязательных поля
   GET  /osgor/activities, POST /osgor/quick, /osgor/assess — ОСГОР (app/osgor.py)
   POST /act/photos, /act/make, GET /act/{id}[.docx|.pdf] — сюрвейерский акт, лёгкая версия (app/act.py)
+  GET  /act/market/links, POST /act/market/shots — оценка по объявлениям со снимков сотрудника (app/act_market.py)
   POST /admin/tariff-versions, /admin/min-rates, /admin/coefficients, /admin/products, PUT /admin/financials
   GET  /requests/{id}/explain           — объяснение расчёта клиенту (ИИ, без него — шаблон)
   GET  /llm/status, POST /llm/ping, GET /llm/calls — состояние и журнал обращений к ИИ

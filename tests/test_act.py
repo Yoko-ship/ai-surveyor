@@ -35,6 +35,7 @@ import pymupdf                            # noqa: E402
 
 from tmpdb import temp_db                 # noqa: E402
 from app import act, act_engine as ae, db, guest, llm   # noqa: E402
+from app import act_market as am, act_texts as tx       # noqa: E402
 from app.engine import Input, min_rate, rate_for        # noqa: E402
 from app.main import app                  # noqa: E402
 
@@ -2000,6 +2001,799 @@ def check_screen():
        and ": {})" in call_site, call_site)
 
 
+# ------------------------------------------------------------------ 36. оценка по объявлениям (снимки экрана)
+
+def upload_to(path, files, fields=None):
+    boundary = "----insonmk"
+    parts = []
+    for k, v in (fields or {}).items():
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
+    for name, mime, blob in files:
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="files"; '
+                     f'filename="{name}"\r\nContent-Type: {mime}\r\n\r\n'.encode() + blob + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    payload = b"".join(parts)
+    hdrs = [(b"host", b"test"), (b"content-type", f"multipart/form-data; boundary={boundary}".encode()),
+            (b"content-length", str(len(payload)).encode())] + _cookie_hdr()
+    return _send("POST", path, None, hdrs, payload)
+
+
+RATE = 12650.0                            # подменённый курс ЦБ в тесте (сеть не используется)
+TODAY = date.today()
+
+
+def _days_ago(n):
+    return (TODAY - timedelta(days=n)).isoformat()
+
+
+def _days_ahead(n):
+    return (TODAY + timedelta(days=n)).isoformat()
+
+
+# 7 объявлений автокрана XCMG QY50K5D: одно другой модели, один выброс, одно в долларах, у одного даты нет.
+# Лишние поля продавца и телефон в названии — модель нарушила запрет, сервер должен их убрать.
+MARKET_REPLY = _json.dumps({"listings": [
+    {"file": 1, "title": "XCMG QY50K5D 2021, звоните +998 90 123-45-67", "price": 2_650_000_000, "currency": "UZS",
+     "year": 2021, "hours": 4200, "region": "Ташкент", "posted": "Сегодня 10:15", "posted_date": None,
+     "site": "olx", "relevant": True, "seller": "Иванов Иван Иванович", "phone": "+998 90 123-45-67"},
+    {"file": 1, "title": "Автокран XCMG QY50K5D", "price": "2 500 000 000 сум", "currency": "UZS", "year": 2020,
+     "region": "Каримов Алишер Бахтиёрович", "posted": _days_ago(18), "site": "olx", "relevant": True},
+    {"file": 2, "title": "XCMG QY50K5D 50 тонн", "price": 205000, "currency": "USD", "year": 2022,
+     "region": "Самарканд", "posted": "вчера", "site": "olx", "relevant": True},
+    {"file": 2, "title": "XCMG QY50K5D", "price": 2_400_000_000, "currency": "UZS", "year": 2019,
+     "region": "Навои", "posted_date": _days_ago(41), "site": "olx", "relevant": True},
+    {"file": 2, "title": "XCMG QY25K5D 25 тонн", "price": 1_500_000_000, "currency": "UZS", "year": 2021,
+     "posted": "вчера", "site": "olx", "relevant": False, "why_excluded": "другая модель: QY25K5D"},
+    {"file": 3, "title": "XCMG QY50K5D срочно", "price": 900_000_000, "currency": "UZS", "year": 2021,
+     "posted": _days_ago(5), "site": "olx", "relevant": True},
+    {"file": 3, "title": "XCMG QY50K5D 2023", "price": 2_800_000_000, "currency": "UZS", "year": 2023,
+     "posted": "3 дня назад", "site": "olx", "relevant": True},
+    # дубль с перекрывающегося снимка — должен схлопнуться
+    {"file": 3, "title": "XCMG QY50K5D 2023", "price": 2_800_000_000, "currency": "UZS", "year": 2023,
+     "posted": None, "site": "olx", "relevant": True},
+    # L8: даты публикации на снимке нет — в расчёт не берётся; телефон в названии с хвостом «тел.»
+    {"file": 3, "title": "XCMG QY50K5D, тел. +998 93 555 66 77", "price": 2_550_000_000, "currency": "UZS",
+     "year": 2020, "posted": None, "site": "olx", "relevant": True},
+    # L9: «7 месяцев назад» — старше 6 месяцев
+    {"file": 3, "title": "XCMG QY50K5D 2018", "price": 2_000_000_000, "currency": "UZS", "year": 2018,
+     "posted": "7 месяцев назад", "site": "olx", "relevant": True},
+    # L10: дата позже даты снимков — некорректна
+    {"file": 3, "title": "XCMG QY50K5D 2022 новый", "price": 2_700_000_000, "currency": "UZS", "year": 2022,
+     "posted_date": _days_ahead(10), "site": "olx", "relevant": True},
+]}, ensure_ascii=False)
+
+SHOT_FILES = [("shot1.png", "image/png", image((240, 240, 240), w=390, h=844)),
+              ("shot2.jpg", "image/jpeg", image((230, 230, 230), kind="jpg", w=390, h=844)),
+              ("shot3.png", "image/png", image((250, 250, 250), w=390, h=844))]
+PD_BITS = ("Иванов", "123-45-67", "123 45 67", "Бахтиёрович", "Каримов", "555 66 77")
+
+
+def hand_q(xs, p):
+    """Перцентиль «руками»: позиция p × (n − 1), линейно между соседями."""
+    xs = sorted(xs)
+    pos = p * (len(xs) - 1)
+    lo = int(pos)
+    return xs[lo] + (xs[min(lo + 1, len(xs) - 1)] - xs[lo]) * (pos - lo)
+
+
+class NetSpy:
+    """Подмена сетевого слоя: любое обращение записывается и отклоняется (сервер не должен ходить в сеть)."""
+
+    def __init__(self):
+        self.hits = []
+
+    def __enter__(self):
+        import socket
+        import urllib.request
+        from app import valuation_sources as vs
+        self.saved = (socket.socket.connect, socket.create_connection, urllib.request.urlopen, vs._http_get,
+                      vs.robots_check, llm._post)
+
+        def rec(kind):
+            def f(*a, **kw):
+                self.hits.append((kind, repr(a[:2])[:200]))
+                raise AssertionError("сеть запрещена в тесте: " + kind)
+            return f
+        orig_connect = self.saved[0]
+
+        def connect(s, addr, *a):
+            # asyncio на Windows соединяет внутренний socketpair через 127.0.0.1 — это не сеть
+            if isinstance(addr, tuple) and addr[0] in ("127.0.0.1", "::1"):
+                return orig_connect(s, addr, *a)
+            return rec("socket")(addr)
+        socket.socket.connect = connect
+        socket.create_connection = rec("create_connection")
+        urllib.request.urlopen = rec("urlopen")
+        vs._http_get = rec("valuation_sources._http_get")
+        vs.robots_check = rec("valuation_sources.robots_check")
+        llm._post = rec("llm._post")
+        return self
+
+    def __exit__(self, *exc):
+        import socket
+        import urllib.request
+        from app import valuation_sources as vs
+        (socket.socket.connect, socket.create_connection, urllib.request.urlopen, vs._http_get,
+         vs.robots_check, llm._post) = self.saved
+
+
+def check_market_engine():
+    print("36а. Оценка по объявлениям: чистая функция")
+    sd = date(2026, 9, 30)
+    P = ae.parse_posted
+    ok("даты публикации: ISO, ДД.ММ.ГГГГ, «сегодня», «вчера», «3 дня назад», «12 сентября», bugun/kecha",
+       P("2026-09-12", sd) == date(2026, 9, 12) and P("12.09.2026", sd) == date(2026, 9, 12)
+       and P("Сегодня 10:15", sd) == sd and P("вчера", sd) == date(2026, 9, 29)
+       and P("3 дня назад", sd) == date(2026, 9, 27) and P("12 сентября", sd) == date(2026, 9, 12)
+       and P("15 октября", sd) == date(2025, 10, 15) and P("bugun", sd) == sd and P("kecha", sd) == date(2026, 9, 29)
+       and P("2 мая 2026 г.", sd) == date(2026, 5, 2) and P("5 March 2026", sd) == date(2026, 3, 5))
+    ok("дата позже снимка и мусор — не дата", P("2026-10-05", sd) is None and P("срочно", sd) is None
+       and P(None, sd) is None)
+    PX = ae.parse_posted_ex
+    ok("«N … назад» по-русски: минуты, часы, дни, недели, месяцы, годы",
+       P("10 минут назад", sd) == sd and P("5 часов назад", sd) == sd and P("30 часов назад", sd) == date(2026, 9, 29)
+       and P("неделю назад", sd) == date(2026, 9, 23) and P("2 недели назад", sd) == date(2026, 9, 16)
+       and P("7 месяцев назад", sd) == date(2026, 2, 28) and P("месяц назад", sd) == date(2026, 8, 30)
+       and P("2 года назад", sd) == date(2024, 9, 30) and P("5 лет назад", sd) == date(2021, 9, 30))
+    ok("«N … oldin» по-узбекски и «N … ago» по-английски",
+       P("15 daqiqa oldin", sd) == sd and P("3 soat oldin", sd) == sd and P("3 kun oldin", sd) == date(2026, 9, 27)
+       and P("2 hafta oldin", sd) == date(2026, 9, 16) and P("2 oy oldin", sd) == date(2026, 7, 30)
+       and P("1 yil oldin", sd) == date(2025, 9, 30) and P("20 minutes ago", sd) == sd
+       and P("an hour ago", sd) == sd and P("3 days ago", sd) == date(2026, 9, 27)
+       and P("2 weeks ago", sd) == date(2026, 9, 16) and P("3 months ago", sd) == date(2026, 6, 30)
+       and P("a year ago", sd) == date(2025, 9, 30))
+    ok("дата позже снимка — «некорректна» (future), не «не видна»",
+       PX("2026-10-05", sd) == (None, "future") and PX("срочно", sd) == (None, "none") and PX(None, sd) == (None, "none"))
+    L = [{"id": "a", "title": "x", "price": 100, "currency": "UZS", "posted": "2026-09-01", "relevant": True},
+         {"id": "b", "title": "x", "price": 110, "currency": "UZS", "posted": "2026-03-01", "relevant": True},
+         {"id": "c", "title": "x", "price": 10, "currency": "USD", "posted": "вчера", "relevant": True},
+         {"id": "d", "title": "x", "price": None, "currency": "UZS", "posted": "2026-09-01", "relevant": True}]
+    r = ae.market_estimate(L, declared=100, shot_date=sd)
+    codes = {e["id"]: e["code"] for e in r["excluded"]}
+    ok("старше 6 месяцев, без цены, в долларах без курса — исключены с причиной",
+       codes == {"b": "mx_too_old", "c": "mx_no_rate", "d": "mx_no_price"}, codes)
+    ok("одно объявление — оценка ориентировочная (few)", r["verdict"] == "few" and r["median"] == 100, r["verdict"])
+    r = ae.market_estimate(L, declared=100, shot_date=sd, usd_rate=11)
+    ok("с курсом доллар пересчитан и вошёл", r["used"] == 2 and r["median"] == 105 and not r["date_assumed"],
+       (r["used"], r.get("date_assumed")))
+    # правило проекта (valuation_sources): объявление без даты публикации в расчёт не берётся
+    U = [dict(L[0]), {"id": "u", "title": "x", "price": 104, "currency": "UZS", "posted": None, "relevant": True},
+         {"id": "f", "title": "x", "price": 102, "currency": "UZS", "posted_date": "2026-10-03", "relevant": True},
+         {"id": "o", "title": "x", "price": 101, "currency": "UZS", "posted": "7 месяцев назад", "relevant": True}]
+    r = ae.market_estimate(U, declared=100, shot_date=sd)
+    codes = {e["id"]: e["code"] for e in r["excluded"]}
+    ok("без даты — «дата публикации не видна»; позже снимка — «некорректна»; «7 месяцев назад» — старше 6 мес.",
+       codes == {"u": "mx_no_date", "f": "mx_bad_date", "o": "mx_too_old"} and r["used"] == 1, codes)
+    ok("причины словами", tx.t("mx_no_date", "ru") == "дата публикации не видна"
+       and "некорректна" in tx.t("mx_bad_date", "ru", shot="30.09.2026"))
+    r = ae.market_estimate(U, declared=100, shot_date=sd, settings={"market": {"allow_undated": True}})
+    ok("настройка allow_undated = true: без даты — дата снимка с пометкой",
+       r["used"] == 2 and r["date_assumed"] == ["u"] and r["how"][0]["code"] == "mh_filter_undated", r["date_assumed"])
+    ok("allow_undated по умолчанию false и проверяется как true/false",
+       ae.DEFAULT_SETTINGS["market"]["allow_undated"] is False and ae.check_settings({"market": {"allow_undated": 1}})
+       and not ae.check_settings({"market": {"allow_undated": True}}))
+    # выбросы при числе подходящих меньше min_listings не ищутся
+    two = [{"id": "p", "price": 100, "posted": "вчера"}, {"id": "q", "price": 1000, "posted": "вчера"}]
+    r = ae.market_estimate(two, shot_date=sd)
+    ok("2 объявления < 3: выбросы не ищутся (1000 при медиане 550 не выброс)",
+       r["used"] == 2 and not r["excluded"] and any(h["code"] == "mh_outliers_skipped" for h in r["how"]), r["how"])
+    # пустые и нулевые цены не роняют расчёт
+    bad = [{"id": "z0", "price": 0}, {"id": "z1", "price": ""}, {"id": "z2", "price": "abc"},
+           {"id": "z3", "price": -5}, {"id": "z4"}, "мусор"]
+    r = ae.market_estimate(bad, declared=10, shot_date=sd, usd_rate="x")
+    ok("пустые, нулевые и мусорные цены — «цена не видна», без падения",
+       r["verdict"] == "none" and {e["code"] for e in r["excluded"]} == {"mx_no_price"} and len(r["excluded"]) == 5, r)
+    # округление медианы — «половина вверх» (как Math.round на экране), а не банковское round()
+    r = ae.market_estimate([{"id": "h1", "price": 2, "posted": "вчера"}, {"id": "h2", "price": 3, "posted": "вчера"}],
+                           shot_date=sd)
+    ok("медиана 2,5 → 3 (половина вверх; round() дал бы 2)", r["median"] == 3 and ae.round_half_up(2_593_249_999.5)
+       == 2_593_250_000 and ae.round_half_up(0.5) == 1, r["median"])
+    r = ae.market_estimate([dict(L[0], relevant=False)], declared=100, shot_date=sd)
+    ok("ни одного подходящего — none, оценки нет", r["verdict"] == "none" and not r["available"], r["verdict"])
+    st = ae.merge_settings({"market": {"min_listings": 1, "diff_pct": 5}})
+    r = ae.market_estimate(L[:1], declared=104, shot_date=sd, settings=st)
+    ok("порог расхождения — настройка (4 % < 5 % — confirmed)", r["verdict"] == "confirmed", r)
+    r = ae.market_estimate(L[:1], declared=120, sum_insured=120, shot_date=sd, settings=st)
+    ok("расхождение 16,7 % > 5 % — refine; страховая сумма сверяется с уточнённой (ГК 938)",
+       r["verdict"] == "refine" and r["refined_value"] == 100 and r["insured_check"]["verdict"] == "over"
+       and r["insured_check"]["legal_ref"] == "ГК РУз, ст. 938", r)
+    ok("настройки оценки проверяются", ae.check_settings({"market": {"min_listings": 0}})
+       and ae.check_settings({"market": {"outlier_low": 1.5}}) and ae.check_settings({"market": {"zzz": 1}})
+       and not ae.check_settings({"market": {"min_listings": 4, "diff_pct": 20}}))
+    ok("по умолчанию: 3 объявления, 15 %, 6 месяцев, выбросы 0,5 и 2, без даты — нельзя",
+       ae.DEFAULT_SETTINGS["market"] == {"min_listings": 3, "diff_pct": 15, "max_age_months": 6, "outlier_low": 0.5,
+                                         "outlier_high": 2.0, "allow_undated": False})
+    # чистка названия: после вырезанного телефона не остаётся «, звоните» / «тел.»
+    ok("хвосты «звоните», «тел.», «звонить» убираются вместе с телефоном",
+       am.clean_text("XCMG QY50K5D 2021, звоните +998 90 123-45-67", 160)[0] == "XCMG QY50K5D 2021"
+       and am.clean_text("XCMG, тел. +998 91 555 44 33", 160)[0] == "XCMG"
+       and am.clean_text("Автокран +998 90 111 22 33 звонить", 160)[0] == "Автокран"
+       and am.clean_text("Кран Мотель", 160)[0] == "Кран Мотель")
+    ok("ссылка объявления: только https на четырёх площадках",
+       am.safe_url("https://www.olx.uz/d/obyavlenie/x") and am.safe_url("https://m.avtoelon.uz/a/1")
+       and not am.safe_url("http://169.254.169.254/latest/meta-data") and not am.safe_url("https://olx.uz.evil.com/")
+       and not am.safe_url("https://u:p@olx.uz/") and not am.safe_url("https://example.uz/ad/1")
+       and not am.safe_url("https://olx.uz:8443/"))
+    # сбой robots.txt помнится 10 минут, а не до перезапуска (app/valuation_sources.py)
+    from app import valuation_sources as vs
+    hits = []
+
+    def refuse(url, timeout=0):
+        hits.append(url)
+        raise OSError("нет сети")
+    saved = vs._http_get
+    vs._http_get = refuse
+    try:
+        vs._robots_cache.pop("robots-test.example", None)
+        a1 = vs.robots_check("https://robots-test.example/x")
+        a2 = vs.robots_check("https://robots-test.example/y")
+        rp, why, at = vs._robots_cache["robots-test.example"]
+        vs._robots_cache["robots-test.example"] = (rp, why, at - vs.ROBOTS_FAIL_TTL_SEC - 1)
+        vs.robots_check("https://robots-test.example/z")
+        ok("robots.txt: сбой запомнен на 10 минут, потом повтор", not a1[0] and not a2[0] and len(hits) == 2
+           and vs.ROBOTS_FAIL_TTL_SEC == 600, hits)
+    finally:
+        vs._http_get = saved
+        vs._robots_cache.pop("robots-test.example", None)
+
+
+def check_market_links():
+    print("36б. Ссылки поиска: сервер только составляет адреса")
+    st, b = call("GET", "/act/market/links", params={"brand": "XCMG", "model": "QY50K5D", "year": "2021",
+                                                     "object_kind": "truck_crane", "lang": "ru"})
+    urls = {(ln["site"], ln["url"]) for ln in b.get("links") or []}
+    ok("OLX: общий поиск по марке и модели (раздела спецтехники нет в valuation_sources)",
+       ("olx", "https://www.olx.uz/list/q-xcmg-qy50k5d/") in urls, urls)
+    ok("OLX: вторая ссылка с годом", ("olx", "https://www.olx.uz/list/q-xcmg-qy50k5d-2021/") in urls)
+    ok("avtoelon.uz: раздел автокранов по марке (valuation.SPEC_SECTIONS)",
+       ("avtoelon", "https://avtoelon.uz/spectehnika/gruzovaja-tehnika/avtokran/xcmg/") in urls, urls)
+    ok("у каждой ссылки подпись и подсказка", all(ln["label"] and ln["hint"] for ln in b["links"]))
+    ok("подсказка: что снять — 5–10 объявлений, до 5 снимков", "5–10" in b["hint"] and b["max_shots"] == 5
+       and len(b["shot_tips"]) == 4 and any("телефон" in x for x in b["shot_tips"]), b.get("hint"))
+    ok("сервер по ссылкам не ходит — сказано явно", "не ходит" in b["note"])
+    st, b = call("GET", "/act/market/links", params={"object_kind": "warehouse", "lang": "ru"})
+    urls = [(ln["site"], ln["url"]) for ln in b["links"]]
+    ok("недвижимость: OLX в разделе «Недвижимость», запрос по-русски в кодировке, uybor и joymee",
+       urls[0] == ("olx", "https://www.olx.uz/nedvizhimost/q-%D1%81%D0%BA%D0%BB%D0%B0%D0%B4/")
+       and {"uybor", "joymee"} <= {s for s, _ in urls} and "avtoelon" not in {s for s, _ in urls}, urls)
+    st, b = call("GET", "/act/market/links", params={"brand": "Chevrolet", "model": "Cobalt", "object_kind": "car"})
+    urls = {(ln["site"], ln["url"]) for ln in b["links"]}
+    ok("легковой: OLX в разделе легковых, avtoelon /avto/марка/модель/",
+       ("olx", "https://www.olx.uz/transport/legkovye-avtomobili/q-chevrolet-cobalt/") in urls
+       and ("avtoelon", "https://avtoelon.uz/avto/chevrolet/cobalt/") in urls, urls)
+    st, b = call("GET", "/act/market/links", params={"brand": "Шакман", "model": "SX3258", "object_kind": "truck"})
+    urls = {(ln["site"], ln["url"]) for ln in b["links"]}
+    ok("кириллица: OLX — кодирование, avtoelon — транслитерация",
+       ("olx", "https://www.olx.uz/list/q-%D1%88%D0%B0%D0%BA%D0%BC%D0%B0%D0%BD-sx3258/") in urls
+       and ("avtoelon", "https://avtoelon.uz/spectehnika/") in urls, urls)
+    st, b = call("GET", "/act/market/links", params={"lang": "ru"})
+    ok("искать не по чему — 422 с понятной причиной", st == 422 and "марку" in b["detail"], (st, b))
+    st, b = call("GET", "/act/market/links", params={"year": "1800", "brand": "XCMG"})
+    ok("год проверяется", st == 422 and "year" in b["errors"], (st, b))
+    for lang in ("uz", "en"):
+        st, b = call("GET", "/act/market/links", params={"brand": "XCMG", "model": "QY50K5D", "year": "2021",
+                                                         "object_kind": "truck_crane", "lang": lang})
+        txt = " ".join([b["hint"], b["note"]] + b["shot_tips"] + [ln["label"] + ln["hint"] for ln in b["links"]])
+        ok(f"{lang}: подписи и подсказки без кириллицы", st == 200 and not re.search(r"[А-Яа-яЁё]", txt), txt[:300])
+
+
+def market_setup(rate=RATE):
+    from app import valuation_sources as vs
+    act._FX_CACHE.clear()
+    ORIG.setdefault("cbu", vs.cbu_usd_rate)
+    vs.cbu_usd_rate = (lambda d: rate)
+
+
+def check_market_shots():
+    print("36в. Снимки объявлений: одно чтение моделью, валюта, ПД, лимиты")
+    fresh()
+    clear_settings()
+    market_setup()
+    model_on(True)
+    REPLY["text"] = MARKET_REPLY
+    CALLS.clear()
+    with NetSpy() as spy:
+        st, b = upload_to("/act/market/shots", SHOT_FILES, {"lang": "ru", "site": "olx", "brand": "XCMG",
+                                                            "model": "QY50K5D", "object_kind": "truck_crane"})
+        st_l, _ = call("GET", "/act/market/links", params={"brand": "XCMG", "model": "QY50K5D"})
+    ok("снимки приняты", st == 200 and b.get("ok") and b.get("shots_session"), (st, b))
+    ok("ни одного сетевого запроса (к olx.uz — тем более)", not spy.hits and st_l == 200, spy.hits)
+    ok("один запрос к модели со всеми снимками, 20 с, без повторов",
+       len(CALLS) == 1 and len(CALLS[0]["files"]) == 3 and CALLS[0]["timeout"] == 20 and CALLS[0]["retries"] == 0,
+       [(c["purpose"], c["timeout"], c["retries"]) for c in CALLS])
+    prompt = CALLS[0]["messages"][0]["content"] + CALLS[0]["messages"][1]["content"]
+    ok("в инструкции: не выдумывай, null, запрет на имена и телефоны, строгая схема",
+       "не выдумывай" in prompt and "null" in prompt and "телефоны" in prompt and '"listings"' in prompt)
+    ok("в инструкции дата снимка и что ищем", TODAY.isoformat() in prompt and "qy50k5d" in prompt.lower())
+    ok("маскировка ПД не портит инструкцию", llm.mask_pd(prompt) == prompt)
+    L = {r["id"]: r for r in b["listings"]}
+    ok("10 объявлений (дубль с перекрывающегося снимка схлопнут)", len(L) == 10, list(L))
+    ok("доллары пересчитаны по курсу ЦБ", L["L3"]["price_uzs"] == round(205000 * RATE) and L["L3"]["currency"] == "USD",
+       L["L3"])
+    ok("курс показан явно: ЦБ РУз, с датой", b["fx"] and b["fx"]["by"] == "cbu" and b["fx"]["rate"] == RATE
+       and "cbu.uz" in b["fx"]["text"], b.get("fx"))
+    ok("цена «2 500 000 000 сум» строкой — число", L["L2"]["price"] == 2_500_000_000)
+    ok("другая модель — relevant = false с причиной", L["L5"]["relevant"] is False and "QY25K5D" in
+       (L["L5"]["why_excluded"] or ""))
+    ok("«сегодня» и «вчера» — даты от даты снимка", L["L1"]["posted_date"] == TODAY.isoformat()
+       and L["L3"]["posted_date"] == _days_ago(1))
+    ok("«3 дня назад» — дата от даты снимка", L["L7"]["posted_date"] == _days_ago(3), L["L7"])
+    ok("дата не видна — «в расчёт не берётся»", L["L8"]["date_assumed"] and not L["L8"]["used"]
+       and L["L8"]["date_note"] == "дата публикации не видна — в расчёт не берётся", L["L8"])
+    ok("дата позже снимка — «некорректна»", L["L10"]["date_status"] == "future" and "некорректна" in L["L10"]["date_note"],
+       L["L10"])
+    ok("«7 месяцев назад» — дата посчитана", L["L9"]["posted_date"] == ae.months_before(TODAY, 7).isoformat(), L["L9"])
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("имена и телефоны продавцов не возвращаются", not any(x in dump for x in PD_BITS),
+       [x for x in PD_BITS if x in dump])
+    ok("название осталось, телефон и «звоните» вырезаны", L["L1"]["title"] == "XCMG QY50K5D 2021", L["L1"])
+    ok("«тел.» без номера тоже убрано", L["L8"]["title"] == "XCMG QY50K5D", L["L8"])
+    ok("предупреждение правдивое: не извлекаются, хранятся 24 часа",
+       "не извлекаются" in b["warning"] and "24 часа" in b["warning"] and "не сохраняются" not in b["warning"],
+       b["warning"])
+    ok("регион с ФИО — отброшен", L["L2"]["region"] is None)
+    ok("сказано, что данные продавцов убраны", any("убрано" in n for n in b["notes"]), b["notes"])
+    # предварительная оценка — руками: L5 другой модели, L6 (900 млн) — выброс
+    cand = [2_650_000_000, 2_500_000_000, round(205000 * RATE), 2_400_000_000, 900_000_000, 2_800_000_000]
+    med0 = (sorted(cand)[2] + sorted(cand)[3]) / 2
+    used = [x for x in cand if 0.5 * med0 <= x <= 2 * med0]
+    ok("выброс руками: 900 млн < 0,5 × медианы", 900_000_000 < 0.5 * med0 and len(used) == 5, (med0, used))
+    e = b["estimate"]
+    ok("медиана и вилка пересчитаны руками", e["median"] == round(hand_q(used, 0.5)) == 2_593_250_000
+       and e["low"] == round(hand_q(used, 0.25)) == 2_500_000_000
+       and e["high"] == round(hand_q(used, 0.75)) == 2_650_000_000, e)
+    ok("исключены: L5 (другая модель), L6 (выброс), L8 (без даты), L9 (старше 6 мес.), L10 (дата позже снимка)",
+       sorted((x["id"], x["code"]) for x in e["excluded"]) == [
+           ("L10", "mx_bad_date"), ("L5", "mx_not_relevant"), ("L6", "mx_outlier_low"), ("L8", "mx_no_date"),
+           ("L9", "mx_too_old")], e["excluded"])
+    ok("без заявленной стоимости — verdict ready", e["verdict"] == "ready" and e["calibrated"] == 0)
+    ok("ссылки поиска в ответе", any(ln["site"] == "olx" for ln in b["links"]))
+    with db.tx() as con:
+        row = db.rows(con, "SELECT result_json, expires_at, created_at FROM act_uploads WHERE id=?", b["shots_session"])
+        j = db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b["shots_session"])
+    stored = row[0]["result_json"]
+    ok("в базе нет данных продавцов", not any(x in stored for x in PD_BITS), stored[:300])
+    ok("снимки хранятся 24 часа", (datetime.fromisoformat(row[0]["expires_at"]) -
+                                   datetime.fromisoformat(row[0]["created_at"])) == timedelta(hours=24))
+    detail = j[0]["detail"] if j else ""
+    ok("в журнале только счётчики", j and "XCMG" not in detail and "2650000000" not in detail
+       and '"listings": 10' in detail, detail)
+    sid = b["shots_session"]
+
+    # курс ЦБ: свой пул (не пул модели), общий срок 5 с, неудача помнится 10 минут
+    from app import valuation_sources as vs
+    ok("курс — в своём пуле, срок 5 с, неудача — 10 минут", act._FX_POOL is not act._AI_POOL
+       and act.FX_DEADLINE_SEC == 5 and act.FX_FAIL_TTL_SEC == 600)
+    calls, names = [], []
+
+    def cbu_down(d):
+        import threading as _thr
+        calls.append(d)
+        names.append(_thr.current_thread().name)
+        return None
+    vs.cbu_usd_rate = cbu_down
+    act._FX_CACHE.clear()
+    r1 = act._fx_submit(TODAY).result(5)
+    r2 = act._fx_submit(TODAY).result(5)
+    ok("неудача курса закэширована: второй раз cbu.uz не спрашивается", r1["rate"] is None and r2["rate"] is None
+       and len(calls) == 1, calls)
+    res, until = act._FX_CACHE[TODAY.isoformat()]
+    act._FX_CACHE[TODAY.isoformat()] = (res, until - act.FX_FAIL_TTL_SEC - 1)
+    act._fx_submit(TODAY).result(5)
+    ok("через 10 минут курс спрашивается снова", len(calls) == 2, calls)
+    ok("курс запрашивается в потоке act-fx, а не в потоке модели", names and all(n.startswith("act-fx") for n in names),
+       names)
+    import threading as _th
+    import time as _time
+    slow_gate = _th.Event()
+
+    def cbu_slow(d):
+        slow_gate.wait(8)
+        return RATE
+    vs.cbu_usd_rate = cbu_slow
+    act._FX_CACHE.clear()
+    fresh()
+    t0 = _time.monotonic()
+    st, b2 = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru", "brand": "XCMG", "model": "QY50K5D"})
+    spent = _time.monotonic() - t0
+    slow_gate.set()
+    act._FX_INFLIGHT[TODAY.isoformat()].result(10)        # запоздавший ответ ЦБ ложится в кэш — дождёмся его
+    ok("медленный cbu.uz: загрузка не ждёт дольше 5 с, курс не выдуман", st == 200 and b2["fx"] is None
+       and spent < 7.5 and b2["usd_rate_needed"], (st, spent, b2.get("fx")))
+    market_setup()
+
+    # курс не получен: доллары не считаются, нужен курс сотрудника; с ним — «введён сотрудником»
+    market_setup(rate=None)
+    fresh()
+    st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru", "brand": "XCMG", "model": "QY50K5D"})
+    L = {r["id"]: r for r in b["listings"]}
+    ok("без курса: цена в долларах не пересчитана, просьба указать курс", L["L3"]["price_uzs"] is None
+       and b["usd_rate_needed"] and any("курс" in n for n in b["notes"]) and b["fx"] is None, b.get("notes"))
+    ok("без курса: объявление в долларах — причина «курс не задан»",
+       ("L3", "mx_no_rate") in [(x["id"], x["code"]) for x in b["estimate"]["excluded"]])
+    st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru", "usd_rate": "12 600"})
+    ok("курс сотрудника принят и показан", b["fx"] and b["fx"]["by"] == "employee" and b["fx"]["rate"] == 12600
+       and {r["id"]: r for r in b["listings"]}["L3"]["price_uzs"] == 205000 * 12600, b.get("fx"))
+    st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru", "usd_rate": "12"})
+    ok("курс с опечаткой — 422", st == 422 and "usd_rate" in b["errors"], (st, b))
+    market_setup()
+
+    # пределы: больше 5 снимков, не картинка, гостевой лимит по файлам, модель выключена
+    st, b = upload_to("/act/market/shots", SHOT_FILES * 2, {"lang": "ru"})
+    ok("больше 5 снимков — 413", st == 413 and "5" in b["detail"], (st, b))
+    st, b = upload_to("/act/market/shots", [("x.pdf", "application/pdf", pdf_pages(1))], {"lang": "ru"})
+    ok("PDF как снимок не принимается", st == 422 and "JPG" in b["rejected"][0]["error"], (st, b))
+    st, b = upload_to("/act/market/shots", [("big.png", "image/png", png_bomb(9000, 9000))], {"lang": "ru"})
+    ok("размер в пикселях проверяется до раскрытия", st == 422 and "Мп" in b["rejected"][0]["error"], (st, b))
+    st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru", "site": "avito"})
+    ok("площадка — из списка", st == 422 and "site" in b["errors"])
+    fresh()
+    set_limits(guest_photos_per_hour=4)
+    try:
+        st1, _ = upload_to("/act/market/shots", SHOT_FILES, {"lang": "ru"})
+        st2, b2 = upload_to("/act/market/shots", SHOT_FILES[:2], {"lang": "ru"})
+        ok("гостевой лимит считается по файлам (3 + 2 > 4)", st1 == 200 and st2 == 429, (st1, st2))
+    finally:
+        clear_settings()
+        fresh()
+    set_limits(ai_calls_per_hour=1)
+    try:
+        CALLS.clear()
+        call_ok, _ = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru"})
+        st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru"})
+        ok("общий предел обращений к модели — общий с распознаванием фото",
+           st == 200 and not b["ai"] and "лимит распознаваний" in b["message"] and len(CALLS) == 1, b.get("message"))
+    finally:
+        clear_settings()
+        fresh()
+    model_on(False)
+    st, b = upload_to("/act/market/shots", SHOT_FILES[:1], {"lang": "ru"})
+    ok("модель выключена: снимки сохранены, честная причина, можно ввести вручную",
+       st == 200 and not b["ai"] and "вручную" in b["message"] and b["listings"] == [], b.get("message"))
+    model_on(True)
+    return sid
+
+
+def mk_make(listings, sid=None, must=None, lang="ru", usd_rate=None, optional=None, fx=None):
+    opt = dict(optional or CRANE_OPT, object_kind="truck_crane")
+    opt["market"] = {"listings": listings, "shots_session": sid}
+    if usd_rate is not None:
+        opt["market"]["usd_rate"] = usd_rate
+    if fx is not None:
+        opt["market"]["fx"] = fx
+    return call("POST", "/act/make", {"lang": lang, "must": must or CRANE_MUST, "optional": opt,
+                                       "recognized": [{"key": "brand", "value": "XCMG", "source": "input"},
+                                                      {"key": "model", "value": "QY50K5D", "source": "input"}]})
+
+
+def sec3(a):
+    return a["sections"][2]
+
+
+def flat(s):
+    """Текст без неразрывных пробелов: так сравнивать суммы в строках акта удобнее."""
+    return re.sub(r"\s+", " ", str(s or "").replace(" ", " "))
+
+
+def docx_plain(aid, lang="ru"):
+    st, blob, h = call("GET", f"/act/{aid}.docx", params={"lang": lang}, raw=True)
+    return flat(re.sub(r"<[^>]+>", "", zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8")))
+
+
+def pdf_plain(aid, lang="ru"):
+    st, blob, h = call("GET", f"/act/{aid}.pdf", params={"lang": lang}, raw=True)
+    return flat(pdf_text(pymupdf.open(stream=blob, filetype="pdf")))
+
+
+def screen_rows(stored):
+    """Объявления так, как их отдаёт экран в /act/make (mkBody): с датой, площадкой и происхождением."""
+    out = []
+    for r in stored["listings"]:
+        o = {k: r.get(k) for k in ("id", "title", "price", "currency", "year", "relevant", "region")}
+        if r.get("posted_date"):
+            o["posted_date"] = r["posted_date"]
+        o.update(date_assumed=not r.get("posted_date"), site=r.get("site") or "olx", source="shot")
+        out.append(o)
+    return out
+
+
+def check_market_make(sid):
+    print("36г. Акт: блок оценки по объявлениям, решение, правки сотрудника, языки, Word и PDF")
+    fresh()
+    market_setup()
+    CALLS.clear()
+    with db.tx() as con:
+        stored = _json.loads(db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", sid)[0]["result_json"])
+    listings = screen_rows(stored)
+    with NetSpy() as spy:
+        st, a = mk_make(listings, sid)
+    ok("акт с оценкой сформирован без сети и без модели", st == 200 and not spy.hits and not CALLS, (st, spy.hits))
+    mv = a["market_value"]
+    used = [2_650_000_000, 2_500_000_000, round(205000 * RATE), 2_400_000_000, 2_800_000_000]
+    med = hand_q(used, 0.5)
+    diff = (3_100_000_000 - med) / 3_100_000_000 * 100
+    ok("медиана, вилка, число объявлений — руками", mv["median"] == round(med) and mv["low"] == 2_500_000_000
+       and mv["high"] == 2_650_000_000 and mv["count"] == 10 and mv["used"] == 5, mv)
+    ok("расхождение 16,3 % > 15 % — refine, уточнённая стоимость = медиана",
+       mv["verdict"] == "refine" and mv["diff_pct"] == round(diff, 1) == 16.3 and mv["refined_value"] == round(med),
+       (mv["verdict"], mv["diff_pct"]))
+    ic = mv["insured_check"]
+    ok("страховая сумма сверяется с уточнённой: превышение, ГК ст. 938",
+       ic["verdict"] == "over" and ic["diff"] == 2_945_000_000 - round(med) and "938" in ic["legal_ref"]
+       and ic["ratio_pct"] == round(2_945_000_000 / round(med) * 100, 2) == 113.56, ic)
+    ok("источник: OLX, дата снимков, загружены сотрудником",
+       mv["source_label"] == f"Источник: OLX, объявления на {TODAY.strftime('%d.%m.%Y')}, снимки загружены "
+                             f"сотрудником.", mv["source_label"])
+    ok("ссылки поиска и «как посчитано», calibrated = 0", mv["links"] and len(mv["how"]) >= 5
+       and mv["calibrated"] == 0 and any("перцентил" in h for h in mv["how"]), mv["how"])
+    ok("отброшенные с причинами", sorted(e["id"] for e in mv["excluded"]) == ["L10", "L5", "L6", "L8", "L9"]
+       and all(e["reason"] for e in mv["excluded"]))
+    ok("без правок: «Правки сотрудника: правок нет», медиана без правок та же, проверки правок нет",
+       "Правки сотрудника: правок нет." in mv["source_lines"] and mv["edits"]["items"] == []
+       and mv["median_original"] == mv["median"]
+       and not any(c.startswith("Проверить правки") for c in a["decision"]["checks"]), mv["source_lines"])
+    s3 = sec3(a)
+    labels = [r["label"] for r in s3["rows"]]
+    ok("раздел 3: «Оценка по объявлениям», медиана, вилка, вывод, уточнённая стоимость",
+       {"Оценка по объявлениям", "Медиана цен объявлений", "Вилка (25–75-й перцентиль)", "Вывод по объявлениям",
+        "Уточнённая стоимость (по объявлениям)", "Страховая сумма к уточнённой стоимости"} <= set(labels), labels)
+    ok("раздел 3: строка источника и ссылка поиска под оценкой",
+       s3["source_lines"][0] == mv["source_label"] and any(x.startswith("Ссылка поиска: https://www.olx.uz/")
+                                                           for x in s3["source_lines"]), s3["source_lines"])
+    ok("раздел 3: прежние строки на месте", labels[:4] == ["Страховая сумма", "Стоимость объекта",
+                                                           "Отношение суммы к стоимости", "Вывод"], labels)
+    # один итоговый вывод вместо «в норме» рядом с «превышением» (п. 7 замечаний)
+    want = ("К заявленной стоимости страховая сумма составляет 95 % — в норме. Но по объявлениям стоимость ниже "
+            "заявленной на 16,3 %: к уточнённой стоимости страховая сумма составляет 113,56 % — превышение (ГК РУз, "
+            "ст. 938). Итог: стоимость нужно уточнить.")
+    ok("вывод раздела 3 — один: к заявленной, к уточнённой, итог", flat(s3["rows"][3]["value"]) == want,
+       flat(s3["rows"][3]["value"]))
+    ok("value.final_verdict = refine, text — тот же итог; поле verdict прежнее",
+       a["value"]["final_verdict"] == "refine" and flat(a["value"]["text"]) == want and a["value"]["verdict"] == "normal"
+       and a["value"]["refined_ratio_pct"] == 113.56, a["value"])
+    ok("в разделе 3 нет второго, противоположного вывода «В норме: …»",
+       not any(flat(r["value"]).startswith("В норме") for r in s3["rows"]), [r["value"] for r in s3["rows"]])
+    chk = a["decision"]["checks"]
+    ok("решение: «уточнить стоимость объекта: по объявлениям …» и снизить сумму",
+       any(c.startswith("Уточнить стоимость объекта: по объявлениям (5 шт.)") for c in chk)
+       and any("выше уточнённой стоимости" in c for c in chk) and a["decision"]["code"] != "accept", chk)
+    aid = a["id"]
+
+    # Word и PDF
+    plain = docx_plain(aid)
+    ok("DOCX: блок оценки, строка источника, правок нет", "Оценка по объявлениям" in plain
+       and "Медиана цен объявлений" in plain and "снимки загружены сотрудником" in plain
+       and "Уточнить стоимость объекта" in plain and "Правки сотрудника: правок нет" in plain and want in plain)
+    text = pdf_plain(aid)
+    ok("PDF: блок оценки, строка источника, правок нет", "Оценка по объявлениям" in text
+       and "Медиана цен объявлений" in text and "снимки загружены сотрудником" in text
+       and "Правки сотрудника: правок нет" in text, text[:200])
+
+    # три языка
+    for lang, word in (("uz", "Eʼlonlar boʻyicha baholash"), ("en", "Valuation by listings")):
+        st, b = call("GET", f"/act/{aid}", params={"lang": lang})
+        s = sec3(b)
+        txt = [r["label"] for r in s["rows"]] + [str(r["value"]) for r in s["rows"][3:]] + s["source_lines"] + \
+            [li["title"] for li in s["lists"]] + s["lists"][0]["items"] + b["decision"]["checks"] + \
+            [b["market_value"]["verdict_text"], b["market_value"]["source_label"], b["value"]["text"]]
+        cyr = [x for x in txt if re.search(r"[А-Яа-яЁё]", x or "")]
+        ok(f"{lang}: блок оценки и итоговый вывод на языке акта, без кириллицы",
+           word in [r["label"] for r in s["rows"]] and not cyr, cyr[:4])
+    st, blob, h = call("GET", f"/act/{aid}.pdf", params={"lang": "en"}, raw=True)
+    ok("PDF en: блок оценки", "Valuation by listings" in pdf_text(pymupdf.open(stream=blob, filetype="pdf")))
+
+    # п. 1: сотрудник снял галочки с двух самых дорогих объявлений (L7 — 2,8 млрд, L1 — 2,65 млрд)
+    off2 = [dict(r, relevant=False) if r["id"] in ("L1", "L7") else dict(r) for r in listings]
+    st, a = mk_make(off2, sid)
+    mv = a["market_value"]
+    used2 = [2_500_000_000, round(205000 * RATE), 2_400_000_000]
+    reasons = {e["id"]: e for e in mv["excluded"]}
+    ok("снятые галочки: причина «снято сотрудником», а не «другое изделие»",
+       reasons["L1"]["code"] == reasons["L7"]["code"] == "mx_unchecked_by_employee"
+       and "снято сотрудником" in reasons["L1"]["reason"] and "другое изделие" not in reasons["L1"]["reason"]
+       and reasons["L5"]["code"] == "mx_not_relevant" and "другое изделие" in reasons["L5"]["reason"], reasons)
+    ok("медиана без двух дорогих — руками; медиана без правок — как прочитала модель",
+       mv["median"] == round(hand_q(used2, 0.5)) == 2_500_000_000 and mv["median_original"] == round(med), mv)
+    ok("market_value.edits: снято 2, остальное 0, список правок",
+       {k: mv["edits"][k] for k in ("unchecked", "checked", "price_changed", "removed", "manual")}
+       == {"unchecked": 2, "checked": 0, "price_changed": 0, "removed": 0, "manual": 0}
+       and sorted((e["id"], e["what"]) for e in mv["edits"]["items"]) == [("L1", "unchecked"), ("L7", "unchecked")],
+       mv["edits"])
+    line = "Правки сотрудника: снято 2, включено 0, исправлено цен 0, убрано 0, добавлено вручную 0."
+    ok("раздел 3: строка «Правки сотрудника: снято 2, …» и список правок",
+       line in sec3(a)["source_lines"] and any(li["title"] == "Правки сотрудника в объявлениях"
+                                                for li in sec3(a)["lists"]), sec3(a)["source_lines"])
+    lv = {r["id"]: r for r in mv["listings"]}
+    ok("у объявления видно «снято сотрудником»", lv["L1"]["off_by"] == "employee"
+       and lv["L1"]["edit_note"] == "снято сотрудником", lv["L1"])
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("решение: «проверить правки сотрудника» с медианой без правок рядом с итоговой",
+       any(c.startswith("Проверить правки сотрудника в объявлениях (снято 2") and "2 500 000 000 сум" in c
+           and "2 593 250 000 сум" in c for c in chk), chk)
+    med_row = next(r for r in sec3(a)["rows"] if r["label"] == "Медиана цен объявлений")
+    ok("раздел 3: у медианы — «без правок сотрудника — 2 593 250 000»",
+       "без правок сотрудника — 2 593 250 000 сум" in flat(med_row["note"]), med_row)
+    plain, text = docx_plain(a["id"]), pdf_plain(a["id"])
+    ok("DOCX: правки видны — строка, «снято сотрудником», проверка правок", line in plain
+       and "снято сотрудником" in plain and "Проверить правки сотрудника" in plain, plain[-600:])
+    ok("PDF: правки видны — строка и «снято сотрудником»", "Правки сотрудника: снято 2" in text
+       and "снято сотрудником" in text, text[-600:])
+
+    # правка цены (было → стало), включение исключённого моделью и объявление вручную
+    ed = [dict(r) for r in listings]
+    ed[0]["price"] = 1_000_000_000                        # L1: 2 650 000 000 → 1 000 000 000
+    ed[4]["relevant"] = True                              # L5: модель исключила, сотрудник включил
+    ed.append({"title": "XCMG QY50K5D 2021 (у дилера)", "price": 2_550_000_000, "currency": "UZS", "year": 2021,
+               "posted_date": _days_ago(2), "url": "https://www.olx.uz/d/obyavlenie/xcmg-qy50k5d-ID1.html",
+               "source": "manual"})
+    st, a = mk_make(ed, sid)
+    mv = a["market_value"]
+    cand = [1_000_000_000, 2_500_000_000, round(205000 * RATE), 2_400_000_000, 1_500_000_000, 900_000_000,
+            2_800_000_000, 2_550_000_000]
+    m0 = hand_q(cand, 0.5)
+    used3 = [x for x in cand if 0.5 * m0 <= x <= 2 * m0]
+    ok("правки: медиана и вилка руками", mv["used"] == len(used3) == 6 and mv["median"] == round(hand_q(used3, 0.5))
+       and mv["low"] == round(hand_q(used3, 0.25)) and mv["high"] == round(hand_q(used3, 0.75)), mv)
+    src = {r["id"]: (r["source"], r["edited"]) for r in mv["listings"]}
+    ok("исправленные помечены, ручное — «введено сотрудником»", src["L1"] == ("shot", True)
+       and src["L5"] == ("shot", True) and src["L2"] == ("shot", False) and src["m11"] == ("manual", False), src)
+    items = {(e["id"], e["what"]): flat(e["text"]) for e in mv["edits"]["items"]}
+    ok("цена: «цена исправлена сотрудником: было 2 650 000 000, стало 1 000 000 000»",
+       items.get(("L1", "price")) == "XCMG QY50K5D 2021 — цена исправлена сотрудником: было 2 650 000 000, "
+                                     "стало 1 000 000 000", items)
+    ok("включено сотрудником (модель исключила) — с причиной модели",
+       "включено сотрудником" in items.get(("L5", "checked"), "") and "QY25K5D" in items.get(("L5", "checked"), ""),
+       items)
+    ok("счёт правок: включено 1, исправлено цен 1, добавлено вручную 1",
+       (mv["edits"]["checked"], mv["edits"]["price_changed"], mv["edits"]["manual"], mv["edits"]["unchecked"]) ==
+       (1, 1, 1, 0), mv["edits"])
+    ok("строки источника: снимки + введено сотрудником + строка правок",
+       any("снимки загружены" in x for x in mv["source_lines"]) and any("введено сотрудником" in x
+                                                                         for x in mv["source_lines"])
+       and "Правки сотрудника: снято 0, включено 1, исправлено цен 1, убрано 0, добавлено вручную 1." in
+       mv["source_lines"], mv["source_lines"])
+    ok("адрес объявления сохранён, но не открывается сервером",
+       mv["listings"][-1]["url"] == "https://www.olx.uz/d/obyavlenie/xcmg-qy50k5d-ID1.html")
+    plain = docx_plain(a["id"])
+    ok("DOCX: правка цены — было и стало", "было 2 650 000 000, стало 1 000 000 000" in plain)
+
+    # правка валюты, года и даты публикации — тоже «было → стало»
+    ed2 = [dict(r) for r in listings]
+    ed2[1].update(year=2015, posted_date=_days_ago(20))
+    st, a = mk_make(ed2, sid)
+    whats = {(e["id"], e["what"]) for e in a["market_value"]["edits"]["items"]}
+    ok("правка года и даты публикации видна", {("L2", "year"), ("L2", "posted_date")} <= whats, whats)
+
+    # убранные из списка объявления загрузки: «убрано сотрудником», в «Не вошли в расчёт»
+    cut = [dict(r) for r in listings if r["id"] not in ("L2", "L4")]
+    st, a = mk_make(cut, sid)
+    mv = a["market_value"]
+    reasons = {e["id"]: e for e in mv["excluded"]}
+    excl = next(li for li in sec3(a)["lists"] if li["title"] == "Не вошли в расчёт")
+    ok("убранные: «убрано сотрудником», в списке «Не вошли в расчёт», счёт правок removed = 2",
+       reasons["L2"]["code"] == reasons["L4"]["code"] == "mx_removed_by_employee" and mv["edits"]["removed"] == 2
+       and mv["count"] == 10 and any("убрано сотрудником" in x for x in excl["items"]), (mv["edits"], excl))
+    ok("убранные: проверка правок с медианой без правок",
+       any(c.startswith("Проверить правки сотрудника") for c in a["decision"]["checks"]), a["decision"]["checks"])
+
+    # п. 2: загрузка снимков недоступна — даты с экрана учитываются, всё «введено сотрудником», курс ЦБ не «сотрудника»
+    act._FX_CACHE.clear()
+    act._fx_lookup(TODAY)                                 # сервер уже выдавал курс ЦБ на сегодня
+    dead = "0" * 24
+    st, a = mk_make(listings, dead, fx={"rate": RATE, "by": "cbu", "as_of": TODAY.isoformat()})
+    mv = a["market_value"]
+    miss = ("Снимки объявлений недоступны (прошло больше 24 часов или сменилась сессия) — объявления учтены как "
+            "введённые сотрудником.")
+    codes = {e["id"]: e["code"] for e in mv["excluded"]}
+    ok("недоступная загрузка: shots_missing и строка в акте", mv["shots_missing"] is True
+       and mv["shots_missing_text"] == miss and miss in sec3(a)["source_lines"], mv["source_lines"])
+    ok("недоступная загрузка: все «введено сотрудником», даты экрана учтены (6 месяцев работают)",
+       all(r["source"] == "manual" for r in mv["listings"]) and codes.get("L9") == "mx_too_old"
+       and codes.get("L8") == "mx_no_date" and mv["median"] == round(med) and mv["used"] == 5, codes)
+    ok("курс ЦБ, полученный экраном от сервера и сверенный, — «ЦБ РУз», не «введён сотрудником»",
+       mv["fx"]["by"] == "cbu" and "cbu.uz" in mv["fx"]["text"] and "сотрудник" not in mv["fx"]["text"], mv["fx"])
+    plain = docx_plain(a["id"])
+    ok("DOCX: строка о недоступных снимках", "Снимки объявлений недоступны" in plain)
+    act._FX_CACHE.clear()
+    st, a = mk_make(listings, dead, fx={"rate": RATE, "by": "cbu", "as_of": TODAY.isoformat()})
+    fx = a["market_value"]["fx"]
+    ok("курс ЦБ не с чем сверить — «ЦБ РУз, повторно не сверен», всё равно не «сотрудник»",
+       fx["by"] == "cbu_unverified" and "не сверен" in fx["text"] and "введён сотрудником" not in fx["text"], fx)
+    st, a = mk_make(listings, dead, fx={"rate": 12_700, "by": "employee", "as_of": TODAY.isoformat()})
+    fx = a["market_value"]["fx"]
+    ok("курс, введённый сотрудником, — «введён сотрудником»", fx["by"] == "employee" and fx["rate"] == 12_700
+       and "введён сотрудником" in fx["text"], fx)
+    st, b = mk_make(listings, dead, fx={"rate": RATE, "by": "robot"})
+    ok("источник курса проверяется", st == 422 and "fx.by" in b["errors"]["market"], (st, b))
+    market_setup()
+
+    # п. 5: стоимость объекта заменена медианой — в акте видно, что заявил клиент
+    must = dict(CRANE_MUST, object_value=round(med))
+    st, a = mk_make(listings, sid, must=must, optional=dict(CRANE_OPT, declared_value_original=3_100_000_000))
+    rows = {r["label"]: r for r in sec3(a)["rows"]}
+    ok("замена медианой: «Заявлено клиентом: …; стоимость принята по объявлениям: …»",
+       "Заявлено клиентом" in rows and flat(rows["Заявлено клиентом"]["note"]) ==
+       "Заявлено клиентом: 3 100 000 000 сум; стоимость принята по объявлениям: 2 593 250 000 сум."
+       and a["value"]["value_source"] == "listings" and a["value"]["declared_original"] == 3_100_000_000, rows)
+    ok("после замены: объявления подтверждают стоимость, итог — по сумме к стоимости (превышение)",
+       a["market_value"]["verdict"] == "confirmed" and a["value"]["final_verdict"] == "over", a["value"])
+    ok("DOCX: «Заявлено клиентом» и «стоимость принята по объявлениям»",
+       "стоимость принята по объявлениям: 2 593 250 000" in docx_plain(a["id"]))
+    st, b = mk_make(listings, sid, optional=dict(CRANE_OPT, declared_value_original="abc"))
+    ok("declared_value_original проверяется", st == 422 and "declared_value_original" in b["errors"], (st, b))
+
+    # только ручной ввод, без снимков: источник — «введено сотрудником»; курс сотрудника
+    manual = [{"title": "XCMG QY50K5D", "price": 2_900_000_000, "posted_date": _days_ago(4)},
+              {"title": "XCMG QY50K5D", "price": 3_000_000_000, "posted_date": _days_ago(9)},
+              {"title": "XCMG QY50K5D", "price": 240_000, "currency": "USD", "posted_date": _days_ago(1)}]
+    market_setup(rate=None)
+    st, a = mk_make(manual, None, usd_rate=12_500)
+    mv = a["market_value"]
+    ok("ручной ввод: «Источник: введено сотрудником», курс сотрудника, confirmed",
+       mv["source_label"] == "Источник: введено сотрудником (объявлений: 3)." and mv["fx"]["by"] == "employee"
+       and mv["median"] == 3_000_000_000 and mv["verdict"] == "confirmed"
+       and not any(c.startswith("Уточнить стоимость") for c in a["decision"]["checks"]), mv)
+    st, a = mk_make(manual, None)
+    ok("ручной ввод без курса: доллары не вошли, курс не выдуман", a["market_value"]["used"] == 2
+       and a["market_value"]["fx"] is None, a["market_value"]["fx"])
+    st, a = mk_make([dict(r, posted_date=None) for r in manual[:2]], None)
+    ok("ручной ввод без даты — не в расчёте («дата публикации не видна»)",
+       not a["market_value"]["available"] and {e["code"] for e in a["market_value"]["excluded"]} == {"mx_no_date"})
+    market_setup()
+
+    # мало объявлений и ни одного
+    st, a = mk_make(listings[:2], sid)
+    mv = a["market_value"]
+    ok("два объявления — «мало, ориентировочно», стоимость не уточняется, выбросы не искались",
+       mv["verdict"] == "few" and mv["refined_value"] is None and "ориентировочная" in mv["verdict_text"]
+       and not any(c.startswith("Уточнить стоимость") for c in a["decision"]["checks"])
+       and any("выбросы не искались" in h for h in mv["how"]), mv["verdict"])
+    none = [dict(r, relevant=False) for r in listings]
+    st, a = mk_make(none, sid)
+    st0, a0 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                         "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    n_rel = sum(1 for r in stored["listings"] if r.get("relevant") is not False)
+    ok("ни одного — оценки нет, строки раздела 3 как без неё, но правки видны",
+       not a["market_value"]["available"] and a["market_value"]["verdict"] == "none"
+       and [r["label"] for r in sec3(a)["rows"]] == [r["label"] for r in sec3(a0)["rows"]]
+       and f"Правки сотрудника: снято {n_rel}, включено 0, исправлено цен 0, убрано 0, добавлено вручную 0."
+       in sec3(a)["source_lines"], sec3(a)["source_lines"])
+    ok("акт без блока market: market_value.available = false", a0["market_value"]["available"] is False
+       and a0["market_value"]["verdict"] == "none" and not sec3(a0)["source_lines"])
+
+    # минимум объявлений — настройка
+    with db.tx() as con:
+        con.execute("INSERT INTO act_settings (created_at, created_by, settings_json, calibrated, note) "
+                    "VALUES (?,?,?,?,?)", (db.now(), "тест", _json.dumps({"market": {"min_listings": 6}}), 0, "тест"))
+    try:
+        st, a = mk_make(listings, sid)
+        ok("min_listings = 6 из настроек — 5 объявлений уже «мало»", a["market_value"]["verdict"] == "few")
+    finally:
+        clear_settings()
+
+    # недоверенный ввод и ПД в ручном вводе
+    for bad, key in (({"price": "abc"}, "цена"), ({"currency": "EUR", "price": 1}, "currency"),
+                     ({"price": 1, "url": "javascript:alert(1)"}, "адрес"), ({"price": 1, "year": 1700}, "год"),
+                     ({"price": 1, "url": "http://169.254.169.254/latest/meta-data/"}, "адрес"),
+                     ({"price": 1, "url": "https://example.uz/ad/1"}, "адрес"),
+                     ({"price": 1, "posted_date": "31.02.2026"}, "дата")):
+        st, b = mk_make([bad], sid)
+        ok(f"ввод проверяется: {key} ({bad.get('url') or bad.get('posted_date') or ''})",
+           st == 422 and "market" in b["errors"] and key in b["errors"]["market"], (st, b))
+    st, a = mk_make([{"title": "Кран, продаёт Петров Пётр Петрович", "price": 2_700_000_000,
+                      "region": "Каримов Алишер", "why_excluded": None},
+                     {"title": "XCMG, тел. +998 91 555 44 33", "price": 2_600_000_000}], None)
+    dump = _json.dumps(a, ensure_ascii=False)
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT act_json FROM acts WHERE id=?", a["id"])[0]["act_json"]
+    ok("ПД в ручном вводе отброшены — ни в ответе, ни в базе",
+       not any(x in dump or x in saved for x in ("Петрович", "Петров", "555 44 33", "Каримов")), dump[:300])
+    st, b = mk_make(listings, "не-та-сессия")
+    ok("чужая или неизвестная загрузка снимков — все объявления «введено сотрудником»",
+       all(r["source"] == "manual" for r in b["market_value"]["listings"]) and b["market_value"]["shots_missing"])
+    return aid
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -2044,11 +2838,18 @@ def main():
             check_lang_fields()
             check_minor()
             check_screen()
+            check_market_engine()
+            check_market_links()
+            shots_sid = check_market_shots()
+            check_market_make(shots_sid)
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
         llm.chat_raw, llm.enabled, llm.supports_files, llm._post = (ORIG["chat_raw"], ORIG["enabled"],
                                                                     ORIG["supports_files"], ORIG["post"])
+        if "cbu" in ORIG:
+            from app import valuation_sources as vs
+            vs.cbu_usd_rate = ORIG["cbu"]
         shutil.rmtree(folder, ignore_errors=True)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

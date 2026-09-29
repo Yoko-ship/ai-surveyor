@@ -125,7 +125,9 @@ GUEST_POST_EXACT = {"/calculate", "/osgor/quick", "/osgor/assess", "/legal/ask",
                     "/chat/start", "/chat/message", "/chat/upload", "/chat/answer",
                     "/chat/analyze", "/chat/lang",
                     # сюрвейерский акт, лёгкая версия (app/act.py): фото и формирование акта
-                    "/act/photos", "/act/make"}
+                    "/act/photos", "/act/make",
+                    # оценка по объявлениям: снимки экрана сотрудника (лимит по файлам — в app/act.py)
+                    "/act/market/shots"}
 # отправка своего акта ботом (app/act.py): владельца и подпись Telegram проверяет обработчик
 GUEST_POST_RE = re.compile(r"/act/[0-9a-f]{16}/send")
 GUEST_PUT_EXACT = {"/analytics/risk/last"}             # свой последний выбор формы, без сумм и ПД

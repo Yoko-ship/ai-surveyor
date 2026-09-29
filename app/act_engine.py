@@ -21,6 +21,7 @@
 4. franchise — только при основании (ТЗ 8.4); размер — вилка из порогов franchise_by_level.
 5. clauses, required_views, discrepancies, decision — по ТЗ 5, 8.5, 8.6, 7.
 """
+import math
 import re
 from datetime import date
 from typing import Optional
@@ -47,6 +48,16 @@ DEFAULT_SETTINGS = {
     "value_ok_pct": [90, 100],      # сумма к стоимости «в норме»
     "wear_pct_per_year": {"building": 3, "vehicle": 20, "computer": 20, "equipment": 15, "other": 15},
     "insurer_name": "",
+    # оценка по объявлениям со снимков экрана (30.09.2026): экспертно, calibrated = 0
+    "market": {
+        "min_listings": 3,              # меньше — оценка ориентировочная
+        "diff_pct": 15,                 # расхождение с заявленной стоимостью, выше — «уточнить стоимость»
+        "max_age_months": 6,            # объявления старше не берутся
+        "outlier_low": 0.5,             # ниже доли медианы — выброс
+        "outlier_high": 2.0,            # выше кратного медианы — выброс
+        # объявление без видимой даты публикации в расчёт не берётся (правило valuation_sources.py)
+        "allow_undated": False,
+    },
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
@@ -80,6 +91,10 @@ LIMIT_BOUNDS = {"max_image_mp": (1, 200), "pdf_max_pages": (1, 100), "guest_phot
                 "doc_max_sheets": (1, 50), "doc_max_line_chars": (50, 10000),
                 "doc_max_text_chars": (1000, 1000000), "doc_parse_sec": (0.1, 60),
                 "doc_parse_total_sec": (0.1, 120)}
+# пределы настроек оценки по объявлениям: (от, до, целое)
+MARKET_BOUNDS = {"min_listings": (1, 20, True), "diff_pct": (1, 100, False), "max_age_months": (1, 24, True),
+                 "outlier_low": (0.05, 0.95, False), "outlier_high": (1.05, 20, False)}
+MARKET_FLAGS = ("allow_undated",)       # флаги оценки по объявлениям: только true/false
 
 VIEWS = ("front", "back", "left", "right", "plate", "odometer", "document", "interior", "facade", "roof",
          "electrical", "fire_safety", "general", "installation", "packaging", "marking", "transport", "other")
@@ -743,4 +758,310 @@ def check_settings(s: dict) -> list:
         errs.append("limits: неизвестные ключи " + ", ".join(extra))
     if not errs and lim.get("ai_timeout_sec", 0) > lim.get("ai_deadline_sec", 0):
         errs.append("limits: ai_timeout_sec не больше ai_deadline_sec")
+    mk = m["market"] if isinstance(m["market"], dict) else {}
+    if not isinstance(m["market"], dict):
+        errs.append("market: словарь настроек оценки по объявлениям")
+    for key, (lo_b, hi_b, whole) in MARKET_BOUNDS.items():
+        v = mk.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not (lo_b <= v <= hi_b) \
+                or (whole and float(v) != int(v)):
+            errs.append(f"market.{key}: {'целое ' if whole else ''}число от {lo_b} до {hi_b}")
+    for key in MARKET_FLAGS:
+        if not isinstance(mk.get(key), bool):
+            errs.append(f"market.{key}: true или false")
+    extra = [k for k in mk if k not in MARKET_BOUNDS and k not in MARKET_FLAGS]
+    if extra:
+        errs.append("market: неизвестные ключи " + ", ".join(extra))
     return errs
+
+
+# ================================================================================================
+#  7. Оценка по объявлениям (снимки экрана сотрудника, 30.09.2026)
+# ================================================================================================
+
+_MONTHS = {"январ": 1, "феврал": 2, "март": 3, "апрел": 4, "ма": 5, "июн": 6, "июл": 7, "август": 8,
+           "сентябр": 9, "октябр": 10, "ноябр": 11, "декабр": 12,
+           "yanvar": 1, "fevral": 2, "mart": 3, "aprel": 4, "may": 5, "iyun": 6, "iyul": 7, "avgust": 8,
+           "sentyabr": 9, "oktyabr": 10, "noyabr": 11, "dekabr": 12,
+           "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10,
+           "nov": 11, "dec": 12}
+_TODAY_WORDS = ("сегодня", "bugun", "today")
+_YESTERDAY_WORDS = ("вчера", "kecha", "yesterday")
+
+
+# «N единиц назад»: ru — «назад», uz — «oldin», en — «ago». Число может не стоять («неделю назад», «a month ago»).
+_AGO_UNITS = (  # (корень слова, единица)
+    ("минут", "min"), ("мин", "min"), ("час", "hour"), ("ч", "hour"), ("дн", "day"), ("ден", "day"),
+    ("сут", "day"), ("недел", "week"), ("нед", "week"), ("месяц", "month"), ("мес", "month"), ("год", "year"),
+    ("лет", "year"),
+    ("daqiqa", "min"), ("soat", "hour"), ("kun", "day"), ("hafta", "week"), ("oy", "month"), ("yil", "year"),
+    ("minute", "min"), ("min", "min"), ("hour", "hour"), ("hr", "hour"), ("day", "day"), ("week", "week"),
+    ("month", "month"), ("year", "year"), ("yr", "year"))
+_AGO_RX = re.compile(r"(?:(\d{1,3}|an?|one)\s*)?([a-zа-яё']+)\.?\s*(назад|oldin|ago)\b")
+
+
+def _ago(s: str, shot_date: date) -> Optional[date]:
+    m = _AGO_RX.search(s)
+    if not m:
+        return None
+    raw, word = m.group(1), m.group(2)
+    n = int(raw) if raw and raw.isdigit() else 1
+    unit = next((u for stem, u in sorted(_AGO_UNITS, key=lambda x: -len(x[0])) if word.startswith(stem)), None)
+    if unit is None:
+        return None
+    if unit in ("min", "hour"):
+        # время снимка неизвестно: «5 часов назад» — день снимка, «30 часов назад» — день раньше
+        return date.fromordinal(shot_date.toordinal() - (n // 24 if unit == "hour" else n // 1440))
+    if unit == "day":
+        return date.fromordinal(shot_date.toordinal() - n)
+    if unit == "week":
+        return date.fromordinal(shot_date.toordinal() - 7 * n)
+    return months_before(shot_date, n * (12 if unit == "year" else 1))
+
+
+def parse_posted_ex(text, shot_date: date) -> tuple:
+    """
+    (дата или None, состояние): ok — дата распознана и не позже снимка; future — дата позже даты снимков
+    (некорректна); none — даты нет или не распознана. Понимает ГГГГ-ММ-ДД, ДД.ММ.ГГГГ, «12 сентября 2026 г.»,
+    «12 сентября» (год снимка, а если выходит позже снимка — прошлый), «сегодня/вчера» (bugun/kecha,
+    today/yesterday), «N минут/часов/дней/недель/месяцев/лет назад» (N daqiqa/soat/kun/hafta/oy/yil oldin,
+    N minutes/hours/days/weeks/months/years ago).
+    """
+    if text is None:
+        return None, "none"
+    if isinstance(text, date):
+        d = text
+    else:
+        s = re.sub(r"\s+", " ", str(text)).strip().lower()
+        if not s:
+            return None, "none"
+        d = None
+        m = re.search(r"(\d{4})-(\d{1,2})-(\d{1,2})", s) or None
+        m2 = re.search(r"(?<!\d)(\d{1,2})[./](\d{1,2})[./](\d{4})(?!\d)", s)
+        try:
+            if m:
+                d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            elif m2:
+                d = date(int(m2.group(3)), int(m2.group(2)), int(m2.group(1)))
+        except ValueError:
+            return None, "none"
+        if d is None:
+            if any(w in s for w in _TODAY_WORDS):
+                d = shot_date
+            elif any(w in s for w in _YESTERDAY_WORDS):
+                d = date.fromordinal(shot_date.toordinal() - 1)
+            else:
+                d = _ago(s, shot_date)
+        if d is None:
+            m3 = re.search(r"(?<!\d)(\d{1,2})\s+([a-zа-яё']+)(?:\s+(\d{4}))?", s)
+            if m3:
+                word = m3.group(2)
+                month = next((v for k, v in sorted(_MONTHS.items(), key=lambda kv: -len(kv[0]))
+                              if word.startswith(k)), None)
+                if month:
+                    year = int(m3.group(3)) if m3.group(3) else shot_date.year
+                    try:
+                        d = date(year, month, int(m3.group(1)))
+                    except ValueError:
+                        return None, "none"
+                    if not m3.group(3) and d > shot_date:
+                        d = date(year - 1, month, int(m3.group(1)))
+    if d is None or d.year < 2000:
+        return None, "none"
+    if d > shot_date:
+        return None, "future"
+    return d, "ok"
+
+
+def parse_posted(text, shot_date: date) -> Optional[date]:
+    """Дата публикации со снимка → дата; позже снимка или не распознана — None (см. parse_posted_ex)."""
+    return parse_posted_ex(text, shot_date)[0]
+
+
+def round_half_up(x) -> int:
+    """Округление до целого «половина — вверх»: так же, как Math.round на экране (round в Python — банковское)."""
+    return int(math.floor(float(x) + 0.5))
+
+
+def _price_of(v) -> Optional[float]:
+    """Цена объявления: число больше нуля, иначе None (пусто, ноль, мусор — «цена не видна»)."""
+    if v is None or isinstance(v, bool):
+        return None
+    x = float(v) if isinstance(v, (int, float)) else to_number(v)
+    if x is None or x != x or x <= 0 or math.isinf(x):
+        return None
+    return x
+
+
+def months_before(d: date, months: int) -> date:
+    """Та же дата на N месяцев раньше (конец месяца — последний день)."""
+    y, m = d.year, d.month - int(months)
+    while m <= 0:
+        m += 12
+        y -= 1
+    day = d.day
+    while True:
+        try:
+            return date(y, m, day)
+        except ValueError:
+            day -= 1
+
+
+def quantile(xs: list, p: float) -> Optional[float]:
+    """Перцентиль линейной интерполяцией — тот же способ, что valuation.quantiles и valuation_sources."""
+    xs = sorted(float(v) for v in xs)
+    if not xs:
+        return None
+    if len(xs) == 1:
+        return xs[0]
+    pos = p * (len(xs) - 1)
+    lo = int(pos)
+    hi = min(lo + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (pos - lo)
+
+
+USD_LIKE = ("USD", "у.е.")
+
+
+def market_estimate(listings: list, *, declared: Optional[float] = None, sum_insured: Optional[float] = None,
+                    settings: Optional[dict] = None, shot_date: Optional[date] = None,
+                    usd_rate: Optional[float] = None) -> dict:
+    """
+    Оценка по объявлениям (без модели и без сети). listings — [{"id", "title", "price", "currency" (UZS|USD|у.е.),
+    "posted", "relevant", ...}] после проверки ввода. Правило (настройки market, calibrated = 0):
+      1) берутся только relevant, с ценой больше нуля, в сумах или в долларах при известном курсе, с видимой
+         датой публикации не позже даты снимков и не старше max_age_months от неё. Дата не видна — объявление
+         исключается (mx_no_date; настройка allow_undated = true — берётся дата снимка с пометкой date_assumed);
+         removed — убрано сотрудником из списка загрузки; off_by = employee — снято сотрудником;
+      2) выбросы — ниже outlier_low и выше outlier_high от медианы отобранных — отбрасываются, но только если
+         отобранных не меньше min_listings;
+      3) медиана оставшихся, вилка — 25-й и 75-й перцентили; поправок на год и пробег нет (в app/valuation.py
+         для объявлений готового правила нет: mileage_factor работает только в методе износа);
+      4) меньше min_listings — verdict few (ориентировочно), ни одного — none; иначе сравнение с заявленной
+         стоимостью: |заявленная − медиана| / заявленная × 100 (как valuation.compare_declared) больше diff_pct —
+         refine (уточнённая стоимость = медиана, страховая сумма сверяется с ней по value_check), иначе confirmed.
+      Без заявленной стоимости (предпросмотр) verdict — ready.
+    """
+    st = merge_settings(settings)
+    mk = st["market"]
+    undated_ok = mk.get("allow_undated") is True
+    shot_date = shot_date or date.today()
+    edge = months_before(shot_date, int(mk["max_age_months"]))
+    try:
+        rate = float(usd_rate) if usd_rate not in (None, "") and float(usd_rate) > 0 else None
+    except (TypeError, ValueError):
+        rate = None
+    rows, excluded, cand = [], [], []
+    assumed = []
+    for it in listings or []:
+        if not isinstance(it, dict):
+            continue
+        r = dict(it)
+        price = _price_of(r.get("price"))
+        cur = r.get("currency") or "UZS"
+        r["price_uzs"] = None
+        if price is not None:
+            if cur == "UZS":
+                r["price_uzs"] = round_half_up(price)
+            elif cur in USD_LIKE and rate:
+                r["price_uzs"] = round_half_up(price * rate)
+        pd_, pst = parse_posted_ex(r.get("posted_date"), shot_date)
+        if pd_ is None:
+            pd2, pst2 = parse_posted_ex(r.get("posted"), shot_date)
+            if pd2 is not None or pst == "none":
+                pd_, pst = pd2, pst2
+        r["posted_date"] = pd_.isoformat() if pd_ else None
+        r["date_assumed"] = pd_ is None
+        r["date_status"] = pst
+        reason = None
+        if r.get("removed"):
+            reason = ("mx_removed_by_employee", {})
+        elif r.get("relevant") is False:
+            # «снято сотрудником» — только если в загрузке снимков модель считала объявление подходящим
+            reason = ("mx_unchecked_by_employee", {}) if r.get("off_by") == "employee" else \
+                ("mx_not_relevant", {"why": r.get("why_excluded")})
+        elif price is None:
+            reason = ("mx_no_price", {})
+        elif r["price_uzs"] is None:
+            reason = ("mx_no_rate", {})
+        elif pst == "future":
+            reason = ("mx_bad_date", {"shot": shot_date.isoformat()})
+        elif pd_ is None and not undated_ok:
+            reason = ("mx_no_date", {})
+        elif pd_ is not None and pd_ < edge:
+            reason = ("mx_too_old", {"date": pd_.isoformat(), "months": int(mk["max_age_months"])})
+        if reason:
+            r["used"] = False
+            excluded.append({"id": r.get("id"), "title": r.get("title"), "code": reason[0], "params": reason[1]})
+        else:
+            cand.append(r)
+        rows.append(r)
+    how = [{"code": "mh_filter_undated" if undated_ok else "mh_filter", "params": {"months": int(mk["max_age_months"])}}]
+    out = {"available": False, "verdict": "none", "count": len(rows), "used": 0, "median": None, "low": None,
+           "high": None, "currency": "UZS", "declared": declared, "diff_pct": None, "refined_value": None,
+           "insured_check": None, "excluded": excluded, "listings": rows, "shot_date": shot_date.isoformat(),
+           "window_from": edge.isoformat(), "usd_rate": rate, "how": how, "rule": dict(mk),
+           "calibrated": CALIBRATED}
+    if rate and any(r.get("currency") in USD_LIKE for r in rows):
+        how.append({"code": "mh_fx", "params": {"rate": rate}})
+    elif any(r.get("currency") in USD_LIKE and _price_of(r.get("price")) is not None for r in rows):
+        how.append({"code": "mh_fx_none", "params": {}})
+    if not cand:
+        how.append({"code": "mh_none", "params": {}})
+        return out
+    lo_k, hi_k = float(mk["outlier_low"]), float(mk["outlier_high"])
+    used = []
+    n_out = 0
+    if len(cand) < int(mk["min_listings"]):
+        # при малом числе объявлений «выброс» от медианы двух-трёх цен ничего не значит — не ищем
+        used = cand
+        for r in cand:
+            r["used"] = True
+        how.append({"code": "mh_outliers_skipped", "params": {"n": len(cand), "min": int(mk["min_listings"])}})
+    else:
+        med0 = quantile([r["price_uzs"] for r in cand], 0.5)
+        for r in cand:
+            p = r["price_uzs"]
+            code = "mx_outlier_low" if p < lo_k * med0 else ("mx_outlier_high" if p > hi_k * med0 else None)
+            if code:
+                n_out += 1
+                r["used"] = False
+                excluded.append({"id": r.get("id"), "title": r.get("title"), "code": code,
+                                 "params": {"price": p, "median": round_half_up(med0),
+                                            "k": lo_k if code.endswith("low") else hi_k}})
+            else:
+                r["used"] = True
+                used.append(r)
+        how.append({"code": "mh_outliers", "params": {"lo": lo_k, "hi": hi_k, "med0": round_half_up(med0),
+                                                      "k": n_out}})
+    assumed = [r.get("id") for r in used if r["date_assumed"]]
+    prices = [r["price_uzs"] for r in used]
+    med = round_half_up(quantile(prices, 0.5))
+    q1, q3 = round_half_up(quantile(prices, 0.25)), round_half_up(quantile(prices, 0.75))
+    out.update(available=True, used=len(used), median=med, low=q1, high=q3, date_assumed=assumed)
+    how.append({"code": "mh_median", "params": {"n": len(used), "median": med, "low": q1, "high": q3}})
+    if assumed:
+        how.append({"code": "mh_dates_assumed", "params": {"k": len(assumed)}})
+    how.append({"code": "mh_no_adj", "params": {}})
+    few = len(used) < int(mk["min_listings"])
+    if declared:
+        # от округлённой медианы — так же, как экран (mkDiff): одна цифра и в акте, и в предпросмотре
+        diff = (float(declared) - med) / float(declared) * 100
+        out["diff_pct"] = round(diff, 1)
+        how.append({"code": "mh_compare", "params": {"declared": declared, "median": med,
+                                                     "diff": round(abs(diff), 1), "thr": mk["diff_pct"]}})
+    if few:
+        out["verdict"] = "few"
+        how.append({"code": "mh_few", "params": {"n": len(used), "min": int(mk["min_listings"])}})
+    elif not declared:
+        out["verdict"] = "ready"
+    elif abs(out["diff_pct"]) > float(mk["diff_pct"]) + 1e-9:
+        out["verdict"] = "refine"
+        out["refined_value"] = round(med)
+        if sum_insured:
+            vc = value_check(float(sum_insured), float(round(med)), st)
+            out["insured_check"] = {"ratio_pct": vc["ratio_pct"], "verdict": vc["verdict"],
+                                    "legal_ref": vc["legal_ref"], "diff": vc["diff"]}
+    else:
+        out["verdict"] = "confirmed"
+    return out

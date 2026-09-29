@@ -792,6 +792,93 @@ input.w-short{max-width:220px}
 .fr-box{color:var(--ink);margin-top:var(--s3);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
 .fr-box.prop{border-color:var(--accent-line);background:var(--accent-bg)}
 .fr-h{margin:0;color:var(--ink);font-size:14px;line-height:1.45;overflow-wrap:anywhere}
+/* шаг 2: оценка по объявлениям — ссылки поиска, три шага, снимки, список объявлений, итог */
+.mk-top{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 0 2px}
+.mk-top h2{margin:0}
+.mk-top .tag{margin-left:0}
+.mk-what{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;margin:0;font-size:14px}
+.mk-what span{color:var(--muted)}
+.mk-what b{font-weight:700;overflow-wrap:anywhere}
+.mk-what .btn-link{min-height:40px;padding:0 4px;font-size:13px}
+.mk-q{display:flex;gap:8px;align-items:stretch}
+.mk-q input{flex:1 1 auto}
+.mk-q .btn{flex:none}
+@media (max-width:420px){.mk-q{flex-direction:column}.mk-q .btn{align-self:flex-start}}
+.mk-links{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--s2)}
+.mk-go,.mk-alt{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin:0;padding:9px 16px;border-radius:12px;
+  font:700 14px/1.25 var(--sans);text-align:center;cursor:pointer;max-width:100%;overflow-wrap:anywhere}
+.mk-go{border:1px solid var(--accent-line);background:var(--accent-bg);color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.mk-go:hover{border-color:var(--accent)}
+.mk-alt{border:1px solid var(--line);background:transparent;color:var(--ink);-webkit-text-fill-color:var(--ink);font-weight:600;font-size:13px}
+.mk-alt:hover{background:var(--soft)}
+.mk-go:focus-visible,.mk-alt:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mk-how{list-style:none;counter-reset:mk;display:grid;gap:8px;margin:var(--s3) 0 0;padding:0}
+.mk-how li{counter-increment:mk;display:grid;grid-template-columns:26px minmax(0,1fr);gap:10px;align-items:start;font-size:14px;line-height:1.45}
+.mk-how li::before{content:counter(mk);display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:8px;
+  background:var(--soft);color:var(--accent);font:700 13px/1 var(--mono)}
+.mk-how li{padding-top:1px}
+.mk-tips{margin-top:8px}
+.mk-up{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line)}
+.mk-up .btn{justify-self:start}
+.mk-up .btn svg{width:18px;height:18px}
+.mk-drop{margin:0;min-height:56px}
+.mk-read{margin-top:10px}
+.mk-read .mk-go{width:100%}
+#mkRes .h3{margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--line)}
+.mk-fx{margin:6px 0 0}
+.mk-rate{max-width:320px}
+.mk-rate.bad input{border-color:var(--stop)}
+.mk-rows{margin-top:6px}
+.mk-row{padding:12px 0;border-bottom:1px solid var(--line);min-width:0}
+.mk-t{margin:0;font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+.mk-t b{font-weight:600}
+.mk-meta{display:block;margin-top:2px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.mk-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:6px}
+.mk-use{display:flex;align-items:center;gap:8px;min-height:44px;font-size:13.5px;cursor:pointer}
+.mk-use input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent-color:var(--accent)}
+.mk-price{display:flex;align-items:center;gap:8px;flex:1 1 210px;max-width:300px;min-width:0}
+.mk-use{flex:none}
+.mk-more{margin-top:10px}
+.mk-price input{flex:1 1 auto;min-width:0;font:600 15px/1.2 var(--mono)}
+.mk-price .unit{flex:none;font-weight:600;font-size:13px}
+.mk-del{min-height:44px;padding:0 6px;border:0;background:none;color:var(--link);-webkit-text-fill-color:var(--link);
+  font:600 13px var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.mk-conv,.mk-why{display:block;margin-top:4px;font-size:12.5px;line-height:1.4;overflow-wrap:anywhere}
+.mk-conv{color:var(--muted)}
+.mk-conv:empty{display:none}
+.mk-why{color:var(--good);font-weight:600}
+.mk-row.off .mk-t,.mk-row.off .mk-meta,.mk-row.off .mk-price{opacity:.62}
+.mk-row.off .mk-why{color:var(--muted);font-weight:400}
+.mk-addbtn{margin-top:6px;min-height:44px;padding:0 4px;font-size:14px}
+.mk-addf{margin-top:var(--s2);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
+.mk-addf .h3{margin-top:0}
+.mk-add2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);gap:0 8px}
+.mk-add2>div{min-width:0}
+@media (max-width:480px){.mk-add2{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.mk-add2>div:first-child{grid-column:1/-1}}
+.mk-addbtns{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.mk-sum{margin-top:var(--s3);padding:12px 14px;border:1px solid var(--accent-line);border-radius:12px;background:var(--accent-bg)}
+.mk-sum.few{border-color:var(--warn)}
+.mk-sum.none{border-color:var(--line);background:var(--soft2)}
+.mk-sum .eyebrow{margin-bottom:2px}
+.mk-med{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin:0}
+.mk-med span{font-size:13px;color:var(--muted)}
+.mk-med b{font:700 20px/1.3 var(--mono);overflow-wrap:anywhere}
+.mk-med em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.mk-line{margin:4px 0 0;font-size:13.5px;line-height:1.45;overflow-wrap:anywhere}
+.mk-line.warn{color:var(--warn)}
+.mk-sum .note{margin:8px 0 0}
+.mk-sum .btn{margin-top:10px}
+.mk-sum .hint{margin-top:10px}
+#wzf-object_value.flash{animation:frflash 1.6s ease-out}
+/* шаг 3: плитка оценки по объявлениям и плашка источника */
+.mv-box{margin-top:var(--s3);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2);color:var(--ink)}
+.mv-box.warn{border-color:var(--warn)}
+.mv-box.ok{border-color:var(--good)}
+.mv-box .mk-med{margin-top:6px}
+.mv-box .srcbar{margin-top:10px}
+.mv-open{min-height:40px;padding:0 4px;font-size:12.5px}
+.srcbar.act-src{flex-direction:column;align-items:flex-start;gap:2px}
+.srcbar.act-src span{overflow-wrap:anywhere}
 .fr-sub{margin:4px 0 0;font-size:13px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
 .fr-move{margin:6px 0 0;font-size:14px;line-height:1.45;overflow-wrap:anywhere}
 .fr-move span{color:var(--muted)}
@@ -1016,6 +1103,7 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent-line)}
     <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
     <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="mkFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
   </section>
 
@@ -2172,7 +2260,20 @@ const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue
   docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
   msg: "", notes: [], warning: "", upLang: "", stale: false,
   must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
-  refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false};
+  refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false, kind: ""};
+/* оценка по объявлениям (шаг 2): состояние; функции — ниже, перед «Сформировать акт» */
+const MK_KEY = "surveyor_act_market";
+const MK_MAX = 5;                          // app/act_market.py: MAX_SHOTS
+const MK_MAX_LISTINGS = 40;                // app/act_market.py: MAX_LISTINGS
+const MK_RATE = [100, 1000000];            // app/act_market.py: USD_RATE_BOUNDS, сумов за доллар
+// app/act_engine.py DEFAULTS["market"]: экспертные пороги, не калиброваны; сервер в акте считает по своим настройкам
+const MK_RULE = {min_listings: 3, diff_pct: 15, max_age_months: 6, outlier_low: 0.5, outlier_high: 2.0, allow_undated: false};
+const MK_ADD0 = () => ({title: "", price: "", currency: "UZS", year: "", date: "", url: ""});
+// declOrig — стоимость, которую заявил клиент, до замены медианой (уходит в акт как declared_value_original)
+const MK_FRESH = () => ({links: null, linksKey: "", linksBusy: false, linksErr: "", q: "", qOpen: false, site: "olx",
+  queue: [], seq: 0, busy: false, err: "", ss: "", shotDate: "", fx: null, need: false, info: null,
+  listings: [], rate: "", addOpen: false, add: MK_ADD0(), addErr: "", mseq: 0, declOrig: 0});
+const MK = MK_FRESH();
 
 const ICON_CAM = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M4 8h3l1.6-2.2h6.8L17 8h3v11H4z"/><circle cx="12" cy="13.2" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
 const ICON_IMG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="3.5" y="4.5" width="17" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="m4 17 5-4.5 3.5 3 3-2.5 4.5 4"/></svg>';
@@ -2359,7 +2460,7 @@ function wzSave(){
       // разобранные документы — только номер в запросе, вид и число значений; франшиза и пометки «из документа»
       docs: CH.docs.map(d => ({index: d.index, kind: d.kind, text_layer: d.text_layer, values: d.values})), model: CH.modelN,
       pre: CH.pre, preDoc: CH.preDoc, seeded: CH.seeded, fr: CH.fr,
-      must: CH.must, opt: CH.opt, act: CH.actId}));
+      must: CH.must, opt: CH.opt, act: CH.actId, kind: CH.kind}));
   } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
 }
 function wzLoad(){
@@ -2391,6 +2492,7 @@ function wzLoad(){
   CH.fr = {on: !!f.on, type: FR_TYPES.indexOf(f.type) >= 0 ? f.type : "unconditional", unit: f.unit === "amount" ? "amount" : "pct",
     pct: typeof f.pct === "string" ? f.pct.slice(0, 6) : "", amount: Number(f.amount) > 0 ? Number(f.amount) : null};
   CH.actId = typeof s.act === "string" && /^[0-9a-f]{16}$/.test(s.act) ? s.act : "";
+  CH.kind = typeof s.kind === "string" && /^[a-z_]{1,40}$/.test(s.kind) ? s.kind : "";
   CH.stale = CH.photoCount > 0;           // файлы в памяти страницы не пережили перезагрузку
 }
 /* регион из прошлого раза — чтобы не выбирать его каждый раз */
@@ -2487,7 +2589,7 @@ function wzMain(){
 }
 function wzBarPaint(){
   const b = $("#chatMain");
-  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy || (CH.wz === 3 && (!CH.act || !!CH.sending)); }
+  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy || (CH.wz === 2 && MK.busy) || (CH.wz === 3 && (!CH.act || !!CH.sending)); }
   syncTgButtons();
 }
 function wzStepsPaint(){
@@ -2517,6 +2619,7 @@ function wzPaint(force){
   CH.later = false;
   box.innerHTML = CH.wz === 3 ? wzStep3Html() : CH.wz === 2 ? wzStep2Html() : wzStep1Html();
   wzBarPaint();
+  if (CH.wz === 2) mkLinks();                 // ссылки поиска — по распознанному и на языке интерфейса
 }
 /* одна часть шага — не трогая поле, в котором человек печатает */
 function wzPart(name){
@@ -2806,6 +2909,8 @@ function actApplyPhotos(d, list){
   CH.missingViews = (d.missing_views || []).map(v => String(v.code || v));
   CH.requiredViews = (d.required_views || []).map(v => String(v.code || v));
   CH.suggest = (d.suggest_classes || []).map(String);
+  // вид объекта по фото — для ссылок поиска объявлений (раздел площадки)
+  CH.kind = d.object_kind && typeof d.object_kind === "object" && /^[a-z_]{1,40}$/.test(String(d.object_kind.code || "")) ? String(d.object_kind.code) : "";
   CH.preDoc = {};
   wzApplyPrefill(d.prefill && typeof d.prefill === "object" ? d.prefill : {});
 }
@@ -2864,6 +2969,7 @@ function wzStep2Html(){
     + '<div id="wzRegion">' + wzRegionHtml() + "</div>"
     + '<div id="wzTerm">' + wzTermHtml() + "</div>"
     + "</div>"
+    + mkHtml()
     + '<div id="wzMoreBox">' + wzMoreHtml() + "</div>"
     + msgHtml();
 }
@@ -2945,6 +3051,7 @@ function recInput(el){
   if (s) s.textContent = recSrcLine(r);
   const box = el.closest(".rec");
   if (box) box.classList.toggle("disc", recDisc(recGroups().filter(g => g.key === r.key)[0].idx));
+  if (r.key === "brand" || r.key === "model" || r.key === "year") mkLinksSoon();
   wzSave();
 }
 
@@ -3239,6 +3346,7 @@ function wzFieldInput(el){
   wzClearErr(key);
   if (key === "losses_count" || key === "losses_small" || key === "losses_amount") wzClearErr("losses_count");
   if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
+  if (key === "object_value") mkPart("sum");   // расхождение с медианой объявлений — сразу
   if (el.dataset.scope === "opt") wzMoreCount();
   wzSave();
 }
@@ -3261,6 +3369,7 @@ function wzQuickAdd(b){
   if (el) el.value = Number(m[key]).toLocaleString(LOC());
   preClear(key);
   if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
+  if (key === "object_value") mkPart("sum");
   wzClearErr(key);
   haptic("select");
   wzSave();
@@ -3268,17 +3377,713 @@ function wzQuickAdd(b){
 function wzFocusField(key){
   setTimeout(() => {
     const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod"))
+      : key === "market" ? $("#mkCard")
       : key === "fr" ? ($("#wzo-frval") || document.querySelector("[data-fr]"))
       : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
     if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
   }, 60);
 }
 
+/* =====================================================================================
+   Оценка стоимости по объявлениям (30.09.2026): шаг «Проверить», карточка «Оценка по объявлениям».
+   Сервер на площадки не ходит (OLX закрыт от автоматических запросов): GET /act/market/links даёт адреса
+   поиска для браузера сотрудника; сотрудник снимает экран со списком объявлений и загружает снимки —
+   POST /act/market/shots (модель читает цены, сервер пересчитывает доллары и считает предварительную медиану).
+   Правки сотрудника (отметка «учитывать», цена, объявления вручную) уходят в POST /act/make → optional.market
+   вместе с shots_session и курсом; окончательную оценку и раздел 3 акта считает сервер.
+   Предпросмотр на экране — тот же расчёт, что app/act_engine.market_estimate: отбор (отметка, цена, курс,
+   срок), выбросы от медианы отобранных, медиана, 25-й и 75-й перцентили линейной интерполяцией,
+   расхождение |заявленная − медиана| / заявленная × 100. Пороги — значения по умолчанию act_engine (market),
+   экспертные, не калиброваны: это написано на экране.
+   Ссылки открываются только https и только на olx.uz, avtoelon.uz, uybor.uz, joymee.uz (в Telegram — TG.openLink).
+   В sessionStorage (MK_KEY) — номер загрузки снимков, дата снимков, курс, объявления с правками и «что ищем»;
+   имён файлов снимков и текстов сервера там нет.
+   ===================================================================================== */
+const MK_HOSTS = ["olx.uz", "avtoelon.uz", "uybor.uz", "joymee.uz"];
+const MK_SITES = ["olx", "avtoelon", "uybor", "joymee"];
+const MK_USD = c => c === "USD" || c === "у.е.";
+
+/* ---------- состояние в sessionStorage: без имён файлов ---------- */
+function mkSave(){
+  try {
+    sessionStorage.setItem(MK_KEY, JSON.stringify({ss: MK.ss, date: MK.shotDate, fx: MK.fx, need: MK.need, rate: MK.rate,
+      q: MK.q, site: MK.site, seq: MK.mseq, listings: MK.listings, declOrig: MK.declOrig}));
+  } catch (e) { /* без sessionStorage оценка живёт до перезагрузки */ }
+}
+function mkLoad(){
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem(MK_KEY) || "null"); } catch (e) { s = null; }
+  if (!s || typeof s !== "object") return;
+  MK.ss = typeof s.ss === "string" && /^[0-9a-f]{8,40}$/.test(s.ss) ? s.ss : "";
+  MK.shotDate = /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "";
+  const fx = s.fx && typeof s.fx === "object" && Number(s.fx.rate) > 0 ? s.fx : null;
+  MK.fx = fx ? {rate: Number(fx.rate), by: String(fx.by || ""), as_of: String(fx.as_of || "")} : null;
+  MK.need = !!s.need;
+  MK.rate = typeof s.rate === "string" ? s.rate.slice(0, 12) : "";
+  MK.q = typeof s.q === "string" ? s.q.slice(0, 60) : "";
+  MK.site = MK_SITES.indexOf(s.site) >= 0 ? s.site : "olx";
+  MK.mseq = Number(s.seq) || 0;
+  MK.declOrig = Number(s.declOrig) > 0 ? Number(s.declOrig) : 0;
+  MK.listings = (Array.isArray(s.listings) ? s.listings : []).filter(r => r && typeof r === "object")
+    .slice(0, MK_MAX_LISTINGS).map(r => mkRow(r));
+}
+function mkReset(){
+  MK.queue.forEach(q => { if (q.url) URL.revokeObjectURL(q.url); });
+  Object.assign(MK, MK_FRESH());
+  try { sessionStorage.removeItem(MK_KEY); } catch (e) {}
+}
+/* объявление из ответа сервера или из sessionStorage → запись для экрана; всё — недоверенный текст */
+function mkRow(r, source){
+  const n = v => v == null || v === "" || isNaN(Number(v)) ? null : Number(v);
+  const s = (v, lim) => v == null || typeof v === "object" ? null : (String(v).slice(0, lim) || null);
+  const price = n(r.price) > 0 ? n(r.price) : null;
+  const o = r.orig && typeof r.orig === "object" ? r.orig : r;
+  return {id: /^[A-Za-z0-9_-]{1,12}$/.test(String(r.id || "")) ? String(r.id) : "m" + (++MK.mseq),
+    title: s(r.title, 160) || "", price: price, currency: MK_USD(r.currency) ? String(r.currency) : "UZS",
+    year: n(r.year), mileage_km: n(r.mileage_km), hours: n(r.hours), region: s(r.region, 80),
+    posted_date: /^\d{4}-\d{2}-\d{2}$/.test(String(r.posted_date || "")) ? String(r.posted_date) : null,
+    date_assumed: r.date_assumed === true, date_bad: r.date_bad === true || r.date_status === "future",
+    site: MK_SITES.indexOf(r.site) >= 0 ? r.site : "other",
+    relevant: r.relevant !== false, why: s(r.why != null ? r.why : r.why_excluded, 160), url: s(r.url, 300),
+    source: (source || r.source) === "manual" ? "manual" : "shot",
+    orig: {price: n(o.price) > 0 ? n(o.price) : null, relevant: o.relevant !== false}};
+}
+
+/* ---------- что ищем: распознанное или введённое сотрудником ---------- */
+function recVal(key){
+  const r = CH.rec.filter(x => x.key === key && String(x.value || "").trim())[0];
+  return r ? String(r.value).trim() : "";
+}
+function mkQuery(){
+  const typed = String(MK.q || "").trim();
+  const yo = String(CH.opt.year || ""), yr = recVal("year");
+  const year = /^\d{4}$/.test(yo) ? yo : /^\d{4}$/.test(yr) ? yr : "";
+  return {brand: typed || recVal("brand"), model: typed ? "" : recVal("model"), year: year, object_kind: CH.kind || ""};
+}
+/* ссылки поиска — GET /act/market/links на языке интерфейса; тот же запрос второй раз не уходит */
+async function mkLinks(force){
+  const q = mkQuery();
+  if (!q.brand && !q.model && !q.object_kind) {
+    if (MK.links || MK.linksKey) { MK.links = null; MK.linksKey = ""; MK.linksErr = ""; mkPart("links"); }
+    return;
+  }
+  const p = {lang: I18N_LANG, brand: q.brand, model: q.model, year: q.year, object_kind: q.object_kind,
+    class_code: CH.must.class_code || "", session: String(MK.q || "").trim() ? "" : CH.session || ""};   // свои слова сильнее фото
+  const qs = Object.keys(p).filter(k => p[k]).map(k => k + "=" + encodeURIComponent(p[k])).join("&");
+  if (!force && qs === MK.linksKey) return;
+  MK.linksKey = qs;
+  MK.linksBusy = true;
+  MK.linksErr = "";
+  mkPart("links");
+  const r = await api("/act/market/links?" + qs);
+  if (qs !== MK.linksKey) return;                       // успели изменить запрос или язык
+  MK.linksBusy = false;
+  if (!r.ok) {
+    MK.links = null;
+    MK.linksErr = r.status === 422 ? T("tg.mk.links_none", "По этим словам искать нечего. Напишите марку и модель в поле «Что ищем».")
+      : T("tg.mk.links_failed", "Ссылки не загрузились: {reason}. Откройте OLX сами и найдите объект по марке и модели.", {reason: r.error});
+    if (r.status === 422) MK.qOpen = true;
+  } else {
+    const d = r.data || {};
+    MK.links = {links: (Array.isArray(d.links) ? d.links : []).filter(l => l && mkSafe(l.url))
+        .map(l => ({site: MK_SITES.indexOf(l.site) >= 0 ? l.site : "other", label: String(l.label || ""), url: String(l.url), hint: String(l.hint || "")})),
+      tips: (Array.isArray(d.shot_tips) ? d.shot_tips : []).map(String), warning: String(d.warning || ""),
+      lang: String(d.lang || I18N_LANG)};
+  }
+  mkPart("links");
+  mkPart("shots");
+}
+let mkLinksTimer = null;
+function mkLinksSoon(){ clearTimeout(mkLinksTimer); mkLinksTimer = setTimeout(() => mkLinks(), 700); }
+/* адрес открываем, только если это https на одной из четырёх площадок */
+function mkSafe(u){
+  let x;
+  try { x = new URL(String(u || "")); } catch (e) { return ""; }
+  if (x.protocol !== "https:" || x.username || x.password) return "";
+  const h = x.hostname.toLowerCase();
+  return MK_HOSTS.some(d => h === d || h.slice(-(d.length + 1)) === "." + d) ? x.href : "";
+}
+function mkOpen(u, site){
+  const url = mkSafe(u);
+  if (!url) {
+    MK.err = T("tg.mk.bad_link", "Эту ссылку приложение не открывает: только https на olx.uz, avtoelon.uz, uybor.uz или joymee.uz.");
+    mkPart("shots");
+    return;
+  }
+  if (site && MK_SITES.indexOf(site) >= 0) { MK.site = site; mkSave(); }
+  haptic("select");
+  if (TG && TG.openLink) tgCall(() => TG.openLink(url));
+  else window.open(url, "_blank", "noopener");
+}
+
+/* ---------- предпросмотр: тот же расчёт, что act_engine.market_estimate ---------- */
+const mkIso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const mkDmy = iso => iso ? iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4) : "";
+function mkMonthsBefore(iso, m){
+  let y = Number(iso.slice(0, 4)), mo = Number(iso.slice(5, 7)) - m;
+  while (mo <= 0) { mo += 12; y--; }
+  const d = Math.min(Number(iso.slice(8, 10)), new Date(Date.UTC(y, mo, 0)).getUTCDate());
+  return y + "-" + String(mo).padStart(2, "0") + "-" + String(d).padStart(2, "0");
+}
+function mkQuant(xs, p){
+  const s = xs.slice().sort((a, b) => a - b);
+  if (!s.length) return null;
+  if (s.length === 1) return s[0];
+  const pos = p * (s.length - 1), lo = Math.floor(pos), hi = Math.min(lo + 1, s.length - 1);
+  return s[lo] + (s[hi] - s[lo]) * (pos - lo);
+}
+function mkRateOk(v){ const x = dec(v); return x != null && isFinite(x) && x >= MK_RATE[0] && x <= MK_RATE[1] ? x : null; }
+function mkRateNow(){ return MK.fx && MK.fx.rate > 0 ? MK.fx.rate : mkRateOk(MK.rate); }
+/* округление «половина — вверх», как act_engine.round_half_up на сервере */
+const mkRound = x => Math.floor(x + 0.5);
+function mkEstimate(){
+  const R = MK_RULE, rate = mkRateNow(), shot = MK.shotDate || mkIso(new Date());
+  const edge = mkMonthsBefore(shot, R.max_age_months);
+  const st = MK.listings.map(() => ({used: false, code: "", uzs: null}));
+  const cand = [];
+  MK.listings.forEach((r, i) => {
+    const s = st[i];
+    if (r.price != null && r.price > 0) s.uzs = r.currency === "UZS" ? mkRound(r.price) : MK_USD(r.currency) && rate ? mkRound(r.price * rate) : null;
+    if (!r.relevant) s.code = "off";
+    else if (!(r.price > 0)) s.code = "no_price";
+    else if (s.uzs == null) s.code = "no_rate";
+    else if (r.date_bad || (r.posted_date && r.posted_date > shot)) s.code = "bad_date";
+    else if (!r.posted_date && !R.allow_undated) s.code = "no_date";
+    else if (r.posted_date && r.posted_date < edge) s.code = "old";
+    else cand.push(i);
+  });
+  const out = {st: st, count: MK.listings.length, used: 0, median: null, low: null, high: null, med0: null, verdict: "none", rate: rate};
+  if (!cand.length) return out;
+  const prices = [];
+  if (cand.length < R.min_listings) {
+    // мало подходящих — выбросы не ищем (как на сервере)
+    cand.forEach(i => { st[i].used = true; prices.push(st[i].uzs); });
+  } else {
+    const med0 = mkQuant(cand.map(i => st[i].uzs), 0.5);
+    out.med0 = mkRound(med0);
+    cand.forEach(i => {
+      const p = st[i].uzs;
+      st[i].code = p < R.outlier_low * med0 ? "low" : p > R.outlier_high * med0 ? "high" : "";
+      if (!st[i].code) { st[i].used = true; prices.push(p); }
+    });
+  }
+  out.used = prices.length;
+  out.median = mkRound(mkQuant(prices, 0.5));
+  out.low = mkRound(mkQuant(prices, 0.25));
+  out.high = mkRound(mkQuant(prices, 0.75));
+  out.verdict = prices.length < R.min_listings ? "few" : "ready";
+  return out;
+}
+/* расхождение — как valuation.compare_declared: от заявленной стоимости, со знаком, до 0,1 */
+const mkDiff = (declared, median) => Math.round((declared - median) / declared * 1000) / 10;
+
+/* ---------- разметка карточки ---------- */
+function mkHtml(){
+  return '<section class="card mk" id="mkCard" aria-labelledby="mkTitle"><div class="mk-top"><h2 id="mkTitle">'
+    + esc(T("tg.mk.title", "Оценка по объявлениям")) + '</h2><span class="tag off">' + esc(T("tg.mk.optional", "необязательно")) + "</span></div>"
+    + '<p class="sub">' + esc(T("tg.mk.sub", "Сверим стоимость объекта с ценами похожих объявлений. Можно пропустить — акт сформируется и без оценки.")) + "</p>"
+    + '<div id="mkLinks">' + mkLinksHtml() + "</div>"
+    + '<div id="mkShots">' + mkShotsHtml() + "</div>"
+    + '<div id="mkRes">' + mkResHtml() + "</div>"
+    + "</section>";
+}
+function mkPart(name){
+  const map = {links: ["mkLinks", mkLinksHtml], shots: ["mkShots", mkShotsHtml], res: ["mkRes", mkResHtml],
+    sum: ["mkSum", mkSumHtml], add: ["mkAdd", mkAddHtml]};
+  const m = map[name];
+  const el = m && document.getElementById(m[0]);
+  if (!el) return;
+  if (typing(el)) { CH.later = true; return; }
+  el.innerHTML = m[1]();
+}
+function mkLinksHtml(){
+  const q = mkQuery(), known = !!(q.brand || q.model);
+  const what = [q.brand, q.model, q.year].filter(Boolean).join(" ");
+  let h = "";
+  if (!known || MK.qOpen) {
+    h += '<label class="f" for="mkQ">' + esc(T("tg.mk.q_label", "Что ищем")) + "</label>"
+      + '<div class="mk-q"><input id="mkQ" type="text" autocomplete="off" maxlength="60" enterkeyhint="search" data-mkq="1" value="' + esc(MK.q)
+      + '" placeholder="' + esc(T("tg.mk.q_ph", "Марка и модель, например XCMG QY50K5D")) + '">'
+      + '<button type="button" class="btn btn-secondary btn-sm" data-mk="find">' + esc(T("tg.mk.q_find", "Показать ссылки")) + "</button></div>"
+      + '<span class="hint">' + esc(MK.q && recVal("brand")
+        ? T("tg.mk.q_hint_typed", "Ищем по вашим словам. Очистите поле — будем искать по распознанному.")
+        : known ? T("tg.mk.q_hint_known", "Пусто — ищем по распознанному: {what}.", {what: what})
+        : T("tg.mk.q_hint", "Марка и модель не распознаны — напишите их сами.")) + "</span>";
+  } else {
+    h += '<p class="mk-what"><span>' + esc(T("tg.mk.what", "Ищем:")) + "</span> <b>" + esc(what) + "</b>"
+      + '<button type="button" class="btn-link mk-edit" data-mk="qopen">' + esc(T("tg.mk.q_change", "Искать другое")) + "</button></p>";
+  }
+  if (MK.linksBusy) h += '<p class="note">' + spin(T("tg.mk.links_loading", "Подбираю ссылки поиска…")) + "</p>";
+  else if (MK.linksErr) h += '<p class="note warn">' + esc(MK.linksErr) + "</p>";
+  const L = MK.links;
+  if (L && L.links.length) {
+    // главная кнопка — первая ссылка (OLX) с её подсказкой; остальные площадки — второстепенными кнопками ниже
+    const btn = (l, i) => '<button type="button" class="' + (i === 0 ? "mk-go" : "mk-alt") + '" data-mkopen="' + i + '">'
+      + esc(i === 0 && l.site === "olx" ? T("tg.mk.find_olx", "Найти на OLX") : l.label) + "</button>";
+    h += '<div class="mk-links">' + btn(L.links[0], 0) + "</div>"
+      + (L.links[0].hint ? '<span class="hint">' + esc(L.links[0].hint) + "</span>" : "")
+      + (L.links.length > 1 ? '<div class="mk-links mk-more">' + L.links.slice(1).map((l, i) => btn(l, i + 1)).join("") + "</div>" : "");
+  }
+  h += '<ol class="mk-how"><li>' + esc(T("tg.mk.how1", "Откройте поиск.")) + "</li>"
+    + "<li>" + esc(T("tg.mk.how2", "Сделайте снимок экрана со списком объявлений (5–10 штук, чтобы были видны цены).")) + "</li>"
+    + "<li>" + esc(T("tg.mk.how3", "Загрузите снимок сюда.")) + "</li></ol>";
+  // подсказка про продавцов уже есть в предупреждении под загрузкой — второй раз не повторяем
+  const tips = L ? L.tips.filter(x => !(L.warning && L.warning.indexOf(x) >= 0)) : [];
+  if (tips.length) h += '<p class="hint mk-tips">' + esc(T("tg.mk.tips", "На снимке должны быть видны:")) + " " + esc(tips.join("; ")) + "</p>";
+  return h;
+}
+function mkShotsHtml(){
+  const dis = MK.busy ? " disabled" : "";
+  let h = '<div class="mk-up">'
+    + '<button type="button" class="btn btn-secondary btn-sm" data-mk="pick"' + dis + ">" + ICON_IMG + "<span>" + esc(T("tg.mk.pick", "Выбрать снимки")) + "</span></button>"
+    + '<button type="button" class="wz-drop mk-drop" id="mkDrop" data-mk="pick"' + dis + ">" + esc(T("tg.mk.drop", "Или перетащите снимок сюда / вставьте Ctrl+V")) + "</button></div>"
+    + '<p class="hint">' + esc(T("tg.mk.formats", "Снимки экрана JPG или PNG (WEBP и HEIC переведём в JPG) · до {n} снимков, каждый до {mb} МБ", {n: MK_MAX, mb: CH_MAX_MB})) + "</p>";
+  if (MK.queue.length) {
+    h += '<div class="wz-files mk-files"><p class="eyebrow">' + esc(T("tg.mk.shots_n", "Снимки · {n}", {n: MK.queue.length})) + "</p>"
+      + MK.queue.map(q => '<div class="wz-file' + (q.error ? " bad" : "") + '"><span class="ic" aria-hidden="true">'
+        + (q.url ? '<img src="' + esc(q.url) + '" alt="">' : esc(extOf(q.name))) + "</span>"
+        + "<span><b>" + esc(q.name) + '</b><small class="' + (q.error ? "err" : "") + '">'
+        + esc(sizeName(q.size) + " · " + (q.error || (MK.busy ? T("tg.act.st_reading", "читаю…") : T("tg.mk.st_queued", "уйдёт по кнопке «Прочитать объявления»")))) + "</small></span>"
+        + (MK.busy ? '<span class="st"></span>'
+          : '<button type="button" class="rm" data-mkrm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
+        + "</div>").join("") + "</div>";
+    const live = MK.queue.filter(q => !q.error).length;
+    if (!MK.busy && live) h += '<div class="mk-read"><button type="button" class="mk-go" data-mk="read">' + esc(T("tg.mk.read", "Прочитать объявления: снимков {n}", {n: live})) + "</button></div>";
+  }
+  if (MK.busy) {
+    h += '<div class="wz-reading" role="status"><span class="spin"></span><div><b>' + esc(T("tg.mk.reading", "Читаю объявления…"))
+      + "</b><small>" + esc(T("tg.mk.reading_sub", "Модель читает цены со снимков — обычно до 30 секунд. Не закрывайте приложение.")) + "</small></div></div>";
+  }
+  if (MK.err) h += '<p class="note err" role="alert">' + esc(MK.err) + "</p>";
+  h += '<p class="wz-warn">' + esc(MK.links && MK.links.warning && MK.links.lang === I18N_LANG ? MK.links.warning
+    : T("tg.mk.warn", "Снимайте только список объявлений: имена и телефоны продавцов не извлекаются; снимки хранятся 24 часа. Снимки уходят в языковую модель как картинки. Сервер тестовый.")) + "</p>";
+  return h;
+}
+function mkHasUsd(){ return MK.listings.some(r => MK_USD(r.currency) && r.price != null); }
+function mkFxHtml(){
+  if (!mkHasUsd()) return "";
+  if (MK.fx) {
+    const own = MK.info && MK.info.lang === I18N_LANG && MK.info.fxText;
+    return '<p class="note mk-fx">' + esc(own ? MK.info.fxText : T("tg.mk.fx_line", "Курс: 1 доллар = {rate} {sum} на {date}, источник — {src}.",
+      {rate: nf(MK.fx.rate, 2), sum: SUM(), date: mkDmy(MK.fx.as_of), src: MK.fx.by === "cbu" ? T("tg.mk.fx_cbu", "ЦБ РУз (cbu.uz)") : T("tg.mk.fx_manual", "курс из настроек оценки")})) + "</p>";
+  }
+  const bad = MK.rate && !mkRateOk(MK.rate);
+  return '<div class="mk-rate' + (bad ? " bad" : "") + '"><label class="f" for="mkRate">' + esc(T("tg.mk.rate", "Курс доллара")) + ' <span class="unit">'
+    + esc(T("tg.mk.rate_unit", "{sum} за 1 доллар", {sum: SUM()})) + "</span></label>"
+    + '<input id="mkRate" type="text" inputmode="decimal" autocomplete="off" maxlength="12" data-mkrate="1" value="' + esc(MK.rate) + '" placeholder="12650">'
+    + '<span class="hint">' + esc(T("tg.mk.rate_hint", "Курс не получен автоматически. Введите курс ЦБ на дату снимка — цены в долларах пересчитаются в сумы. Без курса такие объявления в расчёт не войдут.")) + "</span>"
+    + '<span class="ferr" id="mkRateErr">' + esc(bad ? T("tg.mk.rate_err", "Курс — число от {a} до {b} сумов за доллар.", {a: fmt(MK_RATE[0]), b: fmt(MK_RATE[1])}) : "") + "</span></div>";
+}
+function mkResHtml(){
+  const L = MK.listings;
+  let h = "";
+  if (L.length || MK.ss) {
+    h += '<div class="h3">' + esc(T("tg.mk.list_n", "Объявления · {n}", {n: L.length})) + "</div>";
+    const info = MK.info && MK.info.lang === I18N_LANG ? MK.info : null;
+    if (info && info.message) h += '<p class="note">' + esc(info.message) + "</p>";
+    else if (L.some(r => r.source === "shot")) h += '<p class="note">' + esc(T("tg.mk.check", "Проверьте цены и отметки — модель может ошибаться.")) + "</p>";
+    if (info) h += info.notes.filter(n => n !== info.fxText).map(n => '<p class="note warn">' + esc(n) + "</p>").join("");
+    if (MK.ss && !L.length) h += '<p class="note warn">' + esc(T("tg.mk.empty", "На снимках не нашлось объявлений с ценами. Проверьте, что на снимке виден список, или добавьте объявления вручную.")) + "</p>";
+    h += mkFxHtml();
+    const e = mkEstimate();
+    h += '<div class="mk-rows">' + L.map((r, i) => mkRowHtml(r, i, e)).join("") + "</div>";
+  }
+  h += '<div id="mkAdd">' + mkAddHtml() + "</div>";
+  h += '<span class="ferr" id="wzErr-market">' + esc(CH.errs.market || "") + "</span>";
+  h += '<div id="mkSum">' + mkSumHtml() + "</div>";
+  return h;
+}
+function mkEdited(r){ return r.source === "shot" && (r.price !== r.orig.price || r.relevant !== r.orig.relevant); }
+function mkTagsHtml(r){
+  if (r.source === "manual") return '<span class="tag off">' + esc(T("tg.mk.tag_manual", "вручную")) + "</span>";
+  return mkEdited(r) ? '<span class="tag">' + esc(T("tg.mk.tag_edited", "исправлено")) + "</span>" : "";
+}
+function mkConvText(r, rate){
+  if (!MK_USD(r.currency) || r.price == null) return "";
+  return rate ? T("tg.mk.conv", "{p} {c} × {rate} = {sum}", {p: fmt(r.price), c: r.currency, rate: nf(rate, 2), sum: money(Math.round(r.price * rate))})
+    : T("tg.mk.conv_none", "цена в долларах — нужен курс");
+}
+function mkStText(r, e, i){
+  const s = e.st[i];
+  if (s.used) return T("tg.mk.st_used", "в расчёте");
+  switch (s.code) {
+    case "off":
+      return r.orig.relevant === false
+        ? T("tg.mk.x_other", "не в расчёте: другое изделие") + (r.why ? " (" + r.why + ")" : "")
+        : T("tg.mk.x_off", "не в расчёте: снята отметка «учитывать»");
+    case "no_price": return T("tg.mk.x_price", "не в расчёте: нет цены");
+    case "no_rate": return T("tg.mk.x_rate", "не в расчёте: цена в долларах, а курс не задан");
+    case "no_date": return T("tg.mk.x_date", "не в расчёте: дата публикации не видна");
+    case "bad_date": return T("tg.mk.x_bad_date", "не в расчёте: дата публикации позже даты снимков");
+    case "old": return T("tg.mk.x_old", "не в расчёте: объявление старше {m} мес.", {m: MK_RULE.max_age_months});
+    case "low": return T("tg.mk.x_low", "не в расчёте: выброс — цена ниже {k} медианы {med}", {k: nf(MK_RULE.outlier_low, 1), med: money(e.med0)});
+    default: return T("tg.mk.x_high", "не в расчёте: выброс — цена выше {k} медианы {med}", {k: nf(MK_RULE.outlier_high, 0), med: money(e.med0)});
+  }
+}
+function mkRowHtml(r, i, e){
+  const used = e.st[i].used;
+  const date = r.posted_date ? mkDmy(r.posted_date)
+    : MK_RULE.allow_undated ? (r.source === "manual" ? T("tg.mk.date_none", "дата не указана — принята дата снимка") : T("tg.mk.date_assumed", "дата не видна — принята дата снимка"))
+    : r.source === "manual" ? T("tg.mk.date_none_x", "дата не указана") : T("tg.mk.date_missing", "дата не видна");
+  const meta = [r.year ? T("tg.mk.year", "{y} г.", {y: r.year}) : "",
+    r.mileage_km != null ? T("tg.mk.km", "пробег {n} км", {n: fmt(r.mileage_km)}) : "",
+    r.hours != null ? T("tg.mk.hours", "{n} моточасов", {n: fmt(r.hours)}) : "",
+    r.region || "", date].filter(Boolean).join(" · ");
+  const title = r.title || T("tg.mk.no_title", "без названия");
+  return '<div class="mk-row' + (used ? "" : " off") + '" id="mkr-' + i + '">'
+    + '<p class="mk-t"><b>' + esc(title) + '</b><span id="mkt-' + i + '">' + mkTagsHtml(r) + "</span></p>"
+    + '<small class="mk-meta">' + esc(meta) + "</small>"
+    + '<div class="mk-ctl"><label class="mk-use"><input type="checkbox" data-mkuse="' + i + '"' + (r.relevant ? " checked" : "")
+    + ' aria-label="' + esc(T("tg.mk.use_aria", "Учитывать объявление: {t}", {t: title})) + '"><span>' + esc(T("tg.mk.use", "учитывать")) + "</span></label>"
+    + '<div class="mk-price"><input type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" data-mkprice="' + i + '" value="'
+    + esc(r.price != null ? fmt(r.price) : "") + '" placeholder="0" aria-label="' + esc(T("tg.mk.price_aria", "Цена объявления: {t}", {t: title})) + '">'
+    + '<span class="unit">' + esc(r.currency === "UZS" ? SUM() : r.currency) + "</span></div>"
+    + (r.source === "manual" ? '<button type="button" class="rm mk-del" data-mkdel="' + i + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>" : "")
+    + "</div>"
+    + '<small class="mk-conv" id="mkc-' + i + '">' + esc(mkConvText(r, e.rate)) + "</small>"
+    + '<small class="mk-why" id="mkw-' + i + '">' + esc(mkStText(r, e, i)) + "</small>"
+    + "</div>";
+}
+function mkSumHtml(est){
+  if (!MK.listings.length) return "";
+  const e = est || mkEstimate(), decl = Number(CH.must.object_value) || 0;
+  if (!e.used) {
+    return '<div class="mk-sum none"><p class="mk-line"><b>' + esc(T("tg.mk.sum_none", "Подходящих объявлений нет.")) + "</b></p>"
+      + '<p class="note">' + esc(T("tg.mk.sum_none_sub", "Отметьте объявления того же изделия с ценой или добавьте их вручную — без них оценки не будет.")) + "</p></div>";
+  }
+  let h = '<div class="mk-sum' + (e.verdict === "few" ? " few" : "") + '" role="status"><p class="eyebrow">' + esc(T("tg.mk.sum_title", "По объявлениям · предварительно")) + "</p>"
+    + '<p class="mk-med"><span>' + esc(T("tg.mk.median", "медиана")) + "</span><b>" + esc(money(e.median)) + "</b></p>"
+    + '<p class="mk-line">' + esc(T("tg.mk.range", "вилка от {lo} до {hi}", {lo: money(e.low), hi: money(e.high)}) + " · "
+      + T("tg.mk.used", "учтено {n} из {m}", {n: e.used, m: e.count})) + "</p>";
+  if (e.verdict === "few") h += '<p class="note warn">' + esc(T("tg.mk.few", "Объявлений мало (меньше {n}) — оценка ориентировочная.", {n: MK_RULE.min_listings})) + "</p>";
+  if (decl > 0) {
+    const d = mkDiff(decl, e.median), big = Math.abs(d) > MK_RULE.diff_pct + 1e-9;
+    const P = {v: money(decl), p: pct(Math.abs(d), 1), t: pct(MK_RULE.diff_pct, 0)};
+    h += '<p class="note ' + (big ? "warn" : "ok") + '">' + esc(big
+      ? T("tg.mk.diff_big", "Заявленная стоимость {v} расходится с медианой на {p} — больше порога {t}. Проверьте стоимость или оставьте свою: в акте будет отмечено.", P)
+      : T("tg.mk.diff_ok", "Заявленная стоимость {v} отличается от медианы на {p} — в пределах порога {t}.", P)) + "</p>";
+    // при «мало объявлений» медиана — только ориентир: заменять ею стоимость нельзя
+    if (big && e.verdict !== "few" && mkRound(decl) !== e.median) h += '<button type="button" class="btn btn-secondary btn-sm" data-mk="usemed">' + esc(T("tg.mk.use_median_replace", "Заменить стоимость объекта на медиану")) + "</button>";
+    if (MK.declOrig > 0 && MK.declOrig !== decl) h += '<p class="hint">' + esc(T("tg.mk.decl_orig", "Заявлено клиентом: {v} — в акте будет видно, что стоимость принята по объявлениям.", {v: money(MK.declOrig)})) + "</p>";
+  } else if (e.verdict !== "few") {
+    h += '<button type="button" class="btn btn-secondary btn-sm" data-mk="usemed">' + esc(T("tg.mk.use_median", "Подставить медиану в стоимость объекта")) + "</button>";
+  }
+  h += '<p class="hint">' + esc(T("tg.mk.uncal", "Пороги (не меньше {n} объявлений, выбросы, срок {m} мес., расхождение {t}) — экспертные, не калиброваны. Окончательно оценку посчитает сервер в акте.",
+    {n: MK_RULE.min_listings, m: MK_RULE.max_age_months, t: pct(MK_RULE.diff_pct, 0)})) + "</p>";
+  return h + "</div>";
+}
+function mkAddHtml(){
+  if (!MK.addOpen) {
+    return MK.listings.length >= MK_MAX_LISTINGS ? ""
+      : '<button type="button" class="btn-link mk-addbtn" data-mk="addopen">' + esc(T("tg.mk.add", "Добавить объявление вручную")) + "</button>";
+  }
+  const a = MK.add;
+  return '<div class="mk-addf"><div class="h3">' + esc(T("tg.mk.add_title", "Объявление вручную")) + "</div>"
+    + '<label class="f" for="mka-title">' + esc(T("tg.mk.f_title", "Название")) + "</label>"
+    + '<input id="mka-title" type="text" autocomplete="off" maxlength="160" data-mka="title" value="' + esc(a.title) + '">'
+    + '<div class="mk-add2"><div><label class="f" for="mka-price">' + esc(T("tg.mk.f_price", "Цена")) + "</label>"
+    + '<input id="mka-price" type="text" inputmode="numeric" autocomplete="off" data-mka="price" value="' + esc(a.price) + '" placeholder="0"></div>'
+    + '<div><label class="f" for="mka-cur">' + esc(T("tg.mk.f_currency", "Валюта")) + "</label>"
+    + '<select id="mka-cur" data-mka="currency"><option value="UZS"' + (a.currency === "UZS" ? " selected" : "") + ">" + esc(SUM()) + "</option>"
+    + '<option value="USD"' + (a.currency === "USD" ? " selected" : "") + ">USD</option></select></div>"
+    + '<div><label class="f" for="mka-year">' + esc(T("tg.mk.f_year", "Год")) + "</label>"
+    + '<input id="mka-year" type="text" inputmode="numeric" autocomplete="off" maxlength="4" data-mka="year" value="' + esc(a.year) + '"></div></div>'
+    + '<label class="f" for="mka-date">' + esc(T("tg.mk.f_date", "Дата публикации")) + "</label>"
+    + '<input id="mka-date" type="date" autocomplete="off" data-mka="date" max="' + esc(mkIso(new Date())) + '" value="' + esc(a.date) + '">'
+    + '<span class="hint">' + esc(T("tg.mk.f_date_hint", "Как в объявлении. Без даты объявление в расчёт не войдёт.")) + "</span>"
+    + '<label class="f" for="mka-url">' + esc(T("tg.mk.f_url", "Ссылка на объявление")) + "</label>"
+    + '<input id="mka-url" type="url" inputmode="url" autocomplete="off" maxlength="300" data-mka="url" value="' + esc(a.url) + '" placeholder="https://www.olx.uz/">'
+    + '<span class="hint">' + esc(T("tg.mk.f_url_hint", "Необязательно. Только https на olx.uz, avtoelon.uz, uybor.uz или joymee.uz.")) + "</span>"
+    + '<span class="ferr" id="mkAddErr">' + esc(MK.addErr) + "</span>"
+    + '<div class="mk-addbtns"><button type="button" class="btn btn-secondary btn-sm" data-mk="addsave">' + esc(T("tg.mk.add_save", "Добавить в список")) + "</button>"
+    + '<button type="button" class="btn-link" data-mk="addcancel">' + esc(T("tg.mk.add_cancel", "Отмена")) + "</button></div></div>";
+}
+
+/* ---------- правки: форма не перерисовывается, обновляются статусы строк и итог ---------- */
+function mkRefresh(){
+  const e = mkEstimate();
+  MK.listings.forEach((r, i) => {
+    const row = document.getElementById("mkr-" + i);
+    if (!row) return;
+    row.classList.toggle("off", !e.st[i].used);
+    const w = document.getElementById("mkw-" + i); if (w) w.textContent = mkStText(r, e, i);
+    const c = document.getElementById("mkc-" + i); if (c) c.textContent = mkConvText(r, e.rate);
+    const t = document.getElementById("mkt-" + i); if (t) t.innerHTML = mkTagsHtml(r);
+  });
+  const s = document.getElementById("mkSum");
+  if (s) s.innerHTML = mkSumHtml(e);
+  wzClearErr("market");
+}
+function mkUse(el){
+  const r = MK.listings[Number(el.dataset.mkuse)];
+  if (!r) return;
+  r.relevant = !!el.checked;
+  haptic("select");
+  mkRefresh();
+  mkSave();
+}
+function mkPriceInput(el){
+  const r = MK.listings[Number(el.dataset.mkprice)];
+  if (!r) return;
+  groupDigitsLive(el);
+  r.price = num(el.value) > 0 ? num(el.value) : null;
+  mkRefresh();
+  mkSave();
+}
+function mkRateInput(el){
+  const c = el.value.replace(/[^\d.,\s]/g, "");
+  if (c !== el.value) el.value = c;
+  MK.rate = c.trim();
+  const bad = MK.rate && !mkRateOk(MK.rate);
+  const err = document.getElementById("mkRateErr");
+  if (err) err.textContent = bad ? T("tg.mk.rate_err", "Курс — число от {a} до {b} сумов за доллар.", {a: fmt(MK_RATE[0]), b: fmt(MK_RATE[1])}) : "";
+  if (el.parentNode) el.parentNode.classList.toggle("bad", !!bad);
+  mkRefresh();
+  mkSave();
+}
+function mkAddInput(el){
+  const k = el.dataset.mka;
+  if (k === "price") groupDigitsLive(el);
+  if (k === "year" && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
+  MK.add[k] = String(el.value || "");
+  if (MK.addErr) { MK.addErr = ""; const e = document.getElementById("mkAddErr"); if (e) e.textContent = ""; }
+}
+function mkAddSave(){
+  const a = MK.add, y = new Date().getFullYear() + 1;
+  const title = String(a.title || "").trim(), price = num(a.price), url = String(a.url || "").trim();
+  let err = "";
+  if (!title) err = T("tg.mk.err_title", "Напишите название объявления.");
+  else if (!(price > 0)) err = T("tg.mk.err_price", "Введите цену больше нуля.");
+  else if (a.year && !(/^\d{4}$/.test(a.year) && Number(a.year) >= 1950 && Number(a.year) <= y)) err = T("tg.mk.err_year", "Год — четыре цифры, от 1950 до {y}.", {y: y});
+  else if (url && !mkSafe(url)) err = T("tg.mk.err_url", "Ссылка — только https на olx.uz, avtoelon.uz, uybor.uz или joymee.uz. Или оставьте поле пустым.");
+  else if (a.date && !(/^\d{4}-\d{2}-\d{2}$/.test(a.date) && a.date >= "2000-01-01" && a.date <= mkIso(new Date()))) err = T("tg.mk.err_date", "Дата публикации — не позже сегодняшнего дня.");
+  if (err) { MK.addErr = err; haptic("error"); mkPart("add"); return; }
+  MK.listings.push(mkRow({id: "m" + (++MK.mseq), title: title, price: price, currency: a.currency === "USD" ? "USD" : "UZS",
+    year: a.year ? Number(a.year) : null, posted_date: a.date || null, url: url ? mkSafe(url) : null, relevant: true}, "manual"));
+  MK.addOpen = false;
+  MK.add = MK_ADD0();
+  MK.addErr = "";
+  haptic("success");
+  mkSave();
+  mkPart("res");
+}
+function mkDel(i){
+  const r = MK.listings[i];
+  if (!r || r.source !== "manual") return;
+  MK.listings.splice(i, 1);
+  haptic("select");
+  mkSave();
+  mkPart("res");
+}
+/* «Подставить медиану»: поле стоимости меняется только по нажатию */
+function mkUseMedian(){
+  const e = mkEstimate();
+  if (!e.median || e.verdict === "few") return;
+  // первая замена запоминает то, что заявил клиент; повторная — не затирает его
+  const decl = Number(CH.must.object_value) || 0;
+  if (decl > 0 && !(MK.declOrig > 0)) MK.declOrig = decl;
+  mkSave();
+  CH.must.object_value = e.median;
+  const el = document.getElementById("wzf-object_value");
+  if (el) { el.value = Number(e.median).toLocaleString(LOC()); el.classList.add("flash"); }
+  preClear("object_value");
+  wzClearErr("object_value");
+  haptic("select");
+  wzSave();
+  mkPart("sum");
+}
+
+/* ---------- снимки: галерея, перетаскивание, вставка из буфера; WEBP и HEIC — в JPG ---------- */
+async function mkAddFiles(files){
+  const list = Array.prototype.slice.call(files || []);
+  if (!list.length || MK.busy) return;
+  const bad = [];
+  let over = false;
+  for (let f of list) {
+    if (wzNeedsConvert(f)) {
+      const j = await wzToJpeg(f);
+      if (!j) { bad.push(T("tg.wz.bad_image", "{name}: не удалось открыть картинку — сохраните её как JPG или PNG.", {name: f.name || "?"})); continue; }
+      f = j;
+    }
+    const name = String(f.name || ""), type = String(f.type || "");
+    if (!(/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png)$/i.test(name))) {
+      bad.push(T("tg.mk.bad_format", "{name}: нужен снимок экрана — JPG или PNG.", {name: name || "?"}));
+      continue;
+    }
+    if (f.size > CH_MAX_MB * 1048576) { bad.push(T("tg.wz.too_big", "{name}: файл больше {mb} МБ — сожмите его или разделите.", {name: name, mb: CH_MAX_MB})); continue; }
+    if (MK.queue.filter(q => !q.error).length >= MK_MAX) { over = true; continue; }
+    MK.queue.push({id: ++MK.seq, file: f, size: f.size, error: "",
+      name: name || ("shot-" + MK.seq + (type === "image/png" ? ".png" : ".jpg")),
+      url: window.URL && URL.createObjectURL ? URL.createObjectURL(f) : ""});
+  }
+  if (over) bad.push(T("tg.mk.too_many", "За один раз — не больше {n} снимков. Уберите лишние, чтобы добавить другие.", {n: MK_MAX}));
+  MK.err = bad.join(" ");
+  haptic(bad.length ? "warning" : "select");
+  mkPart("shots");
+  const c = document.getElementById("mkShots");
+  if (c && c.scrollIntoView && !bad.length) c.scrollIntoView({block: "nearest"});
+}
+function mkRemove(id){
+  const q = MK.queue.filter(x => x.id === id)[0];
+  if (!q || MK.busy) return;
+  if (q.url) URL.revokeObjectURL(q.url);
+  MK.queue = MK.queue.filter(x => x !== q);
+  MK.err = "";
+  haptic("select");
+  mkPart("shots");
+}
+/* все снимки из списка — одним POST /act/market/shots; новый ответ заменяет объявления со снимков,
+   добавленные вручную остаются */
+async function mkRead(){
+  const list = MK.queue.filter(q => !q.error).slice(0, MK_MAX);
+  if (!list.length || MK.busy || CH.busy) return;
+  const q = mkQuery();
+  const fd = new FormData();
+  list.forEach(x => fd.append("files", x.file, x.name));
+  fd.append("lang", I18N_LANG);
+  if (CH.session && !String(MK.q || "").trim()) fd.append("session", CH.session);
+  fd.append("site", MK.site || "olx");
+  ["brand", "model", "year", "object_kind"].forEach(k => { if (q[k]) fd.append(k, q[k]); });
+  const rate = mkRateOk(MK.rate);
+  if (rate) fd.append("usd_rate", String(rate));
+  MK.busy = true;
+  MK.err = "";
+  tgBusy(true);
+  mkPart("shots");
+  wzBarPaint();
+  const r = await api("/act/market/shots", {method: "POST", body: fd});
+  MK.busy = false;
+  tgBusy(false);
+  if (!r.ok) {
+    const j = r.data || {};
+    (Array.isArray(j.rejected) ? j.rejected : []).forEach(x => { const it = byIndex(list, x); if (it) it.error = String(x.error || T("tg.wz.not_taken", "не принят")); });
+    const reason = r.status === 422 && j.errors && typeof j.errors === "object"
+      ? T("tg.mk.err_query", "сервер не принял запрос — проверьте поле «Что ищем» и курс доллара")
+      : typeof j.detail === "string" && j.detail ? j.detail : r.error;
+    MK.err = T("tg.mk.read_failed", "Объявления не прочитаны: {reason}", {reason: reason});
+    haptic("error");
+    mkPart("shots");
+    wzBarPaint();
+    return;
+  }
+  mkApply(r.data || {}, list);
+  haptic("success");
+  wzBarPaint();
+}
+function mkApply(d, list){
+  (Array.isArray(d.rejected) ? d.rejected : []).forEach(x => { const it = byIndex(list, x); if (it) it.error = String(x.error || T("tg.wz.not_taken", "не принят")); });
+  // прочитанные снимки из списка убираем; не принятые остаются с причиной
+  MK.queue.forEach(q => { if (!q.error && q.url) URL.revokeObjectURL(q.url); });
+  MK.queue = MK.queue.filter(q => q.error);
+  MK.ss = /^[0-9a-f]{8,40}$/.test(String(d.shots_session || "")) ? String(d.shots_session) : "";
+  MK.shotDate = /^\d{4}-\d{2}-\d{2}$/.test(String(d.shot_date || "")) ? d.shot_date : mkIso(new Date());
+  if (MK_SITES.indexOf(d.site) >= 0) MK.site = d.site;
+  const fx = d.fx && typeof d.fx === "object" ? d.fx : null;
+  // курс сотрудника остаётся в его поле; из источника проекта — ЦБ РУз или ручной курс настроек
+  MK.fx = fx && Number(fx.rate) > 0 && (fx.by === "cbu" || fx.by === "manual_setting")
+    ? {rate: Number(fx.rate), by: String(fx.by), as_of: String(fx.as_of || MK.shotDate)} : null;
+  MK.need = !!d.usd_rate_needed;
+  MK.info = {lang: String(d.lang || I18N_LANG), message: String(d.message || ""),
+    notes: (Array.isArray(d.notes) ? d.notes : []).map(String), fxText: fx && fx.text ? String(fx.text) : ""};
+  const manual = MK.listings.filter(r => r.source === "manual");
+  MK.listings = (Array.isArray(d.listings) ? d.listings : []).filter(r => r && typeof r === "object")
+    .slice(0, Math.max(0, MK_MAX_LISTINGS - manual.length)).map(r => mkRow(r, "shot")).concat(manual);
+  mkSave();
+  mkPart("shots");
+  mkPart("res");
+}
+/* в POST /act/make: объявления с правками, номер загрузки снимков и курс сотрудника */
+function mkBody(){
+  if (!MK.listings.length) return null;
+  const keep = (o, k, v) => { if (v != null && v !== "") o[k] = v; };
+  const out = {listings: MK.listings.map(r => {
+    const o = {id: r.id, relevant: !!r.relevant};
+    keep(o, "title", r.title);
+    keep(o, "price", r.price);
+    keep(o, "currency", r.price != null ? r.currency : null);
+    keep(o, "year", r.year);
+    keep(o, "mileage_km", r.mileage_km);
+    keep(o, "hours", r.hours);
+    keep(o, "why_excluded", r.relevant ? null : r.why);
+    keep(o, "url", r.url && mkSafe(r.url) ? r.url : null);
+    // дата, площадка и происхождение: сервер берёт их отсюда, только если загрузка снимков уже недоступна
+    keep(o, "posted_date", r.posted_date);
+    o.date_assumed = !r.posted_date;
+    keep(o, "site", MK_SITES.indexOf(r.site) >= 0 ? r.site : null);
+    o.source = r.source === "manual" ? "manual" : "shot";
+    return o;
+  })};
+  // курс и его источник: полученный от сервера (ЦБ или настройки) — как есть; «введён сотрудником» — только свой
+  if (MK.fx && MK.fx.rate > 0 && (MK.fx.by === "cbu" || MK.fx.by === "manual_setting")) {
+    out.fx = {rate: MK.fx.rate, by: MK.fx.by, as_of: /^\d{4}-\d{2}-\d{2}$/.test(MK.fx.as_of || "") ? MK.fx.as_of : null};
+  }
+  else {
+    const own = mkRateOk(MK.rate);
+    if (own) { out.fx = {rate: own, by: "employee", as_of: mkIso(new Date())}; out.usd_rate = own; }
+  }
+  if (MK.ss) out.shots_session = MK.ss;
+  return out;
+}
+function mkAction(k){
+  if (k === "pick") { if (!MK.busy) $("#mkFile").click(); return; }
+  if (k === "read") { mkRead(); return; }
+  if (k === "find") { MK.qOpen = !!String(MK.q || "").trim() || MK.qOpen; mkLinks(true); return; }
+  if (k === "qopen") { MK.qOpen = true; mkPart("links"); const q = $("#mkQ"); if (q) q.focus(); return; }
+  if (k === "addopen") { MK.addOpen = true; MK.addErr = ""; mkPart("add"); const t = $("#mka-title"); if (t) t.focus(); return; }
+  if (k === "addcancel") { MK.addOpen = false; MK.add = MK_ADD0(); MK.addErr = ""; mkPart("add"); return; }
+  if (k === "addsave") { mkAddSave(); return; }
+  if (k === "usemed") { mkUseMedian(); return; }
+}
+
+/* ---------- шаг «Акт»: плитка оценки по объявлениям и плашка источника ---------- */
+function mvVerdictName(v){
+  switch (v) {
+    case "confirmed": return T("tg.mk.v.confirmed", "стоимость подтверждается");
+    case "refine": return T("tg.mk.v.refine", "стоимость нужно уточнить");
+    case "few": return T("tg.mk.v.few", "объявлений мало — оценка ориентировочная");
+    default: return T("tg.mk.v.none", "подходящих объявлений нет");
+  }
+}
+function actMvHtml(a){
+  const mv = a.market_value;
+  if (!mv || typeof mv !== "object" || !(mv.available || Number(mv.count) > 0)) return "";
+  const v = mv.verdict, tone = v === "confirmed" ? "ok" : v === "refine" || v === "few" ? "warn" : "";
+  let h = '<div class="mv-box ' + tone + '"><p class="fr-h"><b>' + esc(T("tg.mk.title", "Оценка по объявлениям")) + ":</b> " + esc(mvVerdictName(v)) + "</p>";
+  if (mv.available && isNum(mv.median)) {
+    h += '<p class="mk-med"><span>' + esc(T("tg.mk.median", "медиана")) + "</span><b>" + esc(money(mv.median)) + "</b><em>" + esc(T("tg.mk.uncal_short", "не калибровано")) + "</em></p>"
+      + '<p class="mk-line">' + esc(T("tg.mk.range", "вилка от {lo} до {hi}", {lo: money(mv.low), hi: money(mv.high)}) + " · "
+        + T("tg.mk.used", "учтено {n} из {m}", {n: Number(mv.used) || 0, m: Number(mv.count) || 0})) + "</p>";
+    if (isNum(mv.diff_pct) && isNum(mv.declared)) {
+      h += '<p class="mk-line' + (v === "refine" ? " warn" : "") + '">' + esc(T("tg.mk.diff_line", "Расхождение с заявленной стоимостью {v}: {p}", {v: money(mv.declared), p: pct(Math.abs(Number(mv.diff_pct)), 1)})) + "</p>";
+    }
+    if (v === "refine" && isNum(mv.refined_value)) {
+      h += '<p class="mk-line"><b>' + esc(T("tg.mk.refined", "Уточнённая стоимость: {v}", {v: money(mv.refined_value)})) + "</b></p>";
+      const ic = mv.insured_check;
+      if (ic && typeof ic === "object" && isNum(ic.ratio_pct)) {
+        h += '<p class="mk-line' + (ic.verdict === "normal" ? "" : " warn") + '">' + esc(T("tg.mk.insured", "Страховая сумма к уточнённой стоимости: {p}", {p: pct(ic.ratio_pct, dp(ic.ratio_pct))}))
+          + (ic.text ? ". " + esc(String(ic.text)) : "") + "</p>";
+      }
+    }
+    if (v === "few") h += '<p class="fr-sub">' + esc(T("tg.mk.few_act", "Объявлений в расчёте меньше {n} — медиана только ориентир, стоимость ею не подтверждается.", {n: Number((mv.rule || {}).min_listings) || MK_RULE.min_listings})) + "</p>";
+  } else {
+    h += '<p class="fr-sub">' + esc(T("tg.mk.none_act", "Ни одно объявление не подошло для расчёта — стоимость по объявлениям не проверена.")) + "</p>";
+  }
+  const links = Array.isArray(mv.links) ? mv.links : [];
+  const i0 = links.findIndex(l => l && mkSafe(l.url));
+  const l0 = i0 >= 0 ? links[i0] : null;
+  h += '<div class="srcbar"><span>' + esc(mv.source_label || T("tg.mk.src_fallback", "Источник: объявления на площадках, снимки загружены сотрудником.")) + "</span>"
+    + (l0 ? '<button type="button" class="btn-link mv-open" data-mvopen="' + i0 + '">'
+      + esc(l0.site === "olx" ? T("tg.mk.open_olx", "Открыть поиск на OLX") : T("tg.mk.open_site", "Открыть поиск: {site}", {site: String(l0.label || "")})) + "</button>" : "")
+    + "</div>";
+  return h + "</div>";
+}
+
 /* ---------- «Сформировать акт»: POST /act/make ---------- */
 const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_insured", object_value: "object_value",
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
   want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
-  protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr"};
+  protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr",
+  market: "market"};
 function errText(field){
   switch (field) {
     case "prod": return T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
@@ -3289,6 +4094,7 @@ function errText(field){
     case "losses_count": return T("tg.act.err_losses", "Убытков — целое число; мелких не больше, чем всех.");
     case "term_days": return T("tg.act.err_term", "Срок — целое число дней от 1 до 3660. Или оставьте поле пустым.");
     case "fr": return T("tg.act.err_fr", "Размер франшизы — больше нуля и не больше 50 % страховой суммы (суммой — не больше половины). Или выберите «Не применять».");
+    case "market": return T("tg.mk.err_market", "Проверьте объявления: цена — число больше нуля, год — от 1950, ссылка — https://…, курс доллара — от 100 до 1 000 000 сумов.");
     case "protection": case "seismic_zone": case "construction": case "activity":
       return T("tg.act.err_pick", "Выберите значение из списка или оставьте «не указано».");
     default: return T("tg.act.err_value", "Проверьте значение.");
@@ -3324,6 +4130,11 @@ function actBody(){
   // франшиза сотрудника: {pct | amount, type}; по обязательным видам не отправляется
   const f = CH.fr;
   if (f.on && !wzStatutory()) opt.deductible = f.unit === "amount" ? {amount: Number(f.amount), type: f.type} : {pct: dec(f.pct), type: f.type};
+  // оценка по объявлениям: правки сотрудника, номер загрузки снимков, курс
+  const mk = mkBody();
+  if (mk) opt.market = mk;
+  // стоимость заменена медианой: в акт уходит и то, что заявил клиент
+  if (mk && MK.declOrig > 0 && MK.declOrig !== Number(m.object_value)) opt.declared_value_original = MK.declOrig;
   const body = {lang: I18N_LANG, must: must, optional: opt};
   if (CH.session) {
     body.session = CH.session;
@@ -3388,7 +4199,7 @@ function actShowErrors(e){
   if (OPT_KEYS.some(k => e[k]) || e.fr) CH.optOpen = true;
   haptic("error");
   wzPaint(true);
-  const first = ["prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr"]).filter(k => e[k])[0];
+  const first = ["prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
   if (first) wzFocusField(first);
 }
 
@@ -3414,6 +4225,7 @@ function verdictName(v){
     case "normal": return T("tg.act.v.normal", "в норме");
     case "under": return T("tg.act.v.under", "недострахование");
     case "over": return T("tg.act.v.over", "превышение");
+    case "refine": return T("tg.act.v.refine", "стоимость нужно уточнить");
     default: return "";
   }
 }
@@ -3453,6 +4265,8 @@ function wzStep3Html(){
   const disc = (a.discrepancies || []).length;
   const ratio = val.ratio_pct == null || isNaN(Number(val.ratio_pct)) ? T("tg.act.na", "данные недоступны") : pct(val.ratio_pct, Number(val.ratio_pct) % 1 ? 2 : 0);
   const rateNote = actRateNote(a);
+  // итоговый вывод раздела 3 (сервер: value.final_verdict); в старых актах его нет — вывод по заявленной стоимости
+  const fv = val.final_verdict || val.verdict;
   return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
     + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
     + '<div class="card act-sum ' + tone + '">'
@@ -3467,9 +4281,11 @@ function wzStep3Html(){
     + (prem.term_days || frApplied(a) ? "<em>" + esc([frApplied(a) ? T("tg.act.prem_with_fr", "с франшизой") : "",
         prem.term_days ? T("tg.act.term", "за {n} дн.", {n: prem.term_days}) : ""].filter(Boolean).join(", ")) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
-    + (verdictName(val.verdict) ? '<em class="' + (val.verdict === "normal" ? "ok" : "warn") + '">' + esc(verdictName(val.verdict)) + "</em>" : "") + "</div>"
+    + (verdictName(fv) ? '<em class="' + (fv === "normal" ? "ok" : "warn") + '">' + esc(verdictName(fv)
+      + (fv === "refine" && isNum(val.refined_ratio_pct) ? T("tg.act.v.refine_ratio", ": к уточнённой {p}", {p: pct(val.refined_ratio_pct, dp(val.refined_ratio_pct))}) : "")) + "</em>" : "") + "</div>"
     + "</div>"
     + actFrHtml(a)
+    + actMvHtml(a)
     + (disc ? '<p class="act-line warn"><b>' + esc(T("tg.act.disc_n", "Расхождения в данных: {n}", {n: disc})) + "</b> "
       + esc(T("tg.act.disc_where", "— выделены в акте, проверьте до выдачи полиса.")) + "</p>" : "")
     + '<div class="act-btns">'
@@ -3643,6 +4459,9 @@ function actDocHtml(a){
     + secs.map(s => '<details class="act-s" data-sn="' + esc(s.n) + '"' + (actSecOpen(s.n) ? " open" : "") + '><summary><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3></summary>"
       + (s.paragraphs || []).map(p => "<p>" + esc(p) + "</p>").join("")
       + actRowsHtml(s.rows, s.n === 1 ? discLabels : [])
+      // строки источника под таблицей (оценка по объявлениям): плашка источника обязательна
+      + (Array.isArray(s.source_lines) && s.source_lines.length
+        ? '<div class="srcbar act-src">' + s.source_lines.map(x => "<span>" + esc(x) + "</span>").join("") + "</div>" : "")
       + (s.lists || []).map(li => {
         const hot = (li.items || []).some(x => discText.indexOf(x) >= 0);
         return '<div class="act-list' + (hot ? " disc" : "") + '"><h4>' + esc(li.title) + "</h4><ul>"
@@ -3678,6 +4497,7 @@ function actText(a){
     L.push("", s.n + ". " + s.title);
     (s.paragraphs || []).forEach(p => L.push(p));
     (s.rows || []).forEach(r => L.push(r.label + ": " + r.value + (r.note ? " (" + r.note + ")" : "")));
+    (s.source_lines || []).forEach(x => L.push(x));
     (s.lists || []).forEach(li => { L.push(li.title + ":"); (li.items || []).forEach(x => L.push("• " + x)); });
   });
   L.push("", a.footer);
@@ -3805,7 +4625,8 @@ function actReset(){
   Object.assign(CH, {wz: 1, queue: [], filesDirty: false, session: "", ai: null, photoCount: 0, rec: [], damages: [],
     missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
     modelN: 0, docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
-    must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false});
+    must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false, kind: ""});
+  mkReset();
   wzSeedRegion();
   wzSave();
   wzPaint(true);
@@ -3816,6 +4637,7 @@ async function loadChat(){
   if (CH.booted) { wzPaint(true); return; }
   CH.booted = true;
   wzLoad();
+  mkLoad();
   wzSeedRegion();
   if (CH.wz === 3 && !CH.actId) CH.wz = 2;
   wzPaint(true);
@@ -3837,6 +4659,11 @@ function wzClick(e){
   const d = t.dataset;
   if (d.dl) return;                                  // обычная ссылка на файл — в браузере
   if (d.send) { actSend(d.send); return; }
+  if (d.mk) { mkAction(d.mk); return; }
+  if (d.mkopen != null) { const l = MK.links && MK.links.links[Number(d.mkopen)]; if (l) mkOpen(l.url, l.site); return; }
+  if (d.mvopen != null) { const l = ((CH.act && CH.act.market_value && CH.act.market_value.links) || [])[Number(d.mvopen)]; if (l) mkOpen(l.url); return; }
+  if (d.mkrm) { mkRemove(Number(d.mkrm)); return; }
+  if (d.mkdel != null) { mkDel(Number(d.mkdel)); return; }
   if (d.pick === "cam") { $("#chatCam").click(); return; }
   if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
   if (d.rm) { wzRemove(Number(d.rm)); return; }
@@ -3861,11 +4688,17 @@ function wzInput(e){
   if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
   if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
   if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
+  if (el.dataset && el.dataset.mkq) { MK.q = String(el.value || "").slice(0, 60); mkSave(); return; }
+  if (el.dataset && el.dataset.mkprice != null) { mkPriceInput(el); return; }
+  if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }
+  if (el.dataset && el.dataset.mka && el.tagName !== "SELECT") { mkAddInput(el); return; }
   if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
 }
 function wzChange(e){
   const el = e.target;
   if (el.tagName === "SELECT" && el.dataset.fk) wzFieldInput(el);
+  if (el.dataset && el.dataset.mkuse != null) mkUse(el);
+  if (el.tagName === "SELECT" && el.dataset.mka) mkAddInput(el);
 }
 function wzToggle(e){
   const el = e.target;
@@ -3883,6 +4716,7 @@ function wzKey(e){
     const only = document.querySelectorAll("#wzProdList [data-prod]");
     if (only.length === 1) wzPickProduct(only[0].dataset.prod);
   }
+  if (el.id === "mkQ" && e.key === "Enter") { e.preventDefault(); mkLinks(true); }
   if (el.id === "wzProdQ" && e.key === "Escape" && (CH.must.product_code || CH.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
 }
 
@@ -3899,6 +4733,7 @@ function chatBoot(){
   $("#chatMain").onclick = wzMain;
   $("#chatFile").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
   $("#chatCam").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
+  $("#mkFile").onchange = e => { mkAddFiles(e.target.files); e.target.value = ""; };
   let depth = 0;
   const zone = on => {
     $("#chatDrop").classList.toggle("hidden", !on);
@@ -3918,14 +4753,17 @@ function chatBoot(){
     zone(false);
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
       e.preventDefault();
-      wzAddFiles(e.dataTransfer.files);
+      if (CH.wz === 2) mkAddFiles(e.dataTransfer.files);   // на шаге «Проверить» — снимки объявлений
+      else wzAddFiles(e.dataTransfer.files);
     }
   });
   // вставка из буфера: скриншот или файл — в список шага «Фото»
   document.addEventListener("paste", e => {
     if (TAB !== "chat" || !e.clipboardData) return;
     const files = Array.prototype.slice.call(e.clipboardData.files || []);
-    if (files.length) { e.preventDefault(); wzAddFiles(files); }
+    if (!files.length) return;
+    e.preventDefault();
+    if (CH.wz === 2) mkAddFiles(files); else wzAddFiles(files);   // шаг «Проверить»: снимок экрана со списком объявлений
   });
 }
 
