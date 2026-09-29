@@ -8,6 +8,14 @@
 Всё — во временной копии базы (tests/tmpdb.py) и во временной папке файлов.
 Дополнения 29.09.2026 (проверки 21–27): сценарии PML/EML/MFL, разбор документов, франшиза, рекомендации. Сеть и модель подменяются:
 llm.chat_raw отдаёт заготовленный ответ, llm._post бросает исключение (любой выход в сеть = ошибка теста).
+Проверки 37а–37г (30.09.2026): запрос филиала — разбор DOCX/XLSX/PDF с 16 строками (оба образца заказчика),
+ответ модели по скану, сверка с расчётом акта (продукт 0832), многолетний срок, физлицо, три языка, Word и PDF.
+Проверки 38а–38ж (30.09.2026): договор страхования — учебный договор, договоры на узбекской кириллице и латинице,
+русском и английском (DOCX и PDF с текстом), длинный договор, скан (ответ модели подменён), дочитывание текста
+моделью с маскировкой ПД, сверка с расчётом акта (график, существенные условия ГК ст. 929), запрос филиала + договор.
+Проверки 39а–39з (30.09.2026, вечер): источник условий решает сервер (правки «было → стало» в акте), вид документа по
+заголовку (полис, заявление), существенные условия без категоричности, сверка «запрос ↔ договор» как при загрузке,
+границы ввода, счёт не уходит в модель, стороны-юрлица, отрицательные суммы, срок разбора PDF.
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
 import asyncio
@@ -1791,14 +1799,22 @@ def check_doc_limits():
     set_limits(doc_parse_sec=0.2)
     try:
         before = threading.active_count()
+        own_before = [x.name for x in threading.enumerate() if not x.name.startswith("AnyIO worker")]
         t0 = _t.monotonic()
         st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
         sec = _t.monotonic() - t0
         ok("срок одного файла: «не разобран: слишком большой», запрос продолжается",
            st == 200 and not b["files"][0]["parsed"] and any("слишком большой" in n for n in b["notes"])
            and sec < 2, (st, b.get("notes"), sec))
-        ok("поток разбора освобождён (лишних потоков нет)", threading.active_count() <= before,
-           (before, threading.active_count()))
+        # ждём с пределом, а не проверяем мгновенно: потоки пула сервера (AnyIO worker) живут своим сроком и к
+        # разбору не относятся; поток разбора должен закончиться за время ожидания
+        def own():
+            return [x.name for x in threading.enumerate() if not x.name.startswith("AnyIO worker")]
+        deadline = _t.monotonic() + 5
+        while len(own()) > len(own_before) and _t.monotonic() < deadline:
+            _t.sleep(0.05)
+        ok("поток разбора освобождён (лишних потоков нет)", len(own()) <= len(own_before),
+           (before, threading.active_count(), sorted(set(own()) - set(own_before))))
         with db.tx() as con:
             j = db.rows(con, "SELECT detail FROM audit WHERE entity=? AND action='акт: документ не разобран'",
                         f"act_upload:{b['session']}")
@@ -2794,6 +2810,1597 @@ def check_market_make(sid):
     return aid
 
 
+# ------------------------------------------------------------------ 37. запрос филиала (30.09.2026)
+
+BR_HEAD = ["ОСГОР бўйича белгиланган чегарадан ошиб кетиш***", "бошқа: ______________"]
+BR_SUM1 = "81 250 000 000,00 (саксон бир миллиард икки юз эллик миллион сўм ва 00 тийин) сўм"
+BR_SUM2 = ("47 397 852 345,04 (қирқ етти миллиард уч юз тўқсон етти миллион саккиз юз эллик икки минг уч юз "
+           "қирқ беш сўм ва 04 тийин) сўм")
+# два образца заказчика (сканы 24.png и 25.png) — строки как в бланке, узбекская кириллица
+BR_SAMPLE1 = [
+    ("1.", "Суғурта тури (буйруқ бўйича код):", "0832"),
+    ("2.", "Суғурта қилдирувчи номи:", '"NAMUNA SAVDO" MCHJ'),
+    ("3.", "Наф олувчи:", 'CHEKI "Namuna Bank" ATB Sinov universal BXO'),
+    ("4.", "Гаровга қўювчи", '"OMAD" AJ'),
+    ("5.", "Суғурта объекти:", ["«Кўчмас мулк нотурар бино қишлоқ хўжалиги махсулотларини сақлаш учун музлатгич»",
+                                "Ер участкасининг умумий майдони 8 640,00 кв.м.",
+                                "Умумий фойдали майдони 11 898.42 кв.м", "Умумий майдони 13 344.00 кв.м.",
+                                "кадастр рақами 10:00:00:00:00:00001"]),
+    ("6.", "Суғурта қиймати:", BR_SUM1),
+    ("7.", "Суғурта суммаси:", BR_SUM1),
+    ("8.", "Франшиза:", "Қўлланилинмайди"),
+    ("9.", "Суғурта тарифи :", "0.05"),
+    ("10.", "Суғурта мукофоти:", "123 322 000,00 (бир юз йигирма уч миллион уч юз йигирма икки минг сўм ва 00 тийин) сўм"),
+    ("11.", "Суғурта муддати:", ["2026 йил «29» сентябрдан", "2029 йил «10» октябргача"]),
+    ("12.", "Стандарт суғурта шартномаси шартларини ўзгартириш/қўшиш:*", "Стандарт"),
+    ("13.", "Контрагент:**", ""),
+    ("14.", "Шартнома миқдори:**", "1 дона"),
+    ("15.", "Класс*** (ОСГОР бўйича)", ""),
+    ("16.", "Қўшимча маълумот:", ""),
+]
+BR_SAMPLE2 = [
+    ("1.", "Суғурта тури (буйруқ бўйича код):", "0832"),
+    ("2.", "Суғурта қилдирувчи номи:", '"Namuna Bank" АТБ Намуна УБХО'),
+    ("3.", "Наф олувчи:", '"SINOV" MCHJ'),
+    ("4.", "Гаровга қўювчи", ""),
+    ("5.", "Суғурта объекти:", "Технологик асбоб ускуна нон махсулотлари ишлаб чиқариш учун"),
+    ("6.", "Суғурта қиймати:", BR_SUM2),
+    ("7.", "Суғурта суммаси:", BR_SUM2),
+    ("8.", "Франшиза:", "Қўлланилинмайди"),
+    ("9.", "Суғурта тарифи :", "0.05"),
+    ("10.", "Суғурта мукофоти:", "122 589 000,00 (бир юз йигирма икки миллион беш юз саксон тўққиз минг сўм ва 00 "
+                                "тийин) сўм"),
+    ("11.", "Суғурта муддати:", ["2026 йилнинг «07» сентябрдан", "2031 йилнинг «07» ноябр мобайнида"]),
+    ("12.", "Стандарт суғурта шартномаси шартларини ўзгартириш/қўшиш:*", "Стандарт"),
+    ("13.", "Контрагент:**", ""),
+    ("14.", "Шартнома миқдори:**", "1 дона"),
+    ("15.", "Класс*** (ОСГОР бўйича)", ""),
+    ("16.", "Қўшимча маълумот:", ""),
+]
+BR_S1 = 81_250_000_000.0
+BR_S2 = 47_397_852_345.04
+
+
+def _x(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def docx_table(rows, head=BR_HEAD) -> bytes:
+    """DOCX с абзацами-шапкой и таблицей из 16 строк (ячейка с несколькими строками — несколько абзацев)."""
+    ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    para = lambda t: f"<w:p><w:r><w:t xml:space=\"preserve\">{_x(t)}</w:t></w:r></w:p>"   # noqa: E731
+    body = "".join(para(h) for h in head) + "<w:tbl>"
+    for n, lab, val in rows:
+        vals = val if isinstance(val, list) else [val]
+        body += "<w:tr>" + "".join(f"<w:tc>{c}</w:tc>" for c in (
+            para(n), para(lab), "".join(para(v) for v in vals))) + "</w:tr>"
+    body += "</w:tbl>"
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="{ns}"><w:body>{body}</w:body></w:document>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr("word/document.xml", xml)
+    return buf.getvalue()
+
+
+def xlsx_table(rows) -> bytes:
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Сўров"
+    for h in BR_HEAD:
+        ws.append([h])
+    for n, lab, val in rows:
+        ws.append([n, lab, "\n".join(val) if isinstance(val, list) else val])
+    buf = io.BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def pdf_table(rows) -> bytes:
+    """PDF с текстовым слоем: каждая ячейка — своя строка (так pymupdf отдаёт текст таблицы)."""
+    doc = pymupdf.open()
+    page = doc.new_page()
+    y = 40
+    font = r"C:\Windows\Fonts\arial.ttf"
+    for n, lab, val in rows:
+        for t in [n, lab] + (val if isinstance(val, list) else [val]):
+            if t:
+                page.insert_text((40, y), t[:95], fontsize=7, fontname="arl", fontfile=font)
+                y += 9
+    return doc.tobytes()
+
+
+def br_request(b):
+    return (b.get("branch_request") or {}).get("request")
+
+
+def nb(s) -> str:
+    return str(s).replace(" ", " ")
+
+
+def check_br_fields(tag, f, sample):
+    """Поля бланка против расшифровки заказчика (оба образца)."""
+    if sample == 1:
+        ok(f"{tag}: код продукта, стороны (юрлица), залог",
+           f["product_code"] == "0832" and f["policyholder"] == {"kind": "legal", "name": '"NAMUNA SAVDO" MCHJ'}
+           and f["beneficiary"]["name"] == 'CHEKI "Namuna Bank" ATB Sinov universal BXO'
+           and f["pledger"] == {"kind": "legal", "name": '"OMAD" AJ'} and f["has_pledger"] is True
+           and f["has_beneficiary"] is True, f)
+        ok(f"{tag}: объект — здание, площади, кадастр",
+           f["class_hint"] == "building" and f["object_kind"] == "warehouse"
+           and f["areas"] == {"land_m2": 8640.0, "useful_m2": 11898.42, "total_m2": 13344.0}
+           and f["cadastre_no"] == "10:00:00:00:00:00001" and "музлатгич" in f["object_description"], f)
+        ok(f"{tag}: стоимость и сумма — число без суммы прописью",
+           f["object_value"] == BR_S1 and f["sum_insured"] == BR_S1, (f["object_value"], f["sum_insured"]))
+        ok(f"{tag}: тариф 0,05, премия 123 322 000, франшиза не применяется",
+           f["tariff_pct"] == 0.05 and f["premium"] == 123_322_000.0
+           and f["franchise"] == {"applied": False, "text": "Қўлланилинмайди", "pct": None, "amount": None}, f)
+        ok(f"{tag}: срок 29.09.2026–10.10.2029, 1 108 дн. включительно",
+           f["term_from"] == "2026-09-29" and f["term_to"] == "2029-10-10" and f["term_days"] == 1108
+           and f["term_inclusive"] is True, (f["term_from"], f["term_to"], f["term_days"]))
+    else:
+        ok(f"{tag}: код продукта, стороны, залога нет",
+           f["product_code"] == "0832" and f["policyholder"]["name"] == '"Namuna Bank" АТБ Намуна УБХО'
+           and f["beneficiary"] == {"kind": "legal", "name": '"SINOV" MCHJ'}
+           and f["pledger"] == {"kind": None, "name": None} and f["has_pledger"] is False, f)
+        ok(f"{tag}: объект — оборудование",
+           f["class_hint"] == "equipment" and f["object_kind"] == "equipment" and f["cadastre_no"] is None
+           and f["areas"] == {"land_m2": None, "useful_m2": None, "total_m2": None}, f)
+        ok(f"{tag}: стоимость и сумма 47 397 852 345,04", f["object_value"] == BR_S2 and f["sum_insured"] == BR_S2,
+           (f["object_value"], f["sum_insured"]))
+        ok(f"{tag}: тариф, премия 122 589 000, франшиза не применяется",
+           f["tariff_pct"] == 0.05 and f["premium"] == 122_589_000.0 and f["franchise"]["applied"] is False, f)
+        ok(f"{tag}: срок 07.09.2026–07.11.2031 («йилнинг … мобайнида»), 1 888 дн.",
+           f["term_from"] == "2026-09-07" and f["term_to"] == "2031-11-07" and f["term_days"] == 1888,
+           (f["term_from"], f["term_to"], f["term_days"]))
+    ok(f"{tag}: стандартные условия, 1 договор, пустые строки — null",
+       f["contract_terms"] == "Стандарт" and f["contract_terms_standard"] is True and f["contracts_count"] == 1
+       and f["counterparty"] is None and f["osgor_class"] is None and f["additional_info"] is None, f)
+
+
+def check_branch_text():
+    print("37а. Запрос филиала: файл с текстом (DOCX, XLSX, PDF) — без модели")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    CALLS.clear()
+    st, b = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1))], {"lang": "ru"})
+    ok("DOCX образца 1 принят, модель не вызывалась", st == 200 and b.get("ok") and not CALLS, (st, len(CALLS)))
+    brq = b.get("branch_request") or {}
+    ok("узнан как «запрос филиала»: 16 строк из 16, источник — документ",
+       brq.get("detected") and brq.get("rows_found") == 16 and brq.get("rows_total") == 16
+       and brq.get("source") == "document" and brq.get("kind_label") == "запрос филиала"
+       and b["files"][0]["document_kind"] == "запрос филиала", brq)
+    ok("строки бланка подписаны: «Страховой тариф», пустые отмечены",
+       brq["rows"][8]["label"] == "Страховой тариф" and brq["rows"][8]["filled"]
+       and not brq["rows"][12]["filled"] and all(r["found"] for r in brq["rows"]), brq["rows"])
+    check_br_fields("DOCX 1", brq["fields"], 1)
+    rq = br_request(b)
+    ok("готовый optional.request для /act/make",
+       rq["tariff_pct"] == 0.05 and rq["premium"] == 123_322_000.0 and rq["term_days"] == 1108
+       and rq["franchise"]["applied"] is False and rq["source"] == "document", rq)
+    pf = b.get("prefill") or {}
+    ok("prefill шага 2: код продукта, сумма, стоимость, срок и даты — «из документа, проверьте»",
+       pf.get("product_code", {}).get("value") == "0832" and pf["sum_insured"]["value"] == BR_S1
+       and pf["object_value"]["value"] == BR_S1 and pf["term_days"]["value"] == 1108
+       and pf["term_from"]["value"] == "2026-09-29" and pf["term_to"]["value"] == "2029-10-10"
+       and "region" not in pf and all(v["check_label"] == "из документа, проверьте" for v in pf.values()), pf)
+    rec = {(r["key"], r["value"]) for r in b["recognized"]}
+    ok("распознанное: премия, тариф, срок, стороны-юрлица, площади, кадастр",
+       {("premium", "123 322 000"), ("tariff_pct", "0.05"), ("term_days", "1108"), ("term_from", "2026-09-29"),
+        ("pledger", '"OMAD" AJ'), ("land_area", "8 640 м²"), ("cadastre_no", "10:00:00:00:00:00001"),
+        ("sum_insured", "81 250 000 000"), ("product_code", "0832")} <= rec, sorted(rec))
+    ok("подписи новых полей есть", all(r["label"] != r["key"] for r in b["recognized"]),
+       [r["key"] for r in b["recognized"] if r["label"] == r["key"]])
+    ok("класс-подсказка из строки объекта: здание → 8 или 9", b["class_hint"] == "building"
+       and b["suggest_classes"] == ["8", "9"], b["class_hint"])
+    with db.tx() as con:
+        audit = db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b["session"])
+    dump = _json.dumps(audit, ensure_ascii=False)
+    det = _json.loads(audit[0]["detail"]) if audit else {}
+    ok("в журнале — только признак и число строк, без названий сторон и сумм",
+       det.get("branch_request") is True and det.get("branch_rows") == 16 and "OMAD" not in dump and "NAMUNA" not in dump and "81250" not in dump,
+       dump[:300])
+    sid1 = b["session"]
+
+    CALLS.clear()
+    st, b2 = upload([("sorov2.xlsx", XLSX_MIME, xlsx_table(BR_SAMPLE2))], {"lang": "ru"})
+    ok("XLSX образца 2 принят, модель не вызывалась", st == 200 and not CALLS and b2.get("branch_request"), (st, b2))
+    check_br_fields("XLSX 2", b2["branch_request"]["fields"], 2)
+    ok("образец 2: класс-подсказка — оборудование", b2["class_hint"] == "equipment" and b2["group"] == "equipment",
+       (b2["class_hint"], b2["group"]))
+
+    st, b3 = upload([("sorov1.pdf", "application/pdf", pdf_table(BR_SAMPLE1))], {"lang": "ru"})
+    ok("PDF с текстом (ячейки построчно) — тот же разбор без модели",
+       st == 200 and not CALLS and (b3.get("branch_request") or {}).get("rows_found") == 16, (st, b3))
+    if b3.get("branch_request"):
+        check_br_fields("PDF 1", b3["branch_request"]["fields"], 1)
+
+    # русские подписи и русский срок
+    ru_rows = [("1.", "Вид страхования (код):", "0832"), ("2.", "Страхователь:", 'ООО "Ромашка"'),
+               ("3.", "Выгодоприобретатель:", 'АКБ "Капиталбанк"'), ("4.", "Залогодатель:", ""),
+               ("5.", "Объект страхования:", "Нежилое здание — склад, общая площадь 1 200 кв.м"),
+               ("6.", "Страховая стоимость:", "1 000 000 000,00 (один миллиард) сум"),
+               ("7.", "Страховая сумма:", "1 000 000 000,00 сум"), ("8.", "Франшиза:", "не применяется"),
+               ("9.", "Страховой тариф:", "0,1"), ("10.", "Страховая премия:", "3 000 000,00 сум"),
+               ("11.", "Срок страхования:", "с 29.09.2026 по 10.10.2029")]
+    st, b4 = upload([("ru.docx", DOCX_MIME, docx_table(ru_rows, head=[]))], {"lang": "ru"})
+    f4 = (b4.get("branch_request") or {}).get("fields") or {}
+    ok("русские подписи: тариф 0,1, срок «с … по …» → 1 108 дн., франшиза не применяется, общая площадь",
+       f4.get("tariff_pct") == 0.1 and f4.get("term_days") == 1108 and f4.get("franchise", {}).get("applied") is False
+       and f4.get("areas", {}).get("total_m2") == 1200.0 and f4.get("beneficiary", {}).get("kind") == "legal", f4)
+
+    # обычный договор с похожими подписями, но без кода продукта — не запрос филиала
+    contract = [(str(i) + ".", lab, val) for i, (lab, val) in enumerate((
+        ("Вид страхования:", "страхование имущества"), ("Страхователь:", 'ООО "Ромашка"'),
+        ("Выгодоприобретатель:", 'АКБ "Капиталбанк"'), ("Объект страхования:", "склад"),
+        ("Страховая стоимость:", "1 000 000 000 сум"), ("Страховая сумма:", "1 000 000 000 сум"),
+        ("Франшиза:", "нет"), ("Страховой тариф:", "0,1 %"), ("Страховая премия:", "1 000 000 сум"),
+        ("Срок страхования:", "с 01.10.2026 по 30.09.2027")), 1)]
+    st, b6 = upload([("dogovor.docx", DOCX_MIME, docx_table(contract, head=["ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА"]))],
+                    {"lang": "ru"})
+    ok("договор с похожими подписями без кода продукта — не запрос филиала",
+       st == 200 and b6.get("branch_request") is None, (st, b6.get("branch_request")))
+    # срок без последнего дня — настройка request_check.term_inclusive = false
+    with db.tx() as con:
+        con.execute("INSERT INTO act_settings (created_at, created_by, settings_json, calibrated, note) "
+                    "VALUES (?,?,?,?,?)", (db.now(), "тест", _json.dumps({"request_check": {"term_inclusive": False,
+                                                                                            "premium_tolerance": 1000}}),
+                                           0, "тест"))
+    st, b5 = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1))], {"lang": "ru"})
+    ok("настройка term_inclusive = false: 1 107 дн.",
+       b5["branch_request"]["fields"]["term_days"] == 1107 and b5["branch_request"]["fields"]["term_inclusive"] is False,
+       b5["branch_request"]["fields"]["term_days"])
+    clear_settings()
+    ok("ae.check_settings: request_check проверяется",
+       ae.check_settings({"request_check": {"term_inclusive": "да", "premium_tolerance": -1}}) and
+       not ae.check_settings({"request_check": {"term_inclusive": True, "premium_tolerance": 500}}))
+    return sid1, b
+
+
+def br_model_reply(sample=1, policyholder=None):
+    rows = BR_SAMPLE1 if sample == 1 else BR_SAMPLE2
+    v = {br_code: (val if not isinstance(val, list) else " ".join(val)) or None
+         for br_code, (_n, _l, val) in zip(
+             ["product_code", "policyholder", "beneficiary", "pledger", "object", "object_value", "sum_insured",
+              "franchise", "tariff", "premium", "term", "contract_terms", "counterparty", "contracts_count",
+              "osgor_class", "additional_info"], rows)}
+    for k in ("policyholder", "beneficiary", "pledger"):
+        v[k] = {"is_legal": bool(v[k]), "name": v[k]}
+    if policyholder:
+        v["policyholder"] = {"is_legal": True, "name": policyholder}      # модель ошиблась: гражданин как юрлицо
+    v.update(file=1, term_from="2026-09-29" if sample == 1 else "2026-09-07",
+             term_to="2029-10-10" if sample == 1 else "2031-11-07",
+             object_description_translated=("недвижимость: нежилое здание — холодильник для хранения "
+                                            "сельхозпродукции" if sample == 1 else
+                                            "технологическое оборудование для производства хлебобулочных изделий"),
+             class_hint="building" if sample == 1 else "equipment")
+    return "```json\n" + _json.dumps({"files": [{"n": 1, "view": "document", "document_kind": "branch_request"}],
+                                      "object_kind": None, "class_hint": None, "condition": None, "fields": [],
+                                      "damages": [], "branch_request": v}, ensure_ascii=False) + "\n```"
+
+
+def check_branch_scan():
+    print("37б. Запрос филиала: скан — ответ модели (подменён) по строгой схеме")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = br_model_reply(1)
+    st, b = upload([("scan.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    ok("скан принят, одно обращение к модели", st == 200 and len(CALLS) == 1, (st, len(CALLS)))
+    prompt = CALLS[0]["messages"][0]["content"] + CALLS[0]["messages"][1]["content"]
+    ok("в инструкции модели — запрос филиала, branch_request и запрет имён граждан",
+       "branch_request" in prompt and "запрос филиала" in prompt and "is_legal" in prompt
+       and "суғурта мукофоти" in prompt, prompt[-400:])
+    ok("инструкция не портится маскировкой ПД", llm.mask_pd(prompt) == prompt)
+    brq = b.get("branch_request") or {}
+    ok("вид документа — запрос филиала, источник — скан", brq.get("source") == "photo"
+       and b["files"][0]["document_kind"] == "запрос филиала" and brq.get("file") == "f1", brq)
+    check_br_fields("скан 1", brq["fields"], 1)
+    ok("перевод описания объекта — от модели, исходный текст сохранён",
+       "холодильник" in (brq["fields"]["object_description_translated"] or "")
+       and "музлатгич" in brq["fields"]["object_description"], brq["fields"]["object_description_translated"])
+    rec = {(r["key"], r["value"], r["source"]) for r in b["recognized"]}
+    ok("распознанное со скана — источник «документ»",
+       ("premium", "123 322 000", "document") in rec and ("beneficiary", 'CHEKI "Namuna Bank" ATB Sinov universal BXO',
+                                                          "document") in rec, sorted(rec))
+    ok("prefill со скана: код продукта и срок", (b.get("prefill") or {}).get("product_code", {}).get("value") == "0832"
+       and b["prefill"]["term_days"]["value"] == 1108, b.get("prefill"))
+    sid = b["session"]
+
+    CALLS.clear()
+    REPLY["text"] = br_model_reply(2)
+    st, b2 = upload([("scan2.jpg", "image/jpeg", image(kind="jpg"))], {"lang": "ru"})
+    check_br_fields("скан 2", (b2.get("branch_request") or {}).get("fields") or {}, 2)
+
+    # гражданин в строке страхователя: имени нет ни в ответе, ни в базе, ни в журнале
+    CALLS.clear()
+    REPLY["text"] = br_model_reply(1, policyholder="Каримов Алишер Анварович")
+    st, b3 = upload([("scan3.png", "image/png", image((240, 240, 240)))], {"lang": "ru"})
+    f3 = b3["branch_request"]["fields"]
+    dump = _json.dumps(b3, ensure_ascii=False)
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", b3["session"])[0]["result_json"]
+        audit = _json.dumps(db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b3["session"]),
+                            ensure_ascii=False)
+    ok("физлицо в строке страхователя: kind = individual, имени нет",
+       f3["policyholder"] == {"kind": "individual", "name": None} and "Каримов" not in dump
+       and "Каримов" not in saved and "Каримов" not in audit, f3["policyholder"])
+    ok("пометка «физическое лицо — данные не извлекаются»",
+       any("физическое лицо" in n for n in b3["branch_request"]["notes"]), b3["branch_request"]["notes"])
+    st, b4 = upload([("s.docx", DOCX_MIME, docx_table([(n, l, "Каримов Алишер" if n == "2." else v)
+                                                        for n, l, v in BR_SAMPLE1]))], {"lang": "ru"})
+    dump = _json.dumps(b4, ensure_ascii=False)
+    ok("файл с текстом: гражданин-страхователь не извлекается",
+       b4["branch_request"]["fields"]["policyholder"] == {"kind": "individual", "name": None}
+       and "Каримов" not in dump, b4["branch_request"]["fields"]["policyholder"])
+    return sid
+
+
+def br_make(sid, sample=1, request=None, optional=None, lang="ru", must=None):
+    S = BR_S1 if sample == 1 else BR_S2
+    body = {"session": sid, "lang": lang,
+            "must": must or {"product_code": "0832", "sum_insured": S, "object_value": S,
+                             "region": "Ташкентская область"},
+            "optional": dict(optional or {})}
+    if request is not None:
+        body["optional"]["request"] = request
+    return call("POST", "/act/make", body)
+
+
+def rq_items(a):
+    return {i["code"]: i for i in (a.get("request_check") or {}).get("items") or []}
+
+
+def check_branch_make(sid_text, b_text, sid_scan):
+    print("37в. Сверка запроса филиала с расчётом акта (продукт 0832, оба образца)")
+    fresh()
+    with db.tx() as con:
+        ref = db.load_reference(con)
+        mr = min_rate(ref, "0832")
+        cls = [r["class_code"] for r in db.rows(con, "SELECT class_code FROM product_classes WHERE product_code='0832'")]
+    ok("0832 в справочнике копии базы: класс 8, минимальная ставка компании 0,08 %",
+       cls == ["8"] and mr["company"] == 0.08 and mr["floor"] == 0.08, (cls, mr))
+    req1 = br_request(b_text)
+    st, a = br_make(sid_text, 1, req1)
+    ok("акт по образцу 1 сформирован", st == 200 and a.get("ok"), (st, a))
+    lvl = a["risk"]["level"]
+    adj = ae.DEFAULT_SETTINGS["adj_pct"][lvl]
+    applied = round(max(0.08 * (1 + adj / 100), 0.08), 4)
+    prem = round(BR_S1 * applied / 100 * 1108 / 365)
+    BR_REPORT["образец 1"] = {"level": lvl, "rate": applied, "premium": a["premium"]["amount"], "days": 1108}
+    ok("многолетний срок: премия акта на 1 108 дн. по годовой ставке",
+       a["premium"]["term_days"] == 1108 and a["rate"]["applied_pct"] == applied
+       and a["premium"]["amount"] == prem, (a["premium"], a["rate"]["applied_pct"], prem))
+    it = rq_items(a)
+    rc = a["request_check"]
+    ok("request_check: доступна, источник — файл запроса (сервер сверил со своей загрузкой, правок нет)",
+       rc["available"] and rc["source"] == "document" and rc["source_kind"] == "document"
+       and rc["source_label"] == "из документа — из файла запроса (разбор текста)" and rc["edits"]["count"] == 0,
+       (rc.get("source"), rc.get("source_label")))
+    ok("тариф 0,05 ниже минимума 0,08 — below_min",
+       it["tariff_min"]["verdict"] == "below_min" and it["tariff_min"]["requested"] == 0.05
+       and it["tariff_min"]["calculated"] == 0.08 and "ниже минимального" in it["tariff_min"]["text"], it["tariff_min"])
+    ok("тариф ниже ставки акта — differs", it["tariff_act"]["verdict"] == "differs"
+       and it["tariff_act"]["calculated"] == applied, it["tariff_act"])
+    ok("образец 1: премия по тарифу запроса сходится (123 322 000 против 123 321 917,81)",
+       it["premium_request"]["verdict"] == "ok" and it["premium_request"]["calculated"] == 123_321_917.81
+       and abs(it["premium_request"]["diff"] - 82.19) < 0.01, it["premium_request"])
+    ok("премия акта — справочно, в решение не идёт", it["premium_act"]["reference"]
+       and it["premium_act"]["calculated"] == prem and it["premium_act"]["verdict"] == "differs", it["premium_act"])
+    ok("сумма к стоимости — ссылка на раздел 3, без дубля", it["sum_value"]["reference"]
+       and "раздел" in it["sum_value"]["text"] and it["sum_value"]["verdict"] == "ok", it["sum_value"])
+    ok("франшиза: в запросе не применяется, акт не требует — ok",
+       it["franchise"]["verdict"] == "ok", it["franchise"])
+    ok("срок: 1 108 дн. взят из запроса — ok", it["term"]["verdict"] == "ok" and it["term"]["requested"] == 1108
+       and "взят из запроса" in it["term"]["text"], it["term"])
+    ok("итог сверки — ниже минимума", rc["summary"]["verdict"] == "below_min" and rc["summary"]["below_min"] == 1,
+       rc["summary"])
+    ok("как сверено: дни включительно, формула, допуск 1 000 сум",
+       any("29.09.2026" in h and "1108" in h and "включены" in h for h in rc["how"])
+       and any("× 0,05 %" in nb(h) for h in rc["how"]) and any("1 000 сум" in nb(h) for h in rc["how"]), rc["how"])
+    ok("решение не «принять без оговорок»; в проверках — тариф ниже минимума",
+       a["decision"]["code"] != "accept" and any("ниже минимального" in c for c in a["decision"]["checks"]),
+       a["decision"])
+    s4 = a["sections"][3]
+    titles = [li["title"] for li in s4["lists"]]
+    ok("раздел 4: подраздел «Сверка с запросом филиала»", "Сверка с запросом филиала" in titles, titles)
+    aid1 = a["id"]
+
+    # образец 2 со скана (запрос берётся из своей загрузки, если экран его не прислал)
+    st, a2 = br_make(sid_scan, 1, None)
+    ok("без optional.request — запрос из своей загрузки (source = session)",
+       st == 200 and a2["request_check"]["source"] == "session", a2.get("request_check", {}).get("source"))
+    req2 = {"tariff_pct": 0.05, "premium": "122 589 000,00", "franchise": {"applied": False, "text": "Қўлланилинмайди"},
+            "term_from": "07.09.2026", "term_to": "2031-11-07", "source": "photo"}
+    st, a2 = br_make(None, 2, req2)
+    it2 = rq_items(a2)
+    lvl2 = a2["risk"]["level"]
+    applied2 = round(0.08 * (1 + ae.DEFAULT_SETTINGS["adj_pct"][lvl2] / 100), 4)
+    BR_REPORT["образец 2"] = {"level": lvl2, "rate": applied2, "premium": a2["premium"]["amount"], "days": 1888}
+    ok("образец 2: срок 1 888 дн., премия акта на весь срок",
+       a2["premium"]["term_days"] == 1888 and a2["premium"]["amount"] == round(BR_S2 * applied2 / 100 * 1888 / 365),
+       a2["premium"])
+    ok("образец 2: премия расходится на 3 869,55 сум (differs)",
+       it2["premium_request"]["verdict"] == "differs" and it2["premium_request"]["calculated"] == 122_585_130.45
+       and abs(it2["premium_request"]["diff"] - 3869.55) < 0.01 and int(it2["premium_request"]["diff"]) == 3869,
+       it2["premium_request"])
+    ok("образец 2: в проверках андеррайтера — расхождение премии",
+       any("не сходится" in c and "3 870" in nb(c) for c in a2["decision"]["checks"]), a2["decision"]["checks"])
+    ok("образец 2: тариф ниже минимума", it2["tariff_min"]["verdict"] == "below_min")
+    BR_REPORT["сверка 1"] = {k: (v["verdict"], v["requested"], v["calculated"], v["diff"]) for k, v in it.items()}
+    BR_REPORT["сверка 2"] = {k: (v["verdict"], v["requested"], v["calculated"], v["diff"]) for k, v in it2.items()}
+
+    # тариф не ниже минимума и не ниже ставки акта, премия сходится — расхождений сверки нет
+    good = {"tariff_pct": 0.2, "premium": round(BR_S1 * 0.2 / 100 * 1108 / 365), "franchise": {"applied": False},
+            "term_days": 1108}
+    st, a3 = br_make(None, 1, good)
+    it3 = rq_items(a3)
+    ok("тариф 0,2 — не ниже минимума и ставки акта; премия сходится",
+       it3["tariff_min"]["verdict"] == "ok" and it3["tariff_act"]["verdict"] == "ok"
+       and it3["premium_request"]["verdict"] == "ok" and a3["request_check"]["summary"]["verdict"] == "ok",
+       {k: v["verdict"] for k, v in it3.items()})
+    ok("без расхождений сверка ничего не добавляет в проверки",
+       not any(c.startswith(("Тариф в запросе", "Премия в запросе")) for c in a3["decision"]["checks"]),
+       a3["decision"]["checks"])
+    # срок сотрудника расходится с запросом
+    st, a4 = br_make(None, 1, dict(good), {"term_days": 365})
+    ok("срок сотрудника 365 против 1 108 в запросе — differs",
+       rq_items(a4)["term"]["verdict"] == "differs" and a4["premium"]["term_days"] == 365, rq_items(a4)["term"])
+    # франшиза: в запросе не применяется, а акт предлагает (клиент просит снизить премию)
+    st, a5 = br_make(None, 1, dict(good), {"want_lower_premium": True})
+    f5 = rq_items(a5)["franchise"]
+    ok("франшиза: в запросе нет, акт предлагает — differs", f5["verdict"] == "differs"
+       and "предлагает франшизу" in f5["text"], f5)
+    fr5 = a5["franchise"]
+    if fr5.get("premium_after") is not None and fr5.get("rate_after") is not None:
+        ok("франшиза на многолетнем сроке: премия с франшизой — на все 1 108 дн.",
+           fr5["premium_after"] == round(BR_S1 * fr5["rate_after"] / 100 * 1108 / 365), fr5)
+    ms = a5["measures_summary"]
+    ok("мероприятия считаются от премии акта на весь срок", ms["premium_before"] in (None, a5["premium"]["amount"]),
+       ms)
+    sc = a2["scenarios"]
+    ok("сценарии PML/EML/MFL для срока 1 888 дн. (> 60 мес.) — посчитаны с пометкой о сроке",
+       sc["available"] and any("1888" in x["text"] for x in sc["assumptions"]), sc.get("assumptions"))
+    # проверка ввода
+    for bad, key in (({"tariff_pct": 0}, "тариф 0"), ({"tariff_pct": "abc"}, "тариф не число"),
+                     ({"premium": -5}, "премия < 0"), ({"term_from": "2029-10-10", "term_to": "2026-09-29"}, "даты наоборот"),
+                     ({"term_from": "29.09.2026", "term_to": "10.10.2029", "term_days": 1107}, "дни не по датам"),
+                     ({"franchise": {"applied": "нет"}}, "франшиза без applied"), ("строка", "не объект")):
+        st, e = br_make(None, 1, bad)
+        ok(f"optional.request проверяется: {key}", st == 422 and "request" in (e.get("errors") or {}), (st, e))
+    st, a6 = br_make(None, 1, {"franchise": "не применяется", "term_from": "29.09.2026", "term_to": "10.10.2029"})
+    ok("франшиза текстом и даты ДД.ММ.ГГГГ принимаются", st == 200 and rq_items(a6)["term"]["requested"] == 1108
+       and rq_items(a6)["tariff_min"]["verdict"] == "missing", (st, a6.get("request_check")))
+    return aid1, a2["id"]
+
+
+BR_REPORT = {}
+
+
+def check_branch_langs_files(aid):
+    print("37г. Сверка: три языка, Word и PDF")
+    for lang, title, word in (("ru", "Сверка с запросом филиала", "ниже минимального"),
+                              ("uz", "Filial soʻrovi bilan solishtirish", "eng kam stavka"),
+                              ("en", "Check against the branch request", "below the tariff-policy minimum")):
+        st, a = call("GET", f"/act/{aid}", params={"lang": lang})
+        s4 = a["sections"][3]
+        lines = [x for li in s4["lists"] if li["title"] == title for x in li["items"]]
+        ok(f"{lang}: подраздел сверки и текст строки", bool(lines) and any(word in x for x in lines), lines[:3])
+        rc = a["request_check"]
+        ok(f"{lang}: request_check на языке акта", rc["items"][0]["label"] and rc["summary"]["text"]
+           and all(i["verdict_label"] for i in rc["items"]), rc["items"][0])
+        if lang != "ru":
+            txt = " ".join(lines + [c for c in a["decision"]["checks"]] + rc["how"])
+            ok(f"{lang}: в сверке нет кириллицы", not re.search(r"[А-Яа-яЁё]", txt), txt[:300])
+        st, blob, h = call("GET", f"/act/{aid}.docx", params={"lang": lang}, raw=True)
+        xml = zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8")
+        plain = re.sub(r"<[^>]+>", "", xml)
+        ok(f"{lang}: сверка в DOCX", title in plain and word in plain, plain[-300:])
+        st, blob, h = call("GET", f"/act/{aid}.pdf", params={"lang": lang}, raw=True)
+        text = pdf_text(pymupdf.open(stream=blob, filetype="pdf"))
+        ok(f"{lang}: сверка в PDF", title.replace("ʻ", "'") in text.replace("ʻ", "'") and word in text, text[-300:])
+    # старый акт без сверки — блок недоступен, ничего не падает
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", aid)[0]
+        stored = _json.loads(row["act_json"])
+    stored["data"].pop("request_check", None)
+    stored["data"].pop("request", None)
+    D = stored["data"]
+    out = act.render(D, "ru", stored["meta"])
+    ok("старый акт без сверки: request_check.available = false", out["request_check"]["available"] is False
+       and "Сверка с запросом филиала" not in [li["title"] for li in out["sections"][3]["lists"]])
+
+
+# ================================================================================================
+#  38. Договор страхования: чтение (файл, скан, модель по тексту) и сверка с расчётом акта (30.09.2026)
+# ================================================================================================
+
+CT_UZC = [
+    "МОЛ-МУЛКНИ СУҒУРТА ҚИЛИШ ШАРТНОМАСИ № 45-ИМ/2026",
+    "Тошкент шаҳри                                   2026 йил «1» октябрь",
+    "\"INSON\" АЖ, бундан буён «Суғурталовчи» деб юритилади, директор Каримов Алишер Анварович номидан, "
+    "бир томондан, ва \"ALFA TEXTILE\" МЧЖ, бундан буён «Суғурта қилдирувчи» деб юритилади, директор "
+    "Тошпўлатов Бахтиёр Равшанович номидан, иккинчи томондан, мазкур шартномани туздилар.",
+    "1. ШАРТНОМА ПРЕДМЕТИ",
+    "1.1. Суғурта объекти: нотурар бино — омбор, умумий майдони 2 400 кв.м, кадастр рақами 10:09:05:01:02:0033.",
+    "1.2. Объект манзили: Тошкент вилояти, Чирчиқ шаҳри, Саноат кўчаси, 7.",
+    "2. СУҒУРТА СУММАСИ ВА МУКОФОТИ",
+    "2.1. Суғурта қиймати: 12 000 000 000 (ўн икки миллиард) сўм.",
+    "2.2. Суғурта суммаси: 12 000 000 000 (ўн икки миллиард) сўм.",
+    "2.3. Суғурта тарифи: йиллик 0,1 %.",
+    "2.4. Суғурта мукофоти: 36 032 877 (ўттиз олти миллион ўттиз икки минг саккиз юз етмиш етти) сўм.",
+    "2.5. Суғурта мукофоти бўлиб-бўлиб тўланади: биринчи тўлов 18 016 438 сўм — 2026 йил 10 октябргача; "
+    "иккинчи тўлов 18 016 439 сўм — 2027 йил 10 октябргача.",
+    "3. СУҒУРТА МУДДАТИ",
+    "3.1. Суғурта муддати: 2026 йил 1 октябрдан 2029 йил 30 сентябргача.",
+    "4. ФРАНШИЗА",
+    "4.1. Франшиза: қўлланилмайди.",
+    "5. СУҒУРТА ХАВФЛАРИ",
+    "5.1. Суғурта хавфлари: ёнғин, чақмоқ уриши, портлаш, сув босиши, табиий офатлар, учинчи шахсларнинг "
+    "ғайриқонуний ҳаракатлари.",
+    "6. ИСТИСНОЛАР",
+    "6.1. Қуйидагилар суғурта ҳодисаси ҳисобланмайди: уруш ҳаракатлари, ядро портлаши, суғурта "
+    "қилдирувчининг қасддан қилган ҳаракатлари.",
+    "7. ЯКУНИЙ ҚОИДАЛАР",
+    "7.1. Суғурта қилдирувчи суғурта ҳодисаси юз берганлиги ҳақида 3 (уч) иш куни ичида хабар беради.",
+]
+CT_UZL = [
+    "MOL-MULKNI SUGʻURTA QILISH SHARTNOMASI № 46-IM/2026",
+    "Toshkent shahri                                   2026-yil 1-oktyabr",
+    "\"INSON\" AJ, bundan buyon «Sugʻurtalovchi» deb yuritiladi, direktor Karimov Alisher Anvarovich nomidan, "
+    "bir tomondan, va \"ALFA TEXTILE\" MCHJ, bundan buyon «Sugʻurta qildiruvchi» deb yuritiladi, direktor "
+    "Toshpoʻlatov Baxtiyor Ravshanovich nomidan, ikkinchi tomondan, mazkur shartnomani tuzdilar.",
+    "1. SHARTNOMA PREDMETI",
+    "1.1. Sugʻurta obyekti: noturar bino — ombor, umumiy maydoni 2 400 kv.m, kadastr raqami 10:09:05:01:02:0033.",
+    "1.2. Obyekt manzili: Toshkent viloyati, Chirchiq shahri, Sanoat koʻchasi, 7.",
+    "2. SUGʻURTA SUMMASI VA MUKOFOTI",
+    "2.1. Sugʻurta qiymati: 12 000 000 000 (oʻn ikki milliard) soʻm.",
+    "2.2. Sugʻurta summasi: 12 000 000 000 (oʻn ikki milliard) soʻm.",
+    "2.3. Sugʻurta tarifi: yillik 0,1 %.",
+    "2.4. Sugʻurta mukofoti: 36 032 877 (oʻttiz olti million oʻttiz ikki ming sakkiz yuz yetmish yetti) soʻm.",
+    "2.5. Sugʻurta mukofoti boʻlib-boʻlib toʻlanadi: birinchi toʻlov 18 016 438 soʻm — 2026-yil 10-oktyabrgacha; "
+    "ikkinchi toʻlov 18 016 439 soʻm — 2027-yil 10-oktyabrgacha.",
+    "3. SUGʻURTA MUDDATI",
+    "3.1. Sugʻurta muddati: 2026-yil 1-oktyabrdan 2029-yil 30-sentyabrgacha.",
+    "4. FRANSHIZA",
+    "4.1. Franshiza: qoʻllanilmaydi.",
+    "5. SUGʻURTA XAVFLARI",
+    "5.1. Sugʻurta xavflari: yongʻin, chaqmoq urishi, portlash, suv bosishi, tabiiy ofatlar, uchinchi shaxslarning "
+    "gʻayriqonuniy harakatlari.",
+    "6. ISTISNOLAR",
+    "6.1. Quyidagilar sugʻurta hodisasi hisoblanmaydi: urush harakatlari, yadro portlashi, sugʻurta "
+    "qildiruvchining qasddan qilgan harakatlari.",
+    "7. YAKUNIY QOIDALAR",
+    "7.1. Sugʻurta qildiruvchi sugʻurta hodisasi yuz berganligi haqida 3 (uch) ish kuni ichida xabar beradi.",
+]
+CT_RU = [
+    "ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА ЮРИДИЧЕСКИХ ЛИЦ № 77/2026",
+    "г. Ташкент                                              «1» октября 2026 г.",
+    "Акционерное общество «INSON», именуемое в дальнейшем «Страховщик», в лице директора Иванова Ивана "
+    "Ивановича, действующего на основании Устава, с одной стороны, и ООО «Ромашка Трейд», именуемое в "
+    "дальнейшем «Страхователь», в лице генерального директора Петрова Петра Петровича, с другой стороны, "
+    "заключили настоящий договор о нижеследующем:",
+    "1. ПРЕДМЕТ ДОГОВОРА",
+    "1.1. Объектом страхования являются имущественные интересы Страхователя, связанные с владением нежилым "
+    "зданием склада готовой продукции, общая площадь 1 500 кв.м, кадастровый номер 10:00:00:00:00:0077.",
+    "1.2. Адрес места страхования: Самаркандская область, г. Самарканд, ул. Навои, 15.",
+    "2. СТРАХОВАЯ СУММА. СТРАХОВАЯ ПРЕМИЯ",
+    "2.1. Страховая стоимость имущества: 5 000 000 000 (пять миллиардов) сум.",
+    "2.2. Страховая сумма по настоящему договору составляет 5 000 000 000 (пять миллиардов) сум.",
+    "2.3. Страховой тариф: 0,2 % годовых.",
+    "2.4. Страховая премия составляет 10 000 000 (десять миллионов) сум и уплачивается единовременно "
+    "до 10.10.2026.",
+    "3. СРОК ДЕЙСТВИЯ ДОГОВОРА",
+    "3.1. Срок страхования: с 01.10.2026 по 30.09.2027.",
+    "4. ФРАНШИЗА",
+    "4.1. Франшиза безусловная, 1 % от страховой суммы по каждому страховому случаю.",
+    "5. СТРАХОВЫЕ РИСКИ",
+    "5.1. Страховыми случаями являются гибель или повреждение имущества в результате:",
+    "5.1.1. пожара, удара молнии, взрыва газа;",
+    "5.1.2. стихийных бедствий: землетрясения, наводнения, бури;",
+    "5.1.3. кражи со взломом, грабежа.",
+    "6. ИСКЛЮЧЕНИЯ",
+    "6.1. Не являются страховыми случаями события, произошедшие вследствие:",
+    "6.1.1. военных действий, террористических актов;",
+    "6.1.2. ядерного взрыва, радиации;",
+    "6.1.3. умышленных действий Страхователя; износа и коррозии.",
+    "7. ПРОЧИЕ УСЛОВИЯ",
+    "7.1. Страхователь обязан уведомить Страховщика о наступлении страхового случая в течение 2 (двух) "
+    "рабочих дней.",
+    "7.2. Территория страхования: Республика Узбекистан.",
+]
+CT_EN = [
+    "PROPERTY INSURANCE POLICY No. INS-2026/0045",
+    "Tashkent, October 1, 2026",
+    "INSON JSC, hereinafter the Insurer, and ALFA TEXTILE LLC, hereinafter the Policyholder, have agreed:",
+    "1. Insured property: warehouse building, total area 2 400 sq.m, cadastral number 10:09:05:01:02:0033.",
+    "2. Sum insured: UZS 12,000,000,000.",
+    "3. Insured value: UZS 12,000,000,000.",
+    "4. Premium rate: 0.1% per annum.",
+    "5. Insurance premium: UZS 12,000,000, payable in one payment by October 10, 2026.",
+    "6. Period of insurance: from October 1, 2026 to September 30, 2027.",
+    "7. Deductible: not applicable.",
+    "8. Insured perils: fire, lightning, explosion, earthquake, theft.",
+    "9. Exclusions: war, terrorism, nuclear risks, wear and tear.",
+]
+CT_S = 12_000_000_000.0
+CT_PREMIUM = 36_032_877.0
+CT_PD = ("Каримов", "Тошпўлатов", "Бахтиёр", "Karimov", "Toshpoʻlatov", "Baxtiyor", "Иванов", "Петров", "Петра")
+
+
+def pdf_lines(lines, per_page=46, width=92) -> bytes:
+    """PDF с текстовым слоем: строки переносятся по ширине страницы (как в настоящем договоре)."""
+    import textwrap
+    doc = pymupdf.open()
+    font = act._fonts()[0]
+    wrapped = [w for ln in lines for w in (textwrap.wrap(ln, width) or [""])]
+    for k in range(0, len(wrapped), per_page):
+        page = doc.new_page()
+        tw = pymupdf.TextWriter(page.rect)
+        for j, ln in enumerate(wrapped[k:k + per_page]):
+            if ln:
+                tw.append((40, 50 + 16 * j), ln, font=font, fontsize=9)
+        tw.write_text(page)
+    return doc.tobytes()
+
+
+def ctb(b):
+    return b.get("contract") or {}
+
+
+def docx_mixed(paras, tables) -> bytes:
+    """DOCX: абзацы, затем таблицы (строки — списки ячеек)."""
+    ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    para = lambda t: f"<w:p><w:r><w:t xml:space=\"preserve\">{_x(t)}</w:t></w:r></w:p>"   # noqa: E731
+    body = "".join(para(x) for x in paras)
+    for rows in tables:
+        body += "<w:tbl>" + "".join("<w:tr>" + "".join(f"<w:tc>{para(c)}</w:tc>" for c in r) + "</w:tr>"
+                                    for r in rows) + "</w:tbl>"
+    xml = f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="{ns}"><w:body>{body}</w:body></w:document>'
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr("word/document.xml", xml)
+    return buf.getvalue()
+
+
+def check_ct_uz(tag, f, latin=False):
+    ok(f"{tag}: номер, дата, место",
+       f["contract_no"] == ("46-IM/2026" if latin else "45-ИМ/2026") and f["contract_date"] == "2026-10-01"
+       and f["place"] == ("Toshkent shahri" if latin else "Тошкент шаҳри"), (f["contract_no"], f["contract_date"], f["place"]))
+    ok(f"{tag}: стороны — юрлица из преамбулы",
+       f["insurer"] == {"kind": "legal", "name": '"INSON" AJ' if latin else '"INSON" АЖ'}
+       and f["policyholder"] == {"kind": "legal", "name": '"ALFA TEXTILE" MCHJ' if latin else '"ALFA TEXTILE" МЧЖ'},
+       (f["insurer"], f["policyholder"]))
+    ok(f"{tag}: объект — здание, кадастр, площадь, регион",
+       f["class_hint"] == "building" and f["object_kind"] == "warehouse" and f["cadastre_no"] == "10:09:05:01:02:0033"
+       and f["areas"]["total_m2"] == 2400.0 and f["region"] == "Ташкентская область"
+       and "7" not in (f["address"] or "x"), (f["object_description"], f["address"], f["region"]))
+    ok(f"{tag}: суммы, тариф, премия",
+       f["object_value"] == CT_S and f["sum_insured"] == CT_S and f["tariff_pct"] == 0.1 and f["premium"] == CT_PREMIUM
+       and f["currency"] == "UZS", (f["object_value"], f["sum_insured"], f["tariff_pct"], f["premium"]))
+    ok(f"{tag}: рассрочка, график из 2 платежей",
+       f["payment_mode"] == "installments" and f["payments"] == [{"date": "2026-10-10", "amount": 18016438.0},
+                                                                   {"date": "2027-10-10", "amount": 18016439.0}],
+       (f["payment_mode"], f["payments"]))
+    ok(f"{tag}: срок 01.10.2026–30.09.2029 — 1 096 дн. включительно",
+       f["term_from"] == "2026-10-01" and f["term_to"] == "2029-09-30" and f["term_days"] == 1096,
+       (f["term_from"], f["term_to"], f["term_days"]))
+    ok(f"{tag}: франшиза не применяется", (f["franchise"] or {}).get("applied") is False, f["franchise"])
+    ok(f"{tag}: риски и исключения — короткими кодами",
+       {"fire", "lightning", "explosion", "water", "natural"} <= {x["code"] for x in f["covered_risks"]}
+       and [x["code"] for x in f["exclusions"]] == ["war", "nuclear", "intent"],
+       (f["covered_risks"], f["exclusions"]))
+    ok(f"{tag}: срок уведомления о страховом случае", "3" in (f["notice"] or ""), f["notice"])
+
+
+def check_contract_text():
+    print("38а. Договор страхования: файл с текстом (DOCX, PDF) — без модели, три языка")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    CALLS.clear()
+    st, b = upload([("contract.docx", DOCX_MIME, CONTRACT.read_bytes())], {"lang": "ru", "product_code": "0808"})
+    c = ctb(b)
+    f = c.get("fields") or {}
+    ok("учебный договор узнан: блок contract, источник — документ, модель не вызывалась",
+       st == 200 and c.get("detected") and c["source"] == "document" and c["kind_label"] == "договор страхования"
+       and b["files"][0]["document_kind"] == "договор страхования" and not CALLS, (st, c.get("source"), len(CALLS)))
+    ok("учебный договор: номер, дата, место, страхователь-юрлицо",
+       f.get("contract_no") == "15/2026" and f["contract_date"] == "2026-09-21" and f["place"] == "г. Ташкент"
+       and f["policyholder"] == {"kind": "legal", "name": "ООО «Тестовый склад»"}, f)
+    ok("учебный договор: объект, адрес без улицы, регион, конструкция, год постройки",
+       f["object_description"] == "склад готовой продукции" and f["object_kind"] == "warehouse"
+       and f["address"] == "г. Ташкент, Юнусабадский район" and f["region"] == "город Ташкент"
+       and f["construction"] == "кирпич" and f["year_built"] == "2012", f)
+    ok("учебный договор: сумма 4,2 млрд, стоимость 5 млрд, срок 12 мес. = 365 дн.",
+       f["sum_insured"] == 4.2e9 and f["object_value"] == 5e9 and f["term_days"] == 365 and f["term_from"] is None, f)
+    ok("учебный договор: чего нет — null (тариф, премия, франшиза, риски)",
+       f["tariff_pct"] is None and f["premium"] is None and f["franchise"] is None and f["covered_risks"] == [])
+    fk = [x["code"] for x in c["found"]]
+    mk = [x["code"] for x in c["missing"]]
+    ok("found / missing с подписями",
+       fk == ["contract_no", "contract_date", "policyholder", "object", "sum_insured", "term"]
+       and mk == ["tariff_pct", "premium", "franchise", "covered_risks"]
+       and c["missing"][0]["label"] == "Тариф", (fk, mk))
+    ess = {e["code"]: e["present"] for e in c["essentials"]}
+    ok("существенные условия (ГК ст. 929): нет премии и страхового случая",
+       ess == {"object": True, "insured_event": False, "sum_insured": True, "premium": False, "term": True}
+       and c["legal_ref"] == "ГК РУз, ст. 929" and any("ст. 929" in n for n in c["notes"]), (ess, c["notes"]))
+    rq = c["request"]
+    ok("contract.request — в формате request (+ условия договора)",
+       rq["sum_insured"] == 4.2e9 and rq["term_days"] == 365 and rq["tariff_pct"] is None and rq["source"] == "document"
+       and rq["contract_no"] == "15/2026" and rq["contract_date"] == "2026-09-21" and rq["covered_risks"] == []
+       and {"tariff_pct", "premium", "franchise", "term_from", "term_to", "term_days", "sum_insured",
+            "product_code", "source"} <= set(rq), rq)
+    pf = b["prefill"]
+    ok("prefill: сумма, стоимость, срок, регион",
+       pf["sum_insured"]["value"] == 4.2e9 and pf["object_value"]["value"] == 5e9 and pf["term_days"]["value"] == 365
+       and pf["region"]["code"] == "tashkent_city", pf)
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("ИНН организации в блок договора не попал", "301234567" not in dump)
+    with db.tx() as con:
+        audit = db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b["session"])
+    det = _json.loads(audit[0]["detail"])
+    ok("журнал: только признак, источник и счётчики договора",
+       det.get("contract") is True and det.get("contract_source") == "document" and det.get("contract_found") == 6
+       and "Тестовый" not in audit[0]["detail"] and "15/2026" not in audit[0]["detail"], det)
+    CT_REPORT["учебный договор"] = {k: f[k] for k in ("contract_no", "contract_date", "place", "policyholder",
+                                                    "object_description", "address", "region", "construction",
+                                                    "year_built", "sum_insured", "object_value", "term_days")}
+
+    # узбекская кириллица и латиница: DOCX и PDF с текстом
+    for tag, lines, latin in (("узб. кириллица DOCX", CT_UZC, False), ("узб. латиница DOCX", CT_UZL, True)):
+        CALLS.clear()
+        st, b = upload([("shartnoma.docx", DOCX_MIME, docx_bytes([_x(x) for x in lines]))], {"lang": "uz"})
+        c = ctb(b)
+        ok(f"{tag}: узнан, модель не вызывалась", st == 200 and c.get("detected") and not CALLS
+           and c["kind_label"] == "sugʻurta shartnomasi", (st, len(CALLS)))
+        check_ct_uz(tag, c["fields"], latin)
+        dump = _json.dumps(b, ensure_ascii=False)
+        ok(f"{tag}: ФИО директоров не извлечены", not any(x in dump for x in CT_PD), [x for x in CT_PD if x in dump])
+        ok(f"{tag}: все ключевые поля найдены, существенные условия есть",
+           not c["missing"] and all(e["present"] for e in c["essentials"]), c["missing"])
+    for tag, lines, latin in (("узб. кириллица PDF", CT_UZC, False), ("узб. латиница PDF", CT_UZL, True)):
+        CALLS.clear()
+        st, b = upload([("shartnoma.pdf", "application/pdf", pdf_lines(lines))], {"lang": "uz"})
+        c = ctb(b)
+        ok(f"{tag}: узнан по тексту (строки перенесены), модель не вызывалась",
+           st == 200 and c.get("detected") and not CALLS and b["files"][0]["parsed"], (st, len(CALLS)))
+        if c:
+            check_ct_uz(tag, c["fields"], latin)
+
+    # русский и английский
+    st, b = upload([("dogovor.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_RU]))], {"lang": "ru"})
+    f = ctb(b).get("fields") or {}
+    ok("русский: стороны из преамбулы (без представителей), объект, адрес без улицы",
+       f.get("insurer", {}).get("name") == "Акционерное общество «INSON»"
+       and f["policyholder"]["name"] == "ООО «Ромашка Трейд»" and f["cadastre_no"] == "10:00:00:00:00:0077"
+       and f["address"] == "Самаркандская область, г. Самарканд" and f["region"] == "Самаркандская область"
+       and not any(x in _json.dumps(b, ensure_ascii=False) for x in ("Иванов", "Петров", "Навои")), f)
+    ok("русский: премия 10 млн единовременно до 10.10.2026, тариф 0,2 %, срок 365 дн.",
+       f["premium"] == 10_000_000 and f["payment_mode"] == "single"
+       and f["payments"] == [{"date": "2026-10-10", "amount": 10_000_000.0}] and f["tariff_pct"] == 0.2
+       and f["term_days"] == 365, (f["premium"], f["payments"], f["tariff_pct"], f["term_days"]))
+    ok("русский: франшиза безусловная 1 %, риски, исключения, территория, уведомление",
+       f["franchise"] == {"applied": True, "text": "безусловная, 1 % от страховой суммы по каждому страховому случаю.",
+                          "pct": 1.0, "amount": None, "type": "unconditional", "risk": None}
+       and {"fire", "natural", "earthquake", "theft"} <= {x["code"] for x in f["covered_risks"]}
+       and {"war", "terrorism", "nuclear", "intent", "wear"} == {x["code"] for x in f["exclusions"]}
+       and f["territory"] == "Республика Узбекистан." and "2" in f["notice"], f)
+    st, b = upload([("policy.docx", DOCX_MIME, docx_bytes(CT_EN))], {"lang": "en"})
+    f = ctb(b).get("fields") or {}
+    ok("английский: номер, дата «October 1, 2026», стороны, суммы, тариф, срок, франшиза",
+       f.get("contract_no") == "INS-2026/0045" and f["contract_date"] == "2026-10-01" and f["place"] == "Tashkent"
+       and f["insurer"]["name"] == "INSON JSC" and f["policyholder"]["name"] == "ALFA TEXTILE LLC"
+       and f["sum_insured"] == CT_S and f["premium"] == 12e6 and f["tariff_pct"] == 0.1 and f["term_days"] == 365
+       and f["franchise"]["applied"] is False and ctb(b)["kind_label"] == "insurance contract", f)
+
+    # не договор: счёт, письмо; запрос филиала — не договор
+    inv = ["СЧЁТ НА ОПЛАТУ № 45 от 01.10.2026", "Плательщик: ООО «Ромашка Трейд»",
+           "Назначение платежа: страховая премия по договору страхования № 77/2026",
+           "Сумма к оплате: 10 000 000 сум", "Страховая сумма по договору: 5 000 000 000 сум"]
+    letter = ["Директору ООО «Ромашка Трейд»", "Просим заключить договор страхования имущества на следующих условиях.",
+              "Страховая сумма 5 000 000 000 сум, страховая премия 10 000 000 сум.", "С уважением, отдел продаж"]
+    for tag, lines in (("счёт на оплату", inv), ("письмо", letter)):
+        st, b = upload([("x.docx", DOCX_MIME, docx_bytes(lines))], {"lang": "ru"})
+        ok(f"{tag} — не договор", st == 200 and b.get("contract") is None, ctb(b).get("fields"))
+    st, b = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1))], {"lang": "ru"})
+    ok("запрос филиала — не договор (блок branch_request есть, contract нет)",
+       b.get("branch_request") and b.get("contract") is None and b.get("cross_check") is None)
+
+    # физлицо-страхователь: признак без имени — нигде
+    lines = list(CT_RU)
+    lines[2] = ("Акционерное общество «INSON», именуемое в дальнейшем «Страховщик», и гражданин Иванов Иван "
+                "Иванович, именуемый в дальнейшем «Страхователь», заключили настоящий договор:")
+    lines.insert(3, "Страхователь: Иванов Иван Иванович, паспорт AA1234567")
+    st, b = upload([("fiz.docx", DOCX_MIME, docx_bytes(lines))], {"lang": "ru"})
+    c = ctb(b)
+    dump = _json.dumps(b, ensure_ascii=False)
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", b["session"])[0]["result_json"]
+        journal = _json.dumps(db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b["session"]),
+                              ensure_ascii=False)
+    ok("физлицо-страхователь: kind = individual, имени и паспорта нет в ответе, базе и журнале",
+       c["fields"]["policyholder"] == {"kind": "individual", "name": None}
+       and not any(x in dump + saved + journal for x in ("Иванов", "AA1234567")), c["fields"]["policyholder"])
+    ok("пометка «физическое лицо — данные не извлекаются»", any("физическое лицо" in n for n in c["notes"]), c["notes"])
+
+    # транспорт: марка, модель, год, VIN, госномер; франшиза суммой по риску; срок словами на скане — в тесте скана
+    kasko = ["ДОГОВОР СТРАХОВАНИЯ ТРАНСПОРТНОГО СРЕДСТВА (КАСКО) № К-12/2026", "г. Ташкент, 5 октября 2026 г.",
+             "Страхователь: ООО «Автолизинг Плюс»", "Объект страхования: легковой автомобиль", "Марка: Chevrolet",
+             "Модель: Cobalt", "Год выпуска: 2022", "VIN: XWBJA69V9LA123456", "Государственный номер: 01 A 123 BC",
+             "Страховая сумма: 150 000 000 сум", "Страховая премия: 4 500 000 сум",
+             "Срок страхования: с 05.10.2026 по 04.10.2027", "Франшиза: безусловная 500 000 сум по риску «ущерб»"]
+    st, b = upload([("kasko.docx", DOCX_MIME, docx_bytes(kasko))], {"lang": "ru", "product_code": "0318"})
+    f = ctb(b).get("fields") or {}
+    rec = {(r["key"], r["value"]) for r in b["recognized"]}
+    ok("транспорт: марка, модель, год, VIN, госномер; франшиза 500 000 сум по риску «ущерб»",
+       f.get("class_hint") == "vehicle" and f["brand"] == "Chevrolet" and f["model"] == "Cobalt" and f["year"] == "2022"
+       and f["vin"] == "XWBJA69V9LA123456" and f["reg_no"] == "01 A 123 BC"
+       and f["franchise"] == {"applied": True, "text": "безусловная 500 000 сум по риску «ущерб»", "pct": None,
+                              "amount": 500000.0, "type": "unconditional", "risk": "ущерб"}
+       and {("serial_no", "XWBJA69V9LA123456"), ("reg_no", "01 A 123 BC"), ("brand", "Chevrolet")} <= rec, f)
+
+    # перечень имущества и график платежей таблицами
+    paras = [x for x in CT_RU if not x.startswith("2.4.")] + ["Страховая премия: 8 000 000 сум, уплачивается в рассрочку "
+                                                              "по графику."]
+    items_t = [["№", "Наименование имущества", "Страховая сумма, сум"], ["1", "Здание склада", "3 000 000 000"],
+               ["2", "Стеллажи и погрузчики", "1 500 000 000"], ["", "Итого", "4 500 000 000"]]
+    pays_t = [["№", "Дата платежа", "Сумма платежа, сум"], ["1", "10.10.2026", "4 000 000"], ["2", "10.04.2027", "4 000 000"]]
+    st, b = upload([("tables.docx", DOCX_MIME, docx_mixed(paras, [items_t, pays_t]))], {"lang": "ru"})
+    f = ctb(b).get("fields") or {}
+    ok("таблицы: страховая сумма по частям (итог отдельно) и график платежей",
+       f.get("items") == [{"name": "Здание склада", "sum": 3e9}, {"name": "Стеллажи и погрузчики", "sum": 1.5e9}]
+       and f["items_total"] == 4.5e9 and f["payments"] == [{"date": "2026-10-10", "amount": 4e6},
+                                                            {"date": "2027-04-10", "amount": 4e6}]
+       and f["payment_mode"] == "installments" and f["premium"] == 8e6, (f.get("items"), f.get("payments")))
+    # PDF: текст только на части страниц — разбирается правилами, в модель не уходит
+    pdf = pymupdf.open(stream=pdf_lines(CT_RU), filetype="pdf")
+    pdf.new_page()
+    CALLS.clear()
+    st, b = upload([("part.pdf", "application/pdf", pdf.tobytes())], {"lang": "ru"})
+    ok("PDF с текстом не на всех страницах — разбор правилами, в модель не отправлен",
+       st == 200 and ctb(b).get("detected") and not CALLS and b["files"][0]["parsed"]
+       and not b["files"][0]["read_by_ai"], (st, len(CALLS)))
+
+
+def check_contract_long():
+    print("38б. Длинный договор (30 страниц): в пределах срока разбора, PDF с текстом до 60 страниц")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    body = [f"8.{k}. Страховщик обязан в течение 10 рабочих дней рассмотреть документы, представленные "
+            f"Страхователем, и принять решение о выплате страхового возмещения либо об отказе в выплате, о чём "
+            f"письменно уведомить Страхователя с указанием причин, если иное не предусмотрено правилами страхования "
+            f"имущества юридических лиц, утверждёнными Страховщиком (пункт {k})." for k in range(1, 330)]
+    lines = CT_RU[:26] + body + CT_RU[26:]
+    text_len = sum(len(x) for x in lines)
+    import time as _t
+    t0 = _t.monotonic()
+    st, b = upload([("long.docx", DOCX_MIME, docx_bytes([_x(x) for x in lines]))], {"lang": "ru"})
+    dt_docx = _t.monotonic() - t0
+    c = ctb(b)
+    ok(f"DOCX ≈{text_len // 1000} тыс. знаков: разобран за {dt_docx:.1f} с, договор узнан, без пометки о сроке",
+       st == 200 and c.get("detected") and dt_docx < 5 and not CALLS
+       and not any("не уложился" in n or "время" in n for n in b["notes"]), (dt_docx, b["notes"]))
+    ok("длинный договор: условия из начала и конца найдены",
+       c["fields"]["premium"] == 10_000_000 and c["fields"]["territory"] == "Республика Узбекистан."
+       and [x["code"] for x in c["fields"]["exclusions"]][:3] == ["war", "terrorism", "nuclear"], c.get("fields"))
+    pdf = pdf_lines(lines, per_page=40)
+    pages = pymupdf.open(stream=pdf, filetype="pdf").page_count
+    t0 = _t.monotonic()
+    st, b = upload([("long.pdf", "application/pdf", pdf)], {"lang": "ru"})
+    dt_pdf = _t.monotonic() - t0
+    c = ctb(b)
+    CT_REPORT["длинный договор"] = {"знаков": text_len, "DOCX, с": round(dt_docx, 2), "PDF страниц": pages,
+                                    "PDF, с": round(dt_pdf, 2)}
+    ok(f"PDF {pages} стр. с текстом (больше 10) принят и разобран за {dt_pdf:.1f} с без модели",
+       pages > 10 and st == 200 and not b["rejected"] and c.get("detected") and not CALLS and dt_pdf < 5
+       and c["fields"]["premium"] == 10_000_000 and c.get("pages") == pages, (st, b.get("rejected"), dt_pdf))
+    ok("PDF-скан больше 10 страниц по-прежнему отклоняется",
+       "10 страниц" in (upload([("scan.pdf", "application/pdf", pdf_pages(12))], {"lang": "ru"})[1].get("rejected")
+                        or [{}])[0].get("error", ""))
+    set_limits(doc_max_text_chars=20000)
+    try:
+        st, b = upload([("long.docx", DOCX_MIME, docx_bytes([_x(x) for x in lines]))], {"lang": "ru"})
+    finally:
+        clear_settings()
+    c = ctb(b)
+    ok("предел текста: договор обрезан — честная пометка truncated и заметка",
+       c.get("truncated") is True and any("предела разбора" in n for n in c["notes"]), (c.get("truncated"), c.get("notes")))
+
+
+def ct_scan_reply(policyholder=None):
+    v = {"file": 1, "contract_no": "45-ИМ/2026", "contract_date": "2026-10-01", "place": "Тошкент шаҳри",
+         "product_name": "мол-мулкни суғурта қилиш", "product_code": None,
+         "insurer": {"is_legal": True, "name": '"INSON" АЖ'},
+         "policyholder": {"is_legal": True, "name": '"ALFA TEXTILE" МЧЖ'},
+         "beneficiary": None, "pledger": None,
+         "object": "нотурар бино — омбор, умумий майдони 2 400 кв.м", "class_hint": "building",
+         "address": "Тошкент вилояти, Чирчиқ шаҳри", "cadastre_no": "10:09:05:01:02:0033",
+         "object_value": "12 000 000 000", "sum_insured": "12 000 000 000 сўм", "currency": "UZS",
+         "tariff": "0,1 %", "premium": "36 032 877", "payment_mode": "installments",
+         "payments": [{"date": "2026-10-10", "amount": "18 016 438"}, {"date": "2027-10-10", "amount": 18016439}],
+         "term": "2026 йил 1 октябрдан 2029 йил 30 сентябргача", "term_from": "2026-10-01", "term_to": "2029-09-30",
+         "franchise": "қўлланилмайди", "covered_risks": ["ёнғин", "портлаш", "табиий офатлар", "сув босиши"],
+         "exclusions": ["уруш ҳаракатлари", "ядро портлаши"], "territory": None, "special_terms": [],
+         "notice": "3 иш куни"}
+    if policyholder:
+        v["policyholder"] = {"is_legal": True, "name": policyholder}
+    return "```json\n" + _json.dumps({"files": [{"n": 1, "view": "document", "document_kind": "contract"}],
+                                      "object_kind": None, "class_hint": None, "condition": None, "fields": [],
+                                      "damages": [], "branch_request": None, "contract": v},
+                                     ensure_ascii=False) + "\n```"
+
+
+def check_contract_scan():
+    print("38в. Договор: скан — ответ модели (подменён) по строгой схеме")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = ct_scan_reply()
+    st, b = upload([("scan.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    prompt = CALLS[0]["messages"][0]["content"] + CALLS[0]["messages"][1]["content"]
+    ok("в инструкции модели — договор, схема contract, «не выдумывай», запрет имён",
+       '"contract": null или' in prompt and "document_kind = contract" in prompt and "не выдумывай" in prompt
+       and "is_legal = false" in prompt and llm.mask_pd(prompt) == prompt, prompt[-300:])
+    c = ctb(b)
+    f = c.get("fields") or {}
+    ok("скан: источник photo, файл f1, вид — договор страхования",
+       c.get("source") == "photo" and c.get("file") == "f1" and b["files"][0]["document_kind"] == "договор страхования", c)
+    ok("скан: те же поля, что у разбора текста (суммы, срок, график, риски)",
+       f["sum_insured"] == CT_S and f["premium"] == CT_PREMIUM and f["tariff_pct"] == 0.1 and f["term_days"] == 1096
+       and f["payments"] == [{"date": "2026-10-10", "amount": 18016438.0}, {"date": "2027-10-10", "amount": 18016439.0}]
+       and [x["code"] for x in f["covered_risks"]] == ["fire", "explosion", "natural", "water"]
+       and [x["code"] for x in f["exclusions"]] == ["war", "nuclear"] and f["franchise"]["applied"] is False, f)
+    rec = {(r["key"], r["value"], r["source"]) for r in b["recognized"]}
+    ok("распознанное со скана — источник «документ», prefill — код, сумма, срок",
+       ("premium", "36 032 877", "document") in rec and ("policyholder", '"ALFA TEXTILE" МЧЖ', "document") in rec
+       and b["prefill"]["term_days"]["value"] == 1096 and b["prefill"]["sum_insured"]["value"] == CT_S, sorted(rec))
+    REPLY["text"] = ct_scan_reply(policyholder="Каримов Алишер Анварович")
+    st, b = upload([("scan2.png", "image/png", image((240, 240, 240)))], {"lang": "ru"})
+    dump = _json.dumps(b, ensure_ascii=False)
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", b["session"])[0]["result_json"]
+    REPLY["text"] = ct_scan_reply().replace('"2026 йил 1 октябрдан 2029 йил 30 сентябргача"', '"36 ой"').replace(
+        '"term_from": "2026-10-01", "term_to": "2029-09-30"', '"term_from": null, "term_to": null')
+    st, b3 = upload([("scan3.png", "image/png", image((230, 230, 230)))], {"lang": "ru"})
+    f3 = ctb(b3).get("fields") or {}
+    ok("скан: срок словами без дат («36 ой») — 1 095 дн., даты не выдумываются",
+       f3.get("term_days") == 1095 and f3["term_from"] is None and f3["term_to"] is None, f3.get("term_days"))
+    ok("скан: гражданин вместо организации — kind = individual, имени нет",
+       ctb(b)["fields"]["policyholder"] == {"kind": "individual", "name": None}
+       and "Каримов" not in dump and "Каримов" not in saved, ctb(b)["fields"]["policyholder"])
+
+
+CT_AI_LINES = [
+    "ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА № 9/2026",
+    "г. Ташкент, 1 октября 2026 г.",
+    "Акционерное общество «INSON», именуемое в дальнейшем «Страховщик», в лице директора Иванова Ивана Ивановича, "
+    "и ООО «Бета Логистик», именуемое в дальнейшем «Страхователь», в лице директора Сидорова Сидора Сидоровича, "
+    "заключили настоящий договор.",
+    "Страховая сумма: 1 000 000 000 сум.",
+    "Страховщик принимает на себя обязательство возместить ущерб, причинённый складскому комплексу Страхователя, "
+    "а Страхователь уплачивает Страховщику двенадцать миллионов сумов в течение десяти дней с даты подписания.",
+    "Договор действует три года со дня, следующего за днём уплаты первого взноса.",
+]
+
+
+def ct_ai_reply(messages):
+    # «модель» видит только текст после маскировки и возвращает условия, которых правила не нашли
+    return _json.dumps({"contract": {
+        "sum_insured": "2 000 000 000", "premium": "12 000 000", "tariff": "0,4 %",
+        "term_from": "2026-10-11", "term_to": "2029-10-10", "object": "складской комплекс",
+        "covered_risks": ["пожар", "кража"], "policyholder": {"is_legal": True, "name": "[ФИО]"}}}, ensure_ascii=False)
+
+
+def check_contract_ai_assist():
+    print("38г. Договор: правила нашли мало — текст (после маскировки) дочитывает модель, только пустые поля")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = ct_ai_reply
+    st, b = upload([("dogovor9.docx", DOCX_MIME, docx_bytes(CT_AI_LINES))], {"lang": "ru"})
+    c = ctb(b)
+    f = c.get("fields") or {}
+    ok("одно обращение к модели — текстом, без файлов", len(CALLS) == 1 and not CALLS[0]["files"]
+       and CALLS[0]["purpose"] == "акт: договор по тексту", [x["purpose"] for x in CALLS])
+    sent = " ".join(m["content"] for m in CALLS[0]["messages"]) if CALLS else ""
+    ok("в модель ушёл замаскированный текст: ФИО директоров нет, метка [ФИО] есть, сумма и слова договора есть",
+       "Иванов" not in sent and "Ивана Ивановича" not in sent and "Сидоров" not in sent and "[ФИО]" in sent
+       and "1 000 000 000" in sent and "двенадцать миллионов" in sent, sent[:500])
+    ok("найденное правилами не заменено: страховая сумма 1 млрд, а не 2 млрд из ответа модели",
+       f.get("sum_insured") == 1e9 and "sum_insured" not in c["field_sources"], (f.get("sum_insured"), c["field_sources"]))
+    ok("пустые поля дополнены моделью: премия, срок, объект, риски — source = document_ai",
+       f["premium"] == 12e6 and f["term_days"] == 1096 and f["object_description"] == "складской комплекс"
+       and set(c["field_sources"]) >= {"premium", "term_days", "object_description", "covered_risks", "tariff_pct"}
+       and set(c["field_sources"].values()) == {"document_ai"} and c["source"] == "document_ai", c.get("field_sources"))
+    ok("страхователь-юрлицо из правил не заменён меткой [ФИО]",
+       f["policyholder"] == {"kind": "legal", "name": "ООО «Бета Логистик»"}, f["policyholder"])
+    rec = {(r["key"], r["value"]): r for r in b["recognized"]}
+    ok("распознанное: премия от модели — source document_ai и пометка «прочитано моделью из текста, проверьте»",
+       rec.get(("premium", "12 000 000"), {}).get("source") == "document_ai"
+       and rec[("premium", "12 000 000")]["note"] == "прочитано моделью из текста, проверьте"
+       and rec.get(("sum_insured", "1 000 000 000"), {}).get("source") == "document", sorted(rec))
+    ok("prefill: срок от модели — с пометкой модели", b["prefill"]["term_days"]["source"] == "document_ai"
+       and b["prefill"]["term_days"]["check_label"] == "прочитано моделью из текста, проверьте"
+       and b["prefill"]["sum_insured"]["source"] == "document", b["prefill"])
+    ok("заметка о полях, прочитанных моделью", any("прочитана моделью" in n for n in c["notes"]), c["notes"])
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", b["session"])[0]["result_json"]
+    ok("текст договора в базу не сохранён", "двенадцать миллионов" not in saved and "Иванов" not in saved)
+    sid_ai = b["session"]
+    # настройка contract.ai_assist = false — модель не вызывается
+    with db.tx() as con:
+        con.execute("INSERT INTO act_settings (created_at, created_by, settings_json, calibrated, note) VALUES "
+                    "(?,?,?,?,?)", (db.now(), "тест", _json.dumps({"contract": {"ai_assist": False,
+                                                                              "ai_max_chars": 30000}}), 0, "тест"))
+    try:
+        CALLS.clear()
+        st, b = upload([("dogovor9.docx", DOCX_MIME, docx_bytes(CT_AI_LINES))], {"lang": "ru"})
+        ok("contract.ai_assist = false — модель не вызывается, поля остаются пустыми",
+           not CALLS and ctb(b)["fields"]["premium"] is None and ctb(b)["source"] == "document", len(CALLS))
+    finally:
+        clear_settings()
+    # модель не подключена — договор разобран правилами, без ошибок
+    model_on(False)
+    CALLS.clear()
+    st, b = upload([("dogovor9.docx", DOCX_MIME, docx_bytes(CT_AI_LINES))], {"lang": "ru"})
+    ok("модель не подключена — разбор правилами, без обращения", st == 200 and not CALLS and ctb(b)["detected"])
+    model_on(True)
+    # длинный текст: в модель уходит не больше ai_max_chars, кусками не длиннее 11 000 знаков
+    CALLS.clear()
+    many = CT_AI_LINES + [f"Пункт {k}. Стороны руководствуются законодательством Республики Узбекистан." * 3
+                          for k in range(1, 700)]
+    st, b = upload([("dogovor_long.docx", DOCX_MIME, docx_bytes(many))], {"lang": "ru"})
+    parts = [m["content"] for m in CALLS[0]["messages"][2:]] if CALLS else []
+    ok("длинный текст: в модель — не больше 30 000 знаков, куски по ≤ 11 000",
+       CALLS and sum(len(p) for p in parts) <= 30000 + 200 and all(len(p) <= 11100 for p in parts)
+       and len(parts) >= 2, [len(p) for p in parts])
+    ok("ae.check_settings: contract проверяется",
+       ae.check_settings({"contract": {"ai_assist": "да", "ai_max_chars": 10}})
+       and not ae.check_settings({"contract": {"ai_assist": False, "ai_max_chars": 20000}}))
+    return sid_ai
+
+
+def ct_make(sid=None, contract=None, optional=None, lang="ru", must=None, request=None):
+    body = {"session": sid, "lang": lang,
+            "must": must or {"product_code": "0832", "sum_insured": CT_S, "object_value": CT_S,
+                             "region": "Ташкентская область"},
+            "optional": dict(optional or {})}
+    if contract is not None:
+        body["optional"]["contract"] = contract
+    if request is not None:
+        body["optional"]["request"] = request
+    return call("POST", "/act/make", body)
+
+
+def ct_items(a):
+    return {i["code"]: i for i in (a.get("contract_check") or {}).get("items") or []}
+
+
+def check_contract_make():
+    print("38д. Сверка договора с расчётом акта (продукт 0832): премия, график, существенные условия, запрос филиала")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    st, b = upload([("shartnoma.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_UZC]))], {"lang": "ru"})
+    ct = ctb(b)["request"]
+    st, a = ct_make(b["session"], ct)
+    it = ct_items(a)
+    cc = a.get("contract_check") or {}
+    lvl = a["risk"]["level"]
+    applied = round(max(0.08 * (1 + ae.DEFAULT_SETTINGS["adj_pct"][lvl] / 100), 0.08), 4)
+    ok("акт с договором сформирован; contract_check доступна, источник — файл договора",
+       st == 200 and cc.get("available") and cc["source"] == "document"
+       and cc["source_label"] == "из документа — из файла договора (разбор текста)", (st, cc.get("source_label")))
+    ok("срок акта взят из договора: 1 096 дн.",
+       a["premium"]["term_days"] == 1096 and it["term"]["verdict"] == "ok" and "взят из договора" in it["term"]["text"],
+       it.get("term"))
+    ok("тариф договора 0,1 % не ниже минимума 0,08 %",
+       it["tariff_min"]["verdict"] == "ok" and it["tariff_min"]["calculated"] == 0.08, it["tariff_min"])
+    ok(f"тариф договора против ставки акта {applied}", it["tariff_act"]["verdict"] == ("ok" if 0.1 >= applied else
+                                                                                      "differs"), it["tariff_act"])
+    ok("премия договора 36 032 877 против расчёта 12 млрд × 0,1 % × 1096/365 = 36 032 876,71 — в допуске",
+       it["premium_request"]["verdict"] == "ok" and it["premium_request"]["calculated"] == 36_032_876.71
+       and "по тарифу договора" in it["premium_request"]["text"], it["premium_request"])
+    ok("график 2 платежей = премия", it["payments"]["verdict"] == "ok" and it["payments"]["calculated"] == CT_PREMIUM,
+       it["payments"])
+    ok("существенные условия — все есть (ГК РУз, ст. 929)",
+       it["essentials"]["verdict"] == "ok" and all(e["present"] for e in cc["essentials"])
+       and cc["legal_ref"] == "ГК РУз, ст. 929", it["essentials"])
+    ok("как сверено: дословно ст. 929 и формула премии",
+       any("должно быть достигнуто соглашение" in h and "ст. 929" in h for h in cc["how"])
+       and any("× 0,10 %" in nb(h) and "1096" in h for h in cc["how"]), cc["how"][:2])
+    s1 = {r["label"]: r for r in a["sections"][0]["rows"]}
+    ok("раздел 1: номер и дата договора", s1.get("Договор страхования", {}).get("value") == "№ 45-ИМ/2026 от 01.10.2026",
+       list(s1))
+    s4 = {li["title"]: li["items"] for li in a["sections"][3]["lists"]}
+    ok("раздел 4: «Сверка с договором», риски и исключения, «Как сверен договор»",
+       "Сверка с договором" in s4 and any("Застрахованные риски по договору: пожар" in x for x in s4["Сверка с договором"])
+       and any("Исключения по договору: военные действия" in x for x in s4["Сверка с договором"])
+       and "Как сверен договор" in s4, list(s4))
+    CT_REPORT["сверка УЗ"] = {k: (v["verdict"], v["requested"], v["calculated"]) for k, v in it.items()}
+    aid = a["id"]
+    st, a0 = ct_make(b["session"], None)
+    ok("без optional.contract — договор из своей загрузки (source = session)",
+       st == 200 and a0["contract_check"]["source"] == "session" and ct_items(a0)["premium_request"]["verdict"] == "ok",
+       a0.get("contract_check", {}).get("source"))
+
+    # график не сходится с премией
+    bad = [x.replace("18 016 439", "18 000 000") for x in CT_UZC]
+    st, b2 = upload([("shartnoma2.docx", DOCX_MIME, docx_bytes([_x(x) for x in bad]))], {"lang": "ru"})
+    st, a2 = ct_make(b2["session"], ctb(b2)["request"])
+    p2 = ct_items(a2)["payments"]
+    ok("график платежей не сходится с премией — differs, разница 16 439",
+       p2["verdict"] == "differs" and p2["diff"] == 16439.0 and "разница" in p2["text"], p2)
+    ok("в проверках андеррайтера — график; «принять без оговорок» нельзя",
+       any("График платежей" in c for c in a2["decision"]["checks"]) and a2["decision"]["code"] != "accept",
+       a2["decision"])
+
+    # договор без срока → нет существенного условия
+    no_term = [x for x in CT_RU if not x.startswith(("3.", "3 "))]
+    st, b3 = upload([("noterm.docx", DOCX_MIME, docx_bytes([_x(x) for x in no_term]))], {"lang": "ru"})
+    c3 = ctb(b3)
+    ok("договор без срока: срок не найден, существенного условия нет",
+       c3["fields"]["term_days"] is None and not {e["code"]: e["present"] for e in c3["essentials"]}["term"],
+       c3["fields"].get("term_days"))
+    st, a3 = ct_make(b3["session"], c3["request"], must={"product_code": "0832", "sum_insured": 5e9,
+                                                        "object_value": 5e9, "region": "Самаркандская область"})
+    e3 = ct_items(a3)["essentials"]
+    ok("сверка: essentials — no_essential, «в договоре нет: срок действия договора»",
+       e3["verdict"] == "no_essential" and "срок действия договора" in e3["text"]
+       and a3["contract_check"]["summary"]["verdict"] == "no_essential", e3)
+    ok("решение: не «принять без оговорок», в проверках — существенное условие по ст. 929",
+       a3["decision"]["code"] != "accept" and any("ст. 929" in c and "срок" in c for c in a3["decision"]["checks"]),
+       a3["decision"])
+
+    # проверка ввода optional.contract
+    for badc, key in (({"payments": [{"date": "31.02.2026", "amount": 5}]}, "дата платежа"),
+                      ({"payments": "раз"}, "платежи не список"), ({"items": [{"name": "x", "sum": -1}]}, "сумма части"),
+                      ({"currency": "XYZ", "premium": 1}, "валюта"), ({"franchise": {"applied": True, "type": "x"}},
+                                                                      "тип франшизы"),
+                      ({"contract_date": "вчера", "premium": 5}, "дата договора"), ("строка", "не объект"),
+                      ({"covered_risks": []}, "пусто")):
+        st, e = ct_make(None, badc)
+        ok(f"optional.contract проверяется: {key}", st == 422 and "contract" in (e.get("errors") or {}), (st, e))
+    st, a4 = ct_make(None, {"premium": "36 032 877", "tariff_pct": "0,1", "sum_insured": CT_S,
+                            "term_from": "01.10.2026", "term_to": "30.09.2029", "covered_risks": ["fire", "кража"],
+                            "items": [{"name": "склад", "sum": 7e9}, {"name": "оборудование", "sum": 4e9}],
+                            "object_description": "склад и оборудование", "source": "input"})
+    i4 = ct_items(a4)
+    ok("ввод сотрудника: суммы по частям 11 млрд ≠ 12 млрд — items_sum differs, риски из кодов и слов",
+       st == 200 and i4["items_sum"]["verdict"] == "differs" and i4["items_sum"]["calculated"] == 11e9
+       and [x["code"] for x in a4["contract_check"]["covered_risks"]] == ["fire", "theft"]
+       and any("Суммы по объектам" in c for c in a4["decision"]["checks"]), (i4.get("items_sum"), a4.get("contract_check")))
+    return aid
+
+
+def check_contract_cross():
+    print("38е. Запрос филиала и договор в одной загрузке: расхождения (cross_check)")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    st, b = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1)),
+                    ("shartnoma.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_UZC]))], {"lang": "ru"})
+    x = b.get("cross_check") or {}
+    xi = {i["code"]: i for i in x.get("items") or []}
+    ok("оба блока есть: branch_request и contract; модель не вызывалась",
+       st == 200 and b.get("branch_request") and b.get("contract") and not CALLS, (st, len(CALLS)))
+    ok("cross_check: сумма, стоимость, тариф, премия, срок, объект расходятся; франшиза и код совпадают",
+       xi["sum_insured"]["verdict"] == "differs" and xi["sum_insured"]["request"] == BR_S1
+       and xi["sum_insured"]["contract"] == CT_S and xi["tariff_pct"]["verdict"] == "differs"
+       and xi["premium"]["verdict"] == "differs" and xi["term"]["verdict"] == "differs"
+       and xi["object"]["verdict"] == "differs" and xi["franchise"]["verdict"] == "same"
+       and xi["product_code"]["verdict"] == "missing", {k: v["verdict"] for k, v in xi.items()})
+    ok("cross_check: итог и строки на языке экрана",
+       x["summary"]["verdict"] == "differs" and "расходятся" in x["summary"]["text"]
+       and any(ln.startswith("Страховая сумма — расходится: в запросе 81") for ln in x["lines"]), x.get("lines"))
+    st, a = call("POST", "/act/make", {"session": b["session"], "lang": "ru",
+                                       "must": {"product_code": "0832", "sum_insured": BR_S1, "object_value": BR_S1,
+                                                "region": "Ташкентская область"},
+                                       "optional": {"request": br_request(b), "contract": ctb(b)["request"]}})
+    s4 = {li["title"]: li["items"] for li in a["sections"][3]["lists"]}
+    ok("акт: подразделы «Сверка с запросом филиала», «Сверка с договором», «Запрос филиала и договор: расхождения»",
+       {"Сверка с запросом филиала", "Сверка с договором", "Запрос филиала и договор: расхождения"} <= set(s4), list(s4))
+    ok("акт: cross_check в JSON и в проверках андеррайтера",
+       a["cross_check"]["available"] and a["cross_check"]["differs"] >= 5
+       and any(c.startswith("Запрос филиала и договор расходятся: страховая сумма") for c in a["decision"]["checks"])
+       and a["decision"]["code"] != "accept", a["decision"]["checks"])
+    return a["id"]
+
+
+CT_REPORT = {}
+
+
+def check_contract_langs_files(aid, x_aid):
+    print("38ж. Сверка с договором: три языка, Word и PDF")
+    for lang, title, word, xt in (("ru", "Сверка с договором", "по тарифу договора", "Запрос филиала и договор: расхождения"),
+                                  ("uz", "Shartnoma bilan solishtirish", "shartnoma tarifi", "Filial soʻrovi va shartnoma: farqlar"),
+                                  ("en", "Check against the contract", "contract rate", "Branch request vs contract: differences")):
+        st, a = call("GET", f"/act/{aid}", params={"lang": lang})
+        lines = [x for li in a["sections"][3]["lists"] if li["title"] == title for x in li["items"]]
+        ok(f"{lang}: подраздел сверки с договором и текст строки", bool(lines) and any(word in x for x in lines), lines[:3])
+        cc = a["contract_check"]
+        ok(f"{lang}: contract_check на языке акта (подписи, итог, существенные условия)",
+           cc["items"][0]["label"] and cc["summary"]["text"] and all(i["verdict_label"] for i in cc["items"])
+           and cc["essentials"][0]["label"], cc["items"][0])
+        row1 = [r for r in a["sections"][0]["rows"] if r["label"] == tx.t("ct_row", lang)]
+        ok(f"{lang}: раздел 1 — номер и дата договора", row1 and "45-ИМ/2026" in row1[0]["value"]
+           and "01.10.2026" in row1[0]["value"], row1)
+        if lang != "ru":
+            txt = " ".join(lines + cc["how"] + [c for c in a["decision"]["checks"]])
+            ok(f"{lang}: в сверке с договором нет кириллицы", not re.search(r"[А-Яа-яЁё]", txt),
+               re.findall(r".{20}[А-Яа-яЁё].{20}", txt)[:3])
+        st, blob, h = call("GET", f"/act/{aid}.docx", params={"lang": lang}, raw=True)
+        plain = re.sub(r"<[^>]+>", "", zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8"))
+        ok(f"{lang}: сверка с договором в DOCX", title in plain and word in plain, plain[-300:])
+        st, blob, h = call("GET", f"/act/{aid}.pdf", params={"lang": lang}, raw=True)
+        text = pdf_text(pymupdf.open(stream=blob, filetype="pdf")).replace("ʻ", "'")
+        ok(f"{lang}: сверка с договором в PDF", title.replace("ʻ", "'") in text and word in text, text[-300:])
+        st, blob, h = call("GET", f"/act/{x_aid}.docx", params={"lang": lang}, raw=True)
+        plain = re.sub(r"<[^>]+>", "", zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8"))
+        st, blob, h = call("GET", f"/act/{x_aid}.pdf", params={"lang": lang}, raw=True)
+        text = pdf_text(pymupdf.open(stream=blob, filetype="pdf")).replace("ʻ", "'")
+        ok(f"{lang}: «запрос филиала и договор» в DOCX и PDF", xt in plain and xt.replace("ʻ", "'") in text)
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", aid)[0]
+        stored = _json.loads(row["act_json"])
+    for k in ("contract", "contract_check", "cross_check"):
+        stored["data"].pop(k, None)
+    out = act.render(stored["data"], "ru", stored["meta"])
+    ok("старый акт без договора: contract_check.available = false, cross_check.available = false",
+       out["contract_check"]["available"] is False and out["cross_check"]["available"] is False
+       and "Сверка с договором" not in [li["title"] for li in out["sections"][3]["lists"]])
+
+
+# ================================================================================================
+#  39. Замечания контролёра 30.09.2026 (вечер): источник условий решает сервер, правки в акте, вид документа,
+#      существенные условия, сверка «запрос ↔ договор», проверка ввода, маскировка счёта, стороны-юрлица
+# ================================================================================================
+
+def _s4_lines(a, title):
+    return [x for li in a["sections"][3]["lists"] if li["title"] == title for x in li["items"]]
+
+
+def check_trust_edits():
+    print("39а. Источник условий решает сервер: совпало с загрузкой — «из документа», иначе — правка «было → стало»")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    st, b = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1))], {"lang": "ru"})
+    sid = b["session"]
+    req = br_request(b)
+    ok("optional.request загрузки: стоимость и объект для сверки запроса с договором",
+       req.get("object_value") == BR_S1 and req.get("cadastre_no") == "10:00:00:00:00:00001"
+       and req.get("class_hint") == "building" and "музлатгич" in (req.get("object_description") or ""), req)
+    # 1) как прочитано — «из документа», правок нет
+    st, a = br_make(sid, 1, dict(req, source="input"))          # source экрана не доверяется ни в какую сторону
+    rc = a["request_check"]
+    ok("условия как в загрузке: источник «из документа», правок нет (source экрана не учитывается)",
+       st == 200 and rc["source_kind"] == "document" and rc["source"] == "document"
+       and rc["source_label"].startswith("из документа") and rc["edits"]["count"] == 0
+       and rc["edits"]["line"] == "Правки сотрудника в условиях запроса: правок нет"
+       and set(rc["field_sources"].values()) == {"document"} and rc["field_sources"]["tariff_pct"] == "document",
+       (rc.get("source_kind"), rc.get("field_sources")))
+    lines = _s4_lines(a, "Сверка с запросом филиала")
+    ok("раздел 4: источник условий и «правок нет»",
+       "Источник условий: из документа — из файла запроса (разбор текста)" in lines
+       and "Правки сотрудника в условиях запроса: правок нет" in lines, lines)
+    ok("без правок в проверках нет пункта о правках",
+       not any("правки сотрудника" in c for c in a["decision"]["checks"]), a["decision"]["checks"])
+    # 2) сотрудник исправил тариф и премию, экран утверждает «из документа» — сервер видит правки
+    edited = dict(req, tariff_pct=0.1, premium=246_644_000, source="document")
+    st, a2 = br_make(sid, 1, edited)
+    rc2 = a2["request_check"]
+    codes = [e["code"] for e in rc2["edits"]["items"]]
+    ok("правки тарифа и премии: «из документа с правками сотрудника (2)», поля — «введено сотрудником»",
+       st == 200 and rc2["source_kind"] == "document_edited" and codes == ["tariff_pct", "premium"]
+       and rc2["source_label"].startswith("из документа с правками сотрудника (2)")
+       and rc2["field_sources"]["tariff_pct"] == "input" and rc2["field_sources"]["premium"] == "input"
+       and rc2["field_sources"]["term_days"] == "document", (rc2.get("source_label"), codes, rc2.get("field_sources")))
+    ed = {e["code"]: e for e in rc2["edits"]["items"]}
+    ok("правка: что, было, стало — числа и текст на языке акта",
+       ed["tariff_pct"]["was"] == 0.05 and ed["tariff_pct"]["now"] == 0.1
+       and nb(ed["tariff_pct"]["text"]) == "Тариф: было 0,05 % → стало 0,10 %"
+       and nb(ed["premium"]["text"]) == "Страховая премия: было 123 322 000 сум → стало 246 644 000 сум"
+       and rc2["edits"]["line"] == "Правки сотрудника в условиях запроса: 2", rc2["edits"])
+    lines2 = [nb(x) for x in _s4_lines(a2, "Сверка с запросом филиала")]
+    ok("раздел 4: строка правок и список «было → стало»",
+       "Правки сотрудника в условиях запроса: 2" in lines2 and "Тариф: было 0,05 % → стало 0,10 %" in lines2, lines2)
+    ok("решение: «проверить правки сотрудника в условиях запроса», без оговорок принять нельзя",
+       any(c.startswith("Проверить правки сотрудника в условиях запроса (2)") for c in a2["decision"]["checks"])
+       and a2["decision"]["code"] != "accept", a2["decision"])
+    st, blob, h = call("GET", f"/act/{a2['id']}.docx", params={"lang": "ru"}, raw=True)
+    plain = nb(re.sub(r"<[^>]+>", "", zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8")))
+    ok("Word: правки сотрудника и «было → стало»",
+       "Правки сотрудника в условиях запроса: 2" in plain and "было 0,05 % → стало 0,10 %" in plain, plain[-400:])
+    st, blob, h = call("GET", f"/act/{a2['id']}.pdf", params={"lang": "ru"}, raw=True)
+    text = nb(pdf_text(pymupdf.open(stream=blob, filetype="pdf")))
+    ok("PDF: правки сотрудника", "Правки сотрудника в условиях запроса: 2" in text and "было 0,05" in text, text[-400:])
+    for lang, word in (("uz", "Soʻrov shartlaridagi xodim tuzatishlari: 2"), ("en", "Staff edits to the request terms: 2")):
+        st, al = call("GET", f"/act/{a2['id']}", params={"lang": lang})
+        ok(f"{lang}: строка правок на языке акта, без кириллицы",
+           al["request_check"]["edits"]["line"] == word
+           and not re.search(r"[А-Яа-яЁё]", " ".join(e["text"] for e in al["request_check"]["edits"]["items"])),
+           al["request_check"]["edits"])
+    # 3) экран говорит «из документа», а загрузки нет (истекла / сменилась сессия) — всё «введено сотрудником»
+    for sess, why in ((None, "сессии нет"), ("нет-такой-загрузки", "загрузка чужая или истекла")):
+        st, a3 = br_make(sess, 1, dict(req, source="document"))
+        rc3 = a3["request_check"]
+        ok(f"{why}: все поля «введено сотрудником», пометка «документ недоступен»",
+           st == 200 and rc3["source_kind"] == "input" and rc3["source"] == "input" and rc3["document_missing"]
+           and set(rc3["field_sources"].values()) == {"input"}
+           and rc3["source_label"] == "введено сотрудником — документ недоступен (прошло больше 24 часов или "
+                                      "сменилась сессия)", rc3.get("source_label"))
+    st, a4 = br_make(None, 1, {"tariff_pct": 0.1, "term_days": 365})
+    ok("ввод сотрудника без документа: «введено сотрудником», без пометки о недоступном документе",
+       a4["request_check"]["source_label"] == "введено сотрудником" and not a4["request_check"]["document_missing"],
+       a4["request_check"].get("source_label"))
+    # старый акт (без источника по полям) рисуется как раньше
+    with db.tx() as con:
+        stored = _json.loads(db.rows(con, "SELECT act_json FROM acts WHERE id=?", a2["id"])[0]["act_json"])
+    for k in ("source_kind", "origin", "edits", "field_sources", "doc_missing"):
+        stored["data"]["request_check"].pop(k, None)
+    out = act.render(stored["data"], "ru", stored["meta"])
+    ok("старый акт без источника по полям: без строки правок, подпись источника прежняя",
+       out["request_check"]["available"] and "edits" not in out["request_check"]
+       and not any("Правки сотрудника" in x for x in _s4_lines(out, "Сверка с запросом филиала"))
+       and out["request_check"]["source_label"] == "из файла запроса (разбор текста)", out["request_check"].get("source_label"))
+
+    # договор: правка премии; риски со скана — «прочитано моделью»
+    st, b = upload([("shartnoma.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_UZC]))], {"lang": "ru"})
+    ct = ctb(b)["request"]
+    st, a5 = ct_make(b["session"], dict(ct, premium=36_000_000.5))
+    cc = a5["contract_check"]
+    ok("договор: правка премии — «было → стало» с тийинами, остальное из документа",
+       cc["source_kind"] == "document_edited" and [e["code"] for e in cc["edits"]["items"]] == ["premium"]
+       and nb(cc["edits"]["items"][0]["text"]) == "Страховая премия: было 36 032 877 сум → стало 36 000 000,50 сум"
+       and cc["field_sources"]["covered_risks"] == "document"
+       and any(c.startswith("Проверить правки сотрудника в условиях договора (1)") for c in a5["decision"]["checks"]),
+       cc.get("edits"))
+    ok("договор: строка правок в разделе 4",
+       "Правки сотрудника в условиях договора: 1" in _s4_lines(a5, "Сверка с договором"), _s4_lines(a5, "Сверка с договором"))
+    REPLY["text"] = ct_scan_reply()
+    st, bs = upload([("scan.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    st, a6 = ct_make(bs["session"], ctb(bs)["request"])
+    cc6 = a6["contract_check"]
+    risks = [x for x in _s4_lines(a6, "Сверка с договором") if x.startswith("Застрахованные риски по договору")]
+    ok("скан договора: источник «из документа — со скана», риски в акте помечены «прочитано моделью»",
+       cc6["source_kind"] == "document" and cc6["field_sources"]["covered_risks"] == "photo"
+       and cc6["source_label"] == "из документа — со скана договора (распознано моделью)"
+       and risks and risks[0].endswith("(прочитано моделью)") and cc6["covered_risks_by_model"] is True, (risks, cc6.get("source_label")))
+    ok("договор из файла: риски без пометки модели",
+       all(not x.endswith("(прочитано моделью)") for x in _s4_lines(a5, "Сверка с договором")))
+    REPLY["text"] = CRANE_REPLY
+
+
+def check_doc_kind_title():
+    print("39б. Вид документа: заголовок сильнее строк; заявление — без сверки договора")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    CALLS.clear()
+    ru_rows = [("1.", "Вид страхования (код):", "0832"), ("2.", "Страхователь:", 'ООО "Ромашка"'),
+               ("3.", "Выгодоприобретатель:", 'АКБ "Намунабанк"'), ("4.", "Залогодатель:", ""),
+               ("5.", "Объект страхования:", "Нежилое здание — склад, общая площадь 1 200 кв.м"),
+               ("6.", "Страховая стоимость:", "1 000 000 000,00 сум"),
+               ("7.", "Страховая сумма:", "1 000 000 000,00 сум"), ("8.", "Франшиза:", "не применяется"),
+               ("9.", "Страховой тариф:", "0,1"), ("10.", "Страховая премия:", "1 000 000,00 сум"),
+               ("11.", "Срок страхования:", "с 01.10.2026 по 30.09.2027")]
+    st, b0 = upload([("zapros.docx", DOCX_MIME, docx_table(ru_rows, head=[]))], {"lang": "ru"})
+    ok("те же строки без заголовка — запрос филиала", bool(b0.get("branch_request")) and not b0.get("contract"))
+    st, b = upload([("polis.docx", DOCX_MIME, docx_table(ru_rows, head=["СТРАХОВОЙ ПОЛИС № 7/2026"]))], {"lang": "ru"})
+    ok("«СТРАХОВОЙ ПОЛИС» со строками «подпись: значение» — договор/полис, не запрос филиала",
+       st == 200 and b.get("branch_request") is None and ctb(b).get("detected")
+       and b["documents"][0]["kind"] == "contract", (b.get("branch_request"), b.get("documents")))
+    for head in ("SUGʻURTA POLISI № 12", "СУҒУРТА ПОЛИСИ", "ПОЛИС", "ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА № 9"):
+        st, b = upload([("p.docx", DOCX_MIME, docx_table(BR_SAMPLE1, head=[head]))], {"lang": "ru"})
+        ok(f"«{head}» + строки бланка — договор/полис", b.get("branch_request") is None and ctb(b).get("detected"),
+           (head, b.get("documents")))
+    app_lines = ["ЗАЯВЛЕНИЕ НА СТРАХОВАНИЕ ИМУЩЕСТВА", "Страхователь: ООО «Ромашка»",
+                 "Объект страхования: нежилое здание — склад, общая площадь 1 200 кв.м",
+                 "Страховая стоимость: 1 200 000 000 сум", "Страховая сумма: 1 000 000 000 сум",
+                 "Страховой тариф: 0,2 %", "Срок страхования: с 01.10.2026 по 30.09.2027"]
+    for name, lines in (("ЗАЯВЛЕНИЕ НА СТРАХОВАНИЕ", app_lines),
+                        ("АРИЗА", ["АРИЗА"] + app_lines[1:]), ("ARIZA", ["Sugʻurta qilish uchun ARIZA"] + app_lines[1:])):
+        st, b = upload([("z.docx", DOCX_MIME, docx_bytes([_x(x) for x in lines]))], {"lang": "ru"})
+        rec = {(r["key"], r["value"]) for r in b["recognized"]}
+        ok(f"{name}: вид «заявление», данные в распознанном и подсказке, сверки договора нет",
+           st == 200 and b["documents"][0]["kind"] == "application"
+           and b["files"][0]["document_kind"] == "заявление на страхование"
+           and b.get("contract") is None and b.get("branch_request") is None
+           and ("sum_insured", "1 000 000 000") in rec and (b.get("prefill") or {}).get("sum_insured", {}).get("value") == 1e9
+           and any("это заявление, а не договор" in n.lower() for n in b["notes"]), (b.get("documents"), b.get("notes")))
+    st, a = call("POST", "/act/make", {"session": b["session"], "lang": "ru",
+                                       "must": {"product_code": "0808", "sum_insured": 1e9, "object_value": 1.2e9,
+                                                "region": "Ташкентская область"}})
+    ok("акт по заявлению: сверки с договором и существенных условий нет",
+       st == 200 and a["contract_check"]["available"] is False
+       and not any("929" in c for c in a["decision"]["checks"]), a.get("contract_check"))
+
+
+def check_essentials_wording():
+    print("39в. Существенные условия: «в тексте договора не найдено … проверьте договор» (три языка)")
+    fresh()
+    no_term = [x for x in CT_RU if not x.startswith(("3.", "3 "))]
+    st, b = upload([("noterm.docx", DOCX_MIME, docx_bytes([_x(x) for x in no_term]))], {"lang": "ru"})
+    ok("экран: заметка не утверждает, что условия нет",
+       any(n.startswith("В тексте договора не найдено условие: срок действия договора (ГК РУз, ст. 929). "
+                        "Проверьте договор") for n in ctb(b)["notes"]), ctb(b)["notes"])
+    st, a = ct_make(b["session"], ctb(b)["request"], must={"product_code": "0832", "sum_insured": 5e9,
+                                                          "object_value": 5e9, "region": "Самаркандская область"})
+    e = ct_items(a)["essentials"]
+    ok("акт: строка сверки и проверка андеррайтера — «не найдено … если условия действительно нет — дополнить»",
+       e["verdict"] == "no_essential" and e["verdict_label"] == "условие не найдено"
+       and "в тексте договора не найдено условие: срок действия договора" in e["text"]
+       and "если условия действительно нет — договор нужно дополнить" in e["text"]
+       and any(c.startswith("В тексте договора не найдено условие: срок действия договора") for c in a["decision"]["checks"])
+       and "не найдено существенное условие" in a["contract_check"]["summary"]["text"], (e, a["decision"]["checks"]))
+    for lang, word in (("uz", "Shartnoma matnida shart topilmadi"), ("en", "The contract text does not contain the term")):
+        st, al = call("GET", f"/act/{a['id']}", params={"lang": lang})
+        ok(f"{lang}: формулировка без категоричности",
+           any(c.startswith(word) for c in al["decision"]["checks"]), al["decision"]["checks"])
+    for lg, v in (("ru", "нет в одном из документов"), ("uz", "hujjatlardan birida yoʻq"),
+                  ("en", "missing in one of the documents")):
+        ok(f"x_v_missing ({lg}): «{v}»", tx.t("x_v_missing", lg) == v)
+
+
+def check_cross_same():
+    print("39г. Сверка «запрос ↔ договор» в акте совпадает со сверкой при загрузке; объект — сопоставимое")
+    fresh()
+    model_on(True)
+    REPLY["text"] = CRANE_REPLY
+    st, b = upload([("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1)),
+                    ("shartnoma.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_UZC]))], {"lang": "ru"})
+    up = {i["code"]: (i["verdict"], i["text"]) for i in b["cross_check"]["items"]}
+    st, a = call("POST", "/act/make", {"session": b["session"], "lang": "ru",
+                                       "must": {"product_code": "0832", "sum_insured": BR_S1, "object_value": BR_S1,
+                                                "region": "Ташкентская область"},
+                                       "optional": {"request": br_request(b), "contract": ctb(b)["request"]}})
+    got = {i["code"]: (i["verdict"], i["text"]) for i in a["cross_check"]["items"]}
+    ok("все строки сверки акта = строки сверки загрузки (вывод и текст)", got == up,
+       {k: (up.get(k), got.get(k)) for k in set(up) | set(got) if up.get(k) != got.get(k)})
+    ok("стоимость сверяется (раньше в акте её не было в запросе), объект — по кадастру",
+       got["object_value"][0] == "differs" and got["object"][0] == "differs"
+       and a["cross_check"]["items"][-1]["compared"] == "cadastre", got)
+    # при живой загрузке объект — сохранённый, присланный вид объекта не подменяет его
+    st, a1 = call("POST", "/act/make", {"session": b["session"], "lang": "ru",
+                                        "must": {"product_code": "0832", "sum_insured": BR_S1, "object_value": BR_S1,
+                                                 "region": "Ташкентская область"},
+                                        "optional": {"request": dict(br_request(b), cadastre_no=None, class_hint="cargo"),
+                                                     "contract": ctb(b)["request"]}})
+    xo = [i for i in a1["cross_check"]["items"] if i["code"] == "object"][0]
+    ok("живая загрузка: объект из загрузки (кадастр сохранён), правка кадастра видна в правках",
+       xo["compared"] == "cadastre" and xo["request"]["cadastre_no"] == "10:00:00:00:00:00001"
+       and "cadastre_no" in [e["code"] for e in a1["request_check"]["edits"]["items"]], (xo, a1["request_check"]["edits"]))
+    # сравнить нечем: кадастр только в договоре, вида объекта в запросе нет
+    st, a2 = ct_make(None, {"premium": CT_PREMIUM, "sum_insured": CT_S, "cadastre_no": "10:00:00:00:00:00002",
+                            "tariff_pct": 0.1, "term_days": 1096},
+                     request={"tariff_pct": 0.1, "premium": CT_PREMIUM, "term_days": 1096})
+    x2 = [i for i in a2["cross_check"]["items"] if i["code"] == "object"][0]
+    lines = _s4_lines(a2, "Запрос филиала и договор: расхождения")
+    ok("объект: сравнить нечем — вердикт missing, строка «сравнить нечем: в запросе …, в договоре …»",
+       x2["verdict"] == "missing" and x2["text"] == "Объект — сравнить нечем: в запросе данные недоступны, "
+                                                     "в договоре 10:00:00:00:00:00002"
+       and x2["text"] in lines and not any("объект" in c.lower() for c in a2["decision"]["checks"]
+                                           if c.startswith("Запрос филиала и договор")), (x2, lines))
+    # вид с видом: кадастра нет в запросе, вид — в обоих
+    st, a3 = ct_make(None, {"premium": CT_PREMIUM, "sum_insured": CT_S, "cadastre_no": "10:00:00:00:00:00002",
+                            "object_description": "нежилое здание склада", "tariff_pct": 0.1, "term_days": 1096},
+                     request={"tariff_pct": 0.1, "term_days": 1096, "object_description": "технологическое оборудование"})
+    x3 = [i for i in a3["cross_check"]["items"] if i["code"] == "object"][0]
+    ok("объект: кадастр только в одном — сравнивается вид объекта с видом (здание ≠ оборудование)",
+       x3["compared"] == "kind" and x3["verdict"] == "differs"
+       and x3["text"] == "Объект — расходится: в запросе оборудование, в договоре здание, помещение", x3)
+
+
+def check_input_bounds():
+    print("39д. Проверка ввода: даты 2000–2100, срок — только целое, разумный предел сумм")
+    fresh()
+    for bad, key in (({"term_from": "1999-12-31", "term_to": "2000-12-30"}, "срок с 1999 года"),
+                     ({"term_from": "2100-06-01", "term_to": "2101-01-01"}, "срок по 2101 год"),
+                     ({"term_days": 365.5}, "term_days 365.5"), ({"term_days": "365,5"}, "term_days «365,5»"),
+                     ({"term_days": "365 дней"}, "term_days текстом"),
+                     ({"premium": 2e14}, "премия больше 10^14"),
+                     ({"premium": 5e9, "sum_insured": 1e9}, "премия больше страховой суммы")):
+        st, e = br_make(None, 1, bad)
+        ok(f"optional.request: {key} — 422", st == 422 and "request" in (e.get("errors") or {}), (st, e.get("errors")))
+    for bad, key in (({"premium": 5, "contract_date": "1990-01-01"}, "дата договора 1990"),
+                     ({"payments": [{"date": "2150-01-01", "amount": 5}]}, "платёж в 2150 году"),
+                     ({"premium": 5, "term_days": 365.5}, "срок договора 365.5"),
+                     ({"items": [{"name": "склад", "sum": 5e14}]}, "сумма части больше 10^14")):
+        st, e = ct_make(None, badc := bad)
+        ok(f"optional.contract: {key} — 422", st == 422 and "contract" in (e.get("errors") or {}), (st, badc, e.get("errors")))
+    st, e = br_make(None, 1, None, {"term_days": 365.5})
+    ok("optional.term_days 365.5 — 422", st == 422 and "term_days" in (e.get("errors") or {}), (st, e.get("errors")))
+    st, a = br_make(None, 1, {"term_days": 365.0, "premium": "1 000 000"})
+    ok("целое в записи 365.0 принимается", st == 200 and rq_items(a)["term"]["requested"] == 365, st)
+
+
+def check_ct_ai_mask_labels():
+    print("39е. Договор с р/с — счёт не уходит в модель; заметка «прочитано моделью» — подписями, без служебных полей")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = ct_ai_reply
+    lines = CT_AI_LINES + ["Реквизиты Страхователя: р/с 20208000900123456001, МФО 00873, х/р 2020 8000 9051 2345 6001, "
+                           "карта 8600 1234 5678 9012."]
+    st, b = upload([("dogovor_rs.docx", DOCX_MIME, docx_bytes(lines))], {"lang": "ru"})
+    sent = " ".join(m["content"] for m in CALLS[0]["messages"]) if CALLS else ""
+    ok("в модель ушёл текст без счёта, МФО и карты (метки [СЧЁТ], [МФО])",
+       CALLS and not any(x in sent for x in ("20208000900123456001", "2020 8000 9051", "00873", "8600 1234"))
+       and "[СЧЁТ]" in sent and "[МФО]" in sent and "1 000 000 000" in sent, sent[-300:])
+    notes = [n for n in ctb(b)["notes"] if "прочитана моделью" in n]
+    ok("заметка: поля подписями по-русски, служебных имён нет",
+       notes and "страховая премия" in notes[0] and "срок страхования" in notes[0]
+       and not re.search(r"[a-z]+_[a-z]+|class_hint|object_kind|term_text", notes[0]), notes)
+    st, b2 = upload([("dogovor_rs.docx", DOCX_MIME, docx_bytes(lines))], {"lang": "uz"})
+    n2 = [n for n in ctb(b2)["notes"] if "model" in n.lower()]
+    ok("uz: подписи на узбекском", n2 and "sugʻurta mukofoti" in n2[0] and not re.search(r"[А-Яа-я]|_", n2[0]), n2)
+    REPLY["text"] = CRANE_REPLY
+
+
+def check_parties_amounts():
+    print("39ж. Стороны-юрлица (банк слитно, маркеры, ЧП, «в лице …»), отрицательные суммы, множители, тийины")
+    from app import branch_request as brm, contract_read as crm
+    cases = (('"NAMUNA SAVDO" MCHJ', "legal"), ("Namunabank", "legal"), ("Намунабанк", "legal"),
+             ("Sinov banki", "legal"), ('"OMAD" AJ', "legal"), ("АТБ «Намуна»", "legal"), ('"SINOV" XK', "legal"),
+             ('"SINOV" QK', "legal"), ("DUK «Namuna»", "legal"), ('"Namuna" OK', "legal"),
+             ('"Bahor" fermer xoʻjaligi', "legal"), ("фермер хўжалиги «Баҳор»", "legal"), ("ООО «Намуна»", "legal"),
+             ("АО «Намуна»", "legal"), ("АКБ «Намуна»", "legal"), ("ЧП Каримов", "legal"),
+             ("ИП Каримов", "individual"), ("ЯТТ Каримов", "individual"), ("YaTT Karimov", "individual"),
+             ("Каримов Алишер Анварович", "individual"))
+    bad = [(n, brm.party(n)) for n, kind in cases if brm.party(n)["kind"] != kind]
+    ok("маркеры организаций и физлиц", not bad, bad)
+    ok("«ЧП Каримов» — частное предприятие: юрлицо, название как есть",
+       brm.party("ЧП Каримов") == {"kind": "legal", "name": "ЧП Каримов"})
+    ok("«ООО «Ромашка», в лице директора Иванова И.И.» → «ООО «Ромашка»»",
+       brm.party("ООО «Ромашка», в лице директора Иванова И.И.") == {"kind": "legal", "name": "ООО «Ромашка»"})
+    ok("отрицательное число не превращается в положительное",
+       brm.amount("-123 322 000,00 сўм") is None and brm.amount_ex("−5 000")[1] == "negative"
+       and brm.amount("5 000") == 5000.0, brm.amount("-123 322 000,00 сўм"))
+    ok("множители «млн/млрд/mln/mlrd» — как в договоре (общая функция)",
+       brm.amount("1,5 млрд сум") == 1.5e9 and brm.amount("250 mln soʻm") == 2.5e8 and brm.amount("2 mlrd") == 2e9
+       and crm.money("1,5 млрд сум")["value"] == 1.5e9 and brm.SCALE is crm._SCALE)
+    rows = [(n, l, "-123 322 000,00 сўм" if n == "10." else v) for n, l, v in BR_SAMPLE1]
+    st, b = upload([("neg.docx", DOCX_MIME, docx_table(rows))], {"lang": "ru"})
+    f = b["branch_request"]["fields"]
+    ok("бланк с отрицательной премией: премии нет, пометка для сотрудника",
+       f["premium"] is None and f["amount_errors"] == ["premium"]
+       and any("отрицательное число (страховая премия)" in n for n in b["branch_request"]["notes"]), b["branch_request"]["notes"])
+    req2 = {"tariff_pct": 0.05, "premium": "122 589 000,00", "term_from": "07.09.2026", "term_to": "2031-11-07"}
+    st, a = br_make(None, 2, req2)
+    ok("«как считали»: сумма с тийинами (47 397 852 345,04)",
+       any("47 397 852 345,04 сум" in nb(h) for h in a["request_check"]["how"]), a["request_check"]["how"])
+
+
+def check_pdf_time_limit():
+    print("39з. Запас времени для длинного договора: PDF с текстом — 8 с на файл, общий срок — 12 с")
+    from app import act_extras as axm
+    ok("настройки по умолчанию: doc_file_sec_pdf = 8, doc_parse_total_sec = 12, doc_parse_sec = 5",
+       ae.DEFAULT_SETTINGS["limits"]["doc_file_sec_pdf"] == 8 and ae.DEFAULT_SETTINGS["limits"]["doc_parse_total_sec"] == 12
+       and ae.DEFAULT_SETTINGS["limits"]["doc_parse_sec"] == 5 and axm.DOC_LIMITS["doc_file_sec_pdf"] == 8
+       and "doc_file_sec_pdf" in ae.LIMIT_BOUNDS)
+    seen = []
+    orig = axm.parse_document_limited
+
+    def spy(con, path, cls, dl, sec, inclusive=True):
+        seen.append((Path(path).suffix, round(sec, 1)))
+        return orig(con, path, cls, dl, sec, inclusive)
+    axm.parse_document_limited = spy
+    try:
+        fresh()
+        st, b = upload([("dog.pdf", "application/pdf", pdf_lines(CT_RU)),
+                        ("dog.docx", DOCX_MIME, docx_bytes([_x(x) for x in CT_RU]))], {"lang": "ru"})
+    finally:
+        axm.parse_document_limited = orig
+    ok("PDF — срок 8 с, DOCX — 5 с", st == 200 and seen and seen[0] == (".pdf", 8.0) and seen[1] == (".docx", 5.0), seen)
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -2842,6 +4449,25 @@ def main():
             check_market_links()
             shots_sid = check_market_shots()
             check_market_make(shots_sid)
+            br_sid, br_b = check_branch_text()
+            br_scan = check_branch_scan()
+            br_aid, _ = check_branch_make(br_sid, br_b, br_scan)
+            check_branch_langs_files(br_aid)
+            check_contract_text()
+            check_contract_long()
+            check_contract_scan()
+            check_contract_ai_assist()
+            ct_aid = check_contract_make()
+            x_aid = check_contract_cross()
+            check_contract_langs_files(ct_aid, x_aid)
+            check_trust_edits()
+            check_doc_kind_title()
+            check_essentials_wording()
+            check_cross_same()
+            check_input_bounds()
+            check_ct_ai_mask_labels()
+            check_parties_amounts()
+            check_pdf_time_limit()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -2851,6 +4477,14 @@ def main():
             from app import valuation_sources as vs
             vs.cbu_usd_rate = ORIG["cbu"]
         shutil.rmtree(folder, ignore_errors=True)
+    if BR_REPORT:
+        print("\nзапрос филиала, продукт 0832:")
+        for k, v in BR_REPORT.items():
+            print("  ", k, v)
+    if CT_REPORT:
+        print("\nдоговор страхования:")
+        for k, v in CT_REPORT.items():
+            print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")
         for k, v in SCEN_REPORT.items():

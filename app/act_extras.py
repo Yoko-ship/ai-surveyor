@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Optional
 from xml.etree import ElementTree as ET
 
+from . import branch_request
+from . import contract_read
 from . import db
 from . import engine
 from . import franchise as frm
@@ -54,8 +56,9 @@ EXTRA_DOC_KEYS = ("brand", "model", "year", "vin", "body_no", "chassis_no", "eng
                   "cadastre_no", "build_year", "walls")
 # пределы разбора документа для акта (значения по умолчанию; действующие — act_settings.limits)
 DOC_LIMITS = {"doc_max_cells": 5000, "doc_max_rows": 200, "doc_max_cols": 30, "doc_max_sheets": 3,
-              "doc_max_line_chars": 500, "doc_max_text_chars": 200_000, "doc_parse_sec": 5,
-              "doc_parse_total_sec": 10}
+              "doc_max_line_chars": 500, "doc_max_para_chars": 4000, "doc_max_text_chars": 200_000,
+              "doc_parse_sec": 5, "doc_file_sec_pdf": 8, "doc_parse_total_sec": 12}
+APPLICATION = "application"        # вид документа «заявление на страхование» (подпись — act_texts.DOC_KIND_LABELS)
 # документов, которые разбираются одновременно на весь сервер
 PARSE_SLOTS = 2
 _PARSE_SEM = threading.BoundedSemaphore(PARSE_SLOTS)
@@ -210,6 +213,7 @@ class _Budget:
         self.cells = int(lim["doc_max_cells"])
         self.chars = int(lim["doc_max_text_chars"])
         self.line = int(lim["doc_max_line_chars"])
+        self.para = max(self.line, int(lim.get("doc_max_para_chars") or self.line))
         self.rows = int(lim["doc_max_rows"])
         self.cols = int(lim["doc_max_cols"])
         self.sheets = int(lim["doc_max_sheets"])
@@ -219,6 +223,13 @@ class _Budget:
         if len(s) > self.line:
             self.truncated = True
             return s[:self.line]
+        return s
+
+    def cut_para(self, s: str) -> str:
+        """Абзац текста (не ячейка таблицы): предел больше — пункт договора бывает на полстраницы."""
+        if len(s) > self.para:
+            self.truncated = True
+            return s[:self.para]
         return s
 
     def take(self, n_cells: int, n_chars: int) -> bool:
@@ -289,7 +300,7 @@ def _read_docx_limited(path: Path, bud: _Budget) -> tuple:
                 in_body = stack == ["document", "body"]
                 in_cell = stack[-4:] == ["body", "tbl", "tr", "tc"] and len(stack) == 5
                 if name == "p" and (in_body or in_cell):
-                    txt = bud.cut(ingest._docx_para(el))
+                    txt = (bud.cut_para if in_body else bud.cut)(ingest._docx_para(el))
                     el.clear()
                     if not txt:
                         continue
@@ -562,7 +573,7 @@ def read_limited(path: Path, limits: Optional[dict] = None) -> dict:
 
 
 def parse_document_limited(con, path: Path, class_code: str = "", limits: Optional[dict] = None,
-                           seconds: Optional[float] = None) -> dict:
+                           seconds: Optional[float] = None, term_inclusive: bool = True) -> dict:
     """
     parse_document в пределах limits и со сроком seconds (проверка внутри циклов чтения и поиска подписей,
     поток освобождается сам). Не уложились — {"status": "timeout", notes: ["doc_timeout"]}.
@@ -572,7 +583,7 @@ def parse_document_limited(con, path: Path, class_code: str = "", limits: Option
     sec = float(lim["doc_parse_sec"]) if seconds is None else seconds
     try:
         with D.deadline_scope(sec):
-            return parse_document(con, path, class_code, limits=lim)
+            return parse_document(con, path, class_code, limits=lim, term_inclusive=term_inclusive)
     except D.ParseTimeout:
         return {"text_layer": False, "status": "timeout", "format": None, "kind": None, "items": [],
                 "prefill": {}, "notes": ["doc_timeout"]}
@@ -592,7 +603,8 @@ def _num_text(x: float) -> str:
     return f"{v:,.0f}".replace(",", " ") if v == int(v) else f"{v:,.2f}".replace(",", " ")
 
 
-def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict] = None) -> dict:
+def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict] = None,
+                   term_inclusive: bool = True) -> dict:
     """
     Разбор файла с текстовым слоем существующими парсерами, без языковой модели.
     Возвращает {"text_layer": bool, "status", "kind", "items": [{key, value}], "prefill": {...},
@@ -601,6 +613,10 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
     вызывающий дополнительно отбрасывает всё, похожее на ПД (act.pd_like).
     limits — пределы акта (doc_max_*): документ читается read_limited, лишнее отбрасывается с пометкой
     doc_partial; без limits — прежнее ingest.read_file.
+    Запрос филиала (таблица из 16 строк, app/branch_request.py) узнаётся раньше общего разбора: kind =
+    branch_request, в ответе ещё блок branch_request; term_inclusive — дни срока с обоими крайними днями.
+    Договор страхования (app/contract_read.py) узнаётся после общего разбора: kind = contract, в ответе блок
+    contract (все условия договора); его сумма, стоимость и срок по датам сильнее общего разбора.
     """
     from . import analysis_docs as ad
     from . import docparse as D
@@ -618,9 +634,26 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
     text, tables = read["text"][:ingest.MAX_TEXT_CHARS], read["tables"]
     out["text_layer"] = True
     D.tick()
+    # заголовок сильнее строк: «ДОГОВОР СТРАХОВАНИЯ», «ПОЛИС» — договор, даже если строки как в бланке запроса;
+    # «ЗАЯВЛЕНИЕ НА СТРАХОВАНИЕ», «АРИЗА» — заявление (данные подставляются, сверки договора нет)
+    title = contract_read.title_kind(text, tables)
+    brq = None if title else branch_request.parse_text(text, tables, term_inclusive)
+    if brq:
+        f = brq["fields"]
+        out.update(kind=branch_request.KIND, items=branch_request.items(f),
+                   prefill=branch_request.prefill(f, branch_request.region_in(f)),
+                   branch_request={"rows": brq["rows"], "rows_found": brq["rows_found"], "fields": f})
+        if f.get("term_error"):
+            out["notes"].append("br_term_unread")
+        if not out["items"]:
+            out["notes"].append("doc_no_values")
+        return out
     lang = ingest.detect_language(text)
     kind = ingest.detect_kind(text, tables, None)["kind"]
     out["kind"] = kind
+    D.tick()
+    ctr = contract_read.parse_text(text, tables, term_inclusive, pdf=read.get("format") == "pdf",
+                                   force=title == "application")
     D.tick()
     fields = ingest._mask_fields(ingest.extract_fields(text, tables, kind, lang.get("language"),
                                                        use_llm=False, with_reg_no=True))
@@ -666,7 +699,7 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
             prefill[key] = val
     tm = (fd.get("term_months") or {}).get("value")
     if isinstance(tm, int) and 1 <= tm <= 60:
-        days = 365 if tm == 12 else int(round(tm * 365 / 12))
+        days = contract_read.months_days(tm)
         add("term_days", str(days))
         prefill["term_days"] = days
     if must.get("region"):
@@ -690,6 +723,28 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
     y = by.get("year") or by.get("build_year") or (fd.get("year") or {}).get("value")
     if y:
         add("year", y)
+    if ctr:
+        # договор: его значения (сумма «общая», срок по датам) точнее общего разбора — заменяют их
+        f = ctr["fields"]
+        out["kind"] = APPLICATION if title == "application" else contract_read.KIND
+        own = {it["key"]: it["value"] for it in contract_read.items(f)}
+        for key in ("sum_insured", "object_value", "term_days"):
+            if key in own:
+                items = [it for it in items if it["key"] != key]
+        for key, value in own.items():
+            add(key, value)
+        for key, value in contract_read.prefill(f).items():
+            if key in ("sum_insured", "object_value", "term_days") or key not in prefill:
+                prefill[key] = value
+        if title == "application":
+            # заявление: те же поля в распознанное и подсказку, но это не договор — ни сверки, ни ст. 929
+            out["notes"].append("doc_application")
+        else:
+            out["contract"] = dict(ctr, truncated="doc_partial" in out["notes"])
+            if contract_read.need_assist(f):
+                out["_text"] = text       # только в памяти: для дочитывания моделью (app/act.py), в базу не идёт
+        if f.get("currency") not in (None, "UZS") and "doc_currency" not in out["notes"]:
+            out["notes"].append("doc_currency")
     out["items"] = items
     out["prefill"] = prefill
     if not items:

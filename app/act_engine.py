@@ -58,10 +58,18 @@ DEFAULT_SETTINGS = {
         # объявление без видимой даты публикации в расчёт не берётся (правило valuation_sources.py)
         "allow_undated": False,
     },
+    # сверка с запросом филиала (30.09.2026): дни срока — с обоими крайними днями; допуск по премии —
+    # округление филиала (запрос 123 322 000 при расчёте 123 321 918)
+    "request_check": {"term_inclusive": True, "premium_tolerance": 1000},
+    # чтение договора страхования (30.09.2026, app/contract_read.py): если разбор текста нашёл меньше половины
+    # ключевых полей (сумма, премия, срок, объект) и модель подключена — текст договора (после маскировки ПД,
+    # не больше ai_max_chars знаков) уходит в модель, она дополняет только пустые поля
+    "contract": {"ai_assist": True, "ai_max_chars": 30000},
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
-        "pdf_max_pages": 10,            # PDF с большим числом страниц не принимается
+        "pdf_max_pages": 10,            # PDF с большим числом страниц не принимается (сканы — в модель)
+        "pdf_text_max_pages": 60,       # PDF с текстовым слоем (договор) — до стольких страниц, разбор без модели
         "guest_photos_per_hour": 60,    # фото в час на одного гостя (по числу файлов)
         "ai_calls_per_hour": 120,       # распознаваний в час на весь сервер
         "ai_timeout_sec": 20,           # ожидание ответа модели на один запрос, одна попытка
@@ -76,21 +84,24 @@ DEFAULT_SETTINGS = {
         "doc_max_rows": 200,            # строк с листа (таблицы)
         "doc_max_cols": 30,             # колонок с листа
         "doc_max_sheets": 3,            # листов книги XLSX
-        "doc_max_line_chars": 500,      # знаков в ячейке, абзаце и строке таблицы
+        "doc_max_line_chars": 500,      # знаков в ячейке и строке таблицы
+        "doc_max_para_chars": 4000,     # знаков в абзаце текста документа (пункт договора бывает длинным)
         "doc_max_text_chars": 200000,   # знаков текста на файл
-        "doc_parse_sec": 5,             # срок разбора одного файла
-        "doc_parse_total_sec": 10,      # срок разбора всех документов одного запроса
+        "doc_parse_sec": 5,             # срок разбора одного файла (DOCX, XLSX)
+        "doc_file_sec_pdf": 8,          # срок разбора одного PDF с текстом (длинный договор: склейка строк)
+        "doc_parse_total_sec": 12,      # срок разбора всех документов одного запроса
     },
 }
 
-LIMIT_BOUNDS = {"max_image_mp": (1, 200), "pdf_max_pages": (1, 100), "guest_photos_per_hour": (1, 10000),
+LIMIT_BOUNDS = {"max_image_mp": (1, 200), "pdf_max_pages": (1, 100), "pdf_text_max_pages": (1, 300),
+                "guest_photos_per_hour": (1, 10000),
                 "ai_calls_per_hour": (1, 100000), "ai_timeout_sec": (5, 120), "ai_deadline_sec": (5, 180),
                 "ai_max_mb": (1, 15), "send_per_hour": (1, 1000),
                 "doc_max_unzip_mb": (1, 500), "doc_max_parts": (10, 100000),
                 "doc_max_cells": (100, 100000), "doc_max_rows": (10, 5000), "doc_max_cols": (2, 200),
-                "doc_max_sheets": (1, 50), "doc_max_line_chars": (50, 10000),
+                "doc_max_sheets": (1, 50), "doc_max_line_chars": (50, 10000), "doc_max_para_chars": (50, 50000),
                 "doc_max_text_chars": (1000, 1000000), "doc_parse_sec": (0.1, 60),
-                "doc_parse_total_sec": (0.1, 120)}
+                "doc_file_sec_pdf": (0.1, 60), "doc_parse_total_sec": (0.1, 120)}
 # пределы настроек оценки по объявлениям: (от, до, целое)
 MARKET_BOUNDS = {"min_listings": (1, 20, True), "diff_pct": (1, 100, False), "max_age_months": (1, 24, True),
                  "outlier_low": (0.05, 0.95, False), "outlier_high": (1.05, 20, False)}
@@ -98,12 +109,17 @@ MARKET_FLAGS = ("allow_undated",)       # флаги оценки по объя�
 
 VIEWS = ("front", "back", "left", "right", "plate", "odometer", "document", "interior", "facade", "roof",
          "electrical", "fire_safety", "general", "installation", "packaging", "marking", "transport", "other")
-SOURCES = ("document", "plate", "marking", "input", "photo")          # порядок = приоритет показа
+# document_ai — значение из текста договора, прочитанное моделью (app/act.py, contract.ai_assist)
+SOURCES = ("document", "document_ai", "plate", "marking", "input", "photo")    # порядок = приоритет показа
 FIELD_KEYS = ("object_type", "brand", "model", "manufacture_date", "year", "serial_no", "manufacturer",
               "engine_no", "engine_model", "engine_power", "curb_mass", "payload", "dimensions", "color",
               "mileage", "location",
               # из разобранных документов (договор, заявление, техпаспорт, кадастр) — 29.09.2026
-              "sum_insured", "object_value", "term_days", "region", "construction", "reg_no", "cadastre_no")
+              "sum_insured", "object_value", "term_days", "region", "construction", "reg_no", "cadastre_no",
+              # запрос филиала (app/branch_request.py) — 30.09.2026
+              "product_code", "policyholder", "beneficiary", "pledger", "land_area", "useful_area", "total_area",
+              "franchise", "tariff_pct", "premium", "term_from", "term_to", "contract_terms", "contracts_count",
+              "additional_info")
 # числовые поля документа: сверяются как числа, а не как текст
 NUMBER_KEYS = ("sum_insured", "object_value", "term_days")
 # в разделе 1 показываются, только если значение есть
@@ -772,6 +788,30 @@ def check_settings(s: dict) -> list:
     extra = [k for k in mk if k not in MARKET_BOUNDS and k not in MARKET_FLAGS]
     if extra:
         errs.append("market: неизвестные ключи " + ", ".join(extra))
+    rq = m["request_check"] if isinstance(m["request_check"], dict) else {}
+    if not isinstance(m["request_check"], dict):
+        errs.append("request_check: словарь настроек сверки с запросом филиала")
+    if not isinstance(rq.get("term_inclusive"), bool):
+        errs.append("request_check.term_inclusive: true или false")
+    tol = rq.get("premium_tolerance")
+    if isinstance(tol, bool) or not isinstance(tol, (int, float)) or not (0 <= tol <= 1_000_000):
+        errs.append("request_check.premium_tolerance: число сумов от 0 до 1 000 000")
+    extra = [k for k in rq if k not in ("term_inclusive", "premium_tolerance")]
+    if extra:
+        errs.append("request_check: неизвестные ключи " + ", ".join(extra))
+    ct = m["contract"] if isinstance(m["contract"], dict) else {}
+    if not isinstance(m["contract"], dict):
+        errs.append("contract: словарь настроек чтения договора")
+    if not isinstance(ct.get("ai_assist"), bool):
+        errs.append("contract.ai_assist: true или false")
+    mx = ct.get("ai_max_chars")
+    if isinstance(mx, bool) or not isinstance(mx, int) or not (2000 <= mx <= 100000):
+        errs.append("contract.ai_max_chars: целое от 2 000 до 100 000")
+    extra = [k for k in ct if k not in ("ai_assist", "ai_max_chars")]
+    if extra:
+        errs.append("contract: неизвестные ключи " + ", ".join(extra))
+    if not errs and lim.get("pdf_text_max_pages", 0) < lim.get("pdf_max_pages", 0):
+        errs.append("limits: pdf_text_max_pages не меньше pdf_max_pages")
     return errs
 
 
@@ -1065,3 +1105,239 @@ def market_estimate(listings: list, *, declared: Optional[float] = None, sum_ins
     else:
         out["verdict"] = "confirmed"
     return out
+
+
+# ================================================================================================
+#  8. Сверка с запросом филиала (30.09.2026)
+# ================================================================================================
+
+RQ_ITEMS = ("tariff_min", "tariff_act", "premium_request", "premium_act", "sum_value", "franchise", "term")
+# у договора ещё: график платежей против премии, суммы по объектам против общей, существенные условия
+CT_ITEMS = RQ_ITEMS + ("payments", "items_sum", "essentials")
+RQ_REFERENCE = ("premium_act", "sum_value")     # справочно: в решение не идут (сумма к стоимости — раздел 3)
+RQ_ORDER = {"no_essential": 4, "below_min": 3, "differs": 2, "missing": 1, "ok": 0}
+ESSENTIAL_REF = "ГК РУз, ст. 929"
+
+
+def _rq_item(code, requested=None, calculated=None, verdict="missing", text_code=None, prefix="rq", **params) -> dict:
+    diff = diff_pct = None
+    if isinstance(requested, (int, float)) and isinstance(calculated, (int, float)):
+        diff = round(float(requested) - float(calculated), 6)
+        diff_pct = round(diff / float(calculated) * 100, 2) if calculated else None
+    if text_code and text_code.startswith("rq_") and prefix != "rq":
+        text_code = prefix + text_code[2:]            # «rq_…» → «ct_…»: тот же текст про другой документ
+    return {"code": code, "requested": requested, "calculated": calculated, "diff": diff, "diff_pct": diff_pct,
+            "verdict": verdict, "reference": code in RQ_REFERENCE,
+            "text_code": text_code or f"{prefix}_{code}_{verdict}", "params": params}
+
+
+def _rq_summary(items: list, prefix: str) -> dict:
+    main = [i for i in items if not i["reference"]]
+    if all(i["verdict"] == "missing" for i in main):
+        worst = "missing"
+    else:
+        # чего-то в документе нет, но найденное сходится — итог «сходится», пропуски видны в строках
+        worst = max((i["verdict"] for i in main if i["verdict"] != "missing"), key=lambda v: RQ_ORDER[v])
+    out = {"verdict": worst, "code": f"{prefix}_summary_{worst}",
+           "differs": sum(1 for i in main if i["verdict"] == "differs"),
+           "below_min": sum(1 for i in main if i["verdict"] == "below_min"),
+           "missing": sum(1 for i in main if i["verdict"] == "missing")}
+    if prefix != "rq":
+        out["no_essential"] = sum(1 for i in main if i["verdict"] == "no_essential")
+    return out
+
+
+def request_check(req: Optional[dict], *, rate_res: dict, rate_final: Optional[float],
+                  premium_final: Optional[float], sum_insured: float, object_value: float, value: dict, fr: dict,
+                  term_from_request: bool = False, settings: Optional[dict] = None, prefix: str = "rq") -> dict:
+    """
+    Сверка запроса филиала с расчётом акта (коды и числа; слова — app/act_texts.py).
+    req: {"tariff_pct", "premium", "franchise": {"applied", "text", "pct", "amount"}, "term_from", "term_to",
+          "term_days", "sum_insured", "source"} — после проверки ввода (app/act.py validate).
+    Ставка — годовая: премия = сумма × тариф / 100 × дни / 365, дни — весь срок договора (включительно,
+    настройка request_check.term_inclusive применяется при разборе дат). Допуск по премии —
+    request_check.premium_tolerance сумов (округление филиала).
+    prefix — префикс кодов текстов: rq — запрос филиала, ct — договор (contract_check, те же проверки).
+    """
+    def _rq_item_p(*a, **k):
+        return _rq_item(*a, prefix=prefix, **k)
+
+    st = merge_settings(settings)["request_check"]
+    tol = float(st["premium_tolerance"])
+    out = {"available": False, "items": [], "summary": None, "how": [], "source": None, "tolerance": tol,
+           "term_inclusive": bool(st["term_inclusive"]), "calibrated": CALIBRATED}
+    if not req:
+        return out
+    out["available"] = True
+    out["source"] = req.get("source")
+    items = []
+    tr = req.get("tariff_pct")
+    pr = req.get("premium")
+    days_req = req.get("term_days")
+    days_act = rate_res.get("term_days")
+    minp = rate_res.get("min_pct")
+    statutory = rate_res.get("mode") in ("statutory", "statutory_undefined")
+
+    # 1. тариф запроса против минимальной ставки продукта (тарифная политика; у обязательных — ставка НПА)
+    if tr is None:
+        items.append(_rq_item_p("tariff_min", None, minp, "missing", "rq_tariff_none"))
+    elif minp is None:
+        items.append(_rq_item_p("tariff_min", tr, None, "missing", "rq_tariff_min_na", req=tr))
+    else:
+        v = "below_min" if tr + 1e-9 < float(minp) else "ok"
+        items.append(_rq_item_p("tariff_min", tr, minp, v, None, req=tr, min=minp, statutory=statutory))
+    # 2. тариф запроса против ставки акта (рекомендуемая ставка с поправкой по уровню риска)
+    if tr is None:
+        items.append(_rq_item_p("tariff_act", None, rate_final, "missing", "rq_tariff_none"))
+    elif rate_final is None:
+        items.append(_rq_item_p("tariff_act", tr, None, "missing", "rq_tariff_act_na", req=tr))
+    else:
+        v = "ok" if tr + 1e-9 >= float(rate_final) else "differs"
+        items.append(_rq_item_p("tariff_act", tr, rate_final, v, None, req=tr, calc=rate_final,
+                              diff=round(abs(tr - float(rate_final)), 4)))
+    # 3. премия запроса против расчёта по тарифу ЗАПРОСА на весь срок
+    S_req = req.get("sum_insured") or sum_insured
+    if pr is None:
+        items.append(_rq_item_p("premium_request", None, None, "missing", "rq_premium_none"))
+    elif tr is None or not days_req:
+        items.append(_rq_item_p("premium_request", pr, None, "missing", "rq_premium_request_na", req=pr))
+    else:
+        # до тийинов: расхождение видно точно (123 322 000 − 123 321 917,81 = 82,19)
+        calc = round(premium_of(tr, S_req, days_req), 2)
+        v = "ok" if abs(pr - calc) <= tol + 1e-9 else "differs"
+        items.append(_rq_item_p("premium_request", pr, calc, v, None, req=pr, calc=calc, diff=round(pr - calc, 2),
+                              tol=tol, rate=tr, sum=S_req, days=days_req))
+        out["how"].append({"code": f"{prefix}_how_premium", "params": {"sum": S_req, "rate": tr, "days": days_req,
+                                                               "premium": calc}})
+    # 4. справочно: премия запроса против премии акта (по ставке акта, с учётом применённой франшизы)
+    if pr is not None and premium_final is not None:
+        v = "ok" if abs(pr - premium_final) <= tol + 1e-9 else "differs"
+        items.append(_rq_item_p("premium_act", pr, premium_final, v, None, req=pr, calc=premium_final,
+                              diff=round(pr - premium_final), rate=rate_final))
+    else:
+        items.append(_rq_item_p("premium_act", pr, premium_final, "missing", "rq_premium_act_na"))
+    # 5. справочно: сумма к стоимости — вывод раздела 3 (value_check), здесь не дублируется
+    items.append(_rq_item_p("sum_value", sum_insured, object_value,
+                          "ok" if value.get("verdict") == "normal" else "differs", "rq_sum_value",
+                          ratio=value.get("ratio_pct")))
+    # 6. франшиза: запрос против вывода акта
+    rf = req.get("franchise")
+    status = fr.get("status") or ("proposed" if fr.get("needed") else "none")
+    act_pct = fr.get("size_pct") if status in ("applied", "proposed") else None
+    if not rf:
+        items.append(_rq_item_p("franchise", None, act_pct, "missing", "rq_franchise_none"))
+    elif not rf.get("applied"):
+        if status in ("none", "statutory"):
+            items.append(_rq_item_p("franchise", 0, 0, "ok", "rq_franchise_ok_none"))
+        else:
+            items.append(_rq_item_p("franchise", 0, act_pct, "differs",
+                                  "rq_franchise_act_applied" if status == "applied" else "rq_franchise_act_proposed",
+                                  pct=act_pct))
+    else:
+        req_pct = rf.get("pct")
+        if req_pct is None and rf.get("amount") and sum_insured:
+            req_pct = round(float(rf["amount"]) / sum_insured * 100, 4)
+        if status in ("none", "statutory"):
+            items.append(_rq_item_p("franchise", req_pct, 0, "differs", "rq_franchise_req_only",
+                                  text=rf.get("text"), pct=req_pct))
+        elif req_pct is not None and act_pct is not None and abs(req_pct - float(act_pct)) <= 1e-6:
+            items.append(_rq_item_p("franchise", req_pct, act_pct, "ok", "rq_franchise_ok_same", pct=req_pct))
+        else:
+            items.append(_rq_item_p("franchise", req_pct, act_pct, "differs", "rq_franchise_size",
+                                  text=rf.get("text"), pct=req_pct, act=act_pct))
+    # 7. срок: весь срок договора в днях (многолетний — тоже), ставка годовая
+    if not days_req:
+        items.append(_rq_item_p("term", None, days_act, "missing", "rq_term_none"))
+    else:
+        v = "ok" if int(days_req) == int(days_act or 0) else "differs"
+        code = "rq_term_from_request" if term_from_request and v == "ok" else None
+        items.append(_rq_item_p("term", days_req, days_act, v, code, req=days_req, calc=days_act,
+                              date_from=req.get("term_from"), date_to=req.get("term_to")))
+        if req.get("term_from") and req.get("term_to"):
+            out["how"].append({"code": f"{prefix}_how_days" if st["term_inclusive"] else f"{prefix}_how_days_excl",
+                               "params": {"date_from": req["term_from"], "date_to": req["term_to"],
+                                          "days": days_req}})
+    out["how"].append({"code": f"{prefix}_how_tol", "params": {"tol": tol}})
+    out["how"].append({"code": f"{prefix}_how_annual", "params": {}})
+    out["items"] = items
+    out["summary"] = _rq_summary(items, prefix)
+    return out
+
+
+def request_checks(rc: dict, prefix: str = "rq") -> list:
+    """Расхождения сверки для decision.checks (справочные строки не идут)."""
+    out = []
+    for i in (rc or {}).get("items") or []:
+        if i["reference"] or i["verdict"] not in ("differs", "below_min", "no_essential"):
+            continue
+        params = {"req": i["requested"], "calc": i["calculated"], "diff": i["diff"], "verdict": i["verdict"]}
+        if i["code"] == "essentials":
+            params = {"missing": list((i.get("params") or {}).get("missing") or [])}
+        out.append({"code": f"c_{prefix}_" + i["code"], "params": params})
+    return out
+
+
+def contract_check(ct: Optional[dict], *, rate_res: dict, rate_final: Optional[float],
+                   premium_final: Optional[float], sum_insured: float, object_value: float, value: dict, fr: dict,
+                   term_from_contract: bool = False, settings: Optional[dict] = None) -> dict:
+    """
+    Сверка договора страхования с расчётом акта: те же проверки, что у запроса филиала (request_check,
+    тексты ct_*), и ещё три: сумма графика платежей против премии договора (допуск premium_tolerance),
+    сумма по объектам против общей страховой суммы (до сума) и полнота договора — существенные условия
+    ГК РУз, ст. 929 (объект, страховой случай, страховая сумма, премия, срок). ct — проверенный
+    optional.contract: поля optional.request и covered_risks, payments, items, object_description, contract_no …
+    """
+    out = request_check(ct, rate_res=rate_res, rate_final=rate_final, premium_final=premium_final,
+                        sum_insured=sum_insured, object_value=object_value, value=value, fr=fr,
+                        term_from_request=term_from_contract, settings=settings, prefix="ct")
+    if not out["available"]:
+        return out
+    tol = out["tolerance"]
+    items = out["items"]
+    pr = ct.get("premium")
+    pays = ct.get("payments") or []
+    # график платежей против премии договора
+    if pays:
+        total = round(sum(float(p["amount"]) for p in pays), 2)
+        if pr is None:
+            items.append(_rq_item("payments", None, total, "missing", "ct_payments_na", prefix="ct",
+                                  n=len(pays), calc=total))
+        else:
+            v = "ok" if abs(total - float(pr)) <= tol + 1e-9 else "differs"
+            items.append(_rq_item("payments", pr, total, v, None, prefix="ct", n=len(pays), req=pr, calc=total,
+                                  diff=round(float(pr) - total, 2)))
+    else:
+        code = "ct_payments_single" if ct.get("payment_mode") == "single" else "ct_payments_none"
+        items.append(_rq_item("payments", pr, None, "missing", code, prefix="ct"))
+    # суммы по объектам против общей страховой суммы договора
+    parts = ct.get("items") or []
+    if parts:
+        total = round(sum(float(x["sum"]) for x in parts), 2)
+        S = ct.get("sum_insured")
+        if S is None:
+            items.append(_rq_item("items_sum", None, total, "missing", "ct_items_sum_na", prefix="ct",
+                                  n=len(parts), calc=total))
+        else:
+            v = "ok" if abs(total - float(S)) <= 1.0 else "differs"
+            items.append(_rq_item("items_sum", S, total, v, None, prefix="ct", n=len(parts), req=S, calc=total,
+                                  diff=round(float(S) - total, 2)))
+    # существенные условия (ГК РУз, ст. 929)
+    ess = contract_essentials(ct)
+    missing = [e["code"] for e in ess if not e["present"]]
+    items.append(_rq_item("essentials", None, None, "no_essential" if missing else "ok", None, prefix="ct",
+                          missing=missing, present=[e["code"] for e in ess if e["present"]]))
+    out["essentials"] = ess
+    out["legal_ref"] = ESSENTIAL_REF
+    out["how"].insert(0, {"code": "ct_how_essentials", "params": {}})
+    out["summary"] = _rq_summary(items, "ct")
+    return out
+
+
+def contract_essentials(ct: dict) -> list:
+    """Есть ли в договоре существенные условия (ГК РУз, ст. 929): объект, страховой случай, сумма, премия, срок."""
+    have = {"object": bool(ct.get("object_description") or ct.get("items") or ct.get("cadastre_no")),
+            "insured_event": bool(ct.get("covered_risks")),
+            "sum_insured": ct.get("sum_insured") is not None,
+            "premium": ct.get("premium") is not None,
+            "term": bool(ct.get("term_days"))}
+    return [{"code": c, "present": have[c]} for c in ("object", "insured_event", "sum_insured", "premium", "term")]

@@ -23,6 +23,15 @@ sandbox/mk30/shots.json в формате ответа модели. Курса 
 «OLX, объявления на дату, снимки загружены сотрудником». → объявления с отметками и итогом → акт с плиткой
 «Оценка по объявлениям» на 390 и 1440 px и на узбекском. Складывает PNG в sandbox/, печатает горизонтальную
 прокрутку, служебные слова на экране (undefined, null, calibrated…) и ошибки консоли страницы.
+Запрос филиала и договор (30.09.2026):
+  • договор — sandbox/flow150_contract.docx, настоящий POST /act/photos (разбирается без модели) → карточка
+    «Договор страхования» на шаге 2 → настоящий POST /act/make → плитка «Сверка с договором»;
+  • запрос филиала — скан sandbox/br30/25.png, ответ /act/photos подменён сохранённым ответом живого сервера
+    sandbox/br30/photos_25.json → карточка «Запрос филиала» (код 0832 выбирает продукт, срок 1888 дн.) → настоящий
+    POST /act/make с optional.request → плитка «Сверка с запросом филиала» (тариф ниже минимума, расхождение
+    премии +3 870 сум) на 390 и 1440 px и на узбекском; правка премии → source = input;
+  • запрос + договор со скана — тот же запрос и договор sandbox/ct30/photos_b2_uzc_scan.json, cross_check собран
+    app/contract_read.cross_check → карточки договора со скана и «Запрос и договор: расхождения» → акт с плиткой.
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
@@ -56,7 +65,11 @@ CONTRACT = ROOT / "sandbox" / "flow150_contract.docx"            # учебны�
 # сам POST /act/market/shots во время съёмки — настоящий
 SHOTS_SAMPLE = ROOT / "sandbox" / "mk30" / "shots.json"
 LISTINGS_SHOT = ROOT / "sandbox" / "mk30" / "listings.png"        # снимок экрана со списком объявлений (без продавцов)
-USD_RATE = "12650"                                                # курс, который «вводит сотрудник»: сети к cbu.uz нет
+USD_RATE = "12650"
+BR_SAMPLE = ROOT / "sandbox" / "br30" / "photos_25.json"          # ответ живого сервера на скан запроса филиала
+BR_SCAN = ROOT / "sandbox" / "br30" / "25.png"
+CT_SAMPLE = ROOT / "sandbox" / "ct30" / "photos_b2_uzc_scan.json"  # ответ живого сервера на скан договора (2 стр.)
+CT_SCAN = ROOT / "sandbox" / "ct30" / "b2_uzc_p1.png"                                                # курс, который «вводит сотрудник»: сети к cbu.uz нет
 
 # что не должно попадать на экран: пустые значения и служебные слова сервера
 LEAKS = r"""(() => {
@@ -302,6 +315,32 @@ def photos_answer():
     return json.dumps(d, ensure_ascii=False).encode("utf-8")
 
 
+def br_answer(with_contract=False):
+    """Ответ /act/photos на скан запроса филиала (+ договор со скана и их сверка — как собрал бы сервер)."""
+    d = json.loads(BR_SAMPLE.read_text(encoding="utf-8"))
+    d["files"] = [dict(d["files"][0], name=BR_SCAN.name, index=1)]
+    if with_contract:
+        from app import contract_read as cr
+        c = json.loads(CT_SAMPLE.read_text(encoding="utf-8"))
+        d["files"].append(dict(c["files"][0], id="f2", index=2, name=CT_SCAN.name))
+        d["contract"] = dict(c["contract"], file="f2")
+        req = dict(d["branch_request"]["fields"], class_hint="equipment")
+        xc = cr.cross_check(req, c["contract"]["fields"])
+        d["cross_check"] = {"available": True, "items": xc["items"], "differs": xc["differs"], "missing": xc["missing"]}
+    return json.dumps(d, ensure_ascii=False).encode("utf-8")
+
+
+def fulfill(ws, paused, body):
+    ws.call("Fetch.fulfillRequest", requestId=paused["requestId"], responseCode=200,
+            responseHeaders=[{"name": "Content-Type", "value": "application/json; charset=utf-8"}],
+            body=base64.b64encode(body).decode())
+
+
+WAIT_REFS = """(async () => { for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250)); })()"""
+LANG_UZ = "document.querySelector('[data-lang-pick=\"uz\"]').click()"
+LANG_RU = "document.querySelector('[data-lang-pick=\"ru\"]').click()"
+
+
 FILL_STEP2 = """(async () => {
   for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250));
   wzPickProduct("0318");
@@ -350,15 +389,90 @@ def main():
             print("  договор: шаг", js(ws, "CH.wz"), "| prefill:", js(ws, "JSON.stringify({s: CH.must.sum_insured, v: CH.must.object_value, "
                   "r: CH.must.region, t: CH.opt.term_days, pre: Object.keys(CH.pre)})"),
                   "| документы:", js(ws, "JSON.stringify(CH.docs)"), "| ошибка:", js(ws, "CH.err") or "нет")
+            print("  карточка договора:", js(ws, "JSON.stringify(CH.ct && {src: CH.ct.source, found: CH.ct.found_n, missing: CH.ct.missing,"
+                                              " ess: CH.ct.essentials.filter(e => !e.present).map(e => e.code)})"))
             js(ws, "window.scrollTo(0, 0)", 0.3)
             bad.append(shot(ws, "chat_step2_doc_390.png", 390, cap=5000))
+            bad.append(shot_el(ws, "chat_step2_ct_390.png", 390, "#ctCard"))
             js(ws, "wzGo(1)", 1)
             bad.append(shot(ws, "chat_step1_doc_390.png", 390, cap=2600))
+            # договор → акт: настоящий POST /act/make с optional.contract, плитка «Сверка с договором»
+            js(ws, "wzGo(2)", 1)
+            js(ws, WAIT_REFS)
+            js(ws, 'wzPickProduct("0808"); wzPaint(true)', 1)
+            print("  в /act/make уйдёт договор:", js(ws, "JSON.stringify(actBody().optional.contract)"))
+            js(ws, 'document.querySelector("#chatMain").click()', 6)
+            print("  акт по договору: шаг", js(ws, "CH.wz"), "| сверка:",
+                  js(ws, "CH.act && CH.act.contract_check && CH.act.contract_check.summary && CH.act.contract_check.summary.verdict"),
+                  "| ошибка:", js(ws, "CH.err") or "нет")
+            bad.append(shot_el(ws, "chat_step3_ct_390.png", 390, ".act-sum"))
             js(ws, "actReset()", 1)
 
             # дальше /act/photos отвечает образцом: у временного сервера нет сети к модели
             # /act/market/shots не перехватывается: загрузка снимков объявлений — настоящая
             ws.call("Fetch.enable", patterns=[{"urlPattern": "*/act/photos*", "requestStage": "Request"}])
+
+            # ---- запрос филиала: скан 25.png, ответ модели — сохранённый ответ живого сервера (br30/photos_25.json)
+            set_files(ws, "#chatFile", [BR_SCAN])
+            time.sleep(1)
+            js(ws, 'document.querySelector("#chatMain").click()', 0.2)
+            paused = wait_event(ws, "Fetch.requestPaused")
+            if paused:
+                fulfill(ws, paused, br_answer())
+            time.sleep(2)
+            js(ws, WAIT_REFS)
+            js(ws, "wzPaint(true)", 0.5)
+            print("  запрос филиала: шаг", js(ws, "CH.wz"), "| продукт:", js(ws, "CH.must.product_code + ' / класс ' + CH.must.class_code"),
+                  "| срок:", js(ws, "CH.opt.term_days"), "| строк:", js(ws, "CH.br && CH.br.rows_found + '/' + CH.br.rows_total"))
+            js(ws, 'CH.must.region = "tashkent_city"; wzSave(); wzPaint(true); window.scrollTo(0, 0)', 0.5)
+            bad.append(shot_el(ws, "chat_step2_br_390.png", 390, "#brCard"))
+            bad.append(shot(ws, "chat_step2_br_full_390.png", 390, cap=7000))
+            js(ws, "wzGo(1)", 1)
+            bad.append(shot_el(ws, "chat_step1_br_390.png", 390, "#wzFiles"))
+            js(ws, "wzGo(2)", 1)
+            # правка премии сотрудником: запрос уходит как «введено сотрудником», затем «Вернуть как в документе»
+            js(ws, """(() => { const el = document.querySelector('#dqbr-premium'); el.value = '122 500 000';
+                       el.dispatchEvent(new Event('input', {bubbles: true})); })()""", 0.3)
+            print("  после правки премии:", js(ws, "JSON.stringify({p: actBody().optional.request.premium,"
+                                                   " tag: document.querySelector('#dqbr-src').innerText})"))
+            js(ws, 'document.querySelector("[data-dqreset=br]").click()', 0.5)
+            print("  в /act/make уйдёт запрос:", js(ws, "JSON.stringify(actBody().optional.request)"))
+            js(ws, 'document.querySelector("#chatMain").click()', 7)
+            print("  акт по запросу: шаг", js(ws, "CH.wz"), "| сверка:",
+                  js(ws, "CH.act && CH.act.request_check && JSON.stringify(CH.act.request_check.items.map(i => i.code + ':' + i.verdict))"),
+                  "| ошибка:", js(ws, "CH.err") or "нет")
+            js(ws, "window.scrollTo(0, 0)", 0.3)
+            bad.append(shot_el(ws, "chat_step3_rq_390.png", 390, ".act-sum"))
+            bad.append(shot_el(ws, "chat_step3_rq_1440.png", 1440, ".act-sum", scale=1))
+            js(ws, LANG_UZ, 4)
+            print("  узбекский: язык акта", js(ws, "CH.act && CH.act.lang"))
+            bad.append(shot_el(ws, "chat_step3_rq_uz_390.png", 390, ".act-sum"))
+            js(ws, "wzGo(2)", 1.5)
+            bad.append(shot_el(ws, "chat_step2_br_uz_390.png", 390, "#brCard"))
+            js(ws, LANG_RU, 3)
+            js(ws, "actReset()", 1)
+
+            # ---- запрос филиала + договор со скана: карточка договора со скана и сверка двух документов
+            set_files(ws, "#chatFile", [BR_SCAN, CT_SCAN])
+            time.sleep(1)
+            js(ws, 'document.querySelector("#chatMain").click()', 0.2)
+            paused = wait_event(ws, "Fetch.requestPaused")
+            if paused:
+                fulfill(ws, paused, br_answer(with_contract=True))
+            time.sleep(2)
+            js(ws, WAIT_REFS)
+            js(ws, 'CH.must.region = "tashkent_city"; wzSave(); wzPaint(true); window.scrollTo(0, 0)', 0.5)
+            print("  запрос + договор: сверка", js(ws, "CH.xc && JSON.stringify(CH.xc.items.map(i => i.code + ':' + i.verdict))"))
+            js(ws, "wzGo(1)", 1)
+            bad.append(shot_el(ws, "chat_step1_brct_390.png", 390, "#wzFiles"))
+            js(ws, "wzGo(2)", 1)
+            bad.append(shot_el(ws, "chat_step2_ct_scan_390.png", 390, "#ctCard"))
+            bad.append(shot_el(ws, "chat_step2_xc_390.png", 390, "#xcCard"))
+            js(ws, 'document.querySelector("#chatMain").click()', 7)
+            print("  акт по запросу и договору: шаг", js(ws, "CH.wz"), "| cross:",
+                  js(ws, "CH.act && CH.act.cross_check && CH.act.cross_check.differs"), "| ошибка:", js(ws, "CH.err") or "нет")
+            bad.append(shot_el(ws, "chat_step3_xc_390.png", 390, ".act-sum"))
+            js(ws, "actReset()", 1)
 
             # три снимка в списке: превью, «Убрать», кнопка «Дальше»
             set_files(ws, "#chatFile", FILES)

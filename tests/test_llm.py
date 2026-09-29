@@ -61,6 +61,29 @@ def test_useful_text_survives():
     assert "250 000 000" in out and "0,35%" in out and "класс 8" in out, out
 
 
+def test_bank_account_and_mfo():
+    """Банковский счёт (20 цифр подряд или группами, после «р/с», «х/р», «h/r», «IBAN»), МФО и карта."""
+    for src in ("р/с 20208000900123456001, МФО 00873", "х/р: 2020 8000 9051 2345 6001, MFO: 00873",
+                "h/r 20208000900123456001", "Расчётный счёт 20208-00090-01234-56001",
+                "счёт в банке 20208000900123456001", "IBAN UZ12NAMU00000000001234 в банке"):
+        out = llm.mask_pd(src)
+        assert "[СЧЁТ]" in out and not any(x in out for x in ("20208", "2020 8000", "00873", "UZ12")), (src, out)
+    card = llm.mask_pd("карта 8600123456789012 и 8600 1234 5678 9012")
+    assert "8600" not in card and card.count("[НОМЕР КАРТЫ]") == 2, card
+
+
+def test_bank_rules_keep_useful_numbers():
+    """Суммы с пробелами, кадастр (с двоеточиями), VIN и даты счётом не считаются."""
+    for src in ("Страховая сумма 81 250 000 000,00 сум", "стоимость 47 397 852 345,04 сум",
+                "премия 123 322 000,00 (бир юз йигирма уч миллион) сўм", "срок 2026 йил 29 сентябрдан"):
+        assert llm.mask_pd(src) == src, (src, llm.mask_pd(src))
+    assert "[КАДАСТР]" in llm.mask_pd("кадастр 10:00:00:00:00:00001")
+    assert "[СЧЁТ]" not in llm.mask_pd("кадастр 10:00:00:00:00:00001")
+    vin = llm.mask_pd("VIN XTA21703080123456")
+    assert "XTA21703080123456" in vin, vin
+    assert llm.mask_pd("тел +998 90 123-45-67") == "тел [ТЕЛЕФОН]"
+
+
 def test_mask_is_applied_to_dict():
     out = llm.mask_pd({"фио": "Иванов Пётр", "пинфл": "31234567890123"})
     assert "Иванов" not in out and "31234567890123" not in out, out

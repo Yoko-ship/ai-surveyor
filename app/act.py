@@ -31,6 +31,18 @@
                                 запросом → объявления, курс, предварительная медиана (app/act_market.py);
                                 в /act/make — optional.market, блок market_value и текст в разделе 3
 
+Запрос филиала (30.09.2026, app/branch_request.py): бланк из 16 строк узнаётся и в файле с текстом (разбор
+без модели), и на скане (модель, блок branch_request) — в ответе /act/photos блок branch_request и prefill;
+в /act/make — optional.request (тариф, премия, франшиза, срок) и блок request_check: сверка с минимальной
+ставкой продукта, ставкой и премией акта, франшизой и сроком; подраздел в разделе 4 и в Word/PDF.
+
+Договор страхования (30.09.2026, app/contract_read.py) — тем же образцом: файл с текстом разбирается
+правилами (если найдено меньше половины ключевых полей — текст после маскировки ПД дочитывает модель,
+настройка contract.ai_assist), скан читает модель (блок contract). В /act/photos — блок contract и,
+если есть и запрос филиала, cross_check; в /act/make — optional.contract и блок contract_check (та же
+сверка, что с запросом, плюс график платежей, суммы по объектам и существенные условия ГК РУз, ст. 929),
+в разделе 1 — номер и дата договора, в разделе 4 — «Сверка с договором» и «Запрос филиала и договор».
+
 Хранение: фото — 24 часа (DATA_DIR/act/<сессия>/, таблица act_uploads), акт — 7 дней (таблица acts);
 очистка — фоновым потоком раз в час и при каждой загрузке. Открыть акт может только тот, кто его создал
 (гость — по cookie gid, пользователь — по id), администратор — любой.
@@ -58,6 +70,8 @@ from fastapi.routing import APIRoute
 
 from . import act_engine as ae
 from . import act_extras as ax
+from . import branch_request as br
+from . import contract_read as cr
 from . import act_market as am
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
@@ -409,22 +423,35 @@ def check_content(blob: bytes, fmt: str, limits: dict, lang: str) -> Optional[st
             return t("ph_too_many_px", lang, w=size[0], h=size[1], mp=int(mp) if mp == int(mp) else mp)
         return None
     if fmt == "pdf":
+        text_max = int(limits.get("pdf_text_max_pages") or limits["pdf_max_pages"])
         try:
             doc = pymupdf.open(stream=blob, filetype="pdf")
             try:
                 if doc.needs_pass:
                     return t("ph_pdf_bad", lang)
                 pages = doc.page_count
+                # длинный PDF принимается, только если у него есть текстовый слой (договор): разбор без модели
+                has_text = pages > int(limits["pdf_max_pages"]) and pages <= text_max and _pdf_has_text(doc)
             finally:
                 doc.close()
         except Exception:
             return t("ph_pdf_bad", lang)
         if pages < 1:
             return t("ph_pdf_bad", lang)
-        if pages > int(limits["pdf_max_pages"]):
-            return t("ph_pdf_pages", lang, n=int(limits["pdf_max_pages"]))
+        if pages > int(limits["pdf_max_pages"]) and not has_text:
+            return t("ph_pdf_pages", lang, n=int(limits["pdf_max_pages"]) if pages <= text_max else text_max)
         return None
     return t("ph_format", lang)
+
+
+def _pdf_has_text(doc, pages: int = 3) -> bool:
+    """Есть ли текстовый слой на первых страницах (сканы в модель берутся не длиннее limits.pdf_max_pages)."""
+    got = 0
+    for k in range(min(pages, doc.page_count)):
+        got += len(re.sub(r"\s+", "", doc[k].get_text("text") or ""))
+        if got >= 20:
+            return True
+    return False
 
 
 def _for_model(blob: bytes, fmt: str, side: int = AI_MAX_SIDE, quality: int = 85) -> tuple:
@@ -458,7 +485,49 @@ SYSTEM_PROMPT = (
     "а также номера посторонних машин и государственные номера. "
     "если одно и то же поле видно в нескольких источниках (табличка, документ, надпись на кузове или стреле, "
     "само фото) — верни каждое значение отдельной записью со своим source. "
-    "значения с таблички и из документа переписывай в точности, со всеми знаками и единицами.")
+    "значения с таблички и из документа переписывай в точности, со всеми знаками и единицами. "
+    "названия организаций (с формой собственности: мчж, аж, атб, ооо, ао, банк, филиал) в запросе филиала "
+    "и в договоре страхования переписывай как есть; если сторона договора — гражданин (фамилия и имя без "
+    "формы собственности), её имя не пиши, только признак is_legal = false.")
+
+
+
+# договор страхования: те же поля, что у разбора текста (app/contract_read.fields); госномер модель не читает
+CONTRACT_SCHEMA = (
+    '{"file": 1, "contract_no": "номер договора или null", "contract_date": "ГГГГ-ММ-ДД или null", '
+    '"place": "место заключения или null", "product_name": "вид страхования или название продукта", '
+    '"product_code": "код вида страхования или null", '
+    '"insurer": {"is_legal": true, "name": "название организации или null"}, '
+    '"policyholder": {"is_legal": true, "name": "…"}, "beneficiary": {"is_legal": true, "name": "…"}, '
+    '"pledger": {"is_legal": true, "name": "…"}, "object": "описание объекта страхования как в документе", '
+    '"class_hint": "building|equipment|vehicle|special_machinery|cargo|other или null", '
+    '"address": "адрес объекта или null", "cadastre_no": "…", "brand": "…", "model": "…", "year": "…", '
+    '"vin": "…", "serial_no": "…", "land_area": "…", "useful_area": "…", "total_area": "…", '
+    '"construction": "…", "purpose": "назначение или деятельность", "year_built": "…", '
+    '"object_value": "сумма цифрами как в документе", "sum_insured": "…", "currency": "UZS|USD|EUR|RUB или null", '
+    '"items": [{"name": "часть объекта", "sum": "страховая сумма части"}], '
+    '"tariff": "тариф как в документе, например 0,1 %", "premium": "…", "payment_mode": "single|installments|null", '
+    '"payments": [{"date": "ГГГГ-ММ-ДД", "amount": "сумма"}], "term": "срок как в документе", '
+    '"term_from": "ГГГГ-ММ-ДД", "term_to": "ГГГГ-ММ-ДД", "liability_from": "ГГГГ-ММ-ДД или null", '
+    '"franchise": "франшиза как в документе или null", "franchise_type": "unconditional|conditional|null", '
+    '"franchise_risk": "риск, к которому относится франшиза, или null", '
+    '"covered_risks": ["короткие названия застрахованных рисков"], '
+    '"exclusions": ["короткие названия исключений, не больше 20"], "territory": "территория страхования или null", '
+    '"special_terms": ["особые условия и оговорки коротко"], '
+    '"notice": "срок уведомления о страховом случае или null"}')
+CONTRACT_HINT = (
+    "договор страхования или полис (договор страхования, суғурта шартномаси, sugʻurta shartnomasi, полис, "
+    "insurance contract, insurance policy; разделы «предмет договора», «страховая сумма», «страховая премия»): "
+    "для такого снимка document_kind = contract и заполни contract — значения как в документе, суммы цифрами, "
+    "даты в виде ГГГГ-ММ-ДД; чего в документе нет — null, не выдумывай; стороны — только организации, "
+    "гражданин — is_legal = false без имени; имена, подписи и паспортные данные людей не пиши; "
+    "если договора нет — contract = null.")
+CONTRACT_TEXT_SYSTEM = (
+    "ты — андеррайтер страховой компании. тебе дан текст договора страхования; персональные данные в нём "
+    "заменены метками в квадратных скобках. извлеки условия договора. отвечай только объектом json строго по "
+    "схеме, без пояснений и без markdown. не выдумывай: чего нет в тексте — null. стороны договора — только "
+    "организации с формой собственности; гражданин — is_legal = false без имени. имена, подписи, паспортные "
+    "данные, телефоны и адреса людей не возвращай, метки в квадратных скобках не переписывай.")
 
 SCHEMA_HINT = (
     '{"files": [{"n": 1, "view": "front|back|left|right|plate|odometer|document|interior|facade|roof|'
@@ -472,7 +541,15 @@ SCHEMA_HINT = (
     '"condition": "new|good|worn|damaged или null", '
     '"fields": [{"key": "ключ", "value": "значение", "source": "photo|plate|document|marking", '
     '"file": 1, "note": "строка или null"}], '
-    '"damages": [{"what": "что повреждено", "where": "где", "file": 1}]}')
+    '"damages": [{"what": "что повреждено", "where": "где", "file": 1}], '
+    '"branch_request": null или {"file": 1, ' + ", ".join(
+        f'"{c}": "строка как в документе или null"' for c in br.ROW_CODES if c not in br.PARTY_CODES) +
+    ', "policyholder": {"is_legal": true, "name": "название организации или null"}, '
+    '"beneficiary": {"is_legal": true, "name": "…"}, "pledger": {"is_legal": true, "name": "…"}, '
+    '"term_from": "ГГГГ-ММ-ДД или null", "term_to": "ГГГГ-ММ-ДД или null", '
+    '"object_description_translated": "описание объекта в переводе или null", '
+    '"class_hint": "building|equipment|vehicle|special_machinery|cargo|other или null"}, '
+    '"contract": null или ' + CONTRACT_SCHEMA + '}')
 
 FIELD_HINTS = (
     "ключи fields: object_type (что за объект, словами), brand (марка), model (модель), "
@@ -485,7 +562,15 @@ FIELD_HINTS = (
     "view: front — спереди, back — сзади, left/right — борта, plate — заводская табличка, "
     "odometer — счётчик пробега или моточасов, document — снимок документа (техпаспорт, паспорт самоходной "
     "машины, лист технических параметров, кадастровый документ). source: plate — заводская табличка, "
-    "document — документ, marking — надпись или маркировка на кузове, стреле, двери, photo — сам вид объекта.")
+    "document — документ, marking — надпись или маркировка на кузове, стреле, двери, photo — сам вид объекта. "
+    "запрос филиала — таблица из шестнадцати строк (суғурта тури, суғурта қилдирувчи, наф олувчи, гаровга "
+    "қўювчи, суғурта объекти, суғурта қиймати, суғурта суммаси, франшиза, суғурта тарифи, суғурта мукофоти, "
+    "суғурта муддати, стандарт шартлар, контрагент, шартнома миқдори, класс, қўшимча маълумот; бывает на "
+    "латинице и по-русски): для такого снимка document_kind = branch_request и заполни branch_request — "
+    "каждую строку перепиши как в документе, без перевода и без пересчёта, суммы вместе с суммой прописью, "
+    "срок целиком (с какого и по какое число); product_code — код вида страхования; object — вся строка "
+    "объекта (описание, площади, кадастровый номер); пустая строка бланка — null. term_from и term_to — те же "
+    "даты срока в виде ГГГГ-ММ-ДД. object_description_translated — описание объекта в переводе.")
 
 LANG_NAME = {"ru": "русском", "uz": "узбекском (латиница)", "en": "английском"}
 
@@ -496,6 +581,8 @@ def model_prompt(n: int, lang: str) -> str:
             f"описания (object_type, location, damages, note, document_kind) пиши на {LANG_NAME[lang]} языке "
             f"строчными буквами; марки, модели, номера и единицы — как написано на объекте. "
             f"видимые повреждения перечисли в damages; если повреждений не видно — пустой список. "
+            f"перевод описания объекта из запроса филиала (object_description_translated) — на {LANG_NAME[lang]} "
+            f"языке; если запроса филиала нет — branch_request = null. {CONTRACT_HINT} "
             f"схема ответа: {SCHEMA_HINT}")
 
 
@@ -530,6 +617,18 @@ def _company_only(value: str) -> bool:
     return True
 
 
+# поля запроса филиала: числа, даты и коды — не персональные данные; длинные строки бланка
+NUMERIC_KEYS = ae.NUMBER_KEYS + ("premium", "tariff_pct", "contracts_count", "land_area", "useful_area", "total_area",
+                                 "product_code", "term_from", "term_to")
+LONG_KEYS = ("object_type", "additional_info", "contract_terms", "policyholder", "beneficiary", "pledger",
+             "franchise")
+PD_KEEP["object_type"] = "[КАДАСТР]"      # описание объекта из запроса филиала содержит кадастровый номер
+
+
+def value_limit(key: str) -> int:
+    return br.MAX_TEXT if key in LONG_KEYS else 120
+
+
 def pd_like(key: str, value: str) -> bool:
     """
     Похоже ли значение на персональные данные (llm.has_pd). Два известных ложных срабатывания снимаются:
@@ -539,6 +638,15 @@ def pd_like(key: str, value: str) -> bool:
     value = str(value or "")
     if key in ae.NUMBER_KEYS and re.fullmatch(r"[\d\s.,]+", value):
         return False                     # сумма или срок из документа — число, а не телефон или ИНН
+    if key in NUMERIC_KEYS and re.fullmatch(r"[\d\s.,:\-м²m2]+", value):
+        return False
+    if key in br.PARTY_CODES:
+        # сторона договора: только название юрлица (маркер МЧЖ/АЖ/банк …); гражданин — всегда ПД
+        if not br.is_legal(value):
+            return True
+        found = _placeholders(llm.mask_pd(value)) - _placeholders(value)
+        found.discard("[ФИО]")           # «Namunabank Sinov» — не ФИО, если есть маркер юрлица
+        return bool(found)
     if not llm.has_pd(value):
         return False
     found = _placeholders(llm.mask_pd(value)) - _placeholders(value)
@@ -561,8 +669,10 @@ def _s(v, limit: int) -> Optional[str]:
     return s[:limit] or None
 
 
-def parse_model(text: str, n: int) -> Optional[dict]:
-    """Ответ модели → проверенная структура. Не JSON или не та схема — None (честный отказ, не догадка)."""
+def parse_model(text: str, n: int, inclusive: bool = True) -> Optional[dict]:
+    """Ответ модели → проверенная структура. Не JSON или не та схема — None (честный отказ, не догадка).
+    Блок branch_request (запрос филиала) разбирается сервером (app/branch_request.from_model); inclusive —
+    считать ли в сроке оба крайних дня (настройка request_check.term_inclusive)."""
     if not text:
         return None
     m = re.search(r"\{.*\}", text, re.S)
@@ -591,6 +701,10 @@ def parse_model(text: str, n: int) -> Optional[dict]:
         v = str(f.get("view") or "other").strip().lower()
         views[i] = v if v in ae.VIEWS else "other"
         dk = _s(f.get("document_kind"), 60)
+        if dk and dk.lower() in ("branch_request", "branch request"):
+            dk = "branch_request"
+        elif dk and dk.lower() in ("contract", "insurance contract", "insurance policy", "договор страхования"):
+            dk = cr.KIND
         if dk and not pd_like("document_kind", dk):
             kinds[i] = dk
     dropped = 0
@@ -599,7 +713,7 @@ def parse_model(text: str, n: int) -> Optional[dict]:
         if not isinstance(f, dict):
             continue
         key = str(f.get("key") or "").strip()
-        val = _s(f.get("value"), 120)
+        val = _s(f.get("value"), value_limit(key))
         if key not in ae.FIELD_KEYS or not val:
             continue
         if key == "reg_no" or pd_like(key, val):
@@ -642,7 +756,24 @@ def parse_model(text: str, n: int) -> Optional[dict]:
     kind = str(data.get("object_kind") or "").strip().lower()
     hint = str(data.get("class_hint") or "").strip().lower()
     cond = str(data.get("condition") or "").strip().lower()
-    return {"views": views, "document_kinds": kinds, "fields": fields, "damages": damages,
+    brq = br.from_model(data.get("branch_request"), inclusive)
+    if brq:
+        try:
+            bf = int((data.get("branch_request") or {}).get("file"))
+            bf = bf if 1 <= bf <= n else None
+        except (TypeError, ValueError, AttributeError):
+            bf = None
+        brq["file"] = bf or next((i for i, k in sorted(kinds.items()) if k == "branch_request"), None)
+    ctr = cr.from_model(data.get("contract"), inclusive)
+    if ctr:
+        try:
+            cf = int((data.get("contract") or {}).get("file"))
+            cf = cf if 1 <= cf <= n else None
+        except (TypeError, ValueError, AttributeError):
+            cf = None
+        ctr["file"] = cf or next((i for i, k in sorted(kinds.items()) if k == cr.KIND), None)
+    return {"views": views, "document_kinds": kinds, "fields": fields, "damages": damages, "branch_request": brq,
+            "contract": ctr,
             "object_kind": kind if kind in tx.OBJECT_KINDS else None,
             "class_hint": hint if hint in CLASS_HINTS else None,
             "condition": cond if cond in CONDITIONS else None, "dropped": dropped}
@@ -684,7 +815,7 @@ def pick_for_model(saved: list, budget: int) -> tuple:
     return payload, sent, [i for i in range(len(saved)) if i not in chosen]
 
 
-def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
+def recognize(saved: list, lang: str, limits: Optional[dict] = None, inclusive: bool = True) -> dict:
     """
     Одно обращение к модели со всеми снимками. saved — [{"blob", "fmt"}] в порядке загрузки.
     Одна попытка, таймаут запроса limits.ai_timeout_sec, общий срок limits.ai_deadline_sec: не уложились —
@@ -692,7 +823,7 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None) -> dict:
     Возвращает {"ok", "reason", "sent": [индексы saved], "not_sent": [...], ...поля parse_model}.
     """
     return ask_model(saved, lang, limits, "акт: распознавание фото", SYSTEM_PROMPT,
-                     lambda n: model_prompt(n, lang), parse_model)
+                     lambda n: model_prompt(n, lang), lambda text, n: parse_model(text, n, inclusive))
 
 
 def ask_model(saved: list, lang: str, limits: Optional[dict], purpose: str, system: str, prompt_of, parse) -> dict:
@@ -711,15 +842,22 @@ def ask_model(saved: list, lang: str, limits: Optional[dict], purpose: str, syst
     if not payload:
         return {"ok": False, "reason": t("ph_too_big", lang, mb=lim["ai_max_mb"]), "sent": [],
                 "not_sent": not_sent}
+    return _model_call(purpose, [{"role": "system", "content": system},
+                                 {"role": "user", "content": prompt_of(len(payload))}], payload, lim, t0, lang,
+                       lambda text: parse(text, len(payload)), sent, not_sent)
+
+
+def _model_call(purpose: str, messages: list, files: Optional[list], lim: dict, t0: float, lang: str, parse,
+                sent=(), not_sent=(), deadline: Optional[float] = None) -> dict:
+    """Одно обращение к модели в отдельном потоке: общий лимит AI_CALLS, таймаут запроса ai_timeout_sec,
+    общий срок deadline (по умолчанию ai_deadline_sec от t0), ответ — через parse(text) (None — отказ)."""
+    sent, not_sent = list(sent), list(not_sent)
     if not AI_CALLS.take("server", 1, int(lim["ai_calls_per_hour"]))["ok"]:
         return {"ok": False, "reason": t("ai_busy", lang, n=int(lim["ai_calls_per_hour"])), "sent": [],
                 "not_sent": []}
-    deadline = float(lim["ai_deadline_sec"])
-    fut = _AI_POOL.submit(llm.chat_raw, purpose,
-                          [{"role": "system", "content": system},
-                           {"role": "user", "content": prompt_of(len(payload))}],
-                          max_tokens=4096, temperature=0.1, files=payload,
-                          timeout=float(lim["ai_timeout_sec"]), retries=0)
+    deadline = float(lim["ai_deadline_sec"]) if deadline is None else deadline
+    fut = _AI_POOL.submit(llm.chat_raw, purpose, messages, max_tokens=4096, temperature=0.1, files=files,
+                          timeout=min(float(lim["ai_timeout_sec"]), max(1.0, deadline)), retries=0)
     try:
         res = fut.result(timeout=max(0.5, deadline - (time.monotonic() - t0)))
     except FutureTimeout:
@@ -732,10 +870,51 @@ def ask_model(saved: list, lang: str, limits: Optional[dict], purpose: str, syst
     if not res.get("text"):
         return {"ok": False, "reason": res.get("reason") or t("ph_bad_json", lang), "sent": sent,
                 "not_sent": not_sent}
-    parsed = parse(res["text"], len(payload))
+    parsed = parse(res["text"])
     if parsed is None:
         return {"ok": False, "reason": t("ph_bad_json", lang), "sent": sent, "not_sent": not_sent}
     return {"ok": True, "reason": None, "sent": sent, "not_sent": not_sent, **parsed}
+
+
+# кусок текста договора в одном сообщении: llm.chat_raw обрезает сообщение до MAX_PROMPT_CHARS
+CT_CHUNK = 11000
+
+
+def contract_text_model(text: str, lang: str, limits: Optional[dict], max_chars: int, inclusive: bool,
+                        deadline: Optional[float] = None) -> dict:
+    """
+    Текст договора (не файл) — в модель, когда разбор правилами нашёл меньше половины ключевых полей.
+    Текст сокращается до max_chars (начало и строки у подписей суммы, премии, срока, объекта) и
+    маскируется llm.mask_pd ДО отправки; ответ — по схеме CONTRACT_SCHEMA, поля — contract_read.fields.
+    Срок и лимит обращений — общие с распознаванием фото (limits.ai_*, AI_CALLS).
+    """
+    lim = {**ae.DEFAULT_SETTINGS["limits"], **(limits or {})}
+    t0 = time.monotonic()
+    if not llm.enabled():
+        return {"ok": False, "reason": t("ai_not_connected", lang)}
+    part, cut = cr.excerpt(text, max_chars)
+    masked = llm.mask_pd(part)
+    chunks = [masked[k:k + CT_CHUNK] for k in range(0, len(masked), CT_CHUNK)] or [""]
+    messages = [{"role": "system", "content": CONTRACT_TEXT_SYSTEM},
+                {"role": "user", "content": 'схема ответа: {"contract": ' + CONTRACT_SCHEMA + "}"}]
+    messages += [{"role": "user", "content": f"текст договора, часть {k + 1} из {len(chunks)}:\n{c}"}
+                 for k, c in enumerate(chunks)]
+
+    def parse(reply):
+        m = re.search(r"\{.*\}", reply or "", re.S)
+        if not m:
+            return None
+        try:
+            data = json.loads(m.group(0))
+        except ValueError:
+            return None
+        raw = data.get("contract") if isinstance(data, dict) and isinstance(data.get("contract"), dict) else data
+        got = cr.from_model(raw, inclusive, min_found=0)
+        return {"contract": got} if got else None
+
+    res = _model_call("акт: договор по тексту", messages, None, lim, t0, lang, parse, deadline=deadline)
+    res["excerpt_cut"] = cut
+    return res
 
 
 # --------------------------------------------------------------------------- #
@@ -830,7 +1009,10 @@ def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str 
         return _fail(request, t("ph_too_many", lang, n=MAX_FILES), 413)
     with db.tx() as con:
         ensure_tables(con)
-        limits = load_settings(con)["limits"]
+        st = load_settings(con)
+    limits = st["limits"]
+    inclusive = bool(st["request_check"]["term_inclusive"])
+    limits = dict(limits, _contract=st["contract"], _tolerance=float(st["request_check"]["premium_tolerance"]))
     if owner.startswith("g:"):
         n_max = int(limits["guest_photos_per_hour"])
         res = GUEST_PHOTOS.take(owner, len(files), n_max)
@@ -842,7 +1024,7 @@ def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str 
     sid = secrets.token_hex(12)
     folder = DIR / sid
     try:
-        return _photos(request, user, owner, lang, files, class_code, product_code, limits, sid, folder)
+        return _photos(request, user, owner, lang, files, class_code, product_code, limits, sid, folder, inclusive)
     except Exception:
         # запись в базу или распознавание упали — папка с фото не должна остаться сиротой
         shutil.rmtree(folder, ignore_errors=True)
@@ -852,7 +1034,7 @@ def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str 
 router.add_api_route("/act/photos", act_photos, methods=["POST"], route_class_override=_BodyLimitRoute)
 
 
-def _photos(request, user, owner, lang, files, class_code, product_code, limits, sid, folder):
+def _photos(request, user, owner, lang, files, class_code, product_code, limits, sid, folder, inclusive=True):
     saved, rejected = [], []
     for i, up in enumerate(files, start=1):
         orig = Path(up.filename or "").name
@@ -879,9 +1061,13 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         fid = f"f{len(saved) + 1}"
         path = folder / f"{fid}.{fmt}"
         path.write_bytes(blob)
+        pages = None
+        if fmt == "pdf":
+            with pymupdf.open(stream=blob, filetype="pdf") as pdoc:
+                pages = pdoc.page_count
         saved.append({"id": fid, "index": i, "name": name, "orig_name": orig, "fmt": fmt, "mime": FMT_MIME[fmt],
                       "size": len(blob), "path": db.stored_path(path), "blob": blob, "full": path,
-                      "macros": bool(info.get("macros"))})
+                      "macros": bool(info.get("macros")), "pages": pages})
     if not saved:
         shutil.rmtree(folder, ignore_errors=True)
         return _fail(request, t("ph_none", lang), 422, rejected=rejected, ai=False,
@@ -891,8 +1077,9 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         ensure_tables(con)
         cls = _class_of(con, class_code, product_code)
     # документы с текстовым слоем (DOCX, XLSX, PDF с текстом) — парсерами, без модели; сканы — модели.
-    # Пределы текста и сроки (limits.doc_*): файл — doc_parse_sec, все документы запроса —
-    # doc_parse_total_sec; одновременно на сервере разбирается не больше ax.PARSE_SLOTS документов.
+    # Пределы текста и сроки (limits.doc_*): файл — doc_parse_sec (PDF с текстом — doc_file_sec_pdf: длинный
+    # договор), все документы запроса — doc_parse_total_sec; одновременно на сервере разбирается не больше
+    # ax.PARSE_SLOTS документов.
     parsed, parse_errors = {}, []
     dl = ax.doc_limits(limits)
     t_docs = time.monotonic()
@@ -911,8 +1098,9 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
             try:
                 left = float(dl["doc_parse_total_sec"]) - (time.monotonic() - t_docs)
                 with db.tx() as con:
+                    per_file = float(dl["doc_file_sec_pdf"] if f["fmt"] == "pdf" else dl["doc_parse_sec"])
                     res = ax.parse_document_limited(con, f["full"], cls or "", dl,
-                                                    min(float(dl["doc_parse_sec"]), max(left, 0.0)))
+                                                    min(per_file, max(left, 0.0)), inclusive)
             except Exception as e:       # ошибка разбора не роняет загрузку, но и не глотается
                 parse_errors.append({"format": f["fmt"], "error": type(e).__name__})
                 res = {"text_layer": False, "kind": None, "items": [], "prefill": {}, "notes": ["doc_unreadable"]}
@@ -922,13 +1110,15 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
             parse_errors.append({"format": f["fmt"], "error": res["status"]})
         if f["fmt"] == "pdf" and not res["text_layer"] and not set(res["notes"]) & {
                 "doc_unreadable", "doc_timeout", "doc_busy"}:
-            continue                     # скан без текста — его читает модель
+            if (f.get("pages") or 0) <= int(limits["pdf_max_pages"]):
+                continue                 # скан без текста — его читает модель
+            res["notes"].append("doc_scan_pages")   # текст есть не на первых страницах: длинный скан модели не отдаём
         if f["macros"]:
             res["notes"].append("doc_macros")
         parsed[f["id"]] = res
     model_files = [f for f in saved if f["id"] not in parsed]
     if model_files:
-        rec = recognize(model_files, lang, limits)
+        rec = recognize(model_files, lang, limits, inclusive)
     else:
         rec = {"ok": False, "reason": None, "sent": [], "not_sent": []}
     sent = rec.get("sent") or []
@@ -942,6 +1132,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     damages = [{"what": d["what"], "where": d.get("where"), "file": model_to_id.get(d.get("file"))}
                for d in rec.get("damages") or []]
     not_sent = [model_files[i]["index"] for i in rec.get("not_sent") or []]
+    doc_kinds = {k: (tx.label(tx.DOC_KIND_LABELS, v, lang) if v in (br.KIND, cr.KIND) else v)
+                 for k, v in doc_kinds.items()}
 
     # значения из разобранных документов: источник «документ», пометка «проверьте», ПД отбрасываются
     doc_fields, prefill, doc_notes, dropped_doc, doc_list = [], {}, [], 0, []
@@ -972,6 +1164,94 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                          "kind_label": tx.label(tx.DOC_KIND_LABELS, res["kind"], lang) if res.get("kind") else None,
                          "text_layer": bool(res.get("text_layer")), "values": len(doc_fields) - n_before,
                          "notes": [t(c, lang) for c in res.get("notes") or []]})
+    # запрос филиала: из файла с текстом (разобран выше) или со скана (ответ модели); первый найденный
+    brq, dropped_br = None, 0
+    for f in saved:
+        got = (parsed.get(f["id"]) or {}).get("branch_request")
+        if got:
+            brq = dict(got, source="document", file=f["id"])
+            break
+    if not brq and rec.get("branch_request"):
+        mb = rec["branch_request"]
+        fid = model_to_id.get(mb.get("file")) or (model_to_id.get(1) if len(model_to_id) == 1 else None)
+        brq = dict(mb, source="photo", file=fid)
+        # строки бланка со скана — в распознанное (источник «документ»), с той же проверкой на ПД
+        for it in br.items(mb["fields"]):
+            if pd_like(it["key"], it["value"]):
+                dropped_br += 1
+                continue
+            if any(x["key"] == it["key"] and x["value"] == it["value"] for x in fields):
+                continue
+            fields.append({"key": it["key"], "value": it["value"], "source": "document", "file": mb.get("file"),
+                           "note": None, "file_id": fid})
+        for k, v in br.prefill(mb["fields"], br.region_in(mb["fields"])).items():
+            prefill.setdefault(k, {"value": v, "source": "document", "file": fid})
+    if brq:
+        brq["fields"], n = br_clean(brq["fields"])
+        dropped_br += n
+    # договор страхования: из файла с текстом (разобран выше) или со скана (ответ модели); первый найденный
+    ctr, texts = None, {}
+    for f in saved:
+        res = parsed.get(f["id"]) or {}
+        if res.get("_text") is not None:
+            texts[f["id"]] = res.pop("_text")        # текст договора в базу не пишется: только для модели
+        if not ctr and res.get("contract"):
+            ctr = dict(res["contract"], source="document", file=f["id"], pages=f.get("pages"))
+    if not ctr and rec.get("contract"):
+        mc = rec["contract"]
+        fid = model_to_id.get(mc.get("file")) or (model_to_id.get(1) if len(model_to_id) == 1 else None)
+        ctr = dict(mc, source="photo", file=fid, pages=None, truncated=False)
+        # условия договора со скана — в распознанное (источник «документ»), с той же проверкой на ПД
+        for it in cr.items(mc["fields"]):
+            if pd_like(it["key"], it["value"]):
+                dropped_br += 1
+                continue
+            if any(x["key"] == it["key"] and x["value"] == it["value"] for x in fields):
+                continue
+            fields.append({"key": it["key"], "value": it["value"], "source": "document", "file": mc.get("file"),
+                           "note": None, "file_id": fid})
+        for k, v in cr.prefill(mc["fields"]).items():
+            prefill.setdefault(k, {"value": v, "source": "document", "file": fid})
+    ct_ai = {"asked": False, "ok": None, "reason": None}
+    if ctr and ctr["source"] == "document":
+        ctr["fields"], n = ct_clean(ctr["fields"])
+        dropped_br += n
+        opts = limits.get("_contract") or ae.DEFAULT_SETTINGS["contract"]
+        text = texts.get(ctr["file"])
+        if opts.get("ai_assist") and text and cr.need_assist(ctr["fields"]) and llm.enabled():
+            left = float(limits["ai_deadline_sec"]) - (time.monotonic() - t_docs)
+            ct_ai["asked"] = True
+            got = contract_text_model(text, lang, limits, int(opts.get("ai_max_chars") or 30000), inclusive,
+                                      deadline=max(5.0, left))
+            ct_ai.update(ok=bool(got.get("ok")), reason=got.get("reason"))
+            if got.get("ok"):
+                filled = cr.merge_missing(ctr["fields"], got["contract"]["fields"])
+                ctr["fields"], n = ct_clean(ctr["fields"])
+                dropped_br += n
+                filled = [k for k in filled if ctr["fields"].get(k) not in (None, "", [], {})]
+                ctr["field_sources"] = {k: "document_ai" for k in filled}
+                if filled:
+                    ctr["source"] = "document_ai"
+                    have = {(d["key"], d["value"]) for d in doc_fields}
+                    for it in cr.items(ctr["fields"]):
+                        if cr.item_field(it["key"]) not in filled or (it["key"], it["value"]) in have \
+                                or pd_like(it["key"], it["value"]):
+                            continue
+                        doc_fields.append({"key": it["key"], "value": it["value"], "source": "document_ai",
+                                           "file": None, "file_id": ctr["file"], "note": t("ct_ai_note", lang),
+                                           "parsed": True})
+                    for k, v in cr.prefill(ctr["fields"]).items():
+                        if cr.item_field(k) in filled:
+                            prefill.setdefault(k, {"value": v, "source": "document_ai", "file": ctr["file"]})
+    elif ctr:
+        ctr["fields"], n = ct_clean(ctr["fields"])
+        dropped_br += n
+    if ctr:
+        ctr["found"], ctr["missing"] = cr.found_missing(ctr["fields"])
+        ctr["essentials"] = cr.essentials(ctr["fields"])
+        ctr["ai"] = ct_ai
+    cross = cr.cross_check(brq["fields"], ctr["fields"], float(limits.get("_tolerance") or 1000)) \
+        if brq and ctr else None
     if "region" in prefill:
         prefill["region"]["code"] = region_code(prefill["region"]["value"])
     all_fields = fields + doc_fields
@@ -981,15 +1261,24 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         ensure_tables(con)
         cleanup(con)
         kind = rec.get("object_kind")
+        hint = rec.get("class_hint")
+        if brq:
+            # скан бланка модель видит как «документ»; вид объекта — из строки «объект страхования»
+            bf = brq["fields"]
+            if (not kind or kind == "other") and bf.get("object_kind"):
+                kind = bf["object_kind"]
+            if (not hint or hint == "other") and bf.get("class_hint"):
+                hint = bf["class_hint"]
         kind_text = tx.OBJECT_KINDS[kind][0] if kind and tx.OBJECT_KINDS[kind][0] else ""
-        group = ae.object_group(cls, kind_text, rec.get("class_hint") or "")
+        group = ae.object_group(cls, kind_text, hint or "")
         seen = sorted(set(views.values()))
         missing = ae.missing_views(group, seen) if rec.get("ok") else ae.required_views(group)
         stored = {"ai": bool(rec.get("ok")), "reason": rec.get("reason"), "views": views,
                   "document_kinds": doc_kinds, "fields": all_fields, "damages": damages,
-                  "object_kind": kind, "class_hint": rec.get("class_hint"), "condition": rec.get("condition"),
+                  "object_kind": kind, "class_hint": hint, "condition": rec.get("condition"),
                   "files": len(saved), "photo_files": len(model_files), "parsed_docs": parsed_ok,
-                  "prefill": prefill, "doc_notes": doc_notes, "not_sent": not_sent, "lang": lang}
+                  "prefill": prefill, "doc_notes": doc_notes, "not_sent": not_sent, "lang": lang,
+                  "branch_request": brq, "contract": ctr}
         now = _now()
         # в базе о файле — только порядковый номер, формат, размер и путь: имени файла нет
         keep = ("id", "index", "fmt", "mime", "size", "path")
@@ -1006,8 +1295,15 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         db.audit(con, _who(user, owner), "акт: фото загружены", f"act_upload:{sid}",
                  {"files": len(saved), "rejected": len(rejected), "ai": bool(rec.get("ok")),
                   "fields": len(fields), "damages": len(damages), "views": view_count,
-                  "not_sent": len(not_sent), "dropped_pd": (rec.get("dropped") or 0) + dropped_doc,
-                  "parsed_docs": parsed_ok, "doc_fields": len(doc_fields)})
+                  "not_sent": len(not_sent), "dropped_pd": (rec.get("dropped") or 0) + dropped_doc + dropped_br,
+                  "parsed_docs": parsed_ok, "doc_fields": len(doc_fields),
+                  # запрос филиала — только признак и число строк: ни названий сторон, ни сумм
+                  "branch_request": bool(brq), "branch_rows": (brq or {}).get("rows_found") or 0,
+                  # договор — только признак, источник и счётчики: ни сторон, ни сумм, ни номера
+                  "contract": bool(ctr), "contract_source": (ctr or {}).get("source"),
+                  "contract_found": len((ctr or {}).get("found") or []),
+                  "contract_ai": len((ctr or {}).get("field_sources") or {}),
+                  "cross_differs": (cross or {}).get("differs", 0)})
         for e in parse_errors:
             db.audit(con, _who(user, owner), "акт: документ не разобран", f"act_upload:{sid}", e)
     notes = []
@@ -1023,6 +1319,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     if rec.get("ok") and not_sent:
         notes.append(t("ph_not_sent", lang, files=", ".join(str(n) for n in not_sent), mb=limits["ai_max_mb"]))
     notes += [t(c, lang) for c in doc_notes]
+    if ct_ai["asked"] and not ct_ai["ok"]:
+        notes.append(t("ct_ai_failed", lang, reason=ct_ai["reason"] or t("ai_error", lang)))
     model_ids = {f["id"] for f in model_files}
     return _reply(request, {
         "ok": True, "session": sid, "lang": lang,
@@ -1037,8 +1335,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "damages": damages,
         "object_kind": ({"code": kind, "label": tx.label({k: v[1] for k, v in tx.OBJECT_KINDS.items()}, kind, lang)}
                         if kind else None),
-        "class_hint": rec.get("class_hint"),
-        "suggest_classes": HINT_CLASSES.get(rec.get("class_hint") or "", []),
+        "class_hint": hint,
+        "suggest_classes": HINT_CLASSES.get(hint or "", []),
         "condition": rec.get("condition"),
         "group": group,
         "required_views": [{"code": v, "label": tx.label(tx.VIEW_LABELS, v, lang)} for v in ae.required_views(group)],
@@ -1049,9 +1347,246 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "not_sent": not_sent,
         "documents": doc_list,
         "prefill": prefill_view(prefill, lang) if prefill else None,
+        "branch_request": branch_view(brq, lang),
+        "contract": contract_view(ctr, lang),
+        "cross_check": cross_view(cross, lang),
         "warning": t("warn_pd", lang),
         "expires_in_hours": PHOTO_TTL_SEC // 3600,
     })
+
+
+# текстовые поля бланка → ключ, по правилам которого они проверяются на ПД (pd_like)
+BR_TEXT_KEYS = {"object_description": "object_type", "object_description_translated": "object_type",
+                "additional_info": "additional_info", "contract_terms": "contract_terms",
+                "osgor_class": "additional_info", "counterparty": "policyholder", "term_text": "additional_info"}
+
+
+def br_clean(f: dict) -> tuple:
+    """Поля бланка без значений, похожих на данные людей (как у распознанного): (поля, сколько убрано)."""
+    f = dict(f)
+    n = 0
+    for key, rule in BR_TEXT_KEYS.items():
+        if f.get(key) and pd_like(rule, f[key]):
+            f[key] = None
+            n += 1
+    fr = f.get("franchise")
+    if fr and fr.get("text") and pd_like("franchise", fr["text"]):
+        f["franchise"] = dict(fr, text=None)
+        n += 1
+    for code in br.PARTY_CODES:
+        p = f.get(code) or {}
+        if p.get("name") and pd_like(code, p["name"]):
+            f[code] = {"kind": "individual", "name": None}
+            n += 1
+    return f, n
+
+
+def branch_view(brq: Optional[dict], lang: str) -> Optional[dict]:
+    """Блок «запрос филиала» для экрана: 16 строк бланка (найдена, заполнена), разобранные поля и готовый
+    optional.request для /act/make. Стороны: название — только у юрлица, у гражданина — kind = individual."""
+    if not brq:
+        return None
+    f = brq["fields"]
+    notes = []
+    for code in br.PARTY_CODES:
+        if (f.get(code) or {}).get("kind") == "individual":
+            notes.append(t("br_individual", lang, role=tx.label(tx.BR_ROW_LABELS, code, lang).lower()))
+    if f.get("term_error"):
+        notes.append(t("br_term_unread", lang))
+    if f.get("tariff_pct") is None:
+        notes.append(t("br_no_tariff", lang))
+    if f.get("amount_errors"):
+        notes.append(t("br_negative", lang, what=", ".join(tx.label(tx.BR_ROW_LABELS, k, lang).lower()
+                                                           for k in f["amount_errors"])))
+    return {"detected": True, "kind_label": tx.label(tx.DOC_KIND_LABELS, br.KIND, lang),
+            "source": brq.get("source"), "file": brq.get("file"),
+            "rows_found": brq.get("rows_found"), "rows_total": len(br.ROW_CODES),
+            "rows": [dict(r, label=tx.label(tx.BR_ROW_LABELS, r["code"], lang)) for r in brq.get("rows") or []],
+            "fields": f, "request": br.request_of(f, brq.get("source") or "document"),
+            "notes": notes, "check_label": t("prefill_check", lang)}
+
+
+# текстовые поля договора → ключ, по правилам которого они проверяются на ПД (pd_like)
+CT_TEXT_KEYS = {"object_description": "object_type", "address": "additional_info", "construction": "construction",
+                "purpose": "additional_info", "territory": "additional_info", "product_name": "additional_info",
+                "place": "additional_info", "notice": "additional_info", "term_text": "additional_info",
+                "contract_no": "additional_info", "brand": "brand", "model": "model", "vin": "serial_no",
+                "serial_no": "serial_no", "engine_no": "engine_no", "cadastre_no": "cadastre_no"}
+
+
+def ct_clean(f: dict) -> tuple:
+    """Поля договора без значений, похожих на данные людей, и без меток маскировки «[ФИО]»: (поля, сколько убрано)."""
+    f = dict(f)
+    n = 0
+
+    def bad(rule, v):
+        return bool(_placeholders(str(v))) or pd_like(rule, str(v))
+
+    for key, rule in CT_TEXT_KEYS.items():
+        if f.get(key) and bad(rule, f[key]):
+            f[key] = None
+            n += 1
+    fr = f.get("franchise")
+    if fr:
+        for k in ("text", "risk"):
+            if fr.get(k) and bad("franchise", fr[k]):
+                fr = dict(fr, **{k: None})
+                n += 1
+        f["franchise"] = fr
+    for code in cr.PARTY_CODES:
+        p = f.get(code) or {}
+        if p.get("name") and (bad("policyholder", p["name"]) or not br.is_legal(p["name"])):
+            f[code] = {"kind": "individual", "name": None}
+            n += 1
+    for key in ("covered_risks", "exclusions"):
+        keep = []
+        for x in f.get(key) or []:
+            if x.get("text") and bad("additional_info", x["text"]):
+                n += 1
+                continue
+            keep.append(x)
+        f[key] = keep
+    terms = [x for x in f.get("special_terms") or [] if not bad("additional_info", x)]
+    n += len(f.get("special_terms") or []) - len(terms)
+    f["special_terms"] = terms
+    items = [x for x in f.get("items") or [] if not bad("object_type", x.get("name"))]
+    n += len(f.get("items") or []) - len(items)
+    f["items"] = items
+    f["has_beneficiary"] = (f.get("beneficiary") or {}).get("kind") is not None
+    f["has_pledger"] = (f.get("pledger") or {}).get("kind") is not None
+    return f, n
+
+
+# служебные поля разбора: в перечень «прочитано моделью» не входят
+_AI_SKIP = ("class_hint", "object_kind", "term_text", "term_inclusive", "term_error", "has_beneficiary",
+            "has_pledger", "items_total", "liability_from")
+
+
+def _ai_field_labels(keys, lang: str) -> list:
+    """Поля, дочитанные моделью, — подписями на языке ответа (срок с, по и дни — одной подписью «срок»)."""
+    out = []
+    for k in keys:
+        if k in _AI_SKIP:
+            continue
+        code = "term" if k in ("term_from", "term_to", "term_days") else k
+        lab = None
+        for group in (tx.EDIT_LABELS, tx.CT_FIELD_LABELS, tx.FIELD_LABELS):
+            if code in group:
+                lab = tx.label(group, code, lang)
+                break
+        if lab and lab.lower() not in out:
+            out.append(lab.lower())
+    return out
+
+
+def _labels(group: dict, codes, lang: str) -> list:
+    return [{"code": c, "label": tx.label(group, c, lang)} for c in codes]
+
+
+def _risk_view(xs: list, group: dict, lang: str) -> list:
+    return [{"code": x["code"], "label": x.get("text") if x["code"] == "other" else tx.label(group, x["code"], lang)}
+            for x in xs or []]
+
+
+def contract_view(ctr: Optional[dict], lang: str) -> Optional[dict]:
+    """Блок «договор страхования» для экрана: поля договора, какие ключевые поля найдены и каких нет,
+    существенные условия (ГК РУз, ст. 929), заметки и готовый optional.contract для /act/make.
+    Стороны: название — только у юрлица, у гражданина — kind = individual."""
+    if not ctr:
+        return None
+    f = ctr["fields"]
+    notes = []
+    for code in cr.PARTY_CODES:
+        if (f.get(code) or {}).get("kind") == "individual":
+            notes.append(t("br_individual", lang, role=tx.label(tx.FIELD_LABELS, code, lang).lower()))
+    if ctr.get("truncated"):
+        notes.append(t("ct_truncated", lang))
+    if not f.get("term_days"):
+        notes.append(t("ct_term_unread", lang))
+    if f.get("tariff_pct") is None:
+        notes.append(t("ct_no_tariff", lang))
+    if f.get("currency") not in (None, "UZS"):
+        notes.append(t("ct_currency", lang, cur=f["currency"]))
+    missing = ctr.get("missing") or []
+    if missing:
+        notes.append(t("ct_missing", lang, what=", ".join(tx.label(tx.CT_FIELD_LABELS, k, lang).lower()
+                                                           for k in missing)))
+    ess = ctr.get("essentials") or cr.essentials(f)
+    lack = [e["code"] for e in ess if not e["present"]]
+    if lack:
+        notes.append(t("ct_missing_essential", lang, what=", ".join(tx.label(tx.CT_ESSENTIAL_LABELS, c, lang)
+                                                                     for c in lack)))
+    srcs = ctr.get("field_sources") or {}
+    ai_labels = _ai_field_labels(srcs, lang)
+    if ai_labels:
+        notes.append(t("ct_ai_filled", lang, what=", ".join(ai_labels)))
+    return {"detected": True, "kind_label": tx.label(tx.DOC_KIND_LABELS, cr.KIND, lang),
+            "source": ctr.get("source"), "source_label": tx.label(tx.CT_SOURCE_LABELS, ctr.get("source"), lang),
+            "file": ctr.get("file"), "pages": ctr.get("pages"), "truncated": bool(ctr.get("truncated")),
+            "fields": f, "field_sources": srcs, "ai_fields": sorted(srcs),
+            "found": _labels(tx.CT_FIELD_LABELS, ctr.get("found") or [], lang),
+            "missing": _labels(tx.CT_FIELD_LABELS, missing, lang),
+            "essentials": [{"code": e["code"], "label": tx.label(tx.CT_ESSENTIAL_LABELS, e["code"], lang),
+                            "present": e["present"]} for e in ess],
+            "legal_ref": tx.label(tx.LEGAL_REFS, ae.ESSENTIAL_REF, lang),
+            "covered_risks": _risk_view(f.get("covered_risks"), tx.RISK_LABELS, lang),
+            "exclusions": _risk_view(f.get("exclusions"), tx.EXCLUSION_LABELS, lang),
+            "payment_mode_label": tx.label(tx.PAYMENT_MODE_LABELS, f["payment_mode"], lang)
+            if f.get("payment_mode") else None,
+            "request": cr.request_of(f, ctr.get("source") or "document"),
+            "notes": notes, "check_label": t("prefill_check", lang)}
+
+
+def _x_value(code: str, v, lang: str, by: Optional[str] = None) -> str:
+    NA = t("na", lang)
+    if v in (None, "", []):
+        return NA
+    if code in ("sum_insured", "object_value", "premium"):
+        return money(v, lang)
+    if code == "tariff_pct":
+        return pct(v, lang)
+    if code == "term":
+        return t("x_term", lang, days=v.get("days"), date_from=_ddmmyyyy(v.get("from")) if v.get("from") else NA,
+                 date_to=_ddmmyyyy(v.get("to")) if v.get("to") else NA)
+    if code == "franchise":
+        if not v.get("applied"):
+            return t("x_fr_none", lang)
+        if v.get("pct") is not None:
+            return pct(v["pct"], lang)
+        return money(v["amount"], lang) if v.get("amount") else (v.get("text") or NA)
+    if code == "object":
+        kind = tx.label(tx.X_KIND_LABELS, v["class_hint"], lang) if v.get("class_hint") else None
+        if by == "kind":
+            return kind or NA
+        if by == "cadastre":
+            return str(v.get("cadastre_no") or NA)
+        parts = [str(v["cadastre_no"])] if v.get("cadastre_no") else []
+        return ", ".join(parts + ([kind] if kind else [])) or NA
+    return str(v)
+
+
+def cross_view(xc: Optional[dict], lang: str) -> Optional[dict]:
+    """Запрос филиала против договора: строки «совпадает / расходится» и итог (null — нет одного из документов)."""
+    if not xc or not xc.get("available"):
+        return None
+    items, lines = [], []
+    for it in xc["items"]:
+        label = tx.label(tx.X_LABELS, it["code"], lang)
+        by = it.get("compared")
+        req_v, ct_v = _x_value(it["code"], it["request"], lang, by), _x_value(it["code"], it["contract"], lang, by)
+        # объект: сравнить нечем (кадастр только в одном документе, вида нет) — так и пишем, это не расхождение
+        na_obj = it["code"] == "object" and it["verdict"] == "missing" and (it["request"] or it["contract"])
+        text = t("x_object_na", lang, label=label, req=req_v, ct=ct_v) if na_obj else             t("x_line", lang, label=label, verdict=t("x_v_" + it["verdict"], lang), req=req_v, ct=ct_v)
+        items.append({"code": it["code"], "label": label, "request": it["request"], "contract": it["contract"],
+                      "verdict": it["verdict"], "verdict_label": t("x_v_" + it["verdict"], lang), "text": text,
+                      "compared": by})
+        if it["verdict"] != "missing" or na_obj:
+            lines.append(text)
+    n = xc.get("differs", 0)
+    verdict = "differs" if n else ("ok" if any(i["verdict"] == "same" for i in xc["items"]) else "missing")
+    summary = t("x_summary_" + verdict, lang, n=n) if verdict == "differs" else t("x_summary_" + verdict, lang)
+    return {"available": True, "items": items, "differs": n, "missing": xc.get("missing", 0),
+            "summary": {"verdict": verdict, "text": summary}, "lines": [summary] + lines}
 
 
 # --------------------------------------------------------------------------- #
@@ -1360,10 +1895,12 @@ def _shots(request, user, owner, lang, files, site, q, emp_rate, st, sid, folder
 
 
 def prefill_view(prefill: dict, lang: str) -> dict:
-    """Подсказка для шага 2: значения из документа с источником и пометкой «из документа, проверьте»."""
+    """Подсказка для шага 2: значения из документа с источником и пометкой «из документа, проверьте»
+    (прочитанное моделью из текста договора — «прочитано моделью из текста, проверьте»)."""
     out = {}
     for k, v in prefill.items():
-        out[k] = {**v, "label": tx.label(tx.FIELD_LABELS, k, lang), "check_label": t("prefill_check", lang)}
+        mark = t("ct_ai_note", lang) if v.get("source") == "document_ai" else t("prefill_check", lang)
+        out[k] = {**v, "label": tx.label(tx.FIELD_LABELS, k, lang), "check_label": mark}
     return out
 
 
@@ -1389,10 +1926,18 @@ def _money_in(v) -> Optional[float]:
 def _int_in(v, lo: int, hi: int) -> Optional[int]:
     if v is None or v == "" or isinstance(v, bool):
         return None
-    try:
-        x = int(float(str(v).strip()))
-    except (TypeError, ValueError):
-        raise ValueError
+    # только целое: 365.5 — ошибка ввода, а не 365 (дробная часть не отбрасывается молча)
+    if isinstance(v, float):
+        if v != v or not v.is_integer():
+            raise ValueError
+        x = int(v)
+    elif isinstance(v, int):
+        x = v
+    else:
+        s = str(v).strip()
+        if not re.fullmatch(r"[+-]?\d{1,9}(?:[.,]0+)?", s):
+            raise ValueError
+        x = int(re.split(r"[.,]", s)[0])
     if not lo <= x <= hi:
         raise ValueError
     return x
@@ -1590,6 +2135,18 @@ def validate(con, body: dict) -> tuple:
             else:
                 o["deductible"] = {"pct": pv, "amount": av, "type": ftype}
 
+    # запрос филиала (30.09.2026): тариф, премия, франшиза, срок — для сверки с расчётом акта
+    inclusive = bool(load_settings(con)["request_check"]["term_inclusive"])
+    rq, rq_err = validate_request(opt.get("request"), inclusive)
+    if rq_err:
+        errs["request"] = rq_err
+    clean["request"] = rq
+    # договор страхования (30.09.2026): те же поля и условия договора — для сверки с расчётом акта
+    ct, ct_err = validate_contract(opt.get("contract"), inclusive)
+    if ct_err:
+        errs["contract"] = ct_err
+    clean["contract"] = ct
+
     # объявления со снимков экрана с правками сотрудника (30.09.2026); в расчёт — act_engine.market_estimate
     mk, mk_err = am.validate_market(opt.get("market"))
     if mk_err:
@@ -1607,7 +2164,7 @@ def validate(con, body: dict) -> tuple:
                 if not isinstance(r, dict):
                     continue
                 key = str(r.get("key") or "")
-                val = _s(r.get("value"), 120)
+                val = _s(r.get("value"), value_limit(key))
                 if key not in ae.FIELD_KEYS or not val:
                     continue
                 if pd_like(key, val):
@@ -1636,6 +2193,326 @@ def validate(con, body: dict) -> tuple:
                     clean["damages"].append({"what": what, "where": where, "file": _s(d.get("file"), 10)})
     clean["session"] = _s(body.get("session"), 40)
     return clean, errs
+
+
+REQUEST_SOURCES = ("document", "photo", "input", "session")
+CONTRACT_SOURCES = ("document", "document_ai", "photo", "input", "session")
+
+
+DATE_MIN, DATE_MAX = date(2000, 1, 1), date(2100, 12, 31)     # даты срока, договора, платежей
+DATE_RANGE = "с 01.01.2000 по 31.12.2100"
+MAX_TERMS_SUM = 1e14          # суммы запроса и договора: сто триллионов сумов — опечатка в разрядах, а не объект
+
+
+def _date_in(v) -> Optional[date]:
+    """Дата из «ГГГГ-ММ-ДД» или «ДД.ММ.ГГГГ» в пределах 2000–2100; иначе ValueError."""
+    s = str(v or "").strip()
+    m = re.fullmatch(r"(\d{4})-(\d{2})-(\d{2})", s) or None
+    m2 = re.fullmatch(r"(\d{1,2})[./](\d{1,2})[./](\d{4})", s)
+    d = None
+    try:
+        if m:
+            d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        elif m2:
+            d = date(int(m2.group(3)), int(m2.group(2)), int(m2.group(1)))
+    except ValueError:
+        pass
+    if d is None or not DATE_MIN <= d <= DATE_MAX:
+        raise ValueError
+    return d
+
+
+def validate_request(rq, inclusive: bool = True) -> tuple:
+    """
+    optional.request (запрос филиала, недоверенный ввод) → (чистый запрос | None, текст ошибки | None).
+    {tariff_pct: % годовых (0; 100], premium: сумы > 0, franchise: {applied, text?, pct?, amount?} или текст
+    бланка, term_from/term_to: ГГГГ-ММ-ДД или ДД.ММ.ГГГГ (2000–2100), term_days: целое 1–3660, sum_insured?,
+    object_value?, cadastre_no?, object_kind?, class_hint?, object_description?}. Поле source не доверяется:
+    источник решает сервер по своей загрузке (build_data → _trust_doc).
+    Даты сильнее term_days: дни считаются по датам (оба крайних дня — настройка request_check.term_inclusive);
+    term_days, не совпавший с датами, — ошибка, а не молчаливая замена.
+    """
+    if rq in (None, "", {}):
+        return None, None
+    if not isinstance(rq, dict):
+        return None, "объект {tariff_pct, premium, franchise, term_from, term_to, term_days}"
+    out, err = _validate_terms(rq, inclusive, REQUEST_SOURCES)
+    if err:
+        return None, err
+    err = _object_terms(rq, out)
+    if err:
+        return None, err
+    if all(out[k] is None for k in ("tariff_pct", "premium", "franchise", "term_days")):
+        return None, "в запросе нет ни тарифа, ни премии, ни франшизы, ни срока"
+    return out, None
+
+
+def _money_term(v, key: str) -> tuple:
+    """Сумма условия документа: (число | None, ошибка | None). Больше MAX_TERMS_SUM — опечатка в разрядах."""
+    if v in (None, ""):
+        return None, None
+    x = _money_in(v)
+    if x is None or not 0 < x <= MAX_TERMS_SUM:
+        return None, f"{key} — число больше нуля и не больше 10^14 сумов"
+    return x, None
+
+
+def _object_terms(rq: dict, out: dict) -> Optional[str]:
+    """Стоимость и объект документа (для сверки запроса с договором): стоимость, кадастр, вид, описание."""
+    out["object_value"], err = _money_term(rq.get("object_value"), "object_value")
+    if err:
+        return err
+    desc = _s(rq.get("object_description"), br.MAX_TEXT)
+    out["object_description"] = desc if desc and not pd_like("object_type", desc) else None
+    cad = _s(rq.get("cadastre_no"), 40)
+    out["cadastre_no"] = cad if cad and br._KADASTR.fullmatch(cad) else None
+    kind = str(rq.get("object_kind") or "").strip()
+    out["object_kind"] = kind if kind in tx.OBJECT_KINDS else None
+    hint = str(rq.get("class_hint") or "").strip()
+    out["class_hint"] = hint if hint in HINT_CODES else None
+    return None
+
+
+HINT_CODES = ("building", "equipment", "vehicle", "special_machinery", "cargo", "other")
+
+
+def _validate_terms(rq: dict, inclusive: bool, sources: tuple) -> tuple:
+    """Общие условия запроса филиала и договора: тариф, премия, сумма, франшиза, срок."""
+    out = {"tariff_pct": None, "premium": None, "franchise": None, "term_from": None, "term_to": None,
+           "term_days": None, "sum_insured": None, "source": "input"}
+    tr = rq.get("tariff_pct")
+    if tr not in (None, ""):
+        x = _money_in(tr)
+        if x is None or not 0 < x <= 100:
+            return None, "tariff_pct — процент годовых больше 0 и не больше 100"
+        out["tariff_pct"] = x
+    for key in ("premium", "sum_insured"):
+        out[key], err = _money_term(rq.get(key), key)
+        if err:
+            return None, err
+    if out["premium"] is not None and out["sum_insured"] is not None and out["premium"] > out["sum_insured"]:
+        return None, "premium больше страховой суммы — проверьте разряды"
+    fr = rq.get("franchise")
+    if fr not in (None, "", {}):
+        if isinstance(fr, str):
+            fr = br.franchise(fr)
+        if not isinstance(fr, dict) or not isinstance(fr.get("applied"), bool):
+            return None, "franchise — {applied: true|false, text, pct, amount}"
+        pv = _money_in(fr.get("pct")) if fr.get("pct") not in (None, "") else None
+        av = _money_in(fr.get("amount")) if fr.get("amount") not in (None, "") else None
+        if (fr.get("pct") not in (None, "") and (pv is None or not 0 < pv <= 100)) or \
+                (fr.get("amount") not in (None, "") and (av is None or not 0 < av <= MAX_TERMS_SUM)):
+            return None, "franchise.pct — от 0 до 100 %, franchise.amount — сумы больше нуля"
+        text = _s(fr.get("text"), 120)
+        out["franchise"] = {"applied": fr["applied"], "text": None if (text and llm.has_pd(text)) else text,
+                            "pct": pv if fr["applied"] else None, "amount": av if fr["applied"] else None}
+    d1, d2 = rq.get("term_from"), rq.get("term_to")
+    if d1 not in (None, "") or d2 not in (None, ""):
+        try:
+            a, b = _date_in(d1), _date_in(d2)
+        except ValueError:
+            return None, f"term_from и term_to — даты ГГГГ-ММ-ДД или ДД.ММ.ГГГГ {DATE_RANGE}, обе"
+        if b < a:
+            return None, "term_to раньше term_from"
+        days = br.term_days(a, b, inclusive)
+        if not 1 <= days <= br.MAX_TERM_DAYS:
+            return None, f"срок от 1 до {br.MAX_TERM_DAYS} дней"
+        out.update(term_from=a.isoformat(), term_to=b.isoformat(), term_days=days)
+    td = rq.get("term_days")
+    if td not in (None, ""):
+        try:
+            x = _int_in(td, 1, br.MAX_TERM_DAYS)
+        except ValueError:
+            return None, f"term_days — целое число от 1 до {br.MAX_TERM_DAYS}"
+        if out["term_days"] is not None and x != out["term_days"]:
+            return None, (f"term_days {x} не совпадает со сроком по датам ({out['term_days']} дн., "
+                          f"{'оба крайних дня включены' if inclusive else 'без последнего дня'})")
+        out["term_days"] = x
+    # заявленный экраном источник — только подсказка «был ли документ» (пометка «документ недоступен»)
+    src = str(rq.get("source") or "input").strip()
+    out["claimed_source"] = src if src in sources else "input"
+    pc = re.search(r"(?<!\d)(\d{3,4})(?!\d)", str(rq.get("product_code") or ""))
+    out["product_code"] = pc.group(1).zfill(4) if pc else None
+    return out, None
+
+
+def validate_contract(ct, inclusive: bool = True) -> tuple:
+    """
+    optional.contract (договор страхования, недоверенный ввод) → (чистый договор | None, текст ошибки | None).
+    Поля optional.request (тариф, премия, франшиза {applied, text, pct, amount, type}, срок, sum_insured,
+    объект) и contract_no, contract_date, currency, covered_risks[], exclusions[] (коды словаря или короткий
+    текст), payment_mode, payments[{date, amount}], items[{name, sum}]. Даты — 2000–2100. Поле source не
+    доверяется (build_data → _trust_doc). Значения, похожие на ПД, отбрасываются.
+    """
+    if ct in (None, "", {}):
+        return None, None
+    if not isinstance(ct, dict):
+        return None, "объект {tariff_pct, premium, franchise, term_from, term_to, sum_insured, contract_no, …}"
+    out, err = _validate_terms(ct, inclusive, CONTRACT_SOURCES)
+    if err:
+        return None, err
+    err = _object_terms(ct, out)
+    if err:
+        return None, err
+    fr = ct.get("franchise")
+    if out["franchise"] is not None and isinstance(fr, dict) and fr.get("type") not in (None, ""):
+        if fr["type"] not in ("unconditional", "conditional"):
+            return None, "franchise.type — unconditional или conditional"
+        out["franchise"]["type"] = fr["type"] if out["franchise"]["applied"] else None
+    no = _s(ct.get("contract_no"), 40)
+    out["contract_no"] = no if no and not llm.has_pd(no) else None
+    out["contract_date"] = None
+    if ct.get("contract_date") not in (None, ""):
+        try:
+            out["contract_date"] = _date_in(ct["contract_date"]).isoformat()
+        except ValueError:
+            return None, f"contract_date — дата ГГГГ-ММ-ДД или ДД.ММ.ГГГГ {DATE_RANGE}"
+    cur = str(ct.get("currency") or "").strip().upper()
+    if cur and cur not in ("UZS", "USD", "EUR", "RUB"):
+        return None, "currency — UZS, USD, EUR или RUB"
+    out["currency"] = cur or None
+    for key, table, codes in (("covered_risks", cr._RISK_F, cr.RISK_CODES),
+                              ("exclusions", cr._EXCL_F, cr.EXCLUSION_CODES)):
+        v = ct.get(key)
+        if v in (None, "", []):
+            out[key] = []
+            continue
+        if not isinstance(v, list) or len(v) > 40:
+            return None, f"{key} — список (не больше 40) кодов или коротких названий"
+        vals = [x for x in (_s(x.get("text") or x.get("code") if isinstance(x, dict) else x, 80) for x in v) if x]
+        out[key] = cr._codes([x for x in vals if not llm.has_pd(x)], table, codes)
+    mode = ct.get("payment_mode")
+    if mode not in (None, "", "single", "installments"):
+        return None, "payment_mode — single или installments"
+    out["payment_mode"] = mode or None
+    pays = ct.get("payments")
+    out["payments"] = []
+    if pays not in (None, "", []):
+        if not isinstance(pays, list) or len(pays) > cr.MAX_PAYMENTS:
+            return None, f"payments — список до {cr.MAX_PAYMENTS} платежей {{date, amount}}"
+        for x in pays:
+            if not isinstance(x, dict):
+                return None, "payments — список {date, amount}"
+            try:
+                d = _date_in(x.get("date"))
+            except ValueError:
+                return None, f"payments.date — дата ГГГГ-ММ-ДД или ДД.ММ.ГГГГ {DATE_RANGE}"
+            a, err = _money_term(x.get("amount"), "payments.amount")
+            if err or a is None:
+                return None, "payments.amount — число больше нуля и не больше 10^14 сумов"
+            out["payments"].append({"date": d.isoformat(), "amount": a})
+    items = ct.get("items")
+    out["items"] = []
+    if items not in (None, "", []):
+        if not isinstance(items, list) or len(items) > cr.MAX_ITEMS:
+            return None, f"items — список до {cr.MAX_ITEMS} частей {{name, sum}}"
+        for x in items:
+            if not isinstance(x, dict):
+                return None, "items — список {name, sum}"
+            a, err = _money_term(x.get("sum"), "items.sum")
+            if err or a is None:
+                return None, "items.sum — число больше нуля и не больше 10^14 сумов"
+            name = _s(x.get("name"), 200)
+            out["items"].append({"name": name if name and not pd_like("object_type", name) else None, "sum": a})
+    if all(out[k] in (None, []) for k in ("tariff_pct", "premium", "franchise", "term_days", "sum_insured",
+                                          "contract_no", "object_description", "covered_risks", "payments")):
+        return None, "в договоре нет ни одного условия"
+    return out, None
+
+
+# --------------------------------------------------------------------------- #
+#  Источник условий запроса и договора: решает сервер по своей загрузке (30.09.2026)
+# --------------------------------------------------------------------------- #
+
+# поля, правка которых сотрудником видна в акте (было → стало)
+RQ_COMPARE = ("product_code", "sum_insured", "object_value", "tariff_pct", "premium", "franchise",
+              "term_from", "term_to", "term_days", "cadastre_no", "object_description")
+CT_COMPARE = RQ_COMPARE + ("contract_no", "contract_date", "currency", "covered_risks", "exclusions",
+                           "payment_mode", "payments", "items")
+_MONEY_CMP = ("sum_insured", "object_value", "premium")
+DOC_SOURCES = ("document", "document_ai", "photo", "session")
+
+
+def _empty_v(v) -> bool:
+    return v in (None, "", [], {})
+
+
+def _same_term(key: str, a, b) -> bool:
+    if _empty_v(a) and _empty_v(b):
+        return True
+    if key in _MONEY_CMP or key == "tariff_pct":
+        try:
+            return a is not None and b is not None and abs(float(a) - float(b)) <= 0.005
+        except (TypeError, ValueError):
+            return False
+    return a == b
+
+
+def _saved_terms(prefix: str, block: dict, inclusive: bool) -> dict:
+    """Условия своей загрузки в той же форме, что проверенный ввод экрана (validate_request / validate_contract):
+    сравниваются одинаково нормализованные значения."""
+    f = block.get("fields") or {}
+    if prefix == "rq":
+        raw = br.request_of(f, "document")
+        clean, err = validate_request(raw, inclusive)
+    else:
+        raw = cr.request_of(f, "document")
+        raw["cadastre_no"] = f.get("cadastre_no")
+        clean, err = validate_contract(raw, inclusive)
+    return clean if clean and not err else dict(raw)
+
+
+def _field_source(prefix: str, block: dict, key: str) -> str:
+    """Источник поля своей загрузки: photo — скан (модель), document_ai — дочитано моделью, иначе document."""
+    base = "photo" if block.get("source") == "photo" else "document"
+    if prefix == "ct":
+        return (block.get("field_sources") or {}).get(key) or base
+    return base
+
+
+def _trust_doc(prefix: str, sent: Optional[dict], block: Optional[dict], upload_missing: bool,
+               inclusive: bool) -> tuple:
+    """
+    Условия запроса (rq) или договора (ct) для акта и источник каждого поля (образец — act_market.trust_listings).
+    Своя живая загрузка с этим документом есть: присланное сравнивается с сохранённым по полям — совпало —
+    источник документа (document / photo / document_ai), отличается — input и правка «было → стало».
+    Загрузки нет (истекла, чужая, сменилась сессия): все поля — input, пометка «документ недоступен».
+    Возвращает (условия | None, {source_kind, origin, edits, field_sources, doc_missing}).
+    """
+    keys = RQ_COMPARE if prefix == "rq" else CT_COMPARE
+    if sent is None:
+        if not block:
+            return None, None
+        doc = _request_from_upload(block) if prefix == "rq" else _contract_from_upload(block)
+        if not doc:
+            return None, None
+        fs = {k: _field_source(prefix, block, k) for k in keys if not _empty_v(doc.get(k))}
+        return doc, {"source_kind": "document", "origin": block.get("source"), "edits": [], "field_sources": fs,
+                     "doc_missing": False}
+    doc = dict(sent)
+    claimed = doc.pop("claimed_source", "input")
+    if not block:
+        fs = {k: "input" for k in keys if not _empty_v(doc.get(k))}
+        doc["source"] = "input"
+        return doc, {"source_kind": "input", "origin": None, "edits": [], "field_sources": fs,
+                     "doc_missing": bool(upload_missing or claimed in DOC_SOURCES)}
+    saved = _saved_terms(prefix, block, inclusive)
+    edits, fs = [], {}
+    dates_edited = any(not _same_term(k, saved.get(k), doc.get(k)) for k in ("term_from", "term_to"))
+    for k in keys:
+        a, b = saved.get(k), doc.get(k)
+        if _empty_v(a) and _empty_v(b):
+            continue
+        if _same_term(k, a, b):
+            fs[k] = _field_source(prefix, block, k)
+            continue
+        fs[k] = "input"
+        if k == "term_days" and dates_edited:
+            continue                      # дни — следствие правки дат, отдельной правкой не считаются
+        edits.append({"code": k, "was": a, "now": b})
+    doc["source"] = block.get("source") or "document"
+    return doc, {"source_kind": "document_edited" if edits else "document", "origin": doc["source"],
+                 "edits": edits, "field_sources": fs, "doc_missing": False}
 
 
 def _region_names() -> dict:
@@ -1762,6 +2639,23 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                           "year": y, "location": location, "guard": o.get("guard"),
                           "losses_count": o.get("losses_count"), "documents": documents,
                           "today": date.today()}, st)
+    # запрос филиала: из ввода (экран подставил распознанное) или из своей загрузки бланка; источник каждого
+    # поля и правки сотрудника решает сервер по своей загрузке (_trust_doc), поле source экрана не доверяется
+    inclusive = bool(st["request_check"]["term_inclusive"])
+    req, rq_trust = _trust_doc("rq", clean.get("request"), upload.get("branch_request"), session_missing, inclusive)
+    term_from_request = False
+    if o.get("term_days") is None and req and req.get("term_days"):
+        # срок сотрудник не ввёл — берём весь срок договора из запроса (многолетний тоже; ставка годовая)
+        o["term_days"] = int(req["term_days"])
+        o["term_source"] = "request"
+        term_from_request = True
+    # договор: из ввода (экран подставил распознанное) или из своей загрузки договора
+    ct, ct_trust = _trust_doc("ct", clean.get("contract"), upload.get("contract"), session_missing, inclusive)
+    term_from_contract = False
+    if o.get("term_days") is None and ct and ct.get("term_days"):
+        o["term_days"] = int(ct["term_days"])
+        o["term_source"] = "contract"
+        term_from_contract = True
     term = o.get("term_days") or 365
     rate_res = ae.rate(ref, product, cls, risk["level"], m["sum_insured"], term, otype, o.get("payer_type"), st)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
@@ -1775,7 +2669,9 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     fr["thresholds_source"] = {k: v for k, v in (th.get("_source") or {}).items() if k in ("id", "what")}
     clauses = ae.clauses(group, clause_catalog())
     disc = ae.discrepancies(recognized, {"year": o.get("year"), "sum_insured": m["sum_insured"],
-                                         "object_value": m["object_value"], "term_days": o.get("term_days")})
+                                         "object_value": m["object_value"],
+                                         "term_days": None if (term_from_request or term_from_contract)
+                                         else o.get("term_days")})
 
     # сценарии, франшиза и мероприятия — существующими модулями на тех же входных данных, что акт
     block_errors = []
@@ -1840,6 +2736,37 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         dec["checks"] += mchecks
         if mchecks and dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
+    rc = ae.request_check(req, rate_res=rate_res, rate_final=rate_final if rate_res["mode"] != "undefined" else None,
+                          premium_final=premium_final, sum_insured=m["sum_insured"], object_value=m["object_value"],
+                          value=value, fr=fr, term_from_request=term_from_request, settings=st)
+    _attach_trust(rc, rq_trust)
+    rq_checks = ae.request_checks(rc)
+    if (rq_trust or {}).get("edits"):
+        rq_checks.append({"code": "c_rq_edits", "params": {"n": len(rq_trust["edits"])}})
+    if rq_checks:
+        # тариф ниже минимума или расхождение с запросом — «принять без оговорок» уже нельзя
+        dec["checks"] += rq_checks
+        if dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
+    cc = ae.contract_check(ct, rate_res=rate_res, rate_final=rate_final if rate_res["mode"] != "undefined" else None,
+                           premium_final=premium_final, sum_insured=m["sum_insured"], object_value=m["object_value"],
+                           value=value, fr=fr, term_from_contract=term_from_contract, settings=st)
+    _attach_trust(cc, ct_trust)
+    ct_checks = ae.request_checks(cc, "ct")
+    if (ct_trust or {}).get("edits"):
+        ct_checks.append({"code": "c_ct_edits", "params": {"n": len(ct_trust["edits"])}})
+    # запрос филиала против договора: объект (кадастр, вид) — присланный, а при живой загрузке — сохранённый
+    xc = cr.cross_check(_with_object(req, (upload.get("branch_request") or {}).get("fields")),
+                        _with_object(ct, (upload.get("contract") or {}).get("fields")),
+                        float(st["request_check"]["premium_tolerance"]))
+    x_codes = [i["code"] for i in (xc or {}).get("items") or [] if i["verdict"] == "differs"]
+    if x_codes:
+        ct_checks.append({"code": "c_x", "params": {"codes": x_codes}})
+    if ct_checks:
+        # расхождение с договором или нет существенного условия — «принять без оговорок» уже нельзя
+        dec["checks"] += ct_checks
+        if dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
     cls_row = db.rows(con, "SELECT name FROM classes WHERE code=?", cls)
     return {
         "insurer": insurer_name(st),
@@ -1861,7 +2788,53 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                           "franchise_applied": bool(fr.get("applied"))},
         "scenarios": scen, "measures": meas, "block_errors": block_errors,
         "market": market,
+        "request": req, "request_check": rc,
+        "contract": ct, "contract_check": cc, "cross_check": xc,
     }
+
+
+def _request_from_upload(b: dict) -> Optional[dict]:
+    """Запрос филиала из своей живой загрузки: те же числа, что сервер разобрал сам (источник session)."""
+    f = (b or {}).get("fields") or {}
+    # те же поля, что optional.request экрана (со стоимостью и объектом — для сверки с договором)
+    req = br.request_of(f, "session")
+    if all(req[k] is None for k in ("tariff_pct", "premium", "franchise", "term_days")):
+        return None
+    return req
+
+
+def _contract_from_upload(b: dict) -> Optional[dict]:
+    """Договор из своей живой загрузки: те же поля, что сервер разобрал сам (источник session)."""
+    f = (b or {}).get("fields") or {}
+    ct = cr.request_of(f, "session")
+    ct["covered_risks"] = list(f.get("covered_risks") or [])
+    ct["exclusions"] = list(f.get("exclusions") or [])
+    ct["cadastre_no"] = f.get("cadastre_no")
+    if ct.get("currency") not in (None, "UZS"):
+        # суммы не в сумах сверять с расчётом акта нельзя — только условия без денег
+        ct.update(sum_insured=None, premium=None, object_value=None, payments=[], items=[])
+    if all(ct.get(k) in (None, []) for k in ("tariff_pct", "premium", "franchise", "term_days", "sum_insured",
+                                             "contract_no", "object_description", "covered_risks")):
+        return None
+    return ct
+
+
+def _with_object(doc: Optional[dict], fields: Optional[dict]) -> Optional[dict]:
+    """Условия документа + кадастр, вид и описание объекта (для сверки запроса с договором): при своей живой
+    загрузке этого документа — сохранённые при загрузке (как в сверке экрана), иначе — присланные."""
+    if not doc:
+        return None
+    keys = ("cadastre_no", "class_hint", "object_kind", "object_description")
+    if fields:
+        return {**doc, **{k: fields.get(k) for k in keys}}
+    return dict(doc)
+
+
+def _attach_trust(rc: dict, trust: Optional[dict]) -> None:
+    """Источник условий и правки сотрудника — в сверку (request_check / contract_check), для акта и экрана."""
+    if rc.get("available") and trust:
+        rc.update(source_kind=trust["source_kind"], origin=trust["origin"], edits=trust["edits"],
+                  field_sources=trust["field_sources"], doc_missing=trust["doc_missing"])
 
 
 def _shots_upload(con, sid: Optional[str], owner: str) -> Optional[dict]:
@@ -2014,6 +2987,14 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
         return t("c_missing", lang, what=", ".join(tx.field_label(k, lang, group).lower() for k in p["keys"]))
     if c["code"].startswith("c_market_"):
         return am.check_text(c, lang) or t(c["code"], lang)
+    if c["code"].startswith("c_rq_"):
+        return t(c["code"], lang, **_rq_params(c["code"][2:], p, lang))
+    if c["code"] == "c_ct_essentials":
+        return t(c["code"], lang, what=", ".join(tx.label(tx.CT_ESSENTIAL_LABELS, x, lang) for x in p.get("missing") or []))
+    if c["code"].startswith("c_ct_"):
+        return t(c["code"], lang, **_rq_params(c["code"][2:], p, lang))
+    if c["code"] == "c_x":
+        return t("c_x", lang, what=", ".join(tx.label(tx.X_LABELS, x, lang).lower() for x in p.get("codes") or []))
     return t(c["code"], lang)
 
 
@@ -2041,6 +3022,16 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     rows1 = [_row(t("class", lang), _class_label(must["class_code"], must.get("class_name"), lang)),
              _row(t("product", lang), (f"{must['product_code']} — {must['product_name']}" if lang == "ru"
                                        else must["product_code"]) if must.get("product_code") else NA)]
+    ctd = D.get("contract") or {}
+    if ctd.get("contract_no") or ctd.get("contract_date"):
+        # номер и дата договора страхования — из загруженного договора или ввода сотрудника
+        no, dt = ctd.get("contract_no"), _ddmmyyyy(ctd["contract_date"]) if ctd.get("contract_date") else None
+        val = t("ct_row_value", lang, no=no, date=dt) if no and dt else \
+            t("ct_row_no", lang, no=no) if no else t("ct_row_date", lang, date=dt)
+        # источник номера — по полю (номер исправлен сотрудником — «введено сотрудником»)
+        fs = (D.get("contract_check") or {}).get("field_sources") or {}
+        src = fs.get("contract_no") or fs.get("contract_date") or ctd.get("source") or "input"
+        rows1.append(_row(t("ct_row", lang), val, tx.label(tx.CT_SOURCE_LABELS, src, lang)))
     kind = D.get("object_kind")
     for key in ae.FIELDS_BY_GROUP.get(D["group"], []):
         label = tx.field_label(key, lang, D["group"])
@@ -2202,6 +3193,19 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         lists4.append({"title": t("clauses", lang),
                        "items": [f"{c.get(lang) or c.get('ru')} ({t('expert', lang)})" for c in D["clauses"]]})
     p4.append(scv["paragraph"])
+    rcv = _request_check_view(D.get("request_check"), lang)
+    if rcv["json"]["available"]:
+        # подраздел «Сверка с запросом филиала»: итог, строки сверки, как считали
+        lists4.append({"title": t("rq_title", lang), "items": rcv["lines"]})
+        lists4.append({"title": t("rq_how_title", lang), "items": rcv["json"]["how"]})
+    ccv = _request_check_view(D.get("contract_check"), lang, "ct", D.get("contract"))
+    if ccv["json"]["available"]:
+        # подраздел «Сверка с договором»: итог, строки сверки, риски и исключения, как сверено
+        lists4.append({"title": t("ct_title", lang), "items": ccv["lines"]})
+        lists4.append({"title": t("ct_how_title", lang), "items": ccv["json"]["how"]})
+    xv = cross_view(D.get("cross_check"), lang)
+    if xv:
+        lists4.append({"title": t("x_title", lang), "items": xv["lines"]})
     s4 = {"n": 4, "title": t("s4", lang), "paragraphs": p4, "rows": rows4, "lists": lists4}
 
     # ---------- раздел 5 ----------
@@ -2268,6 +3272,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                   "declared_original": opt.get("declared_value_original"),
                   "value_source": decl[2] if decl else None},
         "market_value": mv["json"],
+        "request_check": rcv["json"],
+        "contract_check": ccv["json"],
+        "cross_check": xv or {"available": False},
         "franchise": {"needed": bool(fr.get("needed")), "text": fr_text,
                       "grounds": [{"code": g["code"], "text": _text(g, lang)} for g in fr.get("grounds") or []],
                       **({"size": fr["size"]} if fr.get("size") else {}),
@@ -2291,6 +3298,169 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         "footer": t("footer", lang),
         "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}"},
     }
+
+
+def _ddmmyyyy(iso) -> str:
+    try:
+        return date.fromisoformat(str(iso)).strftime("%d.%m.%Y")
+    except (TypeError, ValueError):
+        return str(iso or "")
+
+
+def _rq_params(code: str, p: dict, lang: str, how: bool = False) -> dict:
+    """Параметры строки сверки в словах языка акта: тарифы — процентом, премии — сумами, даты — ДД.ММ.ГГГГ.
+    how — «как считали»: сумма и премия с копейками, если они есть."""
+    NA = t("na", lang)
+    out = {}
+    # что сравнивается: тарифы и франшиза — проценты, срок — дни, остальное — сумы
+    kind = "pct" if ("tariff" in code or "franchise" in code) else "days" if "term" in code else "money"
+    for k, v in (p or {}).items():
+        if v is None:
+            out[k] = NA
+        elif k in ("req", "calc", "min", "diff") and kind == "pct":
+            out[k] = pct(abs(v) if k == "diff" else v, lang)
+        elif k in ("req", "calc", "diff") and kind == "days":
+            out[k] = str(int(v))
+        elif k == "diff":
+            out[k] = _signed(v, lang)
+        elif how and k in ("sum", "premium"):
+            out[k] = money_k(v, lang)
+        elif k in ("req", "calc", "tol", "sum", "premium"):
+            out[k] = money(v, lang)
+        elif k in ("rate", "pct", "act"):
+            out[k] = pct(v, lang)
+        elif k == "ratio":
+            out[k] = pct(v, lang, 2)
+        elif k in ("date_from", "date_to"):
+            out[k] = _ddmmyyyy(v)
+        elif k == "days":
+            out[k] = str(int(v))
+        else:
+            out[k] = v
+    return out
+
+
+def _request_check_view(rc: Optional[dict], lang: str, prefix: str = "rq", contract: Optional[dict] = None) -> dict:
+    """Сверка с запросом филиала (prefix rq) или с договором (prefix ct, общая функция): строки для раздела 4
+    и JSON request_check / contract_check. Старые акты — available = false."""
+    rc = rc or {}
+    sources = tx.CT_SOURCE_LABELS if prefix == "ct" else tx.RQ_SOURCE_LABELS
+    js = {"available": bool(rc.get("available")), "source": rc.get("source"),
+          "source_label": tx.label(sources, rc["source"], lang) if rc.get("source") else None,
+          "items": [], "summary": None, "how": [], "tolerance": rc.get("tolerance"),
+          "term_inclusive": rc.get("term_inclusive"), "calibrated": ae.CALIBRATED}
+    trusted = "source_kind" in rc                  # акты до 30.09.2026 (вечер) — без источника по полям и правок
+    if trusted:
+        js.update(_trust_view(rc, prefix, lang, sources))
+    if prefix == "ct":
+        ess = rc.get("essentials") or []
+        js["essentials"] = [{"code": e["code"], "label": tx.label(tx.CT_ESSENTIAL_LABELS, e["code"], lang),
+                             "present": e["present"]} for e in ess]
+        js["legal_ref"] = tx.label(tx.LEGAL_REFS, rc["legal_ref"], lang) if rc.get("legal_ref") else None
+        c = contract or {}
+        js["contract_no"], js["contract_date"] = c.get("contract_no"), c.get("contract_date")
+        js["covered_risks"] = _risk_view(c.get("covered_risks"), tx.RISK_LABELS, lang)
+        js["exclusions"] = _risk_view(c.get("exclusions"), tx.EXCLUSION_LABELS, lang)
+        js["payments"] = list(c.get("payments") or [])
+        js["payment_mode"] = c.get("payment_mode")
+    if not js["available"]:
+        return {"lines": [], "json": js}
+    lines = []
+    for it in rc.get("items") or []:
+        params = it.get("params") or {}
+        if it["code"] == "essentials":
+            codes = params.get("missing") if it["verdict"] == "no_essential" else params.get("present")
+            text = t(it["text_code"], lang, what=", ".join(tx.label(tx.CT_ESSENTIAL_LABELS, x, lang)
+                                                           for x in codes or []))
+        else:
+            text = t(it["text_code"], lang, **_rq_params(it["code"], params, lang))
+        label = t(prefix + "_l_" + it["code"], lang)
+        js["items"].append({"code": it["code"], "label": label, "requested": it["requested"],
+                            "calculated": it["calculated"], "diff": it["diff"], "diff_pct": it["diff_pct"],
+                            "verdict": it["verdict"], "verdict_label": t("rq_v_" + it["verdict"], lang),
+                            "reference": bool(it["reference"]), "text": text})
+        lines.append(f"{label} — {t('rq_v_' + it['verdict'], lang)}: {text}")
+    sm = rc.get("summary") or {}
+    js["summary"] = {"verdict": sm.get("verdict"), "text": t(sm.get("code") or f"{prefix}_summary_missing", lang),
+                     "differs": sm.get("differs", 0), "below_min": sm.get("below_min", 0),
+                     "missing": sm.get("missing", 0)}
+    if prefix == "ct":
+        js["summary"]["no_essential"] = sm.get("no_essential", 0)
+        fs = rc.get("field_sources") or {}
+        for key, line in (("covered_risks", "ct_risks_line"), ("exclusions", "ct_excl_line")):
+            if not js[key]:
+                continue
+            # риски со скана или дочитанные моделью — с пометкой: модель могла ошибиться
+            by_model = fs.get(key) in ("photo", "document_ai")
+            js[key + "_by_model"] = by_model
+            lines.append(t(line, lang, what=", ".join(x["label"] for x in js[key]))
+                         + (" (" + t("by_model_mark", lang) + ")" if by_model else ""))
+    head = [js["summary"]["text"]]
+    if trusted:
+        head.append(t("tr_src_line", lang, v=js["source_label"]))
+        lines += [js["edits"]["line"]] + [e["text"] for e in js["edits"]["items"]]
+    js["how"] = [t(h["code"], lang, **_rq_params(h["code"], h.get("params") or {}, lang, how=True))
+                 for h in rc.get("how") or []]
+    return {"lines": head + lines, "json": js}
+
+
+def _trust_view(rc: dict, prefix: str, lang: str, sources: dict) -> dict:
+    """Источник условий (из документа / с правками сотрудника / введено сотрудником) и правки «было → стало»."""
+    kind, edits = rc.get("source_kind"), rc.get("edits") or []
+    detail = tx.label(sources, rc.get("origin"), lang) if rc.get("origin") else None
+    if kind == "input":
+        label = t("tr_src_input", lang) + (" — " + t("tr_doc_missing", lang) if rc.get("doc_missing") else "")
+    elif kind == "document_edited":
+        label = t("tr_src_edited", lang, n=len(edits)) + (" — " + detail if detail else "")
+    else:
+        label = t("tr_src_doc", lang) + (" — " + detail if detail else "")
+    items = []
+    for e in edits:
+        lab = tx.label(tx.EDIT_LABELS, e["code"], lang)
+        was, now = _edit_value(e["code"], e.get("was"), lang), _edit_value(e["code"], e.get("now"), lang)
+        items.append({"code": e["code"], "label": lab, "was": e.get("was"), "now": e.get("now"),
+                      "text": t("tr_edit", lang, label=lab, was=was, now=now)})
+    line = t(prefix + "_edits_line", lang, what=str(len(items)) if items else t("tr_no_edits", lang))
+    return {"source_kind": kind, "source_label": label, "document_missing": bool(rc.get("doc_missing")),
+            "field_sources": dict(rc.get("field_sources") or {}),
+            "edits": {"count": len(items), "items": items, "line": line}}
+
+
+def _edit_value(code: str, v, lang: str) -> str:
+    """Значение условия в строке правки: суммы с копейками, тариф процентом, даты ДД.ММ.ГГГГ."""
+    NA = t("tr_none", lang)
+    if v in (None, "", [], {}):
+        return NA
+    if code in ("sum_insured", "object_value", "premium"):
+        return money_k(v, lang)
+    if code == "tariff_pct":
+        return pct(v, lang)
+    if code in ("term_from", "term_to", "contract_date"):
+        return _ddmmyyyy(v)
+    if code == "term_days":
+        return t("x_days", lang, n=int(v))
+    if code == "franchise":
+        return _x_value("franchise", v, lang)
+    if code in ("covered_risks", "exclusions"):
+        group = tx.RISK_LABELS if code == "covered_risks" else tx.EXCLUSION_LABELS
+        return ", ".join(x["label"] for x in _risk_view(v, group, lang)) or NA
+    if code == "payment_mode":
+        return tx.label(tx.PAYMENT_MODE_LABELS, v, lang)
+    if code == "payments":
+        return t("tr_payments", lang, n=len(v), total=money_k(sum(float(p["amount"]) for p in v), lang))
+    if code == "items":
+        return t("tr_items", lang, n=len(v), total=money_k(sum(float(x["sum"]) for x in v), lang))
+    s = str(v)
+    return s if len(s) <= 80 else s[:79] + "…"
+
+
+def money_k(v, lang: str) -> str:
+    """Сумма с копейками (тийинами), если они есть: 47 397 852 345,04 сум; целая — без дроби."""
+    x = round(float(v), 2)
+    if x == int(x):
+        return money(x, lang)
+    cur = {"ru": "сум", "uz": "soʻm", "en": "UZS"}[tx.lang_of(lang)]
+    return tx._num(x, tx.lang_of(lang), 2) + tx.NBSP + cur
 
 
 def _premium_final(D: dict) -> dict:
@@ -2623,7 +3793,9 @@ def act_make(request: Request, body: dict = Body(...)):
                   "scenarios": bool((D.get("scenarios") or {}).get("available")),
                   "measures": len((D.get("measures") or {}).get("items") or []),
                   "market": (D.get("market") or {}).get("verdict"),
-                  "market_used": (D.get("market") or {}).get("used")})
+                  "market_used": (D.get("market") or {}).get("used"),
+                  "contract_check": ((D.get("contract_check") or {}).get("summary") or {}).get("verdict"),
+                  "cross_differs": (D.get("cross_check") or {}).get("differs", 0)})
         for e in D.get("block_errors") or []:
             db.audit(con, _who(user, owner), "акт: блок не посчитан", f"act:{aid}", e)
     return _reply(request, out)

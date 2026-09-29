@@ -720,7 +720,8 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 @media (min-width:600px){.act-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
 .act-kpis>div{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft2)}
 .act-kpis span{display:block;font-size:11.5px;line-height:1.3;color:var(--muted)}
-.act-kpis b{display:block;margin-top:3px;font:700 17px/1.3 var(--mono);overflow-wrap:anywhere}
+.act-kpis b{display:block;margin-top:3px;font:700 17px/1.3 var(--mono);overflow-wrap:break-word}
+@media (max-width:420px){.act-kpis b{font-size:15px}}   /* 235 363 450 сум — не рвётся посреди числа */
 .act-kpis em{display:block;margin-top:2px;font-style:normal;font-size:11.5px;line-height:1.35;color:var(--muted)}
 .act-kpis b.lvname{font-family:var(--sans);font-weight:800}
 .act-kpis em.ok{color:var(--good)}
@@ -892,6 +893,85 @@ details.mini>summary{display:list-item;padding:8px 0;cursor:pointer;color:var(--
 details.mini>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 details.mini ul{margin:4px 0 0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--ink)}
 details.mini li{margin:3px 0;overflow-wrap:anywhere}
+/* шаг 2: запрос филиала и договор — прочитанное, правка условий, сверка двух документов */
+.dq-card{margin-top:var(--s3)}
+.dq-top{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;margin:0 0 2px}
+.dq-top h2{margin:0}
+.dq-top .tag{margin-left:0;text-transform:none;letter-spacing:0;font-weight:700}
+.dq-kv{margin-top:var(--s2);font-size:13.5px}
+.dq-kv>div{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:2px 12px;padding:7px 0;border-bottom:1px solid var(--line)}
+.dq-kv>div:last-child{border-bottom:0}
+.dq-kv span{min-width:0;color:var(--muted);overflow-wrap:anywhere}
+.dq-kv b{min-width:0;font-weight:600;overflow-wrap:anywhere;line-height:1.4}
+.dq-kv b .muted,.dq-kv b small{color:var(--muted);font-weight:400}
+.dq-kv b small{display:block;margin-top:2px;font-size:12px;overflow-wrap:anywhere}
+.dq-kv .num{font-family:var(--mono);font-weight:600;color:var(--ink)}
+.dq-ai{display:table;margin-top:4px;padding:0 6px;border:1px solid var(--warn);border-radius:6px;font:600 11px/1.5 var(--sans);font-style:normal;color:var(--warn)}
+.dq-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.dq-chip{display:inline-block;max-width:100%;padding:3px 10px;border-radius:999px;border:1px solid var(--accent-line);background:var(--accent-bg);
+  font-size:12.5px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+.dq-chip.x{border:1px dashed var(--line);background:var(--soft2);color:var(--muted);font-weight:500}
+.dq-ess{list-style:none;margin:6px 0 0;padding:0;font-size:13.5px}
+.dq-ess li{display:flex;gap:10px;align-items:baseline;padding:3px 0;overflow-wrap:anywhere}
+.dq-ess li i{flex:none;min-width:34px;text-align:center;font:700 11px/1.6 var(--sans);font-style:normal;padding:0 6px;border-radius:6px;border:1px solid var(--good);color:var(--good)}
+.dq-ess li.no i{border-color:var(--warn);color:var(--warn)}
+.dq-ess li.no span{color:var(--warn);font-weight:600}
+.dq-card .h3{margin-top:var(--s3)}
+.dq-edit{margin-top:6px}
+.dq-edit .fr-set{margin-top:4px}
+.dq-edit input[disabled]{opacity:.7}
+.dq-src{display:flex;flex-wrap:wrap;align-items:center;gap:0 12px;margin:8px 0 0;font-size:12.5px;color:var(--muted)}
+.dq-src .ed{color:var(--accent);font-weight:600}
+.dq-src .btn-link{width:auto;min-height:40px;padding:0 4px;font-size:12.5px}
+/* сверка запроса и договора: на телефоне строка — «что + вывод», под ней два значения; на широком — четыре колонки */
+.xt-sum{margin:6px 0 0;font-size:13.5px;line-height:1.45;overflow-wrap:anywhere}
+.xt-sum.warn{color:var(--warn);font-weight:600}
+.xt-v,.xt-l{color:var(--ink)}
+.xt{margin-top:8px;font-size:13.5px}
+.xt-h{display:none}
+/* телефон: «что» и вывод в одну строку, если помещаются; иначе вывод переносится целиком на свою строку —
+   подписи не рвутся посреди слова (min-width:auto у flex-элемента — не уже самого длинного слова) */
+.xt-r{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;padding:8px 0;border-top:1px solid var(--line)}
+.xt-l{flex:0 1 auto;font-weight:700;overflow-wrap:break-word;word-break:normal;hyphens:manual}
+.xt-s{order:1;flex:0 1 auto;margin-left:auto;text-align:right;font-size:12px;font-weight:700;color:var(--muted);overflow-wrap:break-word}
+.xt-v{order:2;flex:1 0 100%;min-width:0;overflow-wrap:anywhere}
+.xt-v i{font-style:normal;color:var(--muted);margin-right:6px}
+.xt-r.xt-bad{box-shadow:inset 3px 0 0 var(--warn);padding-left:10px}
+.xt-r.xt-bad .xt-s{color:var(--warn)}
+.xt-r.xt-ok .xt-s{color:var(--good)}
+@media (min-width:600px){
+  .xt-h,.xt-r{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1fr) minmax(0,.8fr);gap:4px 12px}
+  .xt-h{padding:0 0 6px;font-size:11.5px;font-weight:700;color:var(--muted)}
+  .xt-l{min-width:0}
+  .xt-s{order:0;margin-left:0;text-align:left;grid-column:auto;grid-row:auto;justify-self:start}
+  .xt-v{order:0;grid-column:auto}
+  .xt-v i{display:none}}
+/* шаг 3: сверка с запросом филиала и с договором */
+.ck-box{margin-top:var(--s3);padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2);color:var(--ink)}
+.ck-box.warn{border-color:var(--warn)}
+.ck-box.ok{border-color:var(--good)}
+.ck-sum{margin:4px 0 0;font-size:13.5px;line-height:1.45;overflow-wrap:anywhere}
+.ck-box.warn .ck-sum{color:var(--warn);font-weight:600}
+.ck-rows{margin-top:8px}
+.ck-r{padding:8px 0;border-top:1px solid var(--line);min-width:0}
+.ck-h{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 10px;margin:0;font-size:13.5px}
+.ck-h b{min-width:0;font-weight:700;overflow-wrap:anywhere}
+.ck-v{font-size:12px;font-weight:700;color:var(--muted)}
+.ck-r.ck-warn{box-shadow:inset 3px 0 0 var(--warn);padding-left:10px}
+.ck-r.ck-warn .ck-v{color:var(--warn)}
+.ck-r.ck-ok .ck-v{color:var(--good)}
+.ck-n{display:flex;flex-wrap:wrap;gap:2px 16px;margin:3px 0 0;font-size:12.5px;color:var(--muted)}
+.ck-n b{font:600 12.5px/1.4 var(--mono);color:var(--ink);overflow-wrap:anywhere}
+.ck-t{margin:3px 0 0;font-size:12.5px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+.ck-r.ck-ref .ck-h b,.ck-r.ck-ref .ck-v,.ck-r.ck-ref .ck-n b{color:var(--muted);font-weight:600}
+.ck-src{margin:8px 0 0;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.ck-ed{margin:8px 0 0;padding-top:8px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.ck-ed.on{color:var(--ink)}
+.ck-ed-h{margin:0;font-weight:600;overflow-wrap:break-word}
+.ck-ed.on .ck-ed-h{color:var(--warn)}
+.ck-ed-l{margin:4px 0 0;padding-left:18px;line-height:1.45}
+.ck-ed-l li{overflow-wrap:anywhere}
+.ck-box .xt-sum{margin-top:4px}
 /* шаг 3: сценарии, рекомендации, альтернативы франшизе */
 .act-card h2{margin-bottom:10px}
 .sc-tiles{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
@@ -2260,7 +2340,8 @@ const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue
   docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
   msg: "", notes: [], warning: "", upLang: "", stale: false,
   must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
-  refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false, kind: ""};
+  refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false, kind: "",
+  br: null, ct: null, xc: null};             // запрос филиала, договор, их сверка (30.09.2026)
 /* оценка по объявлениям (шаг 2): состояние; функции — ниже, перед «Сформировать акт» */
 const MK_KEY = "surveyor_act_market";
 const MK_MAX = 5;                          // app/act_market.py: MAX_SHOTS
@@ -2318,6 +2399,8 @@ function docKindName(code, fallback){
     case "выписка": return T("tg.act.dk.statement", "выписка");
     case "штатное расписание": return T("tg.act.dk.staff_list", "штатное расписание");
     case "прочее": return T("tg.act.dk.other", "документ");
+    case "contract": return T("tg.dq.kind_ct", "договор страхования");
+    case "branch_request": return T("tg.dq.kind_br", "запрос филиала");
     default: return fallback ? String(fallback) : "";
   }
 }
@@ -2460,7 +2543,9 @@ function wzSave(){
       // разобранные документы — только номер в запросе, вид и число значений; франшиза и пометки «из документа»
       docs: CH.docs.map(d => ({index: d.index, kind: d.kind, text_layer: d.text_layer, values: d.values})), model: CH.modelN,
       pre: CH.pre, preDoc: CH.preDoc, seeded: CH.seeded, fr: CH.fr,
-      must: CH.must, opt: CH.opt, act: CH.actId, kind: CH.kind}));
+      must: CH.must, opt: CH.opt, act: CH.actId, kind: CH.kind,
+      // запрос филиала и договор: прочитанные поля с правками сотрудника — до закрытия вкладки
+      br: CH.br, ct: CH.ct, xc: CH.xc}));
   } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
 }
 function wzLoad(){
@@ -2493,6 +2578,9 @@ function wzLoad(){
     pct: typeof f.pct === "string" ? f.pct.slice(0, 6) : "", amount: Number(f.amount) > 0 ? Number(f.amount) : null};
   CH.actId = typeof s.act === "string" && /^[0-9a-f]{16}$/.test(s.act) ? s.act : "";
   CH.kind = typeof s.kind === "string" && /^[a-z_]{1,40}$/.test(s.kind) ? s.kind : "";
+  CH.br = dqBrFrom(s.br);
+  CH.ct = dqCtFrom(s.ct);
+  CH.xc = s.xc ? dqXcFrom(Object.assign({available: true}, obj(s.xc))) : null;
   CH.stale = CH.photoCount > 0;           // файлы в памяти страницы не пережили перезагрузку
 }
 /* регион из прошлого раза — чтобы не выбирать его каждый раз */
@@ -2625,7 +2713,8 @@ function wzPaint(force){
 function wzPart(name){
   const map = {files: ["wzFiles", wzFilesHtml], views: ["wzViews", wzViewsHtml], rec: ["wzRec", wzRecHtml],
     prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], region: ["wzRegion", wzRegionHtml],
-    more: ["wzMoreBox", wzMoreHtml], fr: ["wzFr", wzFrHtml], term: ["wzTerm", wzTermHtml]};
+    more: ["wzMoreBox", wzMoreHtml], fr: ["wzFr", wzFrHtml], term: ["wzTerm", wzTermHtml],
+    br: ["wzBr", brCardHtml], ct: ["wzCt", ctCardHtml], xc: ["wzXc", xcCardHtml]};
   const m = map[name];
   const el = m && document.getElementById(m[0]);
   if (!el) return;
@@ -2644,7 +2733,7 @@ function wzStep1Html(){
     + "</div>"
     + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
     + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
-    + '<p class="hint">' + esc(T("tg.act.formats_docs", "Договор, заявление или выписку в Word, Excel или PDF с текстом приложение разберёт само, без модели: сумму, стоимость, срок и регион подставит на следующем шаге.")) + "</p>"
+    + '<p class="hint">' + esc(T("tg.act.formats_more", "Кроме фото можно загрузить запрос филиала, договор страхования, техпаспорт или лист технических параметров — скан, фото, PDF, Word или Excel. Запрос и договор приложение прочитает и сверит с расчётом акта; Word, Excel и PDF с текстом разберёт без модели.")) + "</p>"
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
     + '<div id="wzViews">' + wzViewsHtml() + "</div>"
     + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
@@ -2670,6 +2759,13 @@ function wzFilesHtml(){
     let state, cls = "";
     if (CH.busy && !q.error) state = CH.phase === "read" ? T("tg.act.st_reading", "читаю…") : T("tg.wz.sending", "отправляю…");
     else if (q.error) { state = q.error; cls = "err"; }
+    else if (q.sent && (q.dk === "br" || q.dk === "ct")) {
+      // запрос филиала или договор: вид документа и сколько строк / полей прочитано
+      state = q.dk === "br"
+        ? T("tg.dq.kind_br", "запрос филиала") + (CH.br ? " · " + T("tg.dq.rows_n", "строк: {n} из {m}", {n: CH.br.rows_found, m: CH.br.rows_total}) : "")
+        : T("tg.dq.kind_ct", "договор страхования") + (CH.ct ? " · " + T("tg.dq.fields_n", "полей: {n}", {n: CH.ct.found_n}) : "");
+      cls = "ok";
+    }
     else if (q.sent && q.parsed) {
       // документ с текстом разобран сервером без модели: вид документа и сколько значений взято
       const kind = docKindName(q.kind, q.kindLabel);
@@ -2880,6 +2976,9 @@ function actApplyPhotos(d, list){
     q.kind = doc && doc.kind ? String(doc.kind) : null;
     q.kindLabel = doc && doc.kind_label ? String(doc.kind_label) : "";
     q.values = doc ? Number(doc.values) || 0 : 0;
+    // запрос филиала / договор: по номеру файла у блока или по виду документа (у договора из нескольких страниц)
+    const same = (b, kind) => !!b && b.detected && (b.file === f.id || (!!f.document_kind && f.document_kind === b.kind_label)) ? kind : "";
+    q.dk = same(d.branch_request, "br") || same(d.contract, "ct");
     // модель работала, но этот снимок в запрос к ней не поместился (разобранный документ в модель и не уходит)
     q.notRead = !!d.ai && f.read_by_ai === false && !q.parsed && !q.isDoc;
   });
@@ -2911,6 +3010,11 @@ function actApplyPhotos(d, list){
   CH.suggest = (d.suggest_classes || []).map(String);
   // вид объекта по фото — для ссылок поиска объявлений (раздел площадки)
   CH.kind = d.object_kind && typeof d.object_kind === "object" && /^[a-z_]{1,40}$/.test(String(d.object_kind.code || "")) ? String(d.object_kind.code) : "";
+  // запрос филиала и договор: правки сотрудника сохраняются, если документ прочитан так же
+  const keep = (old, fresh) => old && fresh && JSON.stringify(old.orig) === JSON.stringify(fresh.orig) ? Object.assign(fresh, {req: old.req}) : fresh;
+  CH.br = keep(CH.br, dqBrFrom(d.branch_request));
+  CH.ct = keep(CH.ct, dqCtFrom(d.contract));
+  CH.xc = dqXcFrom(d.cross_check);
   CH.preDoc = {};
   wzApplyPrefill(d.prefill && typeof d.prefill === "object" ? d.prefill : {});
 }
@@ -2935,6 +3039,20 @@ function wzApplyPrefill(pf){
   if (Number.isInteger(days) && days >= 1 && days <= 3660) take("term_days", CH.opt, String(days));
   const rc = pf.region && pf.region.code;
   if (REGIONS.indexOf(rc) >= 0) take("region", CH.must, rc);
+  // код продукта из запроса филиала или договора: выбирает продукт в списке, если сотрудник не выбрал сам
+  const pc = pf.product_code && String(pf.product_code.value || "");
+  if (/^\d{4}$/.test(pc)) {
+    CH.preDoc.product_code = pc;
+    if ((!CH.must.product_code && !CH.must.class_code) || CH.pre.product_code) {
+      const p = wzProd(pc);
+      CH.must.product_code = pc;
+      CH.must.class_code = p ? wzClassesOf(p)[0] || "" : "";
+      CH.pre.product_code = true;
+    }
+  }
+  // даты срока — подсказкой у поля «Срок страхования»
+  const d1 = pf.term_from && sIso(pf.term_from.value), d2 = pf.term_to && sIso(pf.term_to.value);
+  if (d1 && d2) CH.preDoc.term_dates = d1 + "/" + d2;
   // новая загрузка: пометка «из документа» остаётся только у значений, которые есть в новом ответе
   Object.keys(CH.pre).forEach(k => { if (!(k in CH.preDoc)) delete CH.pre[k]; });
 }
@@ -2945,7 +3063,8 @@ function preTag(key){
 function preDiff(key, cur){
   const dv = CH.preDoc[key];
   if (CH.pre[key] || dv == null || dv === "" || String(cur == null ? "" : cur) === String(dv)) return "";
-  const shown = key === "region" ? regionName(dv) : key === "term_days" ? T("tg.act.days_n", "{n} дн.", {n: dv}) : money(dv);
+  const shown = key === "region" ? regionName(dv) : key === "term_days" ? T("tg.act.days_n", "{n} дн.", {n: dv})
+    : key === "product_code" ? String(dv) : money(dv);
   return '<span class="hint pre-diff">' + esc(T("tg.act.pre_diff", "В документе: {v}. Оставлено ваше значение.", {v: shown})) + "</span>";
 }
 function preClear(key){
@@ -2962,6 +3081,9 @@ function wzStep2Html(){
       ? T("tg.act.s2_lead_photos", "Проверьте, что прочитано с фото, и заполните четыре обязательных поля.")
       : T("tg.act.s2_lead", "Заполните четыре обязательных поля — остальное можно не заполнять.")) + "</p>"
     + '<div id="wzRec">' + wzRecHtml() + "</div>"
+    + '<div id="wzBr">' + brCardHtml() + "</div>"
+    + '<div id="wzCt">' + ctCardHtml() + "</div>"
+    + '<div id="wzXc">' + xcCardHtml() + "</div>"
     + '<div class="card"><h2>' + esc(T("tg.wz.must_title", "Обязательные данные")) + "</h2>"
     + '<p class="sub">' + esc(T("tg.wz.must_sub", "Продукт или класс, страховая сумма, стоимость объекта и регион.")) + "</p>"
     + '<div id="wzProd">' + wzProdHtml() + "</div>"
@@ -3080,7 +3202,7 @@ function wzProdHtml(){
       + CH.suggest.map(c => '<button type="button" data-clsonly="' + esc(c) + '">' + esc(c + " · " + wzClsName(c)) + "</button>").join("") + "</div>"
     : "";
   return '<div class="' + (err ? "bad" : "") + '"><label class="f"' + (open ? ' for="wzProdQ"' : "") + ">"
-    + esc(T("tg.wz.prod_label", "Продукт или класс")) + "</label>"
+    + esc(T("tg.wz.prod_label", "Продукт или класс")) + preTag("product_code") + "</label>"
     + sug
     + (pick && !open ? pick + '<div class="qadd"><button type="button" data-prodopen="1">' + esc(T("tg.wz.prod_change", "Изменить")) + "</button></div>" : "")
     + (open ? '<input id="wzProdQ" type="search" autocomplete="off" enterkeyhint="search" value="' + esc(CH.prodQ) + '" placeholder="'
@@ -3088,6 +3210,7 @@ function wzProdHtml(){
         + '<div class="pgroups" id="wzProdList">' + wzProdListHtml() + "</div>"
         + (pick ? '<div class="qadd"><button type="button" data-prodclose="1">' + esc(T("tg.wz.prod_keep", "Оставить выбранный")) + "</button></div>" : "")
       : "")
+    + preDiff("product_code", code)
     + '<span class="ferr" id="wzErr-prod">' + esc(err || "") + "</span></div>";
 }
 function wzProdListHtml(){
@@ -3120,6 +3243,7 @@ function wzPickClass(code){
   wzPicked();
 }
 function wzPicked(){
+  delete CH.pre.product_code;                 // продукт выбран сотрудником — пометка «из документа» снимается
   CH.prodOpen = false;
   CH.prodQ = "";
   wzClearErr("prod");
@@ -3163,6 +3287,8 @@ function wzTermHtml(){
     + '<input id="wzo-term_days" class="w-short" type="text" inputmode="numeric" enterkeyhint="done" autocomplete="off" maxlength="4" data-int="1" data-fk="term_days" data-scope="opt"'
     + ' value="' + esc(v == null ? "" : v) + '" placeholder="365">'
     + '<span class="hint">' + esc(T("tg.act.term_hint", "Необязательно. Не указан — премия считается за 365 дней.")) + "</span>"
+    + (CH.preDoc.term_dates ? '<span class="hint">' + esc(T("tg.dq.term_doc", "В документе: {t}", {t: dqTermText({term_from: CH.preDoc.term_dates.split("/")[0],
+      term_to: CH.preDoc.term_dates.split("/")[1]}, true)})) + "</span>" : "")
     + preDiff("term_days", v)
     + '<span class="ferr" id="wzErr-term_days">' + esc(err || "") + "</span></div>";
 }
@@ -3378,10 +3504,582 @@ function wzFocusField(key){
   setTimeout(() => {
     const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod"))
       : key === "market" ? $("#mkCard")
+      : key === "br" || key === "ct" ? ($("#wzErr-" + key) || $("#" + key + "Card"))
       : key === "fr" ? ($("#wzo-frval") || document.querySelector("[data-fr]"))
       : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
     if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
   }, 60);
+}
+
+/* =====================================================================================
+   Запрос филиала и договор страхования (30.09.2026). POST /act/photos отдаёт branch_request, contract
+   и cross_check (app/act.py: branch_view, contract_view, cross_view). Шаг «Проверить»: карточки с прочитанным;
+   тариф, премию, франшизу и срок можно исправить — в POST /act/make они уходят как optional.request /
+   optional.contract как есть; источник каждого поля и правки «было → стало» сервер определяет сам, сравнивая со своей
+   загрузкой (app/act.py, _trust_doc). Сверку с расчётом акта делает сервер
+   (app/act_engine.request_check, contract_check); шаг «Акт» показывает request_check, contract_check, cross_check.
+   Подписи — из словаря по кодам (при смене языка перерисовываются); тексты из документов — недоверенные:
+   только через esc() и не переводятся. В sessionStorage — прочитанные поля с правками до закрытия вкладки,
+   без имён файлов.
+   ===================================================================================== */
+const DQ_PARTIES = ["policyholder", "beneficiary", "pledger"];
+const DQ_CUR = ["UZS", "USD", "EUR", "RUB"];
+const X_CODES = ["product_code", "sum_insured", "object_value", "tariff_pct", "premium", "term", "franchise", "object"];
+const sStr = (v, n) => v == null || v === "" || typeof v === "object" ? null : String(v).slice(0, n || 200);
+const sNum = v => { const x = Number(v); return v != null && v !== "" && typeof v !== "object" && isFinite(x) ? x : null; };
+const sIso = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : null;
+const sArr = v => Array.isArray(v) ? v : [];
+const sObj = v => v && typeof v === "object" && !Array.isArray(v) ? v : {};
+const sCode = v => /^[a-z_]{1,40}$/.test(String(v || "")) ? String(v) : null;
+function dqParty(p){
+  p = sObj(p);
+  if (p.kind === "individual") return {kind: "individual", name: null};
+  return p.kind === "legal" && sStr(p.name) ? {kind: "legal", name: sStr(p.name, 160)} : null;
+}
+function dqFr(f){
+  f = f && typeof f === "object" ? f : null;
+  if (!f || typeof f.applied !== "boolean") return null;
+  const o = {applied: f.applied, text: sStr(f.text, 120), pct: f.applied ? sNum(f.pct) : null, amount: f.applied ? sNum(f.amount) : null};
+  if (f.type === "unconditional" || f.type === "conditional") o.type = f.type;
+  return o;
+}
+function dqAreas(a){ a = sObj(a); return {land_m2: sNum(a.land_m2), useful_m2: sNum(a.useful_m2), total_m2: sNum(a.total_m2)}; }
+/* готовый optional.request / optional.contract из ответа сервера (или из sessionStorage) — только известные поля */
+function dqReq(r, isCt){
+  r = sObj(r);
+  const days = Number(r.term_days);
+  const o = {tariff_pct: sNum(r.tariff_pct), premium: sNum(r.premium), franchise: dqFr(r.franchise),
+    term_from: sIso(r.term_from), term_to: sIso(r.term_to), term_days: Number.isInteger(days) && days >= 1 && days <= 3660 ? days : null,
+    sum_insured: sNum(r.sum_insured), product_code: /^\d{3,4}$/.test(String(r.product_code || "")) ? String(r.product_code) : null,
+    // объект и стоимость — как прочитал сервер (для сверки «запрос ↔ договор» в акте), без обрезки
+    object_value: sNum(r.object_value), object_description: sStr(r.object_description, 600), cadastre_no: sStr(r.cadastre_no, 40),
+    object_kind: sCode(r.object_kind), class_hint: sCode(r.class_hint)};
+  if (!isCt) return o;
+  const list = v => sArr(v).map(x => sStr(x, 80)).filter(Boolean).slice(0, 40);
+  return Object.assign(o, {contract_no: sStr(r.contract_no, 40), contract_date: sIso(r.contract_date),
+    currency: DQ_CUR.indexOf(r.currency) >= 0 ? r.currency : null,
+    covered_risks: list(r.covered_risks), exclusions: list(r.exclusions),
+    payment_mode: r.payment_mode === "single" || r.payment_mode === "installments" ? r.payment_mode : null,
+    payments: sArr(r.payments).filter(p => p && sIso(p.date) && sNum(p.amount) > 0).slice(0, 60)
+      .map(p => ({date: p.date, amount: Number(p.amount)})),
+    items: sArr(r.items).filter(x => x && sNum(x.sum) > 0).slice(0, 60).map(x => ({name: sStr(x.name, 200), sum: Number(x.sum)}))});
+}
+/* branch_request сервера (или сохранённый) → состояние карточки «Запрос филиала» */
+function dqBrFrom(b){
+  b = sObj(b);
+  if (!b.detected) return null;
+  const f = sObj(b.fields);
+  const pf = {product_code: /^\d{3,4}$/.test(String(f.product_code || "")) ? String(f.product_code) : null,
+    object_description: sStr(f.object_description, 300), object_description_translated: sStr(f.object_description_translated, 300),
+    areas: dqAreas(f.areas), cadastre_no: sStr(f.cadastre_no, 40), object_value: sNum(f.object_value), sum_insured: sNum(f.sum_insured),
+    contract_terms: sStr(f.contract_terms, 300), term_inclusive: f.term_inclusive !== false};
+  DQ_PARTIES.forEach(k => { pf[k] = dqParty(f[k]); });
+  const req = dqReq(b.req || b.request, false);
+  return {detected: true, source: b.source === "photo" ? "photo" : "document",
+    rows_found: Math.max(0, Number(b.rows_found) || 0), rows_total: Math.max(1, Number(b.rows_total) || 16),
+    rows: sArr(b.rows).filter(r => r && sCode(r.code)).slice(0, 20).map(r => ({n: Number(r.n) || 0, code: String(r.code), found: !!r.found})),
+    fields: pf, req: req, orig: b.orig ? dqReq(b.orig, false) : dqReq(b.request, false)};
+}
+/* contract сервера (или сохранённый) → состояние карточки «Договор страхования» */
+function dqCtFrom(c){
+  c = sObj(c);
+  if (!c.detected) return null;
+  const f = sObj(c.fields);
+  const pf = {contract_no: sStr(f.contract_no, 40), contract_date: sIso(f.contract_date), place: sStr(f.place, 120),
+    product_name: sStr(f.product_name, 160), insurer: dqParty(f.insurer),
+    object_description: sStr(f.object_description, 300), address: sStr(f.address, 200), region: sStr(f.region, 80),
+    cadastre_no: sStr(f.cadastre_no, 40), areas: dqAreas(f.areas), construction: sStr(f.construction, 120),
+    year_built: sStr(f.year_built, 12), brand: sStr(f.brand, 60), model: sStr(f.model, 60), vin: sStr(f.vin || f.serial_no, 40),
+    reg_no: sStr(f.reg_no, 20), object_value: sNum(f.object_value), sum_insured: sNum(f.sum_insured),
+    currency: DQ_CUR.indexOf(f.currency) >= 0 ? f.currency : null,
+    items: sArr(f.items).filter(x => x && sNum(x.sum) > 0).slice(0, 30).map(x => ({name: sStr(x.name, 200), sum: Number(x.sum)})),
+    payment_mode: f.payment_mode === "single" || f.payment_mode === "installments" ? f.payment_mode : null,
+    payments: sArr(f.payments).filter(p => p && sNum(p.amount) > 0).slice(0, 60).map(p => ({date: sIso(p.date), amount: Number(p.amount)})),
+    territory: sStr(f.territory, 200), notice: sStr(f.notice, 160),
+    special_terms: sArr(f.special_terms).map(x => sStr(x, 400)).filter(Boolean).slice(0, 20), term_inclusive: f.term_inclusive !== false};
+  DQ_PARTIES.forEach(k => { pf[k] = dqParty(f[k]); });
+  const risks = v => sArr(v).filter(x => x && sCode(x.code)).slice(0, 40).map(x => ({code: String(x.code), label: sStr(x.label, 80)}));
+  const req = dqReq(c.req || c.request, true);
+  return {detected: true, source: ["document", "document_ai", "photo"].indexOf(c.source) >= 0 ? c.source : "document",
+    truncated: !!c.truncated, pages: Number.isInteger(c.pages) && c.pages > 0 ? c.pages : null, fields: pf,
+    ai_fields: sArr(c.ai_fields).map(sCode).filter(Boolean),
+    found_n: Number.isInteger(c.found_n) ? c.found_n : sArr(c.found).length,
+    missing: sArr(c.missing).map(x => sCode(typeof x === "string" ? x : x && x.code)).filter(Boolean),
+    essentials: sArr(c.essentials).filter(e => e && sCode(e.code)).map(e => ({code: String(e.code), present: !!e.present})),
+    covered_risks: risks(c.covered_risks), exclusions: risks(c.exclusions),
+    req: req, orig: c.orig ? dqReq(c.orig, true) : dqReq(c.request, true)};
+}
+/* cross_check сервера → строки сверки двух документов (значения проверяются по коду строки) */
+function dqXcFrom(x){
+  x = sObj(x);
+  if (!x.available) return null;
+  const val = (code, v) => {
+    if (v == null) return null;
+    if (code === "term") { const o = sObj(v); return {from: sIso(o.from), to: sIso(o.to), days: sNum(o.days)}; }
+    if (code === "franchise") return dqFr(v);
+    if (code === "object") { const o = sObj(v); return {cadastre_no: sStr(o.cadastre_no, 40), class_hint: sCode(o.class_hint)}; }
+    if (code === "product_code") return sStr(v, 8);
+    return sNum(v);
+  };
+  const items = sArr(x.items).filter(i => i && X_CODES.indexOf(i.code) >= 0).map(i => ({code: i.code,
+    request: val(i.code, i.request), contract: val(i.code, i.contract),
+    verdict: ["same", "differs", "missing"].indexOf(i.verdict) >= 0 ? i.verdict : "missing"}));
+  return items.length ? {items: items} : null;
+}
+/* что-то из условий сотрудник исправил — документ уходит в акт как «введено сотрудником» */
+const dqPick = r => JSON.stringify(["tariff_pct", "premium", "franchise", "term_from", "term_to", "term_days"].map(k => r[k]));
+function dqEdited(k){ const d = CH[k]; return !!d && dqPick(d.req) !== dqPick(d.orig); }
+/* дни между датами (оба крайних дня — как сервер: request_check.term_inclusive) */
+function dqDays(a, b, incl){
+  const x = sIso(a) && new Date(a + "T00:00:00Z"), y = sIso(b) && new Date(b + "T00:00:00Z");
+  if (!x || !y || isNaN(x) || isNaN(y) || y < x) return null;
+  return Math.round((y - x) / 86400000) + (incl ? 1 : 0);
+}
+function dqMoney(v, cur){
+  if (!isNum(v)) return "";
+  return cur && cur !== "UZS" ? nf(v, Number(v) % 1 ? 2 : 0) + " " + cur : money(v);
+}
+const dqPct = v => isNum(v) ? pct(v, dp(v)) : "";
+function dqPartyHtml(p){
+  if (!p) return "";
+  return p.kind === "individual" ? '<span class="muted">' + esc(T("tg.dq.individual", "физическое лицо — данные не извлекаются")) + "</span>" : esc(p.name);
+}
+function dqAreasText(a){
+  a = a || {};
+  const m2 = v => nf(v, Number(v) % 1 ? 1 : 0) + " " + T("tg.dq.m2", "м²");
+  return [isNum(a.land_m2) ? T("tg.dq.area_land", "земля {v}", {v: m2(a.land_m2)}) : "",
+    isNum(a.useful_m2) ? T("tg.dq.area_useful", "полезная {v}", {v: m2(a.useful_m2)}) : "",
+    isNum(a.total_m2) ? T("tg.dq.area_total", "общая {v}", {v: m2(a.total_m2)}) : ""].filter(Boolean).join(", ");
+}
+/* строка «название — значение»; html — уже экранирован */
+const dqKv = (label, html) => html ? "<div><span>" + esc(label) + "</span><b>" + html + "</b></div>" : "";
+const dqAi = on => on ? '<em class="dq-ai">' + esc(T("tg.dq.ai_mark", "прочитано моделью, проверьте")) + "</em>" : "";
+function dqTermText(r, incl){
+  const days = r.term_from && r.term_to ? dqDays(r.term_from, r.term_to, incl) : r.term_days;
+  if (!days) return "";
+  const dates = r.term_from && r.term_to ? T("tg.dq.term_dates", "с {a} по {b}", {a: dateOnly(r.term_from), b: dateOnly(r.term_to)}) + " · " : "";
+  return dates + T("tg.act.days_n", "{n} дн.", {n: days}) + (days > 366 ? " · " + T("tg.dq.multi_year", "многолетний: премия на весь срок, тариф годовой") : "");
+}
+
+/* подписи по кодам сервера (строки бланка, поля и условия договора, риски, исключения, порядок оплаты) —
+   те же слова, что app/act_texts.py; код не из словаря — пустая строка, служебный код на экран не выходит */
+function dqLbl(key){
+  switch (key) {
+    case "tg.br.row.product_code": return T("tg.br.row.product_code", "Вид страхования (код по приказу)");
+    case "tg.br.row.policyholder": return T("tg.br.row.policyholder", "Страхователь");
+    case "tg.br.row.beneficiary": return T("tg.br.row.beneficiary", "Выгодоприобретатель");
+    case "tg.br.row.pledger": return T("tg.br.row.pledger", "Залогодатель");
+    case "tg.br.row.object": return T("tg.br.row.object", "Объект страхования");
+    case "tg.br.row.object_value": return T("tg.br.row.object_value", "Страховая стоимость");
+    case "tg.br.row.sum_insured": return T("tg.br.row.sum_insured", "Страховая сумма");
+    case "tg.br.row.franchise": return T("tg.br.row.franchise", "Франшиза");
+    case "tg.br.row.tariff": return T("tg.br.row.tariff", "Страховой тариф");
+    case "tg.br.row.premium": return T("tg.br.row.premium", "Страховая премия");
+    case "tg.br.row.term": return T("tg.br.row.term", "Срок страхования");
+    case "tg.br.row.contract_terms": return T("tg.br.row.contract_terms", "Изменение/дополнение стандартных условий");
+    case "tg.br.row.counterparty": return T("tg.br.row.counterparty", "Контрагент");
+    case "tg.br.row.contracts_count": return T("tg.br.row.contracts_count", "Число договоров");
+    case "tg.br.row.osgor_class": return T("tg.br.row.osgor_class", "Класс (по ОСГОР)");
+    case "tg.br.row.additional_info": return T("tg.br.row.additional_info", "Дополнительные сведения");
+    case "tg.ct.miss.contract_no": return T("tg.ct.miss.contract_no", "Номер договора");
+    case "tg.ct.miss.contract_date": return T("tg.ct.miss.contract_date", "Дата договора");
+    case "tg.ct.miss.policyholder": return T("tg.ct.miss.policyholder", "Страхователь");
+    case "tg.ct.miss.object": return T("tg.ct.miss.object", "Объект страхования");
+    case "tg.ct.miss.sum_insured": return T("tg.ct.miss.sum_insured", "Страховая сумма");
+    case "tg.ct.miss.tariff_pct": return T("tg.ct.miss.tariff_pct", "Тариф");
+    case "tg.ct.miss.premium": return T("tg.ct.miss.premium", "Страховая премия");
+    case "tg.ct.miss.term": return T("tg.ct.miss.term", "Срок страхования");
+    case "tg.ct.miss.franchise": return T("tg.ct.miss.franchise", "Франшиза");
+    case "tg.ct.miss.covered_risks": return T("tg.ct.miss.covered_risks", "Застрахованные риски");
+    case "tg.ct.ess.object": return T("tg.ct.ess.object", "объект страхования");
+    case "tg.ct.ess.insured_event": return T("tg.ct.ess.insured_event", "страховой случай (застрахованные риски)");
+    case "tg.ct.ess.sum_insured": return T("tg.ct.ess.sum_insured", "размер страховой суммы");
+    case "tg.ct.ess.premium": return T("tg.ct.ess.premium", "размер страховой премии");
+    case "tg.ct.ess.term": return T("tg.ct.ess.term", "срок действия договора");
+    case "tg.ct.risk.all_risks": return T("tg.ct.risk.all_risks", "все риски");
+    case "tg.ct.risk.fire": return T("tg.ct.risk.fire", "пожар");
+    case "tg.ct.risk.lightning": return T("tg.ct.risk.lightning", "удар молнии");
+    case "tg.ct.risk.explosion": return T("tg.ct.risk.explosion", "взрыв");
+    case "tg.ct.risk.water": return T("tg.ct.risk.water", "залив, повреждение водой");
+    case "tg.ct.risk.natural": return T("tg.ct.risk.natural", "стихийные бедствия");
+    case "tg.ct.risk.earthquake": return T("tg.ct.risk.earthquake", "землетрясение");
+    case "tg.ct.risk.flood": return T("tg.ct.risk.flood", "наводнение");
+    case "tg.ct.risk.storm": return T("tg.ct.risk.storm", "буря, ураган");
+    case "tg.ct.risk.hail": return T("tg.ct.risk.hail", "град");
+    case "tg.ct.risk.landslide": return T("tg.ct.risk.landslide", "оползень, сель");
+    case "tg.ct.risk.theft": return T("tg.ct.risk.theft", "кража, грабёж, разбой");
+    case "tg.ct.risk.third_party": return T("tg.ct.risk.third_party", "противоправные действия третьих лиц");
+    case "tg.ct.risk.vehicle_impact": return T("tg.ct.risk.vehicle_impact", "наезд транспорта");
+    case "tg.ct.risk.aircraft": return T("tg.ct.risk.aircraft", "падение летательных аппаратов");
+    case "tg.ct.risk.glass": return T("tg.ct.risk.glass", "бой стёкол");
+    case "tg.ct.risk.breakdown": return T("tg.ct.risk.breakdown", "поломка, авария оборудования");
+    case "tg.ct.risk.electrical": return T("tg.ct.risk.electrical", "короткое замыкание");
+    case "tg.ct.risk.collision": return T("tg.ct.risk.collision", "ДТП, столкновение");
+    case "tg.ct.risk.other": return T("tg.ct.risk.other", "другое");
+    case "tg.ct.excl.war": return T("tg.ct.excl.war", "военные действия");
+    case "tg.ct.excl.terrorism": return T("tg.ct.excl.terrorism", "терроризм");
+    case "tg.ct.excl.nuclear": return T("tg.ct.excl.nuclear", "ядерный взрыв, радиация");
+    case "tg.ct.excl.riots": return T("tg.ct.excl.riots", "забастовки, беспорядки");
+    case "tg.ct.excl.intent": return T("tg.ct.excl.intent", "умысел страхователя");
+    case "tg.ct.excl.gross_negligence": return T("tg.ct.excl.gross_negligence", "грубая неосторожность");
+    case "tg.ct.excl.wear": return T("tg.ct.excl.wear", "износ, коррозия");
+    case "tg.ct.excl.confiscation": return T("tg.ct.excl.confiscation", "конфискация, арест");
+    case "tg.ct.excl.defects": return T("tg.ct.excl.defects", "дефекты, брак");
+    case "tg.ct.excl.consequential": return T("tg.ct.excl.consequential", "косвенные убытки, упущенная выгода");
+    case "tg.ct.excl.cyber": return T("tg.ct.excl.cyber", "кибер-риски");
+    case "tg.ct.excl.mould": return T("tg.ct.excl.mould", "плесень, грибок");
+    case "tg.ct.excl.pollution": return T("tg.ct.excl.pollution", "загрязнение");
+    case "tg.ct.excl.intoxication": return T("tg.ct.excl.intoxication", "алкогольное или наркотическое опьянение");
+    case "tg.ct.excl.other": return T("tg.ct.excl.other", "другое");
+    case "tg.ct.pay.single": return T("tg.ct.pay.single", "единовременно");
+    case "tg.ct.pay.installments": return T("tg.ct.pay.installments", "в рассрочку");
+    default: return "";
+  }
+}
+
+/* ---------- правка условий: тариф, премия, срок, франшиза (одинаково для запроса и договора) ---------- */
+function dqFrMode(fr){ return !fr ? "" : !fr.applied ? "none" : fr.amount != null && fr.pct == null ? "amount" : "pct"; }
+function dqFrHtml(k){
+  const d = CH[k], fr = d.req.franchise, mode = dqFrMode(fr), id = "dq" + k;
+  const seg = (v, text) => '<button type="button" data-dqfr="' + k + '" data-value="' + v + '" aria-pressed="' + (mode === v) + '">' + esc(text) + "</button>";
+  const o = d.orig.franchise;
+  return '<label class="f">' + esc(T("tg.act.fr_title", "Франшиза")) + "</label>"
+    + '<div class="segsel" role="group" aria-label="' + esc(T("tg.act.fr_title", "Франшиза")) + '">'
+    + seg("none", T("tg.dq.fr_none", "не применяется")) + seg("pct", T("tg.dq.fr_pct", "в %")) + seg("amount", T("tg.dq.fr_amount", "суммой")) + "</div>"
+    + (mode === "pct" || mode === "amount"
+      ? '<div class="fr-val"><input id="' + id + '-frval" type="text" autocomplete="off" enterkeyhint="done" data-dq="' + k + '" data-dqf="fr_val"'
+        + (mode === "amount" ? ' inputmode="numeric" value="' + esc(isNum(fr.amount) ? Number(fr.amount).toLocaleString(LOC()) : "") + '" placeholder="0"'
+          : ' inputmode="decimal" maxlength="7" value="' + esc(isNum(fr.pct) ? nf(fr.pct, dp(fr.pct)) : "") + '" placeholder="1"')
+        + ' aria-label="' + esc(T("tg.act.fr_size", "Размер")) + '"><span class="unit">' + esc(mode === "amount" ? SUM() : "%") + "</span></div>" : "")
+    + (!fr ? '<span class="hint">' + esc(T("tg.dq.fr_not_found", "В документе франшиза не найдена.")) + "</span>" : "")
+    + (o && o.text ? '<span class="hint">' + esc(T("tg.dq.in_doc", "В документе: «{v}»", {v: o.text})) + "</span>" : "");
+}
+function dqEditHtml(k){
+  const d = CH[k], r = d.req, id = "dq" + k, both = !!(r.term_from && r.term_to);
+  const err = CH.errs[k];
+  return '<div class="h3">' + esc(T("tg.dq.edit_title", "Условия — можно исправить")) + "</div>"
+    + '<div class="fgrid dq-edit">'
+    + '<div class="half"><label class="f" for="' + id + '-tariff">' + esc(T("tg.dq.tariff", "Тариф")) + ' <span class="unit">' + esc(T("tg.dq.pct_year", "% годовых")) + "</span></label>"
+    + '<input id="' + id + '-tariff" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" maxlength="8" data-dq="' + k + '" data-dqf="tariff_pct" value="'
+    + esc(isNum(r.tariff_pct) ? nf(r.tariff_pct, dp(r.tariff_pct)) : "") + '" placeholder="—"></div>'
+    + '<div class="half"><label class="f" for="' + id + '-premium">' + esc(T("tg.act.premium", "Премия")) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
+    + '<input id="' + id + '-premium" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" data-dq="' + k + '" data-dqf="premium" value="'
+    + esc(isNum(r.premium) ? Math.round(r.premium).toLocaleString(LOC()) : "") + '" placeholder="—"></div>'
+    + '<div class="half"><label class="f" for="' + id + '-from">' + esc(T("tg.dq.term_from", "Срок: с")) + "</label>"
+    + '<input id="' + id + '-from" type="date" data-dq="' + k + '" data-dqf="term_from" value="' + esc(r.term_from || "") + '"></div>'
+    + '<div class="half"><label class="f" for="' + id + '-to">' + esc(T("tg.dq.term_to", "по")) + "</label>"
+    + '<input id="' + id + '-to" type="date" data-dq="' + k + '" data-dqf="term_to" value="' + esc(r.term_to || "") + '"></div>'
+    + '<div class="half"><label class="f" for="' + id + '-days">' + esc(T("tg.act.f.term_days", "Срок страхования, дней")) + "</label>"
+    + '<input id="' + id + '-days" class="w-short" type="text" inputmode="numeric" autocomplete="off" maxlength="4" data-dq="' + k + '" data-dqf="term_days" value="'
+    + esc(r.term_days || "") + '"' + (both ? " disabled" : "") + ' placeholder="—"></div>'
+    + '<div class="full"><span class="hint" id="' + id + '-term">' + esc(dqTermHint(k)) + "</span></div>"
+    + '<div class="full fr-set" id="' + id + '-fr">' + dqFrHtml(k) + "</div>"
+    + "</div>"
+    + '<span class="ferr" id="wzErr-' + k + '">' + esc(err || "") + "</span>"
+    + '<div class="dq-src" id="' + id + '-src">' + dqSrcHtml(k) + "</div>";
+}
+function dqTermHint(k){
+  const d = CH[k], r = d.req;
+  if (r.term_from && r.term_to) {
+    const n = dqDays(r.term_from, r.term_to, d.fields.term_inclusive);
+    return n ? T("tg.dq.term_by_dates", "По датам: {n} дн., оба крайних дня включены.", {n: n}) + (n > 366 ? " " + T("tg.dq.multi_year_hint", "Многолетний договор: премия — на весь срок, тариф — годовой.") : "")
+      : T("tg.dq.term_bad", "Дата «по» раньше даты «с» — исправьте.");
+  }
+  return T("tg.dq.term_hint", "Укажите обе даты — дни посчитаются сами. Или только число дней.");
+}
+function dqSrcHtml(k){
+  const ed = dqEdited(k);
+  return '<span class="' + (ed ? "ed" : "") + '">' + esc(ed ? T("tg.dq.src_edited", "Исправлено вами — в акт уйдёт как введённое сотрудником.")
+      : T("tg.dq.src_doc", "Из документа — проверьте. Исправленное уйдёт в акт как введённое сотрудником.")) + "</span>"
+    + (ed ? '<button type="button" class="btn-link" data-dqreset="' + k + '">' + esc(T("tg.dq.reset", "Вернуть как в документе")) + "</button>" : "");
+}
+function dqSrcPaint(k){ const s = $("#dq" + k + "-src"); if (s) s.innerHTML = dqSrcHtml(k); }
+/* ввод в поле условий: значение запоминаем, карточку не перерисовываем — курсор остаётся на месте */
+function dqInput(el){
+  const k = el.dataset.dq, d = CH[k];
+  if (!d) return;
+  const r = d.req, f = el.dataset.dqf;
+  const decimal = () => { const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, "")); if (c !== el.value) el.value = c; return c; };
+  if (f === "tariff_pct") { const c = decimal(); r.tariff_pct = c === "" ? null : dec(c); }
+  else if (f === "premium") { groupDigitsLive(el); r.premium = num(el.value) || null; }
+  else if (f === "term_days") { if (/\D/.test(el.value)) el.value = el.value.replace(/\D/g, ""); r.term_days = el.value ? Number(el.value) : null; }
+  else if (f === "term_from" || f === "term_to") {
+    r[f] = sIso(el.value);
+    const both = !!(r.term_from && r.term_to), days = $("#dq" + k + "-days");
+    if (both) { const n = dqDays(r.term_from, r.term_to, d.fields.term_inclusive); r.term_days = n; if (days) days.value = n || ""; }
+    if (days) days.disabled = both;
+    const h = $("#dq" + k + "-term");
+    if (h) h.textContent = dqTermHint(k);
+  } else if (f === "fr_val" && r.franchise) {
+    if (dqFrMode(r.franchise) === "amount") { groupDigitsLive(el); r.franchise.amount = num(el.value) || null; }
+    else { const c = decimal(); r.franchise.pct = c === "" ? null : dec(c); }
+    r.franchise.text = null;
+  }
+  wzClearErr(k);
+  dqSrcPaint(k);
+  wzSave();
+}
+function dqFrSet(k, v){
+  const d = CH[k];
+  if (!d) return;
+  const cur = d.req.franchise;
+  if (v === "none") d.req.franchise = {applied: false, text: null, pct: null, amount: null};
+  else if (v === "pct") d.req.franchise = {applied: true, text: null, pct: cur && cur.applied ? cur.pct : null, amount: null};
+  else if (v === "amount") d.req.franchise = {applied: true, text: null, pct: null, amount: cur && cur.applied ? cur.amount : null};
+  // вернулись к тому, что в документе, — это снова значение документа
+  if (d.orig.franchise && dqFrMode(d.orig.franchise) === v && !(d.req.franchise.pct != null || d.req.franchise.amount != null)) d.req.franchise = JSON.parse(JSON.stringify(d.orig.franchise));
+  if (cur && cur.type && d.req.franchise.applied) d.req.franchise.type = cur.type;
+  haptic("select");
+  wzClearErr(k);
+  const box = $("#dq" + k + "-fr");
+  if (box) box.innerHTML = dqFrHtml(k);
+  dqSrcPaint(k);
+  wzSave();
+}
+function dqReset(k){
+  const d = CH[k];
+  if (!d) return;
+  d.req = JSON.parse(JSON.stringify(d.orig));
+  wzClearErr(k);
+  haptic("select");
+  wzSave();
+  wzPart(k);
+}
+/* проверка условий до отправки: те же границы, что app/act.py (_validate_terms) */
+function dqCheck(k){
+  const d = CH[k];
+  if (!d) return "";
+  const r = d.req, fr = r.franchise;
+  const bad = (r.tariff_pct != null && !(r.tariff_pct > 0 && r.tariff_pct <= 100)) || (r.premium != null && !(r.premium > 0))
+    || (!!r.term_from !== !!r.term_to) || (r.term_from && r.term_to && !dqDays(r.term_from, r.term_to, d.fields.term_inclusive))
+    || (r.term_days != null && !(Number.isInteger(r.term_days) && r.term_days >= 1 && r.term_days <= 3660))
+    || (fr && fr.applied && ((fr.pct != null && !(fr.pct > 0 && fr.pct <= 100)) || (fr.amount != null && !(fr.amount > 0))));
+  return bad ? errText(k) : "";
+}
+/* в POST /act/make: условия как есть — как прочитано сервером, с правками; источник каждого поля и правки
+   «было → стало» сервер определяет сам, сравнивая со своей загрузкой (source экран не вычисляет) */
+function dqBody(k){
+  const d = CH[k];
+  if (!d) return null;
+  const r = JSON.parse(JSON.stringify(d.req));
+  if (r.term_from && r.term_to) delete r.term_days;
+  else { delete r.term_from; delete r.term_to; }
+  Object.keys(r).forEach(x => { if (r[x] == null || (Array.isArray(r[x]) && !r[x].length)) delete r[x]; });
+  const terms = ["tariff_pct", "premium", "franchise", "term_days", "term_from"].some(x => r[x] != null);
+  if (k === "br") return terms ? r : null;
+  return terms || ["sum_insured", "contract_no", "object_description", "covered_risks", "payments"].some(x => r[x] != null) ? r : null;
+}
+
+/* ---------- карточка «Запрос филиала» ---------- */
+function brCardHtml(){
+  const b = CH.br;
+  if (!b) return "";
+  const f = b.fields, p = f.product_code ? wzProd(f.product_code) : null;
+  const obj = f.object_description_translated
+    ? esc(f.object_description_translated) + (f.object_description && f.object_description !== f.object_description_translated
+      ? '<small>' + esc(T("tg.dq.orig_text", "в документе: {v}", {v: f.object_description})) + "</small>" : "")
+    : esc(f.object_description || "");
+  const rows = dqKv(T("tg.dq.product", "Код продукта"), f.product_code ? '<span class="num">' + esc(f.product_code) + "</span>" + (p ? "<small>" + esc(p.name || "") + "</small>" : "") : "")
+    + DQ_PARTIES.map(k => dqKv(dqLbl("tg.br.row." + k), dqPartyHtml(f[k]))).join("")
+    + dqKv(T("tg.br.row.object", "Объект страхования"), obj)
+    + dqKv(T("tg.dq.areas", "Площадь"), esc(dqAreasText(f.areas)))
+    + dqKv(T("tg.act.f.cadastre_no", "Кадастровый номер"), f.cadastre_no ? '<span class="num">' + esc(f.cadastre_no) + "</span>" : "")
+    + dqKv(T("tg.br.row.object_value", "Страховая стоимость"), esc(dqMoney(f.object_value)))
+    + dqKv(T("tg.br.row.sum_insured", "Страховая сумма"), esc(dqMoney(f.sum_insured)))
+    + dqKv(T("tg.dq.contract_terms", "Условия договора"), esc(f.contract_terms || ""));
+  const lost = b.rows.filter(r => !r.found).map(r => dqLbl("tg.br.row." + r.code)).filter(Boolean);
+  return '<div class="card dq-card" id="brCard"><div class="dq-top"><h2>' + esc(T("tg.dq.br_title", "Запрос филиала")) + "</h2>"
+    + '<span class="tag">' + esc(b.source === "photo" ? T("tg.dq.src_scan", "со скана, прочитано моделью") : T("tg.dq.src_file", "из файла")) + "</span></div>"
+    + '<p class="sub">' + esc(T("tg.dq.rows_read", "Прочитано строк: {n} из {m}", {n: b.rows_found, m: b.rows_total})) + "</p>"
+    + '<div class="dq-kv">' + rows + "</div>"
+    + (lost.length ? '<p class="note">' + esc(T("tg.dq.br_lost", "Не найдено в запросе: {what}.", {what: lost.join(", ")})) + "</p>" : "")
+    + dqEditHtml("br")
+    + '<p class="note">' + esc(T("tg.dq.br_note", "Тариф, премию, франшизу и срок акт сверит с расчётом: ниже ли тариф минимального и сходится ли премия.")) + "</p>"
+    + "</div>";
+}
+
+/* ---------- карточка «Договор страхования» ---------- */
+function ctCardHtml(){
+  const c = CH.ct;
+  if (!c) return "";
+  const f = c.fields, ai = k => c.ai_fields.indexOf(k) >= 0, cur = f.currency;
+  const noDate = [f.contract_no ? T("tg.dq.no", "№ {v}", {v: f.contract_no}) : "", f.contract_date ? T("tg.dq.from_date", "от {d}", {d: dateOnly(f.contract_date)}) : ""].filter(Boolean).join(" ");
+  const car = [f.brand, f.model].filter(Boolean).join(" ");
+  let rows = dqKv(T("tg.dq.no_date", "Номер и дата"), esc(noDate) + (f.place ? "<small>" + esc(f.place) + "</small>" : ""))
+    + dqKv(T("tg.dq.ct_name", "Название"), esc(f.product_name || ""))
+    + dqKv(T("tg.dq.insurer", "Страховщик"), dqPartyHtml(f.insurer))
+    + DQ_PARTIES.map(k => dqKv(dqLbl("tg.br.row." + k), dqPartyHtml(f[k]))).join("")
+    + dqKv(T("tg.br.row.object", "Объект страхования"), f.object_description ? esc(f.object_description) + dqAi(ai("object_description")) : "")
+    + dqKv(T("tg.dq.address", "Адрес"), esc(f.address || f.region || ""))
+    + dqKv(T("tg.act.f.cadastre_no", "Кадастровый номер"), f.cadastre_no ? '<span class="num">' + esc(f.cadastre_no) + "</span>" : "")
+    + dqKv(T("tg.dq.areas", "Площадь"), esc(dqAreasText(f.areas)))
+    + dqKv(T("tg.act.f.construction", "Конструкция, материал стен"), esc(f.construction || ""))
+    + dqKv(T("tg.dq.year_built", "Год постройки"), esc(f.year_built || ""))
+    + dqKv(T("tg.dq.brand_model", "Марка и модель"), esc(car))
+    + dqKv(T("tg.dq.vin", "VIN или заводской номер"), f.vin ? '<span class="num">' + esc(f.vin) + "</span>" : "")
+    + dqKv(T("tg.act.f.reg_no", "Государственный номер"), f.reg_no ? '<span class="num">' + esc(f.reg_no) + "</span>" : "")
+    + dqKv(T("tg.br.row.sum_insured", "Страховая сумма"), f.sum_insured != null ? '<span class="num">' + esc(dqMoney(f.sum_insured, cur)) + "</span>" + dqAi(ai("sum_insured")) : "")
+    + dqKv(T("tg.br.row.object_value", "Страховая стоимость"), f.object_value != null ? '<span class="num">' + esc(dqMoney(f.object_value, cur)) + "</span>" + dqAi(ai("object_value")) : "");
+  if (f.items.length) {
+    rows += dqKv(T("tg.dq.items", "Объекты по договору"), f.items.map(x => esc((x.name || T("tg.dq.item_noname", "без названия")) + " — " + dqMoney(x.sum, cur))).join("<br>"));
+  }
+  const pay = [f.payment_mode ? dqLbl("tg.ct.pay." + f.payment_mode) : ""]
+    .concat(f.payments.map(p => (p.date ? dateOnly(p.date) + " — " : "") + dqMoney(p.amount, cur))).filter(Boolean);
+  rows += dqKv(T("tg.dq.payments", "Порядок оплаты"), pay.length ? pay.map(esc).join("<br>") + dqAi(ai("payment_mode") || ai("payments")) : "")
+    + dqKv(T("tg.dq.territory", "Территория"), esc(f.territory || ""))
+    + dqKv(T("tg.dq.notice", "Срок уведомления о событии"), esc(f.notice || ""));
+  const chips = (list, pre, x) => list.map(r => '<span class="dq-chip' + (x ? " x" : "") + '">' + esc(r.code === "other" ? (r.label || T("tg.ct.risk.other", "другое")) : (dqLbl(pre + r.code) || r.label || "")) + "</span>").join("");
+  const ess = c.essentials.length
+    ? '<div class="h3">' + esc(T("tg.dq.ess_title", "Существенные условия договора")) + "</div>"
+      + '<ul class="dq-ess">' + c.essentials.map(e => '<li class="' + (e.present ? "yes" : "no") + '"><i>' + esc(e.present ? T("tg.dq.ess_yes", "есть") : T("tg.dq.ess_no", "нет")) + "</i><span>"
+        + esc(dqLbl("tg.ct.ess." + e.code)) + "</span></li>").join("") + "</ul>"
+      + '<p class="note">' + esc(T("tg.dq.ess_ref", "Перечень — {ref}. Без существенного условия договор нужно дополнить.", {ref: T("tg.dq.legal_929", "ГК РУз, ст. 929")})) + "</p>"
+    : "";
+  const src = c.source === "photo" ? T("tg.dq.ct_src_photo", "со скана договора, прочитано моделью")
+    : c.source === "document_ai" ? T("tg.dq.ct_src_ai", "из текста договора, часть полей прочитана моделью") : T("tg.dq.ct_src_doc", "из файла договора, без модели");
+  return '<div class="card dq-card" id="ctCard"><div class="dq-top"><h2>' + esc(T("tg.dq.ct_title", "Договор страхования")) + "</h2>"
+    + '<span class="tag">' + esc(src) + "</span></div>"
+    + '<p class="sub">' + esc(T("tg.dq.fields_read", "Прочитано полей: {n}", {n: c.found_n}) + (c.pages ? " · " + T("tg.dq.pages", "страниц: {n}", {n: c.pages}) : "")) + "</p>"
+    + (c.truncated ? '<p class="note warn">' + esc(T("tg.dq.truncated", "Договор длинный — прочитана только часть документа. Проверьте условия по оригиналу.")) + "</p>" : "")
+    + '<div class="dq-kv">' + rows + "</div>"
+    + (c.covered_risks.length ? '<div class="h3">' + esc(T("tg.dq.risks", "Застрахованные риски")) + '</div><div class="dq-chips">' + chips(c.covered_risks, "tg.ct.risk.") + "</div>" : "")
+    + (c.exclusions.length ? '<div class="h3">' + esc(T("tg.dq.excl", "Исключения")) + '</div><div class="dq-chips">' + chips(c.exclusions, "tg.ct.excl.", true) + "</div>" : "")
+    + (f.special_terms.length ? '<details class="mini"><summary>' + esc(T("tg.dq.special", "Особые условия · {n}", {n: f.special_terms.length})) + "</summary><ul>"
+      + f.special_terms.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></details>" : "")
+    + ess
+    + (c.missing.length ? '<p class="note warn">' + esc(T("tg.dq.ct_missing", "Не найдено в договоре: {what}.", {what: c.missing.map(x => dqLbl("tg.ct.miss." + x)).filter(Boolean).join(", ")})) + "</p>" : "")
+    + (c.ai_fields.length ? '<p class="note">' + esc(T("tg.dq.ai_note", "Значения с пометкой «прочитано моделью» модель взяла из текста договора — сверьте их с оригиналом.")) + "</p>" : "")
+    + dqEditHtml("ct")
+    + "</div>";
+}
+
+/* ---------- «Запрос и договор: расхождения» (шаг 2 — из загрузки, шаг 3 — из акта) ---------- */
+function xLabel(code){
+  switch (code) {
+    case "product_code": return T("tg.dq.x.product_code", "Код продукта");
+    case "sum_insured": return T("tg.br.row.sum_insured", "Страховая сумма");
+    case "object_value": return T("tg.br.row.object_value", "Страховая стоимость");
+    case "tariff_pct": return T("tg.dq.tariff", "Тариф");
+    case "premium": return T("tg.br.row.premium", "Страховая премия");
+    case "term": return T("tg.dq.x.term", "Срок");
+    case "franchise": return T("tg.act.fr_title", "Франшиза");
+    default: return T("tg.dq.x.object", "Объект");
+  }
+}
+function hintName(c){
+  switch (c) {
+    case "building": return T("tg.act.grp.property", "Здание, помещение");
+    case "equipment": return T("tg.act.grp.equipment", "Оборудование");
+    case "vehicle": case "special_machinery": return T("tg.act.grp.vehicle", "Транспорт и спецтехника");
+    case "cargo": return T("tg.act.grp.cargo", "Груз");
+    default: return "";
+  }
+}
+function xVal(code, v){
+  const na = "—";
+  if (v == null || v === "") return na;
+  switch (code) {
+    case "sum_insured": case "object_value": case "premium": return isNum(v) ? money(v) : na;
+    case "tariff_pct": return dqPct(v) || na;
+    case "term": return v.days ? T("tg.act.days_n", "{n} дн.", {n: v.days}) + (v.from && v.to ? " (" + dateOnly(v.from) + " – " + dateOnly(v.to) + ")" : "") : na;
+    case "franchise": return !v.applied ? T("tg.dq.fr_none", "не применяется") : isNum(v.pct) ? dqPct(v.pct) : isNum(v.amount) ? money(v.amount) : (v.text || na);
+    case "object": return v.cadastre_no || hintName(v.class_hint) || na;
+    default: return String(v);
+  }
+}
+function xVerdict(v){
+  switch (v) {
+    case "same": return T("tg.dq.x.same", "совпадает");
+    case "differs": return T("tg.dq.x.differs", "расходится");
+    default: return T("tg.dq.x.missing", "нет в одном из документов");
+  }
+}
+function xTableHtml(xc){
+  const n = xc.items.filter(i => i.verdict === "differs").length;
+  const sum = n ? T("tg.dq.x.sum_differs", "Запрос филиала и договор расходятся: {n}. Уточните, какой документ верный.", {n: n})
+    : xc.items.some(i => i.verdict === "same") ? T("tg.dq.x.sum_ok", "Запрос филиала и договор совпадают по сверяемым условиям.")
+    : T("tg.dq.x.sum_missing", "Сверить не по чему: нужных условий нет в обоих документах.");
+  return '<p class="xt-sum' + (n ? " warn" : "") + '">' + esc(sum) + "</p>"
+    + '<div class="xt" role="table" aria-label="' + esc(T("tg.dq.x.title", "Запрос и договор: расхождения")) + '">'
+    + '<div class="xt-h" role="row"><span role="columnheader">' + esc(T("tg.dq.x.what", "Что")) + '</span><span role="columnheader">' + esc(T("tg.dq.x.in_req", "В запросе"))
+    + '</span><span role="columnheader">' + esc(T("tg.dq.x.in_ct", "В договоре")) + '</span><span role="columnheader">' + esc(T("tg.dq.x.verdict", "Вывод")) + "</span></div>"
+    + xc.items.map(i => '<div class="xt-r ' + (i.verdict === "differs" ? "xt-bad" : i.verdict === "same" ? "xt-ok" : "xt-na") + '" role="row">'
+      + '<b class="xt-l" role="cell">' + esc(xLabel(i.code)) + "</b>"
+      + '<span class="xt-v" role="cell"><i>' + esc(T("tg.dq.x.in_req", "В запросе")) + "</i>" + esc(xVal(i.code, i.request)) + "</span>"
+      + '<span class="xt-v" role="cell"><i>' + esc(T("tg.dq.x.in_ct", "В договоре")) + "</i>" + esc(xVal(i.code, i.contract)) + "</span>"
+      + '<span class="xt-s" role="cell">' + esc(xVerdict(i.verdict)) + "</span></div>").join("")
+    + "</div>";
+}
+function xcCardHtml(){
+  if (!CH.xc) return "";
+  return '<div class="card dq-card" id="xcCard"><h2>' + esc(T("tg.dq.x.title", "Запрос и договор: расхождения")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.dq.x.sub", "По прочитанному из документов. После правок сверка в акте пересчитывается.")) + "</p>"
+    + xTableHtml(CH.xc) + "</div>";
+}
+
+/* ---------- шаг «Акт»: сверка с запросом филиала и с договором (request_check / contract_check) ---------- */
+function ckVal(code, v){
+  if (v == null) return T("tg.dq.ck_none", "нет данных");
+  switch (code) {
+    case "tariff_min": case "tariff_act": return dqPct(v);
+    case "franchise": return Number(v) === 0 ? T("tg.dq.fr_none", "не применяется") : dqPct(v);
+    case "term": return T("tg.act.days_n", "{n} дн.", {n: v});
+    default: return isNum(v) ? money(v) : T("tg.dq.ck_none", "нет данных");
+  }
+}
+function ckCalcLabel(code){
+  switch (code) {
+    case "tariff_min": return T("tg.dq.ck_min", "минимальный");
+    case "tariff_act": return T("tg.dq.ck_act_rate", "ставка акта");
+    case "premium_act": return T("tg.dq.ck_act_prem", "премия акта");
+    case "sum_value": return T("tg.br.row.object_value", "Страховая стоимость").toLowerCase();
+    case "term": return T("tg.dq.ck_act_term", "в акте");
+    case "franchise": return T("tg.dq.ck_act_fr", "в акте");
+    case "payments": return T("tg.dq.ck_pay_total", "по графику");
+    case "items_sum": return T("tg.dq.ck_items_total", "по объектам");
+    default: return T("tg.dq.ck_calc", "расчёт");
+  }
+}
+function ckRowHtml(i, docLabel){
+  const v = i.verdict;
+  const cls = i.reference ? "ck-ref" : v === "below_min" || v === "differs" || v === "no_essential" ? "ck-warn" : v === "ok" ? "ck-ok" : "ck-na";
+  const vals = i.code !== "essentials" && (i.requested != null || i.calculated != null);
+  return '<div class="ck-r ' + cls + '"><p class="ck-h"><b>' + esc(i.label || "") + "</b>"
+    + '<span class="ck-v">' + esc(i.verdict_label || "") + "</span></p>"
+    + (vals ? '<p class="ck-n"><span>' + esc(docLabel) + ": <b>" + esc(ckVal(i.code, i.requested)) + "</b></span><span>"
+      + esc(ckCalcLabel(i.code)) + ": <b>" + esc(ckVal(i.code, i.calculated)) + "</b></span></p>" : "")
+    + (i.text ? '<p class="ck-t">' + esc(i.text) + "</p>" : "") + "</div>";
+}
+function actCheckHtml(c, kind){
+  if (!c || typeof c !== "object" || !c.available) return "";
+  const s = sObj(c.summary), v = s.verdict;
+  const tone = v === "ok" ? "ok" : v === "below_min" || v === "differs" || v === "no_essential" ? "warn" : "";
+  const items = sArr(c.items).filter(i => i && typeof i === "object");
+  const how = sArr(c.how).filter(x => typeof x === "string" && x);
+  const doc = kind === "rq" ? T("tg.dq.ck_in_req", "в запросе") : T("tg.dq.ck_in_ct", "в договоре");
+  return '<div class="ck-box ' + tone + '"><p class="fr-h"><b>' + esc(kind === "rq" ? T("tg.dq.rq_title", "Сверка с запросом филиала") : T("tg.dq.ct_check_title", "Сверка с договором")) + "</b></p>"
+    + (s.text ? '<p class="ck-sum">' + esc(s.text) + "</p>" : "")
+    + '<div class="ck-rows">' + items.map(i => ckRowHtml(i, doc)).join("") + "</div>"
+    + ckEditsHtml(c.edits)
+    + (how.length ? '<details class="mini"><summary>' + esc(T("tg.dq.how", "Как сверено · {n}", {n: how.length})) + "</summary><ul>"
+      + how.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></details>" : "")
+    + (c.source_label ? '<p class="ck-src">' + esc(T("tg.dq.ck_src", "Источник: {v}", {v: String(c.source_label)})) + "</p>" : "")
+    + "</div>";
+}
+/* правки сотрудника в условиях документа (сервер сравнил ввод со своей загрузкой): строка и «было → стало» */
+function ckEditsHtml(e){
+  e = sObj(e);
+  const line = typeof e.line === "string" ? e.line : "";
+  const items = sArr(e.items).filter(x => x && typeof x.text === "string" && x.text);
+  if (!line && !items.length) return "";
+  return '<div class="ck-ed' + (items.length ? " on" : "") + '">' + (line ? '<p class="ck-ed-h">' + esc(line) + "</p>" : "")
+    + (items.length ? '<ul class="ck-ed-l">' + items.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul>" : "") + "</div>";
+}
+function actXcHtml(a){
+  const xc = dqXcFrom(a.cross_check);
+  if (!xc) return "";
+  return '<div class="ck-box ' + (xc.items.some(i => i.verdict === "differs") ? "warn" : "ok") + '"><p class="fr-h"><b>' + esc(T("tg.dq.x.title", "Запрос и договор: расхождения")) + "</b></p>"
+    + xTableHtml(xc) + "</div>";
 }
 
 /* =====================================================================================
@@ -4083,9 +4781,11 @@ const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_i
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
   want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
   protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr",
-  market: "market"};
+  market: "market", request: "br", contract: "ct"};
 function errText(field){
   switch (field) {
+    case "br": return T("tg.dq.err_br", "Проверьте условия запроса филиала: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
+    case "ct": return T("tg.dq.err_ct", "Проверьте условия договора: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
     case "prod": return T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
     case "sum_insured": case "object_value": case "losses_amount": case "price_new":
       return T("tg.act.err_money", "Введите сумму больше нуля, в сумах.");
@@ -4130,6 +4830,10 @@ function actBody(){
   // франшиза сотрудника: {pct | amount, type}; по обязательным видам не отправляется
   const f = CH.fr;
   if (f.on && !wzStatutory()) opt.deductible = f.unit === "amount" ? {amount: Number(f.amount), type: f.type} : {pct: dec(f.pct), type: f.type};
+  // запрос филиала и договор: как прочитано, с правками сотрудника (исправлено — source = input)
+  const rq = dqBody("br"), cq = dqBody("ct");
+  if (rq) opt.request = rq;
+  if (cq) opt.contract = cq;
   // оценка по объявлениям: правки сотрудника, номер загрузки снимков, курс
   const mk = mkBody();
   if (mk) opt.market = mk;
@@ -4158,6 +4862,7 @@ async function actMake(){
     if (f.unit === "amount") { const a = Number(f.amount) || 0; if (!(a > 0) || (S > 0 && a > S / 2)) e.fr = errText("fr"); }
     else { const p = dec(f.pct); if (!(p > 0 && p <= 50)) e.fr = errText("fr"); }
   }
+  ["br", "ct"].forEach(k => { const x = dqCheck(k); if (x) e[k] = x; });
   if (Object.keys(e).length) { actShowErrors(e); return; }
   CH.errs = {};
   CH.err = "";
@@ -4199,7 +4904,7 @@ function actShowErrors(e){
   if (OPT_KEYS.some(k => e[k]) || e.fr) CH.optOpen = true;
   haptic("error");
   wzPaint(true);
-  const first = ["prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
+  const first = ["br", "ct", "prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
   if (first) wzFocusField(first);
 }
 
@@ -4267,6 +4972,8 @@ function wzStep3Html(){
   const rateNote = actRateNote(a);
   // итоговый вывод раздела 3 (сервер: value.final_verdict); в старых актах его нет — вывод по заявленной стоимости
   const fv = val.final_verdict || val.verdict;
+  // многолетний договор: премия — на весь срок, тариф — годовой
+  const multi = Number(prem.term_days) > 366;
   return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
     + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
     + '<div class="card act-sum ' + tone + '">'
@@ -4276,16 +4983,20 @@ function wzStep3Html(){
     + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
     + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
     + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
-    + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>" + (rateNote ? "<em>" + esc(rateNote) + "</em>" : "") + "</div>"
+    + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>"
+    + (rateNote || multi ? "<em>" + esc([multi ? T("tg.act.rate_annual", "годовых") : "", rateNote].filter(Boolean).join("; ")) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.premium", "Премия")) + "</span><b>" + esc(actPremium(a)) + "</b>"
     + (prem.term_days || frApplied(a) ? "<em>" + esc([frApplied(a) ? T("tg.act.prem_with_fr", "с франшизой") : "",
-        prem.term_days ? T("tg.act.term", "за {n} дн.", {n: prem.term_days}) : ""].filter(Boolean).join(", ")) + "</em>" : "") + "</div>"
+        prem.term_days ? T("tg.act.term", "за {n} дн.", {n: prem.term_days}) : "", multi ? T("tg.act.term_whole", "на весь срок") : ""].filter(Boolean).join(", ")) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
     + (verdictName(fv) ? '<em class="' + (fv === "normal" ? "ok" : "warn") + '">' + esc(verdictName(fv)
       + (fv === "refine" && isNum(val.refined_ratio_pct) ? T("tg.act.v.refine_ratio", ": к уточнённой {p}", {p: pct(val.refined_ratio_pct, dp(val.refined_ratio_pct))}) : "")) + "</em>" : "") + "</div>"
     + "</div>"
     + actFrHtml(a)
     + actMvHtml(a)
+    + actCheckHtml(a.request_check, "rq")
+    + actCheckHtml(a.contract_check, "ct")
+    + actXcHtml(a)
     + (disc ? '<p class="act-line warn"><b>' + esc(T("tg.act.disc_n", "Расхождения в данных: {n}", {n: disc})) + "</b> "
       + esc(T("tg.act.disc_where", "— выделены в акте, проверьте до выдачи полиса.")) + "</p>" : "")
     + '<div class="act-btns">'
@@ -4625,7 +5336,8 @@ function actReset(){
   Object.assign(CH, {wz: 1, queue: [], filesDirty: false, session: "", ai: null, photoCount: 0, rec: [], damages: [],
     missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
     modelN: 0, docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {},
-    must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false, kind: ""});
+    must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false, kind: "",
+    br: null, ct: null, xc: null});
   mkReset();
   wzSeedRegion();
   wzSave();
@@ -4641,7 +5353,12 @@ async function loadChat(){
   wzSeedRegion();
   if (CH.wz === 3 && !CH.actId) CH.wz = 2;
   wzPaint(true);
-  chatRefs().then(() => { wzPart("prod"); wzPart("views"); });
+  chatRefs().then(() => {
+    // код продукта подставлен из документа до загрузки справочника — класс берём теперь
+    const p = CH.must.product_code && !CH.must.class_code ? wzProd(CH.must.product_code) : null;
+    if (p) { CH.must.class_code = wzClassesOf(p)[0] || ""; wzSave(); }
+    wzPart("prod"); wzPart("views"); wzPart("br");
+  });
   if (CH.actId) actFetch();
 }
 
@@ -4674,6 +5391,8 @@ function wzClick(e){
   if (d.add || d.copy) { wzQuickAdd(t); return; }
   if (d.set) { wzSetOpt(t); return; }
   if (d.fr) { wzFrSet(d.fr, d.value); return; }
+  if (d.dqfr) { dqFrSet(d.dqfr, d.value); return; }
+  if (d.dqreset) { dqReset(d.dqreset); return; }
   if (d.go === "frapply") { actFrApply(); return; }
   if (d.go === "docall") { actDocAll(); return; }
   if (d.go === "addphoto") { wzGo(1); return; }
@@ -4688,6 +5407,7 @@ function wzInput(e){
   if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
   if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
   if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
+  if (el.dataset && el.dataset.dq) { dqInput(el); return; }
   if (el.dataset && el.dataset.mkq) { MK.q = String(el.value || "").slice(0, 60); mkSave(); return; }
   if (el.dataset && el.dataset.mkprice != null) { mkPriceInput(el); return; }
   if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }

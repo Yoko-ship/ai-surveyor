@@ -633,6 +633,82 @@ def check_market_card(html):
     check_market_fixes(html)
 
 
+def check_branch_contract(html):
+    """30.09.2026: запрос филиала и договор страхования на шагах «Фото», «Проверить», «Акт»
+    (POST /act/photos: branch_request, contract, cross_check; POST /act/make: optional.request / optional.contract)."""
+    must = {
+        'T("tg.act.formats_more"': "в подсказке шага «Фото» не сказано про запрос филиала и договор",
+        'T("tg.dq.kind_br", "запрос филиала")': "у файла нет пометки «запрос филиала»",
+        'T("tg.dq.kind_ct", "договор страхования")': "у файла нет пометки «договор страхования»",
+        'T("tg.dq.rows_read", "Прочитано строк: {n} из {m}"': "нет «Прочитано строк: N из 16»",
+        "function brCardHtml(": "нет карточки «Запрос филиала»",
+        "function ctCardHtml(": "нет карточки «Договор страхования»",
+        "function xcCardHtml(": "нет карточки «Запрос и договор: расхождения»",
+        'T("tg.dq.individual", "физическое лицо — данные не извлекаются")': "физлицо-сторона не помечено",
+        "object_description_translated": "перевод объекта из запроса не показан",
+        'T("tg.dq.ai_mark", "прочитано моделью, проверьте")': "значения модели не помечены «прочитано моделью, проверьте»",
+        'T("tg.dq.ess_title", "Существенные условия договора")': "нет блока существенных условий",
+        'T("tg.dq.legal_929", "ГК РУз, ст. 929")': "нет ссылки на норму у существенных условий",
+        'T("tg.dq.truncated"': "не сказано, что прочитана только часть договора",
+        'T("tg.dq.special", "Особые условия · {n}"': "особые условия не свёрнуты",
+        "data-dqf=\"tariff_pct\"": "тариф запроса/договора нельзя исправить",
+        "data-dqf=\"premium\"": "премию нельзя исправить",
+        "data-dqf=\"term_from\"": "срок нельзя исправить",
+        "data-dqfr=": "франшизу нельзя исправить",
+        "opt.request = rq": "запрос филиала не уходит в /act/make",
+        "opt.contract = cq": "договор не уходит в /act/make",
+        "request: \"br\", contract: \"ct\"": "ошибки 422 запроса и договора не показываются у карточек",
+        "CH.preDoc.product_code = pc": "код продукта из документа не выбирает продукт",
+        "(!CH.must.product_code && !CH.must.class_code) || CH.pre.product_code": "код продукта из документа затирает выбор сотрудника",
+        "function actCheckHtml(": "нет плиток сверки в акте",
+        'actCheckHtml(a.request_check, "rq")': "нет плитки «Сверка с запросом филиала»",
+        'actCheckHtml(a.contract_check, "ct")': "нет плитки «Сверка с договором»",
+        "actXcHtml(a)": "нет плитки cross_check в акте",
+        'T("tg.dq.how", "Как сверено · {n}"': "how[] не свёрнут в «Как сверено»",
+        'T("tg.act.term_whole", "на весь срок")': "у премии многолетнего договора нет пометки «на весь срок»",
+        'T("tg.act.rate_annual", "годовых")': "у ставки многолетнего договора нет пометки «годовых»",
+        "br: CH.br, ct: CH.ct, xc: CH.xc": "прочитанное из запроса и договора не хранится в sessionStorage",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "запрос филиала и договор: " + "; ".join(miss)
+    # тексты из документов — только через esc(); подписи по кодам — из словаря, а не кодом сервера
+    for name in ("brCardHtml", "ctCardHtml"):
+        body = _fn(html, name)
+        assert "esc(f." in body or "esc(dq" in body, f"{name}: значения выводятся без esc()"
+    lbl = _fn(html, "dqLbl")
+    assert 'default: return "";' in lbl, "неизвестный код сервера выводится на экран"
+    for code in ("policyholder", "fire", "war", "installments", "insured_event", "tariff_pct"):
+        assert '"' + code + '"' in lbl or "." + code + '"' in lbl, f"нет подписи для кода {code}"
+    # предупреждающим цветом — ниже минимума, расхождение, нет существенного условия; справочные строки — приглушённо
+    row = _fn(html, "ckRowHtml")
+    for v in ('"below_min"', '"differs"', '"no_essential"', "i.reference"):
+        assert v in row, "в строке сверки не различается " + v
+    print("22в. запрос филиала и договор: пометки файлов, карточки с правкой условий, сверка двух документов, плитки в акте — ок")
+    check_branch_contract_fixes(html)
+
+
+def check_branch_contract_fixes(html):
+    """Замечания контролёра 30.09.2026 (вечер): источник решает сервер, правки видны в плитках, карточка на 390 px."""
+    body = _fn(html, "dqBody")
+    assert "source" not in body, "dqBody сам вычисляет источник — его решает сервер"
+    assert "r.franchise = null" not in body, "dqBody выбрасывает франшизу без размера — условия уходят не как есть"
+    req = _fn(html, "dqReq")
+    for key in ("object_value: sNum(r.object_value)", "sStr(r.object_description, 600)", "cadastre_no: sStr(r.cadastre_no",
+                "object_kind: sCode(r.object_kind)", "class_hint: sCode(r.class_hint)"):
+        assert key in req, "dqReq не передаёт объект запроса/договора как есть: " + key
+    assert req.index("object_value") < req.index("if (!isCt) return o"), "стоимость и объект запроса не уходят в акт"
+    ed = _fn(html, "ckEditsHtml")
+    assert "e.line" in ed and "e.items" in ed and "esc(x.text)" in ed and "esc(line)" in ed, "правки сотрудника не показаны"
+    assert "ckEditsHtml(c.edits)" in _fn(html, "actCheckHtml"), "плитка сверки без строки правок"
+    css = html[html.index(".xt-sum{"):html.index("/* шаг 3: сверка с запросом филиала")]
+    phone = css[:css.index("@media")]
+    xl = re.search(r"(?m)^\.xt-l\{[^}]*\}", phone).group(0)
+    assert "anywhere" not in xl and "break-word" in xl, "подпись строки рвётся посреди слова"
+    assert re.search(r"\.xt-r\{[^}]*flex-wrap:wrap", phone), "вывод не переносится на свою строку"
+    assert re.search(r"\.xt-s\{[^}]*order:1", phone) and re.search(r"\.xt-v\{[^}]*flex:1 0 100%", phone),         "порядок «что — вывод — значения» на телефоне нарушен"
+    print("22г. источник условий решает сервер, правки «было → стало» в плитках, карточка расхождений на 390 px — ок")
+
+
 def _fn(html, name):
     """Текст функции страницы от «function name(» до закрывающей скобки в начале строки."""
     m = re.search(r"function " + name + r"\(.*?\n\}\n", html, re.S)
@@ -906,6 +982,7 @@ if __name__ == "__main__":
             check_removed_tabs(html)
             check_chat_tab(html)
             check_market_card(html)
+            check_branch_contract(html)
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)
