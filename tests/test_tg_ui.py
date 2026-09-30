@@ -486,7 +486,7 @@ def check_chat_tab(html):
         'T("tg.wz.next", "Дальше")': "кнопка не меняется на «Дальше», когда файлы есть",
         'T("tg.act.reading", "Читаю фото…")': "пока модель читает фото, индикатора нет",
         "CH.warning": "предупреждение сервера о данных людей не показывается",
-        "VIEW_GROUPS": "нужные ракурсы не подсказываются по классу",
+        "anObj(tp.required_views)": "нужные ракурсы не подсказываются по шаблону класса",
         "data-rm=": "загруженный файл нельзя убрать",
         # шаг 2
         "data-rec=": "распознанное нельзя исправить",
@@ -808,7 +808,7 @@ def check_act_analytics(html):
     """Шаг «Акт», «Аналитика риска» (30.09.2026): 11 карточек, таблицы документа, плашки источников, без утечек."""
     must = {
         "function actAnHtml(": "нет блока «Аналитика риска»",
-        "+ actAnHtml(a)": "аналитика не выводится на шаге «Акт»",
+        ": actAnHtml(a) +": "аналитика не выводится на шаге «Акт»",
         "(anScenOk(a) ? \"\" : actScenHtml(a))": "сценарии показаны дважды (карточка сценариев и аналитика)",
         'T("tg.an.old_act", "Для этого акта подробная аналитика недоступна — сформируйте акт заново.")': "нет строки для старого акта",
         "function actDocTableHtml(": "списки с table в документе не рисуются таблицей",
@@ -914,6 +914,131 @@ def _run_act_analytics(html):
     for i in (2, 3):
         assert "подробная аналитика недоступна — сформируйте акт заново" in out[i][0] and 'class="an-c"' not in out[i][0], \
             "старый акт: нет спокойной строки о недоступной аналитике"
+
+
+def check_parts_templates(html):
+    """
+    Шаблоны классов и комплексный продукт по частям (30.09.2026): поля класса из GET /act/templates/{класс} на шаге 2,
+    ракурсы шага «Фото» из шаблона, карточка «Части договора» (сумма частей, подтверждение, кнопка расчёта неактивна
+    при расхождении), шаг 3 — плитки договора, таблица частей, карточки частей с той же аналитикой. Отрисовка — в node
+    на настоящем ответе сервера sandbox/act_demo_multi.json и шаблонах docs/act_class_templates.json.
+    """
+    must = {
+        'api("/act/templates/" + encodeURIComponent(cls) + "?lang="': "шаблон класса не запрашивается на языке интерфейса",
+        "const tplKey = cls => String(cls) + \"|\" + I18N_LANG": "кэш шаблонов не зависит от языка",
+        "optional\\.class_fields\\.": "значение не уходит в optional.class_fields",
+        "opt.class_fields = cf": "поля класса не уходят в POST /act/make",
+        "opt.parts = pb; opt.parts_confirmed = !!CH.pt.confirmed": "части не уходят в optional.parts / parts_confirmed",
+        "opt.same_object = CH.pt.same": "«Один объект / Разные объекты» не уходит в optional.same_object",
+        "(CH.wz === 2 && (MK.busy || !ptOk()))": "при расхождении суммы частей кнопка расчёта активна",
+        "const PT_TOL = 1;": "допуск суммы частей не 1 сум",
+        "ptFromServer(P)": "предложение сервера (suggested_parts) не подставляется в карточку",
+        "pt: CH.pt, ptAdd: CH.ptAdd, cfCls: CH.cfCls": "части и поля класса не сохраняются в sessionStorage",
+        "function anCardsHtml(an, a, pre)": "карточки аналитики части не переиспользуют функции акта",
+        "function scenInner(s)": "сценарии части не переиспользуют функцию акта",
+        "anObj(tp.required_views)": "ракурсы шага «Фото» не из шаблона класса",
+        "(P ? ptActHtml(a) : actAnHtml(a) + (anScenOk(a) ? \"\" : actScenHtml(a)))": "шаг 3 не различает акт по частям",
+    }
+    miss = [why for key, why in must.items() if why and key not in html]
+    assert not miss, "шаблоны и части: " + "; ".join(miss)
+    assert "const VIEW_GROUPS" not in html, "на шаге «Фото» остался зашитый список ракурсов"
+    _run_parts(html)
+    print("22е. шаблоны классов и части договора: поля класса, карточка частей, таблица и карточки частей — ок")
+
+
+def _run_parts(html):
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    if not node:
+        print("   (node не найден — отрисовка частей не проверена)")
+        return
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root))
+    from app import class_templates as ctpl
+
+    def line(prefix):
+        return re.search(r"(?m)^" + re.escape(prefix) + r".*$", html).group(0)
+
+    data = _json.loads((root / "docs" / "act_class_templates.json").read_text(encoding="utf-8"))
+    tpls = {c: ctpl.view({"template": data["classes"][c], "class_code": c, "version": str(data["version"]),
+                          "source": "file"}, "ru") for c in ("3", "13", "14")}
+    an_block = html[html.index("/* ---------- шаг 3: «Аналитика риска»"):html.index("function actRowsHtml(")]
+    pt_block = html[html.index("/* =====================================================================================\n   Шаблоны классов"):
+                    html.index("/* =====================================================================================\n   Запрос филиала")]
+    js = "\n".join([
+        'const T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };',
+        "const window = {I18N_LANG: 'ru'}; const I18N_LANG = 'ru'; const LOC = () => 'ru-RU'; const TAB = 'chat';",
+        line("const esc = "), line("const nf = "), line("const fmt = "), line("const pct = "), line("const num = "), line("const dec = "),
+        line("const SUM = "), line("const money = "), _fn(html, "compact"), html[html.index("const dateOnly = "):html.index("const spin = ")],
+        line("const spin = "), line("const dp = "), line("const sgnMoney = "), line("const isNum = "),
+        _fn(html, "levelName"), _fn(html, "verdictName"), _fn(html, "actPremium"), _fn(html, "scName"), _fn(html, "scenInner"),
+        _fn(html, "wzClassesOf"), _fn(html, "wzClsName"), _fn(html, "wzClass"),
+        "function wzProd(code){ return ((CH.refs && CH.refs.products) || []).filter(p => p.code === code)[0] || null; }",
+        "function api(){ return new Promise(() => {}); }",
+        "function wzPart(){} function wzBarPaint(){} function wzSave(){} function wzClearErr(){} function haptic(){} function $(){ return null; }",
+        "function protName(c, x){ return x; } function locName(x){ return x; } function consName(x){ return x; } function actvName(x){ return x; }",
+        "const CH = {anOpen: {}, ptOpen: {1: true, 2: true}, ptMore: {}, must: {}, opt: {}, rec: [], errs: {}, pt: null, ptAdd: false,"
+        " refs: {products: [{code: '0312', classes: ['3', '14']}, {code: '1301', classes: ['13']}],"
+        " classes: [{code: '3', name: 'Наземный транспорт'}, {code: '13', name: 'Общая ответственность'}, {code: '14', name: 'Кредиты'}]}};",
+        an_block, pt_block,
+        "const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+        "Object.keys(inp.tpls).forEach(c => { TPL.cache[tplKey(c)] = inp.tpls[c]; });",
+        "const a = inp.act, out = {};",
+        "out.act = ptActHtml(a); out.sum = ptSumHtml(a, a.parts);",
+        "const b = JSON.parse(JSON.stringify(a)); b.parts.confirmed = false; out.unconf = ptSumHtml(b, b.parts);",
+        # шаг 2: продукт 0312, предложение сервера → карточка частей
+        "CH.must = {product_code: '0312', class_code: '3', sum_insured: 100000000};",
+        "out.empty = ptCardHtml();",
+        "ptFromServer(a.parts); out.card = ptCardHtml(); out.ok = ptOk();",
+        "CH.pt.items[0].sum = 70000000; out.bad = ptTotalHtml(); out.bad_ok = ptOk();",
+        "CH.pt.items[0].sum = 60000000; CH.pt.items[1].cf = {credit_amount: '100000000', credit_term_months: '36'}; CH.pt.confirmed = true;",
+        "out.body = ptBody(); out.tpl_hidden = tplCardHtml();",
+        # класс 13: поля класса из шаблона
+        "CH.must = {class_code: '13', sum_insured: 1}; CH.pt = null; CH.opt = {cf: {activity_kind: 'trade', limit_per_case: 200000000}};",
+        "out.tpl13 = tplCardHtml(); out.cf13 = tfBodyCf('13', CH.opt.cf); out.more13 = tplMoreHtml();",
+        "console.log(JSON.stringify(out));"])
+    act = _json.loads((root / "sandbox" / "act_demo_multi.json").read_text(encoding="utf-8"))
+    with tempfile.TemporaryDirectory(prefix="tg-pt-") as tmp:
+        f = Path(tmp) / "pt.js"
+        f.write_text(js, encoding="utf-8")
+        res = subprocess.run([node, str(f)], input=_json.dumps({"act": act, "tpls": tpls}, ensure_ascii=False),
+                             capture_output=True, text=True, encoding="utf-8", timeout=60)
+    assert res.returncode == 0, "node: " + res.stderr[-1200:]
+    o = {k: v.replace(" ", " ").replace(" ", " ") if isinstance(v, str) else v
+         for k, v in _json.loads(res.stdout).items()}                   # неразрывные пробелы в числах ru-RU
+    for k in ("act", "sum", "unconf", "empty", "card", "bad", "tpl13", "more13"):
+        text = re.sub(r"<[^>]+>", " ", o[k])
+        bad = [w for w in ("undefined", "null", "NaN", "[object Object]", "calibrated") if w in text]
+        assert not bad, f"{k}: на экране служебное {bad}"
+    # шаг 3: таблица частей со строкой «Итого», две карточки частей, у каждой 11 карточек аналитики
+    assert "Итого по договору" in o["act"] and 'class="tot"' in o["act"], "нет строки «Итого» в таблице частей"
+    assert o["act"].count('class="an-c pt-c"') == 2, "не две карточки частей"
+    assert o["act"].count('data-an="p1:') == 11 and o["act"].count('data-an="p2:') == 11, "у части не 11 карточек аналитики"
+    assert "по самой опасной части 1" in o["sum"] and "справочно, минимум проверен по каждому классу" in o["sum"], "плитки договора"
+    assert "PML" in o["sum"] and "70 000 000" in o["sum"] and "сценарии частей складываются" in o["sum"], "PML/EML/MFL договора"
+    assert "Распределение не подтверждено" in o["unconf"] and 'data-go="toparts"' in o["unconf"] \
+        and "Распределение не подтверждено" not in o["sum"], "жёлтая плашка неподтверждённого распределения"
+    # шаг 2: карточка до расчёта, после предложения, расхождение, тело запроса
+    assert "Части договора" in o["empty"] and "3 — Наземный транспорт; 14 — Кредиты" in o["empty"], "карточка до первого расчёта"
+    assert "Часть 1" in o["card"] and "Часть 2" in o["card"] and "Сумма частей 100 000 000 сум из 100 000 000 сум" in o["card"] \
+        and o["ok"], "карточка после предложения сервера"
+    assert "не применяется: у класса нет страховой стоимости" in o["card"], "у класса 14 стоимость не «не применяется»"
+    assert 'data-ptsame="one"' in o["card"] and 'data-go="ptconfirm"' in o["card"], "нет переключателя объектов или подтверждения"
+    assert not o["bad_ok"] and 'pt-tot bad' in o["bad"] and "Разница +10 000 000 сум" in o["bad"], "расхождение суммы частей не показано"
+    body = o["body"]
+    assert [p["class_code"] for p in body] == ["3", "14"] and [p["sum_insured"] for p in body] == [60000000, 40000000], body
+    assert body[1]["fields"]["class_fields"] == {"credit_amount": 100000000, "credit_term_months": 36}, body[1]
+    assert "object_value" not in body[1] and o["tpl_hidden"] == "", "у части класса 14 стоимость или лишняя карточка полей"
+    # класс 13: поля шаблона, варианты — подписями, коды не видны
+    t13 = re.sub(r"<[^>]+>", " ", o["tpl13"])
+    for w in ("Поля класса", "Вид деятельности", "Годовой оборот или фонд оплаты труда", "Лимит ответственности на случай",
+              "торговля", "консультации, офисные услуги", "Учредительные документы"):
+        assert w in t13, f"класс 13: нет «{w}»"
+    assert "consult" not in t13 and "hazard" not in t13, "класс 13: коды вариантов на экране"
+    assert o["cf13"] == {"activity_kind": "trade", "limit_per_case": 200000000}, o["cf13"]
+    assert "Число работников" in o["more13"], "необязательные поля класса не в «Дополнительно»"
 
 
 def _html_esc(s):
@@ -1100,6 +1225,7 @@ if __name__ == "__main__":
             check_market_card(html)
             check_branch_contract(html)
             check_act_analytics(html)
+            check_parts_templates(html)
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)

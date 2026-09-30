@@ -1,0 +1,6507 @@
+{
+ "version": "1.0.1",
+ "date": "2026-09-30",
+ "calibrated": 0,
+ "source": "ТЗ — Приложение А. Шаблоны анализа по классам, версия 1.0 от 27.09.2026",
+ "note": "Шаблоны анализа 17 классов общего страхования (А.3). Источник истины в репозитории; при старте сервер доводит таблицу class_templates (app/class_templates.py.ensure), правки администратора — новая версия строки (PUT /act/templates/{class}), история сохраняется. Доли рисков, веса и параметры сценариев — экспертные (calibrated = 0), пока нет статистики убытков компании. Классы 8 и 9 берут риски из таблицы perils базы. Варианты 13з и 16у — по шаблонам 14 и 16. Отрасль жизни из справочников не исключается, шаблона для неё нет (решение заказчика 27.09.2026).",
+ "common_must": [
+  {
+   "code": "product_or_class",
+   "type": "text",
+   "label": {
+    "ru": "Продукт или класс",
+    "uz": "Mahsulot yoki klass",
+    "en": "Product or class"
+   },
+   "input": "must.product_code"
+  },
+  {
+   "code": "sum_insured",
+   "type": "money",
+   "label": {
+    "ru": "Страховая сумма",
+    "uz": "Sugʻurta summasi",
+    "en": "Sum insured"
+   },
+   "input": "must.sum_insured",
+   "unit": "UZS"
+  },
+  {
+   "code": "object_value",
+   "type": "money",
+   "label": {
+    "ru": "Стоимость объекта либо лимит ответственности",
+    "uz": "Obyekt qiymati yoki javobgarlik limiti",
+    "en": "Object value or liability limit"
+   },
+   "input": "must.object_value",
+   "unit": "UZS"
+  },
+  {
+   "code": "region",
+   "type": "text",
+   "label": {
+    "ru": "Регион",
+    "uz": "Hudud",
+    "en": "Region"
+   },
+   "input": "must.region"
+  }
+ ],
+ "valuation_rules": {
+  "ru": "Система оценивает стоимость сама, методы применяются по порядку, пока один не даст результат; расхождение с заявленной больше порога (по умолчанию 15 %) — уточнённая стоимость с объяснением; страховая сумма выше стоимости недопустима (ГК РУз, ст. 938), ниже — пропорциональная выплата (ГК РУз, ст. 936); у каждой цены — ссылка на источник",
+  "uz": "Tizim qiymatni oʻzi baholaydi, usullar natija berguncha tartib bilan qoʻllanadi; eʼlon qilingandan chegaradan (standart 15 %) katta farq — izoh bilan aniqlashtirilgan qiymat; sugʻurta summasi qiymatdan yuqori boʻlishi mumkin emas (FK, 938-modda), past — mutanosib toʻlov (FK, 936-modda); har bir narxda manba havolasi",
+  "en": "The system values the object itself, applying methods in order until one gives a result; a gap above the threshold (15 % by default) gives a refined value with an explanation; the sum insured may not exceed the value (Civil Code, art. 938), below it the payment is proportional (art. 936); every price links to its source"
+ },
+ "aliases": {
+  "13з": "14",
+  "16у": "16"
+ },
+ "classes": {
+  "1": {
+   "class_code": "1",
+   "name": {
+    "ru": "Несчастные случаи",
+    "uz": "Baxtsiz hodisalar",
+    "en": "Accident"
+   },
+   "object": {
+    "description": {
+     "ru": "Человек или группа людей",
+     "uz": "Shaxs yoki odamlar guruhi",
+     "en": "A person or a group of people"
+    },
+    "people": true,
+    "kinds": [
+     {
+      "code": "person",
+      "label": {
+       "ru": "человек",
+       "uz": "shaxs",
+       "en": "person"
+      }
+     },
+     {
+      "code": "group",
+      "label": {
+       "ru": "группа людей",
+       "uz": "odamlar guruhi",
+       "en": "group of people"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "insured_count",
+     "type": "int",
+     "label": {
+      "ru": "Число застрахованных",
+      "uz": "Sugʻurtalanganlar soni",
+      "en": "Number of insured persons"
+     },
+     "input": "optional.class_fields.insured_count"
+    },
+    {
+     "code": "occupation",
+     "type": "text",
+     "label": {
+      "ru": "Профессия или вид деятельности",
+      "uz": "Kasb yoki faoliyat turi",
+      "en": "Occupation or activity"
+     },
+     "input": "optional.class_fields.occupation"
+    },
+    {
+     "code": "sum_per_person",
+     "type": "money",
+     "label": {
+      "ru": "Страховая сумма на человека",
+      "uz": "Bir kishiga sugʻurta summasi",
+      "en": "Sum insured per person"
+     },
+     "input": "optional.class_fields.sum_per_person",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "age_avg",
+     "type": "int",
+     "label": {
+      "ru": "Средний возраст",
+      "uz": "Oʻrtacha yosh",
+      "en": "Average age"
+     },
+     "input": "optional.class_fields.age_avg"
+    },
+    {
+     "code": "sports",
+     "type": "bool",
+     "label": {
+      "ru": "Занятия спортом",
+      "uz": "Sport bilan shugʻullanish",
+      "en": "Sports activities"
+     },
+     "input": "optional.class_fields.sports"
+    },
+    {
+     "code": "cover_24h",
+     "type": "bool",
+     "label": {
+      "ru": "Круглосуточное покрытие (нет — только рабочее время)",
+      "uz": "Kecha-kunduz qoplama (yoʻq — faqat ish vaqti)",
+      "en": "24-hour cover (no — working hours only)"
+     },
+     "input": "optional.class_fields.cover_24h"
+    },
+    {
+     "code": "people_in_one_place",
+     "type": "int",
+     "label": {
+      "ru": "Наибольшее число застрахованных в одном месте",
+      "uz": "Bir joydagi sugʻurtalanganlarning eng koʻp soni",
+      "en": "Largest number of insured in one place"
+     },
+     "input": "optional.class_fields.people_in_one_place",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "сумма на человека, умноженная на число людей",
+      "uz": "bir kishiga summa × odamlar soni",
+      "en": "sum per person times the number of people"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: частые мелкие выплаты (временная утрата трудоспособности, травмы по таблице) дают около половины убытка, смерть и инвалидность — остальное",
+     "uz": "Ekspert baho: tez-tez uchraydigan kichik toʻlovlar (vaqtincha mehnatga layoqatsizlik, jadval boʻyicha jarohatlar) zararning yarmiga yaqin, oʻlim va nogironlik — qolgani",
+     "en": "Expert view: frequent small payments (temporary disability, injury table) make about half of the loss; death and permanent disability make the rest"
+    },
+    "items": [
+     {
+      "code": "pa_death",
+      "label": {
+       "ru": "Смерть",
+       "uz": "Oʻlim",
+       "en": "Death"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "pa_disability",
+      "label": {
+       "ru": "Инвалидность",
+       "uz": "Nogironlik",
+       "en": "Permanent disability"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "pa_temp_disability",
+      "label": {
+       "ru": "Временная утрата трудоспособности",
+       "uz": "Vaqtincha mehnatga layoqatsizlik",
+       "en": "Temporary disability"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "pa_injury",
+      "label": {
+       "ru": "Травма",
+       "uz": "Jarohat",
+       "en": "Injury"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "occupation_hazard",
+     "label": {
+      "ru": "Опасность профессии",
+      "uz": "Kasb xavfliligi",
+      "en": "Occupational hazard"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст",
+      "uz": "Yosh",
+      "en": "Age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "transport_at_work",
+     "label": {
+      "ru": "Транспорт в работе",
+      "uz": "Ishda transport",
+      "en": "Transport at work"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "safety",
+     "label": {
+      "ru": "Охрана труда",
+      "uz": "Mehnat muhofazasi",
+      "en": "Occupational safety"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "people",
+    "engine": "template",
+    "text": {
+     "ru": "Один случай: сумма на человека. Катастрофа: число людей в одном месте, умноженное на сумму",
+     "uz": "Bitta hodisa: bir kishiga summa. Falokat: bir joydagi odamlar soni × summa",
+     "en": "One occurrence: the sum per person. Catastrophe: the number of people in one place times the sum"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — сумма на человека; MFL — сумма на человека × число застрахованных в одном месте (не указано — все застрахованные), не больше страховой суммы",
+     "uz": "PML va EML — bir kishiga summa; MFL — bir kishiga summa × bir joydagi sugʻurtalanganlar (koʻrsatilmagan — barchasi), sugʻurta summasidan oshmaydi",
+     "en": "PML and EML — the sum per person; MFL — the sum per person × insured in one place (not stated — all insured), capped at the sum insured"
+    },
+    "what": {
+     "PML": {
+      "ru": "один случай: сумма на одного человека",
+      "uz": "bitta hodisa: bir kishiga summa",
+      "en": "one occurrence: the sum for one person"
+     },
+     "EML": {
+      "ru": "один случай: сумма на одного человека",
+      "uz": "bitta hodisa: bir kishiga summa",
+      "en": "one occurrence: the sum for one person"
+     },
+     "MFL": {
+      "ru": "катастрофа: все застрахованные в одном месте",
+      "uz": "falokat: bir joydagi barcha sugʻurtalanganlar",
+      "en": "catastrophe: all insured in one place"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 1 + продукты класса 1",
+    "items": [
+     {
+      "ru": "Список застрахованных без личных данных (число, профессии, возраст)",
+      "uz": "Shaxsiy maʼlumotlarsiz sugʻurtalanganlar roʻyxati (soni, kasbi, yoshi)",
+      "en": "List of insured persons without personal data (number, occupations, age)"
+     },
+     {
+      "ru": "Сведения о травматизме за 3 года",
+      "uz": "3 yillik jarohatlanish maʼlumotlari",
+      "en": "Injury record for 3 years"
+     }
+    ]
+   },
+   "stats": [
+    "mortality_rate",
+    "road_accidents",
+    "road_injured",
+    "road_death_rate",
+    "passengers_road",
+    "disability_primary",
+    "disability_work_injury",
+    "work_injury_fatal_rate",
+    "work_injury_nonfatal_rate"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "pa_list",
+     "pa_hazard",
+     "pa_cover_time",
+     "ot_declared"
+    ]
+   },
+   "measures": {
+    "default": [
+     "pa_briefing",
+     "pa_ppe",
+     "pa_medical"
+    ]
+   },
+   "notes": [
+    {
+     "code": "personal",
+     "text": {
+      "ru": "Личное страхование: персональные данные застрахованных в акт и модель не попадают",
+      "uz": "Shaxsiy sugʻurta: sugʻurtalanganlarning shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi",
+      "en": "Personal lines: personal data of the insured does not go into the report or the model"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "2": {
+   "class_code": "2",
+   "name": {
+    "ru": "На случай болезни",
+    "uz": "Kasallik holatiga",
+    "en": "Sickness"
+   },
+   "object": {
+    "description": {
+     "ru": "Человек или группа людей",
+     "uz": "Shaxs yoki odamlar guruhi",
+     "en": "A person or a group of people"
+    },
+    "people": true,
+    "kinds": [
+     {
+      "code": "person",
+      "label": {
+       "ru": "человек",
+       "uz": "shaxs",
+       "en": "person"
+      }
+     },
+     {
+      "code": "group",
+      "label": {
+       "ru": "группа людей",
+       "uz": "odamlar guruhi",
+       "en": "group of people"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "insured_count",
+     "type": "int",
+     "label": {
+      "ru": "Число застрахованных",
+      "uz": "Sugʻurtalanganlar soni",
+      "en": "Number of insured persons"
+     },
+     "input": "optional.class_fields.insured_count"
+    },
+    {
+     "code": "program",
+     "type": "text",
+     "label": {
+      "ru": "Программа покрытия",
+      "uz": "Qoplama dasturi",
+      "en": "Cover programme"
+     },
+     "input": "optional.class_fields.program"
+    },
+    {
+     "code": "limit_per_person",
+     "type": "money",
+     "label": {
+      "ru": "Лимит на человека",
+      "uz": "Bir kishiga limit",
+      "en": "Limit per person"
+     },
+     "input": "optional.class_fields.limit_per_person",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "age_structure",
+     "type": "text",
+     "label": {
+      "ru": "Возрастной состав",
+      "uz": "Yosh tarkibi",
+      "en": "Age structure"
+     },
+     "input": "optional.class_fields.age_structure"
+    },
+    {
+     "code": "clinics",
+     "type": "text",
+     "label": {
+      "ru": "Перечень клиник",
+      "uz": "Klinikalar roʻyxati",
+      "en": "List of clinics"
+     },
+     "input": "optional.class_fields.clinics"
+    },
+    {
+     "code": "avg_visits",
+     "type": "number",
+     "label": {
+      "ru": "Среднее число обращений на человека в год",
+      "uz": "Bir kishiga yiliga oʻrtacha murojaatlar",
+      "en": "Average visits per person a year"
+     },
+     "input": "optional.class_fields.avg_visits",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "avg_bill",
+     "type": "money",
+     "label": {
+      "ru": "Средний счёт за обращение",
+      "uz": "Bir murojaat uchun oʻrtacha hisob",
+      "en": "Average bill per visit"
+     },
+     "input": "optional.class_fields.avg_bill",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "лимит на человека, умноженный на число людей",
+      "uz": "bir kishiga limit × odamlar soni",
+      "en": "limit per person times the number of people"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: в медицинских программах большую часть выплат дают амбулатория и стационар",
+     "uz": "Ekspert baho: tibbiy dasturlarda toʻlovlarning katta qismi ambulatoriya va statsionarga toʻgʻri keladi",
+     "en": "Expert view: outpatient and inpatient care make most of the payments in medical programmes"
+    },
+    "items": [
+     {
+      "code": "hl_outpatient",
+      "label": {
+       "ru": "Амбулаторное лечение",
+       "uz": "Ambulator davolanish",
+       "en": "Outpatient care"
+      },
+      "share_pct": 40,
+      "catastrophic": false
+     },
+     {
+      "code": "hl_inpatient",
+      "label": {
+       "ru": "Стационар",
+       "uz": "Statsionar",
+       "en": "Inpatient care"
+      },
+      "share_pct": 35,
+      "catastrophic": false
+     },
+     {
+      "code": "hl_emergency",
+      "label": {
+       "ru": "Экстренная помощь",
+       "uz": "Shoshilinch yordam",
+       "en": "Emergency care"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "hl_critical",
+      "label": {
+       "ru": "Критические заболевания",
+       "uz": "Ogʻir kasalliklar",
+       "en": "Critical illness"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст",
+      "uz": "Yosh",
+      "en": "Age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "program_scope",
+     "label": {
+      "ru": "Состав программы",
+      "uz": "Dastur tarkibi",
+      "en": "Programme scope"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "visit_frequency",
+     "label": {
+      "ru": "Частота обращений",
+      "uz": "Murojaatlar chastotasi",
+      "en": "Visit frequency"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "clinic_prices",
+     "label": {
+      "ru": "Уровень цен клиник",
+      "uz": "Klinikalar narx darajasi",
+      "en": "Clinic price level"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "frequency",
+    "engine": "template",
+    "text": {
+     "ru": "Частотный: среднее число обращений, умноженное на средний счёт. Катастрофа: эпидемия",
+     "uz": "Chastotali: oʻrtacha murojaatlar soni × oʻrtacha hisob. Falokat: epidemiya",
+     "en": "Frequency: average number of visits times the average bill. Catastrophe: epidemic"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — лимит на одного человека; MFL — эпидемия: доля страховой суммы (параметр epidemic_share, по умолчанию 30 %, экспертно), не меньше лимита на человека; ожидаемый годовой убыток (обращения × счёт × люди) — справочно",
+     "uz": "PML va EML — bir kishiga limit; MFL — epidemiya: sugʻurta summasining ulushi (epidemic_share parametri, standart 30 %, ekspert), bir kishiga limitdan kam emas; kutilayotgan yillik zarar — maʼlumot uchun",
+     "en": "PML and EML — the limit per person; MFL — epidemic: a share of the sum insured (parameter epidemic_share, 30 % by default, expert), not below the limit per person; expected annual loss is for reference"
+    },
+    "what": {
+     "PML": {
+      "ru": "один человек исчерпал лимит",
+      "uz": "bir kishi limitni tugatdi",
+      "en": "one person exhausts the limit"
+     },
+     "EML": {
+      "ru": "один человек исчерпал лимит",
+      "uz": "bir kishi limitni tugatdi",
+      "en": "one person exhausts the limit"
+     },
+     "MFL": {
+      "ru": "эпидемия: массовые обращения",
+      "uz": "epidemiya: ommaviy murojaatlar",
+      "en": "epidemic: mass claims"
+     }
+    },
+    "params": {
+     "epidemic_share": 0.3
+    },
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 2 + продукты класса 2",
+    "items": [
+     {
+      "ru": "Программа страхования",
+      "uz": "Sugʻurta dasturi",
+      "en": "Insurance programme"
+     },
+     {
+      "ru": "Список клиник",
+      "uz": "Klinikalar roʻyxati",
+      "en": "List of clinics"
+     }
+    ]
+   },
+   "stats": [
+    "mortality_rate",
+    "respiratory_morbidity",
+    "doctors_per_10k",
+    "hospital_beds_per_10k",
+    "disability_primary"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "hl_program",
+     "hl_preexisting",
+     "hl_waiting",
+     "ot_declared"
+    ]
+   },
+   "measures": {
+    "default": [
+     "hl_checkup",
+     "hl_network",
+     "hl_control"
+    ]
+   },
+   "notes": [
+    {
+     "code": "personal",
+     "text": {
+      "ru": "Личное страхование: персональные данные застрахованных в акт и модель не попадают",
+      "uz": "Shaxsiy sugʻurta: sugʻurtalanganlarning shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi",
+      "en": "Personal lines: personal data of the insured does not go into the report or the model"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "3": {
+   "class_code": "3",
+   "name": {
+    "ru": "Наземный транспорт",
+    "uz": "Yer usti transporti",
+    "en": "Land vehicles"
+   },
+   "object": {
+    "description": {
+     "ru": "Автомобиль, грузовик, автобус, прицеп, самоходная спецтехника",
+     "uz": "Avtomobil, yuk mashinasi, avtobus, tirkama, oʻziyurar maxsus texnika",
+     "en": "Car, truck, bus, trailer, self-propelled special machinery"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "car",
+      "label": {
+       "ru": "легковой автомобиль",
+       "uz": "yengil avtomobil",
+       "en": "passenger car"
+      }
+     },
+     {
+      "code": "truck",
+      "label": {
+       "ru": "грузовой автомобиль",
+       "uz": "yuk avtomobili",
+       "en": "truck"
+      }
+     },
+     {
+      "code": "electric_car",
+      "label": {
+       "ru": "электромобиль",
+       "uz": "elektromobil",
+       "en": "electric car"
+      }
+     },
+     {
+      "code": "trailer",
+      "label": {
+       "ru": "прицеп",
+       "uz": "tirkama",
+       "en": "trailer"
+      }
+     },
+     {
+      "code": "bus",
+      "label": {
+       "ru": "автобус",
+       "uz": "avtobus",
+       "en": "bus"
+      }
+     },
+     {
+      "code": "truck_crane",
+      "label": {
+       "ru": "автокран",
+       "uz": "avtokran",
+       "en": "truck crane"
+      }
+     },
+     {
+      "code": "crawler_crane",
+      "label": {
+       "ru": "гусеничный кран",
+       "uz": "gusenitsali kran",
+       "en": "crawler crane"
+      }
+     },
+     {
+      "code": "excavator",
+      "label": {
+       "ru": "экскаватор",
+       "uz": "ekskavator",
+       "en": "excavator"
+      }
+     },
+     {
+      "code": "backhoe_loader",
+      "label": {
+       "ru": "экскаватор-погрузчик",
+       "uz": "ekskavator-yuklagich",
+       "en": "backhoe loader"
+      }
+     },
+     {
+      "code": "bulldozer",
+      "label": {
+       "ru": "бульдозер",
+       "uz": "buldozer",
+       "en": "bulldozer"
+      }
+     },
+     {
+      "code": "wheel_loader",
+      "label": {
+       "ru": "фронтальный погрузчик",
+       "uz": "frontal yuklagich",
+       "en": "wheel loader"
+      }
+     },
+     {
+      "code": "forklift",
+      "label": {
+       "ru": "вилочный погрузчик",
+       "uz": "vilkali yuklagich",
+       "en": "forklift"
+      }
+     },
+     {
+      "code": "telehandler",
+      "label": {
+       "ru": "телескопический погрузчик",
+       "uz": "teleskopik yuklagich",
+       "en": "telehandler"
+      }
+     },
+     {
+      "code": "aerial_platform",
+      "label": {
+       "ru": "автовышка",
+       "uz": "avtominora",
+       "en": "aerial work platform"
+      }
+     },
+     {
+      "code": "concrete_pump",
+      "label": {
+       "ru": "бетононасос",
+       "uz": "beton nasos",
+       "en": "concrete pump"
+      }
+     },
+     {
+      "code": "concrete_mixer",
+      "label": {
+       "ru": "автобетоносмеситель",
+       "uz": "avtobetonaralashtirgich",
+       "en": "truck mixer"
+      }
+     },
+     {
+      "code": "drilling_rig",
+      "label": {
+       "ru": "буровая установка",
+       "uz": "burgʻulash qurilmasi",
+       "en": "drilling rig"
+      }
+     },
+     {
+      "code": "road_machinery",
+      "label": {
+       "ru": "дорожная техника",
+       "uz": "yoʻl texnikasi",
+       "en": "road machinery"
+      }
+     },
+     {
+      "code": "tractor",
+      "label": {
+       "ru": "трактор",
+       "uz": "traktor",
+       "en": "tractor"
+      }
+     },
+     {
+      "code": "combine",
+      "label": {
+       "ru": "комбайн",
+       "uz": "kombayn",
+       "en": "combine harvester"
+      }
+     },
+     {
+      "code": "special_other",
+      "label": {
+       "ru": "спецтехника",
+       "uz": "maxsus texnika",
+       "en": "special machinery"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип транспорта",
+      "uz": "Transport turi",
+      "en": "Vehicle type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "brand",
+     "type": "text",
+     "label": {
+      "ru": "Марка",
+      "uz": "Marka",
+      "en": "Make"
+     },
+     "input": "recognized.brand"
+    },
+    {
+     "code": "model",
+     "type": "text",
+     "label": {
+      "ru": "Модель",
+      "uz": "Model",
+      "en": "Model"
+     },
+     "input": "recognized.model"
+    },
+    {
+     "code": "year",
+     "type": "year",
+     "label": {
+      "ru": "Год выпуска",
+      "uz": "Ishlab chiqarilgan yil",
+      "en": "Year of manufacture"
+     },
+     "input": "optional.year"
+    }
+   ],
+   "optional": [
+    {
+     "code": "mileage",
+     "type": "text",
+     "label": {
+      "ru": "Пробег или моточасы",
+      "uz": "Yurgan masofa yoki motosoat",
+      "en": "Mileage or engine hours"
+     },
+     "input": "recognized.mileage"
+    },
+    {
+     "code": "protection",
+     "type": "choice",
+     "label": {
+      "ru": "Противоугонная система",
+      "uz": "Oʻgʻirlikka qarshi tizim",
+      "en": "Anti-theft system"
+     },
+     "input": "optional.protection",
+     "options": [
+      "none",
+      "alarm",
+      "immo",
+      "tracker"
+     ]
+    },
+    {
+     "code": "drivers",
+     "type": "text",
+     "label": {
+      "ru": "Водители и стаж",
+      "uz": "Haydovchilar va staji",
+      "en": "Drivers and experience"
+     },
+     "input": "optional.class_fields.drivers"
+    },
+    {
+     "code": "location",
+     "type": "choice",
+     "label": {
+      "ru": "Место хранения",
+      "uz": "Saqlash joyi",
+      "en": "Storage place"
+     },
+     "input": "optional.location",
+     "options": [
+      "open_area",
+      "construction",
+      "port",
+      "guarded",
+      "closed_storage",
+      "other"
+     ]
+    },
+    {
+     "code": "guard",
+     "type": "bool",
+     "label": {
+      "ru": "Охрана",
+      "uz": "Qoʻriqlash",
+      "en": "Security"
+     },
+     "input": "optional.guard"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 1,
+     "name": {
+      "ru": "Рынок",
+      "uz": "Bozor",
+      "en": "Market"
+     },
+     "when": {
+      "ru": "есть не менее пяти объявлений не старше шести месяцев",
+      "uz": "olti oydan eski boʻlmagan kamida beshta eʼlon bor",
+      "en": "at least five listings not older than six months"
+     },
+     "note": {
+      "ru": "с поправкой на пробег или моточасы",
+      "uz": "yurgan masofa yoki motosoatga tuzatish bilan",
+      "en": "adjusted for mileage or engine hours"
+     }
+    },
+    {
+     "method": 2,
+     "name": {
+      "ru": "Запрос официальному дилеру или поставщику",
+      "uz": "Rasmiy diler yoki yetkazib beruvchiga soʻrov",
+      "en": "Quote from an official dealer or supplier"
+     },
+     "when": {
+      "ru": "рынка нет, объект серийный",
+      "uz": "bozor yoʻq, obyekt seriyali",
+      "en": "no market, the object is serial"
+     },
+     "note": {
+      "ru": "с поправкой на пробег или моточасы",
+      "uz": "yurgan masofa yoki motosoatga tuzatish bilan",
+      "en": "adjusted for mileage or engine hours"
+     }
+    },
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     },
+     "note": {
+      "ru": "износ транспорта по нормам компании (по умолчанию 20 % в год)",
+      "uz": "transport eskirishi kompaniya meʼyori boʻyicha (standart yiliga 20 %)",
+      "en": "vehicle wear per company norms (20 % a year by default)"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно, для справки: ДТП — основной источник частоты и суммы убытков по КАСКО, угон — самые дорогие единичные убытки, остальное — пожар, стихия, противоправные действия и бой стёкол. В расчёте акта класс 3 остаётся одной строкой (правило класса в модуле аналитики)",
+     "uz": "Ekspert baho, maʼlumot uchun: YTH — KASKO zararlarining asosiy manbai, oʻgʻirlash — eng qimmat yakka zararlar, qolgani — yongʻin, tabiiy ofat, gʻayriqonuniy harakatlar va oyna sinishi. Dalolatnoma hisobida 3-klass bitta qator boʻlib qoladi",
+     "en": "Expert, for reference: road accidents drive most motor hull frequency and cost, theft gives the costliest single losses, the rest is fire, natural perils, malicious acts and glass. In the report class 3 stays one line (the analytics module has its own class rule)"
+    },
+    "items": [
+     {
+      "code": "mv_accident",
+      "label": {
+       "ru": "ДТП",
+       "uz": "YTH",
+       "en": "Road accident"
+      },
+      "share_pct": 45,
+      "catastrophic": false
+     },
+     {
+      "code": "mv_theft",
+      "label": {
+       "ru": "Угон",
+       "uz": "Oʻgʻirlash",
+       "en": "Theft"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "mv_fire",
+      "label": {
+       "ru": "Пожар",
+       "uz": "Yongʻin",
+       "en": "Fire"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "mv_nat",
+      "label": {
+       "ru": "Стихия",
+       "uz": "Tabiiy ofat",
+       "en": "Natural perils"
+      },
+      "share_pct": 10,
+      "catastrophic": true
+     },
+     {
+      "code": "mv_malicious",
+      "label": {
+       "ru": "Противоправные действия третьих лиц",
+       "uz": "Uchinchi shaxslarning gʻayriqonuniy harakatlari",
+       "en": "Malicious acts of third parties"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "mv_glass",
+      "label": {
+       "ru": "Бой стёкол",
+       "uz": "Oyna sinishi",
+       "en": "Glass breakage"
+      },
+      "share_pct": 5,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "veh_age",
+     "label": {
+      "ru": "Возраст транспорта",
+      "uz": "Transport yoshi",
+      "en": "Vehicle age"
+     },
+     "direction": "up",
+     "ref": "coefficients:veh_age"
+    },
+    {
+     "code": "drivers",
+     "label": {
+      "ru": "Стаж водителей",
+      "uz": "Haydovchilar staji",
+      "en": "Driver experience"
+     },
+     "direction": "both",
+     "ref": "coefficients:drivers"
+    },
+    {
+     "code": "region",
+     "label": {
+      "ru": "Регион",
+      "uz": "Hudud",
+      "en": "Region"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "spec_site",
+     "label": {
+      "ru": "Условия работы спецтехники",
+      "uz": "Maxsus texnika ish sharoiti",
+      "en": "Special machinery operating conditions"
+     },
+     "direction": "both",
+     "ref": "coefficients:spec_site"
+    },
+    {
+     "code": "spec_guard",
+     "label": {
+      "ru": "Хранение и охрана",
+      "uz": "Saqlash va qoʻriqlash",
+      "en": "Storage and security"
+     },
+     "direction": "down",
+     "ref": "coefficients:spec_guard"
+    },
+    {
+     "code": "antitheft",
+     "label": {
+      "ru": "Противоугонная система",
+      "uz": "Oʻgʻirlikka qarshi tizim",
+      "en": "Anti-theft system"
+     },
+     "direction": "down",
+     "ref": "coefficients:antitheft"
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "vehicle",
+    "engine": "risk_analytics",
+    "text": {
+     "ru": "Частичный убыток: доля стоимости. Полный: гибель или угон. Катастрофа: несколько машин на одной стоянке",
+     "uz": "Qisman zarar: qiymat ulushi. Toʻliq: nobud boʻlish yoki oʻgʻirlash. Falokat: bitta turargohdagi bir nechta mashina",
+     "en": "Partial loss: a share of the value. Total: destruction or theft. Catastrophe: several vehicles in one car park"
+    },
+    "simple_rule": {
+     "ru": "Считает модуль аналитики рисков (risk_analytics, правило vehicle)",
+     "uz": "Xavf tahlili moduli hisoblaydi (risk_analytics, vehicle qoidasi)",
+     "en": "Calculated by the risk analytics module (risk_analytics, vehicle rule)"
+    },
+    "what": {},
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 3 + тип объекта «Спецтехника» + продукты класса 3",
+    "items": [
+     {
+      "ru": "Техпаспорт или паспорт самоходной машины",
+      "uz": "Texpasport yoki oʻziyurar mashina pasporti",
+      "en": "Registration certificate or self-propelled machine passport"
+     },
+     {
+      "ru": "Фото с четырёх сторон",
+      "uz": "Toʻrt tomondan surat",
+      "en": "Photos from four sides"
+     }
+    ]
+   },
+   "stats": [
+    "road_accidents",
+    "road_injured",
+    "road_death_rate",
+    "cars_per_100_households",
+    "passengers_road",
+    "freight_road",
+    "thefts"
+   ],
+   "required_views": {
+    "vehicle": [
+     "front",
+     "back",
+     "left",
+     "right",
+     "plate",
+     "odometer",
+     "document"
+    ],
+    "special": [
+     "front",
+     "back",
+     "left",
+     "right",
+     "plate",
+     "odometer",
+     "document"
+    ]
+   },
+   "clauses": {
+    "vehicle": [
+     "vh_night_parking",
+     "vh_drivers",
+     "vh_reinspection"
+    ],
+    "special": [
+     "sp_attachments_storage",
+     "sp_territory",
+     "sp_reinspection",
+     "sp_operator",
+     "sp_rated_load"
+    ]
+   },
+   "measures": {
+    "vehicle": [
+     "sp_maintenance",
+     "sp_extinguisher",
+     "vh_antitheft",
+     "vh_parking",
+     "vh_drivers",
+     "all_loss_review"
+    ],
+    "special": [
+     "sp_parking_guarded",
+     "sp_gps",
+     "sp_crane_setup",
+     "sp_operator",
+     "sp_maintenance",
+     "sp_extinguisher",
+     "all_loss_review"
+    ]
+   },
+   "notes": [
+    {
+     "code": "vehicle_boundary",
+     "text": {
+      "ru": "Граница транспорта и спецтехники определяется по регистрационному документу (техпаспорт СБДД или Узагроинспекции), а не по виду машины",
+      "uz": "Transport va maxsus texnika chegarasi mashina turi boʻyicha emas, roʻyxatdan oʻtkazish hujjati boʻyicha (YHXX yoki Oʻzagroinspeksiya texpasporti) belgilanadi",
+      "en": "The boundary between vehicles and special machinery follows the registration document (traffic police or Uzagroinspection certificate), not the kind of machine"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "4": {
+   "class_code": "4",
+   "name": {
+    "ru": "Железнодорожный подвижной состав",
+    "uz": "Temir yoʻl harakat tarkibi",
+    "en": "Railway rolling stock"
+   },
+   "object": {
+    "description": {
+     "ru": "Локомотив, вагон, цистерна, состав",
+     "uz": "Lokomotiv, vagon, sisterna, tarkib",
+     "en": "Locomotive, wagon, tank car, train"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "locomotive",
+      "label": {
+       "ru": "локомотив",
+       "uz": "lokomotiv",
+       "en": "locomotive"
+      }
+     },
+     {
+      "code": "wagon",
+      "label": {
+       "ru": "вагон",
+       "uz": "vagon",
+       "en": "wagon"
+      }
+     },
+     {
+      "code": "tank_car",
+      "label": {
+       "ru": "цистерна",
+       "uz": "sisterna",
+       "en": "tank car"
+      }
+     },
+     {
+      "code": "train",
+      "label": {
+       "ru": "состав",
+       "uz": "tarkib",
+       "en": "train"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип подвижного состава",
+      "uz": "Harakat tarkibi turi",
+      "en": "Rolling stock type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "year",
+     "type": "year",
+     "label": {
+      "ru": "Год постройки",
+      "uz": "Qurilgan yil",
+      "en": "Year built"
+     },
+     "input": "optional.year"
+    },
+    {
+     "code": "units_count",
+     "type": "int",
+     "label": {
+      "ru": "Число единиц",
+      "uz": "Birliklar soni",
+      "en": "Number of units"
+     },
+     "input": "optional.class_fields.units_count"
+    }
+   ],
+   "optional": [
+    {
+     "code": "routes",
+     "type": "text",
+     "label": {
+      "ru": "Маршруты",
+      "uz": "Yoʻnalishlar",
+      "en": "Routes"
+     },
+     "input": "optional.class_fields.routes"
+    },
+    {
+     "code": "cargo_kinds",
+     "type": "text",
+     "label": {
+      "ru": "Перевозимые грузы",
+      "uz": "Tashiladigan yuklar",
+      "en": "Cargo carried"
+     },
+     "input": "optional.class_fields.cargo_kinds"
+    },
+    {
+     "code": "repair_due",
+     "type": "text",
+     "label": {
+      "ru": "Сроки ремонта",
+      "uz": "Taʼmirlash muddatlari",
+      "en": "Repair schedule"
+     },
+     "input": "optional.class_fields.repair_due"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     }
+    },
+    {
+     "method": 4,
+     "name": {
+      "ru": "Отчёт независимого оценщика",
+      "uz": "Mustaqil baholovchi hisoboti",
+      "en": "Independent appraiser's report"
+     },
+     "when": {
+      "ru": "загружен в документах",
+      "uz": "hujjatlarga yuklangan",
+      "en": "uploaded with the documents"
+     }
+    },
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: сход с рельсов и столкновение дают основные суммы, повреждения при манёврах — частые мелкие убытки",
+     "uz": "Ekspert baho: relsdan chiqish va toʻqnashuv asosiy summalarni, manyovrdagi shikastlanishlar — tez-tez kichik zararlarni beradi",
+     "en": "Expert view: derailment and collision give the main amounts, shunting damage gives frequent small losses"
+    },
+    "items": [
+     {
+      "code": "rl_derail",
+      "label": {
+       "ru": "Сход с рельсов",
+       "uz": "Relsdan chiqish",
+       "en": "Derailment"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "rl_collision",
+      "label": {
+       "ru": "Столкновение",
+       "uz": "Toʻqnashuv",
+       "en": "Collision"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "rl_fire",
+      "label": {
+       "ru": "Пожар",
+       "uz": "Yongʻin",
+       "en": "Fire"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "rl_nat",
+      "label": {
+       "ru": "Стихия",
+       "uz": "Tabiiy ofat",
+       "en": "Natural perils"
+      },
+      "share_pct": 10,
+      "catastrophic": true
+     },
+     {
+      "code": "rl_shunting",
+      "label": {
+       "ru": "Повреждение при манёврах",
+       "uz": "Manyovrda shikastlanish",
+       "en": "Shunting damage"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст",
+      "uz": "Yosh",
+      "en": "Age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "track_state",
+     "label": {
+      "ru": "Состояние путей на маршруте",
+      "uz": "Yoʻnalishdagi yoʻllar holati",
+      "en": "Track condition on the route"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "dangerous_goods",
+     "label": {
+      "ru": "Опасные грузы",
+      "uz": "Xavfli yuklar",
+      "en": "Dangerous goods"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "repair_schedule",
+     "label": {
+      "ru": "Сроки ремонтов",
+      "uz": "Taʼmirlash muddatlari",
+      "en": "Repair schedule"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "unit",
+    "engine": "template",
+    "text": {
+     "ru": "Одна единица. Катастрофа: весь состав",
+     "uz": "Bitta birlik. Falokat: butun tarkib",
+     "en": "One unit. Catastrophe: the whole train"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — стоимость одной единицы (страховая сумма / число единиц; не указано — вся сумма); MFL — весь состав (страховая сумма)",
+     "uz": "PML va EML — bitta birlik qiymati (sugʻurta summasi / birliklar soni); MFL — butun tarkib (sugʻurta summasi)",
+     "en": "PML and EML — one unit (sum insured / number of units; not stated — the whole sum); MFL — the whole train (sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "одна единица подвижного состава",
+      "uz": "bitta harakat tarkibi birligi",
+      "en": "one unit of rolling stock"
+     },
+     "EML": {
+      "ru": "одна единица подвижного состава",
+      "uz": "bitta harakat tarkibi birligi",
+      "en": "one unit of rolling stock"
+     },
+     "MFL": {
+      "ru": "катастрофа: весь состав",
+      "uz": "falokat: butun tarkib",
+      "en": "catastrophe: the whole train"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 4 + продукты класса 4",
+    "items": [
+     {
+      "ru": "Технический паспорт",
+      "uz": "Texnik pasport",
+      "en": "Technical passport"
+     },
+     {
+      "ru": "Акты ремонта",
+      "uz": "Taʼmirlash dalolatnomalari",
+      "en": "Repair certificates"
+     }
+    ]
+   },
+   "stats": [
+    "freight_rail",
+    "passengers_rail"
+   ],
+   "required_views": {
+    "default": [
+     "front",
+     "back",
+     "left",
+     "right",
+     "plate",
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "rl_repairs",
+     "rl_dangerous",
+     "rl_routes"
+    ]
+   },
+   "measures": {
+    "default": [
+     "rl_depot",
+     "rl_dangerous_goods",
+     "rl_shunting_rules",
+     "sp_extinguisher"
+    ]
+   },
+   "notes": [],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "5": {
+   "class_code": "5",
+   "name": {
+    "ru": "Авиационное страхование",
+    "uz": "Aviatsiya sugʻurtasi",
+    "en": "Aviation hull"
+   },
+   "object": {
+    "description": {
+     "ru": "Самолёт, вертолёт, беспилотный аппарат",
+     "uz": "Samolyot, vertolyot, uchuvchisiz apparat",
+     "en": "Aeroplane, helicopter, drone"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "airplane",
+      "label": {
+       "ru": "самолёт",
+       "uz": "samolyot",
+       "en": "aeroplane"
+      }
+     },
+     {
+      "code": "helicopter",
+      "label": {
+       "ru": "вертолёт",
+       "uz": "vertolyot",
+       "en": "helicopter"
+      }
+     },
+     {
+      "code": "drone",
+      "label": {
+       "ru": "беспилотный аппарат",
+       "uz": "uchuvchisiz apparat",
+       "en": "drone"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип воздушного судна",
+      "uz": "Havo kemasi turi",
+      "en": "Aircraft type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "model",
+     "type": "text",
+     "label": {
+      "ru": "Модель",
+      "uz": "Model",
+      "en": "Model"
+     },
+     "input": "recognized.model"
+    },
+    {
+     "code": "year",
+     "type": "year",
+     "label": {
+      "ru": "Год выпуска",
+      "uz": "Ishlab chiqarilgan yil",
+      "en": "Year of manufacture"
+     },
+     "input": "optional.year"
+    },
+    {
+     "code": "operation",
+     "type": "text",
+     "label": {
+      "ru": "Вид эксплуатации",
+      "uz": "Foydalanish turi",
+      "en": "Type of operation"
+     },
+     "input": "optional.class_fields.operation"
+    }
+   ],
+   "optional": [
+    {
+     "code": "flight_hours",
+     "type": "int",
+     "label": {
+      "ru": "Налёт часов",
+      "uz": "Parvoz soatlari",
+      "en": "Flight hours"
+     },
+     "input": "optional.class_fields.flight_hours"
+    },
+    {
+     "code": "crew",
+     "type": "text",
+     "label": {
+      "ru": "Квалификация экипажа",
+      "uz": "Ekipaj malakasi",
+      "en": "Crew qualification"
+     },
+     "input": "optional.class_fields.crew"
+    },
+    {
+     "code": "base",
+     "type": "text",
+     "label": {
+      "ru": "База",
+      "uz": "Baza",
+      "en": "Home base"
+     },
+     "input": "optional.class_fields.base"
+    },
+    {
+     "code": "geography",
+     "type": "text",
+     "label": {
+      "ru": "География полётов",
+      "uz": "Parvozlar geografiyasi",
+      "en": "Flight geography"
+     },
+     "input": "optional.class_fields.geography"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 5 лет (в расчёте используется как история убытков)",
+      "uz": "5 yildagi zararlar (hisobda zararlar tarixi sifatida ishlatiladi)",
+      "en": "Losses over 5 years (used in the calculation as the loss history)"
+     },
+     "input": "optional.losses_3y",
+     "period_years": 5
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 4,
+     "name": {
+      "ru": "Отчёт независимого оценщика",
+      "uz": "Mustaqil baholovchi hisoboti",
+      "en": "Independent appraiser's report"
+     },
+     "when": {
+      "ru": "загружен в документах",
+      "uz": "hujjatlarga yuklangan",
+      "en": "uploaded with the documents"
+     }
+    },
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     }
+    },
+    {
+     "method": "agreed",
+     "name": {
+      "ru": "Согласованная стоимость",
+      "uz": "Kelishilgan qiymat",
+      "en": "Agreed value"
+     },
+     "when": {
+      "ru": "стоимость борта или судна согласована сторонами по отчёту оценщика или балансу",
+      "uz": "havo yoki suv kemasining qiymati tomonlar tomonidan baholovchi hisoboti yoki balans boʻyicha kelishilgan",
+      "en": "the hull value is agreed by the parties on the appraiser's report or the books"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: полная гибель и повреждения на взлёте и посадке — основная часть убытка по каско воздушных судов",
+     "uz": "Ekspert baho: toʻliq nobud boʻlish va uchish-qoʻnishdagi shikastlanishlar — havo kemalari kaskosi zararining asosiy qismi",
+     "en": "Expert view: total loss and take-off/landing damage make most of aircraft hull losses"
+    },
+    "items": [
+     {
+      "code": "av_total",
+      "label": {
+       "ru": "Гибель",
+       "uz": "Nobud boʻlish",
+       "en": "Total loss"
+      },
+      "share_pct": 35,
+      "catastrophic": true
+     },
+     {
+      "code": "av_takeoff_landing",
+      "label": {
+       "ru": "Повреждение при взлёте и посадке",
+       "uz": "Uchish va qoʻnishda shikastlanish",
+       "en": "Take-off and landing damage"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "av_ground",
+      "label": {
+       "ru": "Повреждение на земле",
+       "uz": "Yerda shikastlanish",
+       "en": "Ground damage"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "av_birds",
+      "label": {
+       "ru": "Столкновение с птицами",
+       "uz": "Qushlar bilan toʻqnashuv",
+       "en": "Bird strike"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "av_fire",
+      "label": {
+       "ru": "Пожар",
+       "uz": "Yongʻin",
+       "en": "Fire"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст борта",
+      "uz": "Kema yoshi",
+      "en": "Airframe age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "crew_hours",
+     "label": {
+      "ru": "Налёт экипажа",
+      "uz": "Ekipaj parvoz soatlari",
+      "en": "Crew flight hours"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "airfields",
+     "label": {
+      "ru": "Тип аэродромов",
+      "uz": "Aerodromlar turi",
+      "en": "Type of airfields"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "maintenance",
+     "label": {
+      "ru": "Техническое обслуживание",
+      "uz": "Texnik xizmat",
+      "en": "Maintenance"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "full_loss",
+    "engine": "template",
+    "text": {
+     "ru": "Полная гибель борта. Перестрахование требуется почти всегда",
+     "uz": "Kemaning toʻliq nobud boʻlishi. Qayta sugʻurtalash deyarli har doim kerak",
+     "en": "Total loss of the aircraft. Reinsurance is almost always needed"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полная гибель: меньшее из страховой суммы и стоимости",
+     "uz": "PML, EML va MFL — toʻliq nobud boʻlish: sugʻurta summasi va qiymatning kichigi",
+     "en": "PML, EML and MFL — total loss: the lower of the sum insured and the value"
+    },
+    "what": {
+     "PML": {
+      "ru": "полная гибель борта",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the aircraft"
+     },
+     "EML": {
+      "ru": "полная гибель борта",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the aircraft"
+     },
+     "MFL": {
+      "ru": "полная гибель борта",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the aircraft"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 5 + продукты класса 5",
+    "items": [
+     {
+      "ru": "Сертификат лётной годности",
+      "uz": "Parvozga yaroqlilik sertifikati",
+      "en": "Certificate of airworthiness"
+     },
+     {
+      "ru": "Сведения об экипаже",
+      "uz": "Ekipaj haqida maʼlumot",
+      "en": "Crew details"
+     }
+    ]
+   },
+   "stats": [
+    "passengers_air",
+    "freight_air"
+   ],
+   "required_views": {
+    "default": [
+     "front",
+     "back",
+     "left",
+     "right",
+     "plate",
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "av_airworthiness",
+     "av_crew",
+     "av_geography"
+    ]
+   },
+   "measures": {
+    "default": [
+     "av_maintenance",
+     "av_crew_training",
+     "av_hangar"
+    ]
+   },
+   "notes": [
+    {
+     "code": "reinsurance",
+     "text": {
+      "ru": "Перестрахование требуется почти всегда: одна гибель или один случай может превысить удержание компании (решение по перестрахованию отложено, считается отдельно)",
+      "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
+      "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": true,
+   "calibrated": 0
+  },
+  "6": {
+   "class_code": "6",
+   "name": {
+    "ru": "Морское страхование",
+    "uz": "Dengiz sugʻurtasi",
+    "en": "Marine hull"
+   },
+   "object": {
+    "description": {
+     "ru": "Судно, катер, плавучее средство",
+     "uz": "Kema, kater, suzuvchi vosita",
+     "en": "Vessel, boat, floating craft"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "ship",
+      "label": {
+       "ru": "судно",
+       "uz": "kema",
+       "en": "vessel"
+      }
+     },
+     {
+      "code": "boat",
+      "label": {
+       "ru": "катер",
+       "uz": "kater",
+       "en": "boat"
+      }
+     },
+     {
+      "code": "floating_craft",
+      "label": {
+       "ru": "плавучее средство",
+       "uz": "suzuvchi vosita",
+       "en": "floating craft"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип судна",
+      "uz": "Kema turi",
+      "en": "Vessel type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "year",
+     "type": "year",
+     "label": {
+      "ru": "Год постройки",
+      "uz": "Qurilgan yil",
+      "en": "Year built"
+     },
+     "input": "optional.year"
+    },
+    {
+     "code": "navigation_area",
+     "type": "text",
+     "label": {
+      "ru": "Район плавания",
+      "uz": "Suzish hududi",
+      "en": "Navigation area"
+     },
+     "input": "optional.class_fields.navigation_area"
+    }
+   ],
+   "optional": [
+    {
+     "code": "vessel_class",
+     "type": "text",
+     "label": {
+      "ru": "Класс судна",
+      "uz": "Kema klassi",
+      "en": "Vessel class"
+     },
+     "input": "optional.class_fields.vessel_class"
+    },
+    {
+     "code": "crew",
+     "type": "text",
+     "label": {
+      "ru": "Экипаж",
+      "uz": "Ekipaj",
+      "en": "Crew"
+     },
+     "input": "optional.class_fields.crew"
+    },
+    {
+     "code": "season",
+     "type": "text",
+     "label": {
+      "ru": "Сезон",
+      "uz": "Mavsum",
+      "en": "Season"
+     },
+     "input": "optional.class_fields.season"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 5 лет (в расчёте используется как история убытков)",
+      "uz": "5 yildagi zararlar (hisobda zararlar tarixi sifatida ishlatiladi)",
+      "en": "Losses over 5 years (used in the calculation as the loss history)"
+     },
+     "input": "optional.losses_3y",
+     "period_years": 5
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 4,
+     "name": {
+      "ru": "Отчёт независимого оценщика",
+      "uz": "Mustaqil baholovchi hisoboti",
+      "en": "Independent appraiser's report"
+     },
+     "when": {
+      "ru": "загружен в документах",
+      "uz": "hujjatlarga yuklangan",
+      "en": "uploaded with the documents"
+     }
+    },
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     }
+    },
+    {
+     "method": "agreed",
+     "name": {
+      "ru": "Согласованная стоимость",
+      "uz": "Kelishilgan qiymat",
+      "en": "Agreed value"
+     },
+     "when": {
+      "ru": "стоимость борта или судна согласована сторонами по отчёту оценщика или балансу",
+      "uz": "havo yoki suv kemasining qiymati tomonlar tomonidan baholovchi hisoboti yoki balans boʻyicha kelishilgan",
+      "en": "the hull value is agreed by the parties on the appraiser's report or the books"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера",
+     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi",
+     "en": "Expert view: little open data, the shares are the underwriter's estimate"
+    },
+    "items": [
+     {
+      "code": "mr_total",
+      "label": {
+       "ru": "Гибель",
+       "uz": "Nobud boʻlish",
+       "en": "Total loss"
+      },
+      "share_pct": 30,
+      "catastrophic": true
+     },
+     {
+      "code": "mr_grounding",
+      "label": {
+       "ru": "Посадка на мель",
+       "uz": "Sayozlikka oʻtirish",
+       "en": "Grounding"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "mr_collision",
+      "label": {
+       "ru": "Столкновение",
+       "uz": "Toʻqnashuv",
+       "en": "Collision"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "mr_fire",
+      "label": {
+       "ru": "Пожар",
+       "uz": "Yongʻin",
+       "en": "Fire"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "mr_storm",
+      "label": {
+       "ru": "Шторм",
+       "uz": "Boʻron",
+       "en": "Heavy weather"
+      },
+      "share_pct": 20,
+      "catastrophic": true
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст",
+      "uz": "Yosh",
+      "en": "Age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "area_season",
+     "label": {
+      "ru": "Район и сезон плавания",
+      "uz": "Suzish hududi va mavsumi",
+      "en": "Navigation area and season"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "crew",
+     "label": {
+      "ru": "Квалификация экипажа",
+      "uz": "Ekipaj malakasi",
+      "en": "Crew qualification"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "full_loss",
+    "engine": "template",
+    "text": {
+     "ru": "Полная гибель судна",
+     "uz": "Kemaning toʻliq nobud boʻlishi",
+     "en": "Total loss of the vessel"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полная гибель: меньшее из страховой суммы и стоимости",
+     "uz": "PML, EML va MFL — toʻliq nobud boʻlish: sugʻurta summasi va qiymatning kichigi",
+     "en": "PML, EML and MFL — total loss: the lower of the sum insured and the value"
+    },
+    "what": {
+     "PML": {
+      "ru": "полная гибель судна",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the vessel"
+     },
+     "EML": {
+      "ru": "полная гибель судна",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the vessel"
+     },
+     "MFL": {
+      "ru": "полная гибель судна",
+      "uz": "kemaning toʻliq nobud boʻlishi",
+      "en": "total loss of the vessel"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 6 + продукты класса 6",
+    "items": [
+     {
+      "ru": "Судовые документы",
+      "uz": "Kema hujjatlari",
+      "en": "Ship's papers"
+     },
+     {
+      "ru": "Акт освидетельствования",
+      "uz": "Koʻrikdan oʻtkazish dalolatnomasi",
+      "en": "Survey report"
+     }
+    ]
+   },
+   "stats": [],
+   "required_views": {
+    "default": [
+     "front",
+     "back",
+     "left",
+     "right",
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "mr_class",
+     "mr_area",
+     "mr_crew"
+    ]
+   },
+   "measures": {
+    "default": [
+     "mr_survey",
+     "mr_crew_cert",
+     "mr_weather"
+    ]
+   },
+   "notes": [
+    {
+     "code": "reinsurance",
+     "text": {
+      "ru": "Перестрахование требуется почти всегда: одна гибель или один случай может превысить удержание компании (решение по перестрахованию отложено, считается отдельно)",
+      "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
+      "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
+     }
+    },
+    {
+     "code": "no_stats",
+     "text": {
+      "ru": "Открытой статистики по морскому и речному транспорту нет — применяется оценка андеррайтера",
+      "uz": "Dengiz va daryo transporti boʻyicha ochiq statistika yoʻq — anderrayter bahosi qoʻllanadi",
+      "en": "There are no open statistics on sea and river transport — the underwriter's estimate applies"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": true,
+   "calibrated": 0
+  },
+  "7": {
+   "class_code": "7",
+   "name": {
+    "ru": "Имущество в пути, грузы",
+    "uz": "Yoʻldagi mulk, yuklar",
+    "en": "Goods in transit, cargo"
+   },
+   "object": {
+    "description": {
+     "ru": "Груз в перевозке",
+     "uz": "Tashishdagi yuk",
+     "en": "Cargo in transit"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "cargo",
+      "label": {
+       "ru": "груз",
+       "uz": "yuk",
+       "en": "cargo"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "cargo_kind",
+     "type": "text",
+     "label": {
+      "ru": "Вид груза",
+      "uz": "Yuk turi",
+      "en": "Kind of cargo"
+     },
+     "input": "optional.class_fields.cargo_kind"
+    },
+    {
+     "code": "transport_mode",
+     "type": "choice",
+     "label": {
+      "ru": "Вид транспорта",
+      "uz": "Transport turi",
+      "en": "Mode of transport"
+     },
+     "input": "optional.class_fields.transport_mode",
+     "options": [
+      "auto",
+      "rail",
+      "air",
+      "sea",
+      "multi"
+     ]
+    },
+    {
+     "code": "route",
+     "type": "text",
+     "label": {
+      "ru": "Маршрут",
+      "uz": "Yoʻnalish",
+      "en": "Route"
+     },
+     "input": "optional.class_fields.route"
+    }
+   ],
+   "optional": [
+    {
+     "code": "packaging",
+     "type": "choice",
+     "label": {
+      "ru": "Упаковка",
+      "uz": "Qadoq",
+      "en": "Packaging"
+     },
+     "input": "optional.class_fields.packaging",
+     "options": [
+      "container",
+      "factory",
+      "standard",
+      "none"
+     ]
+    },
+    {
+     "code": "transshipments",
+     "type": "int",
+     "label": {
+      "ru": "Число перевалок",
+      "uz": "Qayta yuklashlar soni",
+      "en": "Number of transshipments"
+     },
+     "input": "optional.class_fields.transshipments"
+    },
+    {
+     "code": "guard",
+     "type": "bool",
+     "label": {
+      "ru": "Охрана",
+      "uz": "Qoʻriqlash",
+      "en": "Security"
+     },
+     "input": "optional.guard"
+    },
+    {
+     "code": "temperature",
+     "type": "bool",
+     "label": {
+      "ru": "Температурный режим",
+      "uz": "Harorat rejimi",
+      "en": "Temperature control"
+     },
+     "input": "optional.class_fields.temperature"
+    },
+    {
+     "code": "limit_per_shipment",
+     "type": "money",
+     "label": {
+      "ru": "Сумма одной отправки",
+      "uz": "Bitta joʻnatma summasi",
+      "en": "Value of one shipment"
+     },
+     "input": "optional.class_fields.limit_per_shipment",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "accumulation_value",
+     "type": "money",
+     "label": {
+      "ru": "Наибольшее накопление на одном складе или транспорте",
+      "uz": "Bitta ombor yoki transportdagi eng katta jamlanma",
+      "en": "Largest accumulation in one store or vehicle"
+     },
+     "input": "optional.class_fields.accumulation_value",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     },
+     "note": {
+      "ru": "счёт поставщика плюс перевозка и ожидаемая прибыль в согласованных пределах",
+      "uz": "yetkazib beruvchi hisobi + tashish va kelishilgan chegaradagi kutilayotgan foyda",
+      "en": "supplier invoice plus freight and expected profit within agreed limits"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: повреждение и кража — основные убытки по грузам, авария транспорта — самые крупные",
+     "uz": "Ekspert baho: shikastlanish va oʻgʻirlik — yuklar boʻyicha asosiy zararlar, transport avariyasi — eng yiriklari",
+     "en": "Expert view: damage and theft are the main cargo losses, a transport accident the largest"
+    },
+    "items": [
+     {
+      "code": "cg_damage",
+      "label": {
+       "ru": "Повреждение",
+       "uz": "Shikastlanish",
+       "en": "Damage"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "cg_loss",
+      "label": {
+       "ru": "Утрата",
+       "uz": "Yoʻqotish",
+       "en": "Loss"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "cg_theft",
+      "label": {
+       "ru": "Кража",
+       "uz": "Oʻgʻirlik",
+       "en": "Theft"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "cg_wetting",
+      "label": {
+       "ru": "Подмочка",
+       "uz": "Namlanish",
+       "en": "Wetting"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "cg_spoilage",
+      "label": {
+       "ru": "Порча",
+       "uz": "Buzilish",
+       "en": "Spoilage"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "cg_accident",
+      "label": {
+       "ru": "Авария транспорта",
+       "uz": "Transport avariyasi",
+       "en": "Transport accident"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "cargo_nature",
+     "label": {
+      "ru": "Хрупкость и ценность груза",
+      "uz": "Yukning moʻrtligi va qimmati",
+      "en": "Fragility and value of cargo"
+     },
+     "direction": "up",
+     "ref": "coefficients:cargo_nature"
+    },
+    {
+     "code": "cargo_route",
+     "label": {
+      "ru": "Длина маршрута, страны транзита",
+      "uz": "Yoʻnalish uzunligi, tranzit mamlakatlari",
+      "en": "Route length, transit countries"
+     },
+     "direction": "up",
+     "ref": "coefficients:cargo_route"
+    },
+    {
+     "code": "cargo_transship",
+     "label": {
+      "ru": "Перевалки",
+      "uz": "Qayta yuklashlar",
+      "en": "Transshipments"
+     },
+     "direction": "up",
+     "ref": "coefficients:cargo_transship"
+    },
+    {
+     "code": "cargo_pack",
+     "label": {
+      "ru": "Упаковка",
+      "uz": "Qadoq",
+      "en": "Packaging"
+     },
+     "direction": "down",
+     "ref": "coefficients:cargo_pack"
+    },
+    {
+     "code": "cargo_mode",
+     "label": {
+      "ru": "Вид транспорта",
+      "uz": "Transport turi",
+      "en": "Mode of transport"
+     },
+     "direction": "both",
+     "ref": "coefficients:cargo_mode"
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "shipment",
+    "engine": "template",
+    "text": {
+     "ru": "Одна отправка. Катастрофа: накопление на одном складе или транспорте",
+     "uz": "Bitta joʻnatma. Falokat: bitta ombor yoki transportdagi jamlanma",
+     "en": "One shipment. Catastrophe: accumulation in one store or vehicle"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — сумма одной отправки (не указана — страховая сумма); MFL — наибольшее накопление на одном складе или транспорте (не указано — страховая сумма)",
+     "uz": "PML va EML — bitta joʻnatma summasi (koʻrsatilmagan — sugʻurta summasi); MFL — eng katta jamlanma (koʻrsatilmagan — sugʻurta summasi)",
+     "en": "PML and EML — one shipment (not stated — the sum insured); MFL — the largest accumulation (not stated — the sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "одна отправка",
+      "uz": "bitta joʻnatma",
+      "en": "one shipment"
+     },
+     "EML": {
+      "ru": "одна отправка",
+      "uz": "bitta joʻnatma",
+      "en": "one shipment"
+     },
+     "MFL": {
+      "ru": "накопление на одном складе или транспорте",
+      "uz": "bitta ombor yoki transportdagi jamlanma",
+      "en": "accumulation in one store or vehicle"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 7 + продукты класса 7",
+    "items": [
+     {
+      "ru": "Счёт (инвойс)",
+      "uz": "Hisob-faktura (invoys)",
+      "en": "Invoice"
+     },
+     {
+      "ru": "Договор перевозки",
+      "uz": "Tashish shartnomasi",
+      "en": "Contract of carriage"
+     },
+     {
+      "ru": "Упаковочный лист",
+      "uz": "Qadoqlash varagʻi",
+      "en": "Packing list"
+     }
+    ]
+   },
+   "stats": [
+    "road_accidents",
+    "freight_road",
+    "freight_rail",
+    "freight_air",
+    "freight_total",
+    "thefts",
+    "robberies"
+   ],
+   "required_views": {
+    "default": [
+     "packaging",
+     "marking",
+     "transport"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "cg_packaging",
+     "cg_route",
+     "cg_marking"
+    ]
+   },
+   "measures": {
+    "default": [
+     "cg_packing",
+     "cg_route",
+     "cg_docs",
+     "all_loss_review"
+    ]
+   },
+   "notes": [],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "8": {
+   "class_code": "8",
+   "name": {
+    "ru": "Имущество от огня и стихийных бедствий",
+    "uz": "Mulk yongʻin va tabiiy ofatlardan",
+    "en": "Property: fire and natural perils"
+   },
+   "object": {
+    "description": {
+     "ru": "Здание, сооружение, оборудование, товарные запасы",
+     "uz": "Bino, inshoot, uskuna, tovar zaxiralari",
+     "en": "Building, structure, equipment, stock"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "warehouse",
+      "label": {
+       "ru": "склад",
+       "uz": "ombor",
+       "en": "warehouse"
+      }
+     },
+     {
+      "code": "shop",
+      "label": {
+       "ru": "магазин",
+       "uz": "doʻkon",
+       "en": "shop"
+      }
+     },
+     {
+      "code": "production",
+      "label": {
+       "ru": "производственное здание",
+       "uz": "ishlab chiqarish binosi",
+       "en": "production building"
+      }
+     },
+     {
+      "code": "office",
+      "label": {
+       "ru": "офис",
+       "uz": "ofis",
+       "en": "office"
+      }
+     },
+     {
+      "code": "dwelling",
+      "label": {
+       "ru": "жильё",
+       "uz": "turar joy",
+       "en": "dwelling"
+      }
+     },
+     {
+      "code": "hotel",
+      "label": {
+       "ru": "гостиница",
+       "uz": "mehmonxona",
+       "en": "hotel"
+      }
+     },
+     {
+      "code": "equipment",
+      "label": {
+       "ru": "машины и оборудование",
+       "uz": "mashina va uskunalar",
+       "en": "machinery and equipment"
+      }
+     },
+     {
+      "code": "stock",
+      "label": {
+       "ru": "товарные запасы",
+       "uz": "tovar zaxiralari",
+       "en": "stock"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип объекта",
+      "uz": "Obyekt turi",
+      "en": "Object type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "construction",
+     "type": "choice",
+     "label": {
+      "ru": "Конструкция",
+      "uz": "Konstruksiya",
+      "en": "Construction"
+     },
+     "input": "optional.construction",
+     "options": [
+      "reinforced",
+      "mixed",
+      "wood"
+     ]
+    },
+    {
+     "code": "activity",
+     "type": "choice",
+     "label": {
+      "ru": "Деятельность на объекте",
+      "uz": "Obyektdagi faoliyat",
+      "en": "Activity on site"
+     },
+     "input": "optional.activity",
+     "options": [
+      "office",
+      "warehouse",
+      "food",
+      "flammable"
+     ]
+    }
+   ],
+   "optional": [
+    {
+     "code": "protection",
+     "type": "choice",
+     "label": {
+      "ru": "Противопожарная защита",
+      "uz": "Yongʻindan himoya",
+      "en": "Fire protection"
+     },
+     "input": "optional.protection",
+     "options": [
+      "none",
+      "alarm",
+      "alarm_guard",
+      "sprinkler"
+     ]
+    },
+    {
+     "code": "seismic_zone",
+     "type": "int",
+     "label": {
+      "ru": "Сейсмическая зона, баллов",
+      "uz": "Seysmik zona, ball",
+      "en": "Seismic zone, points"
+     },
+     "input": "optional.seismic_zone"
+    },
+    {
+     "code": "wear",
+     "type": "text",
+     "label": {
+      "ru": "Износ",
+      "uz": "Eskirish",
+      "en": "Wear"
+     },
+     "input": "optional.class_fields.wear"
+    },
+    {
+     "code": "floors",
+     "type": "int",
+     "label": {
+      "ru": "Этажность",
+      "uz": "Qavatlar soni",
+      "en": "Number of floors"
+     },
+     "input": "optional.class_fields.floors"
+    },
+    {
+     "code": "area_m2",
+     "type": "number",
+     "label": {
+      "ru": "Площадь, м²",
+      "uz": "Maydon, m²",
+      "en": "Area, m²"
+     },
+     "input": "optional.class_fields.area_m2"
+    },
+    {
+     "code": "fire_station_km",
+     "type": "number",
+     "label": {
+      "ru": "Расстояние до пожарной части, км",
+      "uz": "Oʻt oʻchirish qismigacha masofa, km",
+      "en": "Distance to the fire station, km"
+     },
+     "input": "optional.class_fields.fire_station_km"
+    },
+    {
+     "code": "compartments",
+     "type": "text",
+     "label": {
+      "ru": "Противопожарные отсеки",
+      "uz": "Yongʻinga qarshi boʻlimlar",
+      "en": "Fire compartments"
+     },
+     "input": "optional.class_fields.compartments"
+    },
+    {
+     "code": "neighbours",
+     "type": "text",
+     "label": {
+      "ru": "Соседние здания",
+      "uz": "Qoʻshni binolar",
+      "en": "Neighbouring buildings"
+     },
+     "input": "optional.class_fields.neighbours"
+    },
+    {
+     "code": "business_interruption",
+     "type": "bool",
+     "label": {
+      "ru": "Перерыв в производстве",
+      "uz": "Ishlab chiqarishdagi tanaffus",
+      "en": "Business interruption"
+     },
+     "input": "optional.class_fields.business_interruption"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 1,
+     "name": {
+      "ru": "Рынок",
+      "uz": "Bozor",
+      "en": "Market"
+     },
+     "when": {
+      "ru": "есть не менее пяти объявлений не старше шести месяцев",
+      "uz": "olti oydan eski boʻlmagan kamida beshta eʼlon bor",
+      "en": "at least five listings not older than six months"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 4,
+     "name": {
+      "ru": "Отчёт независимого оценщика",
+      "uz": "Mustaqil baholovchi hisoboti",
+      "en": "Independent appraiser's report"
+     },
+     "when": {
+      "ru": "загружен в документах",
+      "uz": "hujjatlarga yuklangan",
+      "en": "uploaded with the documents"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     },
+     "note": {
+      "ru": "с индексом цен на строительство",
+      "uz": "qurilish narxlari indeksi bilan",
+      "en": "with the construction price index"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 2,
+     "name": {
+      "ru": "Запрос официальному дилеру или поставщику",
+      "uz": "Rasmiy diler yoki yetkazib beruvchiga soʻrov",
+      "en": "Quote from an official dealer or supplier"
+     },
+     "when": {
+      "ru": "рынка нет, объект серийный",
+      "uz": "bozor yoʻq, obyekt seriyali",
+      "en": "no market, the object is serial"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    },
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    },
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    }
+   ],
+   "risks": {
+    "source": "perils",
+    "calibrated": 0,
+    "note": {
+     "ru": "Доли — из справочника perils базы (нетто-ставка класса), в шаблоне не дублируются",
+     "uz": "Ulushlar — bazadagi perils maʼlumotnomasidan (klass netto-stavkasi), shablonda takrorlanmaydi",
+     "en": "Shares come from the perils reference in the database (class net rate), not duplicated here"
+    },
+    "items": []
+   },
+   "factors": [
+    {
+     "code": "construction",
+     "label": {
+      "ru": "Горючесть конструкций",
+      "uz": "Konstruksiyalarning yonuvchanligi",
+      "en": "Combustibility of construction"
+     },
+     "direction": "both",
+     "ref": "coefficients:construction"
+    },
+    {
+     "code": "activity",
+     "label": {
+      "ru": "Горючесть содержимого (деятельность)",
+      "uz": "Ichidagi narsalarning yonuvchanligi",
+      "en": "Combustibility of contents (activity)"
+     },
+     "direction": "both",
+     "ref": "coefficients:activity"
+    },
+    {
+     "code": "protection",
+     "label": {
+      "ru": "Защита",
+      "uz": "Himoya",
+      "en": "Protection"
+     },
+     "direction": "down",
+     "ref": "coefficients:protection"
+    },
+    {
+     "code": "seismic",
+     "label": {
+      "ru": "Сейсмозона",
+      "uz": "Seysmik zona",
+      "en": "Seismic zone"
+     },
+     "direction": "up",
+     "ref": "coefficients:seismic"
+    },
+    {
+     "code": "wear",
+     "label": {
+      "ru": "Износ",
+      "uz": "Eskirish",
+      "en": "Wear"
+     },
+     "direction": "up",
+     "ref": "coefficients:wear"
+    },
+    {
+     "code": "fire_station",
+     "label": {
+      "ru": "Удалённость пожарной части",
+      "uz": "Oʻt oʻchirish qismining uzoqligi",
+      "en": "Distance to the fire station"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "property8",
+    "engine": "risk_analytics",
+    "text": {
+     "ru": "Пожар считается от самого дорогого отсека. Землетрясение считается по всей площадке. Берётся большее",
+     "uz": "Yongʻin eng qimmat boʻlimdan hisoblanadi. Zilzila butun maydon boʻyicha hisoblanadi. Kattasi olinadi",
+     "en": "Fire is taken from the most valuable compartment. Earthquake is taken over the whole site. The larger is used"
+    },
+    "simple_rule": {
+     "ru": "Считает модуль аналитики рисков (risk_analytics, правило property8)",
+     "uz": "Xavf tahlili moduli hisoblaydi (risk_analytics, property8 qoidasi)",
+     "en": "Calculated by the risk analytics module (risk_analytics, property8 rule)"
+    },
+    "what": {},
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 8 + тип объекта «Оборудование» + продукты класса 8",
+    "items": [
+     {
+      "ru": "Кадастровые документы",
+      "uz": "Kadastr hujjatlari",
+      "en": "Cadastral documents"
+     },
+     {
+      "ru": "Отчёт оценщика",
+      "uz": "Baholovchi hisoboti",
+      "en": "Appraiser's report"
+     },
+     {
+      "ru": "Сведения о сигнализации",
+      "uz": "Signalizatsiya haqida maʼlumot",
+      "en": "Alarm details"
+     },
+     {
+      "ru": "Фото",
+      "uz": "Suratlar",
+      "en": "Photos"
+     }
+    ]
+   },
+   "stats": [
+    "vulnerable_housing",
+    "emergencies",
+    "construction_price_index_y"
+   ],
+   "required_views": {
+    "property": [
+     "facade",
+     "roof",
+     "interior",
+     "electrical",
+     "fire_safety"
+    ],
+    "equipment": [
+     "general",
+     "plate",
+     "installation"
+    ]
+   },
+   "clauses": {
+    "property": [
+     "pr_fire_systems",
+     "pr_electrical",
+     "pr_combustibles",
+     "pr_vacancy"
+    ],
+    "equipment": [
+     "eq_manufacturer",
+     "eq_voltage",
+     "eq_location"
+    ]
+   },
+   "measures": {
+    "property": [
+     "pr_fire_alarm",
+     "pr_extinguishers",
+     "wh_storage",
+     "alarm_install",
+     "sprinklers",
+     "seismic_survey"
+    ],
+    "equipment": [
+     "pr_extinguishers",
+     "eq_power",
+     "eq_maintenance",
+     "all_loss_review"
+    ]
+   },
+   "notes": [
+    {
+     "code": "pml_rule",
+     "text": {
+      "ru": "PML по пожару — по противопожарным отсекам; по землетрясению — по всей площадке, с накоплением по сейсмозоне",
+      "uz": "Yongʻin boʻyicha PML — yongʻinga qarshi boʻlimlar boʻyicha; zilzila boʻyicha — butun maydon boʻyicha, seysmik zona boʻyicha jamlanma bilan",
+      "en": "Fire PML is per fire compartment; earthquake PML is for the whole site, accumulated by seismic zone"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "9": {
+   "class_code": "9",
+   "name": {
+    "ru": "Имущество от ущерба",
+    "uz": "Mulk zarardan",
+    "en": "Property damage"
+   },
+   "object": {
+    "description": {
+     "ru": "Имущество из класса 8 по рискам, не связанным с огнём и стихией",
+     "uz": "Yongʻin va tabiiy ofatga bogʻliq boʻlmagan xavflar boʻyicha 8-klass mulki",
+     "en": "Class 8 property against perils other than fire and natural perils"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "warehouse",
+      "label": {
+       "ru": "склад",
+       "uz": "ombor",
+       "en": "warehouse"
+      }
+     },
+     {
+      "code": "shop",
+      "label": {
+       "ru": "магазин",
+       "uz": "doʻkon",
+       "en": "shop"
+      }
+     },
+     {
+      "code": "production",
+      "label": {
+       "ru": "производственное здание",
+       "uz": "ishlab chiqarish binosi",
+       "en": "production building"
+      }
+     },
+     {
+      "code": "office",
+      "label": {
+       "ru": "офис",
+       "uz": "ofis",
+       "en": "office"
+      }
+     },
+     {
+      "code": "dwelling",
+      "label": {
+       "ru": "жильё",
+       "uz": "turar joy",
+       "en": "dwelling"
+      }
+     },
+     {
+      "code": "hotel",
+      "label": {
+       "ru": "гостиница",
+       "uz": "mehmonxona",
+       "en": "hotel"
+      }
+     },
+     {
+      "code": "equipment",
+      "label": {
+       "ru": "машины и оборудование",
+       "uz": "mashina va uskunalar",
+       "en": "machinery and equipment"
+      }
+     },
+     {
+      "code": "stock",
+      "label": {
+       "ru": "товарные запасы",
+       "uz": "tovar zaxiralari",
+       "en": "stock"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип объекта",
+      "uz": "Obyekt turi",
+      "en": "Object type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "activity",
+     "type": "choice",
+     "label": {
+      "ru": "Деятельность на объекте",
+      "uz": "Obyektdagi faoliyat",
+      "en": "Activity on site"
+     },
+     "input": "optional.activity",
+     "options": [
+      "office",
+      "warehouse",
+      "food",
+      "flammable"
+     ]
+    },
+    {
+     "code": "largest_room_value",
+     "type": "money",
+     "label": {
+      "ru": "Стоимость наибольшего помещения",
+      "uz": "Eng qimmat xona qiymati",
+      "en": "Value of the largest premises"
+     },
+     "input": "optional.class_fields.largest_room_value",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "guard",
+     "type": "bool",
+     "label": {
+      "ru": "Охрана",
+      "uz": "Qoʻriqlash",
+      "en": "Security"
+     },
+     "input": "optional.guard"
+    },
+    {
+     "code": "protection",
+     "type": "choice",
+     "label": {
+      "ru": "Сигнализация",
+      "uz": "Signalizatsiya",
+      "en": "Alarm"
+     },
+     "input": "optional.protection",
+     "options": [
+      "none",
+      "alarm",
+      "alarm_guard",
+      "sprinkler"
+     ]
+    },
+    {
+     "code": "bars",
+     "type": "bool",
+     "label": {
+      "ru": "Решётки",
+      "uz": "Panjaralar",
+      "en": "Window bars"
+     },
+     "input": "optional.class_fields.bars"
+    },
+    {
+     "code": "cctv",
+     "type": "bool",
+     "label": {
+      "ru": "Видеонаблюдение",
+      "uz": "Videokuzatuv",
+      "en": "CCTV"
+     },
+     "input": "optional.class_fields.cctv"
+    },
+    {
+     "code": "pipes",
+     "type": "text",
+     "label": {
+      "ru": "Состояние коммуникаций",
+      "uz": "Kommunikatsiyalar holati",
+      "en": "Condition of pipes and wiring"
+     },
+     "input": "optional.class_fields.pipes"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 1,
+     "name": {
+      "ru": "Рынок",
+      "uz": "Bozor",
+      "en": "Market"
+     },
+     "when": {
+      "ru": "есть не менее пяти объявлений не старше шести месяцев",
+      "uz": "olti oydan eski boʻlmagan kamida beshta eʼlon bor",
+      "en": "at least five listings not older than six months"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 4,
+     "name": {
+      "ru": "Отчёт независимого оценщика",
+      "uz": "Mustaqil baholovchi hisoboti",
+      "en": "Independent appraiser's report"
+     },
+     "when": {
+      "ru": "загружен в документах",
+      "uz": "hujjatlarga yuklangan",
+      "en": "uploaded with the documents"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     },
+     "note": {
+      "ru": "с индексом цен на строительство",
+      "uz": "qurilish narxlari indeksi bilan",
+      "en": "with the construction price index"
+     },
+     "for": {
+      "ru": "недвижимость",
+      "uz": "koʻchmas mulk",
+      "en": "real estate"
+     }
+    },
+    {
+     "method": 2,
+     "name": {
+      "ru": "Запрос официальному дилеру или поставщику",
+      "uz": "Rasmiy diler yoki yetkazib beruvchiga soʻrov",
+      "en": "Quote from an official dealer or supplier"
+     },
+     "when": {
+      "ru": "рынка нет, объект серийный",
+      "uz": "bozor yoʻq, obyekt seriyali",
+      "en": "no market, the object is serial"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    },
+    {
+     "method": 3,
+     "name": {
+      "ru": "Первоначальная стоимость минус износ",
+      "uz": "Boshlangʻich qiymat minus eskirish",
+      "en": "Original cost less wear"
+     },
+     "when": {
+      "ru": "известны цена и дата ввода в эксплуатацию",
+      "uz": "narx va foydalanishga topshirilgan sana maʼlum",
+      "en": "the price and the commissioning date are known"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    },
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     },
+     "for": {
+      "ru": "оборудование",
+      "uz": "uskuna",
+      "en": "equipment"
+     }
+    }
+   ],
+   "risks": {
+    "source": "perils",
+    "calibrated": 0,
+    "note": {
+     "ru": "Доли — из справочника perils базы (нетто-ставка класса), в шаблоне не дублируются",
+     "uz": "Ulushlar — bazadagi perils maʼlumotnomasidan (klass netto-stavkasi), shablonda takrorlanmaydi",
+     "en": "Shares come from the perils reference in the database (class net rate), not duplicated here"
+    },
+    "items": []
+   },
+   "factors": [
+    {
+     "code": "guard",
+     "label": {
+      "ru": "Охрана",
+      "uz": "Qoʻriqlash",
+      "en": "Security"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "contents_value",
+     "label": {
+      "ru": "Ценность и ликвидность содержимого",
+      "uz": "Ichidagi narsalarning qimmati va likvidligi",
+      "en": "Value and liquidity of contents"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "district",
+     "label": {
+      "ru": "Район",
+      "uz": "Tuman",
+      "en": "District"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "pipes",
+     "label": {
+      "ru": "Состояние труб",
+      "uz": "Quvurlar holati",
+      "en": "Condition of pipes"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "property9",
+    "engine": "risk_analytics",
+    "text": {
+     "ru": "Доля стоимости наибольшего помещения с поправкой на охрану",
+     "uz": "Eng katta xona qiymatining ulushi, qoʻriqlash tuzatmasi bilan",
+     "en": "A share of the largest premises' value adjusted for security"
+    },
+    "simple_rule": {
+     "ru": "Считает модуль аналитики рисков (risk_analytics, правило property9)",
+     "uz": "Xavf tahlili moduli hisoblaydi (risk_analytics, property9 qoidasi)",
+     "en": "Calculated by the risk analytics module (risk_analytics, property9 rule)"
+    },
+    "what": {},
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 9 + продукты класса 9",
+    "items": [
+     {
+      "ru": "Договор с охраной",
+      "uz": "Qoʻriqlash shartnomasi",
+      "en": "Security contract"
+     },
+     {
+      "ru": "Опись имущества",
+      "uz": "Mulk roʻyxati",
+      "en": "Inventory"
+     }
+    ]
+   },
+   "stats": [
+    "emergencies",
+    "construction_price_index_y",
+    "crimes_total",
+    "thefts",
+    "robberies"
+   ],
+   "required_views": {
+    "property": [
+     "facade",
+     "roof",
+     "interior",
+     "electrical",
+     "fire_safety"
+    ],
+    "equipment": [
+     "general",
+     "plate",
+     "installation"
+    ]
+   },
+   "clauses": {
+    "property": [
+     "pr_fire_systems",
+     "pr_electrical",
+     "pr_combustibles",
+     "pr_vacancy"
+    ],
+    "equipment": [
+     "eq_manufacturer",
+     "eq_voltage",
+     "eq_location"
+    ]
+   },
+   "measures": {
+    "property": [
+     "pr_fire_alarm",
+     "pr_extinguishers",
+     "wh_storage",
+     "burglary_protection",
+     "inventory_control"
+    ],
+    "equipment": [
+     "pr_extinguishers",
+     "eq_power",
+     "eq_maintenance",
+     "all_loss_review"
+    ]
+   },
+   "notes": [],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "10": {
+   "class_code": "10",
+   "name": {
+    "ru": "Автогражданская ответственность",
+    "uz": "Avtofuqarolik javobgarligi",
+    "en": "Motor third-party liability"
+   },
+   "object": {
+    "description": {
+     "ru": "Ответственность владельца транспорта перед третьими лицами",
+     "uz": "Transport egasining uchinchi shaxslar oldidagi javobgarligi",
+     "en": "Vehicle owner's liability to third parties"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "car",
+      "label": {
+       "ru": "легковой автомобиль",
+       "uz": "yengil avtomobil",
+       "en": "passenger car"
+      }
+     },
+     {
+      "code": "truck",
+      "label": {
+       "ru": "грузовой автомобиль",
+       "uz": "yuk avtomobili",
+       "en": "truck"
+      }
+     },
+     {
+      "code": "trailer",
+      "label": {
+       "ru": "прицеп",
+       "uz": "tirkama",
+       "en": "trailer"
+      }
+     },
+     {
+      "code": "bus",
+      "label": {
+       "ru": "автобус",
+       "uz": "avtobus",
+       "en": "bus"
+      }
+     },
+     {
+      "code": "special_other",
+      "label": {
+       "ru": "спецтехника",
+       "uz": "maxsus texnika",
+       "en": "special machinery"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип транспорта",
+      "uz": "Transport turi",
+      "en": "Vehicle type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "territory",
+     "type": "text",
+     "label": {
+      "ru": "Территория использования",
+      "uz": "Foydalanish hududi",
+      "en": "Territory of use"
+     },
+     "input": "optional.class_fields.territory"
+    },
+    {
+     "code": "limit_per_case",
+     "type": "money",
+     "label": {
+      "ru": "Лимит ответственности на случай",
+      "uz": "Bir hodisaga javobgarlik limiti",
+      "en": "Liability limit per occurrence"
+     },
+     "input": "optional.class_fields.limit_per_case",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "drivers_count",
+     "type": "int",
+     "label": {
+      "ru": "Число водителей",
+      "uz": "Haydovchilar soni",
+      "en": "Number of drivers"
+     },
+     "input": "optional.class_fields.drivers_count"
+    },
+    {
+     "code": "experience_years",
+     "type": "int",
+     "label": {
+      "ru": "Стаж, лет",
+      "uz": "Staj, yil",
+      "en": "Driving experience, years"
+     },
+     "input": "optional.class_fields.experience_years"
+    },
+    {
+     "code": "violations",
+     "type": "int",
+     "label": {
+      "ru": "Нарушения ПДД за год",
+      "uz": "Yil davomida YHQ buzilishlari",
+      "en": "Traffic violations a year"
+     },
+     "input": "optional.class_fields.violations"
+    },
+    {
+     "code": "limit_aggregate",
+     "type": "money",
+     "label": {
+      "ru": "Лимит на весь срок",
+      "uz": "Butun muddatga limit",
+      "en": "Aggregate limit"
+     },
+     "input": "optional.class_fields.limit_aggregate",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "лимит по закону или договору",
+      "uz": "qonun yoki shartnoma boʻyicha limit",
+      "en": "limit under the law or the contract"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: вред жизни и здоровью — большая часть выплат по ОСАГО с учётом лимитов",
+     "uz": "Ekspert baho: hayot va sogʻliqqa zarar — limitlarni hisobga olgan holda OSAGO toʻlovlarining katta qismi",
+     "en": "Expert view: bodily injury makes most motor liability payments given the limits"
+    },
+    "items": [
+     {
+      "code": "mtpl_bodily",
+      "label": {
+       "ru": "Вред жизни и здоровью",
+       "uz": "Hayot va sogʻliqqa zarar",
+       "en": "Bodily injury"
+      },
+      "share_pct": 60,
+      "catastrophic": false
+     },
+     {
+      "code": "mtpl_property",
+      "label": {
+       "ru": "Вред имуществу третьих лиц",
+       "uz": "Uchinchi shaxslar mulkiga zarar",
+       "en": "Third-party property damage"
+      },
+      "share_pct": 40,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "veh_type",
+     "label": {
+      "ru": "Тип транспорта",
+      "uz": "Transport turi",
+      "en": "Vehicle type"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "territory",
+     "label": {
+      "ru": "Территория",
+      "uz": "Hudud",
+      "en": "Territory"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "experience",
+     "label": {
+      "ru": "Стаж",
+      "uz": "Staj",
+      "en": "Experience"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "violations",
+     "label": {
+      "ru": "История нарушений",
+      "uz": "Buzilishlar tarixi",
+      "en": "Violation history"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "limit",
+    "engine": "template",
+    "text": {
+     "ru": "Один случай: лимит. Обязательный вид считается строго по нормативному тарифу",
+     "uz": "Bitta hodisa: limit. Majburiy tur qatʼiy meʼyoriy tarif boʻyicha hisoblanadi",
+     "en": "One occurrence: the limit. The compulsory line is priced strictly by the statutory tariff"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — лимит на один случай; MFL — лимит на весь срок (не указан — страховая сумма)",
+     "uz": "PML va EML — bir hodisaga limit; MFL — butun muddatga limit (koʻrsatilmagan — sugʻurta summasi)",
+     "en": "PML and EML — the limit per occurrence; MFL — the aggregate limit (not stated — the sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "один случай: лимит на случай",
+      "uz": "bitta hodisa: hodisaga limit",
+      "en": "one occurrence: the per-occurrence limit"
+     },
+     "EML": {
+      "ru": "один случай: лимит на случай",
+      "uz": "bitta hodisa: hodisaga limit",
+      "en": "one occurrence: the per-occurrence limit"
+     },
+     "MFL": {
+      "ru": "серия случаев: лимит на весь срок",
+      "uz": "hodisalar seriyasi: butun muddatga limit",
+      "en": "series of occurrences: the aggregate limit"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0,
+    "expert_scenarios": {
+     "MFL": {
+      "expert": true,
+      "note": {
+       "ru": "сверх приложения А, экспертно",
+       "uz": "A ilovadan tashqari, ekspert baho",
+       "en": "beyond Annex A, expert"
+      }
+     }
+    }
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 10 + продукты класса 10",
+    "items": [
+     {
+      "ru": "Техпаспорт",
+      "uz": "Texpasport",
+      "en": "Registration certificate"
+     },
+     {
+      "ru": "Водительские удостоверения (без личных данных в акте)",
+      "uz": "Haydovchilik guvohnomalari (dalolatnomada shaxsiy maʼlumotlarsiz)",
+      "en": "Driving licences (no personal data in the report)"
+     }
+    ]
+   },
+   "stats": [
+    "road_accidents",
+    "road_injured",
+    "road_death_rate",
+    "cars_per_100_households",
+    "passengers_road",
+    "freight_road"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "mt_statutory",
+     "mt_territory",
+     "mt_drivers",
+     "lb_limit"
+    ]
+   },
+   "measures": {
+    "default": [
+     "mt_training",
+     "mt_telematics",
+     "mt_inspection"
+    ]
+   },
+   "notes": [
+    {
+     "code": "statutory",
+     "text": {
+      "ru": "Обязательный вид: ставка — строго по нормативному тарифу, поправки и франшиза не применяются",
+      "uz": "Majburiy tur: stavka — qatʼiy meʼyoriy tarif boʻyicha, tuzatmalar va franshiza qoʻllanmaydi",
+      "en": "Compulsory line: the rate is strictly the statutory tariff, no adjustments or deductible"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "11": {
+   "class_code": "11",
+   "name": {
+    "ru": "Ответственность в авиации",
+    "uz": "Aviatsiyadagi javobgarlik",
+    "en": "Aviation liability"
+   },
+   "object": {
+    "description": {
+     "ru": "Ответственность владельца воздушного судна",
+     "uz": "Havo kemasi egasining javobgarligi",
+     "en": "Aircraft owner's liability"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "airplane",
+      "label": {
+       "ru": "самолёт",
+       "uz": "samolyot",
+       "en": "aeroplane"
+      }
+     },
+     {
+      "code": "helicopter",
+      "label": {
+       "ru": "вертолёт",
+       "uz": "vertolyot",
+       "en": "helicopter"
+      }
+     },
+     {
+      "code": "drone",
+      "label": {
+       "ru": "беспилотный аппарат",
+       "uz": "uchuvchisiz apparat",
+       "en": "drone"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип воздушного судна",
+      "uz": "Havo kemasi turi",
+      "en": "Aircraft type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "seats",
+     "type": "int",
+     "label": {
+      "ru": "Число мест",
+      "uz": "Oʻrinlar soni",
+      "en": "Number of seats"
+     },
+     "input": "optional.class_fields.seats"
+    },
+    {
+     "code": "limit_per_case",
+     "type": "money",
+     "label": {
+      "ru": "Лимит ответственности",
+      "uz": "Javobgarlik limiti",
+      "en": "Liability limit"
+     },
+     "input": "optional.class_fields.limit_per_case",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "geography",
+     "type": "text",
+     "label": {
+      "ru": "География полётов",
+      "uz": "Parvozlar geografiyasi",
+      "en": "Flight geography"
+     },
+     "input": "optional.class_fields.geography"
+    },
+    {
+     "code": "carriage_kind",
+     "type": "text",
+     "label": {
+      "ru": "Вид перевозок",
+      "uz": "Tashish turi",
+      "en": "Type of carriage"
+     },
+     "input": "optional.class_fields.carriage_kind"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 5 лет (в расчёте используется как история убытков)",
+      "uz": "5 yildagi zararlar (hisobda zararlar tarixi sifatida ishlatiladi)",
+      "en": "Losses over 5 years (used in the calculation as the loss history)"
+     },
+     "input": "optional.losses_3y",
+     "period_years": 5
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: вред пассажирам и третьим лицам на земле — основные суммы",
+     "uz": "Ekspert baho: yoʻlovchilarga va yerdagi uchinchi shaxslarga zarar — asosiy summalar",
+     "en": "Expert view: passenger and third-party ground damage make the main amounts"
+    },
+    "items": [
+     {
+      "code": "al_passengers",
+      "label": {
+       "ru": "Вред пассажирам",
+       "uz": "Yoʻlovchilarga zarar",
+       "en": "Passenger injury"
+      },
+      "share_pct": 55,
+      "catastrophic": false
+     },
+     {
+      "code": "al_baggage",
+      "label": {
+       "ru": "Вред багажу",
+       "uz": "Bagajga zarar",
+       "en": "Baggage damage"
+      },
+      "share_pct": 5,
+      "catastrophic": false
+     },
+     {
+      "code": "al_cargo",
+      "label": {
+       "ru": "Вред грузу",
+       "uz": "Yukka zarar",
+       "en": "Cargo damage"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "al_ground",
+      "label": {
+       "ru": "Вред третьим лицам на земле",
+       "uz": "Yerdagi uchinchi shaxslarga zarar",
+       "en": "Third parties on the ground"
+      },
+      "share_pct": 30,
+      "catastrophic": true
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "passengers",
+     "label": {
+      "ru": "Число пассажиров",
+      "uz": "Yoʻlovchilar soni",
+      "en": "Number of passengers"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "routes",
+     "label": {
+      "ru": "Маршруты",
+      "uz": "Yoʻnalishlar",
+      "en": "Routes"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "conventions",
+     "label": {
+      "ru": "Требования международных конвенций",
+      "uz": "Xalqaro konvensiyalar talablari",
+      "en": "International convention requirements"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "full_limit",
+    "engine": "template",
+    "text": {
+     "ru": "Полный лимит. Перестрахование требуется почти всегда",
+     "uz": "Toʻliq limit. Qayta sugʻurtalash deyarli har doim kerak",
+     "en": "The full limit. Reinsurance is almost always needed"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полный лимит ответственности (не указан — страховая сумма)",
+     "uz": "PML, EML va MFL — toʻliq javobgarlik limiti (koʻrsatilmagan — sugʻurta summasi)",
+     "en": "PML, EML and MFL — the full liability limit (not stated — the sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     },
+     "EML": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     },
+     "MFL": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 11 + продукты класса 11",
+    "items": [
+     {
+      "ru": "Сертификаты",
+      "uz": "Sertifikatlar",
+      "en": "Certificates"
+     },
+     {
+      "ru": "Договоры перевозки",
+      "uz": "Tashish shartnomalari",
+      "en": "Contracts of carriage"
+     }
+    ]
+   },
+   "stats": [
+    "passengers_air",
+    "freight_air"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "al_conventions",
+     "al_carriage_docs",
+     "lb_limit"
+    ]
+   },
+   "measures": {
+    "default": [
+     "av_maintenance",
+     "av_crew_training",
+     "al_ground_handling"
+    ]
+   },
+   "notes": [
+    {
+     "code": "reinsurance",
+     "text": {
+      "ru": "Перестрахование требуется почти всегда: одна гибель или один случай может превысить удержание компании (решение по перестрахованию отложено, считается отдельно)",
+      "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
+      "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": true,
+   "calibrated": 0
+  },
+  "12": {
+   "class_code": "12",
+   "name": {
+    "ru": "Ответственность на море",
+    "uz": "Dengizdagi javobgarlik",
+    "en": "Marine liability"
+   },
+   "object": {
+    "description": {
+     "ru": "Ответственность судовладельца",
+     "uz": "Kema egasining javobgarligi",
+     "en": "Shipowner's liability"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "ship",
+      "label": {
+       "ru": "судно",
+       "uz": "kema",
+       "en": "vessel"
+      }
+     },
+     {
+      "code": "boat",
+      "label": {
+       "ru": "катер",
+       "uz": "kater",
+       "en": "boat"
+      }
+     },
+     {
+      "code": "floating_craft",
+      "label": {
+       "ru": "плавучее средство",
+       "uz": "suzuvchi vosita",
+       "en": "floating craft"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "object_kind",
+     "type": "kind",
+     "label": {
+      "ru": "Тип судна",
+      "uz": "Kema turi",
+      "en": "Vessel type"
+     },
+     "input": "optional.object_kind"
+    },
+    {
+     "code": "navigation_area",
+     "type": "text",
+     "label": {
+      "ru": "Район плавания",
+      "uz": "Suzish hududi",
+      "en": "Navigation area"
+     },
+     "input": "optional.class_fields.navigation_area"
+    },
+    {
+     "code": "limit_per_case",
+     "type": "money",
+     "label": {
+      "ru": "Лимит ответственности",
+      "uz": "Javobgarlik limiti",
+      "en": "Liability limit"
+     },
+     "input": "optional.class_fields.limit_per_case",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "cargo_kind",
+     "type": "text",
+     "label": {
+      "ru": "Вид груза",
+      "uz": "Yuk turi",
+      "en": "Kind of cargo"
+     },
+     "input": "optional.class_fields.cargo_kind"
+    },
+    {
+     "code": "passengers",
+     "type": "int",
+     "label": {
+      "ru": "Число пассажиров",
+      "uz": "Yoʻlovchilar soni",
+      "en": "Number of passengers"
+     },
+     "input": "optional.class_fields.passengers"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 5 лет (в расчёте используется как история убытков)",
+      "uz": "5 yildagi zararlar (hisobda zararlar tarixi sifatida ishlatiladi)",
+      "en": "Losses over 5 years (used in the calculation as the loss history)"
+     },
+     "input": "optional.losses_3y",
+     "period_years": 5
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера; загрязнение воды — катастрофический риск",
+     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi; suvning ifloslanishi — falokat xavfi",
+     "en": "Expert view: little open data, the underwriter's estimate; water pollution is a catastrophe risk"
+    },
+    "items": [
+     {
+      "code": "ml_passengers",
+      "label": {
+       "ru": "Вред пассажирам",
+       "uz": "Yoʻlovchilarga zarar",
+       "en": "Passenger injury"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "ml_cargo",
+      "label": {
+       "ru": "Вред грузу",
+       "uz": "Yukka zarar",
+       "en": "Cargo damage"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "ml_crew",
+      "label": {
+       "ru": "Вред экипажу",
+       "uz": "Ekipajga zarar",
+       "en": "Crew injury"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "ml_pollution",
+      "label": {
+       "ru": "Загрязнение воды",
+       "uz": "Suvning ifloslanishi",
+       "en": "Water pollution"
+      },
+      "share_pct": 20,
+      "catastrophic": true
+     },
+     {
+      "code": "ml_collision",
+      "label": {
+       "ru": "Столкновение",
+       "uz": "Toʻqnashuv",
+       "en": "Collision liability"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "area",
+     "label": {
+      "ru": "Район",
+      "uz": "Hudud",
+      "en": "Area"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "cargo",
+     "label": {
+      "ru": "Груз",
+      "uz": "Yuk",
+      "en": "Cargo"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст судна",
+      "uz": "Kema yoshi",
+      "en": "Vessel age"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "full_limit",
+    "engine": "template",
+    "text": {
+     "ru": "Полный лимит",
+     "uz": "Toʻliq limit",
+     "en": "The full limit"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полный лимит ответственности (не указан — страховая сумма)",
+     "uz": "PML, EML va MFL — toʻliq javobgarlik limiti (koʻrsatilmagan — sugʻurta summasi)",
+     "en": "PML, EML and MFL — the full liability limit (not stated — the sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     },
+     "EML": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     },
+     "MFL": {
+      "ru": "полный лимит ответственности",
+      "uz": "toʻliq javobgarlik limiti",
+      "en": "the full liability limit"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 12 + продукты класса 12",
+    "items": [
+     {
+      "ru": "Судовые документы",
+      "uz": "Kema hujjatlari",
+      "en": "Ship's papers"
+     }
+    ]
+   },
+   "stats": [],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "ml_pollution",
+     "mr_area",
+     "lb_limit"
+    ]
+   },
+   "measures": {
+    "default": [
+     "mr_survey",
+     "mr_crew_cert",
+     "ml_spill_plan"
+    ]
+   },
+   "notes": [
+    {
+     "code": "reinsurance",
+     "text": {
+      "ru": "Перестрахование требуется почти всегда: одна гибель или один случай может превысить удержание компании (решение по перестрахованию отложено, считается отдельно)",
+      "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
+      "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": true,
+   "calibrated": 0
+  },
+  "13": {
+   "class_code": "13",
+   "name": {
+    "ru": "Общая гражданская ответственность",
+    "uz": "Umumiy fuqarolik javobgarligi",
+    "en": "General liability"
+   },
+   "object": {
+    "description": {
+     "ru": "Ответственность организации перед третьими лицами и работниками",
+     "uz": "Tashkilotning uchinchi shaxslar va xodimlar oldidagi javobgarligi",
+     "en": "An organisation's liability to third parties and employees"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "organization",
+      "label": {
+       "ru": "организация",
+       "uz": "tashkilot",
+       "en": "organisation"
+      }
+     },
+     {
+      "code": "employer",
+      "label": {
+       "ru": "работодатель",
+       "uz": "ish beruvchi",
+       "en": "employer"
+      }
+     },
+     {
+      "code": "professional",
+      "label": {
+       "ru": "профессиональная деятельность",
+       "uz": "kasbiy faoliyat",
+       "en": "professional activity"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "activity_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид деятельности",
+      "uz": "Faoliyat turi",
+      "en": "Business activity"
+     },
+     "input": "optional.class_fields.activity_kind",
+     "options": [
+      "consult",
+      "trade",
+      "transport",
+      "build",
+      "medical",
+      "hazard"
+     ]
+    },
+    {
+     "code": "turnover_or_payroll",
+     "type": "money",
+     "label": {
+      "ru": "Годовой оборот или фонд оплаты труда",
+      "uz": "Yillik aylanma yoki mehnatga haq toʻlash fondi",
+      "en": "Annual turnover or payroll"
+     },
+     "input": "optional.class_fields.turnover_or_payroll",
+     "unit": "UZS"
+    },
+    {
+     "code": "limit_per_case",
+     "type": "money",
+     "label": {
+      "ru": "Лимит ответственности на случай",
+      "uz": "Bir hodisaga javobgarlik limiti",
+      "en": "Liability limit per occurrence"
+     },
+     "input": "optional.class_fields.limit_per_case",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "employees",
+     "type": "int",
+     "label": {
+      "ru": "Число работников",
+      "uz": "Xodimlar soni",
+      "en": "Number of employees"
+     },
+     "input": "optional.class_fields.employees"
+    },
+    {
+     "code": "visitors",
+     "type": "int",
+     "label": {
+      "ru": "Число посетителей в день",
+      "uz": "Kunlik tashrif buyuruvchilar soni",
+      "en": "Visitors a day"
+     },
+     "input": "optional.class_fields.visitors"
+    },
+    {
+     "code": "claims_3y",
+     "type": "int",
+     "label": {
+      "ru": "Претензий за 3 года",
+      "uz": "3 yildagi daʼvolar",
+      "en": "Claims over 3 years"
+     },
+     "input": "optional.class_fields.claims_3y"
+    },
+    {
+     "code": "safety",
+     "type": "text",
+     "label": {
+      "ru": "Охрана труда",
+      "uz": "Mehnat muhofazasi",
+      "en": "Occupational safety"
+     },
+     "input": "optional.class_fields.safety"
+    },
+    {
+     "code": "limit_aggregate",
+     "type": "money",
+     "label": {
+      "ru": "Годовой лимит",
+      "uz": "Yillik limit",
+      "en": "Annual aggregate limit"
+     },
+     "input": "optional.class_fields.limit_aggregate",
+     "unit": "UZS"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "для обязательного страхования ответственности работодателя страховая сумма равна годовому фонду оплаты труда",
+      "uz": "ish beruvchi javobgarligini majburiy sugʻurtalashda sugʻurta summasi yillik mehnatga haq toʻlash fondiga teng",
+      "en": "for compulsory employer's liability the sum insured equals the annual payroll"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: вред жизни и здоровью третьих лиц и работников — основная часть выплат",
+     "uz": "Ekspert baho: uchinchi shaxslar va xodimlarning hayoti va sogʻligʻiga zarar — toʻlovlarning asosiy qismi",
+     "en": "Expert view: bodily injury to third parties and employees makes most payments"
+    },
+    "items": [
+     {
+      "code": "gl_bodily",
+      "label": {
+       "ru": "Вред жизни и здоровью",
+       "uz": "Hayot va sogʻliqqa zarar",
+       "en": "Bodily injury"
+      },
+      "share_pct": 35,
+      "catastrophic": false
+     },
+     {
+      "code": "gl_property",
+      "label": {
+       "ru": "Вред имуществу",
+       "uz": "Mulkka zarar",
+       "en": "Property damage"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "gl_professional",
+      "label": {
+       "ru": "Профессиональная ошибка",
+       "uz": "Kasbiy xato",
+       "en": "Professional error"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "gl_employee",
+      "label": {
+       "ru": "Вред работнику",
+       "uz": "Xodimga zarar",
+       "en": "Employee injury"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "liab_activity",
+     "label": {
+      "ru": "Опасность деятельности",
+      "uz": "Faoliyat xavfliligi",
+      "en": "Hazard of activity"
+     },
+     "direction": "up",
+     "ref": "coefficients:liab_activity"
+    },
+    {
+     "code": "visitors",
+     "label": {
+      "ru": "Поток посетителей",
+      "uz": "Tashrif buyuruvchilar oqimi",
+      "en": "Visitor flow"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "liab_claims",
+     "label": {
+      "ru": "История претензий",
+      "uz": "Daʼvolar tarixi",
+      "en": "Claims history"
+     },
+     "direction": "up",
+     "ref": "coefficients:liab_claims"
+    },
+    {
+     "code": "liab_limit",
+     "label": {
+      "ru": "Лимит ответственности",
+      "uz": "Javobgarlik limiti",
+      "en": "Liability limit"
+     },
+     "direction": "up",
+     "ref": "coefficients:liab_limit",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "liab_turnover",
+     "label": {
+      "ru": "Годовой оборот",
+      "uz": "Yillik aylanma",
+      "en": "Annual turnover"
+     },
+     "direction": "up",
+     "ref": "coefficients:liab_turnover",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "limit",
+    "engine": "template",
+    "text": {
+     "ru": "Один случай: лимит на случай. Серия: годовой лимит",
+     "uz": "Bitta hodisa: hodisaga limit. Seriya: yillik limit",
+     "en": "One occurrence: the per-occurrence limit. Series: the annual aggregate"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — лимит на один случай (не указан — страховая сумма); MFL — годовой лимит (не указан — страховая сумма)",
+     "uz": "PML va EML — bir hodisaga limit (koʻrsatilmagan — sugʻurta summasi); MFL — yillik limit",
+     "en": "PML and EML — the per-occurrence limit (not stated — the sum insured); MFL — the annual aggregate (not stated — the sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "один случай: лимит на случай",
+      "uz": "bitta hodisa: hodisaga limit",
+      "en": "one occurrence: the per-occurrence limit"
+     },
+     "EML": {
+      "ru": "один случай: лимит на случай",
+      "uz": "bitta hodisa: hodisaga limit",
+      "en": "one occurrence: the per-occurrence limit"
+     },
+     "MFL": {
+      "ru": "серия случаев: годовой лимит",
+      "uz": "hodisalar seriyasi: yillik limit",
+      "en": "series of occurrences: the annual aggregate"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 13 + продукты класса 13 (ОСГОР 1323 — свой перечень)",
+    "items": [
+     {
+      "ru": "Учредительные документы",
+      "uz": "Taʼsis hujjatlari",
+      "en": "Constitutional documents"
+     },
+     {
+      "ru": "Сведения о несчастных случаях",
+      "uz": "Baxtsiz hodisalar haqida maʼlumot",
+      "en": "Accident records"
+     }
+    ]
+   },
+   "stats": [
+    "disability_work_injury",
+    "work_injury_fatal_rate",
+    "work_injury_nonfatal_rate",
+    "work_accidents"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "lb_limit",
+     "lb_activity",
+     "lb_prior_claims",
+     "lb_employer_payroll"
+    ]
+   },
+   "measures": {
+    "default": [
+     "gl_safety",
+     "gl_visitors",
+     "gl_claims_log",
+     "gl_contractors"
+    ]
+   },
+   "notes": [
+    {
+     "code": "13z",
+     "text": {
+      "ru": "Вариант 13з (ответственность заёмщика за непогашение кредита) анализируется по шаблону класса 14",
+      "uz": "13z varianti (qarz oluvchining kreditni qaytarmaslik javobgarligi) 14-klass shabloni boʻyicha tahlil qilinadi",
+      "en": "Variant 13z (borrower's liability for loan default) is analysed with the class 14 template"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "14": {
+   "class_code": "14",
+   "name": {
+    "ru": "Кредиты",
+    "uz": "Kreditlar",
+    "en": "Credit"
+   },
+   "aliases": [
+    "13з"
+   ],
+   "object": {
+    "description": {
+     "ru": "Риск невозврата кредита",
+     "uz": "Kreditni qaytarmaslik xavfi",
+     "en": "Loan default risk"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "loan",
+      "label": {
+       "ru": "кредит",
+       "uz": "kredit",
+       "en": "loan"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "credit_amount",
+     "type": "money",
+     "label": {
+      "ru": "Сумма кредита",
+      "uz": "Kredit summasi",
+      "en": "Loan amount"
+     },
+     "input": "optional.class_fields.credit_amount",
+     "unit": "UZS"
+    },
+    {
+     "code": "collateral_value",
+     "type": "money",
+     "label": {
+      "ru": "Стоимость обеспечения",
+      "uz": "Taʼminot qiymati",
+      "en": "Collateral value"
+     },
+     "input": "optional.class_fields.collateral_value",
+     "unit": "UZS"
+    },
+    {
+     "code": "credit_term_months",
+     "type": "int",
+     "label": {
+      "ru": "Срок кредита, месяцев",
+      "uz": "Kredit muddati, oy",
+      "en": "Loan term, months"
+     },
+     "input": "optional.class_fields.credit_term_months"
+    }
+   ],
+   "optional": [
+    {
+     "code": "borrower_industry",
+     "type": "choice",
+     "label": {
+      "ru": "Отрасль заёмщика",
+      "uz": "Qarz oluvchi tarmogʻi",
+      "en": "Borrower's industry"
+     },
+     "input": "optional.class_fields.borrower_industry",
+     "options": [
+      "manufacturing",
+      "services",
+      "trade",
+      "build",
+      "agro"
+     ]
+    },
+    {
+     "code": "credit_history",
+     "type": "choice",
+     "label": {
+      "ru": "Кредитная история",
+      "uz": "Kredit tarixi",
+      "en": "Credit history"
+     },
+     "input": "optional.class_fields.credit_history",
+     "options": [
+      "clean",
+      "minor",
+      "bad"
+     ]
+    },
+    {
+     "code": "purpose",
+     "type": "text",
+     "label": {
+      "ru": "Назначение кредита",
+      "uz": "Kredit maqsadi",
+      "en": "Loan purpose"
+     },
+     "input": "optional.class_fields.purpose"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "страхуется только необеспеченная часть и не более 50 % кредита: сумма = min(кредит − обеспечение; 50 % кредита)",
+      "uz": "faqat taʼminlanmagan qism va kreditning 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi: summa = min(kredit − taʼminot; kreditning 50 %)",
+      "en": "only the unsecured part and not more than 50 % of the loan: sum = min(loan − collateral; 50 % of the loan)"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: основная часть убытка — неплатёжеспособность заёмщика; банкротство — реже, но полной суммой",
+     "uz": "Ekspert baho: zararning asosiy qismi — qarz oluvchining toʻlovga qobiliyatsizligi; bankrotlik — kamroq, lekin toʻliq summada",
+     "en": "Expert view: borrower insolvency drives most of the loss; bankruptcy is rarer but for the full amount"
+    },
+    "items": [
+     {
+      "code": "cr_insolvency",
+      "label": {
+       "ru": "Неплатёжеспособность заёмщика",
+       "uz": "Qarz oluvchining toʻlovga qobiliyatsizligi",
+       "en": "Borrower insolvency"
+      },
+      "share_pct": 50,
+      "catastrophic": false
+     },
+     {
+      "code": "cr_overdue",
+      "label": {
+       "ru": "Просрочка",
+       "uz": "Muddati oʻtgan qarz",
+       "en": "Protracted default"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "cr_bankruptcy",
+      "label": {
+       "ru": "Банкротство",
+       "uz": "Bankrotlik",
+       "en": "Bankruptcy"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "credit_collateral",
+     "label": {
+      "ru": "Обеспечение",
+      "uz": "Taʼminot",
+      "en": "Collateral"
+     },
+     "direction": "down",
+     "ref": "coefficients:credit_collateral"
+    },
+    {
+     "code": "credit_term",
+     "label": {
+      "ru": "Срок",
+      "uz": "Muddat",
+      "en": "Term"
+     },
+     "direction": "up",
+     "ref": "coefficients:credit_term"
+    },
+    {
+     "code": "credit_industry",
+     "label": {
+      "ru": "Отрасль",
+      "uz": "Tarmoq",
+      "en": "Industry"
+     },
+     "direction": "both",
+     "ref": "coefficients:credit_industry"
+    },
+    {
+     "code": "credit_history",
+     "label": {
+      "ru": "Кредитная история",
+      "uz": "Kredit tarixi",
+      "en": "Credit history"
+     },
+     "direction": "both",
+     "ref": "coefficients:credit_history"
+    }
+   ],
+   "scenario_rule": {
+    "code": "credit",
+    "engine": "template",
+    "text": {
+     "ru": "Полная страховая сумма. Накопление по одному банку и отрасли",
+     "uz": "Toʻliq sugʻurta summasi. Bitta bank va tarmoq boʻyicha jamlanma",
+     "en": "The full sum insured. Accumulation by one bank and industry"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полная страховая сумма; проверка: сумма не больше min(кредит − обеспечение; 50 % кредита)",
+     "uz": "PML, EML va MFL — toʻliq sugʻurta summasi; tekshiruv: summa min(kredit − taʼminot; kreditning 50 %) dan oshmaydi",
+     "en": "PML, EML and MFL — the full sum insured; check: the sum is not above min(loan − collateral; 50 % of the loan)"
+    },
+    "what": {
+     "PML": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     },
+     "EML": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     },
+     "MFL": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     }
+    },
+    "params": {
+     "max_share_of_loan": 0.5
+    },
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 14 + продукты класса 14",
+    "items": [
+     {
+      "ru": "Кредитный договор",
+      "uz": "Kredit shartnomasi",
+      "en": "Loan agreement"
+     },
+     {
+      "ru": "Договор залога",
+      "uz": "Garov shartnomasi",
+      "en": "Pledge agreement"
+     }
+    ]
+   },
+   "stats": [
+    "enterprises_liquidated",
+    "frauds",
+    "bank_loans_total",
+    "financial_services"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "cr_unsecured",
+     "cr_bank",
+     "cr_overdue_notice",
+     "cr_changes"
+    ]
+   },
+   "measures": {
+    "default": [
+     "cr_collateral_monitor",
+     "cr_reporting",
+     "cr_early_warning"
+    ]
+   },
+   "notes": [
+    {
+     "code": "credit_rule",
+     "text": {
+      "ru": "Страхуется только необеспеченная часть и не более 50 % суммы кредита; страхователь и плательщик премии — банк-кредитор (требования НАПП)",
+      "uz": "Faqat taʼminlanmagan qism va kredit summasining 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi; sugʻurtalanuvchi va mukofot toʻlovchi — kreditor bank (SNAP talablari)",
+      "en": "Only the unsecured part and not more than 50 % of the loan is insured; the policyholder and premium payer is the lending bank (regulator's requirements)"
+     }
+    },
+    {
+     "code": "13z",
+     "text": {
+      "ru": "Вариант 13з анализируется по этому шаблону",
+      "uz": "13z varianti shu shablon boʻyicha tahlil qilinadi",
+      "en": "Variant 13z is analysed with this template"
+     }
+    }
+   ],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "15": {
+   "class_code": "15",
+   "name": {
+    "ru": "Поручительство, гарантии",
+    "uz": "Kafillik, kafolatlar",
+    "en": "Suretyship, guarantees"
+   },
+   "object": {
+    "description": {
+     "ru": "Обязательство принципала перед бенефициаром",
+     "uz": "Prinsipalning benefitsiar oldidagi majburiyati",
+     "en": "The principal's obligation to the beneficiary"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "guarantee",
+      "label": {
+       "ru": "гарантия",
+       "uz": "kafolat",
+       "en": "guarantee"
+      }
+     },
+     {
+      "code": "surety",
+      "label": {
+       "ru": "поручительство",
+       "uz": "kafillik",
+       "en": "suretyship"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "obligation_kind",
+     "type": "text",
+     "label": {
+      "ru": "Вид обязательства",
+      "uz": "Majburiyat turi",
+      "en": "Kind of obligation"
+     },
+     "input": "optional.class_fields.obligation_kind"
+    },
+    {
+     "code": "guarantee_sum",
+     "type": "money",
+     "label": {
+      "ru": "Сумма гарантии",
+      "uz": "Kafolat summasi",
+      "en": "Guarantee amount"
+     },
+     "input": "optional.class_fields.guarantee_sum",
+     "unit": "UZS"
+    },
+    {
+     "code": "term_months",
+     "type": "int",
+     "label": {
+      "ru": "Срок, месяцев",
+      "uz": "Muddat, oy",
+      "en": "Term, months"
+     },
+     "input": "optional.class_fields.term_months"
+    }
+   ],
+   "optional": [
+    {
+     "code": "principal_finance",
+     "type": "text",
+     "label": {
+      "ru": "Финансовое состояние принципала",
+      "uz": "Prinsipalning moliyaviy holati",
+      "en": "Principal's financial condition"
+     },
+     "input": "optional.class_fields.principal_finance"
+    },
+    {
+     "code": "experience",
+     "type": "text",
+     "label": {
+      "ru": "Опыт исполнения",
+      "uz": "Bajarish tajribasi",
+      "en": "Performance record"
+     },
+     "input": "optional.class_fields.experience"
+    },
+    {
+     "code": "counter_security",
+     "type": "money",
+     "label": {
+      "ru": "Встречное обеспечение",
+      "uz": "Qarshi taʼminot",
+      "en": "Counter-security"
+     },
+     "input": "optional.class_fields.counter_security",
+     "unit": "UZS"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "сумма гарантии",
+      "uz": "kafolat summasi",
+      "en": "the guarantee amount"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: неисполнение договора — основной риск гарантий исполнения",
+     "uz": "Ekspert baho: shartnomani bajarmaslik — ijro kafolatlarining asosiy xavfi",
+     "en": "Expert view: non-performance is the main risk of performance bonds"
+    },
+    "items": [
+     {
+      "code": "gt_nonperformance",
+      "label": {
+       "ru": "Неисполнение договора",
+       "uz": "Shartnomani bajarmaslik",
+       "en": "Non-performance"
+      },
+      "share_pct": 60,
+      "catastrophic": false
+     },
+     {
+      "code": "gt_advance",
+      "label": {
+       "ru": "Невозврат аванса",
+       "uz": "Avansni qaytarmaslik",
+       "en": "Advance not returned"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "gt_customs_tax",
+      "label": {
+       "ru": "Неуплата таможенных или налоговых платежей",
+       "uz": "Bojxona yoki soliq toʻlovlarini toʻlamaslik",
+       "en": "Unpaid customs or tax duties"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "financial_strength",
+     "label": {
+      "ru": "Финансовая устойчивость",
+      "uz": "Moliyaviy barqarorlik",
+      "en": "Financial strength"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "experience",
+     "label": {
+      "ru": "Опыт",
+      "uz": "Tajriba",
+      "en": "Experience"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "obligation_to_turnover",
+     "label": {
+      "ru": "Размер обязательства к обороту",
+      "uz": "Majburiyatning aylanmaga nisbati",
+      "en": "Obligation to turnover"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "full_sum",
+    "engine": "template",
+    "text": {
+     "ru": "Полная сумма гарантии",
+     "uz": "Kafolatning toʻliq summasi",
+     "en": "The full guarantee amount"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полная сумма гарантии (страховая сумма)",
+     "uz": "PML, EML va MFL — kafolatning toʻliq summasi (sugʻurta summasi)",
+     "en": "PML, EML and MFL — the full guarantee amount (sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "неисполнение: полная сумма гарантии",
+      "uz": "bajarmaslik: kafolatning toʻliq summasi",
+      "en": "non-performance: the full guarantee amount"
+     },
+     "EML": {
+      "ru": "неисполнение: полная сумма гарантии",
+      "uz": "bajarmaslik: kafolatning toʻliq summasi",
+      "en": "non-performance: the full guarantee amount"
+     },
+     "MFL": {
+      "ru": "неисполнение: полная сумма гарантии",
+      "uz": "bajarmaslik: kafolatning toʻliq summasi",
+      "en": "non-performance: the full guarantee amount"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 15 + продукты класса 15",
+    "items": [
+     {
+      "ru": "Договор",
+      "uz": "Shartnoma",
+      "en": "Underlying contract"
+     },
+     {
+      "ru": "Отчётность принципала",
+      "uz": "Prinsipal hisobotlari",
+      "en": "Principal's financial statements"
+     }
+    ]
+   },
+   "stats": [
+    "enterprises_liquidated",
+    "frauds",
+    "bank_loans_total",
+    "financial_services"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "gt_contract",
+     "gt_counter",
+     "gt_notice"
+    ]
+   },
+   "measures": {
+    "default": [
+     "gt_counter_security",
+     "gt_milestones",
+     "gt_reporting"
+    ]
+   },
+   "notes": [],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "16": {
+   "class_code": "16",
+   "name": {
+    "ru": "Прочие финансовые риски",
+    "uz": "Boshqa moliyaviy xavflar",
+    "en": "Other financial risks"
+   },
+   "aliases": [
+    "16у"
+   ],
+   "object": {
+    "description": {
+     "ru": "Имущественный интерес, связанный с убытками от деятельности",
+     "uz": "Faoliyatdan koʻrilgan zararlar bilan bogʻliq mulkiy manfaat",
+     "en": "A financial interest in losses from business activity"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "business",
+      "label": {
+       "ru": "деятельность предприятия",
+       "uz": "korxona faoliyati",
+       "en": "business activity"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "risk_kind",
+     "type": "text",
+     "label": {
+      "ru": "Вид риска",
+      "uz": "Xavf turi",
+      "en": "Kind of risk"
+     },
+     "input": "optional.class_fields.risk_kind"
+    },
+    {
+     "code": "revenue_or_sum_at_risk",
+     "type": "money",
+     "label": {
+      "ru": "Годовая выручка или сумма под риском",
+      "uz": "Yillik tushum yoki xavf ostidagi summa",
+      "en": "Annual revenue or sum at risk"
+     },
+     "input": "optional.class_fields.revenue_or_sum_at_risk",
+     "unit": "UZS"
+    },
+    {
+     "code": "indemnity_months",
+     "type": "int",
+     "label": {
+      "ru": "Период ответственности, месяцев",
+      "uz": "Javobgarlik davri, oy",
+      "en": "Indemnity period, months"
+     },
+     "input": "optional.class_fields.indemnity_months"
+    }
+   ],
+   "optional": [
+    {
+     "code": "fixed_costs",
+     "type": "money",
+     "label": {
+      "ru": "Постоянные расходы в месяц",
+      "uz": "Oylik doimiy xarajatlar",
+      "en": "Fixed costs a month"
+     },
+     "input": "optional.class_fields.fixed_costs",
+     "unit": "UZS"
+    },
+    {
+     "code": "monthly_loss",
+     "type": "money",
+     "label": {
+      "ru": "Ежемесячные потери при остановке",
+      "uz": "Toʻxtashda oylik yoʻqotishlar",
+      "en": "Monthly loss during a stoppage"
+     },
+     "input": "optional.class_fields.monthly_loss",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "recovery_months",
+     "type": "int",
+     "label": {
+      "ru": "Срок восстановления, месяцев",
+      "uz": "Tiklanish muddati, oy",
+      "en": "Recovery period, months"
+     },
+     "input": "optional.class_fields.recovery_months"
+    },
+    {
+     "code": "supplier_dependence",
+     "type": "text",
+     "label": {
+      "ru": "Зависимость от поставщиков",
+      "uz": "Yetkazib beruvchilarga bogʻliqlik",
+      "en": "Dependence on suppliers"
+     },
+     "input": "optional.class_fields.supplier_dependence"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 5,
+     "name": {
+      "ru": "Балансовая стоимость или счёт поставщика",
+      "uz": "Balans qiymati yoki yetkazib beruvchi hisobvaragʻi",
+      "en": "Book value or supplier invoice"
+     },
+     "when": {
+      "ru": "остальные методы не сработали",
+      "uz": "boshqa usullar natija bermadi",
+      "en": "the other methods gave no result"
+     },
+     "note": {
+      "ru": "по данным отчётности и договоров",
+      "uz": "hisobot va shartnomalar maʼlumotlari boʻyicha",
+      "en": "from financial statements and contracts"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: перерыв в производстве и потеря прибыли — основная часть убытка",
+     "uz": "Ekspert baho: ishlab chiqarishdagi tanaffus va foydani yoʻqotish — zararning asosiy qismi",
+     "en": "Expert view: business interruption and loss of profit make most of the loss"
+    },
+    "items": [
+     {
+      "code": "fn_bi",
+      "label": {
+       "ru": "Перерыв в производстве",
+       "uz": "Ishlab chiqarishdagi tanaffus",
+       "en": "Business interruption"
+      },
+      "share_pct": 45,
+      "catastrophic": false
+     },
+     {
+      "code": "fn_profit",
+      "label": {
+       "ru": "Потеря прибыли",
+       "uz": "Foydani yoʻqotish",
+       "en": "Loss of profit"
+      },
+      "share_pct": 25,
+      "catastrophic": false
+     },
+     {
+      "code": "fn_counterparty",
+      "label": {
+       "ru": "Неисполнение контрагентом",
+       "uz": "Kontragentning bajarmasligi",
+       "en": "Counterparty default"
+      },
+      "share_pct": 20,
+      "catastrophic": false
+     },
+     {
+      "code": "fn_rent",
+      "label": {
+       "ru": "Потеря арендной платы",
+       "uz": "Ijara haqini yoʻqotish",
+       "en": "Loss of rent"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "recovery_time",
+     "label": {
+      "ru": "Срок восстановления",
+      "uz": "Tiklanish muddati",
+      "en": "Recovery time"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "single_dependence",
+     "label": {
+      "ru": "Зависимость от одного объекта или поставщика",
+      "uz": "Bitta obyekt yoki yetkazib beruvchiga bogʻliqlik",
+      "en": "Dependence on one site or supplier"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "bi",
+    "engine": "template",
+    "text": {
+     "ru": "Ежемесячные потери, умноженные на срок восстановления",
+     "uz": "Oylik yoʻqotishlar × tiklanish muddati",
+     "en": "Monthly loss times the recovery period"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — ежемесячные потери × срок восстановления, не больше страховой суммы (не указаны — страховая сумма); MFL — страховая сумма за весь период ответственности",
+     "uz": "PML va EML — oylik yoʻqotishlar × tiklanish muddati, sugʻurta summasidan oshmaydi; MFL — butun javobgarlik davri uchun sugʻurta summasi",
+     "en": "PML and EML — monthly loss × recovery period, capped at the sum insured (not stated — the sum insured); MFL — the sum insured for the whole indemnity period"
+    },
+    "what": {
+     "PML": {
+      "ru": "остановка на срок восстановления",
+      "uz": "tiklanish muddatiga toʻxtash",
+      "en": "stoppage for the recovery period"
+     },
+     "EML": {
+      "ru": "остановка на срок восстановления",
+      "uz": "tiklanish muddatiga toʻxtash",
+      "en": "stoppage for the recovery period"
+     },
+     "MFL": {
+      "ru": "весь период ответственности",
+      "uz": "butun javobgarlik davri",
+      "en": "the whole indemnity period"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 16 + продукты класса 16",
+    "items": [
+     {
+      "ru": "Отчётность",
+      "uz": "Hisobotlar",
+      "en": "Financial statements"
+     },
+     {
+      "ru": "Договоры",
+      "uz": "Shartnomalar",
+      "en": "Contracts"
+     }
+    ]
+   },
+   "stats": [
+    "enterprises_liquidated",
+    "frauds",
+    "financial_services",
+    "cpi_annual",
+    "fx_usd"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "fn_period",
+     "fn_records",
+     "fn_trigger"
+    ]
+   },
+   "measures": {
+    "default": [
+     "fn_bcp",
+     "fn_suppliers",
+     "fn_accounting"
+    ]
+   },
+   "notes": [
+    {
+     "code": "16u",
+     "text": {
+      "ru": "Вариант 16у (урожай) анализируется по этому шаблону",
+      "uz": "16u varianti (hosil) shu shablon boʻyicha tahlil qilinadi",
+      "en": "Variant 16u (crops) is analysed with this template"
+     }
+    }
+   ],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "17": {
+   "class_code": "17",
+   "name": {
+    "ru": "Правовая защита",
+    "uz": "Huquqiy himoya",
+    "en": "Legal expenses"
+   },
+   "object": {
+    "description": {
+     "ru": "Расходы на юридическую защиту",
+     "uz": "Yuridik himoya xarajatlari",
+     "en": "Legal defence costs"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "legal_costs",
+      "label": {
+       "ru": "расходы на юридическую защиту",
+       "uz": "yuridik himoya xarajatlari",
+       "en": "legal defence costs"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "dispute_category",
+     "type": "text",
+     "label": {
+      "ru": "Категория споров",
+      "uz": "Nizolar toifasi",
+      "en": "Category of disputes"
+     },
+     "input": "optional.class_fields.dispute_category"
+    },
+    {
+     "code": "limit_expenses",
+     "type": "money",
+     "label": {
+      "ru": "Лимит расходов",
+      "uz": "Xarajatlar limiti",
+      "en": "Expenses limit"
+     },
+     "input": "optional.class_fields.limit_expenses",
+     "unit": "UZS"
+    },
+    {
+     "code": "insured_count",
+     "type": "int",
+     "label": {
+      "ru": "Число застрахованных лиц",
+      "uz": "Sugʻurtalangan shaxslar soni",
+      "en": "Number of insured persons"
+     },
+     "input": "optional.class_fields.insured_count"
+    }
+   ],
+   "optional": [
+    {
+     "code": "disputes_3y",
+     "type": "int",
+     "label": {
+      "ru": "Судебных споров за 3 года",
+      "uz": "3 yildagi sud nizolari",
+      "en": "Court disputes over 3 years"
+     },
+     "input": "optional.class_fields.disputes_3y"
+    },
+    {
+     "code": "activity",
+     "type": "text",
+     "label": {
+      "ru": "Вид деятельности",
+      "uz": "Faoliyat turi",
+      "en": "Business activity"
+     },
+     "input": "optional.class_fields.activity"
+    },
+    {
+     "code": "limit_per_dispute",
+     "type": "money",
+     "label": {
+      "ru": "Лимит на один спор",
+      "uz": "Bitta nizoga limit",
+      "en": "Limit per dispute"
+     },
+     "input": "optional.class_fields.limit_per_dispute",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "лимит расходов",
+      "uz": "xarajatlar limiti",
+      "en": "the expenses limit"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: судебные расходы и оплата представителя — основная часть; открытых данных нет",
+     "uz": "Ekspert baho: sud xarajatlari va vakil haqi — asosiy qism; ochiq maʼlumotlar yoʻq",
+     "en": "Expert view: court costs and counsel fees make most of it; no open data"
+    },
+    "items": [
+     {
+      "code": "lg_court",
+      "label": {
+       "ru": "Судебные расходы",
+       "uz": "Sud xarajatlari",
+       "en": "Court costs"
+      },
+      "share_pct": 45,
+      "catastrophic": false
+     },
+     {
+      "code": "lg_counsel",
+      "label": {
+       "ru": "Оплата представителя",
+       "uz": "Vakil haqi",
+       "en": "Counsel fees"
+      },
+      "share_pct": 40,
+      "catastrophic": false
+     },
+     {
+      "code": "lg_expertise",
+      "label": {
+       "ru": "Экспертиза",
+       "uz": "Ekspertiza",
+       "en": "Expert examination"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "dispute_frequency",
+     "label": {
+      "ru": "Частота споров в отрасли",
+      "uz": "Tarmoqdagi nizolar chastotasi",
+      "en": "Dispute frequency in the industry"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "legal_prices",
+     "label": {
+      "ru": "Стоимость юридических услуг",
+      "uz": "Yuridik xizmatlar narxi",
+      "en": "Cost of legal services"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "dispute",
+    "engine": "template",
+    "text": {
+     "ru": "Частотный. Лимит на один спор",
+     "uz": "Chastotali. Bitta nizoga limit",
+     "en": "Frequency. The limit per dispute"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — лимит на один спор (не указан — страховая сумма); MFL — лимит расходов на весь срок (страховая сумма)",
+     "uz": "PML va EML — bitta nizoga limit (koʻrsatilmagan — sugʻurta summasi); MFL — butun muddatga xarajatlar limiti (sugʻurta summasi)",
+     "en": "PML and EML — the limit per dispute (not stated — the sum insured); MFL — the expenses limit for the term (sum insured)"
+    },
+    "what": {
+     "PML": {
+      "ru": "один спор: лимит на спор",
+      "uz": "bitta nizo: nizoga limit",
+      "en": "one dispute: the per-dispute limit"
+     },
+     "EML": {
+      "ru": "один спор: лимит на спор",
+      "uz": "bitta nizo: nizoga limit",
+      "en": "one dispute: the per-dispute limit"
+     },
+     "MFL": {
+      "ru": "все споры за срок: лимит расходов",
+      "uz": "muddat davomidagi barcha nizolar: xarajatlar limiti",
+      "en": "all disputes over the term: the expenses limit"
+     }
+    },
+    "params": {},
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 17 + продукты класса 17",
+    "items": [
+     {
+      "ru": "Сведения о спорах за 3 года",
+      "uz": "3 yillik nizolar haqida maʼlumot",
+      "en": "Record of disputes over 3 years"
+     }
+    ]
+   },
+   "stats": [],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "lg_prior",
+     "lg_limit",
+     "lg_counsel_choice"
+    ]
+   },
+   "measures": {
+    "default": [
+     "lg_contract_review",
+     "lg_pretrial",
+     "lg_records"
+    ]
+   },
+   "notes": [
+    {
+     "code": "no_stats",
+     "text": {
+      "ru": "Открытых данных о судебных делах нет — применяется оценка андеррайтера",
+      "uz": "Sud ishlari boʻyicha ochiq maʼlumotlar yoʻq — anderrayter bahosi qoʻllanadi",
+      "en": "There are no open data on court cases — the underwriter's estimate applies"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  }
+ }
+}

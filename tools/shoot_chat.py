@@ -37,10 +37,17 @@ sandbox/mk30/shots.json в формате ответа модели. Курса 
 вид «оборудование», описание → пищевое производство, 0832, 47 397 852 345,04 сум, 1888 дн.; как в act_demo_equipment) →
 все карточки «Аналитики риска» раскрыты → снимки каждой карточки на 390 px, блок и крупные таблицы на 1440 px,
 раздел 4 документа с таблицами; оборудование — ещё и на узбекском (chat_an_*.png).
+Шаблоны классов и комплексный продукт по частям (30.09.2026, shoot_parts): продукт 0312 (автокредит) — настоящий
+POST /act/make: первый расчёт без частей → предложение сервера в карточке «Части договора» (chat_pt_step2_*), расхождение
+суммы (кнопка расчёта неактивна), части 60 млн класс 3 и 40 млн класс 14 с полями классов из шаблонов, подтверждение →
+шаг 3: плитки договора, таблица частей, раскрытая часть (chat_pt_step3_*), 390 и 1440 px, узбекский; правка сумм без
+подтверждения → жёлтая плашка. Поля класса 13 из GET /act/templates/13 на шаге 2 (chat_tpl13_*), ракурсы шага «Фото» из
+шаблона класса 3 (chat_tpl_views_390.png), админка /admin/hub#tariffs/templates с ответом 422 (admin_tpl_*).
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --analytics     (только аналитика риска)
+    sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --parts         (только части, шаблоны классов, админка)
 """
 import base64
 import json
@@ -79,7 +86,7 @@ CT_SCAN = ROOT / "sandbox" / "ct30" / "b2_uzc_p1.png"                           
 
 # что не должно попадать на экран: пустые значения и служебные слова сервера
 LEAKS = r"""(() => {
-  const t = document.querySelector(".wrap").innerText;
+  const t = (document.querySelector(".wrap") || document.querySelector("main") || document.body).innerText;
   return ["undefined", "null", "[object Object]", "NaN", "calibrated", "what_if", "«mixed»", "«food»", "«none»"]
     .filter(w => t.indexOf(w) >= 0);
 })()"""
@@ -275,7 +282,8 @@ def console_errors(ws):
         elif m == "Runtime.consoleAPICalled" and p.get("type") in ("error", "assert"):
             out.append("console.error: " + " ".join(str(a.get("value") or a.get("description") or "")
                                                     for a in p.get("args") or [])[:300])
-        elif m == "Log.entryAdded" and (p.get("entry") or {}).get("level") == "error":
+        elif m == "Log.entryAdded" and (p.get("entry") or {}).get("level") == "error"                 and "favicon.ico" not in str((p.get("entry") or {}).get("url") or "")                 and not ("422" in str(p["entry"].get("text")) and "/act/templates/" in str(p["entry"].get("url"))):
+            # у /admin/hub значка нет; 422 на PUT шаблона — проверка ошибки структуры, её снимок и есть цель
             en = p["entry"]
             out.append("лог: " + str(en.get("text"))[:200] + " " + str(en.get("url") or "")[:120])
     ws.events.clear()
@@ -451,9 +459,165 @@ def shoot_analytics(ws, bad):
     js(ws, "actReset()", 1)
 
 
-def main(only_analytics=False):
+def wait_js(ws, expr, timeout=20.0, step=0.25):
+    """Ждёт, пока выражение страницы станет истинным (ответ сервера, шаблон класса)."""
+    end = time.time() + timeout
+    while time.time() < end:
+        if js(ws, expr):
+            return True
+        time.sleep(step)
+    return False
+
+
+def type_in(ws, selector, value):
+    """Ввод в поле так, как печатает человек: значение и событие input (форма не перерисовывается)."""
+    js(ws, "(() => { const el = document.querySelector(" + json.dumps(selector) + "); if (!el) return false;"
+           " el.focus(); el.value = " + json.dumps(value) + "; el.dispatchEvent(new Event('input', {bubbles: true}));"
+           " el.dispatchEvent(new Event('change', {bubbles: true})); el.blur(); return true; })()", 0.3)
+
+
+MAKE_WAIT = "!CH.busy && (CH.wz === 3 && !!CH.act || !!CH.err || (CH.pt && CH.pt.hint))"
+PT_INFO = """(() => { const a = CH.act, P = a && a.parts; return JSON.stringify({wz: CH.wz, err: CH.err || null,
+  pt: CH.pt && CH.pt.items.map(x => x.cls + ':' + x.sum), confirmed: CH.pt && CH.pt.confirmed, hint: CH.pt && CH.pt.hint,
+  act: P && {mode: P.mode, src: P.source, confirmed: P.confirmed, obj: P.object_mode, prem: P.totals && P.totals.premium,
+    rows: P.table && P.table.rows.length, items: (P.items || []).map(p => p.class_code + ':' + p.sum_insured + ':' + p.level
+      + ':miss=' + (p.missing || []).length + ':an=' + (p.analytics || {}).available)}}); })()"""
+
+
+def shoot_parts(ws, bad, port=PORT, token=None):
+    """
+    Комплексный продукт 0312 (автокредит) по частям — настоящий POST /act/make временного сервера (30.09.2026):
+    шаг 2 с карточкой «Части договора» (до расчёта, предложение сервера после первого расчёта, расхождение суммы,
+    после подтверждения: 60 млн класс 3 и 40 млн класс 14, как sandbox/act_demo_multi.json) → шаг 3 с плитками
+    договора, таблицей частей и раскрытой частью на 390 и 1440 px → узбекский. Затем поля класса 13 из шаблона
+    на шаге 2 и админская вкладка «Шаблоны классов» (/admin/hub#tariffs/templates).
+    """
+    try:
+        ws.call("Fetch.disable")
+    except RuntimeError:
+        pass
+    js(ws, "actReset()", 1)
+    js(ws, 'document.querySelector("#chatMain").click()', 1)          # «Без фото» → шаг 2
+    js(ws, WAIT_REFS)
+    js(ws, """(() => { wzPickProduct("0312"); Object.assign(CH.must, {sum_insured: 100000000, object_value: 60000000,
+      region: "tashkent_city"}); wzSave(); wzPaint(true); })()""", 1.5)
+    js(ws, "document.querySelector('#ptCard').scrollIntoView({block: 'start'})", 0.3)
+    bad.append(shot_el(ws, "chat_pt_step2_empty_390.png", 390, "#ptCard"))
+    # первый расчёт без частей: сервер предлагает распределение (поровну по умолчанию) → назад на шаг 2 с подсказкой
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, MAKE_WAIT, 40)
+    time.sleep(1.5)
+    print("  0312, первый расчёт:", js(ws, PT_INFO))
+    bad.append(shot_el(ws, "chat_pt_step2_suggest_390.png", 390, "#ptCard"))
+    bad.append(shot_el(ws, "chat_pt_step2_suggest_1440.png", 1440, "#ptCard", scale=1))
+    # сотрудник исправляет суммы: сначала только часть 1 — сумма частей расходится, кнопка расчёта неактивна
+    type_in(ws, "#pts-0", "60 000 000")
+    print("  расхождение: кнопка «Сформировать акт» неактивна =", js(ws, "document.querySelector('#chatMain').disabled"),
+          "| итог:", js(ws, "document.querySelector('#ptTotal').innerText"))
+    bad.append(shot_el(ws, "chat_pt_step2_diff_390.png", 390, "#ptCard"))
+    type_in(ws, "#pts-1", "40 000 000")
+    wait_js(ws, "!!tplOf('3') && !!tplOf('14')", 15)
+    js(ws, "wzPart('parts')", 0.5)
+    js(ws, """(() => { const k = document.querySelector('#tf-0-__kind'); if (k) { k.value = 'car'; k.dispatchEvent(new Event('change', {bubbles: true})); } })()""", 0.3)
+    type_in(ws, "#tf-0-brand", "Chevrolet")
+    type_in(ws, "#tf-0-year", "2021")
+    type_in(ws, "#tf-1-credit_amount", "100 000 000")
+    type_in(ws, "#tf-1-collateral_value", "60 000 000")
+    type_in(ws, "#tf-1-credit_term_months", "36")
+    js(ws, 'document.querySelector("[data-ptsame=diff]").click()', 0.3)
+    js(ws, 'document.querySelector("[data-go=ptconfirm]").click()', 0.8)
+    print("  после подтверждения: кнопка расчёта неактивна =", js(ws, "document.querySelector('#chatMain').disabled"),
+          "| в /act/make:", js(ws, "JSON.stringify({parts: actBody().optional.parts, conf: actBody().optional.parts_confirmed,"
+                                  " same: actBody().optional.same_object})"))
+    bad.append(shot_el(ws, "chat_pt_step2_confirmed_390.png", 390, "#ptCard"))
+    bad.append(shot_el(ws, "chat_pt_step2_confirmed_1440.png", 1440, "#ptCard", scale=1))
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, "!CH.busy && CH.wz === 3 && !!CH.act && CH.act.parts && CH.act.parts.confirmed", 40)
+    time.sleep(1)
+    print("  0312, подтверждённые части:", js(ws, PT_INFO))
+    js(ws, "window.scrollTo(0, 0)", 0.3)
+    bad.append(shot_el(ws, "chat_pt_step3_sum_390.png", 390, ".act-sum"))
+    bad.append(shot_el(ws, "chat_pt_step3_sum_1440.png", 1440, ".act-sum", scale=1))
+    # раскрытая часть 2 (кредиты): уровень, тариф, франшиза, сценарии, сумма к стоимости, аналитика
+    js(ws, "CH.ptOpen = {1: true, 2: true}; CH.anOpen['p2:risks'] = true; CH.anOpen['p2:tariff'] = true; wzPaint(true)", 1)
+    bad.append(shot_el(ws, "chat_pt_step3_parts_390.png", 390, ".pt-act"))
+    bad.append(shot_el(ws, "chat_pt_step3_part2_390.png", 390, 'details.pt-c[data-ptn="2"]'))
+    bad.append(shot_el(ws, "chat_pt_step3_parts_1440.png", 1440, ".pt-act", scale=1))
+    bad.append(shot(ws, "chat_pt_step3_full_1440.png", 1440, cap=9000, scale=1))
+    # узбекский: акт — GET /act/{id}?lang=uz, шаблоны частей запрашиваются заново на узбекском
+    js(ws, LANG_UZ, 5)
+    print("  узбекский: язык акта", js(ws, "CH.act && CH.act.lang"), "| источник частей:",
+          js(ws, "CH.act && CH.act.parts && CH.act.parts.source_label"))
+    js(ws, "CH.ptOpen = {1: true}; wzPaint(true); window.scrollTo(0, 0)", 1)
+    bad.append(shot_el(ws, "chat_pt_step3_sum_uz_390.png", 390, ".act-sum"))
+    bad.append(shot_el(ws, "chat_pt_step3_parts_uz_390.png", 390, ".pt-act"))
+    bad.append(shot_el(ws, "chat_pt_step3_parts_uz_1440.png", 1440, ".pt-act", scale=1))
+    js(ws, "wzGo(2)", 1)
+    wait_js(ws, "!!tplOf('3') && !!tplOf('14')", 15)
+    js(ws, "wzPart('parts')", 0.5)
+    bad.append(shot_el(ws, "chat_pt_step2_uz_390.png", 390, "#ptCard"))
+    bad.append(shot_el(ws, "chat_pt_step2_uz_1440.png", 1440, "#ptCard", scale=1))
+    # «Распределение не подтверждено»: правка суммы снимает подтверждение, акт по правке — с жёлтой плашкой
+    js(ws, LANG_RU, 4)
+    js(ws, "wzGo(2)", 1)
+    type_in(ws, "#pts-0", "70 000 000")
+    type_in(ws, "#pts-1", "30 000 000")
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, "!CH.busy && CH.wz === 3 && !!CH.act && CH.act.parts && !CH.act.parts.confirmed", 40)
+    time.sleep(1)
+    js(ws, "window.scrollTo(0, 0)", 0.3)
+    bad.append(shot_el(ws, "chat_pt_step3_unconfirmed_390.png", 390, ".act-sum"))
+
+    # поля класса 13 (общая ответственность) из шаблона на шаге 2
+    js(ws, "actReset()", 1)
+    js(ws, 'document.querySelector("#chatMain").click()', 1)
+    js(ws, 'wzPickClass("13"); Object.assign(CH.must, {sum_insured: 500000000, object_value: 500000000, region: "tashkent_city"}); wzSave()', 0.3)
+    wait_js(ws, "!!tplOf('13')", 15)
+    js(ws, "wzPaint(true)", 1)
+    js(ws, """(() => { const s = document.querySelector('#tf-m-activity_kind'); if (s) { s.value = 'trade'; s.dispatchEvent(new Event('change', {bubbles: true})); } })()""", 0.3)
+    type_in(ws, "#tf-m-limit_per_case", "200 000 000")
+    bad.append(shot_el(ws, "chat_tpl13_step2_390.png", 390, "#tplCard"))
+    bad.append(shot_el(ws, "chat_tpl13_step2_1440.png", 1440, "#tplCard", scale=1))
+    js(ws, 'CH.optOpen = true; wzPart("more")', 0.5)
+    bad.append(shot_el(ws, "chat_tpl13_more_390.png", 390, "#wzMore"))
+    print("  класс 13 в /act/make:", js(ws, "JSON.stringify({kind: actBody().optional.object_kind, cf: actBody().optional.class_fields})"))
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, MAKE_WAIT, 40)
+    print("  акт класса 13: шаг", js(ws, "CH.wz"), "| ошибка:", js(ws, "CH.err") or "нет",
+          "| поля класса в акте:", js(ws, "CH.act && JSON.stringify(CH.act.template && CH.act.template.class_fields)"))
+    bad.append(shot_el(ws, "chat_tpl13_docs_390.png", 390, "#wzBody .act-card:nth-last-of-type(2)"))
+    # шаг «Фото»: ракурсы и виды объекта — из шаблона класса 3 (продукт 0318)
+    js(ws, "actReset()", 1)
+    js(ws, 'wzPickProduct("0318"); wzGo(1)', 0.3)
+    wait_js(ws, "!!tplOf('3')", 15)
+    js(ws, 'wzPart("views")', 0.5)
+    bad.append(shot_el(ws, "chat_tpl_views_390.png", 390, "#wzViews"))
+    js(ws, "actReset()", 1)
+    errs = console_errors(ws)
+
+    # админка: вкладка «Шаблоны классов» (список, класс 3, правка JSON, история)
+    if token:                              # тестовый администратор копии базы: PUT шаблона открыт только ему
+        ws.call("Network.enable")
+        ws.call("Network.setCookie", name="sid", value=token, url=f"http://127.0.0.1:{port}/", path="/")
+    ws.call("Page.navigate", url=f"http://127.0.0.1:{port}/admin/hub#tariffs/templates")
+    time.sleep(5)
+    js(ws, "(() => { const b = document.querySelector('[data-tcls=\"3\"]'); if (b) b.click(); })()", 3)
+    bad.append(shot(ws, "admin_tpl_1440.png", 1440, cap=5000, scale=1))
+    # ошибка структуры: доли рисков не 100 — сервер отвечает 422, ошибки под кнопкой
+    js(ws, """(() => { const t = document.querySelector('#tplRaw'); const o = JSON.parse(t.value);
+      if (o.risks && o.risks.items && o.risks.items[0]) o.risks.items[0].share_pct += 10; t.value = JSON.stringify(o, null, 2);
+      document.querySelector('[data-tsave]').click(); })()""", 3)
+    print("  админка, правка с ошибкой:", js(ws, "(document.querySelector('#tplMsg') || {}).innerText"))
+    js(ws, "document.querySelector('#tplMsg').scrollIntoView({block: 'center'})", 0.3)
+    bad.append(shot_el(ws, "admin_tpl_422_1440.png", 1440, "#tplOne .card:nth-child(2)", scale=1))
+    js(ws, "(() => { const b = document.querySelector('[data-tlang=\"uz\"]'); if (b) b.click(); })()", 3)
+    bad.append(shot(ws, "admin_tpl_uz_390.png", 390, cap=4000))
+    return errs + console_errors(ws)
+
+
+def main(only_analytics=False, only_parts=False):
     OUT.mkdir(exist_ok=True)
-    with ShootInstance(PORT, "dev", keep=False):
+    with ShootInstance(PORT, "dev", keep=False) as inst:
         profile = tempfile.mkdtemp(prefix="edge-shoot-")
         edge = subprocess.Popen([EDGE, "--headless=new", f"--remote-debugging-port={DBG}",
                                  f"--user-data-dir={profile}", "--no-first-run", "--disable-gpu",
@@ -479,6 +643,12 @@ def main(only_analytics=False):
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg")
             time.sleep(7)
             bad = []
+            if only_parts:
+                errs = shoot_parts(ws, bad, token=inst.token)
+                print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
+                      else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
+                print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:\n  " + "\n  ".join(errs))
+                return
             if only_analytics:
                 shoot_analytics(ws, bad)
                 errs = console_errors(ws)
@@ -736,8 +906,12 @@ def main(only_analytics=False):
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg?theme=dark")
             time.sleep(6)
             bad.append(shot(ws, "chat_dark_390.png", 390))
-
             errs = console_errors(ws)
+
+            # комплексный продукт 0312 по частям, поля класса 13, ракурсы из шаблона, админка шаблонов
+            ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg?theme=light")
+            time.sleep(6)
+            errs += shoot_parts(ws, bad, token=inst.token)
             print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
                   else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
             print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:\n  " + "\n  ".join(errs))
@@ -749,4 +923,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--serve":
         serve_fake_model(int(sys.argv[2]), Path(sys.argv[3]))
     else:
-        main(only_analytics="--analytics" in sys.argv[1:])
+        main(only_analytics="--analytics" in sys.argv[1:], only_parts="--parts" in sys.argv[1:])

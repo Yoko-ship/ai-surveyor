@@ -726,6 +726,7 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .act-kpis b.lvname{font-family:var(--sans);font-weight:800}
 .act-kpis em.ok{color:var(--good)}
 .act-kpis em.warn{color:var(--warn)}
+.act-kpis .kprem b .u{white-space:nowrap;display:inline-block;font-size:inherit;line-height:inherit;color:inherit}   /* премия частей: «soʻm» не рвётся, переносится целиком */
 .lvbar{display:flex;gap:3px;margin-top:7px}
 .lvbar u{flex:1 1 0;height:6px;border-radius:3px;background:var(--line)}
 .lvbar.lv-low u.on{background:var(--good)}
@@ -1026,6 +1027,57 @@ details.mini li{margin:3px 0;overflow-wrap:anywhere}
 .an-t.doc{margin-top:4px;table-layout:fixed}
 .an-t.doc td,.an-t.doc th{padding:6px}
 .act-tnote{margin:6px 0 0 !important;font-size:12.5px !important;color:var(--muted)}
+/* шаблон класса (30.09.2026): поля класса на шаге «Проверить», ракурсы и документы */
+.tpl-card .sub{overflow-wrap:anywhere}
+.tpl-v{display:inline-block;margin-left:4px;padding:0 6px;border:1px solid var(--line);border-radius:6px;font:600 11px/1.6 var(--mono);color:var(--muted);white-space:nowrap}
+.tpl-docs{margin:4px 0 0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.tpl-docs li{overflow-wrap:anywhere}
+.vw dd small{display:block;margin-top:2px;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+/* части договора: карточка на шаге 2, плитки и карточки частей на шаге 3 */
+.pt-open{margin:-4px 0 var(--s2)}
+.pt-card .sub{overflow-wrap:anywhere}
+.pt-hint{margin:8px 0 0;padding:10px 12px;border-radius:10px;border:1px solid var(--accent-line);background:var(--accent-bg);font-size:13px;line-height:1.45;color:var(--ink)}
+.pt-row{margin-top:var(--s3);padding:12px 14px 14px;border:1px solid var(--line);border-radius:12px;background:var(--soft2);min-width:0}
+.pt-h{display:flex;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.pt-h p{margin:0;min-width:0;font-size:14px;overflow-wrap:anywhere}
+.pt-h .btn-link{flex:none;width:auto;min-height:40px;padding:0 4px;font-size:13px;color:var(--stop);-webkit-text-fill-color:var(--stop)}
+.pt-tags{margin:4px 0 0}
+.pt-tags .tag{margin:2px 6px 0 0;text-transform:none;letter-spacing:0}
+.tag.warn{border-color:var(--warn);color:var(--warn)}
+.pt-desc{margin:4px 0 0;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.pt-g input,.pt-g select{background-color:var(--card)}
+.pt-sh,.pt-na{margin:0;min-height:44px;display:flex;align-items:center;font:600 15px/1.3 var(--mono)}
+.pt-na{font:500 13px/1.4 var(--sans);color:var(--muted)}
+.pt-more{margin-top:10px}
+.pt-more>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font-size:13px;font-weight:700;color:var(--accent)}
+.pt-tot{display:flex;flex-direction:column;gap:2px;margin:var(--s3) 0 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);font-size:13.5px}
+.pt-tot b{font-weight:700;overflow-wrap:anywhere}
+.pt-tot.ok{border-color:var(--good)}
+.pt-tot.bad{border-color:var(--stop);color:var(--stop)}
+.pt-tot span{font-size:12.5px;overflow-wrap:anywhere}
+.pt-add{margin-top:var(--s2)}
+.pt-add-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pt-add-row select{flex:1 1 220px}
+.pt-add-row .btn{flex:none}
+#ptConfirm[aria-pressed="true"]{border-color:var(--good);color:var(--good);-webkit-text-fill-color:var(--good)}
+.pt-ref{margin:8px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.pt-sc{margin-top:10px}
+.pt-warn{margin-top:var(--s3);padding:12px 14px;border-radius:12px;border:1px solid var(--warn);background:rgba(138,90,0,.07);color:var(--ink);font-size:13.5px;line-height:1.45}
+html[data-theme="dark"] .pt-warn{background:rgba(224,168,63,.08)}
+.pt-warn p{margin:0 0 6px;overflow-wrap:anywhere}
+.pt-warn b{color:var(--warn)}
+.pt-act>.sub{margin:0 0 var(--s2)}
+.pt-t tr.tot td{font-weight:800;border-top:2px solid var(--line)}
+.pt-notes{margin:8px 0 0;padding-left:18px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.pt-notes li{overflow-wrap:anywhere}
+.pt-c .an-in>p{margin:4px 0 0;overflow-wrap:anywhere}
+.pt-fx{margin:4px 0 0;padding-left:18px;line-height:1.5}
+.pt-fx li{overflow-wrap:anywhere}
+.pt-fx li.up::marker{color:var(--stop)}
+.pt-fx li.down::marker{color:var(--good)}
+.pt-c .an-c{background:var(--soft2)}
+@media (min-width:600px){.pt-t.fold td.n{white-space:nowrap}}
+@media (max-width:599px){.pt-c>.an-in{padding:0 8px 10px}.pt-c .an-c>summary{padding:10px}}
 @media (max-width:599px){
   .an-t.fold,.an-t.fold tbody,.an-t.fold tr,.an-t.fold td{display:block;width:auto}
   .an-t.fold thead,.an-t.fold colgroup{display:none}
@@ -2514,7 +2566,8 @@ const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue
   msg: "", notes: [], warning: "", upLang: "", stale: false,
   must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
   refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false, kind: "",
-  br: null, ct: null, xc: null};             // запрос филиала, договор, их сверка (30.09.2026)
+  br: null, ct: null, xc: null,              // запрос филиала, договор, их сверка (30.09.2026)
+  pt: null, ptAdd: false, ptOpen: {}, ptMore: {}, cfCls: ""};  // части договора; класс, чьи поля в opt.cf
 /* оценка по объявлениям (шаг 2): состояние; функции — ниже, перед «Сформировать акт» */
 const MK_KEY = "surveyor_act_market";
 const MK_MAX = 5;                          // app/act_market.py: MAX_SHOTS
@@ -2691,18 +2744,15 @@ function regionName(c){
     default: return "";
   }
 }
-/* нужные ракурсы по виду объекта — таблица ТЗ, п. 5 (та же, что REQUIRED_VIEWS в app/act_engine.py) */
-const VIEW_GROUPS = [
-  {g: "vehicle", cls: ["3", "4"], views: ["front", "back", "left", "right", "plate", "odometer", "document"]},
-  {g: "property", cls: ["8", "9"], views: ["facade", "roof", "interior", "electrical", "fire_safety"]},
-  {g: "equipment", cls: ["8", "9"], views: ["general", "plate", "installation"]},
-  {g: "cargo", cls: ["7"], views: ["packaging", "marking", "transport"]}];
+/* группа объекта в ракурсах шаблона класса (required_views: vehicle, special, property, equipment, cargo) */
 function groupName(g){
   switch (g) {
+    case "special": return T("tg.act.grp.special", "Спецтехника");
     case "vehicle": return T("tg.act.grp.vehicle", "Транспорт и спецтехника");
     case "property": return T("tg.act.grp.property", "Здание, помещение");
     case "equipment": return T("tg.act.grp.equipment", "Оборудование");
-    default: return T("tg.act.grp.cargo", "Груз");
+    case "cargo": return T("tg.act.grp.cargo", "Груз");
+    default: return T("tg.act.grp.other", "Объект класса");
   }
 }
 
@@ -2718,7 +2768,9 @@ function wzSave(){
       pre: CH.pre, preDoc: CH.preDoc, seeded: CH.seeded, fr: CH.fr,
       must: CH.must, opt: CH.opt, act: CH.actId, kind: CH.kind,
       // запрос филиала и договор: прочитанные поля с правками сотрудника — до закрытия вкладки
-      br: CH.br, ct: CH.ct, xc: CH.xc}));
+      br: CH.br, ct: CH.ct, xc: CH.xc,
+      // части договора и поля класса (opt.cf) — до закрытия вкладки
+      pt: CH.pt, ptAdd: CH.ptAdd, cfCls: CH.cfCls}));
   } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
 }
 function wzLoad(){
@@ -2754,7 +2806,11 @@ function wzLoad(){
   CH.br = dqBrFrom(s.br);
   CH.ct = dqCtFrom(s.ct);
   CH.xc = s.xc ? dqXcFrom(Object.assign({available: true}, obj(s.xc))) : null;
-  CH.stale = CH.photoCount > 0;           // файлы в памяти страницы не пережили перезагрузку
+  CH.pt = ptLoad(s.pt);
+  CH.ptAdd = !!s.ptAdd;
+  CH.cfCls = typeof s.cfCls === "string" ? s.cfCls.slice(0, 10) : "";
+  if (CH.opt.cf != null && (typeof CH.opt.cf !== "object" || Array.isArray(CH.opt.cf))) delete CH.opt.cf;
+  CH.stale = CH.photoCount > 0;          // файлы в памяти страницы не пережили перезагрузку
 }
 /* регион из прошлого раза — чтобы не выбирать его каждый раз */
 function wzSeedRegion(){
@@ -2850,7 +2906,7 @@ function wzMain(){
 }
 function wzBarPaint(){
   const b = $("#chatMain");
-  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy || (CH.wz === 2 && MK.busy) || (CH.wz === 3 && (!CH.act || !!CH.sending)); }
+  if (b) { b.textContent = wzMainLabel(); b.disabled = !!CH.busy || (CH.wz === 2 && (MK.busy || !ptOk())) || (CH.wz === 3 && (!CH.act || !!CH.sending)); }
   syncTgButtons();
 }
 function wzStepsPaint(){
@@ -2887,6 +2943,7 @@ function wzPart(name){
   const map = {files: ["wzFiles", wzFilesHtml], views: ["wzViews", wzViewsHtml], rec: ["wzRec", wzRecHtml],
     prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], region: ["wzRegion", wzRegionHtml],
     more: ["wzMoreBox", wzMoreHtml], fr: ["wzFr", wzFrHtml], term: ["wzTerm", wzTermHtml],
+    tpl: ["wzTpl", tplCardHtml], parts: ["wzParts", ptCardHtml],
     br: ["wzBr", brCardHtml], ct: ["wzCt", ctCardHtml], xc: ["wzXc", xcCardHtml]};
   const m = map[name];
   const el = m && document.getElementById(m[0]);
@@ -2968,14 +3025,34 @@ function wzViewsHtml(){
       + "<p>" + esc(CH.missingViews.map(viewName).join(", ")) + "</p>"
       + '<p class="note">' + esc(T("tg.act.views_skip", "Продолжить можно и без них — в акте это будет отмечено.")) + "</p></div>";
   }
-  const cls = wzClass();
-  const mine = VIEW_GROUPS.filter(g => g.cls.indexOf(cls) >= 0);
-  const list = mine.length ? mine : VIEW_GROUPS;
-  return '<div class="card wz-need"><h2>' + esc(T("tg.act.views_title", "Какие снимки нужны")) + "</h2>"
-    + '<p class="sub">' + esc(mine.length ? T("tg.act.views_by_class", "По выбранному классу страхования.")
-      : T("tg.act.views_all_kinds", "Выберите подходящую строку. Когда выберете класс или загрузите фото, подскажем точнее.")) + "</p>"
-    + '<dl class="vw">' + list.map(g => "<div><dt>" + esc(groupName(g.g)) + "</dt><dd>" + esc(g.views.map(viewName).join(", ")) + "</dd></div>").join("") + "</dl>"
-    + '<p class="note">' + esc(T("tg.act.views_docs", "Техпаспорт, паспорт самоходной машины, лист технических параметров или кадастровый документ снимайте и загружайте так же, как фото.")) + "</p></div>";
+  // ракурсы и виды объекта — из шаблонов классов продукта (required_views, object.kinds); класс не выбран — общий совет
+  const classes = ptProdClasses();
+  const docs = '<p class="note">' + esc(T("tg.act.views_docs", "Техпаспорт, паспорт самоходной машины, лист технических параметров или кадастровый документ снимайте и загружайте так же, как фото.")) + "</p>";
+  const head = '<div class="card wz-need"><h2>' + esc(T("tg.act.views_title", "Какие снимки нужны")) + "</h2>";
+  if (!classes.length) {
+    return head + '<p class="sub">' + esc(T("tg.act.views_no_class", "Снимите объект целиком со всех сторон, заводскую табличку и документ на объект. Когда выберете продукт или класс на шаге «Проверить», подскажем точный список по шаблону класса.")) + "</p>" + docs + "</div>";
+  }
+  classes.forEach(tplNeed);
+  const got = classes.map(c => TPL.cache[tplKey(c)]).filter(Boolean);
+  if (!got.length) return head + '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>";
+  const rows = [];
+  got.filter(x => x.template).forEach(x => {
+    const tp = x.template, rv = anObj(tp.required_views), by = {};
+    // группы с одинаковым списком ракурсов — одной строкой
+    Object.keys(rv).forEach(g => {
+      const vs = anArr(rv[g]).map(String);
+      if (!vs.length) return;
+      const k = vs.join(",");
+      (by[k] = by[k] || {views: vs, groups: []}).groups.push(g === "default" ? anStr(tp.name) : groupName(g));
+    });
+    const kinds = anArr(tp.object && tp.object.kinds).map(k => anStr(k && k.label)).filter(Boolean);
+    const more = kinds.length > 8 ? " " + T("tg.act.views_kinds_more", "и ещё {n}", {n: kinds.length - 8}) : "";
+    Object.keys(by).forEach(k => rows.push("<div><dt>" + esc(by[k].groups.filter(Boolean).join(" / ")) + "</dt><dd>" + esc(by[k].views.map(viewName).join(", "))
+      + (kinds.length ? "<small>" + esc(T("tg.act.views_kinds", "Объект: {list}", {list: kinds.slice(0, 8).join(", ") + more})) + "</small>" : "") + "</dd></div>"));
+  });
+  if (!rows.length) return head + '<p class="note err">' + esc(T("tg.tpl.failed_views", "Шаблон класса не загрузился — снимите объект со всех сторон, табличку и документ.")) + "</p>" + docs + "</div>";
+  return head + '<p class="sub">' + esc(T("tg.act.views_by_class", "По выбранному классу страхования.")) + "</p>"
+    + '<dl class="vw">' + rows.join("") + "</dl>" + docs + "</div>";
 }
 /* Картинки других форматов (WEBP, GIF, BMP, AVIF, HEIC — если браузер умеет их открыть) переводим
    в JPG прямо в браузере: сервер принимает JPG, PNG и PDF. Не открылась — вернём null. */
@@ -3264,6 +3341,8 @@ function wzStep2Html(){
     + '<div id="wzRegion">' + wzRegionHtml() + "</div>"
     + '<div id="wzTerm">' + wzTermHtml() + "</div>"
     + "</div>"
+    + '<div id="wzParts">' + ptCardHtml() + "</div>"
+    + '<div id="wzTpl">' + tplCardHtml() + "</div>"
     + mkHtml()
     + '<div id="wzMoreBox">' + wzMoreHtml() + "</div>"
     + msgHtml();
@@ -3424,10 +3503,16 @@ function wzPicked(){
   const cls = wzClass();
   if (CH.opt.protection && protCodes(cls).indexOf(CH.opt.protection) < 0) delete CH.opt.protection;
   if (!isProp(cls)) ["seismic_zone", "construction", "activity"].forEach(k => { delete CH.opt[k]; });
+  // поля класса и вид объекта — от шаблона прежнего класса; части — от прежнего состава продукта
+  if (CH.cfCls !== cls) { delete CH.opt.cf; delete CH.opt.object_kind; CH.cfCls = cls; }
+  if (CH.pt && CH.pt.key !== ptProdClasses().join(",")) { CH.pt = null; CH.ptAdd = false; CH.ptMore = {}; }
   haptic("select");
   wzSave();
   wzPart("prod");
+  wzPart("parts");
+  wzPart("tpl");
   wzPart("more");
+  wzBarPaint();
 }
 function wzMoneyHtml(key){
   const id = "wzf-" + key, v = CH.must[key], err = CH.errs[key];
@@ -3488,13 +3573,14 @@ function wzObjHtml(){
   if (!cls) return '<div class="full"><p class="hint">' + esc(T("tg.act.obj_pick_class", "Защита объекта, сейсмичность и конструкция появятся, когда выберете продукт или класс.")) + "</p></div>";
   const codes = protCodes(cls);
   if (!codes.length) return "";
-  let h = optSelect("protection", cls === "3" ? T("tg.act.f.protection3", "Противоугонная система") : T("tg.act.f.protection", "Защита объекта"),
+  const mk = tplMustKeys();
+  let h = mk.protection ? "" : optSelect("protection", cls === "3" ? T("tg.act.f.protection3", "Противоугонная система") : T("tg.act.f.protection", "Защита объекта"),
     codes, c => protName(cls, c), T("tg.act.protection_hint", "Уточняет сценарии убытка PML, EML, MFL."));
   if (isProp(cls)) {
-    h += optSelect("seismic_zone", T("tg.act.f.seismic_zone", "Сейсмическая зона"), SEISMIC,
-      n => T("tg.act.seismic_n", "{n} баллов", {n: n}), T("tg.act.seismic_hint", "Не указана — MFL считается как полное уничтожение объекта."))
-      + optSelect("construction", T("tg.act.f.construction", "Конструкция, материал стен"), CONSTRUCTIONS, consName)
-      + optSelect("activity", T("tg.act.f.activity", "Деятельность на объекте"), ACTIVITIES, actvName);
+    h += (mk.seismic_zone ? "" : optSelect("seismic_zone", T("tg.act.f.seismic_zone", "Сейсмическая зона"), SEISMIC,
+      n => T("tg.act.seismic_n", "{n} баллов", {n: n}), T("tg.act.seismic_hint", "Не указана — MFL считается как полное уничтожение объекта.")))
+      + (mk.construction ? "" : optSelect("construction", T("tg.act.f.construction", "Конструкция, материал стен"), CONSTRUCTIONS, consName))
+      + (mk.activity ? "" : optSelect("activity", T("tg.act.f.activity", "Деятельность на объекте"), ACTIVITIES, actvName));
   }
   return h;
 }
@@ -3578,7 +3664,10 @@ function wzFrInput(el){
   wzSave();
 }
 /* «Дополнительно · заполнено N» — без перерисовки блока */
-function wzOptCount(){ return OPT_KEYS.filter(k => CH.opt[k] != null && CH.opt[k] !== "").length + (CH.fr.on && !wzStatutory() ? 1 : 0); }
+function wzOptCount(){
+  const mk = tplMustKeys();
+  return OPT_KEYS.filter(k => !mk[k] && CH.opt[k] != null && CH.opt[k] !== "").length + (CH.fr.on && !wzStatutory() ? 1 : 0) + tplMoreCount();
+}
 function wzMoreCount(){
   const b = $("#wzMoreN");
   if (b) { const n = wzOptCount(); b.textContent = n ? " · " + T("tg.wz.more_n", "заполнено {n}", {n: n}) : ""; }
@@ -3606,17 +3695,19 @@ function optYesNo(key, label){
 function wzMoreHtml(){
   const n = wzOptCount();
   const loc = CH.opt.location || "";
+  const mk = tplMustKeys();                   // что шаблон уже спросил в «Полях класса»
   return '<details class="sec" id="wzMore"' + (CH.optOpen ? " open" : "") + '><summary><span><b>' + esc(T("tg.wz.more", "Дополнительно"))
     + '<span id="wzMoreN">' + (n ? " · " + esc(T("tg.wz.more_n", "заполнено {n}", {n: n})) : "") + "</span></b><small>"
     + esc(T("tg.act.more_sub", "Год, место, охрана и защита, убытки, франшиза — по ним уточняются уровень риска, сценарии убытка и премия. Можно не заполнять.")) + "</small></span></summary>"
     + '<div class="in"><div class="fgrid">'
-    + optInput("year", T("tg.act.f.year", "Год выпуска"), "year")
-    + '<div class="' + (CH.errs.location ? "bad" : "") + '"><label class="f" for="wzo-location">' + esc(T("tg.act.f.location", "Место эксплуатации")) + "</label>"
+    + (mk.year ? "" : optInput("year", T("tg.act.f.year", "Год выпуска"), "year"))
+    + (mk.location ? "" : '<div class="' + (CH.errs.location ? "bad" : "") + '"><label class="f" for="wzo-location">' + esc(T("tg.act.f.location", "Место эксплуатации")) + "</label>"
     + '<select id="wzo-location" data-fk="location" data-scope="opt"><option value="">' + esc(T("common.not_set", "не задан")) + "</option>"
     + LOCATIONS.map(c => '<option value="' + c + '"' + (c === loc ? " selected" : "") + ">" + esc(locName(c)) + "</option>").join("") + "</select>"
-    + '<span class="ferr" id="wzErr-location">' + esc(CH.errs.location || "") + "</span></div>"
-    + optYesNo("guard", T("tg.act.guard", "Охрана объекта"))
+    + '<span class="ferr" id="wzErr-location">' + esc(CH.errs.location || "") + "</span></div>")
+    + (mk.guard ? "" : optYesNo("guard", T("tg.act.guard", "Охрана объекта")))
     + wzObjHtml()
+    + tplMoreHtml()
     + '<div class="full"><div class="h3">' + esc(T("tg.act.losses", "Убытки за три года")) + "</div></div>"
     + optInput("losses_count", T("tg.act.losses_count", "Всего убытков"), "int")
     + optInput("losses_small", T("tg.act.losses_small", "Из них мелких"), "int")
@@ -3644,7 +3735,7 @@ function wzFieldInput(el){
   preClear(key);                              // сотрудник поправил значение из документа — оно уже его
   wzClearErr(key);
   if (key === "losses_count" || key === "losses_small" || key === "losses_amount") wzClearErr("losses_count");
-  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
+  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); ptPaintLive(); }
   if (key === "object_value") mkPart("sum");   // расхождение с медианой объявлений — сразу
   if (el.dataset.scope === "opt") wzMoreCount();
   wzSave();
@@ -3667,7 +3758,7 @@ function wzQuickAdd(b){
   const el = $("#wzf-" + key);
   if (el) el.value = Number(m[key]).toLocaleString(LOC());
   preClear(key);
-  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); }
+  if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); ptPaintLive(); }
   if (key === "object_value") mkPart("sum");
   wzClearErr(key);
   haptic("select");
@@ -3679,9 +3770,679 @@ function wzFocusField(key){
       : key === "market" ? $("#mkCard")
       : key === "br" || key === "ct" ? ($("#wzErr-" + key) || $("#" + key + "Card"))
       : key === "fr" ? ($("#wzo-frval") || document.querySelector("[data-fr]"))
-      : ($("#wzf-" + key) || $("#wzo-" + key) || document.querySelector('[data-set="' + key + '"]'));
+      : key === "parts" ? $("#ptCard")
+      : key === "cf" ? ($("#tplCard") || $("#ptCard"))
+      : ($("#wzf-" + key) || $("#wzo-" + key) || $("#tf-m-" + key) || document.querySelector('[data-set="' + key + '"]'));
     if (el) { if (el.scrollIntoView) el.scrollIntoView({block: "center"}); try { el.focus({preventScroll: true}); } catch (e) {} }
   }, 60);
+}
+
+/* =====================================================================================
+   Шаблоны классов (справочник class_templates, приложение А; 30.09.2026): GET /act/templates/{класс}?lang=.
+   Шаг «Проверить»: поля must шаблона — карточка «Поля класса», поля optional — в «Дополнительно».
+   Значение уходит туда, куда указывает поле input шаблона: optional.class_fields.<код>, optional.year,
+   optional.object_kind, optional.<уточнение> (защита, место, конструкция…), recognized.<ключ> (марка, модель).
+   Подписи полей и видов объекта — из ответа сервера на языке интерфейса; варианты выбора — подписи словаря.
+   Шаблон кэшируется по классу и языку: смена языка запрашивает его заново.
+   ===================================================================================== */
+const TPL = {cache: {}, busy: {}};
+const TPL_SKIP = ["losses", "deductible"];            // убытки и франшиза — свои блоки «Дополнительно»
+const TPL_OPT = ["year", "location", "guard", "protection", "construction", "activity", "seismic_zone"];
+const tplKey = cls => String(cls) + "|" + I18N_LANG;
+function tplOf(cls){ const x = cls ? TPL.cache[tplKey(cls)] : null; return x && x.template ? x : null; }
+function tplNeed(cls){
+  if (!cls) return;
+  const k = tplKey(cls);
+  if (TPL.cache[k] || TPL.busy[k]) return;
+  TPL.busy[k] = true;
+  api("/act/templates/" + encodeURIComponent(cls) + "?lang=" + encodeURIComponent(I18N_LANG)).then(r => {
+    delete TPL.busy[k];
+    TPL.cache[k] = r.ok && r.data && r.data.template && typeof r.data.template === "object" ? r.data : {err: r.error || ""};
+    if (TAB === "chat" && k === tplKey(cls)) tplRepaint();
+  });
+}
+function tplRepaint(){
+  if (CH.wz === 1) wzPart("views");
+  else if (CH.wz === 2) { wzPart("tpl"); wzPart("parts"); wzPart("more"); }
+}
+/* куда уходит значение поля: {t: cf | opt | kind | rec, key} */
+function tfTarget(f){
+  if (!f || typeof f !== "object") return null;
+  if (f.code === "__kind" || f.type === "kind") return {t: "kind", key: "object_kind"};
+  const inp = String(f.input || "");
+  let m = /^optional\.class_fields\.([A-Za-z0-9_]{1,40})$/.exec(inp);
+  if (m) return {t: "cf", key: m[1]};
+  m = /^optional\.([a-z_0-9]{1,40})$/.exec(inp);
+  if (m && TPL_OPT.indexOf(m[1]) >= 0) return {t: "opt", key: m[1]};
+  m = /^recognized\.([a-z_]{1,40})$/.exec(inp);
+  if (m) return {t: "rec", key: m[1]};
+  return null;
+}
+/* поля шаблона, которые вводятся здесь: без вида объекта (он — отдельным списком), убытков и франшизы */
+const tfList = (fs, noRec) => anArr(fs).filter(f => {
+  const g = tfTarget(f);
+  return g && g.t !== "kind" && TPL_SKIP.indexOf(f.type) < 0 && !(noRec && g.t === "rec") && anStr(f.label);
+});
+const tfScopeCls = s => s === "m" ? wzClass() : ((CH.pt && CH.pt.items[Number(s)]) || {}).cls || "";
+function tfKindField(cls){
+  const t = tplOf(cls);
+  const own = t ? anArr(t.template.must).concat(anArr(t.template.optional)).filter(f => f && f.type === "kind")[0] : null;
+  return {code: "__kind", type: "kind", input: "optional.object_kind", label: own && anStr(own.label) ? own.label : T("tg.tpl.kind", "Вид объекта")};
+}
+function tfDef(s, code){
+  const cls = tfScopeCls(s);
+  if (code === "__kind") return tfKindField(cls);
+  const t = tplOf(cls);
+  if (!t) return null;
+  return anArr(t.template.must).concat(anArr(t.template.optional)).filter(f => f && f.code === code)[0] || null;
+}
+function tfBox(s){
+  if (s === "m") { if (!CH.opt.cf || typeof CH.opt.cf !== "object") CH.opt.cf = {}; return {cf: CH.opt.cf, opt: CH.opt, kind: CH.opt}; }
+  const it = CH.pt && CH.pt.items[Number(s)];
+  return it ? {cf: it.cf, opt: it.f, kind: it} : null;
+}
+function tfVal(s, g){
+  if (g.t === "rec") { const r = CH.rec.filter(x => x.key === g.key)[0]; return r ? r.value : ""; }
+  const b = tfBox(s);
+  if (!b) return "";
+  const v = g.t === "cf" ? b.cf[g.key] : g.t === "kind" ? b.kind[s === "m" ? "object_kind" : "kind"] : b.opt[g.key];
+  return v == null ? "" : v;
+}
+function tfSet(s, g, v){
+  if (g.t === "rec") {
+    const r = CH.rec.filter(x => x.key === g.key)[0];
+    if (r) { r.value = v == null ? "" : String(v); r.source = r.orig && r.value.trim() === r.orig.value ? r.orig.source : "input"; }
+    else if (v != null && v !== "") CH.rec.push({key: g.key, value: String(v), source: "input", file: null, orig: null});
+    if (g.key === "brand" || g.key === "model") mkLinksSoon();
+    return;
+  }
+  const b = tfBox(s);
+  if (!b) return;
+  const box = g.t === "cf" ? b.cf : g.t === "kind" ? b.kind : b.opt;
+  const key = g.t === "kind" ? (s === "m" ? "object_kind" : "kind") : g.key;
+  if (v == null || v === "") delete box[key]; else box[key] = v;
+}
+/* подпись варианта выбора: уточнения акта — прежние подписи; поля класса — словарь */
+function cfOptName(field, c, i){
+  switch (field + "." + c) {
+    case "activity_kind.consult": return T("tg.tpl.o.activity_kind.consult", "консультации, офисные услуги");
+    case "activity_kind.trade": return T("tg.tpl.o.activity_kind.trade", "торговля");
+    case "activity_kind.transport": return T("tg.tpl.o.activity_kind.transport", "перевозки");
+    case "activity_kind.build": return T("tg.tpl.o.activity_kind.build", "строительство");
+    case "activity_kind.medical": return T("tg.tpl.o.activity_kind.medical", "медицина");
+    case "activity_kind.hazard": return T("tg.tpl.o.activity_kind.hazard", "опасное производство");
+    case "transport_mode.auto": return T("tg.tpl.o.transport_mode.auto", "автомобильный");
+    case "transport_mode.rail": return T("tg.tpl.o.transport_mode.rail", "железнодорожный");
+    case "transport_mode.air": return T("tg.tpl.o.transport_mode.air", "воздушный");
+    case "transport_mode.sea": return T("tg.tpl.o.transport_mode.sea", "морской");
+    case "transport_mode.multi": return T("tg.tpl.o.transport_mode.multi", "смешанный");
+    case "packaging.container": return T("tg.tpl.o.packaging.container", "контейнер");
+    case "packaging.factory": return T("tg.tpl.o.packaging.factory", "заводская упаковка");
+    case "packaging.standard": return T("tg.tpl.o.packaging.standard", "обычная упаковка");
+    case "packaging.none": return T("tg.tpl.o.packaging.none", "без упаковки");
+    case "borrower_industry.manufacturing": return T("tg.tpl.o.borrower_industry.manufacturing", "производство");
+    case "borrower_industry.services": return T("tg.tpl.o.borrower_industry.services", "услуги");
+    case "borrower_industry.trade": return T("tg.tpl.o.borrower_industry.trade", "торговля");
+    case "borrower_industry.build": return T("tg.tpl.o.borrower_industry.build", "строительство");
+    case "borrower_industry.agro": return T("tg.tpl.o.borrower_industry.agro", "сельское хозяйство");
+    case "credit_history.clean": return T("tg.tpl.o.credit_history.clean", "без просрочек");
+    case "credit_history.minor": return T("tg.tpl.o.credit_history.minor", "мелкие просрочки");
+    case "credit_history.bad": return T("tg.tpl.o.credit_history.bad", "серьёзные просрочки");
+    default: return T("tg.tpl.o_n", "вариант {n}", {n: i + 1});
+  }
+}
+function tfOptName(f, g, cls, c, i){
+  if (g.t === "opt") {
+    if (g.key === "protection") return protName(cls === "3" ? "3" : "8", c);
+    if (g.key === "location") return locName(c);
+    if (g.key === "construction") return consName(c);
+    if (g.key === "activity") return actvName(c);
+  }
+  return cfOptName(f.code, c, i);
+}
+/* одно поле шаблона; s — "m" (договор) или номер части */
+function tfHtml(f, s, cls){
+  const g = tfTarget(f);
+  if (!g) return "";
+  const id = "tf-" + s + "-" + String(f.code).replace(/[^\w]/g, ""), v = tfVal(s, g), label = anStr(f.label);
+  const at = ' data-tf="1" data-tfs="' + esc(s) + '" data-tfc="' + esc(f.code) + '"';
+  // уточнение акта (год, конструкция…) в «Полях класса»: ошибка проверки — под самим полем
+  const ek = s === "m" && g.t === "opt" ? g.key : "";
+  const ferr = ek ? '<span class="ferr" id="wzErr-' + ek + '">' + esc(CH.errs[ek] || "") + "</span>" : "";
+  const bad = ek && CH.errs[ek] ? " bad" : "";
+  if (f.type === "bool") {
+    const on = x => '<button type="button" data-tfb="' + x + '" data-tfs="' + esc(s) + '" data-tfc="' + esc(f.code) + '" aria-pressed="' + (v === x) + '">'
+      + esc(x === "yes" ? T("tg.act.yes", "да") : T("tg.act.no", "нет")) + "</button>";
+    return '<div><label class="f">' + esc(label) + '</label><div class="segsel" role="group" aria-label="' + esc(label) + '">' + on("yes") + on("no") + "</div></div>";
+  }
+  const lab = '<label class="f" for="' + id + '">' + esc(label) + (f.type === "money" ? ' <span class="unit">' + esc(SUM()) + "</span>" : "") + "</label>";
+  if (f.type === "kind" || f.type === "choice") {
+    let opts;
+    if (f.type === "kind") {
+      const t = tplOf(cls);
+      // единственный вид объекта класса (кредит, груз…): сервер берёт его по умолчанию (object.single_kind) — выбирать нечего
+      if (t && t.template.object && t.template.object.single_kind) return "";
+      opts =anArr(t && t.template.object && t.template.object.kinds).filter(k => k && k.code && anStr(k.label)).map(k => [String(k.code), anStr(k.label)]);
+    } else {
+      opts = anArr(f.options).map((c, i) => [String(c), tfOptName(f, g, cls, String(c), i)]);
+    }
+    if (!opts.length) return "";
+    const hint = s === "m" && f.type === "kind" && !v && CH.kind && opts.some(o => o[0] === CH.kind)
+      ? '<span class="hint">' + esc(T("tg.tpl.kind_photo", "По фото: {k}. Не выбрано — акт возьмёт вид с фото.", {k: opts.filter(o => o[0] === CH.kind)[0][1]})) + "</span>" : "";
+    return '<div class="' + bad + '">' + lab + '<select id="' + id + '"' + at + '><option value="">' + esc(T("tg.act.opt_unset", "не указано")) + "</option>"
+      + opts.map(o => '<option value="' + esc(o[0]) + '"' + (o[0] === String(v) ? " selected" : "") + ">" + esc(o[1]) + "</option>").join("") + "</select>" + hint + ferr + "</div>";
+  }
+  const money = f.type === "money", digits = f.type === "int" || f.type === "year";
+  const shown = v === "" ? "" : money ? Number(v).toLocaleString(LOC()) : String(v);
+  return '<div class="' + (f.type === "text" ? "full" : "") + bad + '">' + lab + '<input id="' + id + '" type="text" autocomplete="off" enterkeyhint="done"' + at
+    + (money ? ' inputmode="numeric" placeholder="0"' : digits ? ' inputmode="numeric" maxlength="' + (f.type === "year" ? 4 : 9) + '"'
+      : f.type === "number" ? ' inputmode="decimal" maxlength="14"' : ' maxlength="120"')
+    + ' value="' + esc(shown) + '">' + ferr + "</div>";
+}
+function tfInput(el){
+  const s = el.dataset.tfs, f = tfDef(s, el.dataset.tfc);
+  if (!f) return;
+  const g = tfTarget(f);
+  if (f.type === "money") groupDigitsLive(el);
+  else if ((f.type === "int" || f.type === "year") && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
+  else if (f.type === "number") {
+    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
+    if (c !== el.value) el.value = c;
+  }
+  const raw = String(el.value || "").trim();
+  tfSet(s, g, raw === "" ? null : f.type === "money" ? num(raw) : raw);
+  tfDone(s, g.t === "opt" ? g.key : "");
+}
+function tfBool(b){
+  const s = b.dataset.tfs, f = tfDef(s, b.dataset.tfc);
+  if (!f) return;
+  const g = tfTarget(f), v = b.dataset.tfb;
+  const on = String(tfVal(s, g)) === v;
+  tfSet(s, g, on ? null : v);
+  b.parentNode.querySelectorAll("[data-tfb]").forEach(x => x.setAttribute("aria-pressed", String(!on && x === b)));
+  haptic("select");
+  tfDone(s, g.t === "opt" ? g.key : "");
+}
+function tfDone(s, key){
+  wzClearErr("cf");
+  if (key && s === "m") wzClearErr(key);
+  if (s === "m") wzMoreCount(); else ptEdited();
+  wzSave();
+}
+/* в POST /act/make: значения по типу поля шаблона (деньги и числа — числами, да/нет — true/false) */
+function tfCast(f, v){
+  const t = f ? f.type : "";
+  if (t === "bool") return v === "yes" ? true : v === "no" ? false : null;
+  if (t === "money" || t === "int" || t === "year") { const x = num(v); return String(v).trim() === "" ? null : x; }
+  if (t === "number") { const x = dec(v); return x == null || isNaN(x) ? null : x; }
+  return String(v);
+}
+function tfBodyCf(cls, map){
+  const t = tplOf(cls), out = {};
+  const defs = t ? anArr(t.template.must).concat(anArr(t.template.optional)) : [];
+  Object.keys(map || {}).forEach(k => {
+    const f = defs.filter(x => x && x.code === k)[0];
+    const v = f ? tfCast(f, map[k]) : map[k];
+    if (v != null && v !== "") out[k] = v;
+  });
+  return Object.keys(out).length ? out : null;
+}
+/* признаки части: год, место, защита… (validate_part_fields в app/act.py) */
+function tfBodyFields(f){
+  const out = {};
+  Object.keys(f || {}).forEach(k => {
+    const v = f[k];
+    if (v == null || v === "") return;
+    if (k === "year" || k === "seismic_zone") out[k] = Number(v);
+    else if (k === "guard") out[k] = v === "yes";
+    else out[k] = String(v);
+  });
+  return out;
+}
+/* уточнения акта, которые шаблон показывает среди обязательных полей класса — в «Дополнительно» их нет */
+function tplMustKeys(){
+  const cls = wzClass(), t = tplMainShown() ? tplOf(cls) : null, out = {};
+  if (t) tfList(t.template.must).forEach(f => { const g = tfTarget(f); if (g.t === "opt") out[g.key] = 1; });
+  return out;
+}
+const tplMainShown = () => !!wzClass() && !ptOn();
+/* карточка «Поля класса»: обязательные поля шаблона, вид объекта, документы по классу */
+function tplCardHtml(){
+  const cls = wzClass();
+  if (!cls || ptOn()) return "";
+  tplNeed(cls);
+  const x = TPL.cache[tplKey(cls)];
+  const err = CH.errs.cf;
+  let h = '<section class="card tpl-card' + (err ? " bad" : "") + '" id="tplCard"><h2>' + esc(T("tg.tpl.title", "Поля класса")) + "</h2>";
+  if (!x) return h + '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></section>";
+  if (!x.template) return h + '<p class="note err">' + esc(T("tg.tpl.failed", "Шаблон класса не загрузился: {reason}. Поля класса можно не заполнять — акт отметит, чего не хватает.", {reason: x.err || T("tg.err.offline", "сервер не отвечает")})) + "</p></section>";
+  const tp = x.template;
+  h += '<p class="sub">' + esc([anStr(tp.name), anStr(tp.object && tp.object.description)].filter(Boolean).join(". "))
+    + ' <span class="tpl-v">' + esc(T("tg.tpl.version", "шаблон {v}", {v: anStr(x.version)})) + "</span></p>"
+    + '<div class="fgrid">' + tfHtml(tfKindField(cls), "m", cls) + tfList(tp.must).map(f => tfHtml(f, "m", cls)).join("") + "</div>"
+    + '<p class="hint">' + esc(T("tg.tpl.must_hint", "Нужны для акта по этому классу. Не заполнено — акт покажет поле в «чего не хватает»; расчёт всё равно выполнится.")) + "</p>";
+  const docs = anArr(tp.documents && tp.documents.items).map(anStr).filter(Boolean);
+  if (docs.length) h += '<div class="h3">' + esc(T("tg.tpl.docs", "Документы по классу")) + '</div><ul class="tpl-docs">' + docs.map(d => "<li>" + esc(d) + "</li>").join("") + "</ul>";
+  return h + '<span class="ferr" id="wzErr-cf">' + esc(err || "") + "</span></section>";
+}
+/* «Дополнительно»: необязательные поля класса из шаблона */
+function tplMoreHtml(){
+  const cls = wzClass(), t = tplMainShown() ? tplOf(cls) : null;
+  if (!t) return "";
+  const fs = tfList(t.template.optional).filter(f => tfTarget(f).t !== "opt");
+  if (!fs.length) return "";
+  return '<div class="full"><div class="h3">' + esc(T("tg.tpl.more_h", "Поля класса: {name}", {name: anStr(t.template.name)})) + "</div></div>"
+    + fs.map(f => tfHtml(f, "m", cls)).join("");
+}
+function tplMoreCount(){
+  const t = tplMainShown() ? tplOf(wzClass()) : null;
+  if (!t) return 0;
+  const cf = CH.opt.cf || {};
+  return tfList(t.template.optional).filter(f => { const g = tfTarget(f); return g.t === "cf" && cf[g.key] != null && cf[g.key] !== ""; }).length;
+}
+
+/* =====================================================================================
+   Комплексный продукт по частям (ТЗ универсального шаблона, 4.1в; сервер — app/act.py, _parts_plan / _parts_view).
+   Шаг «Проверить», карточка «Части договора»: у продукта больше одного класса или сотрудник добавил часть.
+   Суммы частей вводит сотрудник или предлагает первый расчёт (parts.suggested_parts); доля — сумма части к
+   страховой сумме договора. Кнопка «Сформировать акт» неактивна, пока сумма частей расходится с договором больше
+   чем на 1 сум (настройка parts.sum_tolerance). «Подтвердить распределение» → optional.parts и parts_confirmed.
+   Стоимость части — только у классов 3–9 (ГК ст. 936, 938). Состояние — в sessionStorage вместе с мастером.
+   ===================================================================================== */
+const PT_TOL = 1;                                  // app/act_engine.py DEFAULTS["parts"]["sum_tolerance"], сумов
+const PT_MAX = 10;                                 // app/act_engine.py MAX_PARTS
+const ptValOk = cls => ["3", "4", "5", "6", "7", "8", "9"].indexOf(String(cls)) >= 0;
+function ptProdClasses(){
+  const m = CH.must;
+  if (m.product_code) { const c = wzClassesOf(wzProd(m.product_code)); if (c.length) return c; }
+  return m.class_code ? [m.class_code] : [];
+}
+const ptOn = () => !!wzClass() && (ptProdClasses().length > 1 || !!(CH.pt && CH.pt.items.length) || !!CH.ptAdd);
+const ptItem = (cls, sum) => ({cls: String(cls), sum: sum > 0 ? sum : null, value: null, kind: "", f: {}, cf: {}, fr: "", desc: "", pcode: "", guess: false});
+const ptSum = () => ((CH.pt && CH.pt.items) || []).reduce((a, x) => a + (Number(x.sum) || 0), 0);
+function ptOk(){
+  if (!CH.pt || !CH.pt.items.length) return true;
+  const S = Number(CH.must.sum_insured) || 0;
+  if (!S) return true;                               // нет страховой суммы — скажет обязательное поле
+  return CH.pt.items.every(x => Number(x.sum) > 0) && Math.abs(ptSum() - S) <= PT_TOL;
+}
+function ptSrcName(src){
+  switch (src) {
+    case "default": return T("tg.pt.src.default", "поровну по умолчанию");
+    case "contract": return T("tg.pt.src.contract", "по перечню объектов договора");
+    case "policy_shares": return T("tg.pt.src.policy_shares", "по долям тарифной политики");
+    default: return T("tg.pt.src.employee", "распределение сотрудника");
+  }
+}
+function ptSrcText(){
+  const pt = CH.pt;
+  if (!pt || !pt.items.length) return T("tg.pt.src.none", "Распределение предложит первый расчёт");
+  const P = CH.act && CH.act.parts && CH.act.parts.mode === "multi" ? CH.act.parts : null;
+  const label = pt.edited ? ptSrcName("employee") : P && P.source === pt.src && anStr(P.source_label) ? anStr(P.source_label) : ptSrcName(pt.src);
+  return T("tg.pt.src_line", "Источник: {s}", {s: label}) + (pt.confirmed ? " · " + T("tg.pt.confirmed_short", "подтверждено")
+    : " — " + T("tg.pt.confirm_ask", "подтвердите"));
+}
+/* части из ответа сервера: предложение (suggested_parts) или посчитанные части; введённое у той же части — сохраняется */
+function ptFromServer(P){
+  const src = anArr(P.suggested_parts).length ? P.suggested_parts : anArr(P.items);
+  const prev = CH.pt;
+  CH.pt = {items: src.slice(0, PT_MAX).map((x, i) => {
+      const cls = String(x.class_code || ""), old = prev && prev.items[i] && prev.items[i].cls === cls ? prev.items[i] : null;
+      const it = ptItem(cls, Number(x.sum_insured) || 0);
+      if (old) Object.assign(it, {kind: old.kind, f: old.f, cf: old.cf, fr: old.fr});
+      if (!it.kind && x.object_kind) it.kind = String(x.object_kind);
+      if (ptValOk(cls) && isNum(x.object_value) && Number(x.object_value) > 0) it.value = Number(x.object_value);
+      it.desc = anStr(x.object_description).slice(0, 200);
+      it.pcode = anStr(x.product_code);
+      it.guess = !!x.class_guess;
+      return it;
+    }), same: prev ? prev.same : null, sameDef: typeof P.same_object_default === "boolean" ? P.same_object_default : null,
+    confirmed: !!P.confirmed, edited: P.source === "employee", src: anStr(P.source) || "default", hint: false,
+    key: ptProdClasses().join(",")};
+}
+/* правка частей: подтверждение снимается, итог и доли — на месте, поля не перерисовываются */
+function ptEdited(){
+  if (!CH.pt) return;
+  CH.pt.edited = true;
+  CH.pt.confirmed = false;
+  CH.pt.hint = false;
+  wzClearErr("parts");
+  ptPaintLive();
+  wzSave();
+}
+function ptPaintLive(){
+  const S = Number(CH.must.sum_insured) || 0;
+  const src = $("#ptSrc");
+  if (src) src.textContent = ptSrcText();
+  const hint = $("#ptHint");
+  if (hint && !(CH.pt && CH.pt.hint)) hint.remove();
+  ((CH.pt && CH.pt.items) || []).forEach((x, i) => {
+    const e = $("#ptSh-" + i);
+    if (e) e.textContent = S && Number(x.sum) > 0 ? pct(x.sum / S * 100, 2) : "—";
+  });
+  const tot = $("#ptTotal");
+  if (tot) tot.innerHTML = ptTotalHtml();
+  const b = $("#ptConfirm");
+  if (b) { b.disabled = !ptOk(); b.textContent = ptConfirmLabel(); b.setAttribute("aria-pressed", String(!!(CH.pt && CH.pt.confirmed))); }
+  wzBarPaint();
+}
+const ptConfirmLabel = () => CH.pt && CH.pt.confirmed ? T("tg.pt.confirmed", "Распределение подтверждено") : T("tg.pt.confirm", "Подтвердить распределение");
+function ptTotalHtml(){
+  if (!CH.pt || !CH.pt.items.length) return "";
+  const S = Number(CH.must.sum_insured) || 0, tot = ptSum();
+  if (!S) return '<p class="pt-tot">' + esc(T("tg.pt.need_sum", "Укажите страховую сумму договора — сверим с ней сумму частей.")) + "</p>";
+  const d = tot - S, zero = CH.pt.items.some(x => !(Number(x.sum) > 0)), bad = zero || Math.abs(d) > PT_TOL;
+  return '<p class="pt-tot' + (bad ? " bad" : " ok") + '" role="status"><b>' + esc(T("tg.pt.total", "Сумма частей {x} из {y}", {x: money(tot), y: money(S)})) + "</b>"
+    + (bad ? "<span>" + esc(zero ? T("tg.pt.zero", "У каждой части должна быть сумма больше нуля — впишите её или удалите часть.")
+      : T("tg.pt.diff", "Разница {d}. Суммы частей должны сложиться в страховую сумму договора — до этого акт не сформировать.", {d: sgnMoney(d)})) + "</span>" : "")
+    + "</p>";
+}
+function ptAddHtml(){
+  const R = CH.refs;
+  const n = (CH.pt && CH.pt.items.length) || 0;
+  if (!R || n >= PT_MAX) return "";
+  const prod = ptProdClasses();
+  return '<div class="pt-add"><label class="f" for="ptAddCls">' + esc(T("tg.pt.add_label", "Добавить часть другого класса")) + "</label>"
+    + '<div class="pt-add-row"><select id="ptAddCls"><option value="">' + esc(T("tg.pt.add_pick", "Выберите класс")) + "</option>"
+    + R.classes.map(c => '<option value="' + esc(c.code) + '">' + esc(c.code + " — " + wzClsName(c.code, c.name)
+      + (prod.length && prod.indexOf(c.code) < 0 ? " · " + T("tg.pt.outside_short", "не из продукта") : "")) + "</option>").join("") + "</select>"
+    + '<button type="button" class="btn btn-secondary btn-sm" data-go="ptadd">' + esc(T("tg.pt.add", "+ часть")) + "</button></div>"
+    + '<span class="ferr" id="wzErr-ptadd"></span></div>';
+}
+function ptRowHtml(it, i){
+  const S = Number(CH.must.sum_insured) || 0, n = i + 1, prod = ptProdClasses();
+  tplNeed(it.cls);
+  const x = TPL.cache[tplKey(it.cls)], t = x && x.template ? x : null;
+  const outside = prod.length && prod.indexOf(it.cls) < 0 && !it.pcode;
+  const tags = (outside ? '<span class="tag warn">' + esc(T("tg.pt.outside", "класс не из состава продукта")) + "</span>" : "")
+    + (it.guess ? '<span class="tag warn">' + esc(T("tg.pt.guess", "класс не распознан — проверьте")) + "</span>" : "");
+  let h = '<div class="pt-row" data-pti="' + i + '"><div class="pt-h"><p><b>' + esc(T("tg.pt.part_n", "Часть {n}", {n: n})) + "</b> "
+    + esc(it.cls + " — " + wzClsName(it.cls)) + "</p>"
+    + '<button type="button" class="btn-link pt-del" data-ptdel="' + i + '" aria-label="' + esc(T("tg.pt.del_aria", "Удалить часть {n}", {n: n})) + '">'
+    + esc(T("tg.pt.del", "удалить")) + "</button></div>"
+    + (tags ? '<p class="pt-tags">' + tags + "</p>" : "")
+    + (it.desc ? '<p class="pt-desc">' + esc(it.desc) + "</p>" : "")
+    + '<div class="fgrid pt-g">'
+    + '<div><label class="f" for="pts-' + i + '">' + esc(T("tg.pt.sum", "Страховая сумма части")) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
+    + '<input id="pts-' + i + '" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" data-pts="' + i + '" placeholder="0" value="'
+    + esc(Number(it.sum) > 0 ? Number(it.sum).toLocaleString(LOC()) : "") + '"></div>'
+    + '<div><label class="f">' + esc(T("tg.pt.share", "Доля в договоре")) + '</label><p class="pt-sh" id="ptSh-' + i + '">'
+    + esc(S && Number(it.sum) > 0 ? pct(it.sum / S * 100, 2) : "—") + "</p></div>"
+    + (ptValOk(it.cls)
+      ? '<div><label class="f" for="ptv-' + i + '">' + esc(T("tg.pt.value", "Стоимость объекта части")) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
+        + '<input id="ptv-' + i + '" type="text" inputmode="numeric" autocomplete="off" enterkeyhint="done" data-ptv="' + i + '" placeholder="'
+        + esc(T("tg.pt.value_ph", "по доле договора")) + '" value="' + esc(Number(it.value) > 0 ? Number(it.value).toLocaleString(LOC()) : "") + '"></div>'
+      : '<div><label class="f">' + esc(T("tg.pt.value", "Стоимость объекта части")) + '</label><p class="pt-na">'
+        + esc(T("tg.pt.value_na", "не применяется: у класса нет страховой стоимости")) + "</p></div>")
+    + '<div><label class="f" for="ptfr-' + i + '">' + esc(T("tg.pt.fr", "Своя франшиза части")) + ' <span class="unit">%</span></label>'
+    + '<input id="ptfr-' + i + '" type="text" inputmode="decimal" maxlength="6" autocomplete="off" enterkeyhint="done" data-ptfr="' + i + '" placeholder="'
+    + esc(T("tg.pt.fr_ph", "без франшизы")) + '" value="' + esc(it.fr || "") + '"></div>';
+  if (!x) h += '<div class="full"><p class="note">' + spin(T("tg.tpl.loading", "загружаю поля класса…")) + "</p></div>";
+  else if (!t) h += '<div class="full"><p class="note err">' + esc(T("tg.tpl.failed_short", "Поля класса не загрузились — часть посчитается без них.")) + "</p></div>";
+  // марка и модель (recognized.*) — у части 1: это объект договора, у остальных частей своего распознавания нет
+  else h += tfHtml(tfKindField(it.cls), String(i), it.cls) + tfList(t.template.must, i > 0).map(f => tfHtml(f, String(i), it.cls)).join("");
+  h += "</div>";
+  if (t) {
+    const more = tfList(t.template.optional, i > 0);
+    if (more.length) {
+      h += '<details class="pt-more"' + (CH.ptMore && CH.ptMore[i] ? " open" : "") + ' data-ptmore="' + i + '"><summary>' + esc(T("tg.pt.more", "Ещё поля класса · {n}", {n: more.length}))
+        + '</summary><div class="fgrid pt-g">' + more.map(f => tfHtml(f, String(i), it.cls)).join("") + "</div></details>";
+    }
+  }
+  return h + "</div>";
+}
+function ptCardHtml(){
+  if (!wzClass()) return "";
+  if (!ptOn()) {
+    return '<div class="qadd pt-open"><button type="button" data-go="ptopen">' + esc(T("tg.pt.open", "+ часть другого класса")) + "</button></div>";
+  }
+  const pt = CH.pt, prod = ptProdClasses(), err = CH.errs.parts;
+  let h = '<section class="card pt-card' + (err ? " bad" : "") + '" id="ptCard"><h2>' + esc(T("tg.pt.title", "Части договора")) + "</h2>"
+    + '<p class="sub" id="ptSrc">' + esc(ptSrcText()) + "</p>";
+  if (pt && pt.hint) {
+    h += '<p class="pt-hint" id="ptHint">' + esc(T("tg.pt.hint", "Первый расчёт сделан по предложенному распределению. Проверьте суммы частей, подтвердите распределение и сформируйте акт снова. Акт по предложению открыт на шаге «Акт».")) + "</p>";
+  }
+  if (!pt || !pt.items.length) {
+    h += '<p class="note">' + esc(prod.length > 1
+        ? T("tg.pt.empty", "Классы продукта: {list}. Как разделить страховую сумму между ними, предложит первый расчёт — нажмите «Сформировать акт», затем проверьте и подтвердите части. Или задайте суммы сами.", {list: prod.map(c => c + " — " + wzClsName(c)).join("; ")})
+        : T("tg.pt.empty_one", "Выберите класс второй части — первой частью станет класс продукта с суммой договора.")) + "</p>"
+      + (prod.length > 1 ? '<div class="qadd"><button type="button" data-go="ptinit">' + esc(T("tg.pt.init", "Задать суммы частей")) + "</button></div>" : "")
+      + ptAddHtml() + '<span class="ferr" id="wzErr-parts">' + esc(err || "") + "</span></section>";
+    return h;
+  }
+  const same = pt.same != null ? pt.same : !!pt.sameDef;
+  h += '<label class="f">' + esc(T("tg.pt.objects", "Части относятся к")) + "</label>"
+    + '<div class="segsel" role="group" aria-label="' + esc(T("tg.pt.objects", "Части относятся к")) + '">'
+    + '<button type="button" data-ptsame="one" aria-pressed="' + same + '">' + esc(T("tg.pt.one", "Один объект")) + "</button>"
+    + '<button type="button" data-ptsame="diff" aria-pressed="' + !same + '">' + esc(T("tg.pt.diff_obj", "Разные объекты")) + "</button></div>"
+    + '<span class="hint">' + esc(same ? T("tg.pt.one_hint", "Один объект: сценарии убытка договора — по самой крупной части.")
+      : T("tg.pt.diff_hint", "Разные объекты: сценарии убытка частей складываются.")) + "</span>"
+    + pt.items.map(ptRowHtml).join("")
+    + '<div id="ptTotal">' + ptTotalHtml() + "</div>"
+    + ptAddHtml()
+    + '<div class="actions"><button type="button" class="btn btn-secondary" id="ptConfirm" data-go="ptconfirm" aria-pressed="' + !!pt.confirmed + '"' + (ptOk() ? "" : " disabled") + ">"
+    + esc(ptConfirmLabel()) + "</button></div>"
+    + '<span class="ferr" id="wzErr-parts">' + esc(err || "") + "</span></section>";
+  return h;
+}
+function ptInit(){
+  const prod = ptProdClasses();
+  CH.pt = {items: prod.slice(0, PT_MAX).map(c => ptItem(c, 0)), same: null, sameDef: null, confirmed: false, edited: true,
+    src: "employee", hint: false, key: prod.join(",")};
+  wzSave();
+  wzPart("parts");
+  wzBarPaint();
+}
+function ptAdd(){
+  const sel = $("#ptAddCls"), cls = sel ? sel.value : "";
+  if (!cls) {
+    const e = $("#wzErr-ptadd");
+    if (e) e.textContent = T("tg.pt.add_err", "Выберите класс части в списке.");
+    return;
+  }
+  const S = Number(CH.must.sum_insured) || 0, prod = ptProdClasses();
+  if (!CH.pt || !CH.pt.items.length) {
+    CH.pt = {items: [], same: null, sameDef: null, confirmed: false, edited: true, src: "employee", hint: false, key: prod.join(",")};
+    // у продукта один класс: первая часть — класс продукта с суммой договора, её сотрудник уменьшит
+    if (prod.length <= 1) CH.pt.items.push(ptItem(wzClass(), S));
+    else prod.forEach(c => CH.pt.items.push(ptItem(c, 0)));
+  }
+  if (CH.pt.items.length < PT_MAX) CH.pt.items.push(ptItem(cls, 0));
+  CH.ptAdd = true;
+  haptic("select");
+  ptEdited();
+  wzPart("parts");
+  const last = $("#pts-" + (CH.pt.items.length - 1));
+  if (last) try { last.focus({preventScroll: true}); } catch (e) {}
+}
+function ptDel(i){
+  if (!CH.pt || !CH.pt.items[i]) return;
+  CH.pt.items.splice(i, 1);
+  CH.ptMore = {};
+  // у продукта с одним классом одна часть — это обычный акт
+  if (!CH.pt.items.length || (ptProdClasses().length <= 1 && CH.pt.items.length < 2)) { CH.pt = null; CH.ptAdd = false; }
+  haptic("select");
+  if (CH.pt) ptEdited(); else wzSave();
+  wzPart("parts");
+  wzPart("tpl");
+  wzPart("more");
+  wzBarPaint();
+}
+function ptMoneyInput(el, key){
+  const it = CH.pt && CH.pt.items[Number(el.dataset[key === "sum" ? "pts" : "ptv"])];
+  if (!it) return;
+  groupDigitsLive(el);
+  const v = num(el.value);
+  it[key] = v > 0 ? v : null;
+  ptEdited();
+}
+function ptFrInput(el){
+  const it = CH.pt && CH.pt.items[Number(el.dataset.ptfr)];
+  if (!it) return;
+  const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
+  if (c !== el.value) el.value = c;
+  it.fr = c;
+  ptEdited();
+}
+function ptSame(v){
+  if (!CH.pt) return;
+  CH.pt.same = v === "one";
+  haptic("select");
+  ptEdited();
+  wzPart("parts");
+}
+function ptConfirm(){
+  if (!CH.pt || !ptOk()) return;
+  if (ptFrBad()) { CH.errs.parts = errText("parts"); wzPart("parts"); return; }
+  CH.pt.confirmed = true;
+  CH.pt.edited = true;
+  CH.pt.hint = false;
+  wzClearErr("parts");
+  haptic("success");
+  wzSave();
+  wzPart("parts");
+  wzBarPaint();
+}
+const ptFrBad = () => ((CH.pt && CH.pt.items) || []).some(x => String(x.fr || "").trim() !== "" && !(dec(x.fr) > 0 && dec(x.fr) <= 50));
+/* в POST /act/make: части сотрудника (правка или подтверждение); предложение без правок сервер соберёт сам */
+function ptBody(){
+  const pt = CH.pt;
+  if (!pt || !pt.items.length || !(pt.edited || pt.confirmed)) return null;
+  return pt.items.map(it => {
+    const p = {class_code: it.cls, sum_insured: Number(it.sum) || 0};
+    if (it.pcode) p.product_code = it.pcode;
+    if (ptValOk(it.cls) && Number(it.value) > 0) p.object_value = Number(it.value);
+    if (it.kind) p.object_kind = it.kind;
+    if (it.desc) p.object_description = it.desc;
+    const f = tfBodyFields(it.f), cf = tfBodyCf(it.cls, it.cf);
+    if (cf) f.class_fields = cf;
+    if (Object.keys(f).length) p.fields = f;
+    const fr = dec(it.fr);
+    if (fr > 0) p.deductible = {pct: fr, type: "unconditional"};
+    return p;
+  });
+}
+function ptLoad(s){
+  const o = v => v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  if (!s || !Array.isArray(s.items)) return null;
+  const items = s.items.filter(x => x && /^[0-9]{1,2}[a-zа-я]?$/i.test(String(x.cls || ""))).slice(0, PT_MAX).map(x => Object.assign(ptItem(x.cls, Number(x.sum) || 0), {
+    value: Number(x.value) > 0 ? Number(x.value) : null, kind: /^[a-z_]{1,40}$/.test(String(x.kind || "")) ? x.kind : "",
+    f: o(x.f), cf: o(x.cf), fr: typeof x.fr === "string" ? x.fr.slice(0, 6) : "", desc: typeof x.desc === "string" ? x.desc.slice(0, 200) : "",
+    pcode: typeof x.pcode === "string" ? x.pcode.slice(0, 10) : "", guess: !!x.guess}));
+  if (!items.length) return null;
+  return {items: items, same: typeof s.same === "boolean" ? s.same : null, sameDef: typeof s.sameDef === "boolean" ? s.sameDef : null,
+    confirmed: !!s.confirmed, edited: !!s.edited, src: /^[a-z_]{1,20}$/.test(String(s.src || "")) ? s.src : "default", hint: !!s.hint,
+    key: typeof s.key === "string" ? s.key : ""};
+}
+
+/* ---------- шаг 3: договор по частям ---------- */
+function ptAct(a){ const P = a && a.parts; return P && P.mode === "multi" && anArr(P.items).length ? P : null; }
+/* «600 000 soʻm»: единица — отдельным неразрывным словом, переносится целиком, а не посреди «soʻm» */
+function premUnitHtml(s){
+  const m = /^(.*\d)[\s  ]+(\D+)$/.exec(String(s || ""));
+  return m ? esc(m[1]) + ' <span class="u">' + esc(m[2]) + "</span>" : esc(s);
+}
+function ptSumHtml(a, P){
+  const tt = anObj(P.totals), sc = anObj(tt.scenarios), ret = anObj(tt.retention);
+  const lv = tt.level, lvI = ["low", "moderate", "high"].indexOf(lv), val = a.value || {};
+  const cv = anObj(tt.value);
+  const ratio = isNum(cv.ratio_pct) ? pct(cv.ratio_pct, dp(cv.ratio_pct) ? 2 : 0) : T("tg.pt.value_na_short", "не применяется");
+  const fv = cv.verdict;
+  let h = '<div class="act-kpis">'
+    + '<div class="kprem"><span>' + esc(T("tg.act.premium", "Премия")) + "</span><b>" + premUnitHtml(anStr(tt.premium_text) || actPremium(a)) + "</b>"
+    + "<em>" + esc(T("tg.pt.prem_sum", "сумма премий {n} частей", {n: P.items.length})) + "</em></div>"
+    + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
+    + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
+    + '<b class="lvname">' + esc(anStr(tt.level_label) || levelName(lv)) + "</b>"
+    + "<em>" + esc(T("tg.pt.worst", "по самой опасной части {n}", {n: tt.worst_index})) + "</em></div>"
+    + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
+    + (isNum(cv.ratio_pct) && verdictName(fv) ? '<em class="' + (fv === "normal" ? "ok" : "warn") + '">' + esc(verdictName(fv)
+      + (anArr(cv.parts).length ? " · " + T("tg.pt.value_parts", "части {list}", {list: cv.parts.join(", ")}) : "")) + "</em>" : "") + "</div>"
+    + "<div><span>" + esc(T("tg.pt.parts_n", "Частей в договоре")) + "</span><b>" + esc(String(P.items.length)) + "</b>"
+    + "<em>" + esc(anStr(P.object_mode_label)) + "</em></div>"
+    + "</div>";
+  if (isNum(tt.reference_rate_pct)) {
+    h += '<p class="pt-ref">' + esc(T("tg.pt.ref_rate", "Ставка договора {r} — справочно, минимум проверен по каждому классу.", {r: pct(tt.reference_rate_pct, dp(tt.reference_rate_pct))})) + "</p>";
+  }
+  if (sc.available) {
+    h += '<div class="sc-tiles pt-sc">' + [["pml", "PML"], ["eml", "EML"], ["mfl", "MFL"]].map(k => '<div class="sc-t"><p><b>' + k[1] + "</b>" + esc(scName(k[0])) + "</p>"
+      + "<strong>" + esc(money(sc[k[0]])) + "</strong></div>").join("") + "</div>"
+      + (anStr(sc.rule_text) ? '<p class="pt-ref">' + esc(sc.rule_text) + "</p>" : "");
+  }
+  if (ret.known && isNum(ret.limit)) {
+    const over = Number(ret.eml_excess) > 0;
+    h += '<div class="sc-ret"><span>' + esc(T("tg.act.ret_title", "Лимит собственного удержания")) + "</span><b>" + esc(money(ret.limit)) + "</b>"
+      + '<small class="' + (over || ret.status === "temporary" ? "warn" : "") + '">' + esc([over
+        ? T("tg.pt.ret_over", "EML договора выше удержания на {x}", {x: money(ret.eml_excess)}) : T("tg.pt.ret_ok", "EML договора в пределах удержания"),
+      ret.status === "temporary" ? T("tg.act.ret_temp", "по временным данным о собственных средствах — не отчётность") : ""].filter(Boolean).join("; ")) + "</small></div>";
+  }
+  const fr = a.franchise || {};
+  if (anStr(fr.text)) h += '<p class="act-line"><b>' + esc(T("tg.act.franchise", "Франшиза")) + ":</b> " + esc(fr.text) + "</p>";
+  if (!P.confirmed) {
+    h += '<div class="pt-warn" role="status"><p><b>' + esc(T("tg.pt.unconfirmed", "Распределение не подтверждено")) + "</b></p>"
+      + "<p>" + esc(T("tg.pt.unconfirmed_text", "Акт посчитан так: {s}. Проверьте суммы частей и подтвердите их на шаге «Проверить» — затем сформируйте акт снова.", {s: anStr(P.source_label) || ptSrcName(P.source)})) + "</p>"
+      + '<button type="button" class="btn btn-secondary btn-sm" data-go="toparts">' + esc(T("tg.pt.to_parts", "Вернуться к частям")) + "</button></div>";
+  }
+  return h;
+}
+function ptTableHtml(P){
+  const tb = anObj(P.table), cols = anArr(tb.columns).map(anStr), rows = anArr(tb.rows);
+  if (!cols.length || !rows.length) return "";
+  return '<table class="an-t pt-t fold"><thead><tr>' + cols.map((c, i) => "<th" + (i >= 2 && i !== 3 && i !== 6 ? ' class="n"' : "") + ">" + esc(c) + "</th>").join("") + "</tr></thead><tbody>"
+    + rows.map((r, ri) => '<tr' + (ri === rows.length - 1 && !anStr(anArr(r)[0]) ? ' class="tot"' : "") + ">" + anArr(r).map((v, i) => '<td data-l="' + esc(cols[i] || "") + '"'
+      + (i === 1 ? ' class="h"' : i >= 2 && i !== 3 && i !== 6 ? ' class="n"' : "") + ">" + esc(anStr(v) || (i === 0 ? "" : "—")) + "</td>").join("") + "</tr>").join("")
+    + "</tbody></table>";
+}
+function ptPartHtml(p){
+  const n = p.index, open = CH.ptOpen && CH.ptOpen[n] != null ? !!CH.ptOpen[n] : false;
+  const r = anObj(p.rate), fr = anObj(p.franchise), v = anObj(p.value);
+  const tags = (p.class_outside ? '<span class="tag warn">' + esc(T("tg.pt.outside", "класс не из состава продукта")) + "</span>" : "")
+    + (p.class_guess ? '<span class="tag warn">' + esc(T("tg.pt.guess", "класс не распознан — проверьте")) + "</span>" : "");
+  const fx = anArr(anObj(p.risk).factors).filter(x => x && anStr(x.text));
+  const how = anArr(r.how).map(anStr).filter(Boolean);
+  const grounds = anArr(fr.grounds).filter(g => g && anStr(g.text));
+  const miss = anArr(p.missing).filter(x => x && anStr(x.label));
+  const ratio = v.applicable && isNum(v.ratio_pct) ? pct(v.ratio_pct, dp(v.ratio_pct) ? 2 : 0) : "";
+  const head = [anStr(p.premium_text), anStr(p.level_label)].filter(Boolean).join(" · ");
+  return '<details class="an-c pt-c" data-ptn="' + esc(n) + '"' + (open ? " open" : "") + '><summary><span class="an-ct">' + esc(anStr(p.label) || T("tg.pt.part_n", "Часть {n}", {n: n}))
+    + '</span><em class="an-ch">' + esc(head) + '</em></summary><div class="an-in">'
+    + (tags ? '<p class="pt-tags">' + tags + "</p>" : "")
+    + (anStr(p.object_description) ? '<p class="an-note">' + esc(p.object_description) + "</p>" : "")
+    + '<h4 class="an-h4">' + esc(T("tg.pt.h_level", "Уровень риска: {l}", {l: anStr(p.level_label) || levelName(p.level)})) + "</h4>"
+    + (fx.length ? '<ul class="pt-fx">' + fx.map(x => '<li class="' + (x.sign === "up" ? "up" : x.sign === "down" ? "down" : "") + '">' + esc(x.text) + "</li>").join("") + "</ul>"
+      : anNa(T("tg.pt.no_factors", "Признаков, которые меняют уровень, нет — уровень по умолчанию.")))
+    + '<h4 class="an-h4">' + esc(T("tg.pt.h_rate", "Как посчитан тариф")) + "</h4>"
+    + (how.length ? '<ul class="pt-fx">' + how.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>" : anNa())
+    + '<h4 class="an-h4">' + esc(T("tg.act.franchise", "Франшиза")) + "</h4>"
+    + "<p>" + esc(anStr(fr.text) || T("tg.act.fr_none", "не требуется")) + "</p>"
+    + (grounds.length ? '<ul class="pt-fx">' + grounds.map(g => "<li>" + esc(g.text) + "</li>").join("") + "</ul>" : "")
+    + '<h4 class="an-h4">' + esc(T("tg.act.sc_title", "Сценарии убытка")) + "</h4>"
+    + scenInner(anObj(p.scenarios))
+    + '<h4 class="an-h4">' + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</h4>"
+    + "<p>" + (ratio ? "<b>" + esc(ratio) + "</b> " : "") + esc(anStr(v.text) || T("tg.pt.value_na_short", "не применяется")) + "</p>"
+    + (miss.length ? '<h4 class="an-h4">' + esc(T("tg.pt.h_missing", "Не хватает данных")) + '</h4><p class="warn">' + esc(miss.map(x => x.label).join(", ")) + "</p>" : "")
+    + '<h4 class="an-h4">' + esc(T("tg.an.title", "Аналитика риска")) + "</h4>"
+    + (anObj(p.analytics).available ? anCardsHtml(p.analytics, p, "p" + n + ":") : anNa(anStr(anObj(p.analytics).text)))
+    + "</div></details>";
+}
+function ptActHtml(a){
+  const P = ptAct(a);
+  if (!P) return "";
+  const notes = anArr(P.notes).map(anStr).filter(Boolean);
+  return '<section class="card act-card pt-act" aria-label="' + esc(T("tg.pt.title", "Части договора")) + '"><h2>' + esc(T("tg.pt.title", "Части договора")) + "</h2>"
+    + (anStr(P.summary) ? '<p class="sub">' + esc(P.summary) + "</p>" : "")
+    + ptTableHtml(P)
+    + (notes.length ? '<ul class="pt-notes">' + notes.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>" : "")
+    + P.items.map(ptPartHtml).join("")
+    + "</section>";
+}
+/* «Каких документов не хватает»: документы шаблона класса (template.documents) */
+function actTplDocsHtml(a){
+  const tp = anObj(a.template), docs = anArr(anObj(tp.documents).items).map(anStr).filter(Boolean);
+  if (!docs.length) return "";
+  return '<div class="card act-card"><h2>' + esc(T("tg.tpl.docs_miss", "Каких документов не хватает")) + "</h2>"
+    + '<p class="sub">' + esc(T("tg.tpl.docs_sub", "Документы по шаблону класса «{name}». Запросите у клиента те, которых ещё нет.", {name: anStr(tp.name)})) + "</p>"
+    + '<ul class="tpl-docs">' + docs.map(d => "<li>" + esc(d) + "</li>").join("") + "</ul></div>";
 }
 
 /* =====================================================================================
@@ -4962,7 +5723,8 @@ const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_i
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
   want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
   protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr",
-  market: "market", request: "br", contract: "ct"};
+  market: "market", request: "br", contract: "ct",
+  class_fields: "cf", object_kind: "cf", parts: "parts", same_object: "parts", parts_confirmed: "parts"};
 function errText(field){
   switch (field) {
     case "br": return T("tg.dq.err_br", "Проверьте условия запроса филиала: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
@@ -4978,6 +5740,8 @@ function errText(field){
     case "market": return T("tg.mk.err_market", "Проверьте объявления: цена — число больше нуля, год — от 1950, ссылка — https://…, курс доллара — от 100 до 1 000 000 сумов.");
     case "protection": case "seismic_zone": case "construction": case "activity":
       return T("tg.act.err_pick", "Выберите значение из списка или оставьте «не указано».");
+    case "cf": return T("tg.tpl.err_cf", "Проверьте поля класса: суммы и количества — цифрами, варианты — из списка.");
+    case "parts": return T("tg.pt.err_parts", "Проверьте части договора: у каждой части сумма больше нуля, вместе — страховая сумма договора; своя франшиза части — больше 0 и не больше 50 %.");
     default: return T("tg.act.err_value", "Проверьте значение.");
   }
 }
@@ -5018,15 +5782,24 @@ function actBody(){
   // оценка по объявлениям: правки сотрудника, номер загрузки снимков, курс
   const mk = mkBody();
   if (mk) opt.market = mk;
+  // шаблон класса: вид объекта и поля класса (optional.object_kind, optional.class_fields)
+  if (o.object_kind) opt.object_kind = o.object_kind;
+  const cf = tplMainShown() ? tfBodyCf(cls, o.cf) : null;
+  if (cf) opt.class_fields = cf;
+  // части договора: суммы, признаки и поля класса каждой части; «один объект / разные объекты»
+  const pb = ptOn() ? ptBody() : null;
+  if (pb) { opt.parts = pb; opt.parts_confirmed = !!CH.pt.confirmed; }
+  if (ptOn() && CH.pt && CH.pt.same != null) opt.same_object = CH.pt.same;
   // стоимость заменена медианой: в акт уходит и то, что заявил клиент
   if (mk && MK.declOrig > 0 && MK.declOrig !== Number(m.object_value)) opt.declared_value_original = MK.declOrig;
   const body = {lang: I18N_LANG, must: must, optional: opt};
+  const rec = CH.rec.filter(r => String(r.value || "").trim())
+    .map(r => ({key: r.key, value: String(r.value).trim(), source: r.source, file: r.file || null}));
   if (CH.session) {
     body.session = CH.session;
-    body.recognized = CH.rec.filter(r => String(r.value || "").trim())
-      .map(r => ({key: r.key, value: String(r.value).trim(), source: r.source, file: r.file || null}));
+    body.recognized = rec;
     body.damages = CH.damages.map(d => ({what: d.what, where: d.where}));
-  }
+  } else if (rec.length) body.recognized = rec;       // марка и модель из «Полей класса» без фото
   return body;
 }
 async function actMake(){
@@ -5044,6 +5817,7 @@ async function actMake(){
     else { const p = dec(f.pct); if (!(p > 0 && p <= 50)) e.fr = errText("fr"); }
   }
   ["br", "ct"].forEach(k => { const x = dqCheck(k); if (x) e[k] = x; });
+  if (ptOn() && (!ptOk() || ptFrBad())) e.parts = errText("parts");
   if (Object.keys(e).length) { actShowErrors(e); return; }
   CH.errs = {};
   CH.err = "";
@@ -5073,11 +5847,21 @@ async function actMake(){
   CH.act = r.data;
   CH.actId = String(r.data.id || "");
   CH.actErr = "";
-  CH.wz = 3;
+  // комплексный продукт: первый расчёт без частей — предложение сервера в карточку «Части договора» и назад на шаг 2
+  const P = ptAct(r.data);
+  let back = false;
+  if (P) {
+    const first = !CH.pt || !CH.pt.items.length;
+    if (first || (!CH.pt.edited && !CH.pt.confirmed)) ptFromServer(P);
+    else { CH.pt.confirmed = !!P.confirmed; if (typeof P.same_object_default === "boolean") CH.pt.sameDef = P.same_object_default; }
+    if (first && !P.confirmed) { CH.pt.hint = true; back = true; }
+  }
+  CH.wz = back ? 2 : 3;
   wzSave();
   haptic("success");
   wzPaint(true);
   window.scrollTo(0, 0);
+  if (back) wzFocusField("parts");
 }
 function actShowErrors(e){
   CH.errs = e;
@@ -5085,7 +5869,7 @@ function actShowErrors(e){
   if (OPT_KEYS.some(k => e[k]) || e.fr) CH.optOpen = true;
   haptic("error");
   wzPaint(true);
-  const first = ["br", "ct", "prod", "sum_insured", "object_value", "region", "term_days"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
+  const first = ["br", "ct", "prod", "sum_insured", "object_value", "region", "term_days", "parts", "cf"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
   if (first) wzFocusField(first);
 }
 
@@ -5155,12 +5939,14 @@ function wzStep3Html(){
   const fv = val.final_verdict || val.verdict;
   // многолетний договор: премия — на весь срок, тариф — годовой
   const multi = Number(prem.term_days) > 366;
+  // комплексный продукт по частям: плитки договора, таблица и карточки частей (parts.mode = multi)
+  const P = ptAct(a);
   return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
     + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
     + '<div class="card act-sum ' + tone + '">'
     + '<p class="eyebrow">' + esc(T("tg.act.dec_title", "Рекомендация")) + "</p>"
     + '<div class="act-dec">' + esc(decName(dec)) + "</div>"
-    + '<div class="act-kpis">'
+    + (P ? ptSumHtml(a, P) : '<div class="act-kpis">'
     + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
     + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
     + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
@@ -5173,7 +5959,7 @@ function wzStep3Html(){
     + (verdictName(fv) ? '<em class="' + (fv === "normal" ? "ok" : "warn") + '">' + esc(verdictName(fv)
       + (fv === "refine" && isNum(val.refined_ratio_pct) ? T("tg.act.v.refine_ratio", ": к уточнённой {p}", {p: pct(val.refined_ratio_pct, dp(val.refined_ratio_pct))}) : "")) + "</em>" : "") + "</div>"
     + "</div>"
-    + actFrHtml(a)
+    + actFrHtml(a))
     + actMvHtml(a)
     + actCheckHtml(a.request_check, "rq")
     + actCheckHtml(a.contract_check, "ct")
@@ -5190,10 +5976,10 @@ function wzStep3Html(){
     + "</div>"
     // аналитика риска — после сводки, перед документом; сценарии с формулами и удержание — в ней,
     // поэтому отдельная карточка сценариев показывается только у актов без аналитики
-    + actAnHtml(a)
-    + (anScenOk(a) ? "" : actScenHtml(a))
+    + (P ? ptActHtml(a) : actAnHtml(a) + (anScenOk(a) ? "" : actScenHtml(a)))
     + actMeasuresHtml(a)
     + actAltHtml(a)
+    + actTplDocsHtml(a)
     + actDocHtml(a)
     + '<div class="actions">'
     + '<button type="button" class="btn btn-secondary" data-go="fix">' + esc(T("tg.act.fix", "Исправить данные")) + "</button>"
@@ -5269,9 +6055,12 @@ function scName(k){
 function actScenHtml(a){
   const s = a.scenarios;
   if (!s || typeof s !== "object") return "";                   // акт до 29.09.2026 — блока нет
-  const title = '<h2>' + esc(T("tg.act.sc_title", "Сценарии убытка")) + "</h2>";
+  return '<div class="card act-card"><h2>' + esc(T("tg.act.sc_title", "Сценарии убытка")) + "</h2>" + scenInner(s) + "</div>";
+}
+/* плитки PML / EML / MFL, удержание и принятое по умолчанию — для акта и для части договора */
+function scenInner(s){
   if (!s.available) {
-    return '<div class="card act-card">' + title + '<p class="note">PML / EML / MFL: ' + esc(s.note || T("tg.act.na", "данные недоступны")) + "</p></div>";
+    return '<p class="note">PML / EML / MFL: ' + esc(anStr(s.note) || T("tg.act.na", "данные недоступны")) + "</p>";
   }
   // порядок плиток и подписи — из ответа сервера (scenarios.tiles); без него — прежний вид
   const list = Array.isArray(s.tiles) && s.tiles.length ? s.tiles
@@ -5295,8 +6084,7 @@ function actScenHtml(a){
     : Number(r.mfl_excess) > 0 ? T("tg.act.ret_excess", "MFL выше лимита на {x}", {x: money(r.mfl_excess)}) : "";
   const warnRet = r.status === "temporary" || Number(r.eml_excess) > 0 || (!r.text && Number(r.mfl_excess) > 0);
   const asm = (s.assumptions || []).filter(x => x && x.text);
-  return '<div class="card act-card">' + title
-    + '<div class="sc-tiles">' + tiles + "</div>"
+  return '<div class="sc-tiles">' + tiles + "</div>"
     + '<div class="sc-ret"><span>' + esc(T("tg.act.ret_title", "Лимит собственного удержания")) + "</span><b>"
     + esc(known ? money(r.limit) : T("tg.act.ret_unknown", "не задан")) + "</b>"
     + (retNote || excess ? '<small class="' + (warnRet ? "warn" : "") + '">' + esc([retNote, excess].filter(Boolean).join("; ")) + "</small>" : "")
@@ -5304,8 +6092,7 @@ function actScenHtml(a){
     + (s.definitions ? '<p class="note">' + esc(String(s.definitions)) + "</p>" : "")
     + '<p class="note">' + esc(T("tg.act.sc_uncal", "Экспертная оценка: коэффициенты не калиброваны по убыткам компании.")) + "</p>"
     + (asm.length ? '<details class="mini"><summary>' + esc(T("tg.act.sc_assumed", "Принято по умолчанию · {n}", {n: asm.length})) + "</summary><ul>"
-      + asm.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul></details>" : "")
-    + "</div>";
+      + asm.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul></details>" : "");
 }
 /* рекомендации страхователю: что сделать, зачем, срок, влияние на премию; обязательные отмечены */
 function actMeasuresHtml(a){
@@ -5391,7 +6178,7 @@ function anTable(cols, rows, fold){
     + "</tbody></table>";
 }
 function anCard(id, title, head, body){
-  const open = CH.anOpen[id] != null ? !!CH.anOpen[id] : id === "sum";
+  const open = CH.anOpen[id] != null ? !!CH.anOpen[id] : id.split(":").pop() === "sum";
   return '<details class="an-c" data-an="' + id + '"' + (open ? " open" : "") + '><summary><span class="an-ct">' + esc(title) + "</span>"
     + (head ? '<em class="an-ch">' + head + "</em>" : "") + '</summary><div class="an-in">' + body + "</div></details>";
 }
@@ -5417,6 +6204,14 @@ function actAnHtml(a){
       : anStr(an.text) || T("tg.an.na", "Подробная аналитика для этого акта не посчитана.");
     return '<div class="card act-card an-box">' + title + '<p class="note">' + esc(txt) + "</p></div>";
   }
+  return '<section class="card act-card an-box" aria-label="' + esc(T("tg.an.title", "Аналитика риска")) + '">'
+    + '<div class="an-top">' + title + '<button type="button" class="btn-link" data-go="anall">' + esc(anAllLabel()) + "</button></div>"
+    + '<p class="sub">' + esc(T("tg.an.lead", "Из чего сложилась оценка: риски, факторы, тариф, сценарии убытка, рынок. Коэффициенты экспертные, не калиброваны по убыткам компании.")) + "</p>"
+    + anCardsHtml(an, a, "")
+    + "</section>";
+}
+/* одиннадцать карточек аналитики: для акта (pre = "") и для части договора (pre = "p1:" — a — сама часть) */
+function anCardsHtml(an, a, pre){
   const cards = [
     ["sum", T("tg.an.c.sum", "Кратко"), "", anSumHtml(an)],
     ["risks", T("tg.an.c.risks", "Риски"), anRisksHead(an.risks), anRisksHtml(anObj(an.risks))],
@@ -5430,11 +6225,7 @@ function actAnHtml(a){
     ["fr", T("tg.an.c.fr", "Варианты франшизы (справочно)"), anObj(an.franchise).available ? esc(String(anArr(an.franchise.rows).length)) : "", anFrHtml(anObj(an.franchise))],
     ["ms", T("tg.an.c.ms", "Мероприятия"), anArr(anObj(an.measures).items).length ? esc(String(an.measures.items.length)) : "", anMsHtml(anObj(an.measures))],
   ];
-  return '<section class="card act-card an-box" aria-label="' + esc(T("tg.an.title", "Аналитика риска")) + '">'
-    + '<div class="an-top">' + title + '<button type="button" class="btn-link" data-go="anall">' + esc(anAllLabel()) + "</button></div>"
-    + '<p class="sub">' + esc(T("tg.an.lead", "Из чего сложилась оценка: риски, факторы, тариф, сценарии убытка, рынок. Коэффициенты экспертные, не калиброваны по убыткам компании.")) + "</p>"
-    + cards.map(c => anCard(c[0], c[1], c[2], c[3])).join("")
-    + "</section>";
+  return cards.map(c => anCard(pre + c[0], c[1], c[2], c[3])).join("");
 }
 /* открыты ли все карточки — по CH.anOpen (его ведёт обработчик toggle), без чтения старой разметки */
 function anAllOpen(){ return AN_CARDS.every(k => CH.anOpen[k] != null ? !!CH.anOpen[k] : k === "sum"); }
@@ -5442,7 +6233,7 @@ function anAllLabel(){ return anAllOpen() ? T("tg.an.collapse", "Свернут�
 function anAll(){
   const open = !anAllOpen();
   AN_CARDS.forEach(k => { CH.anOpen[k] = open; });
-  document.querySelectorAll("#wzBody details.an-c").forEach(d => { d.open = open; });
+  document.querySelectorAll("#wzBody .an-box details.an-c").forEach(d => { d.open = open; });
   const b = document.querySelector('#wzBody [data-go="anall"]');
   if (b) b.textContent = anAllLabel();
 }
@@ -5921,7 +6712,7 @@ function actReset(){
     missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
     modelN: 0, docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {}, anOpen: {},
     must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false, kind: "",
-    br: null, ct: null, xc: null});
+    br: null, ct: null, xc: null, pt: null, ptAdd: false, ptOpen: {}, ptMore: {}, cfCls: ""});
   mkReset();
   wzSeedRegion();
   wzSave();
@@ -5984,6 +6775,15 @@ function wzClick(e){
   if (d.go === "fix") { wzGo(2); return; }
   if (d.go === "restart") { haptic("select"); actReset(); return; }
   if (d.go === "legal") { openTab("legal"); return; }
+  // части договора и поля класса
+  if (d.tfb) { tfBool(t); return; }
+  if (d.ptdel != null) { ptDel(Number(d.ptdel)); return; }
+  if (d.ptsame) { ptSame(d.ptsame); return; }
+  if (d.go === "ptopen") { CH.ptAdd = true; wzSave(); wzPart("parts"); wzPart("tpl"); wzPart("more"); const s = $("#ptAddCls"); if (s) s.focus(); return; }
+  if (d.go === "ptinit") { ptInit(); return; }
+  if (d.go === "ptadd") { ptAdd(); return; }
+  if (d.go === "ptconfirm") { ptConfirm(); return; }
+  if (d.go === "toparts") { wzGo(2); wzFocusField("parts"); return; }
   if (d.go === "copy") { actCopy(); return; }
   if (d.go === "openbot") { actOpenBot(); return; }
 }
@@ -5998,12 +6798,18 @@ function wzInput(e){
   if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }
   if (el.dataset && el.dataset.mka && el.tagName !== "SELECT") { mkAddInput(el); return; }
   if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
+  if (el.dataset && el.dataset.tf && el.tagName !== "SELECT") { tfInput(el); return; }
+  if (el.dataset && el.dataset.pts != null) { ptMoneyInput(el, "sum"); return; }
+  if (el.dataset && el.dataset.ptv != null) { ptMoneyInput(el, "value"); return; }
+  if (el.dataset && el.dataset.ptfr != null) { ptFrInput(el); return; }
 }
 function wzChange(e){
   const el = e.target;
   if (el.tagName === "SELECT" && el.dataset.fk) wzFieldInput(el);
   if (el.dataset && el.dataset.mkuse != null) mkUse(el);
   if (el.tagName === "SELECT" && el.dataset.mka) mkAddInput(el);
+  if (el.tagName === "SELECT" && el.dataset.tf) tfInput(el);
+  if (el.id === "ptAddCls") { const x = $("#wzErr-ptadd"); if (x) x.textContent = ""; }
 }
 function wzToggle(e){
   const el = e.target;
@@ -6013,6 +6819,8 @@ function wzToggle(e){
     const b = document.querySelector('#wzBody [data-go="anall"]');
     if (b) b.textContent = anAllLabel();
   }
+  if (el && el.tagName === "DETAILS" && el.dataset.ptn) CH.ptOpen[el.dataset.ptn] = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.ptmore) CH.ptMore[el.dataset.ptmore] = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.sn) {
     CH.docOpen[el.dataset.sn] = el.open;
     const b = document.querySelector('#wzBody [data-go="docall"]');

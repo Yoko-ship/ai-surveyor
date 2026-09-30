@@ -1268,6 +1268,24 @@ CREATE TABLE IF NOT EXISTS acts (
     created_at        TEXT NOT NULL,
     expires_at        TEXT NOT NULL
 );
+-- шаблоны анализа по классам (ТЗ — Приложение А; app/class_templates.py): одна строка на версию шаблона класса,
+-- действует наибольшая версия. Источник — docs/act_class_templates.json (заполняет tools/db_build.py, на сервере
+-- доводит class_templates.ensure при старте); правка администратора — новая строка (source = 'admin'), история
+-- сохраняется. Доли рисков и параметры — экспертные, calibrated = 0.
+CREATE TABLE IF NOT EXISTS class_templates (
+    id           INTEGER PRIMARY KEY,
+    class_code   TEXT NOT NULL,                  -- 1..17 (13з → 14, 16у → 16 — по aliases файла)
+    version      TEXT NOT NULL,                  -- «1.0» из файла, правки администратора — 1.1, 1.2, …
+    json         TEXT NOT NULL,                  -- шаблон класса (8 полей приложения А + то, что нужно акту)
+    source       TEXT NOT NULL DEFAULT 'file',   -- 'file' | 'admin'
+    file_version TEXT,                           -- версия файла, от которой строка произошла
+    updated_at   TEXT NOT NULL,
+    updated_by   TEXT,
+    calibrated   INTEGER NOT NULL DEFAULT 0,
+    note         TEXT,
+    UNIQUE (class_code, version)
+);
+CREATE INDEX IF NOT EXISTS idx_class_templates_class ON class_templates (class_code, id);
 CREATE INDEX IF NOT EXISTS idx_act_uploads_expires ON act_uploads (expires_at);
 CREATE INDEX IF NOT EXISTS idx_acts_expires ON acts (expires_at);
 CREATE INDEX IF NOT EXISTS idx_acts_owner ON acts (owner_key, created_at);

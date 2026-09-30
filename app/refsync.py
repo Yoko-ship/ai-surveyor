@@ -354,11 +354,48 @@ def image_path() -> Path:
     return db.ROOT / "data" / "surveyor.db"
 
 
+def sync_templates(target_path=None, busy_ms: int = 2000) -> dict:
+    """
+    Шаблоны анализа по классам (app/class_templates.py): у них свой источник — docs/act_class_templates.json в
+    образе, а не база образа. Таблицы на диске нет — создаётся; класса нет или версия файла новее последней версии
+    в базе — добавляется строка; правки администратора (новые версии) и история не трогаются.
+    """
+    from . import class_templates as ct
+    target_path = Path(target_path or db.DB_PATH)
+    if not target_path.exists():
+        return {"status": "нет базы"}
+    con = sqlite3.connect(str(target_path), isolation_level=None)
+    try:
+        con.execute(f"PRAGMA busy_timeout = {int(busy_ms)}")
+        try:
+            con.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as e:
+            return {"status": "занято", "error": str(e)}
+        try:
+            res = ct.ensure(con, force=True)
+            con.execute("COMMIT")
+        except Exception:
+            if con.in_transaction:
+                con.execute("ROLLBACK")
+            raise
+    finally:
+        con.close()
+    added = res.get("added") or []
+    if added:
+        print(f"шаблоны классов: доведены из файла {res.get('version')}: {', '.join(added)}")
+    return {"status": "обновлено" if added else "актуально", **res}
+
+
 def sync_on_start(image=None) -> dict:
     """
-    Вызывается при старте после ensure_schema(). Без постоянного диска (база и есть образ) — ничего.
+    Вызывается при старте после ensure_schema(). Без постоянного диска (база и есть образ) — справочники не
+    переносятся, но шаблоны классов доводятся из файла всегда (sync_templates).
     База занята — повтор в фоне, старт не ждёт. Ошибка обновления старт не ломает.
     """
+    try:
+        sync_templates()
+    except Exception:
+        log.exception("шаблоны классов не доведены")
     image = Path(image) if image else image_path()
     if not image.exists() or image.resolve() == Path(db.DB_PATH).resolve():
         return {"status": "не требуется"}

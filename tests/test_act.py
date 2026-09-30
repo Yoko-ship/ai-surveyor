@@ -49,7 +49,7 @@ import pymupdf                            # noqa: E402
 from tmpdb import temp_db                 # noqa: E402
 from app import act, act_engine as ae, db, guest, llm   # noqa: E402
 from app import act_market as am, act_texts as tx       # noqa: E402
-from app.engine import Input, min_rate, rate_for        # noqa: E402
+from app.engine import Input, min_rate, premium_of, rate_for   # noqa: E402
 from app.main import app                  # noqa: E402
 
 passed, failed = 0, 0
@@ -1188,9 +1188,9 @@ def check_misc():
         st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(CRANE_MUST, product_code=multi[0]["code"]),
                                            "optional": CRANE_OPT})
         text = all_text(a) if st == 200 else str(a)
-        ok(f"продукт {multi[0]['code']} с несколькими классами — пометка в акте",
+        ok(f"продукт {multi[0]['code']} с несколькими классами — пометка в акте и разбор по частям (30.09.2026)",
            st == 200 and a["rate"]["multi_class"] and "нескольким классам" in text
-           and "разбор по частям отложен" in text, text[:300])
+           and "договор разобран по частям" in text and a["parts"]["mode"] == "multi", text[:300])
     else:
         ok("в справочнике нашёлся продукт с несколькими классами", False)
     st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": CRANE_OPT})
@@ -1399,10 +1399,15 @@ def check_scenarios():
     ok("проценты сценариев — одинаковое число знаков", len({len(re.sub(r"[^\d,.]", "", p).partition(",")[2]) for p in pcts}) == 1,
        pcts)
     st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(WH_MUST, product_code="0701"), "optional": {}})
-    ok("груз (класс 7): сценарий честно «не считается»", st == 200 and a["scenarios"]["available"] is False
-       and "не считается" in a["scenarios"]["note"] and a["scenarios"]["pml"] is None, a.get("scenarios"))
-    ok("груз: в разделе 4 строка «не считается»",
-       any(r["label"] == "PML / EML / MFL" and r["value"] == "не считается" for r in a["sections"][3]["rows"]))
+    # с 30.09.2026 у класса 7 — простое правило шаблона класса (одна отправка / накопление), а не «не считается»
+    ok("груз (класс 7): сценарий по правилу шаблона — одна отправка; без полей класса — страховая сумма",
+       st == 200 and a["scenarios"]["available"] is True and a["scenarios"]["source"] == "template"
+       and a["scenarios"]["rule"] == "shipment" and a["scenarios"]["pml"]["amount"] == WH_MUST["sum_insured"]
+       and {x["code"] for x in a["scenarios"]["assumptions"]} == {"as_tpl_shipment", "as_tpl_accumulation"},
+       a.get("scenarios"))
+    ok("груз: в разделе 4 строки PML, EML, MFL (подпись из шаблона), строки «не считается» нет",
+       any(r["label"].startswith("PML") and r.get("note") == "одна отправка" for r in a["sections"][3]["rows"])
+       and not any(r["value"] == "не считается" for r in a["sections"][3]["rows"]), a["sections"][3]["rows"][:6])
     # собственных средств нет — удержание «не задан»
     with db.tx() as con:
         saved = db.rows(con, "SELECT * FROM company_financials")
@@ -5358,6 +5363,841 @@ def check_contract_template_filled():
        (len(CALLS), sent[:300]))
 
 
+# ------------------------------------------------------------------ 41. шаблоны анализа по классам (30.09.2026)
+
+TPL_REPORT = {}
+
+
+def _admin_header(login: str) -> tuple:
+    """Сессия администратора в копии базы: заголовок Authorization."""
+    now = datetime.now().isoformat(timespec="seconds")
+    token = secrets.token_urlsafe(32)
+    with db.tx() as con:
+        cur = con.execute("INSERT INTO users (login, full_name, role, branch, password_hash, salt, status, created_at,"
+                          " approved_by, approved_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+                          (login, "Test Admin", "админ", "тест", secrets.token_hex(32), secrets.token_hex(16),
+                           "активен", now, "test", now))
+        con.execute("INSERT INTO sessions (token, user_id, created_at, expires_at, ip, user_agent) VALUES (?,?,?,?,?,?)",
+                    (token, cur.lastrowid, now, (datetime.now() + timedelta(hours=2)).isoformat(timespec="seconds"),
+                     "127.0.0.1", "test_act"))
+    return (b"authorization", f"Bearer {token}".encode())
+
+
+def check_templates_ref():
+    print("41а. Шаблоны 17 классов: файл, таблица class_templates, структура, доли, оговорки, мероприятия, ракурсы")
+    from app import class_templates as ctm
+    data = ctm.load_file()
+    ok("файл шаблонов: версия 1.0.1 от 30.09.2026 (замечания контролёра), 17 классов 1–17, 13з → 14, 16у → 16",
+       data["version"] == "1.0.1" and data["date"] == "2026-09-30" and sorted(data["classes"], key=int) ==
+       [str(i) for i in range(1, 18)] and data["aliases"] == {"13з": "14", "16у": "16"}, list(data["classes"]))
+    with db.tx() as con:
+        ctm.ensure(con)
+        rows = ctm.all_current(con)
+        n_db = con.execute("SELECT COUNT(DISTINCT class_code) FROM class_templates").fetchone()[0]
+        errs = {r["class_code"]: ctm.validate(r["template"], r["class_code"], con) for r in rows}
+        mcodes = ctm.measure_codes(con)
+        perils = {r[0] for r in con.execute("SELECT DISTINCT class_code FROM perils")}
+    ok("17 шаблонов загружены в таблицу class_templates (calibrated = 0)",
+       len(rows) == 17 and n_db == 17 and all(r["calibrated"] == 0 for r in rows), (len(rows), n_db))
+    ok("структура всех 17 шаблонов проходит проверку", not any(errs.values()), {k: v for k, v in errs.items() if v})
+    clauses_all = ctm.clause_codes()
+    for r in rows:
+        c, tp = r["class_code"], r["template"]
+        rk = tp["risks"]
+        if c in ("8", "9"):
+            ok(f"класс {c}: риски — ссылка на справочник perils (доли не дублируются)",
+               rk["source"] == "perils" and rk["items"] == [] and c in perils, rk["source"])
+        else:
+            total = sum(x["share_pct"] for x in rk["items"])
+            ok(f"класс {c}: экспертные доли рисков, сумма 100, calibrated = 0",
+               rk["source"] == "template" and abs(total - 100) < 1e-9 and rk["calibrated"] == 0
+               and all(set(x["label"]) == {"ru", "uz", "en"} for x in rk["items"]), total)
+        cl = {x for codes in tp["clauses"].values() for x in codes}
+        ms = {x for codes in tp["measures"].values() for x in codes}
+        ok(f"класс {c}: оговорок ≥ 3 и мероприятий ≥ 3 в каждой группе, коды существуют",
+           all(len(v) >= 3 for v in tp["clauses"].values()) and all(len(v) >= 3 for v in tp["measures"].values())
+           and cl <= clauses_all and ms <= mcodes, (sorted(cl - clauses_all), sorted(ms - mcodes)))
+        ok(f"класс {c}: ракурсы есть (каждая группа — непустой список из известных кодов), must ≤ 4",
+           tp["required_views"] and all(v and set(v) <= set(ae.VIEWS) for v in tp["required_views"].values())
+           and len(tp["must"]) <= 4 and tp["scenario_rule"]["code"] in ctm.SCENARIO_RULES, tp["required_views"])
+    # классы 3, 8, 9: шаблон повторяет прежний выбор по группе объекта — акт не меняется
+    cat = act.clause_catalog()
+    mcat = __import__("app.act_extras", fromlist=["x"]).measures_catalog()
+    same = True
+    for c, groups in (("3", ("vehicle", "special")), ("8", ("property", "equipment")), ("9", ("property", "equipment"))):
+        tp = next(r["template"] for r in rows if r["class_code"] == c)
+        for g in groups:
+            same = same and tp["clauses"][g] == [x["code"] for x in cat["groups"][g]]
+            same = same and tp["required_views"][g] == ae.REQUIRED_VIEWS[g]
+            by_group = [x["code"] for x in mcat["catalog"] if g in (x.get("groups") or [])]
+            listed = [x for x in tp["measures"][g] if x in {m["code"] for m in mcat["catalog"]}]
+            same = same and sorted(listed) == sorted(by_group)
+    ok("классы 3, 8, 9: оговорки, ракурсы и мероприятия шаблона = прежний выбор по группе объекта", same)
+    ok("класс 3: граница транспорта и спецтехники — по регистрационному документу (особое правило)",
+       any(n["code"] == "vehicle_boundary" and "регистрационному документу" in n["text"]["ru"]
+           for n in data["classes"]["3"]["notes"]))
+    ok("класс 14: только необеспеченная часть и не более 50 %, страхователь — банк",
+       any("не более 50 %" in n["text"]["ru"] and "банк" in n["text"]["ru"] for n in data["classes"]["14"]["notes"]))
+    ok("перестрахование почти всегда — у 5, 6, 11, 12",
+       [c for c, t_ in data["classes"].items() if t_["reinsurance_usually"]] == ["5", "6", "11", "12"])
+    ci = ctm.credit_insurable(100_000_000, 60_000_000)
+    ok("кредит 100 млн при залоге 60 млн: страхуется min(40; 50) = 40 млн (необеспеченная часть)",
+       ci["insurable"] == 40_000_000 and ci["by"] == "unsecured", ci)
+    ci2 = ctm.credit_insurable(100_000_000, 20_000_000)
+    ok("кредит 100 млн при залоге 20 млн: min(80; 50) = 50 млн (предел 50 %)",
+       ci2["insurable"] == 50_000_000 and ci2["by"] == "cap", ci2)
+    TPL_REPORT["классы"] = {r["class_code"]: [(x["code"], x["share_pct"]) for x in r["template"]["risks"]["items"]]
+                            or "perils" for r in rows}
+
+
+def check_templates_api():
+    print("41б. API шаблонов: список, класс на трёх языках, история; PUT — проверка структуры и новая версия")
+    fresh()
+    st, lst = call("GET", "/act/templates", params={"lang": "ru"})
+    ok("GET /act/templates — 17 шаблонов кратко, версия файла 1.0.1",
+       st == 200 and len(lst["templates"]) == 17 and lst["file_version"] == "1.0.1"
+       and [x["class_code"] for x in lst["templates"]] == [str(i) for i in range(1, 18)], (st, str(lst)[:300]))
+    one = {x["class_code"]: x for x in lst["templates"]}
+    ok("кратко: класс 3 — ДТП 45 %, угон 20 %; классы 8/9 — источник perils",
+       one["3"]["risks"][:2] == [{"code": "mv_accident", "label": "ДТП", "share_pct": 45, "catastrophic": False},
+                                 {"code": "mv_theft", "label": "Угон", "share_pct": 20, "catastrophic": False}]
+       and one["8"]["risks_source"] == "perils", one["3"]["risks"][:2])
+    names = {}
+    for lg in ("ru", "uz", "en"):
+        st, t1 = call("GET", "/act/templates/1", params={"lang": lg})
+        names[lg] = (st, t1.get("template", {}).get("name"), t1["template"]["risks"]["items"][0]["label"]
+                     if st == 200 else None, t1["template"]["must"][0]["label"] if st == 200 else None)
+    ok("GET /act/templates/1 на трёх языках: название, риск, поле",
+       names["ru"][1:] == ("Несчастные случаи", "Смерть", "Число застрахованных")
+       and names["uz"][1:] == ("Baxtsiz hodisalar", "Oʻlim", "Sugʻurtalanganlar soni")
+       and names["en"][1:] == ("Accident", "Death", "Number of insured persons"), names)
+    st, t8 = call("GET", "/act/templates/8", params={"lang": "ru"})
+    ok("класс 8: риски из perils базы (пожар 40 %, землетрясение 20 %) и документы из checklists",
+       st == 200 and {p["code"]: p["share_pct"] for p in t8["perils"]}.get("fire") == 40.0
+       and {p["code"]: p["share_pct"] for p in t8["perils"]}.get("earthquake") == 20.0
+       and any(d["doc"] == "Сведения о пожарной сигнализации и охране" for d in t8["checklists"]), str(t8)[:300])
+    st, t13z = call("GET", "/act/templates/13з", params={"lang": "ru"})
+    ok("13з — по шаблону класса 14", st == 200 and t13z["class_code"] == "14" and t13z["alias_of"] == "14", st)
+    st, _x = call("GET", "/act/templates/99")
+    ok("неизвестный класс — 404", st == 404, st)
+    st, raw = call("GET", "/act/templates/1", params={"raw": 1})
+    good = _json.loads(_json.dumps(raw["raw"]))
+    # гость не правит
+    st, _x = call("PUT", "/act/templates/1", {"template": good})
+    ok("гость шаблон не меняет (401/403)", st in (401, 403), st)
+    HEADERS.append(_admin_header("tpl_test_admin"))
+    try:
+        bad = _json.loads(_json.dumps(good))
+        bad["risks"]["items"][0]["share_pct"] = 15            # сумма 90
+        bad["clauses"]["default"].append("no_such_clause")
+        bad["measures"]["default"].append("no_such_measure")
+        bad["must"] = bad["must"] + [dict(bad["must"][0], code="x1"), dict(bad["must"][0], code="x2")]
+        st, e = call("PUT", "/act/templates/1", {"template": bad})
+        errs = " | ".join(e.get("errors") or [])
+        ok("PUT с плохой структурой — 422: доли, оговорка, мероприятие, must > 4",
+           st == 422 and "сумма долей 90" in errs and "no_such_clause" in errs and "no_such_measure" in errs
+           and "не больше 4" in errs, (st, errs))
+        st, e = call("PUT", "/act/templates/1", {"template": {"name": {"ru": "x"}}})
+        ok("PUT без обязательных полей шаблона — 422", st == 422 and any("нет поля" in x for x in e["errors"]), e)
+        new = _json.loads(_json.dumps(good))
+        new["risks"]["items"][0]["share_pct"] = 20.2          # 20,2 + 30 + 30 + 15 = 95,2 → поправим травму
+        new["risks"]["items"][3]["share_pct"] = 19.6          # сумма 99,8 — в пределах ± 0,5
+        st, r = call("PUT", "/act/templates/1", {"template": new, "note": "тест: доли НС"})
+        ok("PUT с хорошей структурой — новая версия 1.1 (правка администратора)",
+           st == 200 and r["version"] == "1.1" and r["source"] == "admin"
+           and r["template"]["risks"]["items"][0]["share_pct"] == 20.2, (st, str(r)[:300]))
+        st, h = call("GET", "/act/templates/1/history")
+        ok("история: версия файла 1.0.1 и правка 1.1 — обе сохранены",
+           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.0.1", "file"), ("1.1", "admin")],
+           h)
+        # файл той же версии правку не затирает
+        from app import class_templates as ctm
+        ctm.reset_cache()
+        with db.tx() as con:
+            ctm.ensure(con)
+            cur = ctm.current(con, "1")
+        ok("ensure с файлом 1.0.1 не затирает правку 1.1", cur["version"] == "1.1" and cur["source"] == "admin",
+           cur["version"])
+        st, a = call("POST", "/act/make", {"lang": "ru", "must": {"class_code": "1", "sum_insured": 1_000_000_000,
+                                                                "object_value": 1_000_000_000, "region": "Ташкент"}})
+        shares = {i["code"]: i["share_of_net_pct"] for i in a["analytics"]["risks"]["items"]}
+        ok("акт класса 1 берёт действующую версию шаблона (смерть 20,2 %)",
+           st == 200 and shares.get("pa_death") == 20.2 and a["template"]["version"] == "1.1", shares)
+        # вернуть доли файла: ещё одна версия (история не удаляется)
+        st, r = call("PUT", "/act/templates/1", {"template": good})
+        ok("возврат долей — версия 1.2, история из трёх строк", st == 200 and r["version"] == "1.2", r.get("version"))
+    finally:
+        HEADERS.clear()
+
+
+def _cls_act(cls, fields=None, S=1_000_000_000, V=None, lang="ru", optional=None):
+    o = dict(optional or {})
+    if fields is not None:
+        o["class_fields"] = fields
+    return call("POST", "/act/make", {"lang": lang, "must": {"class_code": cls, "sum_insured": S,
+                                                             "object_value": V or S, "region": "Ташкент"},
+                                      "optional": o})
+
+
+def check_templates_act():
+    print("41в. Акт по классу без perils (1, 7, 13, 14): риски и сценарии из шаблона; классы 3/8/9 — цифры прежние")
+    fresh()
+    model_on(False)
+    # класс 1: 50 человек × 20 млн, в одном месте 10
+    st, a = _cls_act("1", {"insured_count": 50, "occupation": "строители", "sum_per_person": 20_000_000,
+                           "people_in_one_place": 10})
+    rk = a["analytics"]["risks"]
+    sc = a["scenarios"]
+    ok("класс 1: риски из шаблона (смерть, инвалидность, ВУТ, травма), сумма 100, пометка «экспертные доли шаблона»",
+       st == 200 and rk["source"] == "template" and [i["code"] for i in rk["items"]] ==
+       ["pa_death", "pa_disability", "pa_temp_disability", "pa_injury"] and rk["total_pct"] == 100.0
+       and rk["label"] == "экспертные доли шаблона" and any("шаблона класса" in n for n in rk["notes"])
+       and not rk["whole_class"], rk.get("notes"))
+    ok("класс 1: PML = EML = 20 млн (сумма на человека), MFL = 20 млн × 10 = 200 млн",
+       sc["available"] and sc["source"] == "template" and
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [20_000_000, 20_000_000, 200_000_000]
+       and "катастрофа" in sc["mfl"]["what"], [sc[k]["amount"] for k in ("pml", "eml", "mfl")])
+    ok("класс 1: «как посчитано» — простое правило шаблона, экспертное; формула с числами",
+       any("простым правилом шаблона класса 1" in h for h in sc["how"])
+       and sc["mfl"]["formula"].replace(" ", " ") == "MFL = 20 000 000 сум × 10 чел. в одном месте = 200 000 000 сум",
+       (sc["how"], sc["mfl"]["formula"]))
+    ok("класс 1: оговорки и мероприятия — из шаблона",
+       [c["code"] for c in a["clauses"]] == ["pa_list", "pa_hazard", "pa_cover_time", "ot_declared"]
+       and [m["code"] for m in a["measures"]] == ["pa_briefing", "pa_ppe", "pa_medical"], [c["code"] for c in a["clauses"]])
+    ok("класс 1: блок template — версия, поля класса, документы, статистика",
+       a["template"]["class_code"] == "1" and a["template"]["class_fields"]["insured_count"] == 50
+       and a["template"]["documents"]["items"] and "mortality_rate" in a["template"]["stats"]
+       and a["template"]["required_views"] == ["document"], str(a.get("template"))[:200])
+    st, u = call("GET", f"/act/{a['id']}", params={"lang": "uz"})
+    ok("класс 1 по-узбекски: риск «Oʻlim», подпись сценария из шаблона",
+       u["analytics"]["risks"]["items"][0]["name"] == "Oʻlim" and u["scenarios"]["mfl"]["what"].startswith("falokat"),
+       (u["analytics"]["risks"]["items"][0]["name"], u["scenarios"]["mfl"]["what"]))
+    st, e = call("GET", f"/act/{a['id']}", params={"lang": "en"})
+    ok("класс 1 по-английски: риск «Death»", e["analytics"]["risks"]["items"][0]["name"] == "Death")
+    # без полей класса — всё по страховой сумме, с пометками «по умолчанию»
+    st, a0 = _cls_act("1")
+    ok("класс 1 без полей: сценарии по страховой сумме, в «принято по умолчанию» — что не указано",
+       a0["scenarios"]["available"] and a0["scenarios"]["pml"]["amount"] == 1_000_000_000
+       and {x["code"] for x in a0["scenarios"]["assumptions"]} >= {"as_tpl_per_person_sum", "as_tpl_place"},
+       a0["scenarios"]["assumptions"])
+    # класс 7: отправка 200 млн, накопление 600 млн
+    st, a = _cls_act("7", {"cargo_kind": "бытовая техника", "transport_mode": "auto", "route": "Ташкент — Самарканд",
+                           "limit_per_shipment": 200_000_000, "accumulation_value": 600_000_000})
+    sc = a["scenarios"]
+    ok("класс 7: PML = EML = одна отправка 200 млн, MFL = накопление 600 млн",
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [200_000_000, 200_000_000, 600_000_000], sc)
+    ok("класс 7: риски шаблона (повреждение 30 %, кража 20 % …)",
+       {i["code"]: i["share_of_net_pct"] for i in a["analytics"]["risks"]["items"]}.get("cg_damage") == 30.0
+       and a["analytics"]["risks"]["source"] == "template")
+    ok("класс 7: неверный вид транспорта в полях класса — 422",
+       _cls_act("7", {"transport_mode": "teleport"})[0] == 422)
+    # класс 13: лимит на случай 300 млн, годовой 1 млрд
+    st, a = _cls_act("13", {"activity_kind": "trade", "turnover_or_payroll": 5_000_000_000,
+                            "limit_per_case": 300_000_000, "limit_aggregate": 1_000_000_000})
+    sc = a["scenarios"]
+    ok("класс 13: PML = EML = лимит на случай 300 млн, MFL = годовой лимит 1 млрд",
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [300_000_000, 300_000_000, 1_000_000_000], sc)
+    ok("класс 13: удержание сравнивается с EML (Положение 1806, п. 15)",
+       sc["retention"]["compared_with"] == "eml" and (not sc["retention"]["known"] or
+                                                      sc["retention"]["eml_excess"] == max(300_000_000 - sc["retention"]["limit"], 0)),
+       sc["retention"])
+    ok("класс 13: раздел 4 — аналитика: сценарии шаблона формулой с суммой",
+       a["analytics"]["scenarios"]["available"] and a["analytics"]["scenarios"]["items"][0]["formula"].startswith(
+           "один случай: лимит на случай"), a["analytics"]["scenarios"])
+    # класс 14: кредит 100 млн, залог 60 млн
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000, "credit_term_months": 24},
+                     S=40_000_000)
+    ok("класс 14: кредит 100 млн, залог 60 млн, сумма 40 млн — в пределах (проверка в «как посчитано»)",
+       any("допустимая страховая сумма 40" in h.replace(" ", " ") and "в пределах" in h for h in a["scenarios"]["how"])
+       and not any("Кредит: страховая сумма" in c for c in a["decision"]["checks"]), a["scenarios"]["how"])
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=50_000_000)
+    ok("класс 14: сумма 50 млн выше допустимой 40 млн — проверка андеррайтеру, превышение 10 млн",
+       any("Кредит: страховая сумма 50" in c.replace(" ", " ") and "10 000 000" in c.replace(" ", " ")
+           for c in a["decision"]["checks"]) and a["decision"]["code"] != "accept", a["decision"])
+    # классы 3, 8, 9: контрольные цифры прежние (как до шаблонов)
+    st, c3 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                        "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ok("класс 3 (автокран 2,945 млрд): ставка 0,42 %, премия 12 369 000, PML/EML/MFL 1 472 500 000 / 2 945 000 000 × 2",
+       c3["rate"]["applied_pct"] == 0.42 and c3["premium"]["amount"] == 12_369_000
+       and [c3["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] == [1_472_500_000, 2_945_000_000, 2_945_000_000]
+       and c3["analytics"]["risks"]["whole_class"] and c3["scenarios"].get("source") is None,
+       (c3["rate"]["applied_pct"], c3["premium"]["amount"], [c3["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]))
+    ok("класс 3: оговорки спецтехники прежние (5 шт.), ракурсы — 7",
+       [c["code"] for c in c3["clauses"]] == ["sp_attachments_storage", "sp_territory", "sp_reinspection", "sp_operator",
+                                              "sp_rated_load"] and len(c3["template"]["required_views"]) == 7)
+    st, c8 = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST, "optional": WH8_OPT})
+    ok("класс 8 (склад 4,2 млрд): PML/EML/MFL 2 100 000 000 / 3 360 000 000 / 4 200 000 000, риски — perils",
+       [c8["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] == [2_100_000_000, 3_360_000_000, 4_200_000_000]
+       and c8["analytics"]["risks"]["source"] == "perils"
+       and c8["analytics"]["risks"]["items"][0]["code"] == "fire", [c8["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")])
+    st, c9 = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    ok("класс 9: риски из perils (кража со взломом первой), правило property9",
+       c9["analytics"]["risks"]["items"][0]["code"] == "burglary" and c9["scenarios"]["rule"] == "property9")
+    TPL_REPORT["класс 3"] = (c3["rate"]["applied_pct"], c3["premium"]["amount"],
+                             [c3["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")])
+    TPL_REPORT["класс 8"] = [c8["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]
+    TPL_REPORT["класс 9"] = [c9["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]
+
+
+PT_REPORT = {}
+PT_CAR = {"class_code": "3", "sum_insured": 60_000_000, "object_value": 60_000_000,
+          "object_description": "легковой автомобиль в залоге"}
+PT_CREDIT = {"class_code": "14", "sum_insured": 40_000_000,
+             "fields": {"class_fields": {"credit_amount": 100_000_000, "collateral_value": 60_000_000,
+                                         "credit_term_months": 24}}}
+PT_MUST = {"product_code": "0312", "sum_insured": 100_000_000, "object_value": 60_000_000, "region": "Ташкент"}
+PT_OPT = {"losses_3y": {"count": 0, "small_count": 0}, "documents_provided": True}
+
+
+def _pt_make(must, optional, lang="ru"):
+    return call("POST", "/act/make", {"lang": lang, "must": must, "optional": optional})
+
+
+def check_parts_engine():
+    print("42а. Комплексный продукт: чистые функции разбора по частям (act_engine, раздел 9)")
+    ok("ставки частей из текста тарифа: 0305 «ТС 1,1% · НС 0,5% · ОТВ 1%» → 3: 1,1; 1: 0,5; 13: 1",
+       ae.part_rates_from_text("ТС 1,1% · НС 0,5% · ОТВ 1%", ["3", "1", "13"]) == {"3": 1.1, "1": 0.5, "13": 1.0})
+    ok("0312 «фин. риск 0,5% · залог 0,5%» → 14: 0,5; 3: 0,5; 1415 «ГБО 0,3% · ГО 0,5% · кредит 1,7%» → 8/13/14",
+       ae.part_rates_from_text("фин. риск 0,5% · залог 0,5%", ["3", "14"]) == {"14": 0.5, "3": 0.5}
+       and ae.part_rates_from_text("ГБО 0,3% · ГО 0,5% · кредит 1,7%", ["8", "13", "14"]) ==
+       {"8": 0.3, "13": 0.5, "14": 1.7})
+    ok("одна ставка без подписи «0,25% фикс.» — общая для частей; «по согласованию» — ставок нет",
+       ae.part_rates_from_text("0,25% фикс.", ["13", "1"]) == {"*": 0.25}
+       and ae.part_rates_from_text("по согласованию с ЦО", ["8", "9"]) == {})
+    sp = ae.split_sum(1_000_000_001, ["3", "14"])
+    ok("поровну: 1 000 000 001 → 500 000 000 + 500 000 001 (остаток — последней части), сумма точно S",
+       [x["sum_insured"] for x in sp] == [500_000_000, 500_000_001] and ae.check_parts_sum(sp, 1_000_000_001) is None)
+    sp2 = ae.split_sum(1_000_000_000, ["8", "9"], {"8": 70, "9": 30})
+    ok("по долям тарифной политики 70/30: 700 млн + 300 млн",
+       [x["sum_insured"] for x in sp2] == [700_000_000, 300_000_000] and [x["share_pct"] for x in sp2] == [70, 30])
+    bad = ae.check_parts_sum([{"sum_insured": 60e6}, {"sum_insured": 39_999_998}], 100e6, 1)
+    ok("сумма частей на 2 сума меньше при допуске 1 сум — расхождение; на 1 сум — сходится",
+       bad == {"total": 99_999_998, "sum_insured": 100e6, "diff": 2}
+       and ae.check_parts_sum([{"sum_insured": 60e6}, {"sum_insured": 39_999_999}], 100e6, 1) is None, bad)
+    rows = ae.parts_from_items([{"name": "Легковой автомобиль в залоге", "sum": 60e6},
+                                {"name": "Финансовый риск непогашения кредита", "sum": 40e6}], ["3", "14"])
+    ok("объекты договора → части: автомобиль → класс 3, непогашение кредита → класс 14",
+       [(r["class_code"], r["sum_insured"], r["class_guess"]) for r in rows] == [("3", 60e6, False), ("14", 40e6, False)],
+       rows)
+    rows = ae.parts_from_items([{"name": "Склад", "sum": 1e9}, {"name": "Ущерб от залива и кражи", "sum": 2e8},
+                                {"name": "Прочее", "sum": 1e8}], ["8", "9"], {"8": ["склад"], "9": ["склад"]})
+    ok("8/9: «склад» → 8, «ущерб от залива и кражи» → 9, неузнанное «прочее» — к первому классу с пометкой",
+       [(r["class_code"], r["sum_insured"], r["class_guess"]) for r in rows] == [("8", 1.1e9, True), ("9", 2e8, False)],
+       rows)
+    ok("один объект по умолчанию — только 8/9/16", ae.default_same_object(["8", "9", "16"])
+       and not ae.default_same_object(["3", "14"]) and not ae.default_same_object(["8", "1"]))
+    sc = lambda p, e, m: {"available": True, "items": {"PML": {"amount": p}, "EML": {"amount": e}, "MFL": {"amount": m}}}
+    same = ae.aggregate_scenarios([{"index": 1, "class_code": "8", "main": True, "scenarios": sc(70, 100, 100)},
+                                   {"index": 2, "class_code": "9", "main": True, "scenarios": sc(15, 37, 75)}])
+    diff = ae.aggregate_scenarios([{"index": 1, "class_code": "3", "main": True, "scenarios": sc(30, 60, 60)},
+                                   {"index": 2, "class_code": "14", "main": False, "scenarios": sc(40, 40, 40)},
+                                   {"index": 3, "class_code": "13", "main": False, "scenarios": {"available": False,
+                                                                                                 "reason": "sc_na_class"}}])
+    ok("сценарии: один объект — большее (70/100/100), разные объекты — сумма (70/100/100), часть без правила — "
+       "не входит", same["rule"] == "max" and [same["items"][s]["amount"] for s in ("PML", "EML", "MFL")] == [70, 100, 100]
+       and diff["rule"] == "sum" and [diff["items"][s]["amount"] for s in ("PML", "EML", "MFL")] == [70, 100, 100]
+       and diff["excluded"] == [{"index": 3, "class_code": "13", "reason": "sc_na_class"}], (same, diff))
+    ret = ae.contract_retention([{"known": True, "limit": 11e9}, {"known": True, "limit": 7e9}], 8e9, 9e9)
+    ok("удержание договора: наименьший лимит частей 7 млрд против EML договора 8 млрд — превышение 1 млрд",
+       ret["limit"] == 7e9 and ret["eml_excess"] == 1_000_000_000 and ret["within"] is False
+       and ret["mfl_excess"] == 2_000_000_000, ret)
+    tot = ae.contract_totals([{"premium": 3_720_000, "level": "moderate", "sum_insured": 146.1e6, "term_days": 365},
+                              {"premium": 4_480_000, "level": "high", "sum_insured": 226.1e6, "term_days": 365}], 372.2e6)
+    ok("итоги: премия = сумма премий частей, уровень — самый высокий, ставка договора только справочно",
+       tot["premium"] == 8_200_000 and tot["level"] == "high" and tot["reference_only"]
+       and tot["reference_rate_pct"] == 2.2031, tot)
+    with db.tx() as con:
+        ref = db.load_reference(con)
+        prod = db.rows(con, "SELECT code, name, pricing_mode, rate_text FROM products WHERE code='0312'")[0]
+        r14 = ae.part_rate(ref, prod, "14", "moderate", 40e6, 365, None, None, act.load_settings(con))
+        r3 = ae.part_rate(ref, prod, "3", "moderate", 60e6, 365, None, None, act.load_settings(con))
+    ok("0312: минимум класса 3 — справочник min_rates 0,5 %; класса 14 — из текста тарифа 0,5 % (в min_rates его нет)",
+       r3["class_min"] == {"pct": 0.5, "source": "min_rates"} and r14["class_min"] == {"pct": 0.5, "source": "rate_text"}
+       and r14["min_pct"] == 0.5 and r14["applied_pct"] == 0.6 and r14["premium"] == 240_000,
+       (r3["class_min"], r14["class_min"], r14["applied_pct"], r14["premium"]))
+
+
+def check_parts_make():
+    print("42б. Комплексный продукт в /act/make: части по умолчанию, подтверждённые, из договора, 8/9, обязательная часть")
+    fresh()
+    model_on(False)
+    with db.tx() as con:
+        ref = db.load_reference(con)
+        st_ = act.load_settings(con)
+        name = db.rows(con, "SELECT name, pricing_mode FROM products WHERE code='0312'")[0]
+        cls0312 = [r["class_code"] for r in db.rows(con, "SELECT class_code FROM product_classes "
+                                                         "WHERE product_code='0312' ORDER BY part_no")]
+    ok("0312 — «Автокредит» (Хамкорбанк): классы 3 (залоговый автомобиль) и 14 (невозврат кредита) — разные объекты, "
+       "делить осмысленно", cls0312 == ["3", "14"] and "Автокредит" in name["name"] and name["pricing_mode"] == "ставка",
+       (cls0312, name))
+    # 1. части по умолчанию: поровну, предложение с пометкой
+    st, a = _pt_make(PT_MUST, PT_OPT)
+    P = a.get("parts") or {}
+    text = all_text(a) if st == 200 else str(a)
+    ok("0312 без частей: mode multi, source default, не подтверждено, suggested_parts 50 + 50 млн",
+       st == 200 and P["mode"] == "multi" and P["source"] == "default" and not P["confirmed"]
+       and [(x["class_code"], x["sum_insured"]) for x in a["suggested_parts"]] == [("3", 50e6), ("14", 50e6)]
+       and a["suggested_parts"] == P["suggested_parts"], (st, P.get("source"), a.get("suggested_parts")))
+    ok("пометка «распределение по умолчанию — подтвердите» в акте и в решении, «разбор отложен» больше нет",
+       "разделена поровну на 2 части по умолчанию" in text and "принято поровну по умолчанию — подтвердить" in text
+       and any("Подтвердить распределение" in c for c in a["decision"]["checks"])
+       and "разбор по частям отложен" not in text and a["rate"]["multi_class"], text[:300])
+    ok("переключатель по умолчанию: автомобиль и кредит — разные объекты (object_mode different)",
+       P["object_mode"] == "different" and [x["same_object"] for x in P["items"]] == [True, False])
+    # 2. подтверждённые части: автомобиль 60 млн (залог), кредит 40 млн = min(100 − 60; 50)
+    st, a = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, PT_CREDIT]))
+    P = a["parts"]
+    it = P["items"]
+    exp = []
+    for p in it:
+        adj = st_["adj_pct"][p["level"]]
+        applied = round(0.5 * (1 + adj / 100), 4)
+        exp.append((applied, round(premium_of(applied, p["sum_insured"], 365))))
+    ok("части сотрудника: source employee, подтверждено, suggested_parts на верхнем уровне нет",
+       st == 200 and P["source"] == "employee" and P["confirmed"] and "suggested_parts" not in a, (st, P.get("source")))
+    ok("ставка каждой части — по своему классу: 0,5 % × поправка уровня, не ниже 0,5 % класса",
+       [(p["rate"]["applied_pct"], p["premium"]) for p in it] == exp
+       and [p["rate"]["min_pct"] for p in it] == [0.5, 0.5]
+       and [p["rate"]["min_source"] for p in it] == ["min_rates", "rate_text"], ([(p["rate"], p["premium"]) for p in it], exp))
+    ok("премия договора = сумма премий частей; верхнее поле premium — итог договора",
+       a["premium"]["amount"] == sum(p["premium"] for p in it) == P["totals"]["premium"],
+       (a["premium"]["amount"], [p["premium"] for p in it]))
+    lv = {"low": 0, "moderate": 1, "high": 2}
+    ok("уровень договора — самый высокий среди частей (верхнее поле risk)",
+       a["risk"]["level"] == max((p["level"] for p in it), key=lv.get) == P["totals"]["level"])
+    ok("средняя ставка договора — только справочно: rate.applied_pct и min_pct пустые, reference_pct = премия / сумма",
+       a["rate"]["mode"] == "multi" and a["rate"]["applied_pct"] is None and a["rate"]["min_pct"] is None
+       and a["rate"]["reference_pct"] == round(a["premium"]["amount"] / 100e6 * 100, 4)
+       and "средняя не используется для проверки минимума" in all_text(a), a["rate"])
+    sc_parts = [[p["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] for p in it]
+    ok("разные объекты — сценарии складываются: EML договора = EML автомобиля + EML кредита",
+       a["scenarios"]["available"] and [a["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] ==
+       [sc_parts[0][i] + sc_parts[1][i] for i in range(3)] and P["totals"]["scenarios"]["rule"] == "sum", sc_parts)
+    ok("кредит 40 млн при залоге 60 млн из 100 млн — в пределах: проверки превышения нет",
+       not any("выше допустимой" in c for c in a["decision"]["checks"])
+       and sc_parts[1] == [40_000_000] * 3)
+    ok("удержание договора сравнивается с EML договора",
+       a["scenarios"]["retention"]["compared_with"] == "eml" and (not a["scenarios"]["retention"]["known"] or
+       a["scenarios"]["retention"]["eml_excess"] == max(a["scenarios"]["eml"]["amount"] - a["scenarios"]["retention"]["limit"], 0)))
+    ok("сумма к стоимости по частям: автомобиль 100 %, у кредита — «не применяется»; по договору 100 %",
+       it[0]["value"]["ratio_pct"] == 100.0 and it[1]["value"]["verdict"] == "na" and not it[1]["value"]["applicable"]
+       and a["value"]["ratio_pct"] == 100.0, [p["value"] for p in it])
+    ok("аналитика — по каждой части (parts.items[].analytics), сводка договора — общая",
+       all(p["analytics"].get("available") for p in it) and a["analytics"]["reason"] == "by_parts"
+       and a["analytics"]["summary"]["text"].startswith("Договор из 2 частей"), a["analytics"].get("summary"))
+    t4 = a["sections"][3]
+    tbl = next((li for li in t4["lists"] if li["title"] == "Части договора"), None)
+    ok("раздел 4: таблица частей (класс, сумма, уровень, ставка, премия, франшиза) с итогом договора",
+       tbl and tbl["table"]["columns"] == ["№", "Класс", "Страховая сумма", "Уровень", "Ставка", "Премия", "Франшиза"]
+       and len(tbl["table"]["rows"]) == 3 and tbl["table"]["rows"][-1][1] == "Итого по договору", tbl)
+    ok("раздел 1 — перечень частей, раздел 3 — сумма к стоимости по частям, раздел 5 — подтверждено сотрудником",
+       sum(1 for r in a["sections"][0]["rows"] if r["label"].startswith("Часть ")) == 2
+       and sum(1 for r in a["sections"][2]["rows"] if r["label"].startswith("Часть ")) == 2
+       and "Распределение страховой суммы по классам подтверждено сотрудником." in a["sections"][4]["paragraphs"])
+    PT_REPORT["0312 подтверждено"] = {"части": [(p["class_code"], p["sum_insured"], p["level"], p["rate"]["applied_pct"],
+                                                 p["premium"]) for p in it], "премия": a["premium"]["amount"],
+                                       "PML/EML/MFL": [a["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]}
+    aid = a["id"]
+    # кредит 60 млн — выше допустимых 40 млн: проверка по части
+    st, a2 = _pt_make(dict(PT_MUST, sum_insured=120_000_000),
+                      dict(PT_OPT, parts=[PT_CAR, dict(PT_CREDIT, sum_insured=60_000_000)]))
+    ok("кредит 60 млн при допустимых 40 млн — проверка по части 2 с превышением 20 млн",
+       any("Часть 2 (класс 14)" in c and "20 000 000" in flat(c) for c in a2["decision"]["checks"]),
+       a2["decision"]["checks"])
+    # франшиза по частям: своя франшиза только у автомобиля
+    st, a3 = _pt_make(PT_MUST, dict(PT_OPT, parts=[dict(PT_CAR, deductible={"pct": 1}), PT_CREDIT]))
+    f = [p["franchise"] for p in a3["parts"]["items"]]
+    ok("франшиза по каждой части отдельно: у части 1 применена 1 %, у части 2 — нет; премия договора — сумма частей",
+       f[0]["status"] == "applied" and f[0]["size_pct"] == 1.0 and f[1]["status"] == "none"
+       and a3["premium"]["amount"] == sum(p["premium"] for p in a3["parts"]["items"])
+       and "часть 1 — применена 1" in flat(all_text(a3)), f)
+    ok("часть 1 на минимуме класса (0,5 %): со франшизой ставка не опускается ниже минимума — премия та же, пометка",
+       f[0]["floor_applied"] and a3["parts"]["items"][0]["premium"] == a3["parts"]["items"][0]["premium_before_franchise"]
+       and "упёрлась в минимальную ставку" in f[0]["text"], (f[0]["floor_applied"], f[0]["text"]))
+    # 3. ошибки ввода
+    st, e = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, dict(PT_CREDIT, sum_insured=39_999_998)]))
+    ok("сумма частей ≠ страховой сумме (разница 2 сума) — 422 с объяснением",
+       st == 422 and "parts" in e["errors"] and "не равна страховой сумме договора" in e["errors"]["parts"], (st, e))
+    st, e1 = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, dict(PT_CREDIT, sum_insured=39_999_999)]))
+    ok("разница 1 сум — в допуске, акт формируется", st == 200, (st, e1 if st != 200 else ""))
+    st, e = _pt_make(PT_MUST, dict(PT_OPT, parts=[dict(PT_CAR, share_pct=150), PT_CREDIT]))
+    ok("доля больше 100 — 422", st == 422 and "share_pct" in e["errors"]["parts"], e)
+    st, e = _pt_make(PT_MUST, dict(PT_OPT, parts=[dict(PT_CAR, class_code="99"), PT_CREDIT]))
+    ok("класс не из справочника — 422", st == 422 and "не найден" in e["errors"]["parts"], e)
+    st, e = _pt_make({"product_code": "0807", "sum_insured": 1e9, "object_value": 1e9, "region": "Ташкент"},
+                     {"parts": [{"class_code": "8", "sum_insured": 1e9}]})
+    ok("у продукта с одним классом одна часть — 422 (это обычный акт)", st == 422, e)
+    st, e = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, dict(PT_CREDIT, deductible={"pct": 80})]))
+    ok("франшиза части больше 50 % — 422", st == 422 and "deductible" in e["errors"]["parts"], e)
+    # 4. из договора: перечень объектов
+    ct = {"sum_insured": 100_000_000, "premium": 500_000, "term_from": "2026-10-01", "term_to": "2027-09-30",
+          "items": [{"name": "Легковой автомобиль в залоге", "sum": 60_000_000},
+                    {"name": "Финансовый риск непогашения кредита", "sum": 40_000_000}]}
+    st, a4 = _pt_make(PT_MUST, dict(PT_OPT, contract=ct))
+    P4 = a4.get("parts") or {}
+    ok("из договора: части по перечню объектов (автомобиль → 3, кредит → 14), source contract, на подтверждение",
+       st == 200 and P4["source"] == "contract" and not P4["confirmed"]
+       and [(x["class_code"], x["sum_insured"]) for x in a4["suggested_parts"]] == [("3", 60e6), ("14", 40e6)],
+       (st, P4.get("source"), a4.get("suggested_parts")))
+    ok("сверка с договором: премия договора против премии акта (суммы частей), суммы объектов = общей сумме",
+       a4["contract_check"]["available"]
+       and next(i for i in a4["contract_check"]["items"] if i["code"] == "premium_act")["calculated"] == a4["premium"]["amount"]
+       and next(i for i in a4["contract_check"]["items"] if i["code"] == "items_sum")["verdict"] == "ok",
+       a4["contract_check"]["items"])
+    # 5. КАСКО-пример заметок: средняя ниже минимума первого класса, но каждая часть — не ниже своего минимума
+    st, k = _pt_make({"product_code": "0305", "sum_insured": 400_000_000, "object_value": 100_000_000,
+                      "region": "Ташкент"},
+                     {"losses_3y": {"count": 0}, "documents_provided": True,
+                      "parts": [{"class_code": "3", "sum_insured": 100_000_000},
+                                {"class_code": "1", "sum_insured": 200_000_000},
+                                {"class_code": "13", "sum_insured": 100_000_000}]})
+    ki = k["parts"]["items"]
+    ok("0305 (ТС + НС + ОТВ): минимумы по классам 1,1 / 0,5 / 1 %; каждая часть не ниже своего минимума",
+       [p["rate"]["min_pct"] for p in ki] == [1.1, 0.5, 1.0]
+       and all(p["rate"]["applied_pct"] >= p["rate"]["min_pct"] for p in ki), [p["rate"] for p in ki])
+    ok("0305: средняя по договору ниже минимума класса 3 (1,1 %) — но это справочно, остановки нет (правило № 5)",
+       k["rate"]["reference_pct"] < 1.1 and not any("ниже минимал" in c for c in k["decision"]["checks"])
+       and k["decision"]["code"] != "decline", (k["rate"]["reference_pct"], k["decision"]))
+    PT_REPORT["0305 по классам"] = {"ставки": [p["rate"]["applied_pct"] for p in ki],
+                                    "премии": [p["premium"] for p in ki], "премия": k["premium"]["amount"],
+                                    "справочная ставка": k["rate"]["reference_pct"]}
+    # 6. 8/9 один объект: 0824 гостиница (8, 9, 16), по согласованию — ставка по каждой части не определена
+    st, h = _pt_make({"product_code": "0824", "sum_insured": 3_000_000_000, "object_value": 3_000_000_000,
+                      "region": "Ташкент"}, {"object_kind": "hotel", "losses_3y": {"count": 0}})
+    hi = h["parts"]["items"]
+    ok("0824 (8 + 9 + 16): по умолчанию один объект, сценарии договора — большее из частей",
+       st == 200 and h["parts"]["object_mode"] == "one" and all(p["same_object"] for p in hi)
+       and [h["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] ==
+       [max(p["scenarios"][k]["amount"] for p in hi if p["scenarios"]["available"]) for k in ("pml", "eml", "mfl")],
+       [[p["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] for p in hi])
+    ok("0824 по согласованию: у частей ставки нет, премия договора не определена, проверка по каждой части",
+       h["premium"]["amount"] is None and all(p["rate"]["mode"] == "undefined" for p in hi)
+       and sum(1 for c in h["decision"]["checks"] if "определить ставку" in c) == 3, h["decision"]["checks"])
+    # 8/9 с явными частями + обязательная часть (0820, ПКМ № 532) на другом объекте
+    wh = {"product_code": "0807", "sum_insured": 5_000_000_000, "object_value": 5_000_000_000, "region": "Ташкент"}
+    parts = [{"class_code": "8", "sum_insured": 3_000_000_000},
+             {"class_code": "9", "sum_insured": 1_500_000_000, "same_object": True,
+              "fields": {"class_fields": {"largest_room_value": 600_000_000}}},
+             {"class_code": "8", "product_code": "0820", "sum_insured": 500_000_000, "same_object": False,
+              "deductible": {"pct": 1}, "object_description": "строящийся склад (СМР)"}]
+    st, w = _pt_make(wh, {"object_kind": "warehouse", "losses_3y": {"count": 0}, "parts": parts})
+    wi = w["parts"]["items"]
+    ok("склад: 8 и 9 — один объект (большее), СМР 0820 — другой объект (прибавляется): правило mixed",
+       st == 200 and w["parts"]["totals"]["scenarios"]["rule"] == "mixed"
+       and w["scenarios"]["eml"]["amount"] == max(wi[0]["scenarios"]["eml"]["amount"], wi[1]["scenarios"]["eml"]["amount"])
+       + wi[2]["scenarios"]["eml"]["amount"], [p["scenarios"]["eml"]["amount"] for p in wi])
+    ok("обязательная часть 0820: ставка 0,4 % по ПКМ № 532 без поправок, франшиза сотрудника не применена",
+       wi[2]["rate"]["mode"] == "statutory" and wi[2]["rate"]["applied_pct"] == 0.4 and wi[2]["rate"]["adj_pct"] == 0
+       and wi[2]["franchise"]["status"] == "statutory" and wi[2]["premium"] == 2_000_000
+       and wi[2]["rate"]["min_source"] == "act", (wi[2]["rate"], wi[2]["franchise"]["status"]))
+    ok("класс 9 не из состава продукта 0807 — принят с пометкой и проверкой, база — техническая ставка класса",
+       wi[1]["class_outside"] and wi[1]["rate"]["base_source"] == "technical"
+       and any("Часть 2 (класс 9): проверить класс" in c for c in w["decision"]["checks"]), wi[1]["rate"])
+    ok("премия склада = сумма трёх частей", w["premium"]["amount"] == sum(p["premium"] for p in wi))
+    PT_REPORT["склад 8/9 + СМР 0820"] = {"премии": [p["premium"] for p in wi], "премия": w["premium"]["amount"],
+                                         "EML частей": [p["scenarios"]["eml"]["amount"] for p in wi],
+                                         "EML договора": w["scenarios"]["eml"]["amount"]}
+    # переключатель «разные объекты» для 0824
+    st, h2 = _pt_make({"product_code": "0824", "sum_insured": 3_000_000_000, "object_value": 3_000_000_000,
+                       "region": "Ташкент"}, {"object_kind": "hotel", "losses_3y": {"count": 0}, "same_object": False})
+    ok("переключатель «разные объекты» (optional.same_object = false): сценарии складываются",
+       h2["parts"]["object_mode"] == "different" and h2["scenarios"]["eml"]["amount"] ==
+       sum(p["scenarios"]["eml"]["amount"] for p in h2["parts"]["items"] if p["scenarios"]["available"]))
+    return aid
+
+
+def check_parts_langs_files(aid):
+    print("42в. Комплексный продукт: три языка, Word и PDF; однопродуктовые акты без изменений")
+    fresh()
+    st, u = call("GET", f"/act/{aid}", params={"lang": "uz"})
+    st2, e = call("GET", f"/act/{aid}", params={"lang": "en"})
+    tu, te = all_text(u), all_text(e)
+    ok("по-узбекски: таблица «Shartnoma qismlari», «Jami», части «1-qism»",
+       "Shartnoma qismlari" in tu and "Shartnoma boʻyicha jami" in tu and "1-qism" in tu
+       and u["parts"]["totals"]["premium"] == e["parts"]["totals"]["premium"], tu[:200])
+    ok("по-английски: «Contract parts», «Part 2: class 14», средняя «not used to check the minimum»",
+       "Contract parts" in te and "Part 2: class 14" in te and "not used to check the minimum" in te)
+    ok("ни одного незаполненного шаблона {…} ни на одном языке",
+       not any(re.search(r"\{[a-z_]+\}", x) for x in (all_text(u), te, all_text(call("GET", f"/act/{aid}")[1]))))
+    ok("русских слов в английском акте частей нет (кроме наименований объектов)",
+       not re.search(r"[А-Яа-я]{4,}", "\n".join(li["title"] for s in e["sections"] for li in s.get("lists") or [])),
+       [li["title"] for s in e["sections"] for li in s.get("lists") or [] if re.search(r"[А-Яа-я]{4,}", li["title"])][:5])
+    for lang, word in (("ru", "Части договора"), ("uz", "Shartnoma qismlari"), ("en", "Contract parts")):
+        dx, pd = docx_plain(aid, lang), pdf_plain(aid, lang)
+        a = call("GET", f"/act/{aid}", params={"lang": lang})[1]
+        prem = flat(act.money(a["premium"]["amount"], lang))
+        ok(f"Word и PDF ({lang}): таблица частей и премия договора {prem}",
+           word in dx and prem in dx and word in pd and prem in pd, (word in dx, prem in dx, word in pd, prem in pd))
+    # однопродуктовые акты: блок parts — single, остальное как прежде
+    for code, must, opt in (("0318", CRANE_MUST, CRANE_OPT), ("0807", WH8_MUST, WH8_OPT),
+                            ("0832", {"product_code": "0832", "sum_insured": 5e9, "object_value": 5e9,
+                                      "region": "Ташкент"}, {"losses_3y": {"count": 0}})):
+        st, a = call("POST", "/act/make", {"lang": "ru", "must": must, "optional": opt})
+        r = a["rate"]
+        ok(f"{code}: один класс — parts.mode single, ставка и премия по-прежнему, без частей в тексте",
+           st == 200 and a["parts"]["mode"] == "single" and not a["parts"]["items"] and "suggested_parts" not in a
+           and r["mode"] == "tariff" and not r["multi_class"] and "reference_pct" not in r
+           and a["premium"]["amount"] == round(premium_of(r["applied_pct"], must["sum_insured"], 365))
+           and a["analytics"]["available"] and "Части договора" not in all_text(a)
+           and not any(x["label"].startswith("Часть ") for s in a["sections"] for x in s["rows"]),
+           (st, a.get("parts"), r.get("mode")))
+
+
+def check_review_0930():
+    print("42г. Замечания контролёра 30.09.2026: кредит, лимиты сценариев, проверка шаблона, части, минимум класса")
+    from app import class_templates as ctm
+    from app import act_extras as axm
+    fresh()
+    model_on(False)
+    data = ctm.load_file()
+    good14 = _json.loads(_json.dumps(data["classes"]["14"]))
+    good2 = _json.loads(_json.dumps(data["classes"]["2"]))
+    # ---------- 1. кредит: параметры правила ----------
+    bad = _json.loads(_json.dumps(good14))
+    bad["scenario_rule"]["params"]["max_share_of_loan"] = 0.6
+    e1 = ctm.validate(bad, "14")
+    bad["scenario_rule"]["params"]["max_share_of_loan"] = "0.5"
+    e2 = ctm.validate(bad, "14")
+    ok("шаблон 14: доля кредита 0,6 — ошибка (правило № 6, не более 50 %); «0.5» строкой — «нужно число»",
+       any("max_share_of_loan" in x and "не больше 0,5" in x for x in e1)
+       and any("max_share_of_loan" in x and "нужно число" in x for x in e2), (e1, e2))
+    b2 = _json.loads(_json.dumps(good2))
+    b2["scenario_rule"]["params"] = {"epidemic_share": 1.5, "months": -3, "x": None}
+    e3 = " | ".join(ctm.validate(b2, "2"))
+    ok("шаблон 2: доля эпидемии 1,5 — вне (0; 1], отрицательный параметр и null — ошибки",
+       "epidemic_share: доля больше 0 и не больше 1" in e3 and "months: число больше нуля" in e3
+       and "x: нужно число" in e3, e3)
+    ok("проверка параметров — чистая функция: 0,5 у кредита и 0,3 у эпидемии проходят",
+       ctm.check_params("credit", {"max_share_of_loan": 0.5}) == [] and ctm.check_params("frequency", {"epidemic_share": 0.3}) == []
+       and ctm.check_params("credit", {"max_share_of_loan": 0}) != [])
+    # ---------- 1. кредит: чистая функция проверки ----------
+    ok("банк по названию: «АКБ Хамкорбанк», «Xalq banki», «Kapitalbank ATB» — банк; «ООО Ромашка» — нет",
+       ae.is_bank("АКБ «Хамкорбанк»") and ae.is_bank("Xalq banki") and ae.is_bank("Kapitalbank ATB")
+       and ae.is_bank("ООО «Ромашка»") is False and ae.is_bank(None) is None)
+    c0 = ae.credit_check(40e6, {}, 0.5, None)
+    c1 = ae.credit_check(50e6, {"credit_amount": 100e6, "collateral_value": 60e6}, 0.5,
+                         {"kind": "legal", "name": "АКБ «Хамкорбанк»", "source": "contract"})
+    c2 = ae.credit_check(40e6, {"credit_amount": 100e6, "collateral_value": 60e6}, 0.5,
+                         {"kind": "legal", "name": "ООО «Ромашка»", "source": "request"})
+    ok("кредит без суммы и залога: «введите сумму кредита и обеспечение» + страхователь неизвестен",
+       [c["code"] for c in c0] == ["credit_need_data", "credit_holder_unknown"], c0)
+    ok("кредит 100 млн, залог 60 млн, сумма 50 млн, страхователь банк: превышение 10 млн, уменьшить до 40 млн",
+       c1 == [{"code": "credit_over", "params": {"credit": 100_000_000, "collateral": 60_000_000,
+                                                 "insurable": 40_000_000, "by": "unsecured", "sum": 50_000_000,
+                                                 "excess": 10_000_000, "share_pct": 50}}], c1)
+    ok("сумма 40 млн в пределах, страхователь ООО — только проверка страхователя",
+       [c["code"] for c in c2] == ["credit_holder_not_bank"] and c2[0]["params"]["holder"] == "ООО «Ромашка»", c2)
+    # ---------- 1. кредит в акте ----------
+    st, a = _cls_act("14", None, S=40_000_000)
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("акт класса 14 без суммы кредита и залога: проверка андеррайтеру, рекомендация не выше «с оговорками»",
+       st == 200 and any(c.startswith("Кредит: проверить, что страховая сумма не превышает необеспеченную часть и "
+                                      "50 % суммы кредита — введите сумму кредита и обеспечение") for c in chk)
+       and a["decision"]["code"] in ("accept_with_clauses", "decline"), (st, chk, a.get("decision", {}).get("code")))
+    ok("страхователь неизвестен — пункт проверки «страхователь и плательщик премии — банк-кредитор»",
+       any("страхователь и плательщик премии — банк-кредитор" in c and "не найден" in c for c in chk), chk)
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=50_000_000)
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("кредит 100 млн, залог 60 млн, сумма 50 млн: «страховая сумма … выше допустимой … — уменьшить до 40 000 000 сум»",
+       any("выше допустимой" in c and "уменьшить до 40 000 000 сум" in c and "превышение 10 000 000 сум" in c
+           for c in chk) and a["decision"]["code"] != "accept", chk)
+    ct_bad = {"sum_insured": 40_000_000, "premium": 240_000, "policyholder": "ООО «Ромашка»"}
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=40_000_000,
+                     optional={"contract": ct_bad})
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("страхователь в договоре — ООО, не банк: «в документе (договор страхования) страхователь — ООО «Ромашка»»",
+       st == 200 and any("страхователь и плательщик премии — банк-кредитор" in c and "ООО «Ромашка»" in c
+                         and "договор страхования" in c for c in chk) and a["decision"]["code"] != "accept", (st, chk))
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=40_000_000,
+                     optional={"contract": dict(ct_bad, policyholder="АКБ «Хамкорбанк»")})
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("страхователь — банк, сумма в пределах: кредитных проверок нет",
+       st == 200 and not any("банк-кредитор" in c or "Кредит:" in c for c in chk), chk)
+    st, a = _cls_act("14", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=50_000_000, lang="en",
+                     optional={"contract": ct_bad})
+    ok("кредитные проверки на английском: «reduce to 40,000,000 UZS», «the lending bank»",
+       any("reduce to" in flat(c) for c in a["decision"]["checks"])
+       and any("lending bank" in c and "ООО" in c for c in a["decision"]["checks"]), a["decision"]["checks"])
+    # ---------- 2. лимиты ответственности не выше страховой суммы ----------
+    r = axm.simple_scenarios("limit", 100, 100, {"limit_per_case": 300, "limit_aggregate": 500})
+    r2 = axm.simple_scenarios("full_limit", 100, 100, {"limit_per_case": 300})
+    ok("limit: лимит на случай 300 и годовой 500 при сумме 100 → PML = EML = MFL = 100, две пометки",
+       [r[s]["amount"] for s in ("PML", "EML", "MFL")] == [100, 100, 100]
+       and [x["code"] for x in r["assumptions"]] == ["as_tpl_limit_case_over", "as_tpl_limit_aggregate_over"], r)
+    ok("full_limit: лимит 300 при сумме 100 → всё 100, пометка «лимит выше страховой суммы»",
+       [r2[s]["amount"] for s in ("PML", "EML", "MFL")] == [100, 100, 100]
+       and r2["assumptions"] == [{"code": "as_tpl_limit_case_over", "params": {"limit": 300, "sum": 100}}], r2)
+    st, a = _cls_act("13", {"activity_kind": "trade", "limit_per_case": 300_000_000, "limit_aggregate": 1_000_000_000},
+                     S=200_000_000)
+    sc = a["scenarios"]
+    asm = " ".join(flat(x["text"]) for x in sc["assumptions"])
+    ok("класс 13, сумма 200 млн, лимиты 300 млн и 1 млрд: PML/EML/MFL = 200 млн, в допущениях — «взята страховая сумма»",
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [200_000_000] * 3
+       and "лимит на один случай 300 000 000 сум выше страховой суммы 200 000 000 сум — взята страховая сумма" in asm
+       and "годовой лимит 1 000 000 000 сум выше страховой суммы" in asm, (sc, asm))
+    # ---------- 4. проверка шаблона: размер, подписи, переводы ----------
+    errs_file = {c: ctm.validate(t_, c) for c, t_ in data["classes"].items()}
+    ok("поставленный docs/act_class_templates.json проходит новую проверку (все 17 классов, переводы uz/en)",
+       not any(errs_file.values()), {k: v for k, v in errs_file.items() if v})
+    b = _json.loads(_json.dumps(good14))
+    b["must"][0]["label"].pop("uz")
+    b["optional"][0]["label"]["en"] = ""
+    b["risks"]["items"][0]["label"].pop("en")
+    b["name"].pop("uz")
+    b["notes"][0]["text"].pop("ru")
+    b["documents"]["items"][0]["ru"] = "х" * 501
+    e = " | ".join(ctm.validate(b, "14"))
+    ok("шаблон без переводов: 422-перечень — name.uz, must.credit_amount.uz, optional.borrower_industry.en, "
+       "risks.cr_insolvency.en; подпись без ru; подпись длиннее 500",
+       "нет перевода uz/en" in e and "name.uz" in e and "must.credit_amount.uz" in e
+       and "optional.borrower_industry.en" in e and "risks.cr_insolvency.en" in e
+       and "подпись без ru: notes.credit_rule.text" in e and "длиннее 500 знаков" in e, e)
+    big = _json.loads(_json.dumps(good14))
+    big["notes"] = [{"code": f"n{i}", "text": {"ru": "я" * 400, "uz": "a" * 400, "en": "a" * 400}} for i in range(200)]
+    e = ctm.validate(big, "14")
+    ok("шаблон больше 200 КБ — ошибка размера", len(e) == 1 and "больше 200 КБ" in e[0], e)
+    HEADERS.append(_admin_header("tpl_review_admin"))
+    try:
+        bad = _json.loads(_json.dumps(good14))
+        bad["scenario_rule"]["params"]["max_share_of_loan"] = 0.7
+        bad["must"][1]["label"].pop("en")
+        st, e = call("PUT", "/act/templates/14", {"template": bad})
+        errs = " | ".join(e.get("errors") or [])
+        ok("PUT шаблона 14 с долей 0,7 и без en у поля — 422 с перечнем",
+           st == 422 and "max_share_of_loan" in errs and "must.collateral_value.en" in errs, (st, errs))
+        st, e = call("PUT", "/act/templates/14", {"template": _json.loads(_json.dumps(good14))})
+        ok("PUT хорошего шаблона 14 проходит (новая версия)", st == 200, (st, e))
+    finally:
+        HEADERS.clear()
+    # ---------- мелочи: пометки «сверх приложения А», убытки за 5 лет, единственный вид объекта ----------
+    C = data["classes"]
+    fld = lambda c, code: next(f for f in C[c]["must"] + C[c]["optional"] if f["code"] == code)
+    exp_ok = lambda x: x.get("expert") is True and x["note"]["ru"] == "сверх приложения А, экспертно"
+    ok("сверх приложения А — expert: true: факторы 13 liab_limit/liab_turnover, MFL класса 10, поля сценариев 1, 2, 7, 16, 17",
+       all(exp_ok(f) for f in C["13"]["factors"] if f["code"] in ("liab_limit", "liab_turnover"))
+       and exp_ok(C["10"]["scenario_rule"]["expert_scenarios"]["MFL"])
+       and all(exp_ok(fld(c, k)) for c, k in (("1", "people_in_one_place"), ("2", "avg_visits"), ("2", "avg_bill"),
+                                              ("7", "limit_per_shipment"), ("7", "accumulation_value"),
+                                              ("16", "monthly_loss"), ("17", "limit_per_dispute")))
+       and not fld("1", "insured_count").get("expert"))
+    ok("классы 5, 6, 11, 12: убытки за 5 лет — поле losses_3y (так понимает акт), подпись «за 5 лет (… история убытков)»",
+       all(fld(c, "losses_3y")["type"] == "losses" and "за 5 лет (в расчёте используется как история убытков)"
+           in fld(c, "losses_3y")["label"]["ru"] and fld(c, "losses_3y")["period_years"] == 5
+           and not any(f["code"] == "losses_5y" for f in C[c]["optional"]) for c in ("5", "6", "11", "12")))
+    st, t14 = call("GET", "/act/templates/14", params={"lang": "ru"})
+    st3, t3 = call("GET", "/act/templates/3", params={"lang": "ru"})
+    st_, lst = call("GET", "/act/templates", params={"lang": "ru"})
+    one = {x["class_code"]: x for x in lst["templates"]}
+    ok("GET /act/templates/14: один вид объекта «кредит» — single_kind: true, default_kind: loan; у класса 3 — false",
+       t14["template"]["object"]["single_kind"] is True and t14["template"]["object"]["default_kind"] == "loan"
+       and t3["template"]["object"]["single_kind"] is False and one["14"]["single_kind"] and not one["3"]["single_kind"],
+       (t14["template"]["object"], t3["template"]["object"].get("single_kind")))
+    # ---------- 5, 6. части: недостающие поля частей 2+, минимум класса из текста тарифа ----------
+    cr_no_term = dict(PT_CREDIT, fields={"class_fields": {"credit_amount": 100_000_000, "collateral_value": 60_000_000}})
+    st, p = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, cr_no_term]))
+    chk = [flat(c) for c in p["decision"]["checks"]]
+    ok("часть 2 (класс 14) без срока кредита: «Часть 2 (класс 14): уточнить срок кредита, месяцев» в решении",
+       st == 200 and "Часть 2 (класс 14): уточнить Срок кредита, месяцев" in chk, chk)
+    ok("у части 2 класса 14 — вид объекта по умолчанию «loan» (единственный), в расчёт не идёт",
+       p["parts"]["items"][1]["object_kind_default"] == "loan" and p["parts"]["items"][1]["object_kind"] is None)
+    ok("часть 2 кредита: страхователь не найден — проверка по части, сумма 40 млн в пределах — превышения нет",
+       any(c.startswith("Часть 2 (класс 14): проверить, что страхователь и плательщик премии — банк-кредитор")
+           for c in chk) and not any("выше допустимой" in c for c in chk), chk)
+    st, p = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, {"class_code": "14", "sum_insured": 40_000_000}]))
+    chk = [flat(c) for c in p["decision"]["checks"]]
+    ok("часть 2 кредита без полей: «Часть 2 (класс 14). Кредит: … введите сумму кредита и обеспечение» и перечень полей",
+       any(c.startswith("Часть 2 (класс 14). Кредит: проверить, что страховая сумма не превышает") for c in chk)
+       and any(c.startswith("Часть 2 (класс 14): уточнить Сумма кредита, Стоимость обеспечения") for c in chk), chk)
+    how = {}
+    for lg in ("ru", "uz", "en"):
+        st, x = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, PT_CREDIT]), lang=lg)
+        how[lg] = (x["parts"]["items"][1]["rate"]["how"], x["parts"]["items"][0]["rate"]["how"], all_text(x))
+    ok("часть 2 (класс 14): «минимум класса 14 по тарифной политике (из текста тарифа продукта 0312)», не «ставка продукта»",
+       any("минимум класса 14 по тарифной политике (из текста тарифа продукта 0312)" in flat(h) for h in how["ru"][0])
+       and not any("ставка продукта" in h or "минимальной ставки продукта" in h for h in how["ru"][0])
+       and any("ставка продукта 0312" in h for h in how["ru"][1]), how["ru"][:2])
+    ok("то же на узбекском и английском",
+       any("14-klass minimumi (0312 mahsuloti tarif matnidan)" in flat(h) for h in how["uz"][0])
+       and any("class 14 minimum under the tariff policy" in h and "product 0312" in h for h in how["en"][0]),
+       (how["uz"][0], how["en"][0]))
+    ok("аналитика части 2: строка «Минимум класса 14 по тарифной политике (из текста тарифа продукта 0312)»",
+       "Минимум класса 14 по тарифной политике (из текста тарифа продукта 0312)" in how["ru"][2]
+       and "Class 14 minimum under the tariff policy (from the tariff text of product 0312)" in how["en"][2])
+    ok("ни одного незаполненного шаблона {…} в актах с кредитными проверками",
+       not any(re.search(r"\{[a-z_]+\}", v[2]) for v in how.values()))
+
+
+def check_templates_sync():
+    print("41г. Сервер: база без таблицы class_templates — refsync доводит; новая версия файла; db_build на копии")
+    import importlib
+    from app import class_templates as ctm, refsync
+    folder = Path(tempfile.mkdtemp(prefix="surveyor-tpl-"))
+    try:
+        disk = folder / "disk.db"
+        db.snapshot(db.DB_PATH, disk)
+        import sqlite3
+        con = sqlite3.connect(str(disk))
+        con.execute("DROP TABLE IF EXISTS class_templates")
+        con.commit()
+        con.close()
+        ctm.reset_cache()
+        res = refsync.sync_templates(disk)
+        con = sqlite3.connect(str(disk))
+        n = con.execute("SELECT COUNT(*), COUNT(DISTINCT class_code) FROM class_templates").fetchone()
+        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 17 шаблонов версии 1.0.1",
+           res["status"] == "обновлено" and n == (17, 17), (res.get("status"), n))
+        res2 = refsync.sync_templates(disk)
+        ok("повторный запуск — «актуально», строк не прибавилось",
+           res2["status"] == "актуально" and con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0] == 17)
+        # правка администратора 1.1 на «сервере», потом образ приносит файл 2.0
+        con.execute("INSERT INTO class_templates (class_code, version, json, source, file_version, updated_at, updated_by,"
+                    " calibrated) SELECT class_code, '1.1', json, 'admin', '1.0', '2026-09-30T12:00:00', 'админ', 0 "
+                    "FROM class_templates WHERE class_code='13'")
+        con.commit()
+        src = _json.loads(ctm.TEMPLATES_FILE.read_text(encoding="utf-8"))
+        src["version"] = "2.0"
+        newer = folder / "tpl.json"
+        newer.write_text(_json.dumps(src, ensure_ascii=False), encoding="utf-8")
+        orig = ctm.TEMPLATES_FILE
+        ctm.TEMPLATES_FILE = newer
+        try:
+            res3 = refsync.sync_templates(disk)
+        finally:
+            ctm.TEMPLATES_FILE = orig
+            ctm.reset_cache()
+            ctm._file_cache.update(mtime=None, data=None)
+        hist = [tuple(r) for r in con.execute("SELECT version, source FROM class_templates WHERE class_code='13' ORDER BY id")]
+        ok("файл 2.0 новее — добавлен всем 17 классам; история класса 13: 1.0.1 файл, 1.1 админ, 2.0 файл",
+           len(res3["added"]) == 17 and hist == [("1.0.1", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
+        con.close()
+        # tools/db_build.py — заполнение из JSON на копии (рабочая база не открывается)
+        build_copy = folder / "build.db"
+        db.snapshot(db.DB_PATH, build_copy)
+        con = sqlite3.connect(str(build_copy))
+        con.execute("DROP TABLE IF EXISTS class_templates")
+        con.commit()
+        con.close()
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+        dbb = importlib.import_module("db_build")
+        saved = dbb.DB
+        dbb.DB = build_copy
+        buf = io.StringIO()
+        try:
+            import contextlib
+            with contextlib.redirect_stdout(buf):
+                dbb.main()
+        finally:
+            dbb.DB = saved
+        con = sqlite3.connect(str(build_copy))
+        nb = con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0]
+        con.close()
+        ok("tools/db_build.py на копии: таблица class_templates заполнена из JSON (17 строк)",
+           nb == 17 and "шаблонов классов добавлено: 17" in buf.getvalue(), (nb, buf.getvalue()[-300:]))
+    finally:
+        ctm.reset_cache()
+        shutil.rmtree(folder, ignore_errors=True)
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -5430,6 +6270,14 @@ def main():
             check_docx_reader()
             check_contract_template()
             check_contract_template_filled()
+            check_templates_ref()
+            check_templates_api()
+            check_templates_act()
+            check_templates_sync()
+            check_parts_engine()
+            pt_aid = check_parts_make()
+            check_parts_langs_files(pt_aid)
+            check_review_0930()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -5450,6 +6298,14 @@ def main():
     if AN_REPORT:
         print("\nаналитика раздела 4:")
         for k, v in AN_REPORT.items():
+            print("  ", k, v)
+    if TPL_REPORT:
+        print("\nшаблоны классов:")
+        for k, v in TPL_REPORT.items():
+            print("  ", k, v)
+    if PT_REPORT:
+        print("\nкомплексные продукты по частям:")
+        for k, v in PT_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

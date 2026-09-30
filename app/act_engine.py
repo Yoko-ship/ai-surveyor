@@ -20,6 +20,8 @@
 3. value_check — отношение суммы к стоимости (ТЗ 8.3) и ориентир «цена минус износ».
 4. franchise — только при основании (ТЗ 8.4); размер — вилка из порогов franchise_by_level.
 5. clauses, required_views, discrepancies, decision — по ТЗ 5, 8.5, 8.6, 7.
+9. Комплексные продукты по частям (30.09.2026): ставки частей из текста тарифа, минимум класса части, ставка части,
+   деление суммы, сопоставление объектов договора с классами, сценарии, удержание и итоги договора.
 """
 import math
 import re
@@ -65,6 +67,11 @@ DEFAULT_SETTINGS = {
     # ключевых полей (сумма, премия, срок, объект) и модель подключена — текст договора (после маскировки ПД,
     # не больше ai_max_chars знаков) уходит в модель, она дополняет только пустые поля
     "contract": {"ai_assist": True, "ai_max_chars": 30000},
+    # комплексные продукты по частям (30.09.2026, ТЗ универсального шаблона 4.1в): доли страховой суммы по классам
+    # из тарифной политики {код продукта: {класс: %}} — в тарифной политике INSON 23.09.2025 долей суммы нет (там
+    # только ставки частей), поэтому по умолчанию пусто и сумма делится поровну с пометкой «подтвердите»;
+    # sum_tolerance — допуск «сумма частей = страховая сумма договора», сумов
+    "parts": {"shares": {}, "sum_tolerance": 1},
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
@@ -195,10 +202,11 @@ def required_views(group: str) -> list:
     return list(REQUIRED_VIEWS.get(group) or [])
 
 
-def missing_views(group: str, seen) -> list:
+def missing_views(group: str, seen, required: Optional[list] = None) -> list:
+    """Каких ракурсов не хватает. required — ракурсы шаблона класса (app/class_templates.py); None — по группе."""
     seen = set(seen or [])
     out = []
-    for v in required_views(group):
+    for v in (required_views(group) if required is None else required):
         if not (VIEW_COVERS.get(v, {v}) & seen):
             out.append(v)
     return out
@@ -208,6 +216,21 @@ def clauses(group: str, catalog: dict) -> list:
     """Оговорки из готового списка по группе объекта (docs/act_clauses.json). Все — экспертные."""
     items = ((catalog or {}).get("groups") or {}).get(group) or []
     return [dict(c, expert=True, calibrated=CALIBRATED) for c in items if isinstance(c, dict) and c.get("code")]
+
+
+def clauses_by_codes(codes: list, catalog: dict) -> list:
+    """Оговорки по кодам шаблона класса — в порядке шаблона, из любой группы списка. Неизвестный код пропускается."""
+    by = {}
+    for items in ((catalog or {}).get("groups") or {}).values():
+        for c in items or []:
+            if isinstance(c, dict) and c.get("code") and c["code"] not in by:
+                by[c["code"]] = c
+    out, seen = [], set()
+    for code in codes or []:
+        if code in by and code not in seen:
+            seen.add(code)
+            out.append(dict(by[code], expert=True, calibrated=CALIBRATED))
+    return out
 
 
 # ================================================================================================
@@ -815,6 +838,34 @@ def check_settings(s: dict) -> list:
         errs.append("contract: неизвестные ключи " + ", ".join(extra))
     if not errs and lim.get("pdf_text_max_pages", 0) < lim.get("pdf_max_pages", 0):
         errs.append("limits: pdf_text_max_pages не меньше pdf_max_pages")
+    errs += check_parts_settings(m.get("parts"))
+    return errs
+
+
+def check_parts_settings(pt) -> list:
+    """Настройки частей: shares {продукт: {класс: %}} — каждая доля 0–100, сумма 100 ± 0,5; sum_tolerance 0–1000."""
+    errs = []
+    if not isinstance(pt, dict):
+        return ["parts: словарь {shares, sum_tolerance}"]
+    extra = [k for k in pt if k not in ("shares", "sum_tolerance")]
+    if extra:
+        errs.append("parts: неизвестные ключи " + ", ".join(extra))
+    tol = pt.get("sum_tolerance")
+    if isinstance(tol, bool) or not isinstance(tol, (int, float)) or not (0 <= tol <= 1000):
+        errs.append("parts.sum_tolerance: число сумов от 0 до 1000")
+    sh = pt.get("shares")
+    if not isinstance(sh, dict):
+        errs.append("parts.shares: словарь {код продукта: {класс: %}}")
+        return errs
+    for code, d in sh.items():
+        if not isinstance(d, dict) or not d:
+            errs.append(f"parts.shares.{code}: словарь {{класс: %}}")
+            continue
+        vals = list(d.values())
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not (0 <= v <= 100) for v in vals):
+            errs.append(f"parts.shares.{code}: доли — числа от 0 до 100")
+        elif abs(sum(float(v) for v in vals) - 100) > 0.5:
+            errs.append(f"parts.shares.{code}: сумма долей {round(sum(vals), 2)} — нужно 100 ± 0,5")
     return errs
 
 
@@ -1344,3 +1395,387 @@ def contract_essentials(ct: dict) -> list:
             "premium": ct.get("premium") is not None,
             "term": bool(ct.get("term_days"))}
     return [{"code": c, "present": have[c]} for c in ("object", "insured_event", "sum_insured", "premium", "term")]
+
+
+# ================================================================================================
+#  9. Комплексные продукты: разбор по частям (ТЗ универсального шаблона, 4.1в; 30.09.2026)
+# ================================================================================================
+#
+# Продукт из нескольких классов — несколько условных договоров (Положение 1882, п. 11). Каждая часть считается
+# по своему классу: уровень, ставка по своей тарифной политике (обязательная часть — только по нормативному акту),
+# премия, франшиза, сценарии. Ставка проверяется по каждому классу отдельно (правило проекта № 5): средняя по
+# договору только справочно. Премии складываются, уровень — самый высокий; сценарии: части одного объекта — большее,
+# разные объекты — сумма. Функции чистые: справочник и настройки приходят аргументами.
+
+SAME_OBJECT_CLASSES = frozenset(("8", "9", "16"))     # имущество, ущерб и перерыв в деятельности одного объекта
+VALUE_CLASSES = frozenset(("3", "4", "5", "6", "7", "8", "9"))   # у части есть страховая стоимость (ГК ст. 936, 938)
+LEVEL_ORDER = {"low": 0, "moderate": 1, "high": 2}
+MAX_PARTS = 10
+SCENARIOS3 = ("PML", "EML", "MFL")
+
+# подписи частей в тексте тарифа продукта («ТС 1,1% · НС 0,5% · ОТВ 1%») → классы-кандидаты; берётся первый
+# кандидат из состава продукта. Короткие подписи (до трёх букв) — только целым словом.
+RATE_TEXT_LABELS = (
+    (("тс", "залог", "tv", "garov"), ("3",)),
+    (("имущ", "гбо", "mol"), ("8", "9")),
+    (("нс", "bh", "несчаст"), ("1",)),
+    (("отв", "го", "ushoj", "javob"), ("13", "10", "11", "12")),
+    (("фин", "кредит", "moliya"), ("14", "13з")),
+)
+
+# слова наименования объекта в договоре → класс (дополняют виды объектов шаблонов классов; у 8 и 9 виды одинаковые,
+# различают их слова риска)
+PART_WORDS = {
+    "1": ("несчаст", "жизн", "здоров", "заёмщик", "заемщик", "застрахованн", "baxtsiz", "accident", "life"),
+    "3": ("автомоб", "транспорт", "машин", "авто", "avtomobil", "transport", "vehicle", "car "),
+    "8": ("имуществ", "здани", "сооружен", "квартир", "дом ", "недвижим", "огн", "пожар", "стихий", "mol-mulk",
+          "bino", "uy ", "property", "building", "fire"),
+    "9": ("ущерб", "полом", "краж", "залив", "бой стекол", "zarar", "damage", "theft", "breakdown"),
+    "13": ("ответствен", "третьим лиц", "javobgar", "liabilit", "гражданск"),
+    "14": ("кредит", "заём", "займ", "невозврат", "непогашен", "kredit", "qarz", "loan", "credit"),
+    "16": ("простой", "перерыв", "упущен", "доход", " bi ", "business interrupt", "tanaffus"),
+}
+
+
+def default_same_object(classes) -> bool:
+    """Один объект по умолчанию: все классы — имущество/ущерб/перерыв одного объекта (8, 9, 16)."""
+    cl = [str(c) for c in classes or []]
+    return bool(cl) and all(c in SAME_OBJECT_CLASSES for c in cl)
+
+
+def part_rates_from_text(rate_text, classes) -> dict:
+    """
+    Ставки частей из текста тарифа продукта: «имущ. 0,1% · отв. 0,5%» → {"8": 0.1, "13": 0.5}.
+    Одна ставка без подписи («0,25% фикс.») — {"*": 0.25}: общая ставка продукта для всех частей.
+    Подпись не узнана — часть пропускается (ставка класса тогда не известна).
+    """
+    classes = [str(c) for c in classes or []]
+    segs = [s.strip() for s in re.split(r"[·;]", str(rate_text or "")) if s.strip()]
+    out = {}
+    for seg in segs:
+        nums = re.findall(r"(\d+(?:[.,]\d+)?)\s*%", seg)
+        if len(nums) != 1:
+            continue
+        v = float(nums[0].replace(",", "."))
+        label = re.split(r"\d", seg, maxsplit=1)[0].lower()
+        words = [w for w in re.split(r"[^a-zа-яё]+", label) if w]
+        if not words:
+            if len(segs) == 1:
+                return {"*": v}
+            continue
+        for stems, cands in RATE_TEXT_LABELS:
+            hit = any((w == s) if len(s) <= 3 else w.startswith(s) for w in words for s in stems)
+            if not hit:
+                continue
+            cls = next((c for c in cands if c in classes and c not in out), None)
+            if cls:
+                out[cls] = v
+            break
+    return out
+
+
+def class_min(ref, product: Optional[dict], cls: str) -> dict:
+    """
+    Минимальная ставка класса части по тарифной политике: первый класс продукта — справочник min_rates (как у
+    однопродуктового акта); остальные — ставка части из текста тарифа продукта; класс не из состава продукта или
+    ставки нет — None (базой станет техническая ставка класса). source: min_rates | rate_text | rate_text_common |
+    none | not_in_product | no_product.
+    """
+    code = (product or {}).get("code")
+    if not code:
+        return {"pct": None, "source": "no_product"}
+    classes = list(ref.product_classes.get(code) or [])
+    if cls not in classes:
+        return {"pct": None, "source": "not_in_product"}
+    company = min_rate(ref, code)["company"]
+    if classes and cls == classes[0] and company is not None:
+        return {"pct": float(company), "source": "min_rates"}
+    texts = part_rates_from_text((product or {}).get("rate_text"), classes)
+    if cls in texts:
+        return {"pct": texts[cls], "source": "rate_text"}
+    if "*" in texts:
+        return {"pct": texts["*"], "source": "rate_text_common"}
+    return {"pct": None, "source": "none"}
+
+
+def part_rate(ref, product: Optional[dict], cls: str, level: str, sum_insured: float, term_days: int = 365,
+              object_type: Optional[str] = None, payer_type: Optional[str] = None,
+              settings: Optional[dict] = None, cm: Optional[dict] = None) -> dict:
+    """
+    Ставка части — тот же act_engine.rate, но минимум (и база тарифной политики) — своего класса (class_min):
+    у второго и следующих классов продукта в справочнике min_rates ставки нет, она есть только в тексте тарифа.
+    Обязательный вид и «по согласованию» — как у rate (нормативный акт без поправок / ставка не определена).
+    """
+    import dataclasses
+    code = (product or {}).get("code")
+    mode = (product or {}).get("pricing_mode")
+    cm = cm if cm is not None else class_min(ref, product, cls)
+    ref2 = ref
+    if code and mode not in NEGOTIATED_MODES and mode != STATUTORY_MODE and cm.get("source") != "min_rates":
+        slot = dict(ref.min_rates.get(code) or {"company": {}, "regulator": {}})
+        slot["company"] = {None: float(cm["pct"])} if cm.get("pct") is not None else {}
+        slot.setdefault("regulator", {})
+        ref2 = dataclasses.replace(ref, min_rates={**ref.min_rates, code: slot})
+    out = rate(ref2, product, cls, level, sum_insured, term_days, object_type, payer_type, settings)
+    out["class_min"] = dict(cm)
+    if out["mode"] in ("statutory", "statutory_undefined"):
+        # обязательная часть: ставка и минимум — только нормативный акт, тарифная политика не участвует
+        out["class_min"] = {"pct": out.get("min_pct"), "source": "act"}
+    if out["mode"] == "tariff":
+        src = cm.get("source")
+        if src in ("rate_text", "rate_text_common"):
+            # минимум взят из текста тарифа продукта: это минимум класса части, а не «ставка продукта» —
+            # строки «как посчитано» называют его так (три языка — act_texts, how_part_*_text)
+            rename = {"how_base_product": "how_part_base_text", "how_min_ok": "how_part_min_ok_text",
+                      "how_min_applied": "how_part_min_applied_text"}
+            renamed = False
+            for h in out["how"]:
+                if h["code"] in rename:
+                    renamed = renamed or h["code"] == "how_base_product"
+                    h["code"] = rename[h["code"]]
+                    h["params"] = dict(h["params"], cls=cls, code=code)
+            if not renamed:
+                out["how"].insert(0, {"code": "how_part_min_text", "params": {"rate": cm["pct"], "cls": cls,
+                                                                             "code": code}})
+        elif src == "not_in_product":
+            out["how"].insert(0, {"code": "how_part_outside", "params": {"cls": cls, "code": code}})
+        elif src == "none":
+            out["how"].insert(0, {"code": "how_part_min_none", "params": {"cls": cls, "code": code}})
+    return out
+
+
+def split_sum(S: float, classes: list, shares: Optional[dict] = None) -> list:
+    """Сумма договора по классам: по долям {класс: %} (сумма 100) или поровну. Округление до сума, остаток —
+    последней части: сумма частей точно равна S."""
+    classes = [str(c) for c in classes]
+    n = len(classes)
+    if not n:
+        return []
+    if shares:
+        pcts = [float(shares.get(c, 0) or 0) for c in classes]
+        tot = sum(pcts) or 100.0
+        pcts = [p * 100.0 / tot for p in pcts]
+    else:
+        pcts = [100.0 / n] * n
+    sums = [float(round(S * p / 100)) for p in pcts]
+    sums[-1] = round(float(S) - sum(sums[:-1]), 2)
+    return [{"class_code": c, "sum_insured": s, "share_pct": round(p, 4)} for c, p, s in zip(classes, pcts, sums)]
+
+
+def check_parts_sum(parts: list, S: float, tol: float = 1.0) -> Optional[dict]:
+    """Сумма частей против страховой суммы договора (допуск tol сумов). None — сходится, иначе {total, diff}."""
+    total = round(sum(float(p["sum_insured"]) for p in parts), 2)
+    if abs(total - float(S)) <= float(tol) + 1e-6:
+        return None
+    return {"total": total, "sum_insured": float(S), "diff": round(float(S) - total, 2)}
+
+
+def _norm_name(s) -> str:
+    return " " + re.sub(r"\s+", " ", str(s or "").lower().replace("ё", "е")) + " "
+
+
+def match_class(name, classes: list, words: Optional[dict] = None) -> tuple:
+    """(класс, число совпавших слов) по наименованию объекта договора; только классы продукта. Нет слов — (None, 0).
+    words — слова из шаблонов классов {класс: [основы]} (виды объекта); дополняются PART_WORDS."""
+    text = _norm_name(name)
+    best, score = None, 0
+    for c in classes:
+        stems = set(PART_WORDS.get(str(c), ())) | set((words or {}).get(str(c), ()))
+        n = 0
+        for s in stems:
+            s2 = str(s or "").lower().replace("ё", "е")
+            if s2.strip() and s2 in text:
+                n += 1
+        if n > score:
+            best, score = str(c), n
+    return best, score
+
+
+def parts_from_items(items: list, classes: list, words: Optional[dict] = None) -> list:
+    """
+    Части по перечню объектов договора [{name, sum}]: класс — по наименованию (match_class). Объекты одного класса
+    складываются в одну часть (один условный договор). Не узнан — к первому классу продукта с пометкой guess.
+    """
+    by = {}
+    for it in items or []:
+        cls, _score = match_class(it.get("name"), classes, words)
+        guess = cls is None
+        cls = cls or str(classes[0])
+        p = by.setdefault(cls, {"class_code": cls, "sum_insured": 0.0, "names": [], "class_guess": False})
+        p["sum_insured"] = round(p["sum_insured"] + float(it["sum"]), 2)
+        if it.get("name"):
+            p["names"].append(it["name"])
+        p["class_guess"] = p["class_guess"] or guess
+    order = {str(c): i for i, c in enumerate(classes)}
+    return sorted(by.values(), key=lambda p: order.get(p["class_code"], 99))
+
+
+def part_risk_inputs(common: dict, fields: Optional[dict], main: bool) -> dict:
+    """
+    Входы risk_level части. Часть того же объекта (main) берёт осмотр и признаки объекта договора; часть другого
+    объекта — только историю убытков и документы страхователя (осмотр был не её объекта). Поля части — поверх.
+    """
+    f = fields or {}
+    if main:
+        out = dict(common)
+    else:
+        out = {"inspected": False, "damages": [], "condition": None, "year": None, "location": None, "guard": None,
+               "losses_count": common.get("losses_count"), "documents": common.get("documents"),
+               "today": common.get("today")}
+    for k in ("condition", "year", "location", "guard", "losses_count"):
+        if f.get(k) is not None:
+            out[k] = f[k]
+    if f.get("documents_provided") is not None:
+        out["documents"] = bool(f["documents_provided"])
+    return out
+
+
+def level_max(levels) -> str:
+    """Уровень договора — самый высокий среди частей."""
+    lv = [x for x in levels if x in LEVEL_ORDER]
+    return max(lv, key=lambda x: LEVEL_ORDER[x]) if lv else "moderate"
+
+
+def aggregate_scenarios(parts: list) -> dict:
+    """
+    Сценарии договора из сценариев частей. parts: [{"index", "class_code", "main": bool (тот же объект, что часть 1),
+    "scenarios": блок act_extras.scenarios}]. Части одного объекта (main) — большее по каждому сценарию; части других
+    объектов — прибавляются. Часть без правила сценария — не считается и в итог не входит (excluded).
+    """
+    avail = [p for p in parts if (p.get("scenarios") or {}).get("available")]
+    excluded = [{"index": p["index"], "class_code": p["class_code"],
+                 "reason": (p.get("scenarios") or {}).get("reason") or "sc_na_class"}
+                for p in parts if p not in avail]
+    main = [p for p in avail if p.get("main")]
+    other = [p for p in avail if not p.get("main")]
+    if not other:
+        rule = "max"
+    elif len(main) <= 1:
+        rule = "sum"
+    else:
+        rule = "mixed"
+    out = {"available": bool(avail), "rule": rule, "items": {}, "excluded": excluded,
+           "main": [p["index"] for p in main], "other": [p["index"] for p in other], "calibrated": CALIBRATED}
+    for s in SCENARIOS3:
+        mv = [(p["index"], float(p["scenarios"]["items"][s]["amount"])) for p in main]
+        ov = [(p["index"], float(p["scenarios"]["items"][s]["amount"])) for p in other]
+        top = max(mv, key=lambda x: x[1]) if mv else None
+        amount = (top[1] if top else 0.0) + sum(v for _i, v in ov)
+        out["items"][s] = {"amount": round(amount),
+                           "main_max": {"index": top[0], "amount": round(top[1])} if top else None,
+                           "main_values": [{"index": i, "amount": round(v)} for i, v in mv],
+                           "added": [{"index": i, "amount": round(v)} for i, v in ov]}
+    if avail:
+        a = [out["items"][s]["amount"] for s in SCENARIOS3]
+        out["order_ok"] = a[0] <= a[1] <= a[2]
+    return out
+
+
+def contract_retention(part_rets: list, eml: float, mfl: Optional[float] = None) -> Optional[dict]:
+    """
+    Удержание договора против EML договора (решение заказчика 21.09.2026). Лимит — наименьший из лимитов частей
+    (строже всех — таблица линий по классу части; так же risk_analytics._retention берёт наименьшую линию по классам).
+    """
+    known = [r for r in part_rets if r and r.get("known") and r.get("limit") is not None]
+    if not known:
+        base = next((r for r in part_rets if r), None)
+        return dict(base, known=False, eml_excess=None, within=None, mfl_excess=None) if base else None
+    best = min(known, key=lambda r: float(r["limit"]))
+    limit = float(best["limit"])
+    out = dict(best)
+    out.update(compared_with="eml", eml_excess=round(max(float(eml) - limit, 0)), within=float(eml) <= limit,
+               mfl_excess=(round(max(float(mfl) - limit, 0)) or None) if mfl is not None else None,
+               basis="min_of_parts")
+    return out
+
+
+def contract_value(parts: list, settings: Optional[dict] = None) -> Optional[dict]:
+    """Сумма к стоимости по договору: сумма частей со страховой стоимостью к их стоимости (value_check)."""
+    rows = [p for p in parts if p.get("value_applicable")]
+    if not rows:
+        return None
+    S = sum(float(p["sum_insured"]) for p in rows)
+    V = sum(float(p["object_value"]) for p in rows)
+    if V <= 0:
+        return None
+    out = value_check(S, V, settings)
+    out.update(sum_insured=round(S, 2), object_value=round(V, 2), parts=[p["index"] for p in rows])
+    return out
+
+
+def contract_totals(parts: list, S: float) -> dict:
+    """Итоги договора: премия = сумма премий частей (если у всех частей она есть); справочная ставка договора =
+    премия / сумма × 365 / срок — только справочно, минимум по ней не проверяется (правило проекта № 5)."""
+    prem = [p.get("premium") for p in parts]
+    known = [float(x) for x in prem if x is not None]
+    complete = len(known) == len(prem) and bool(prem)
+    total = round(sum(known)) if complete else None
+    term = int(parts[0].get("term_days") or 365) if parts else 365
+    ref_pct = round(total / float(S) * 100 * 365 / term, 4) if total is not None and S else None
+    return {"premium": total, "premium_known": round(sum(known)) if known else None, "premium_complete": complete,
+            "sum_insured": round(sum(float(p["sum_insured"]) for p in parts), 2),
+            "level": level_max([p.get("level") for p in parts]),
+            "reference_rate_pct": ref_pct, "reference_only": True, "term_days": term, "calibrated": CALIBRATED}
+
+
+# ================================================================================================
+#  10. Кредиты (правило проекта № 6, 30.09.2026): сумма и страхователь-банк
+# ================================================================================================
+
+# слова, по которым название юрлица — банк (узбекская кириллица и латиница, русский, английский)
+_BANK_WORDS = {"банк", "банки", "банка", "банкаси", "bank", "banki", "bankasi", "акб", "akb", "атб", "atb",
+               "чакб", "chakb"}
+
+
+def is_bank(name) -> Optional[bool]:
+    """Название организации — банк? «АКБ Хамкорбанк», «Xalq banki», «Kapitalbank ATB» → True; нет названия — None."""
+    s = str(name or "").strip().lower().replace("ё", "е")
+    if not s:
+        return None
+    words = re.findall(r"[a-zа-яўқғҳ0-9ʻʼ']+", s)
+    return any(w in _BANK_WORDS or (len(w) > 5 and (w.endswith("bank") or w.endswith("банк")
+                                                    or w.endswith("banki") or w.endswith("банки")))
+               for w in words)
+
+
+def credit_check(S: float, fields: Optional[dict], max_share: float = 0.5,
+                 policyholder: Optional[dict] = None) -> list:
+    """
+    Проверки андеррайтеру по кредиту (класс 14 и 13з; правило проекта № 6, требования НАПП). Чистая функция.
+      * сумма кредита и стоимость обеспечения не введены — credit_need_data: проверить вручную;
+      * страховая сумма выше min(кредит − обеспечение; max_share × кредит) — credit_over: уменьшить до допустимой;
+      * страхователь: policyholder = {"kind": legal | individual | None, "name", "source"} из запроса или
+        договора. Юрлицо не банк или гражданин — credit_holder_not_bank; не известен — credit_holder_unknown.
+    Возвращает [{"code", "params"}] (коды без префикса; акт добавляет c_ / c_part_).
+    Пример: кредит 100 млн, залог 60 млн, сумма 50 млн → допустимо 40 млн, превышение 10 млн.
+    """
+    f = fields or {}
+    out = []
+    S = float(S)
+
+    def num(v):
+        return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else None
+
+    c, k = num(f.get("credit_amount")), num(f.get("collateral_value"))
+    if not c or k is None:
+        out.append({"code": "credit_need_data", "params": {"sum": round(S),
+                                                           "share_pct": round(float(max_share) * 100)}})
+    else:
+        unsecured = max(c - k, 0.0)
+        cap = c * float(max_share)
+        insurable = min(unsecured, cap)
+        if S > insurable + 0.5:
+            out.append({"code": "credit_over", "params": {
+                "credit": round(c), "collateral": round(k), "insurable": round(insurable),
+                "by": "unsecured" if unsecured <= cap else "cap", "sum": round(S), "excess": round(S - insurable),
+                "share_pct": round(float(max_share) * 100)}})
+    ph = policyholder or {}
+    kind, name = ph.get("kind"), ph.get("name")
+    bank = is_bank(name) if kind == "legal" else (False if kind == "individual" else None)
+    if bank is False:
+        out.append({"code": "credit_holder_not_bank",
+                    "params": {"holder": name if kind == "legal" and name else None,
+                               "individual": kind == "individual", "source": ph.get("source")}})
+    elif bank is None:
+        out.append({"code": "credit_holder_unknown", "params": {}})
+    return out

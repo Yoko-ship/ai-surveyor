@@ -39,7 +39,8 @@ from . import franchise as frm
 from . import risk_analytics as ra
 
 CALIBRATED = 0
-RULE_CLASSES = ("3", "8", "9")            # классы, для которых в risk_analytics есть своё правило сценариев
+RULE_CLASSES = ("3", "8", "9")            # классы, для которых в risk_analytics есть своё правило сценариев;
+                                          # остальным — простое правило шаблона класса (simple_scenarios)
 MEASURES_FILE = db.ROOT / "docs" / "act_measures.json"
 MAX_MEASURES = 8
 FR_TYPES = ("unconditional", "conditional", "peril")
@@ -1043,11 +1044,230 @@ def _what(rule: str, s: str, sc: dict, op: dict) -> tuple:
     return ("sc_w_fire_whole" if whole else "sc_w_fire"), {}, state
 
 
-def scenarios(ctx: dict, cls: str, S: float) -> dict:
-    """Сценарии из risk_analytics.analyze. Класс без своего правила — «сценарий не считается»."""
+def _retention_block(an: Optional[dict], eml: float, mfl: Optional[float] = None) -> Optional[dict]:
+    """Лимит удержания из risk_analytics (Положение 1806, п. 15) против EML акта; MFL — справкой."""
+    if not an:
+        return None
+    ret = an.get("retention") or {}
+    known = ret.get("retention_limit") is not None
+    cat = (an["scenarios"]["MFL"].get("catastrophe") or {})
+    status = {"по отчётности": "reported", "временно": "temporary"}.get(ret.get("status"), "unknown")
+    limit = ret.get("retention_limit")
+    mfl_excess = cat.get("reinsurance_need") if known else None
+    if known and mfl is not None:
+        mfl_excess = round(max(float(mfl) - limit, 0)) or None
+    return {"known": known, "limit": limit, "limit_per_risk": ret.get("limit_per_risk"),
+            "line_retention": ret.get("line_retention"), "line_class": ret.get("line_class"),
+            "own_funds": ret.get("own_funds"), "reserves": ret.get("reserves"), "status": status,
+            # удержание сравнивается с EML (решение заказчика 21.09.2026); MFL — отдельной справкой
+            "compared_with": "eml",
+            "eml_excess": round(max(eml - limit, 0)) if known else None,
+            "within": (eml <= limit) if known else None,
+            "mfl_excess": mfl_excess,
+            "legal_ref": ret.get("legal_ref") or "Положение № 1806, п. 15"}
+
+
+def _num(v) -> Optional[float]:
+    if v is None or isinstance(v, bool):
+        return None
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return x if x > 0 else None
+
+
+def simple_scenarios(rule: str, S: float, V: float, fields: Optional[dict] = None,
+                     params: Optional[dict] = None) -> dict:
+    """
+    Простые экспертные правила сценариев для классов без правила в risk_analytics (шаблон класса, приложение А).
+    Чистая функция: S — страховая сумма (лимит), V — стоимость (лимит), fields — поля класса (optional.class_fields),
+    params — параметры правила из шаблона. Возвращает {"PML", "EML", "MFL": {"amount", "formula"},
+    "assumptions": [{"code", "params"}], "checks": [...]}; PML ≤ EML ≤ MFL ≤ страховой суммы (кроме накопления груза).
+    Лимиты ответственности (limit, full_limit) выше страховой суммы не берутся: min(лимит, S), в допущениях —
+    «лимит … выше страховой суммы — взята страховая сумма» (as_tpl_limit_case_over, as_tpl_limit_aggregate_over).
+    Все правила экспертные (calibrated = 0), это не статистика убытков.
+      people     — НС: PML = EML = сумма на человека; MFL = сумма на человека × люди в одном месте (нет — все);
+      frequency  — болезни: PML = EML = лимит на человека; MFL = max(лимит, epidemic_share × S);
+      unit       — ж/д: PML = EML = S / число единиц; MFL = S (весь состав);
+      full_loss  — авиа, суда: всё = min(S, V) (полная гибель);
+      shipment   — грузы: PML = EML = сумма отправки (нет — S); MFL = накопление (нет — S);
+      limit      — ответственность: PML = EML = min(лимит на случай, S) (нет — S); MFL = min(годовой лимит, S)
+                   (нет — S);
+      full_limit — ответственность в авиации и на море: всё = min(лимит, S) (нет — S);
+      full_sum   — гарантии: всё = S;
+      credit     — кредиты: всё = S; проверка S ≤ min(кредит − обеспечение; 50 % кредита);
+      bi         — финансовые риски: PML = EML = потери в месяц × срок восстановления (≤ S; нет — S); MFL = S;
+      dispute    — правовая защита: PML = EML = лимит на спор (нет — S); MFL = S.
+    """
+    from .class_templates import credit_insurable
+    f = fields or {}
+    p = params or {}
+    S = float(S)
+    V = float(V) if V else S
+    asm, checks = [], []
+
+    def money(x):
+        return f"{round(x):,}".replace(",", " ") + " сум"
+
+    def out(pml, eml, mfl, fp, fe, fm):
+        eml = max(eml, pml)
+        mfl = max(mfl, eml)
+        return {"PML": {"amount": round(pml), "formula": "PML = " + fp},
+                "EML": {"amount": round(eml), "formula": "EML = " + fe},
+                "MFL": {"amount": round(mfl), "formula": "MFL = " + fm},
+                "assumptions": asm, "checks": checks}
+
+    if rule == "people":
+        n = _num(f.get("insured_count"))
+        per = _num(f.get("sum_per_person"))
+        if per is None:
+            per = S / n if n else S
+            asm.append({"code": "as_tpl_per_person" if n else "as_tpl_per_person_sum", "params": {}})
+        per = min(per, S)
+        place = _num(f.get("people_in_one_place"))
+        if place is None:
+            place = n
+            asm.append({"code": "as_tpl_place", "params": {}})
+        mfl = min(S, per * place) if place else S
+        fm = f"{money(per)} × {int(place)} чел. в одном месте = {money(mfl)}" if place else f"страховая сумма {money(S)}"
+        return out(per, per, mfl, f"сумма на человека {money(per)}", f"сумма на человека {money(per)}", fm)
+    if rule == "frequency":
+        n = _num(f.get("insured_count"))
+        lim = _num(f.get("limit_per_person"))
+        if lim is None:
+            lim = S / n if n else S
+            asm.append({"code": "as_tpl_limit_person", "params": {}})
+        lim = min(lim, S)
+        share = float(p.get("epidemic_share", 0.3))
+        mfl = max(lim, min(S, S * share))
+        asm.append({"code": "as_tpl_epidemic", "params": {"pct": round(share * 100, 1)}})
+        visits, bill = _num(f.get("avg_visits")), _num(f.get("avg_bill"))
+        if visits and bill and n:
+            checks.append({"code": "tpl_expected", "params": {"amount": round(visits * bill * n)}})
+        return out(lim, lim, mfl, f"лимит на человека {money(lim)}", f"лимит на человека {money(lim)}",
+                   f"эпидемия: {share:g} × {money(S)} = {money(mfl)}")
+    if rule == "unit":
+        u = _num(f.get("units_count"))
+        one = S / u if u else S
+        if not u:
+            asm.append({"code": "as_tpl_units", "params": {}})
+        return out(one, one, S, f"одна единица {money(one)}" + (f" ({money(S)} / {int(u)})" if u else ""),
+                   f"одна единица {money(one)}", f"весь состав {money(S)}")
+    if rule == "full_loss":
+        b = min(S, V)
+        txt = f"полная гибель: меньшее из суммы и стоимости {money(b)}"
+        return out(b, b, b, txt, txt, txt)
+    if rule == "shipment":
+        per = _num(f.get("limit_per_shipment"))
+        if per is None:
+            per = S
+            asm.append({"code": "as_tpl_shipment", "params": {}})
+        per = min(per, S)
+        acc = _num(f.get("accumulation_value"))
+        if acc is None:
+            asm.append({"code": "as_tpl_accumulation", "params": {}})
+        mfl = max(per, acc) if acc is not None else S
+        return out(per, per, mfl, f"одна отправка {money(per)}", f"одна отправка {money(per)}",
+                   f"накопление {money(mfl)}" if acc is not None else f"страховая сумма {money(S)}")
+    if rule in ("limit", "full_limit"):
+        # убыток по договору не больше страховой суммы: лимит выше неё — берётся страховая сумма (с пометкой)
+        per = _num(f.get("limit_per_case"))
+        if per is None:
+            per = S
+            asm.append({"code": "as_tpl_limit_case", "params": {}})
+        elif per > S:
+            asm.append({"code": "as_tpl_limit_case_over", "params": {"limit": round(per), "sum": round(S)}})
+            per = S
+        if rule == "full_limit":
+            txt = f"полный лимит {money(per)}"
+            return out(per, per, per, txt, txt, txt)
+        agg = _num(f.get("limit_aggregate"))
+        if agg is None:
+            agg = S
+            asm.append({"code": "as_tpl_limit_aggregate", "params": {}})
+        elif agg > S:
+            asm.append({"code": "as_tpl_limit_aggregate_over", "params": {"limit": round(agg), "sum": round(S)}})
+            agg = S
+        pml = min(per, agg)
+        return out(pml, pml, max(per, agg), f"лимит на случай {money(pml)}", f"лимит на случай {money(pml)}",
+                   f"годовой лимит {money(max(per, agg))}")
+    if rule in ("full_sum", "credit"):
+        txt = f"полная страховая сумма {money(S)}"
+        if rule == "credit":
+            c, k = _num(f.get("credit_amount")), f.get("collateral_value")
+            k = float(k) if isinstance(k, (int, float)) and not isinstance(k, bool) and k >= 0 else None
+            if c and k is not None:
+                ci = credit_insurable(c, k, float(p.get("max_share_of_loan", 0.5)))
+                over = S > ci["insurable"] + 0.5
+                checks.append({"code": "tpl_credit_over" if over else "tpl_credit_ok",
+                               "params": {"credit": round(c), "collateral": round(k),
+                                          "insurable": round(ci["insurable"]), "by": ci["by"], "sum": round(S),
+                                          "excess": round(S - ci["insurable"]) if over else 0}})
+            else:
+                asm.append({"code": "as_tpl_credit_unknown", "params": {}})
+        return out(S, S, S, txt, txt, txt)
+    if rule == "bi":
+        m, r = _num(f.get("monthly_loss")), _num(f.get("recovery_months"))
+        if m and r:
+            loss = min(S, m * r)
+            fp = f"{money(m)} в месяц × {r:g} мес. = {money(loss)}" + (" (не больше страховой суммы)"
+                                                                        if m * r > S else "")
+        else:
+            loss = S
+            fp = f"страховая сумма {money(S)}"
+            asm.append({"code": "as_tpl_bi", "params": {}})
+        return out(loss, loss, S, fp, fp, f"весь период ответственности {money(S)}")
+    if rule == "dispute":
+        per = _num(f.get("limit_per_dispute"))
+        if per is None:
+            per = S
+            asm.append({"code": "as_tpl_dispute", "params": {}})
+        per = min(per, S)
+        return out(per, per, S, f"лимит на спор {money(per)}", f"лимит на спор {money(per)}",
+                   f"лимит расходов {money(S)}")
+    raise ValueError("неизвестное правило сценария: " + str(rule))
+
+
+def template_scenarios(ctx: dict, cls: str, S: float, V: float, template: dict, fields: Optional[dict]) -> dict:
+    """Сценарии по простому правилу шаблона класса (класс без правила в risk_analytics)."""
+    rule = (template.get("scenario_rule") or {})
+    code = rule.get("code")
+    base = {"available": False, "reason": None, "class_code": cls, "rule": code, "items": {},
+            "retention": None, "assumptions": [], "calibrated": CALIBRATED, "order": SCENARIO_ORDER,
+            "source": "template", "rule_text": rule.get("text"), "rule_simple": rule.get("simple_rule")}
+    try:
+        res = simple_scenarios(code, S, V, fields, rule.get("params"))
+    except (ValueError, TypeError, ZeroDivisionError):
+        base["reason"] = "sc_na_class"
+        return base
+    what = rule.get("what") or {}
+    items = {}
+    for s in ("PML", "EML", "MFL"):
+        amt = res[s]["amount"]
+        items[s] = {"amount": amt, "pct": round(amt / S * 100, 1) if S else None, "what": "sc_w_tpl",
+                    "what_params": {}, "what_text": dict(what.get(s) or {}), "state": None,
+                    "formula": res[s]["formula"], "level": None, "source_scenario": s}
+    an = ctx.get("analysis") if ctx.get("ok") else None
+    base.update(available=True, items=items,
+                order_ok=items["PML"]["amount"] <= items["EML"]["amount"] <= items["MFL"]["amount"],
+                retention=_retention_block(an, items["EML"]["amount"], items["MFL"]["amount"]),
+                assumptions=list(res["assumptions"]), checks=list(res["checks"]), k=1.0,
+                params=dict(rule.get("params") or {}))
+    return base
+
+
+def scenarios(ctx: dict, cls: str, S: float, template: Optional[dict] = None, V: Optional[float] = None,
+              fields: Optional[dict] = None) -> dict:
+    """Сценарии из risk_analytics.analyze (классы 3, 8, 9). Класс без правила в модуле — простое правило шаблона
+    класса (template_scenarios); шаблона нет — «сценарий не считается»."""
     base = {"available": False, "reason": None, "class_code": cls, "rule": None, "items": {},
             "retention": None, "assumptions": [], "calibrated": CALIBRATED, "order": SCENARIO_ORDER}
     if cls not in RULE_CLASSES:
+        code = ((template or {}).get("scenario_rule") or {}).get("code")
+        from .class_templates import TEMPLATE_RULES
+        if template and code in TEMPLATE_RULES:
+            return template_scenarios(ctx, cls, S, V or S, template, fields)
         base["reason"] = "sc_na_class"
         return base
     if not ctx.get("ok"):
@@ -1371,12 +1591,15 @@ def _tr(tr: dict, code: str, lang: str, what: str) -> Optional[str]:
 
 
 def measures(con, ctx: dict, rate_res: dict, *, cls: str, group: str, kind: Optional[str], S: float, V: float,
-             o: dict, location: Optional[str], statutory: bool, th: dict, premium: Optional[float]) -> dict:
+             o: dict, location: Optional[str], statutory: bool, th: dict, premium: Optional[float],
+             codes: Optional[list] = None) -> dict:
     """
     Мероприятия: таблица preventive_measures (через reducers risk_analytics — те же, что в старом
-    движке) плюс экспертный список docs/act_measures.json по группе объекта. Эффект — множитель
-    движка к ставке акта; несколько скидок перемножаются и премия не ниже минимальной ставки
-    продукта (franchise._measures_delta). premium — премия акта, к которой относится эффект.
+    движке) плюс экспертный список docs/act_measures.json. codes — мероприятия шаблона класса для группы
+    объекта (app/class_templates.py): из списка берутся ровно они (условия when по-прежнему действуют);
+    codes = None — прежний выбор по группе объекта. Эффект — множитель движка к ставке акта; несколько скидок
+    перемножаются и премия не ниже минимальной ставки продукта (franchise._measures_delta). premium — премия
+    акта, к которой относится эффект.
     """
     ref = db.load_reference(con)
     cat = measures_catalog()
@@ -1405,8 +1628,10 @@ def measures(con, ctx: dict, rate_res: dict, *, cls: str, group: str, kind: Opti
     inp = _base_input(ref, ctx, cls, S, V, th)
     facts = {"location": location, "guard": o.get("guard"), "kind": kind, "cls": cls,
              "protection": o.get("protection"), "losses": o.get("losses_count")}
+    wanted = set(codes) if codes is not None else None
     for c in cat.get("catalog") or []:
-        if group not in (c.get("groups") or []) or c["code"] in seen or not _when_ok(c.get("when") or {}, facts):
+        chosen = (c["code"] in wanted) if wanted is not None else (group in (c.get("groups") or []))
+        if not chosen or c["code"] in seen or not _when_ok(c.get("when") or {}, facts):
             continue
         seen.add(c["code"])
         mandatory = c.get("mandatory_over") is not None and S >= float(c["mandatory_over"])

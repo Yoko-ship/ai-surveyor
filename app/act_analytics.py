@@ -218,8 +218,10 @@ def _relevant(f: str, peril: str) -> bool:
     return f not in ra.FACTOR_PERILS or peril in ra.FACTOR_PERILS[f]
 
 
-def risks(an: dict, rows: list, sens: list) -> dict:
-    """Риски класса с долей в нетто-ставке (risk_analytics) и уровнем по каждому риску (экспертное правило)."""
+def risks(an: dict, rows: list, sens: list, source: str = "perils") -> dict:
+    """Риски класса с долей в нетто-ставке (risk_analytics) и уровнем по каждому риску (экспертное правило).
+    source = template — риски и доли из шаблона класса (app/class_templates.py): в справочнике perils класса нет,
+    доли экспертные (приложение А), уровень считается тем же правилом по факторам класса."""
     items = []
     for rk in an.get("risks") or []:
         code = rk["code"]
@@ -254,12 +256,17 @@ def risks(an: dict, rows: list, sens: list) -> dict:
                                   "assumed": x["source"] == "default"}
                                  for x in drivers if x["multiplier"] < 1 - 1e-9],
                       "unknown": unknown, "measures": helps, "calibrated": CALIBRATED})
+        if rk.get("labels"):
+            items[-1]["labels"] = dict(rk["labels"])
     total = round(sum(i["share_of_net_pct"] for i in items), 1)
     # доли risk_analytics округлены до 0,1 п. п.: сумма может отличаться от 100 % не больше, чем на 0,05 на риск
     rounding = bool(items) and abs(total - 100) > 1e-9 and abs(total - 100) <= 0.05 * len(items) + 1e-9
-    return {"available": bool(items), "items": items, "total_pct": total, "rounding": rounding,
-            "whole_class": any(i["whole_class"] for i in items), "thresholds": dict(PERIL_LEVEL),
-            "calibrated": CALIBRATED}
+    out = {"available": bool(items), "items": items, "total_pct": total, "rounding": rounding,
+           "whole_class": any(i["whole_class"] for i in items), "thresholds": dict(PERIL_LEVEL),
+           "calibrated": CALIBRATED}
+    if source == "template":
+        out["source"] = "template"
+    return out
 
 
 # ================================================================================================
@@ -313,6 +320,19 @@ def scenarios(con, ctx: dict, scen: dict, S: float, V: float, th: dict) -> dict:
     """Формула каждого сценария с числами (доля × база, какой риск и какая база) и варианты «что если»."""
     if not scen or not scen.get("available") or not ctx.get("ok"):
         return {"available": False, "reason": (scen or {}).get("reason") or "sc_na_error", "items": [],
+                "whatif": [], "calibrated": CALIBRATED}
+    if scen.get("source") == "template":
+        # простое правило шаблона класса (act_extras.simple_scenarios): формула — одна строка на сценарий
+        items = []
+        for s in ("PML", "EML", "MFL"):
+            it = scen["items"][s]
+            items.append({"name": s, "source_scenario": s, "amount": round(it["amount"]), "pct": it["pct"],
+                          "rule": scen["rule"], "source": "template", "k": 1.0,
+                          "parts": [{"peril": "template", "amount": round(it["amount"]),
+                                     "what": dict(it.get("what_text") or {}), "formula": it.get("formula")}],
+                          "chosen": "template", "protection": None, "protection_assumed": False, "bi_loss": 0,
+                          "calibrated": CALIBRATED})
+        return {"available": True, "reason": None, "rule": scen["rule"], "source": "template", "items": items,
                 "whatif": [], "calibrated": CALIBRATED}
     an, op = ctx["analysis"], ctx["optional"]
     rule = scen["rule"]
@@ -642,10 +662,12 @@ def measures_effect(meas: dict, tech: Optional[float]) -> dict:
 
 def build(con, ctx: dict, *, cls: str, product_code: Optional[str], region: str, S: float, V: float,
           term_days: int, rate_res: dict, scen: dict, meas: dict, act_level: str, statutory: bool,
-          th: dict, group: Optional[str] = None) -> dict:
+          th: dict, group: Optional[str] = None, tpl_risks: Optional[list] = None) -> dict:
     """
     Аналитика раздела 4: коды и числа (язык не важен). Каждый блок считается отдельно — сбой одного не роняет
     остальные (блок получает available = false, reason = error). Без старого движка — available = false.
+    tpl_risks — риски шаблона класса (class_templates.template_risks), когда в справочнике perils класса нет:
+    вместо одной строки «весь класс» — экспертные доли шаблона.
     """
     out = {"available": False, "reason": None, "calibrated": CALIBRATED, "errors": []}
     if not ctx.get("ok"):
@@ -681,7 +703,8 @@ def build(con, ctx: dict, *, cls: str, product_code: Optional[str], region: str,
         engine={"product_code": inp.product_code, "class_code": inp.class_code, "object_type": inp.object_type,
                 "factors": dict(inp.factors), "term_days": inp.term_days, "takaful": bool(inp.takaful),
                 "technical_pct": calc["rates"]["technical_pct"]},
-        risks=safe("risks", lambda: risks(an, rows, sens), {"items": []}),
+        risks=safe("risks", lambda: risks({"risks": tpl_risks}, rows, sens, "template") if tpl_risks
+                   else risks(an, rows, sens), {"items": []}),
         factors={"items": rows, "base_pct": _r(r["base_pct"] * max(r["share"], 0.001) * (r["gross_pct"] / r["net_pct"]
                                                                                      if r["net_pct"] else 0)),
                  "technical_pct": _r(r["gross_pct"]), "calibrated": CALIBRATED},

@@ -172,6 +172,7 @@ var NAV = [
    {id:"forms",     title:"Версии, ставки, продукты", why:"Формы админки: версия тарифов, минимальная ставка, коэффициент, продукт."},
    {id:"reference", title:"Справочники", why:"Продукты, классы, опасности, коэффициенты, чек-листы, правила, минимальные ставки."},
    {id:"valuation", title:"Оценка: износ и настройки", why:"Процент износа за год, остаточный минимум и настройки оценки."},
+   {id:"templates", title:"Шаблоны классов", why:"Шаблон анализа по каждому из 17 классов: поля, риски, ракурсы, документы. Правка — новой версией, старые версии хранятся."},
    {id:"osgor",     title:"ОСГОР: виды деятельности", why:"Справочник видов деятельности и коэффициентов по ним."},
    {id:"vehicle",   title:"Транспорт и спецтехника", why:"Справочник групп техники и документов, по которым её опознают."},
    {id:"review",    title:"Правила к пересмотру", why:"Проверки, помеченные роботом-юристом после изменения нормы."},
@@ -530,6 +531,129 @@ V.tariffs_valuation = async function (el) {
     } catch (err) { m.className = "msg bad"; m.textContent = "Не сохранилось: " + err.message; }
   };
 };
+/* --- Шаблоны классов (справочник class_templates, приложение А; 30.09.2026) ---
+   GET /act/templates — список; GET /act/templates/{класс}?lang= — шаблон на языке; ?raw=1 — исходный JSON на трёх
+   языках; PUT /act/templates/{класс} — новая версия (только администратор; 422 — список ошибок структуры);
+   GET /act/templates/{класс}/history — все версии. */
+var TPL_TYPES = {money: "сумма, сум", int: "целое число", number: "число", text: "текст", bool: "да / нет", choice: "выбор из списка",
+  year: "год", kind: "вид объекта", losses: "убытки за 3 года", deductible: "франшиза", date: "дата"};
+var TPL_VIEWS = {front: "спереди", back: "сзади", left: "левый борт", right: "правый борт", plate: "заводская табличка",
+  odometer: "счётчик пробега", document: "снимок документа", interior: "внутри", facade: "фасад", roof: "кровля",
+  electrical: "электрощит", fire_safety: "средства пожаротушения", general: "общий вид", installation: "место установки",
+  packaging: "упаковка", marking: "маркировка", transport: "транспорт", other: "другое"};
+var TPL_GROUPS = {"default": "все объекты класса", vehicle: "транспорт", special: "спецтехника", property: "здание, помещение",
+  equipment: "оборудование", cargo: "груз"};
+var TPL_SRC = {file: "файл справочника", admin: "правка администратора", file_only: "файл (база только для чтения)"};
+var TPLS = {cls: null, lang: "ru"};
+V.tariffs_templates = async function (el, arg) {
+  var d = await api("/act/templates?lang=ru");
+  var rows = (d.templates || []).map(function (t) {
+    return '<tr class="pick" data-tcls="' + esc(t.class_code) + '"><td class="n">' + esc(t.class_code) + "</td><td>" + esc(t.name) +
+      '</td><td class="n">' + esc(t.version) + "</td><td>" + when(t.updated_at) + "</td><td>" + esc(TPL_SRC[t.source] || "—") +
+      '</td><td class="n">' + (t.must || []).length + '</td><td><button class="btn btn-secondary btn-sm" type="button" data-tcls="' +
+      esc(t.class_code) + '">Открыть</button></td></tr>';
+  });
+  el.innerHTML = '<div class="card"><h3>Шаблоны по классам</h3><p class="note">Файл справочника ' + esc(d.file_version || "—") +
+    " от " + esc(d.file_date || "—") + '. Доли рисков, веса и параметры — экспертные, не калиброваны по убыткам компании. ' +
+    "Классы 13з и 16у считаются по шаблонам 14 и 16.</p>" +
+    tbl(["Класс", "Название", "Версия", "Изменён", "Источник", "Обязательных полей", ""], rows, "Шаблонов нет") + "</div>" +
+    '<div id="tplOne"></div>';
+  el.onclick = function (e) {
+    var b = e.target.closest ? e.target.closest("[data-tcls],[data-tlang],[data-tsave],[data-treset]") : null;
+    if (!b) return;
+    if (b.dataset.tcls) { TPLS.cls = b.dataset.tcls; tpl_one(); }
+    else if (b.dataset.tlang) { TPLS.lang = b.dataset.tlang; tpl_one(); }
+    else if (b.dataset.tsave != null) tpl_save();
+    else if (b.dataset.treset != null) tpl_one();
+  };
+  if (arg) TPLS.cls = String(arg);
+  if (TPLS.cls) tpl_one();
+};
+function tpl_list(title, items) {
+  return items && items.length ? "<span>" + esc(title) + "</span><b>" + items.map(esc).join("<br>") + "</b>" : "";
+}
+async function tpl_one() {
+  var box = $("#tplOne"), c = TPLS.cls;
+  if (!box || !c) return;
+  box.innerHTML = '<div class="card"><p class="hint">Загружаем шаблон класса ' + esc(c) + "…</p></div>";
+  try {
+    var one = await api("/act/templates/" + encodeURIComponent(c) + "?lang=" + encodeURIComponent(TPLS.lang));
+    var raw = await api("/act/templates/" + encodeURIComponent(c) + "?raw=1");
+    var hist = await api("/act/templates/" + encodeURIComponent(c) + "/history");
+  } catch (e) { box.innerHTML = fail(e); return; }
+  var t = one.template || {};
+  var fields = function (fs) {
+    return (fs || []).map(function (f) {
+      return f.label + " — " + (TPL_TYPES[f.type] || f.type) + (f.options && f.options.length ? " (" + f.options.length + " вар.)" : "");
+    });
+  };
+  var risks = one.perils && one.perils.length ? one.perils.map(function (r) { return r.name + " — " + String(r.share_pct).replace(".", ",") + " %" + (r.catastrophic ? ", катастрофический" : ""); })
+    : ((t.risks || {}).items || []).map(function (r) { return r.label + " — " + String(r.share_pct).replace(".", ",") + " %" + (r.catastrophic ? ", катастрофический" : ""); });
+  var views = Object.keys(t.required_views || {}).map(function (g) {
+    return (TPL_GROUPS[g] || g) + ": " + (t.required_views[g] || []).map(function (v) { return TPL_VIEWS[v] || v; }).join(", ");
+  });
+  var langs = ["ru", "uz", "en"].map(function (l) {
+    return '<button type="button" class="btn btn-sm ' + (l === TPLS.lang ? "btn-primary" : "btn-secondary") + '" data-tlang="' + l +
+      '" aria-pressed="' + (l === TPLS.lang) + '">' + {ru: "Русский", uz: "Oʻzbekcha", en: "English"}[l] + "</button>";
+  }).join("");
+  box.innerHTML = '<div class="card"><div class="bar" style="justify-content:space-between"><h3 style="margin:0">Класс ' + esc(one.class_code) +
+    " — " + esc(t.name) + '</h3><div class="bar" style="margin:0" role="group" aria-label="Язык шаблона">' + langs + "</div></div>" +
+    '<p class="note">Версия ' + esc(one.version) + " · " + esc(TPL_SRC[one.source] || "—") + " · изменён " + when(one.updated_at) +
+    (one.updated_by ? " · " + esc(one.updated_by) : "") + ". Коэффициенты экспертные, не калиброваны.</p>" +
+    '<div class="kv tpl-kv">' +
+    "<span>Объект</span><b>" + esc((t.object || {}).description) + "</b>" +
+    tpl_list("Виды объекта", ((t.object || {}).kinds || []).map(function (k) { return k.label; })) +
+    tpl_list("Обязательные поля (до 4)", fields(t.must)) +
+    tpl_list("Дополнительные поля", fields(t.optional)) +
+    tpl_list("Риски и доли", risks) +
+    "<span>Сценарии убытка</span><b>" + esc((t.scenario_rule || {}).text || "—") + "</b>" +
+    tpl_list("Ракурсы фото", views) +
+    tpl_list("Документы", ((t.documents || {}).items || [])) +
+    tpl_list("Заметки", (t.notes || []).map(function (n) { return typeof n === "string" ? n : (n && (n.text || n.label)) || ""; }).filter(Boolean)) +
+    "</div></div>" +
+    '<div class="card"><h3>Правка шаблона</h3><p class="note">Исходный JSON на трёх языках. Сохранение создаёт новую версию ' +
+    "(старая остаётся в истории). Сервер проверяет структуру: доли рисков 100 ± 0,5, коды оговорок и мероприятий существуют, " +
+    "обязательных полей не больше четырёх. Править может только администратор.</p>" +
+    '<label>JSON шаблона<textarea id="tplRaw" spellcheck="false" style="min-height:360px;font:12px/1.45 var(--mono);white-space:pre"></textarea></label>' +
+    '<label style="margin-top:8px">Что изменено и почему<input id="tplNote" maxlength="300" placeholder="например: доля угона 30 % по данным 2025 года"></label>' +
+    '<div class="actions"><button type="button" class="btn btn-primary" data-tsave="1">Сохранить новую версию</button>' +
+    '<button type="button" class="btn btn-secondary" data-treset="1">Вернуть как сохранено</button></div>' +
+    '<div class="msg" id="tplMsg" role="status"></div></div>' +
+    '<div class="card"><h3>История версий</h3>' +
+    tbl(["Версия", "Источник", "Когда", "Кто", "Примечание"], (hist.history || []).slice().reverse().map(function (h) {
+      return '<tr><td class="n">' + esc(h.version) + "</td><td>" + esc(TPL_SRC[h.source] || h.source) + "</td><td>" + when(h.updated_at) +
+        "</td><td>" + esc(h.updated_by || "—") + "</td><td>" + esc(h.note || "") + "</td></tr>";
+    }), "Версий нет") + "</div>";
+  $("#tplRaw").value = JSON.stringify(raw.raw || {}, null, 2);
+}
+async function tpl_save() {
+  var m = $("#tplMsg"), c = TPLS.cls, tpl;
+  m.className = "msg";
+  try { tpl = JSON.parse($("#tplRaw").value); }
+  catch (e) { m.className = "msg bad"; m.textContent = "JSON не разобран: " + e.message + ". Проверьте кавычки и запятые — версия не сохранена."; return; }
+  m.textContent = "Сохраняем…";
+  var r, body = null;
+  try {
+    r = await fetch("/act/templates/" + encodeURIComponent(c), {method: "PUT",
+      headers: {"Content-Type": "application/json", Accept: "application/json"},
+      body: JSON.stringify({template: tpl, note: $("#tplNote").value.trim(), lang: TPLS.lang})});
+    try { body = await r.json(); } catch (e) { body = null; }
+  } catch (e) { m.className = "msg bad"; m.textContent = "Сервер не ответил — версия не сохранена. Повторите позже."; return; }
+  if (r.status === 422 && body && body.errors) {
+    m.className = "msg bad";
+    m.innerHTML = "Версия не сохранена — исправьте шаблон:<ul>" + body.errors.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul>";
+    return;
+  }
+  if (!r.ok) {
+    m.className = "msg bad";
+    m.textContent = "Версия не сохранена: " + (body && body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) :
+      r.status === 403 ? "нужны права администратора" : "сервер ответил " + r.status) + ".";
+    return;
+  }
+  await tpl_one();
+  var m2 = $("#tplMsg");
+  if (m2) m2.textContent = "Сохранено: версия " + (body && body.version ? body.version : "") + ". История обновлена.";
+}
 V.tariffs_osgor = async function (el) {
   var d = await api("/osgor/activities");
   el.innerHTML = '<div class="card"><h3>ОСГОР: виды деятельности</h3>' +

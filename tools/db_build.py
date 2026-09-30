@@ -787,6 +787,19 @@ def main():
         cur.execute("INSERT OR IGNORE INTO valuation_settings (key,value,name,unit,calibrated,source,note)"
                     " VALUES (?,?,?,?,0,?,?)", (key, val, name, unit, src, note))
 
+    # шаблоны анализа по классам (docs/act_class_templates.json): добавляем версию файла, если её нет или она
+    # новее; правки администратора (более новые версии) и история не трогаются
+    try:
+        from app import class_templates as _ct         # noqa: E402  (путь уже добавлен выше)
+        con.row_factory = sqlite3.Row
+        res = _ct.ensure(con, force=True)
+        con.row_factory = None
+        cur = con.cursor()
+        if res.get("added"):
+            print(f"  шаблонов классов добавлено: {len(res['added'])} (версия {res.get('version')})")
+    except Exception as e:
+        print("  шаблоны классов не залиты:", e)
+
     # генеральные соглашения: заводим карточку партнёра-пустышку, условия ждём от заказчика.
     # Ничего не придумываем: terms пустые, согласующих по умолчанию нет.
     cur.execute("INSERT INTO general_agreements (partner, product_code, terms, default_reviewers, status, created_at, note)"
@@ -818,7 +831,7 @@ def main():
     for t in ["groups", "classes", "perils", "products", "product_classes", "min_rates",
               "coefficients", "base_rates", "load_components", "checklists", "rules", "preventive_measures",
               "depreciation_norms", "valuation_settings", "general_agreements", "request_reviewers", "watched_acts",
-              "tariff_versions", "osgor_activities"]:
+              "tariff_versions", "osgor_activities", "class_templates"]:
         n = cur.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
         print(f"  {t:18} {n}")
     con.close()

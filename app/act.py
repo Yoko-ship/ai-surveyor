@@ -25,6 +25,12 @@
   GET  /act/{id}.docx, .pdf   — выгрузка
   POST /act/{id}/send         — отправить акт файлом в чат с ботом (Telegram), только владельцу
   GET  /act/settings          — пороги лёгкого движка; PUT /act/settings — только администратор
+  GET  /act/templates         — шаблоны анализа 17 классов кратко (справочник class_templates, приложение А)
+  GET  /act/templates/{class} — шаблон класса на языке (?lang=, ?raw=1 — исходный JSON на трёх языках);
+                                /history — все версии; PUT — новая версия (администратор, проверка структуры)
+                                Акт берёт из шаблона ракурсы, оговорки, мероприятия, риски (классы без perils),
+                                простое правило сценария (классы без правила в risk_analytics), виды объекта и
+                                поля класса (optional.class_fields); у классов 3, 8, 9 выбор прежний
   GET  /act/market/links      — ссылки поиска на OLX, avtoelon.uz, uybor.uz, joymee.uz для браузера сотрудника
                                 (сервер по ним не ходит: olx.uz закрыт CloudFront, обход защиты запрещён)
   POST /act/market/shots      — снимки экрана со списком объявлений (до 5 JPG/PNG) → модель читает их одним
@@ -42,6 +48,16 @@
 если есть и запрос филиала, cross_check; в /act/make — optional.contract и блок contract_check (та же
 сверка, что с запросом, плюс график платежей, суммы по объектам и существенные условия ГК РУз, ст. 929),
 в разделе 1 — номер и дата договора, в разделе 4 — «Сверка с договором» и «Запрос филиала и договор».
+
+Комплексный продукт по частям (30.09.2026, ТЗ универсального шаблона 4.1в): продукт из нескольких классов
+(product_classes) или явные optional.parts[] {class_code, product_code?, sum_insured | share_pct, object_value?,
+object_kind?, object_description?, same_object?, fields{…}, deductible?} — несколько условных договоров
+(Положение 1882, п. 11). Части: сотрудника (сумма частей = страховой сумме ± parts.sum_tolerance, иначе 422) →
+перечень объектов договора (contract.items) → доли тарифной политики (настройка parts.shares) → поровну с пометкой
+«подтвердите» (suggested_parts). Каждая часть — по шаблону своего класса (_part_calc): уровень, ставка по своему
+минимуму (act_engine.part_rate; обязательная часть — только нормативный акт), премия, франшиза, сценарии, аналитика.
+Договор: премия — сумма, уровень — самый высокий, сценарии — большее (один объект) или сумма (разные объекты),
+удержание — против EML договора, средняя ставка — только справочно. Блок parts в ответе, разделы 1, 3, 4, 5 акта.
 
 Хранение: фото — 24 часа (DATA_DIR/act/<сессия>/, таблица act_uploads), акт — 7 дней (таблица acts);
 очистка — фоновым потоком раз в час и при каждой загрузке. Открыть акт может только тот, кто его создал
@@ -72,6 +88,7 @@ from . import act_analytics as aa
 from . import act_engine as ae
 from . import act_extras as ax
 from . import branch_request as br
+from . import class_templates as ctpl
 from . import contract_read as cr
 from . import act_market as am
 from . import act_texts as tx
@@ -1279,7 +1296,11 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         kind_text = tx.OBJECT_KINDS[kind][0] if kind and tx.OBJECT_KINDS[kind][0] else ""
         group = ae.object_group(cls, kind_text, hint or "")
         seen = sorted(set(views.values()))
-        missing = ae.missing_views(group, seen) if rec.get("ok") else ae.required_views(group)
+        # ракурсы — из шаблона класса (справочник class_templates); класса нет — по группе объекта
+        need = ctpl.for_group(((ctpl.current(con, cls) or {}).get("template") or {}).get("required_views"), group) \
+            if cls else None
+        need = ae.required_views(group) if need is None else need
+        missing = ae.missing_views(group, seen, need) if rec.get("ok") else list(need)
         stored = {"ai": bool(rec.get("ok")), "reason": rec.get("reason"), "views": views,
                   "document_kinds": doc_kinds, "fields": all_fields, "damages": damages,
                   "object_kind": kind, "class_hint": hint, "condition": rec.get("condition"),
@@ -1346,7 +1367,7 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "suggest_classes": HINT_CLASSES.get(hint or "", []),
         "condition": rec.get("condition"),
         "group": group,
-        "required_views": [{"code": v, "label": tx.label(tx.VIEW_LABELS, v, lang)} for v in ae.required_views(group)],
+        "required_views": [{"code": v, "label": tx.label(tx.VIEW_LABELS, v, lang)} for v in need],
         "missing_views": [{"code": v, "label": tx.label(tx.VIEW_LABELS, v, lang)} for v in missing],
         "ai": bool(rec.get("ok")),
         "message": message,
@@ -2124,12 +2145,20 @@ def validate(con, body: dict) -> tuple:
             errs["declared_value_original"] = "нужно число больше нуля"
         else:
             o["declared_value_original"] = v
+    # шаблон класса (app/class_templates.py): свои виды объекта и поля класса (optional.class_fields)
+    tpl_row = ctpl.current(con, ccode) if ccode and "class_code" not in errs else None
+    tpl = (tpl_row or {}).get("template")
     kind = opt.get("object_kind")
     if kind not in (None, ""):
-        if kind not in tx.OBJECT_KINDS:
+        if kind not in tx.OBJECT_KINDS and kind not in ctpl.kind_labels(tpl):
             errs["object_kind"] = "неизвестный вид объекта"
         else:
             o["object_kind"] = kind
+    cf, cf_err = validate_class_fields(opt.get("class_fields"), tpl)
+    if cf_err:
+        errs["class_fields"] = cf_err
+    if cf:
+        o["class_fields"] = cf
     otype = opt.get("object_type")
     if otype not in (None, ""):
         o["object_type"] = str(otype).strip()[:120]
@@ -2173,30 +2202,9 @@ def validate(con, body: dict) -> tuple:
             else:
                 o[key] = v
     # франшиза сотрудника: {pct | amount, type}; по обязательным видам не применяется (решает build_data)
-    ded = opt.get("deductible")
-    o["deductible"] = None
-    if ded not in (None, "", {}):
-        if not isinstance(ded, dict):
-            errs["deductible"] = "объект {pct | amount, type}"
-        else:
-            p, a = ded.get("pct"), ded.get("amount")
-            ftype = str(ded.get("type") or "unconditional").strip()
-            pv = _money_in(p) if p not in (None, "") else None
-            av = _money_in(a) if a not in (None, "") else None
-            if ftype not in ax.FR_TYPES:
-                errs["deductible"] = "type: " + ", ".join(ax.FR_TYPES)
-            elif (p not in (None, "") and pv is None) or (a not in (None, "") and av is None):
-                errs["deductible"] = "pct и amount — числа"
-            elif pv is None and av is None:
-                errs["deductible"] = "нужен pct (% страховой суммы) или amount (сумы)"
-            elif pv is not None and av is not None:
-                errs["deductible"] = "укажите что-то одно: pct или amount"
-            elif pv is not None and not 0 < pv <= 50:
-                errs["deductible"] = "pct больше 0 и не больше 50 % страховой суммы"
-            elif av is not None and not (0 < av <= (m.get("sum_insured") or MAX_SUM) * 0.5):
-                errs["deductible"] = "amount больше 0 и не больше половины страховой суммы"
-            else:
-                o["deductible"] = {"pct": pv, "amount": av, "type": ftype}
+    o["deductible"], ded_err = deductible_in(opt.get("deductible"), m.get("sum_insured"))
+    if ded_err:
+        errs["deductible"] = ded_err
 
     # запрос филиала (30.09.2026): тариф, премия, франшиза, срок — для сверки с расчётом акта
     inclusive = bool(load_settings(con)["request_check"]["term_inclusive"])
@@ -2255,7 +2263,251 @@ def validate(con, body: dict) -> tuple:
                 if what and not llm.has_pd(what) and not (where and llm.has_pd(where)):
                     clean["damages"].append({"what": what, "where": where, "file": _s(d.get("file"), 10)})
     clean["session"] = _s(body.get("session"), 40)
+
+    # комплексный продукт по частям (30.09.2026): части сотрудника и переключатель «один объект / разные объекты»
+    try:
+        clean["same_object"] = _bool_in(opt.get("same_object"))
+    except ValueError:
+        errs["same_object"] = "да или нет"
+    try:
+        clean["parts_confirmed"] = _bool_in(opt.get("parts_confirmed"))
+    except ValueError:
+        errs["parts_confirmed"] = "да или нет"
+    clean["parts"] = None
+    if opt.get("parts") not in (None, "", []) and not any(k in errs for k in ("product_code", "class_code",
+                                                                             "sum_insured")):
+        tol = float(load_settings(con)["parts"]["sum_tolerance"])
+        plan, p_err = validate_parts(con, opt.get("parts"), m, tol)
+        if p_err:
+            errs["parts"] = p_err
+        clean["parts"] = plan
     return clean, errs
+
+
+def deductible_in(ded, S: Optional[float]) -> tuple:
+    """Франшиза сотрудника {pct | amount, type} → (франшиза | None, ошибка | None). amount — не больше половины S."""
+    if ded in (None, "", {}):
+        return None, None
+    if not isinstance(ded, dict):
+        return None, "объект {pct | amount, type}"
+    p, a = ded.get("pct"), ded.get("amount")
+    ftype = str(ded.get("type") or "unconditional").strip()
+    pv = _money_in(p) if p not in (None, "") else None
+    av = _money_in(a) if a not in (None, "") else None
+    if ftype not in ax.FR_TYPES:
+        return None, "type: " + ", ".join(ax.FR_TYPES)
+    if (p not in (None, "") and pv is None) or (a not in (None, "") and av is None):
+        return None, "pct и amount — числа"
+    if pv is None and av is None:
+        return None, "нужен pct (% страховой суммы) или amount (сумы)"
+    if pv is not None and av is not None:
+        return None, "укажите что-то одно: pct или amount"
+    if pv is not None and not 0 < pv <= 50:
+        return None, "pct больше 0 и не больше 50 % страховой суммы"
+    if av is not None and not (0 < av <= (S or MAX_SUM) * 0.5):
+        return None, "amount больше 0 и не больше половины страховой суммы"
+    return {"pct": pv, "amount": av, "type": ftype}, None
+
+
+def validate_part_fields(raw, cls: str, tpl: Optional[dict]) -> tuple:
+    """
+    Признаки части (optional.parts[].fields): те же поля, что у договора, но свои у части — год, состояние, место,
+    охрана, убытки за 3 года, документы, тип объекта, конструкция, деятельность, защита, сейсмозона, поля класса
+    (по шаблону класса части), просьба снизить премию, преобладающий риск. (поля, ошибка).
+    """
+    if raw in (None, "", {}):
+        return {}, None
+    if not isinstance(raw, dict):
+        return {}, "fields — объект {признак: значение}"
+    out = {}
+    this_year = date.today().year
+    try:
+        for key, lo, hi in (("year", 1950, this_year + 1), ("purchase_year", 1950, this_year)):
+            v = _int_in(raw.get(key), lo, hi)
+            if v is not None:
+                out[key] = v
+        z = _int_in(raw.get("seismic_zone"), 5, 10)
+        if z is not None:
+            out["seismic_zone"] = z
+        for key in ("guard", "documents_provided", "want_lower_premium"):
+            v = _bool_in(raw.get(key))
+            if v is not None:
+                out[key] = v
+    except ValueError:
+        return {}, "fields: год — целое 1950–следующий год, сейсмозона 5–10, да/нет — true/false"
+    for key, allowed in (("condition", CONDITIONS), ("location", ae.LOCATIONS), ("construction", ax.CONSTRUCTIONS),
+                         ("activity", ax.ACTIVITIES)):
+        v = raw.get(key)
+        if v not in (None, ""):
+            if v not in allowed:
+                return {}, f"fields.{key}: одно из " + ", ".join(allowed)
+            out[key] = v
+    prot = raw.get("protection")
+    if prot not in (None, ""):
+        codes = ax.PROT_CODES.get(cls)
+        if codes and prot not in codes:
+            return {}, "fields.protection: одно из " + ", ".join(codes)
+        if codes:
+            out["protection"] = prot
+    losses = raw.get("losses_3y")
+    if losses not in (None, ""):
+        if not isinstance(losses, dict):
+            return {}, "fields.losses_3y — объект {count, small_count, amount}"
+        try:
+            n, small = _int_in(losses.get("count"), 0, 1000), _int_in(losses.get("small_count"), 0, 1000)
+        except ValueError:
+            return {}, "fields.losses_3y: количество — целое число от 0 до 1000"
+        if n is not None and small is not None and small > n:
+            return {}, "fields.losses_3y: мелких убытков не может быть больше, чем всех"
+        out["losses_count"], out["small_count"] = n, small
+        amt = losses.get("amount")
+        if amt not in (None, ""):
+            a = _money_in(amt)
+            if a is None or a > MAX_SUM:
+                return {}, "fields.losses_3y: сумма убытков — число не меньше нуля"
+            out["losses_amount"] = a
+    price = raw.get("price_new")
+    if price not in (None, ""):
+        p = _money_in(price)
+        if p is None or p <= 0 or p > MAX_SUM:
+            return {}, "fields.price_new: число больше нуля"
+        out["price_new"] = p
+    ot = _s(raw.get("object_type"), 120)
+    if ot and not llm.has_pd(ot):
+        out["object_type"] = ot
+    dom = _s(raw.get("dominant_risk"), 80)
+    if dom and not llm.has_pd(dom):
+        out["dominant_risk"] = dom
+    cf, cf_err = validate_class_fields(raw.get("class_fields"), tpl)
+    if cf_err:
+        return {}, "fields.class_fields: " + cf_err
+    if cf:
+        out["class_fields"] = cf
+    return out, None
+
+
+def validate_parts(con, raw, must: dict, tol: float) -> tuple:
+    """
+    optional.parts (недоверенный ввод) → (части | None, ошибка | None). Часть: {class_code, product_code?,
+    sum_insured | share_pct, object_value?, object_kind?, object_description?, same_object?, fields{…}, deductible?}.
+    Класс — из справочника; не из состава продукта — можно, с пометкой class_outside. Продукт части (например,
+    обязательный вид) — из справочника, класс части должен к нему относиться. Сумма частей = страховой сумме договора
+    (допуск tol сумов), доли 0–100. У продукта с одним классом частей не меньше двух.
+    """
+    if not isinstance(raw, list) or not raw or len(raw) > ae.MAX_PARTS:
+        return None, f"parts — список от 1 до {ae.MAX_PARTS} частей {{class_code, sum_insured, …}}"
+    classes = list(must.get("product_classes") or [])
+    if len(classes) <= 1 and len(raw) < 2:
+        return None, "у продукта один класс: одна часть — это обычный акт, уберите parts или добавьте часть"
+    S = must.get("sum_insured")
+    out = []
+    for i, p in enumerate(raw, 1):
+        if not isinstance(p, dict):
+            return None, f"часть {i}: объект {{class_code, sum_insured, …}}"
+        cls = str(p.get("class_code") or "").strip()[:10]
+        if not cls:
+            return None, f"часть {i}: нужен class_code"
+        crow = db.rows(con, "SELECT code, name FROM classes WHERE code=?", cls)
+        if not crow:
+            return None, f"часть {i}: класс {cls} не найден в справочнике"
+        pcode = str(p.get("product_code") or "").strip()[:10] or None
+        prod = None
+        if pcode and pcode != must.get("product_code"):
+            rows = db.rows(con, "SELECT code, name, pricing_mode, rate_text FROM products WHERE code=?", pcode)
+            if not rows:
+                return None, f"часть {i}: продукт {pcode} не найден в справочнике"
+            pcls = [r["class_code"] for r in db.rows(con, "SELECT class_code FROM product_classes "
+                                                          "WHERE product_code=? ORDER BY part_no", pcode)]
+            if cls not in pcls:
+                return None, f"часть {i}: класс {cls} не относится к продукту {pcode} ({', '.join(pcls)})"
+            prod = rows[0]
+        share = None
+        if p.get("share_pct") not in (None, ""):
+            share = _money_in(p.get("share_pct"))
+            if share is None or not 0 <= share <= 100:
+                return None, f"часть {i}: share_pct — доля от 0 до 100"
+        s = _money_in(p.get("sum_insured")) if p.get("sum_insured") not in (None, "") else None
+        if s is None and share is not None and S:
+            s = round(float(S) * share / 100, 2)
+        if s is None or s <= 0 or s > MAX_SUM:
+            return None, f"часть {i}: sum_insured — число больше нуля (или share_pct)"
+        v = None
+        if p.get("object_value") not in (None, ""):
+            v = _money_in(p.get("object_value"))
+            if v is None or v <= 0 or v > MAX_SUM:
+                return None, f"часть {i}: object_value — число больше нуля"
+        tpl = (ctpl.current(con, cls) or {}).get("template")
+        kind = p.get("object_kind")
+        if kind not in (None, ""):
+            if kind not in tx.OBJECT_KINDS and kind not in ctpl.kind_labels(tpl):
+                return None, f"часть {i}: неизвестный вид объекта"
+        else:
+            kind = None
+        desc = _s(p.get("object_description"), 200)
+        try:
+            same = _bool_in(p.get("same_object"))
+        except ValueError:
+            return None, f"часть {i}: same_object — да или нет"
+        fields, f_err = validate_part_fields(p.get("fields"), cls, tpl)
+        if f_err:
+            return None, f"часть {i}: {f_err}"
+        ded, d_err = deductible_in(p.get("deductible"), s)
+        if d_err:
+            return None, f"часть {i}: deductible — {d_err}"
+        out.append({"class_code": cls, "class_name": crow[0]["name"], "product_code": pcode if prod else None,
+                    "product": prod, "class_outside": bool(classes) and cls not in classes and not prod,
+                    "sum_insured": s, "share_pct": share, "object_value": v, "object_kind": kind,
+                    "object_description": desc if desc and not pd_like("object_type", desc) else None,
+                    "same_object": same, "fields": fields, "deductible": ded})
+    bad = ae.check_parts_sum(out, S, tol) if S else None
+    if bad:
+        return None, (f"сумма частей {ae._plain_number(bad['total'])} не равна страховой сумме договора "
+                      f"{ae._plain_number(bad['sum_insured'])} (разница {ae._plain_number(abs(bad['diff']))}, "
+                      f"допуск {ae._plain_number(tol)} сум)")
+    return out, None
+
+
+def validate_class_fields(raw, tpl: Optional[dict]) -> tuple:
+    """
+    Поля класса из шаблона (optional.class_fields): {код: значение}. Берутся только поля шаблона с вводом
+    optional.class_fields.*; числа — в пределах, текст — до 120 знаков и без ПД (отбрасывается). (поля, ошибка).
+    """
+    if raw in (None, "", {}):
+        return {}, None
+    if not isinstance(raw, dict):
+        return {}, "объект {код поля: значение}"
+    known = ctpl.class_fields(tpl)
+    out, bad = {}, []
+    for code, v in list(raw.items())[:40]:
+        f = known.get(str(code))
+        if f is None or v in (None, ""):
+            continue
+        typ = f.get("type")
+        try:
+            if typ in ("int", "year"):
+                x = _int_in(v, 0, 10_000_000)
+                if x is not None:
+                    out[code] = x
+            elif typ in ("number", "money"):
+                x = _money_in(v)
+                if x is None or x < 0 or x > MAX_SUM:
+                    raise ValueError
+                out[code] = x
+            elif typ == "bool":
+                x = _bool_in(v)
+                if x is not None:
+                    out[code] = x
+            elif typ == "choice":
+                if str(v) not in (f.get("options") or []):
+                    raise ValueError
+                out[code] = str(v)
+            else:
+                s = _s(v, 120)
+                if s and not llm.has_pd(s):
+                    out[code] = s
+        except ValueError:
+            bad.append(str(code))
+    return out, ("неверные значения: " + ", ".join(bad)) if bad else None
 
 
 REQUEST_SOURCES = ("document", "photo", "input", "session")
@@ -2333,7 +2585,53 @@ def _object_terms(rq: dict, out: dict) -> Optional[str]:
     out["object_kind"] = kind if kind in tx.OBJECT_KINDS else None
     hint = str(rq.get("class_hint") or "").strip()
     out["class_hint"] = hint if hint in HINT_CODES else None
+    out["policyholder"] = policyholder_in(rq.get("policyholder"))
     return None
+
+
+def policyholder_in(v) -> Optional[dict]:
+    """
+    Страхователь из запроса или договора (для проверки «по кредиту страхователь — банк», правило проекта № 6):
+    строка названия или {kind: legal | individual, name} / {is_legal, name}. Название хранится только у юрлица
+    (гражданин — kind = individual без имени, как в branch_request.party). Пусто — None.
+    """
+    if v in (None, "", {}):
+        return None
+    if isinstance(v, dict):
+        kind = v.get("kind")
+        if kind == "individual" or v.get("is_legal") is False:
+            return {"kind": "individual", "name": None}
+        name = _s(v.get("name"), 200)
+        if not name:
+            return {"kind": "legal", "name": None} if kind == "legal" or v.get("is_legal") is True else None
+        v = name
+    got = br.party(_s(v, 200))
+    if got.get("kind") == "legal" and got.get("name") and pd_like("policyholder", got["name"]):
+        got = {"kind": "legal", "name": None}
+    return got if got.get("kind") else None
+
+
+def _policyholder(req: Optional[dict], ct: Optional[dict], upload: dict) -> Optional[dict]:
+    """Страхователь договора: договор, потом запрос филиала (введённое или своя загрузка документа)."""
+    cands = [("contract", (ct or {}).get("policyholder")), ("request", (req or {}).get("policyholder")),
+             ("contract", ((upload.get("contract") or {}).get("fields") or {}).get("policyholder")),
+             ("request", ((upload.get("branch_request") or {}).get("fields") or {}).get("policyholder"))]
+    for src, p in cands:
+        if isinstance(p, dict) and p.get("kind") in ("legal", "individual"):
+            return {"kind": p["kind"], "name": p.get("name") if p["kind"] == "legal" else None, "source": src}
+    return None
+
+
+def credit_rule(tpl: Optional[dict], cls: str) -> Optional[float]:
+    """Доля кредита по правилу credit шаблона (0,5), если класс кредитный (14, 13з); иначе None."""
+    sr = (tpl or {}).get("scenario_rule") or {}
+    if sr.get("code") != "credit" and ctpl.base_class(cls) != "14":
+        return None
+    try:
+        share = float((sr.get("params") or {}).get("max_share_of_loan", ctpl.CREDIT_MAX_SHARE))
+    except (TypeError, ValueError):
+        share = ctpl.CREDIT_MAX_SHARE
+    return min(share, ctpl.CREDIT_MAX_SHARE)
 
 
 HINT_CODES = ("building", "equipment", "vehicle", "special_machinery", "cargo", "other")
@@ -2701,6 +2999,13 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     # продукт «спецтехника» без фото: для сценариев и мероприятий это спецтехника, а не легковой транспорт
     special_product = "спецтехник" in str((product or {}).get("name") or "").lower()
     group_ra = "special" if group == "vehicle" and special_product else group
+    # шаблон анализа класса (справочник class_templates, приложение А): ракурсы, оговорки, мероприятия, риски,
+    # правило сценария; у классов 3, 8 и 9 шаблон повторяет прежний выбор по группе объекта
+    tpl_row = ctpl.current(con, cls)
+    tpl = (tpl_row or {}).get("template") or {}
+    views_req = ctpl.for_group(tpl.get("required_views"), group)
+    if views_req is None:
+        views_req = ae.required_views(group)
 
     y = o.get("year")
     if y is None:
@@ -2747,7 +3052,9 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                        "want_lower_premium": o.get("want_lower_premium")},
                       risk["level"], th, statutory, cls, m["sum_insured"])
     fr["thresholds_source"] = {k: v for k, v in (th.get("_source") or {}).items() if k in ("id", "what")}
-    clauses = ae.clauses(group, clause_catalog())
+    clause_codes = ctpl.for_group(tpl.get("clauses"), group)
+    clauses = ae.clauses_by_codes(clause_codes, clause_catalog()) if clause_codes is not None \
+        else ae.clauses(group, clause_catalog())
     disc = ae.discrepancies(recognized, {"year": o.get("year"), "sum_insured": m["sum_insured"],
                                          "object_value": m["object_value"],
                                          "term_days": None if (term_from_request or term_from_contract)
@@ -2766,7 +3073,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                                                   o.get("object_type")) if x))
     if not ctx.get("ok"):
         block_errors.append({"block": "risk_analytics", "error": ctx.get("error")})
-    scen = ax.scenarios(ctx, cls, m["sum_insured"])
+    scen = ax.scenarios(ctx, cls, m["sum_insured"], template=tpl, V=m["object_value"], fields=o.get("class_fields"))
     if o.get("protection_ignored"):
         scen["assumptions"] = list(scen.get("assumptions") or []) + [{"code": "as_protection_ignored", "params": {}}]
     try:
@@ -2782,7 +3089,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     try:
         meas = ax.measures(con, ctx, rate_res, cls=cls, group=group_ra, kind=kind_ra, S=m["sum_insured"],
                            V=m["object_value"], o=o, location=location, statutory=statutory, th=th,
-                           premium=premium_final)
+                           premium=premium_final, codes=ctpl.for_group(tpl.get("measures"), group_ra))
     except Exception as e:
         block_errors.append({"block": "measures", "error": type(e).__name__})
         meas = {"items": [], "total": {"count": 0}, "error": type(e).__name__}
@@ -2792,16 +3099,19 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         except Exception as e:
             block_errors.append({"block": "alternatives", "error": type(e).__name__})
     # аналитика раздела 4 (30.09.2026): детализация и справочная техническая ставка — тариф акта не меняет
-    try:
-        analytics = aa.build(con, ctx, cls=cls, product_code=m.get("product_code"), region=region_ra,
-                             S=m["sum_insured"], V=m["object_value"], term_days=term, rate_res=rate_res,
-                             scen=scen, meas=meas, act_level=risk["level"], statutory=statutory, th=th,
-                             group=group_ra)
-        for e in analytics.get("errors") or []:
-            block_errors.append({"block": "analytics:" + e["block"], "error": e["error"]})
-    except Exception as e:
-        block_errors.append({"block": "analytics", "error": type(e).__name__})
-        analytics = {"available": False, "reason": "error", "calibrated": ae.CALIBRATED}
+    # риски: классы с рисками в справочнике perils (8, 9) и с правилом в модуле аналитики (3) — как раньше;
+    # остальные — экспертные доли шаблона класса вместо одной строки «весь класс»
+    tpl_risks = None
+    if cls not in ax.RULE_CLASSES and not any(p["class_code"] == cls for p in ref.perils.values()):
+        tpl_risks = ctpl.template_risks(tpl, cls) or None
+    # комплексный продукт (несколько классов) или явные части: аналитика считается по каждой части (_apply_parts)
+    multi = bool(clean.get("parts")) or len(m.get("product_classes") or []) > 1
+    if multi:
+        analytics = {"available": False, "reason": "by_parts", "calibrated": ae.CALIBRATED}
+    else:
+        analytics = _analytics_block(con, ctx, cls, m.get("product_code"), region_ra, m["sum_insured"],
+                                     m["object_value"], term, rate_res, scen, meas, risk["level"], statutory, th,
+                                     group_ra, tpl_risks, block_errors)
     analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
     analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
     # тип объекта, на котором посчитана аналитика, и откуда он (default — принят по умолчанию)
@@ -2822,60 +3132,52 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     # набор полей — тот же, что строки раздела 1 (у оборудования и зданий — свои, 30.09.2026)
     missing = [k for k in (ROWS_BY_GROUP.get(group) or ae.FIELDS_BY_GROUP.get(group, [])) if k not in present]
     missing_key = [k for k in ae.KEY_FIELDS.get(group, []) if k in missing]
-    missing_v = ae.missing_views(group, views_seen) if ai_ok else (ae.required_views(group) if photos else [])
+    missing_v = ae.missing_views(group, views_seen, views_req) if ai_ok else (list(views_req) if photos else [])
     inspection = {"photos": photos, "ai": ai_ok, "ai_reason": upload.get("reason") if photos and not ai_ok else None,
-                  "views_seen": views_seen, "required_views": ae.required_views(group),
+                  "views_seen": views_seen, "required_views": list(views_req),
                   "missing_views": missing_v, "damages": damages, "documents": documents,
                   "document_kinds": sorted(set((upload.get("document_kinds") or {}).values())),
                   "recognized": bool(recognized), "session": clean.get("session"),
                   "session_missing": session_missing, "upload_lang": upload.get("lang"),
                   "parsed_docs": int(upload.get("parsed_docs") or 0)}
     dec = ae.decision(risk, rate_res, value, fr, disc, inspection, missing_key, st)
+    share = credit_rule(tpl, cls)
+    if share is not None:
+        # кредит (правило проекта № 6): сумма ≤ min(кредит − обеспечение; 50 % кредита), страхователь — банк;
+        # любая из этих проверок — «принять без оговорок» уже нельзя
+        cks = ae.credit_check(m["sum_insured"], o.get("class_fields"), share, _policyholder(req, ct, upload))
+        dec["checks"] += [{"code": "c_" + ("tpl_credit_over" if c["code"] == "credit_over" else c["code"]),
+                           "params": c["params"]} for c in cks]
+        if cks and dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
     if fr.get("applied"):
         # франшиза сотрудника — условие договора: андеррайтер подтверждает, «принять без оговорок» уже нельзя
         dec["checks"].append({"code": "c_fr_applied", "params": {}})
         if dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
     market = None
+    mchecks = []
     if clean.get("market"):
         market = market_block(con, clean["market"], owner, st, m, o, recognized, kind, cls, group, y)
         mchecks = am.decision_checks(market)
         dec["checks"] += mchecks
         if mchecks and dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
-    rc = ae.request_check(req, rate_res=rate_res, rate_final=rate_final if rate_res["mode"] != "undefined" else None,
-                          premium_final=premium_final, sum_insured=m["sum_insured"], object_value=m["object_value"],
-                          value=value, fr=fr, term_from_request=term_from_request, settings=st)
-    _attach_trust(rc, rq_trust)
-    rq_checks = ae.request_checks(rc)
-    if (rq_trust or {}).get("edits"):
-        rq_checks.append({"code": "c_rq_edits", "params": {"n": len(rq_trust["edits"])}})
+    docs = {"req": req, "ct": ct, "rq_trust": rq_trust, "ct_trust": ct_trust, "upload": upload,
+            "term_from_request": term_from_request, "term_from_contract": term_from_contract}
+    rc, cc, xc, rq_checks, ct_checks = _doc_checks(st, m, docs, rate_res, rate_final, premium_final, value, fr)
     if rq_checks:
         # тариф ниже минимума или расхождение с запросом — «принять без оговорок» уже нельзя
         dec["checks"] += rq_checks
         if dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
-    cc = ae.contract_check(ct, rate_res=rate_res, rate_final=rate_final if rate_res["mode"] != "undefined" else None,
-                           premium_final=premium_final, sum_insured=m["sum_insured"], object_value=m["object_value"],
-                           value=value, fr=fr, term_from_contract=term_from_contract, settings=st)
-    _attach_trust(cc, ct_trust)
-    ct_checks = ae.request_checks(cc, "ct")
-    if (ct_trust or {}).get("edits"):
-        ct_checks.append({"code": "c_ct_edits", "params": {"n": len(ct_trust["edits"])}})
-    # запрос филиала против договора: объект (кадастр, вид) — присланный, а при живой загрузке — сохранённый
-    xc = cr.cross_check(_with_object(req, (upload.get("branch_request") or {}).get("fields")),
-                        _with_object(ct, (upload.get("contract") or {}).get("fields")),
-                        float(st["request_check"]["premium_tolerance"]))
-    x_codes = [i["code"] for i in (xc or {}).get("items") or [] if i["verdict"] == "differs"]
-    if x_codes:
-        ct_checks.append({"code": "c_x", "params": {"codes": x_codes}})
     if ct_checks:
         # расхождение с договором или нет существенного условия — «принять без оговорок» уже нельзя
         dec["checks"] += ct_checks
         if dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
     cls_row = db.rows(con, "SELECT name FROM classes WHERE code=?", cls)
-    return {
+    D = {
         "insurer": insurer_name(st),
         "must": {"product_code": m.get("product_code"), "product_name": (product or {}).get("name"),
                  "class_code": cls, "class_name": cls_row[0]["name"] if cls_row else None,
@@ -2900,7 +3202,466 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         # дополнения 30.09.2026: аналитика раздела 4, описание объекта из документа, адрес объекта
         "analytics": analytics, "object_doc": obj_doc,
         "object_facts": {"address": ((upload.get("contract") or {}).get("fields") or {}).get("address")},
+        # шаблон анализа класса (30.09.2026): версия и то, что акт из него взял; подписи — на языке при выдаче
+        "template": _template_block(tpl_row, group, group_ra, views_req, clause_codes, tpl_risks, scen,
+                                    o.get("class_fields")),
+        # комплексный продукт по частям (30.09.2026): для продукта с одним классом — mode single
+        "parts": {"mode": "single", "source": None, "confirmed": True, "items": [], "totals": None, "notes": []},
     }
+    if multi:
+        C = {"ref": ref, "st": st, "th": th, "m": m, "o": o, "product": product, "recognized": recognized,
+             "upload": upload, "kind": kind, "obj_text": " ".join(x for x in (obj_doc.get("original"),
+                                                                              obj_doc.get("translated")) if x),
+             "class_hint": upload.get("class_hint") or "", "y": y, "location": location,
+             "region_ra": region_ra, "term": term,
+             "risk_in": {"inspected": ai_ok, "damages": damages,
+                         "condition": o.get("condition") or (upload.get("condition") if ai_ok else None),
+                         "year": y, "location": location, "guard": o.get("guard"),
+                         "losses_count": o.get("losses_count"), "documents": documents, "today": date.today()},
+             "docs": docs, "mchecks": mchecks, "disc": disc, "inspection": inspection, "missing_key": missing_key,
+             "block_errors": block_errors}
+        _apply_parts(con, clean, D, C)
+    return D
+
+
+def _analytics_block(con, ctx, cls, product_code, region_ra, S, V, term, rate_res, scen, meas, level, statutory, th,
+                     group_ra, tpl_risks, block_errors) -> dict:
+    """Аналитика раздела 4 (act_analytics.build) для одного класса; сбой — блок с reason = error."""
+    try:
+        analytics = aa.build(con, ctx, cls=cls, product_code=product_code, region=region_ra, S=S, V=V,
+                             term_days=term, rate_res=rate_res, scen=scen, meas=meas, act_level=level,
+                             statutory=statutory, th=th, group=group_ra, tpl_risks=tpl_risks)
+        for e in analytics.get("errors") or []:
+            block_errors.append({"block": "analytics:" + e["block"], "error": e["error"]})
+    except Exception as e:
+        block_errors.append({"block": "analytics", "error": type(e).__name__})
+        analytics = {"available": False, "reason": "error", "calibrated": ae.CALIBRATED}
+    return analytics
+
+
+def _doc_checks(st: dict, m: dict, docs: dict, rate_res: dict, rate_final, premium_final, value: dict,
+                fr: dict) -> tuple:
+    """Сверка запроса филиала, договора и «запрос ↔ договор» с расчётом акта → (rc, cc, xc, rq_checks, ct_checks)."""
+    req, ct, upload = docs["req"], docs["ct"], docs["upload"]
+    rf = rate_final if rate_res["mode"] not in ("undefined", "multi") else None
+    rc = ae.request_check(req, rate_res=rate_res, rate_final=rf, premium_final=premium_final,
+                          sum_insured=m["sum_insured"], object_value=m["object_value"], value=value, fr=fr,
+                          term_from_request=docs["term_from_request"], settings=st)
+    _attach_trust(rc, docs["rq_trust"])
+    rq_checks = ae.request_checks(rc)
+    if (docs["rq_trust"] or {}).get("edits"):
+        rq_checks.append({"code": "c_rq_edits", "params": {"n": len(docs["rq_trust"]["edits"])}})
+    cc = ae.contract_check(ct, rate_res=rate_res, rate_final=rf, premium_final=premium_final,
+                           sum_insured=m["sum_insured"], object_value=m["object_value"], value=value, fr=fr,
+                           term_from_contract=docs["term_from_contract"], settings=st)
+    _attach_trust(cc, docs["ct_trust"])
+    ct_checks = ae.request_checks(cc, "ct")
+    if (docs["ct_trust"] or {}).get("edits"):
+        ct_checks.append({"code": "c_ct_edits", "params": {"n": len(docs["ct_trust"]["edits"])}})
+    # запрос филиала против договора: объект (кадастр, вид) — присланный, а при живой загрузке — сохранённый
+    xc = cr.cross_check(_with_object(req, (upload.get("branch_request") or {}).get("fields")),
+                        _with_object(ct, (upload.get("contract") or {}).get("fields")),
+                        float(st["request_check"]["premium_tolerance"]))
+    x_codes = [i["code"] for i in (xc or {}).get("items") or [] if i["verdict"] == "differs"]
+    if x_codes:
+        ct_checks.append({"code": "c_x", "params": {"codes": x_codes}})
+    return rc, cc, xc, rq_checks, ct_checks
+
+
+# --------------------------------------------------------------------------- #
+#  Комплексный продукт по частям (30.09.2026, ТЗ универсального шаблона 4.1в)
+# --------------------------------------------------------------------------- #
+
+def _template_words(con, classes: list) -> dict:
+    """Слова видов объекта шаблонов классов (ru/uz/en, основы от 5 букв) — для сопоставления объектов договора."""
+    out = {}
+    for c in classes:
+        tpl = (ctpl.current(con, c) or {}).get("template") or {}
+        stems = set()
+        for k in (tpl.get("object") or {}).get("kinds") or []:
+            for lab in (k.get("label") or {}).values():
+                for w in re.split(r"[^\wʻ'-]+", str(lab).lower()):
+                    if len(w) >= 5:
+                        stems.add(w[:5])
+        out[str(c)] = sorted(stems)
+    return out
+
+
+def _parts_plan(con, clean: dict, C: dict) -> dict:
+    """
+    Какие части и с какими суммами: явные части сотрудника (source = employee) → перечень объектов договора
+    (contract; сумма объектов должна сойтись со страховой суммой) → доли тарифной политики (policy_shares,
+    настройка parts.shares) → поровну (default). Всё, кроме частей сотрудника, — предложение: confirmed = false.
+    """
+    m, st = C["m"], C["st"]
+    classes = list(m.get("product_classes") or [])
+    S = float(m["sum_insured"])
+    tol = float(st["parts"]["sum_tolerance"])
+    notes = []
+    if clean.get("parts"):
+        conf = clean.get("parts_confirmed")
+        return {"source": "employee", "confirmed": True if conf is None else bool(conf),
+                "items": [dict(p) for p in clean["parts"]], "notes": notes}
+    ct = C["docs"].get("ct") or {}
+    items = [x for x in ct.get("items") or [] if x.get("sum")]
+    if items:
+        rows = ae.parts_from_items(items, classes, _template_words(con, classes))
+        if ae.check_parts_sum(rows, S, tol) is None:
+            for r in rows:
+                if r["class_guess"]:
+                    notes.append({"code": "pt_n_class_guess", "params": {"cls": r["class_code"],
+                                                                         "names": ", ".join(r["names"])}})
+            return {"source": "contract", "confirmed": False, "notes": notes,
+                    "items": [{"class_code": r["class_code"], "sum_insured": r["sum_insured"],
+                               "share_pct": round(r["sum_insured"] / S * 100, 4),
+                               "object_description": "; ".join(r["names"])[:200] or None,
+                               "class_guess": r["class_guess"]} for r in rows]}
+        notes.append({"code": "pt_n_items_sum", "params": {"sum": round(sum(float(x["sum"]) for x in items), 2),
+                                                           "total": S}})
+    shares = ((st["parts"].get("shares") or {}).get(m.get("product_code") or "")) or None
+    if shares and all(c in shares for c in classes):
+        return {"source": "policy_shares", "confirmed": False, "notes": notes,
+                "items": ae.split_sum(S, classes, shares)}
+    notes.append({"code": "pt_n_default", "params": {"n": len(classes)}})
+    return {"source": "default", "confirmed": False, "notes": notes, "items": ae.split_sum(S, classes)}
+
+
+def _part_missing(tpl: dict, op: dict, kind, main: bool, recognized: list) -> list:
+    """Обязательные поля шаблона класса части, которых нет (коды и подписи ru/uz/en)."""
+    have_rec = {r["key"] for r in recognized or [] if r.get("value")} if main else set()
+    cf = op.get("class_fields") or {}
+    out = []
+    for f in tpl.get("must") or []:
+        code, inp = f.get("code"), str(f.get("input") or "")
+        if inp.startswith("optional.class_fields."):
+            ok_ = code in cf
+        elif code == "object_kind":
+            ok_ = bool(kind)
+        elif code in ("brand", "model", "year"):
+            ok_ = code in have_rec or (code == "year" and op.get("year") is not None)
+        else:
+            ok_ = op.get(code) not in (None, "")
+        if not ok_:
+            out.append({"code": code, "label": dict(f.get("label") or {})})
+    return out
+
+
+def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
+    """
+    Одна часть договора по шаблону своего класса: уровень риска по своим признакам, ставка по своей тарифной
+    политике (обязательный вид — только нормативный акт, без поправок и франшизы), премия на весь срок, сумма к
+    стоимости, франшиза, сценарии, мероприятия, аналитика. Те же функции, что у однопродуктового акта.
+    """
+    ref, st, th, m, o = C["ref"], C["st"], C["th"], C["m"], C["o"]
+    errs = C["block_errors"]
+    cls = P["class_code"]
+    main = bool(P["same_object"])
+    product = P.get("product") or C["product"]
+    pcode = (product or {}).get("code")
+    tpl_row = ctpl.current(con, cls)
+    tpl = (tpl_row or {}).get("template") or {}
+    f = P.get("fields") or {}
+    # признаки части: того же объекта — ввод договора и осмотр; другого объекта — история убытков, документы и
+    # пожелания страхователя; поля части — поверх
+    if main:
+        op = {k: v for k, v in o.items() if k not in ("class_fields", "deductible")}
+        if cls == m["class_code"] and o.get("class_fields"):
+            op["class_fields"] = dict(o["class_fields"])
+    else:
+        op = {k: o.get(k) for k in ("losses_count", "small_count", "losses_amount", "documents_provided",
+                                    "payer_type", "want_lower_premium", "term_days")}
+    op.update({k: v for k, v in f.items() if v is not None})
+    if op.get("protection") and op["protection"] not in (ax.PROT_CODES.get(cls) or []):
+        op.pop("protection")              # защита другого класса (например, у техники) к этой части не относится
+    kind = P.get("object_kind") or (C["kind"] if main else None)
+    kind_type = tx.OBJECT_KINDS[kind][0] if kind in tx.OBJECT_KINDS else None
+    obj_text = P.get("object_description") or (C["obj_text"] if main else "") or ""
+    group = ae.object_group(cls, f"{kind_type or ''} {obj_text} {op.get('object_type') or ''}",
+                            C["class_hint"] if main else "")
+    otype = ae.match_object_type(ref, cls, kind_type, op.get("object_type"))
+    kind_ra = kind or _kind_from_text(f"{obj_text} {op.get('object_type') or ''}")
+    otype_ra = otype or ae.match_object_type(ref, cls, (tx.OBJECT_KINDS.get(kind_ra) or (None,))[0], None)
+    special = "спецтехник" in str((product or {}).get("name") or "").lower()
+    group_ra = "special" if group == "vehicle" and special else group
+    y = op.get("year") if op.get("year") is not None else (C["y"] if main else None)
+    location = op.get("location") or (C["location"] if main else None)
+    S, V = float(P["sum_insured"]), float(P["object_value"])
+    term = C["term"]
+
+    risk = ae.risk_level(ae.part_risk_inputs(C["risk_in"], f, main), st)
+    cm = ae.class_min(ref, product, cls)
+    rate_res = ae.part_rate(ref, product, cls, risk["level"], S, term, otype, op.get("payer_type"), st, cm)
+    statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
+    applicable = cls in ae.VALUE_CLASSES
+    value = ae.value_check(S, V, st, op.get("price_new"), op.get("purchase_year"), group, kind_type or obj_text)
+    value["applicable"] = applicable
+    fr = ae.franchise({"small_count": op.get("small_count"), "dominant_risk": op.get("dominant_risk"),
+                       "want_lower_premium": op.get("want_lower_premium")}, risk["level"], th, statutory, cls, S)
+    ctx = ax.ra_context(con, cls=cls, product_code=pcode, otype=otype_ra, group=group_ra, kind=kind_ra, S=S, V=V,
+                        region=C["region_ra"], term_days=o.get("term_days"), year=y, o=op,
+                        recognized=C["recognized"] if main else [], text=" ".join(x for x in (
+                            obj_text, op.get("object_type")) if x))
+    if not ctx.get("ok"):
+        errs.append({"block": f"part{idx}:risk_analytics", "error": ctx.get("error")})
+    scen = ax.scenarios(ctx, cls, S, template=tpl, V=V, fields=op.get("class_fields"))
+    requested = P.get("deductible") or o.get("deductible")
+    try:
+        fr = ax.franchise(con, ctx, fr, rate_res, cls=cls, S=S, level=risk["level"], statutory=statutory,
+                          requested=requested, th=th)
+    except Exception as e:
+        errs.append({"block": f"part{idx}:franchise", "error": type(e).__name__})
+        fr.update(status="error", applied=False, how=[], alternatives=[], error=type(e).__name__)
+    fr["requested_from"] = "part" if P.get("deductible") else ("contract" if o.get("deductible") else None)
+    premium_final = fr["premium_after"] if fr.get("applied") and fr.get("premium_after") is not None \
+        else rate_res["premium"]
+    rate_final = fr["rate_after"] if fr.get("applied") and fr.get("rate_after") is not None \
+        else rate_res["applied_pct"]
+    try:
+        meas = ax.measures(con, ctx, rate_res, cls=cls, group=group_ra, kind=kind_ra, S=S, V=V, o=op,
+                           location=location, statutory=statutory, th=th, premium=premium_final,
+                           codes=ctpl.for_group(tpl.get("measures"), group_ra))
+    except Exception as e:
+        errs.append({"block": f"part{idx}:measures", "error": type(e).__name__})
+        meas = {"items": [], "total": {"count": 0}, "error": type(e).__name__}
+    if fr.get("status") != "error":
+        try:
+            fr["alternatives"] = ax.alternatives(ctx, rate_res, S, meas, th)
+        except Exception as e:
+            errs.append({"block": f"part{idx}:alternatives", "error": type(e).__name__})
+    tpl_risks = None
+    if cls not in ax.RULE_CLASSES and not any(p["class_code"] == cls for p in ref.perils.values()):
+        tpl_risks = ctpl.template_risks(tpl, cls) or None
+    perrs = []
+    analytics = _analytics_block(con, ctx, cls, pcode, C["region_ra"], S, V, term, rate_res, scen, meas,
+                                 risk["level"], statutory, th, group_ra, tpl_risks, perrs)
+    errs += [dict(e, block=f"part{idx}:" + e["block"]) for e in perrs]
+    analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
+    analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
+    analytics["object_type"] = (ctx.get("must") or {}).get("object_type") if ctx.get("ok") else None
+    analytics["object_type_source"] = (ctx.get("sources") or {}).get("object_type")
+    clause_codes = ctpl.for_group(tpl.get("clauses"), group)
+    clauses = ae.clauses_by_codes(clause_codes, clause_catalog()) if clause_codes is not None \
+        else ae.clauses(group, clause_catalog())
+    views_req = ctpl.for_group(tpl.get("required_views"), group)
+    if views_req is None:
+        views_req = ae.required_views(group)
+    # кредитная часть (класс 14, 13з): сумма и страхователь-банк — правило проекта № 6
+    share = credit_rule(tpl, cls)
+    docs = C.get("docs") or {}
+    checks = ae.credit_check(S, op.get("class_fields"), share, _policyholder(docs.get("req"), docs.get("ct"),
+                                                                            docs.get("upload") or {})) \
+        if share is not None else []
+    if kind is None and ctpl.single_kind(tpl):
+        # единственный вид объекта класса (кредит, груз …) — по умолчанию; в расчёт не идёт, только в описание части
+        kind_default = ctpl.single_kind(tpl)
+    else:
+        kind_default = None
+    crow = db.rows(con, "SELECT name FROM classes WHERE code=?", cls)
+    return {
+        "index": idx, "class_code": cls, "class_name": crow[0]["name"] if crow else P.get("class_name"),
+        "product_code": pcode, "product_name": (product or {}).get("name"), "product_own": bool(P.get("product")),
+        "pricing_mode": (product or {}).get("pricing_mode"), "class_outside": bool(P.get("class_outside")),
+        "class_guess": bool(P.get("class_guess")),
+        "template_version": (tpl_row or {}).get("version"), "template_class": (tpl_row or {}).get("class_code"),
+        "sum_insured": S, "share_pct": P.get("share_pct"), "object_value": V,
+        "object_value_default": bool(P.get("object_value_default")), "object_kind": kind,
+        "object_kind_default": kind_default,
+        "object_description": P.get("object_description"), "same_object": main, "group": group,
+        "object_type_ref": otype, "term_days": term, "level": risk["level"], "risk": risk, "rate": rate_res,
+        "class_min": rate_res.get("class_min") or cm, "statutory": statutory, "value": value, "franchise": fr,
+        "premium": premium_final, "premium_before_franchise": rate_res.get("premium"),
+        "premium_final": {"amount": premium_final, "rate_pct": rate_final,
+                          "franchise_applied": bool(fr.get("applied"))},
+        "scenarios": scen, "measures": meas, "analytics": analytics, "clauses": clauses, "checks": checks,
+        "missing": _part_missing(tpl, op, kind, main, C["recognized"]),
+        "optional": {k: v for k, v in op.items() if v is not None},
+        "template": _template_block(tpl_row, group, group_ra, views_req, clause_codes, tpl_risks, scen,
+                                    op.get("class_fields")),
+    }
+
+
+def _apply_parts(con, clean: dict, D: dict, C: dict) -> None:
+    """
+    Комплексный продукт: части считаются по отдельности (_part_calc), верхние поля акта (премия, ставка, уровень,
+    сценарии, франшиза, сумма к стоимости, решение, сверки с запросом и договором) — итоги договора. Средняя ставка
+    договора — только справочно (правило проекта № 5).
+    """
+    m, o, st = C["m"], C["o"], C["st"]
+    S, V = float(m["sum_insured"]), float(m["object_value"])
+    plan = _parts_plan(con, clean, C)
+    classes = list(m.get("product_classes") or [])
+    all_cls = [p["class_code"] for p in plan["items"]]
+    notes = list(plan["notes"])
+    same_default = ae.default_same_object(all_cls)
+    items = []
+    v_default = False
+    # стоимость объекта договора делится между частями со страховой стоимостью (у ответственности, НС, кредита её нет)
+    s_val = sum(float(p["sum_insured"]) for p in plan["items"] if p["class_code"] in ae.VALUE_CLASSES)
+    for i, p in enumerate(plan["items"], 1):
+        P = dict(p)
+        P.setdefault("fields", {})
+        if i == 1:
+            P["same_object"] = True           # часть 1 — объект договора (осмотр, документы)
+        elif P.get("same_object") is None:
+            P["same_object"] = clean.get("same_object") if clean.get("same_object") is not None else same_default
+        if P.get("object_value") is None:
+            # стоимость части не введена: доля стоимости договора по доле суммы (у частей без страховой стоимости —
+            # сама сумма части, сумма к стоимости у них не проверяется)
+            if P["class_code"] in ae.VALUE_CLASSES:
+                P["object_value"] = round(V * float(P["sum_insured"]) / s_val, 2) if s_val else \
+                    float(P["sum_insured"])
+                P["object_value_default"] = True
+                v_default = True
+            else:
+                P["object_value"] = float(P["sum_insured"])
+        if P.get("share_pct") is None:
+            P["share_pct"] = round(float(P["sum_insured"]) / S * 100, 4) if S else None
+        if P.get("class_outside"):
+            notes.append({"code": "pt_n_outside", "params": {"n": i, "cls": P["class_code"],
+                                                             "classes": ", ".join(classes)}})
+        items.append(_part_calc(con, P, i, C))
+    if v_default:
+        notes.append({"code": "pt_n_value_default", "params": {}})
+    if not plan["confirmed"]:
+        notes.append({"code": "pt_n_confirm", "params": {}})
+    totals = ae.contract_totals(items, S)
+    agg = ae.aggregate_scenarios([{"index": p["index"], "class_code": p["class_code"], "main": p["same_object"],
+                                   "scenarios": p["scenarios"]} for p in items])
+    eml = (agg["items"].get("EML") or {}).get("amount") if agg["available"] else None
+    mfl = (agg["items"].get("MFL") or {}).get("amount") if agg["available"] else None
+    retention = ae.contract_retention([(p["scenarios"] or {}).get("retention") for p in items
+                                       if (p["scenarios"] or {}).get("available")], eml or 0, mfl) \
+        if agg["available"] else None
+    same_all = all(p["same_object"] for p in items)
+    diff_all = all(not p["same_object"] for p in items[1:])
+    object_mode = "one" if same_all else ("different" if diff_all else "mixed")
+    worst = max(items, key=lambda p: ae.LEVEL_ORDER.get(p["level"], 1))
+    D["parts"] = {"mode": "multi", "source": plan["source"], "confirmed": bool(plan["confirmed"]),
+                  "object_mode": object_mode, "same_object_default": same_default, "items": items,
+                  "totals": dict(totals, scenarios=agg, retention=retention, worst_index=worst["index"],
+                                 value=ae.contract_value([{"index": p["index"], "sum_insured": p["sum_insured"],
+                                                           "object_value": p["object_value"],
+                                                           "value_applicable": p["value"]["applicable"]}
+                                                          for p in items], st)),
+                  "notes": notes, "calibrated": ae.CALIBRATED,
+                  "suggested": [{"class_code": p["class_code"], "product_code": p["product_code"]
+                                 if p["product_own"] else None, "sum_insured": p["sum_insured"],
+                                 "share_pct": p["share_pct"], "object_value": p["object_value"],
+                                 "same_object": p["same_object"], "object_description": p["object_description"],
+                                 "class_guess": p["class_guess"]} for p in items]}
+    D["multi_class"] = True
+    # верхние поля — итоги договора
+    D["risk"] = dict(worst["risk"], contract=True, part_index=worst["index"])
+    fr_any = [p for p in items if p["franchise"].get("applied")]
+    D["premium_final"] = {"amount": totals["premium"], "rate_pct": None, "franchise_applied": bool(fr_any)}
+    before = [p["premium_before_franchise"] for p in items]
+    D["rate"] = {"mode": "multi", "base_pct": None, "base_source": "parts", "adj_pct": None, "calc_pct": None,
+                 "applied_pct": None, "min_pct": None, "min_applied": False,
+                 "premium": round(sum(before)) if all(x is not None for x in before) else None,
+                 "term_days": C["term"], "object_type": None, "class_code": m["class_code"],
+                 "product_code": m.get("product_code"), "pricing_mode": (C["product"] or {}).get("pricing_mode"),
+                 "calibrated": ae.CALIBRATED, "engine_chain": [],
+                 "reference_pct": totals["reference_rate_pct"], "reference_only": True,
+                 "how": [{"code": "how_multi", "params": {"n": len(items)}}]}
+    statuses = [p["franchise"].get("status") for p in items]
+    D["franchise"] = {"needed": any(p["franchise"].get("needed") for p in items), "code": "fr_parts",
+                      "status": "applied" if fr_any else ("proposed" if "proposed" in statuses else "none"),
+                      "grounds": [], "size": None, "size_pct": None, "applied": bool(fr_any), "how": [],
+                      "alternatives": [], "by_parts": True}
+    sc_items = {}
+    if agg["available"]:
+        for s in ae.SCENARIOS3:
+            a = agg["items"][s]["amount"]
+            sc_items[s] = {"amount": a, "pct": round(a / S * 100, 1) if S else None, "what": "sc_w_parts_" + agg["rule"],
+                           "what_params": {}, "state": None, "formula": None, "level": None, "source_scenario": s}
+    D["scenarios"] = {"available": agg["available"], "reason": None if agg["available"] else "pt_sc_na",
+                      "class_code": None, "rule": "parts", "items": sc_items, "retention": retention,
+                      "assumptions": [], "calibrated": ae.CALIBRATED, "order": ax.SCENARIO_ORDER, "source": "parts",
+                      "aggregate": agg, "order_ok": agg.get("order_ok")}
+    cv = D["parts"]["totals"]["value"]
+    if cv:
+        D["value"] = dict(D["value"], **{k: cv[k] for k in ("ratio_pct", "verdict", "legal_ref", "diff")},
+                          contract=True)
+    # оговорки и мероприятия — все части (без повторов), с номером части
+    seen, cl = set(), []
+    for p in items:
+        for c in p["clauses"]:
+            if c["code"] not in seen:
+                seen.add(c["code"])
+                cl.append(c)
+    D["clauses"] = cl
+    ms, mseen = [], set()
+    for p in items:
+        for it in (p["measures"] or {}).get("items") or []:
+            if it.get("code") not in mseen:
+                mseen.add(it.get("code"))
+                ms.append(dict(it, part_index=p["index"]))
+    D["measures"] = {"items": ms, "total": {"count": len(ms), "by_parts": True}}
+    # решение: осмотр и документы — как у договора, остальное — по частям; признак, введённый в части 1 (объект
+    # договора), не считается недостающим
+    own = items[0]["optional"]
+    D["missing"] = [k for k in D["missing"] if own.get(k) in (None, "")]
+    missing_key = [k for k in C["missing_key"] if own.get(k) in (None, "")]
+    dec = ae.decision(D["risk"], {"mode": "tariff"}, D["value"], {"needed": False}, C["disc"], C["inspection"],
+                      missing_key, st)
+    chk = dec["checks"]
+    if not plan["confirmed"]:
+        chk.append({"code": "c_parts_confirm", "params": {"source": plan["source"]}})
+    for p in items:
+        n, c_ = p["index"], p["class_code"]
+        base = {"n": n, "cls": c_}
+        if p["rate"]["mode"] in ("undefined", "statutory_undefined"):
+            chk.append({"code": "c_part_rate_undefined", "params": base})
+        if p["statutory"]:
+            chk.append({"code": "c_part_statutory", "params": base})
+        if p["value"]["applicable"] and p["value"]["verdict"] in ("under", "over"):
+            chk.append({"code": "c_part_" + p["value"]["verdict"], "params": base})
+        if p["franchise"].get("needed"):
+            chk.append({"code": "c_part_franchise", "params": base})
+        if p["franchise"].get("applied"):
+            chk.append({"code": "c_part_fr_applied", "params": base})
+        if p["class_outside"] or p["class_guess"]:
+            chk.append({"code": "c_part_class_check", "params": base})
+        for c in p["checks"]:
+            chk.append({"code": "c_part_" + c["code"], "params": dict(c["params"], **base)})
+        if n > 1 and p.get("missing"):
+            # обязательные поля шаблона класса у частей 2 и далее (у части 1 — в «чего не хватает» акта)
+            chk.append({"code": "c_part_missing", "params": dict(base, labels=[dict(x["label"]) for x in p["missing"]],
+                                                                  codes=[x["code"] for x in p["missing"]])})
+    chk += C["mchecks"]
+    fr_c = {"status": D["franchise"]["status"], "needed": D["franchise"]["needed"], "size_pct": None}
+    rc, cc, xc, rq_checks, ct_checks = _doc_checks(st, m, C["docs"], D["rate"], None, totals["premium"],
+                                                   D["value"], fr_c)
+    chk += rq_checks + ct_checks
+    if dec["code"] == "d_accept" and [c for c in chk if c["code"] != "c_confirm"]:
+        dec["code"] = "d_accept_with_clauses"
+    D["decision"] = dec
+    D["request_check"], D["contract_check"], D["cross_check"] = rc, cc, xc
+
+
+def _template_block(row: Optional[dict], group: str, group_ra: str, views_req: list, clause_codes: Optional[list],
+                    tpl_risks: Optional[list], scen: dict, fields: Optional[dict]) -> Optional[dict]:
+    """Что акт взял из шаблона класса — сохраняется в акте (подписи ru/uz/en, язык выбирается при выдаче)."""
+    if not row:
+        return None
+    tpl = row["template"]
+    sr = tpl.get("scenario_rule") or {}
+    return {"class_code": row["class_code"], "requested_class": row.get("requested_class"),
+            "alias_of": row.get("alias_of"), "version": row["version"], "source": row["source"],
+            "name": tpl.get("name"), "object": tpl.get("object"),
+            "must": tpl.get("must") or [], "optional": tpl.get("optional") or [],
+            "valuation_methods": tpl.get("valuation_methods") or [],
+            "required_views": list(views_req or []), "clauses": list(clause_codes or []),
+            "measures": ctpl.for_group(tpl.get("measures"), group_ra) or [],
+            "risks_source": "template" if tpl_risks else ((tpl.get("risks") or {}).get("source")),
+            "risks_used": bool(tpl_risks), "risks": tpl.get("risks"),
+            "factors": tpl.get("factors") or [],
+            "scenario_rule": {"code": sr.get("code"), "engine": sr.get("engine"), "text": sr.get("text"),
+                              "simple_rule": sr.get("simple_rule"), "used": scen.get("source") == "template",
+                              "params": sr.get("params") or {}},
+            "documents": tpl.get("documents") or {}, "stats": tpl.get("stats") or [],
+            "notes": tpl.get("notes") or [], "reinsurance_usually": bool(tpl.get("reinsurance_usually")),
+            "class_fields": dict(fields or {}), "group": group, "calibrated": ae.CALIBRATED}
 
 
 def _text_lang(s: str) -> Optional[str]:
@@ -3140,6 +3901,22 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
         return t(c["code"], lang, **_rq_params(c["code"][2:], p, lang))
     if c["code"] == "c_x":
         return t("c_x", lang, what=", ".join(tx.label(tx.X_LABELS, x, lang).lower() for x in p.get("codes") or []))
+    if c["code"] in ("c_tpl_credit_over", "c_part_credit_over", "c_credit_need_data", "c_part_credit_need_data"):
+        return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), share=p.get("share_pct", 50),
+                 **{k: money(p.get(k), lang) for k in ("sum", "insurable", "excess", "credit", "collateral")})
+    if c["code"] in ("c_credit_holder_not_bank", "c_part_credit_holder_not_bank"):
+        who = p.get("holder") or t("credit_holder_individual" if p.get("individual") else "credit_holder_noname",
+                                   lang)
+        return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), holder=who,
+                 where=t("credit_src_" + str(p.get("source") or "contract"), lang))
+    if c["code"] == "c_part_missing":
+        what = ", ".join((x.get(lang) or x.get("ru") or "") for x in p.get("labels") or []) \
+            or ", ".join(p.get("codes") or [])
+        return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), what=what)
+    if c["code"] == "c_parts_confirm":
+        return t(c["code"], lang, source=t("pt_src_" + str(p.get("source") or "default"), lang))
+    if c["code"].startswith("c_part_"):
+        return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"))
     return t(c["code"], lang)
 
 
@@ -3182,8 +3959,11 @@ def _kind_label(D: dict, lang: str) -> Optional[str]:
     an = D.get("analytics") or {}
     if not kind:
         return None
+    tkinds = ctpl.kind_labels((D.get("template") or {}).get("object") and {"object": D["template"]["object"]})
     if kind == "warehouse" and ax.cold_store(" ".join(x for x in (doc.get("original"), doc.get("translated")) if x)):
         base = tx.label(tx.OBJECT_SUBKINDS, "cold_store", lang)
+    elif kind not in tx.OBJECT_KINDS and kind in tkinds:
+        base = tkinds[kind].get(lang) or tkinds[kind].get("ru")      # вид объекта из шаблона класса
     else:
         base = tx.label({k: v[1] for k, v in tx.OBJECT_KINDS.items()}, kind, lang)
     if an.get("activity_source") == "text" and an.get("activity") and kind in ("equipment", "production", "other"):
@@ -3315,6 +4095,267 @@ def _object_rows(D: dict, lang: str) -> list:
     return out
 
 
+def _part_label(p: dict, lang: str) -> str:
+    """«Часть 2 — класс 14 Кредиты»."""
+    return t("pt_part", lang, n=p["index"], cls=_class_label(p["class_code"], p.get("class_name"), lang))
+
+
+def _value_text(value: dict, lang: str) -> str:
+    """Вывод «сумма к стоимости» (раздел 3) для одного значения value_check."""
+    ratio = pct(value["ratio_pct"], lang, 2)
+    legal = tx.label(tx.LEGAL_REFS, value["legal_ref"], lang) if value.get("legal_ref") else None
+    if value["verdict"] == "over":
+        return t("v_over", lang, diff=money(value["diff"], lang), ref=legal)
+    if value["verdict"] == "under":
+        return t("v_under", lang, ratio=ratio, ref=legal)
+    if value.get("legal_ref"):
+        return t("v_normal", lang, ratio=ratio) + " " + t("v_under_small", lang, ratio=ratio, ref=legal)
+    return t("v_normal", lang, ratio=ratio)
+
+
+def _fr_short(fr: dict, lang: str) -> str:
+    """Франшиза части одной строкой для таблицы частей."""
+    st_ = fr.get("status")
+    if st_ == "statutory":
+        return t("pt_fr_statutory", lang)
+    if st_ == "applied":
+        return t("pt_fr_applied", lang, pct=pct(fr.get("size_pct"), lang))
+    if st_ == "proposed":
+        return t("pt_fr_proposed", lang, pct=pct(fr["size_pct"], lang)) if fr.get("size_pct") \
+            else t("pt_fr_proposed_nosize", lang)
+    return t("pt_fr_none", lang)
+
+
+def _part_rate_text(r: dict, lang: str) -> str:
+    if r["mode"] in ("tariff", "statutory") and r.get("applied_pct") is not None:
+        return pct(r["applied_pct"], lang)
+    return t("rate_undefined", lang)
+
+
+def _parts_sc_how(sc: dict, lang: str) -> list:
+    """Как сложены сценарии договора: один объект — большее из частей, разные объекты — сумма."""
+    agg = sc.get("aggregate") or {}
+    out = [t("pt_sc_rule_" + str(agg.get("rule") or "max"), lang)]
+    for s in ("PML", "EML", "MFL"):
+        it = (agg.get("items") or {}).get(s) or {}
+        mv = it.get("main_values") or []
+        terms = []
+        if len(mv) > 1:
+            terms.append(t("pt_sc_max", lang, vals="; ".join(
+                t("pt_part_short", lang, n=x["index"]) + " " + money(x["amount"], lang) for x in mv)))
+        elif mv:
+            terms.append(t("pt_part_short", lang, n=mv[0]["index"]) + " " + money(mv[0]["amount"], lang))
+        terms += [t("pt_part_short", lang, n=x["index"]) + " " + money(x["amount"], lang) for x in it.get("added") or []]
+        out.append(t("pt_sc_line", lang, s=s, expr=" + ".join(terms), total=money(it.get("amount"), lang)))
+    for x in agg.get("excluded") or []:
+        out.append(t("pt_sc_excluded", lang, n=x["index"], cls=x["class_code"]))
+    out.append(t("pt_sc_ret", lang))
+    return out
+
+
+def _parts_view(D: dict, lang: str) -> dict:
+    """
+    Комплексный продукт (30.09.2026): строки разделов 1, 3, 4, абзацы, списки и JSON блока parts на языке акта.
+    Каждая часть — своим шаблоном класса; аналитика, сценарии и франшиза — те же показы, что у одного класса.
+    """
+    PT = D["parts"]
+    must = D["must"]
+    NA = t("na", lang)
+    items = PT["items"]
+    totals = PT["totals"] or {}
+    s1_rows, s3_rows, table, lists, pjs, missing_lines = [], [], [], [], [], []
+    for p in items:
+        lab = _part_label(p, lang)
+        n = p["index"]
+        kl = tx.OBJECT_KINDS.get(p.get("object_kind") or "")
+        obj = p.get("object_description") or ((kl[1].get(lang) or kl[1].get("ru")) if kl else None)
+        where = t("pt_same_object" if p["same_object"] else "pt_other_object", lang)
+        s1_rows.append(_row(lab, t("pt_s1_value", lang, sum=money(p["sum_insured"], lang),
+                                   share=pct(p["share_pct"], lang, 2) if p.get("share_pct") is not None else NA),
+                            "; ".join(x for x in (obj, where, t("pt_outside", lang) if p["class_outside"] else None,
+                                                  t("pt_guess", lang) if p["class_guess"] else None) if x)))
+        v = p["value"]
+        if v.get("applicable"):
+            vtext = _value_text(v, lang)
+            if p.get("object_value_default"):
+                vtext += " " + t("pt_value_default", lang)
+            s3_rows.append(_row(lab, pct(v["ratio_pct"], lang, 2),
+                                t("pt_s3_note", lang, sum=money(p["sum_insured"], lang),
+                                  value=money(p["object_value"], lang)) + ". " + vtext))
+        else:
+            vtext = t("pt_value_na", lang)
+            s3_rows.append(_row(lab, t("pt_value_na_short", lang), vtext))
+        r = p["rate"]
+        lvl = tx.label(tx.LEVEL_LABELS, p["level"], lang)
+        prem = p["premium_final"]["amount"]
+        table.append([str(n), _class_label(p["class_code"], p.get("class_name"), lang),
+                      money(p["sum_insured"], lang), lvl, _part_rate_text(r, lang),
+                      money(prem, lang) if prem is not None else NA, _fr_short(p["franchise"], lang)])
+        # подраздел части: уровень, как посчитан тариф, франшиза, сценарии, аналитика
+        Dp = {"must": {"class_code": p["class_code"], "class_name": p.get("class_name"),
+                       "product_code": p.get("product_code"), "product_name": p.get("product_name"),
+                       "sum_insured": p["sum_insured"], "object_value": p["object_value"],
+                       "region": must.get("region"), "region_code": must.get("region_code")},
+              "rate": r, "risk": p["risk"], "franchise": p["franchise"], "analytics": p.get("analytics"),
+              "measures": p.get("measures"), "template": p.get("template"), "contract": D.get("contract")}
+        rrule = p["risk"]["rule"]
+        minus = lambda x: str(x).replace("-", "−")
+        lists.append({"title": t("pt_sub_level", lang, part=lab, level=lvl),
+                      "items": [_text(f, lang) for f in p["risk"]["factors"]] +
+                      [t("level_rule", lang, net=minus(p["risk"]["net"]), low=minus(rrule["low_max_net"]),
+                         high=minus(rrule["high_min_net"]), k=rrule["min_known"])]})
+        how = [_text(h, lang) for h in r["how"]]
+        if r["mode"] == "statutory":
+            how.append(t("pt_statutory_note", lang))
+        lists.append({"title": t("pt_sub_rate", lang, part=lab), "items": how})
+        fr = p["franchise"]
+        fr_text = _fr_text(fr, lang)
+        fr_items = [fr_text] + [_text(g, lang) for g in fr.get("grounds") or []] + \
+            [_fr_how_text(h, lang) for h in fr.get("how") or []]
+        fr_alts = [_alt_view(a, lang) for a in fr.get("alternatives") or []]
+        lists.append({"title": t("pt_sub_fr", lang, part=lab), "items": fr_items + [a["text"] for a in fr_alts]})
+        scv = _scenarios_view(p["scenarios"], Dp["must"], lang)
+        sc_items = [f"{x['label']}: {x['value']}" + (f" ({x['note']})" if x.get("note") else "") for x in scv["rows"]]
+        lists.append({"title": t("pt_sub_sc", lang, part=lab), "items": sc_items + scv["json"]["how"]})
+        try:
+            anv = _analytics_view(Dp, lang)
+        except Exception as e:               # сбой показа аналитики части не роняет акт
+            print("акт: аналитика части не показана:", type(e).__name__, e)
+            anv = {"summary": None, "lists": [], "json": {"available": False, "reason": "render_error",
+                                                          "calibrated": ae.CALIBRATED}}
+        if anv.get("summary"):
+            lists.append({"title": t("pt_sub_summary", lang, part=lab), "items": [anv["summary"]]})
+        for li in anv["lists"]:
+            lists.append(dict(li, title=f"{lab}. {li['title']}"))
+        if p.get("missing"):
+            missing_lines.append(lab + ": " + ", ".join((x["label"].get(lang) or x["label"].get("ru") or x["code"])
+                                                        for x in p["missing"]))
+        msv = _measures_view(p.get("measures"), lang)
+        pjs.append({
+            "index": n, "class_code": p["class_code"],
+            "class_name": _class_label(p["class_code"], p.get("class_name"), lang), "label": lab,
+            "product_code": p.get("product_code"), "product_own": p.get("product_own"),
+            "pricing_mode": p.get("pricing_mode"), "template_version": p.get("template_version"),
+            "template_class": p.get("template_class"), "class_outside": p["class_outside"],
+            "class_guess": p["class_guess"], "sum_insured": p["sum_insured"], "share_pct": p.get("share_pct"),
+            "object_value": p["object_value"], "object_value_default": p.get("object_value_default"),
+            "object_kind": p.get("object_kind"), "object_kind_default": p.get("object_kind_default"),
+            "object_description": p.get("object_description"),
+            "same_object": p["same_object"], "level": p["level"], "level_label": lvl,
+            "risk": {"level": p["level"], "net": p["risk"]["net"], "up": p["risk"]["up"],
+                     "down": p["risk"]["down"], "factors": [{"code": f["code"], "sign": f["sign"],
+                                                             "text": _text(f, lang)} for f in p["risk"]["factors"]],
+                     "calibrated": ae.CALIBRATED},
+            "rate": {"mode": r["mode"], "base_pct": r.get("base_pct"), "base_source": r.get("base_source"),
+                     "adj_pct": r.get("adj_pct"), "calc_pct": r.get("calc_pct"), "applied_pct": r.get("applied_pct"),
+                     "min_pct": r.get("min_pct"), "min_applied": r.get("min_applied"),
+                     "min_source": (p.get("class_min") or {}).get("source"),
+                     "final_pct": p["premium_final"]["rate_pct"], "statutory": p["statutory"],
+                     "how": how, "calibrated": ae.CALIBRATED},
+            "premium": prem, "premium_text": money(prem, lang) if prem is not None else NA,
+            "premium_before_franchise": p.get("premium_before_franchise"), "term_days": p.get("term_days"),
+            "franchise": {"needed": bool(fr.get("needed")), "text": fr_text, "short": _fr_short(fr, lang),
+                          "requested_from": fr.get("requested_from"),
+                          "grounds": [{"code": g["code"], "text": _text(g, lang)} for g in fr.get("grounds") or []],
+                          **({"size": fr["size"]} if fr.get("size") else {}),
+                          **_franchise_extra(fr, [_fr_how_text(h, lang) for h in fr.get("how") or []], fr_alts,
+                                             lang)},
+            "scenarios": scv["json"],
+            "value": {"applicable": bool(v.get("applicable")), "ratio_pct": v["ratio_pct"],
+                      "verdict": v["verdict"] if v.get("applicable") else "na", "text": vtext,
+                      "legal_ref": v.get("legal_ref") if v.get("applicable") else None,
+                      "depreciated": v.get("depreciated")},
+            "analytics": anv["json"],
+            "clauses": [{"code": c["code"], "text": c.get(lang) or c.get("ru"), "expert": True,
+                         "calibrated": ae.CALIBRATED} for c in p.get("clauses") or []],
+            "measures": [x["json"] for x in msv["items"]],
+            "missing": [{"code": x["code"], "label": x["label"].get(lang) or x["label"].get("ru")}
+                        for x in p.get("missing") or []],
+        })
+    cols = [t("pt_col_n", lang), t("pt_col_class", lang), t("pt_col_sum", lang), t("pt_col_level", lang),
+            t("pt_col_rate", lang), t("pt_col_premium", lang), t("pt_col_fr", lang)]
+    total_prem = totals.get("premium")
+    table.append(["", t("pt_total", lang), money(totals.get("sum_insured"), lang),
+                  tx.label(tx.LEVEL_LABELS, totals.get("level"), lang), "—",
+                  money(total_prem, lang) if total_prem is not None else NA, "—"])
+    parts_list = {"title": t("pt_table_title", lang), "items": [" | ".join(r) for r in table],
+                  "table": {"columns": cols, "rows": table, "widths": [5, 25, 17, 11, 10, 17, 15]},
+                  "notes": [t("pt_table_note", lang)]}
+    worst = next(p for p in items if p["index"] == totals.get("worst_index"))
+    level_label = tx.label(tx.LEVEL_LABELS, totals.get("level"), lang)
+    ref_pct = totals.get("reference_rate_pct")
+    s4_rows = [_row(t("level", lang), level_label, t("pt_level_note", lang, part=_part_label(worst, lang)) + "; " +
+                    t("uncalibrated", lang)),
+               _row(t("premium", lang), money(total_prem, lang) if total_prem is not None else NA,
+                    t("pt_premium_note", lang, n=len(items), days=totals.get("term_days"))
+                    if total_prem is not None else t("pt_premium_incomplete", lang,
+                                                     known=money(totals.get("premium_known"), lang))),
+               _row(t("pt_ref_rate", lang), pct(ref_pct, lang) if ref_pct is not None else NA,
+                    t("pt_ref_note", lang))]
+    fr_parts = "; ".join(f"{t('pt_part_short', lang, n=p['index'])} — {_fr_short(p['franchise'], lang)}"
+                         for p in items)
+    fr_text = t("pt_fr_by_parts", lang, list=fr_parts)
+    s4_rows.append(_row(t("franchise", lang), fr_text))
+    src = PT.get("source") or "default"
+    notes = [t(x["code"], lang, **{k: (money(v, lang) if k in ("sum", "total") else v)
+                                   for k, v in (x.get("params") or {}).items()}) for x in PT.get("notes") or []]
+    s5 = t("pt_s5_confirmed", lang) if PT.get("confirmed") else t("pt_s5_default", lang,
+                                                                   source=t("pt_src_" + src, lang))
+    agg = totals.get("scenarios") or {}
+    sc = D.get("scenarios") or {}
+    ret = totals.get("retention") or {}
+    summary_bits = [t("pt_sum_intro", lang, n=len(items), premium=money(total_prem, lang)
+                      if total_prem is not None else NA, level=level_label, part=_part_label(worst, lang))]
+    if sc.get("available"):
+        summary_bits.append(t("pt_sum_sc", lang, eml=money(sc["items"]["EML"]["amount"], lang),
+                              mfl=money(sc["items"]["MFL"]["amount"], lang),
+                              rule=t("pt_sc_rule_" + str(agg.get("rule") or "max"), lang)))
+    if ret.get("known"):
+        summary_bits.append(t("pt_sum_ret_ok" if ret.get("within") else "pt_sum_ret_over", lang,
+                              limit=money(ret.get("limit"), lang), x=money(ret.get("eml_excess"), lang)))
+    summary = " ".join(summary_bits)
+    obj_mode = PT.get("object_mode") or "different"
+    js = {"mode": "multi", "source": src, "source_label": t("pt_src_" + src, lang),
+          "confirmed": bool(PT.get("confirmed")), "object_mode": obj_mode,
+          "object_mode_label": t("pt_mode_" + obj_mode, lang), "same_object_default": PT.get("same_object_default"),
+          "items": pjs,
+          "totals": {"premium": total_prem, "premium_text": money(total_prem, lang) if total_prem is not None else NA,
+                     "premium_complete": totals.get("premium_complete"), "premium_known": totals.get("premium_known"),
+                     "sum_insured": totals.get("sum_insured"), "level": totals.get("level"),
+                     "level_label": level_label, "worst_index": totals.get("worst_index"),
+                     "reference_rate_pct": ref_pct, "reference_note": t("pt_ref_note", lang),
+                     "scenarios": {"available": bool(sc.get("available")), "rule": agg.get("rule"),
+                                   "rule_text": t("pt_sc_rule_" + str(agg.get("rule") or "max"), lang),
+                                   **{s.lower(): (sc.get("items") or {}).get(s, {}).get("amount")
+                                      for s in ("PML", "EML", "MFL")},
+                                   "excluded": agg.get("excluded") or [], "how": _parts_sc_how(sc, lang)
+                                   if sc.get("available") else []},
+                     "retention": {"known": bool(ret.get("known")), "limit": ret.get("limit"),
+                                   "compared_with": "eml", "eml_excess": ret.get("eml_excess"),
+                                   "within": ret.get("within"), "mfl_excess": ret.get("mfl_excess"),
+                                   "status": ret.get("status"), "legal_ref": ret.get("legal_ref")},
+                     "value": totals.get("value"), "calibrated": ae.CALIBRATED},
+          "notes": notes, "summary": summary, "table": {"columns": cols, "rows": table},
+          "suggested_parts": [dict(x, class_name=_class_label(x["class_code"], next(
+              (p.get("class_name") for p in items if p["class_code"] == x["class_code"]), None), lang))
+              for x in PT.get("suggested") or []],
+          "calibrated": ae.CALIBRATED}
+    rate_extra = {"reference_pct": ref_pct, "reference_only": True, "reference_note": t("pt_ref_note", lang),
+                  "by_parts": [{"index": x["index"], "class_code": x["class_code"], "mode": x["rate"]["mode"],
+                                "applied_pct": x["rate"]["applied_pct"], "min_pct": x["rate"]["min_pct"],
+                                "min_source": x["rate"]["min_source"], "final_pct": x["rate"]["final_pct"]}
+                               for x in pjs]}
+    return {"s1_rows": s1_rows, "s1_paragraph": t("pt_s1_par", lang, n=len(items),
+                                                  mode=t("pt_mode_" + obj_mode, lang)) + (" " + " ".join(notes)
+                                                                                          if notes else ""),
+            "s3_rows": s3_rows, "s3_paragraphs": [t("pt_s3_par", lang)],
+            "s4_rows": s4_rows, "s4_lists": [parts_list] + lists, "fr_text": fr_text,
+            "s5_paragraph": s5, "missing_lines": missing_lines, "summary": t("an_summary", lang, text=summary),
+            "analytics_json": {"available": False, "reason": "by_parts", "text": t("pt_an_by_parts", lang),
+                               "summary": {"text": summary, "sentences": summary_bits}, "calibrated": ae.CALIBRATED},
+            "worst": worst["index"], "rate_extra": rate_extra, "json": js}
+
+
 def render(D: dict, lang: str, meta: dict) -> dict:
     """Акт на языке lang из структурированных данных. Все цифры — из расчёта, слова — из act_texts."""
     lang = tx.lang_of(lang)
@@ -3341,7 +4382,13 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     rows1.append(_row(t("region", lang), region_label(must, lang)))
     if opt.get("guard") is not None:
         rows1.append(_row(t("guard", lang), t("yes" if opt["guard"] else "no", lang)))
-    s1 = {"n": 1, "title": t("s1", lang), "paragraphs": [], "rows": rows1}
+    # комплексный продукт (30.09.2026): перечень частей договора
+    PV = _parts_view(D, lang) if (D.get("parts") or {}).get("mode") == "multi" else None
+    p1 = []
+    if PV:
+        rows1 += PV["s1_rows"]
+        p1.append(PV["s1_paragraph"])
+    s1 = {"n": 1, "title": t("s1", lang), "paragraphs": p1, "rows": rows1}
 
     # ---------- раздел 2 ----------
     p2, rows2 = [], []
@@ -3401,7 +4448,10 @@ def render(D: dict, lang: str, meta: dict) -> dict:
              _row(t("object_value", lang), money(must["object_value"], lang))]
     if decl:
         rows3.append(_row(decl[0], money(opt["declared_value_original"], lang), decl[1]))
-    rows3 += [_row(t("ratio", lang), ratio),
+    cvp = ((D.get("parts") or {}).get("totals") or {}).get("value") if PV else None
+    rows3 += [_row(t("ratio", lang), ratio,
+                   t("pt_ratio_note", lang, sum=money(cvp["sum_insured"], lang), value=money(cvp["object_value"], lang))
+                   if cvp else None),
               _row(t("verdict", lang), vtext)]
     p3 = []
     dep = value.get("depreciated")
@@ -3414,6 +4464,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         M = dict(M, links=am.search_links(M["query"], lang))
     mv = am.market_view(M, lang)
     rows3 += mv["rows"]
+    if PV:
+        rows3 += PV["s3_rows"]
+        p3 += PV["s3_paragraphs"]
     s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3, "source_lines": mv["source_lines"],
           "lists": mv["lists"]}
 
@@ -3446,23 +4499,32 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                   _row(t("adj", lang), t("adj_none_statutory", lang)),
                   _row(t("premium", lang), money(rate_res["premium"], lang),
                        t("premium_term", lang, days=rate_res["term_days"]))]
+    elif mode == "multi":
+        rows4 = PV["s4_rows"]
     else:
         rows4 += [_row(t("applied_rate", lang), t("rate_undefined", lang)),
                   _row(t("premium", lang), NA)]
-    fr_text = _fr_text(fr, lang)
-    rows4.append(_row(t("franchise", lang), fr_text))
+    fr_text = PV["fr_text"] if PV else _fr_text(fr, lang)
+    if not PV:
+        rows4.append(_row(t("franchise", lang), fr_text))
     scv = _scenarios_view(D.get("scenarios"), must, lang)
     rows4 += scv["rows"]
-    lists4 = [{"title": t("factors", lang), "items": factors + [rule_text]},
-              {"title": t("how_title", lang),
-               "items": [_text(h, lang) for h in rate_res["how"]]}]
-    # аналитика риска (30.09.2026): резюме первым абзацем, таблицы — после «Как посчитан тариф»
-    try:
-        anv = _analytics_view(D, lang)
-    except Exception as e:                   # сбой показа аналитики не роняет акт: остальные разделы на месте
-        print("акт: аналитика раздела 4 не показана:", type(e).__name__, e)
-        anv = {"summary": None, "lists": [], "json": {"available": False, "reason": "render_error",
-                                                      "calibrated": ae.CALIBRATED}}
+    if PV:
+        # комплексный продукт: уровень договора — по самой опасной части; дальше таблица частей и разбор каждой
+        lists4 = [{"title": t("pt_factors_title", lang, n=PV["worst"]), "items": factors + [rule_text]},
+                  {"title": t("how_title", lang), "items": [_text(h, lang) for h in rate_res["how"]]}]
+        anv = {"summary": PV["summary"], "lists": PV["s4_lists"], "json": PV["analytics_json"]}
+    else:
+        lists4 = [{"title": t("factors", lang), "items": factors + [rule_text]},
+                  {"title": t("how_title", lang),
+                   "items": [_text(h, lang) for h in rate_res["how"]]}]
+        # аналитика риска (30.09.2026): резюме первым абзацем, таблицы — после «Как посчитан тариф»
+        try:
+            anv = _analytics_view(D, lang)
+        except Exception as e:               # сбой показа аналитики не роняет акт: остальные разделы на месте
+            print("акт: аналитика раздела 4 не показана:", type(e).__name__, e)
+            anv = {"summary": None, "lists": [], "json": {"available": False, "reason": "render_error",
+                                                          "calibrated": ae.CALIBRATED}}
     lists4 += anv["lists"]
     if fr.get("grounds"):
         lists4.append({"title": t("fr_grounds", lang), "items": [_text(g, lang) for g in fr["grounds"]]})
@@ -3514,6 +4576,11 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         missing_labels.append(t("session_not_found", lang))
     if missing_labels:
         lists5.append({"title": t("missing_title", lang), "items": missing_labels})
+    if PV:
+        # распределение суммы по классам: подтверждено сотрудником или принято по умолчанию; поля частей
+        p5.append(PV["s5_paragraph"])
+        if PV["missing_lines"]:
+            lists5.append({"title": t("pt_missing_title", lang), "items": PV["missing_lines"]})
     msv = _measures_view(D.get("measures"), lang)
     lists5.append({"title": t("ms_title", lang), "items": [m["line"] for m in msv["items"]] or [t("ms_none", lang)]})
     if msv["summary"].get("text"):
@@ -3546,7 +4613,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                  "calibrated": ae.CALIBRATED, "how": [_text(h, lang) for h in rate_res["how"]],
                  "tariff_version_id": D.get("tariff_version_id"), "final_pct": pf["rate_pct"],
                  "multi_class": bool(D.get("multi_class")),
-                 "product_classes": (must.get("product_classes") or [])},
+                 "product_classes": (must.get("product_classes") or []),
+                 **(PV["rate_extra"] if PV else {})},
         "premium": {"amount": pf["amount"], "term_days": rate_res["term_days"], "currency": "UZS",
                     "text": money(pf["amount"], lang) if pf["amount"] is not None else NA,
                     "before_franchise": rate_res["premium"], "rate_pct": pf["rate_pct"],
@@ -3587,6 +4655,13 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                        "views_seen": ins["views_seen"], "missing_views": ins["missing_views"],
                        "damages": ins["damages"], "documents": ins["documents"]},
         "recognized": recognized_view(rec, lang, group=D["group"]),
+        # шаблон анализа класса, по которому собран акт (справочник class_templates): версия, поля класса,
+        # документы и статистика класса — на языке акта; акты до 30.09.2026 — без шаблона
+        "template": ctpl.localize(D["template"], lang) if D.get("template") else None,
+        # комплексный продукт по частям (30.09.2026); акты до этой даты и однопродуктовые — mode single
+        "parts": PV["json"] if PV else {"mode": "single", "source": None, "confirmed": True, "items": [],
+                                        "totals": None, "notes": []},
+        **({"suggested_parts": PV["json"]["suggested_parts"]} if PV and not PV["json"]["confirmed"] else {}),
         "footer": t("footer", lang),
         "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}"},
     }
@@ -3896,8 +4971,21 @@ def _scenarios_view(sc: Optional[dict], must: dict, lang: str) -> dict:
                        "eml_excess": ret.get("eml_excess"), "within": ret.get("within"),
                        "mfl_excess": ret.get("mfl_excess"), "text": tail,
                        "legal_ref": tx.label(tx.LEGAL_REFS, legal, lang) if legal else None}
-    how = [t("sc_how_source", lang, cls=sc.get("class_code"), rule=t("sc_rule_" + sc["rule"], lang))]
-    if classic:
+    if sc.get("source") == "template":
+        simple = sc.get("rule_simple") or {}
+        how = [t("sc_how_source_tpl", lang, cls=sc.get("class_code"), rule=simple.get(lang) or simple.get("ru") or "")]
+        if sc.get("rule_text"):
+            how.append(t("sc_tpl_rule_text", lang, text=sc["rule_text"].get(lang) or sc["rule_text"].get("ru")))
+        for c in sc.get("checks") or []:
+            how.append(t(c["code"], lang, **{k: money(v, lang) if isinstance(v, (int, float)) and k != "by" else v
+                                             for k, v in (c.get("params") or {}).items()}))
+        js.update(source="template", rule_text=(sc.get("rule_text") or {}).get(lang),
+                  checks=[{"code": c["code"], "params": c.get("params")} for c in sc.get("checks") or []])
+    elif sc.get("source") == "parts":
+        how = _parts_sc_how(sc, lang)
+    else:
+        how = [t("sc_how_source", lang, cls=sc.get("class_code"), rule=t("sc_rule_" + sc["rule"], lang))]
+    if classic and sc.get("source") != "template":
         how.append(t("sc_how_names", lang))
     if sc["rule"] != "vehicle" and (sc.get("k") or 1) < 1:
         how.append(t("sc_how_k", lang, k=_num4(sc["k"], lang)))
@@ -4029,7 +5117,8 @@ def _analytics_view(D: dict, lang: str) -> dict:
     R = A.get("risks") or {}
     ritems, rrows = [], []
     for it in R.get("items") or []:
-        name = _peril_label(it["code"], lang, it.get("name_ru"), it.get("class_code"))
+        name = (it.get("labels") or {}).get(lang) or _peril_label(it["code"], lang, it.get("name_ru"),
+                                                                  it.get("class_code"))
         rs = it.get("reason") or {}
         if rs.get("code") == "by_factor":
             why = t("an_r_by_factor", lang, factor=_flabel(rs["factor"], lang), option=_olabel(rs["factor"], rs["option"],
@@ -4074,13 +5163,21 @@ def _analytics_view(D: dict, lang: str) -> dict:
         rnotes.append(t("an_r_covered", lang, what=", ".join(covered)))
     th = R.get("thresholds") or aa.PERIL_LEVEL
     rnotes.append(t("an_r_rule", lang, low=_mult(th["low_max"], lang), high=_mult(th["high_min"], lang)))
-    if not R.get("whole_class") and ritems:
+    if R.get("source") == "template" and ritems:
+        # риски и доли — из шаблона класса (справочник class_templates): в perils класса нет
+        tnote = ((((D.get("template") or {}).get("risks") or {}).get("note")) or {})
+        rnotes.append(t("an_r_template", lang, cls=cls, total=tx.pct_fixed(R.get("total_pct") or 0, lang, 1),
+                        note=tnote.get(lang) or tnote.get("ru") or "").strip())
+    elif not R.get("whole_class") and ritems:
         # класс без разбивки на риски — про доли справочника не пишем: там одна строка «весь класс»
         rnotes.append(t("an_r_shares_round" if R.get("rounding") else "an_r_shares", lang,
                         total=tx.pct_fixed(R.get("total_pct") or 0, lang, 1)))
     js["risks"] = {"available": bool(ritems), "items": ritems, "total_pct": R.get("total_pct"),
                    "whole_class": bool(R.get("whole_class")), "covered_by_contract": covered, "notes": rnotes,
+                   "source": R.get("source") or ("class" if R.get("whole_class") else "perils"),
                    "calibrated": ae.CALIBRATED}
+    if R.get("source") == "template":
+        js["risks"]["label"] = t("an_r_tpl_label", lang)
     if ritems:
         lists.append(_li(t("an_risks_title", lang), [x["text"] for x in ritems],
                          {"columns": [t("col_risk", lang), t("col_share", lang), t("col_level", lang),
@@ -4181,14 +5278,20 @@ def _analytics_view(D: dict, lang: str) -> dict:
                t("an_t_load_takaful", lang) if T.get("takaful") else "")
         tr("technical", t("an_t_tech", lang), pct(T["technical_pct"], lang),
            t("an_t_tech_note", lang, premium=money(T["technical_premium"], lang)))
-        tr("min", t("an_t_min", lang), pct(T["min_pct"], lang) if T.get("min_pct") is not None else NA)
+        # часть комплексного продукта: минимум класса из текста тарифа продукта — это не «ставка продукта»
+        cm_src = ((D.get("rate") or {}).get("class_min") or {}).get("source")
+        by_text = cm_src in ("rate_text", "rate_text_common")
+        cm_kw = {"cls": (D.get("must") or {}).get("class_code") or T.get("class_code"), "code": T.get("product_code")}
+        tr("min", t("an_t_min_class" if by_text else "an_t_min", lang, **cm_kw),
+           pct(T["min_pct"], lang) if T.get("min_pct") is not None else NA)
         if T.get("act_mode") == "tariff":
             if T.get("policy_rate_pct") is not None:
-                tr("policy", t("an_t_policy", lang, code=T.get("product_code")), pct(T["policy_rate_pct"], lang))
+                tr("policy", t("an_t_policy_class" if by_text else "an_t_policy", lang, **cm_kw),
+                   pct(T["policy_rate_pct"], lang))
             else:
                 tr("act_base", t("an_t_base_act", lang), pct(T.get("act_base_pct"), lang))
             tr("act", t("an_t_act", lang, adj="+" + pct(T.get("adj_pct") or 0, lang)), pct(T["act_rate_pct"], lang),
-               t("an_t_act_min", lang) if T.get("min_applied") else "")
+               t("an_t_act_min_class" if by_text else "an_t_act_min", lang, **cm_kw) if T.get("min_applied") else "")
         else:
             tr("act", t("an_t_act_other", lang), pct(T["act_rate_pct"], lang) if T.get("act_rate_pct") is not None
                else t("rate_undefined", lang))
@@ -4240,6 +5343,10 @@ def _analytics_view(D: dict, lang: str) -> dict:
                     how.append(t("an_sc_c9", lang, base=money(p["base"], lang),
                                  where=t("an_sc_where_" + p["base_kind"], lang), share=share,
                                  amount=money(p["amount"], lang)))
+                elif p["peril"] == "template":
+                    w = p.get("what") or {}
+                    how.append(t("an_sc_tpl", lang, what=w.get(lang) or w.get("ru") or it["name"],
+                                 amount=money(p["amount"], lang)))
                 else:
                     how.append(t("an_sc_veh", lang, base=money(p["base"], lang), share=share,
                                  amount=money(p["amount"], lang)))
@@ -4249,7 +5356,9 @@ def _analytics_view(D: dict, lang: str) -> dict:
                 how.append(t("an_sc_k", lang, k=_mult(it["k"], lang)))
             if it.get("bi_loss"):
                 how.append(t("an_sc_bi", lang, x=money(it["bi_loss"], lang)))
-            if it["rule"] != "vehicle":
+            if it.get("source") == "template":
+                pass                             # простое правило шаблона: защиты в правиле нет
+            elif it["rule"] != "vehicle":
                 how.append(t("an_sc_prot_assumed", lang) if it.get("protection_assumed")
                            else t("an_sc_prot", lang, v=_olabel("protection", it.get("protection"), lang)))
             elif it.get("protection"):
@@ -4695,6 +5804,8 @@ def _an_summary(D: dict, A: dict, js: dict, lang: str) -> list:
 
 def _scenario_what(it: dict, lang: str) -> str:
     """Подпись сценария: состояние защиты (у имущества) и причина — ровно то, что посчитано."""
+    if it.get("what_text"):                  # простое правило шаблона класса: подпись из шаблона на языке акта
+        return it["what_text"].get(lang) or it["what_text"].get("ru") or ""
     what = t(it["what"], lang, **(it.get("what_params") or {}))
     if it.get("state"):
         what = t(it["state"], lang) + ": " + what
@@ -4711,6 +5822,8 @@ def _assumption_text(a: dict, lang: str) -> str:
         p["value"] = tx.label(tx.RA_VALUE_LABELS, v, lang)
     if a["code"] == "as_activity_by_type":
         p["type"] = _otype_label(p.get("type"), lang) if p.get("type") else t("na", lang)
+    if a["code"] in ("as_tpl_limit_case_over", "as_tpl_limit_aggregate_over"):
+        p = {k: money(v, lang) for k, v in p.items()}
     return t(a["code"], lang, **p)
 
 
@@ -4925,6 +6038,74 @@ def act_settings_put(request: Request, body: dict = Body(...)):
         db.audit(con, user.get("login") or "админ", "акт: настройки изменены", f"act_settings:{cur.lastrowid}",
                  {"keys": sorted(new)})
         return {"ok": True, "id": cur.lastrowid, "settings": load_settings(con)}
+
+
+# --------------------------------------------------------------------------- #
+#  Шаблоны анализа по классам (справочник class_templates, приложение А)
+#  Пути объявлены раньше /act/{aid}: иначе «templates» принялось бы за номер акта.
+# --------------------------------------------------------------------------- #
+
+@router.get("/act/templates")
+def act_templates_list(request: Request, lang: str = ""):
+    """Все 17 шаблонов кратко: версия, название, риски с долями, правило сценария, обязательные поля."""
+    lg = tx.lang_of(_lang(request, lang))
+    with db.tx() as con:
+        rows = ctpl.all_current(con)
+        try:
+            meta = ctpl.load_file()
+        except (OSError, ValueError):
+            meta = {}
+        return {"ok": True, "lang": lg, "file_version": meta.get("version"), "file_date": meta.get("date"),
+                "aliases": meta.get("aliases") or {}, "calibrated": ctpl.CALIBRATED,
+                "common_must": ctpl.localize(meta.get("common_must") or [], lg),
+                "templates": [ctpl.view(r, lg, full=False) for r in rows]}
+
+
+@router.get("/act/templates/{class_code}/history")
+def act_templates_history(request: Request, class_code: str):
+    """Все версии шаблона класса (старые не удаляются): кто, когда, источник (file | admin)."""
+    admin = (_user(request) or {}).get("role") == ADMIN
+    with db.tx() as con:
+        if not ctpl.current(con, class_code):
+            return JSONResponse({"ok": False, "detail": "нет шаблона для класса " + class_code}, status_code=404)
+        hist = ctpl.history(con, class_code)
+        if not admin:                        # кто правил — видит только администратор
+            for h in hist:
+                h["updated_by"] = "администратор" if h["source"] == "admin" else h["updated_by"]
+        return {"ok": True, "class_code": ctpl.base_class(class_code), "history": hist}
+
+
+@router.get("/act/templates/{class_code}")
+def act_templates_get(request: Request, class_code: str, lang: str = "", raw: int = 0):
+    """Шаблон класса на языке lang (подписи ru/uz/en) с документами из checklists и рисками perils (классы 8, 9).
+    raw=1 — исходный JSON со всеми тремя языками (для правки администратором)."""
+    lg = tx.lang_of(_lang(request, lang))
+    with db.tx() as con:
+        row = ctpl.current(con, class_code)
+        if not row:
+            return JSONResponse({"ok": False, "detail": "нет шаблона для класса " + class_code}, status_code=404)
+        out = ctpl.view(row, lg, con)
+        if raw:
+            out["raw"] = row["template"]
+        return {"ok": True, **out}
+
+
+@router.put("/act/templates/{class_code}")
+def act_templates_put(request: Request, class_code: str, body: dict = Body(...)):
+    """Новая версия шаблона класса (история сохраняется). Только администратор. Проверка структуры: доли рисков
+    100 ± 0,5, коды оговорок и мероприятий существуют, обязательных полей не больше четырёх — иначе 422."""
+    user = _user(request)
+    if (user or {}).get("role") != ADMIN:
+        return JSONResponse({"detail": "нужны права администратора"}, status_code=403)
+    tpl = body.get("template") if isinstance(body, dict) and isinstance(body.get("template"), dict) else body
+    with db.tx() as con:
+        if not ctpl.current(con, class_code):
+            return JSONResponse({"ok": False, "detail": "нет шаблона для класса " + class_code}, status_code=404)
+        errs = ctpl.validate(tpl, class_code, con)
+        if errs:
+            return JSONResponse({"ok": False, "errors": errs}, status_code=422)
+        row = ctpl.save(con, class_code, tpl, user.get("login") or ADMIN, (body or {}).get("note") or "")
+        return {"ok": True, **ctpl.view(row, tx.lang_of(_lang(request, (body or {}).get("lang"))), con)}
 
 
 @router.get("/act/{aid}.docx")
