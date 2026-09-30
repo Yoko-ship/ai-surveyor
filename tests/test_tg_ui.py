@@ -804,6 +804,122 @@ def _run_mk_estimate(html):
     assert screen[0][0] == 3 and screen[1][3] == 1 and screen[2][3] == 2, screen
 
 
+def check_act_analytics(html):
+    """Шаг «Акт», «Аналитика риска» (30.09.2026): 11 карточек, таблицы документа, плашки источников, без утечек."""
+    must = {
+        "function actAnHtml(": "нет блока «Аналитика риска»",
+        "+ actAnHtml(a)": "аналитика не выводится на шаге «Акт»",
+        "(anScenOk(a) ? \"\" : actScenHtml(a))": "сценарии показаны дважды (карточка сценариев и аналитика)",
+        'T("tg.an.old_act", "Для этого акта подробная аналитика недоступна — сформируйте акт заново.")': "нет строки для старого акта",
+        "function actDocTableHtml(": "списки с table в документе не рисуются таблицей",
+        "actSrcLines(li.sources)": "источники под таблицей документа не показаны",
+        'T("tg.an.read_src", "Читать в источнике {d}"': "нет плашки «Читать в источнике»",
+        'T("tg.an.floor", "упирается в минимум")': "нет пометки «упирается в минимум»",
+        'T("tg.an.fr_extra", "экспертное продолжение")': "нет пометки «экспертное продолжение»",
+        "AN_ICO.measure": "меры страхователя не отмечены значком",
+        "AN_ICO.clarify": "уточнения не отмечены значком",
+        "CH.anOpen[el.dataset.an] = el.open": "раскрытые карточки не запоминаются при перерисовке",
+        ".an-t.fold td::before{content:attr(data-l)": "таблицы 4+ колонок не складываются в карточки на телефоне",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "аналитика риска: " + "; ".join(miss)
+    assert html.count('data-an="') >= 1 and "AN_CARDS = [\"sum\", \"risks\", \"factors\", \"sens\", \"tariff\", \"scen\", \"ret\", " \
+        "\"score\", \"market\", \"fr\", \"ms\"]" in html, "карточек аналитики не 11"
+    # замечания контролёра 30.09.2026: служебное слово убрано в текстах сервера — клиентского фильтра больше нет;
+    # удержание — оценка («расчётное удержание»), строка рынка — «строка классов 8 и 9», а не «одной строкой»
+    assert "anClean" not in html and "(what_if)" not in html, "в tg.html остался клиентский фильтр «(what_if)»"
+    assert 'T("tg.an.ret.eml_excess", "EML выше расчётного удержания (оценка)")' in html \
+        and 'T("tg.an.ret_limit", "расчётное удержание {x}"' in html, "удержание на экране подано как факт"
+    assert 'T("tg.an.mk_pack", "строка классов 8 и 9")' in html and "классы 8 и 9 одной строкой" not in html, \
+        "подпись строки рынка не по факту market_stats"
+    _run_act_analytics(html)
+    print("22д. аналитика риска: 11 карточек, таблицы документа, источники под показателями, без служебных слов — ок")
+
+
+def _run_act_analytics(html):
+    """Карточки аналитики из tg.html в node на настоящих ответах сервера (sandbox/act_demo*.json)."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        print("   (node не найден — отрисовка аналитики не проверена)")
+        return
+    root = Path(__file__).resolve().parent.parent
+
+    def line(prefix):
+        return re.search(r"(?m)^" + re.escape(prefix) + r".*$", html).group(0)
+
+    block = html[html.index("/* ---------- шаг 3: «Аналитика риска»"):html.index("function actRowsHtml(")]
+    js = "\n".join([
+        'const T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };',
+        "const window = {I18N_LANG: 'ru'}; const LOC = () => 'ru-RU';",
+        line("const esc = "), line("const nf = "), line("const fmt = "), line("const pct = "), line("const SUM = "),
+        line("const money = "), _fn(html, "compact"), html[html.index("const dateOnly = "):html.index("const spin = ")],
+        line("const dp = "), line("const sgnMoney = "), line("const isNum = "), _fn(html, "levelName"), _fn(html, "scName"),
+        "const CH = {anOpen: {}};",
+        block,
+        "AN_CARDS.forEach(k => { CH.anOpen[k] = true; });",
+        "const acts = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+        "console.log(JSON.stringify(acts.map(a => [actAnHtml(a), a.sections.map(s => (s.lists || [])"
+        ".filter(li => li.table).map(actDocTableHtml).join('')).join('')])));"])
+    acts = [_json.loads((root / "sandbox" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
+    old = dict(acts[0], analytics={"available": False, "reason": "old_act", "calibrated": 0})
+    none = {k: v for k, v in acts[0].items() if k != "analytics"}
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="tg-an-") as tmp:        # скрипт длиннее командной строки Windows
+        f = Path(tmp) / "an.js"
+        f.write_text(js, encoding="utf-8")
+        res = subprocess.run([node, str(f)], input=_json.dumps(acts + [old, none], ensure_ascii=False), capture_output=True,
+                             text=True, encoding="utf-8", timeout=60)
+    assert res.returncode == 0, "node: " + res.stderr[-800:]
+    out = _json.loads(res.stdout)
+    for i, (card, doc) in enumerate(out):
+        text = re.sub(r"<[^>]+>", " ", card + doc)
+        bad = [w for w in ("undefined", "null", "NaN", "[object Object]", "calibrated", "what_if") if w in text]
+        assert not bad, f"акт {i}: на экране служебное: {bad}"
+    for i, a in enumerate(acts):
+        card, doc = out[i]
+        an = a["analytics"]
+        n_cards = card.count('class="an-c"')
+        assert n_cards == 11, f"акт {i}: карточек {n_cards}"
+        # коды рисков и факторов — только подписи сервера
+        text = re.sub(r"<[^>]+>", " ", card)
+        codes = [x["code"] for x in an["factors"]["items"]] + [x["code"] for x in an["risks"]["items"]]
+        leaked = [c for c in codes if re.search(r"(?<![\w.])" + re.escape(c) + r"(?![\w])", text)]
+        assert not leaked, f"акт {i}: коды на экране: {leaked}"
+        for s in an["summary"]["sentences"]:
+            assert _html_esc(s) in card, f"акт {i}: нет предложения резюме"
+        # под каждым показателем региона — плашка источника со ссылкой
+        inds = [x for x in an["stats"]["indicators"] if any(s.get("url") for s in x["sources"])]
+        assert card.count('class="an-ind"') == len(an["stats"]["indicators"]), f"акт {i}: не все показатели региона"
+        assert card.count('class="srcbar an-srcs"') == len(an["stats"]["indicators"]), f"акт {i}: показатель без плашки источника"
+        assert inds and ("Читать в источнике stat.uz" in card or "Читать в источнике data.egov.uz" in card), \
+            f"акт {i}: нет ссылки на источник"
+        assert "Читать в источнике napp.uz" in card, f"акт {i}: у рыночной ставки нет источника"
+        # таблицы документа: 4+ колонки складываются на телефоне, 3 — нет
+        n_tables = sum(1 for s in a["sections"] for li in s.get("lists") or [] if li.get("table"))
+        n_doc = doc.count("<table")
+        assert n_doc == n_tables, f"акт {i}: таблиц в документе {n_doc} из {n_tables}"
+        wide = sum(1 for s in a["sections"] for li in s.get("lists") or [] if li.get("table") and len(li["table"]["columns"]) >= 4)
+        assert doc.count('class="an-t doc fold"') == wide, f"акт {i}: широкие таблицы не складываются"
+    eq = out[1][0]
+    assert "упирается в минимум" in eq and "экспертное продолжение" in eq, "у вариантов франшизы нет пометок"
+    assert 'an-verdict stop' in eq and "EML выше расчётного удержания" in eq, "превышение удержания не выделено цветом"
+    assert "Это оценка, не факт" in eq and "до данных бухгалтерии" in eq and "capacity.retention_table" in eq, \
+        "удержание на карточке подано как факт"
+    for i in (0, 1):
+        plain = re.sub(r"<[^>]+>", " ", out[i][0] + out[i][1])
+        assert "движ" not in plain and "Балл старого" not in plain, f"акт {i}: жаргон «движок» на экране"
+    assert "ниже рынка на 48,1%" in eq, "нет сравнения ставки акта с рынком"
+    for i in (2, 3):
+        assert "подробная аналитика недоступна — сформируйте акт заново" in out[i][0] and 'class="an-c"' not in out[i][0], \
+            "старый акт: нет спокойной строки о недоступной аналитике"
+
+
+def _html_esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
 def check_calc_tab(html):
     """Заказчик 22.09.2026: «Калькулятор» — отдельная простая вкладка без диалога."""
     must = {
@@ -983,6 +1099,7 @@ if __name__ == "__main__":
             check_chat_tab(html)
             check_market_card(html)
             check_branch_contract(html)
+            check_act_analytics(html)
             check_calc_tab(html)
             check_compact_and_view(html)
             check_legal_tab(html)

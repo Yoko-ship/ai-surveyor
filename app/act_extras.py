@@ -51,6 +51,56 @@ ACTIVITIES = ("office", "warehouse", "food", "flammable")
 KIND_ACTIVITY = {"warehouse": "warehouse", "shop": "office", "office": "office", "dwelling": "office",
                  "hotel": "office"}
 KIND_VEHICLE = {"truck": "truck", "electric_car": "ev", "car": "car", "trailer": "truck"}
+# Деятельность на объекте по словам описания в документе (ru, uz кириллица и латиница, en) — 30.09.2026.
+# Порядок — по пожарной опасности: горючие материалы сильнее пищевого производства, оно сильнее хранения.
+# Совпадение — по началу слова (граница слова слева), чтобы «нон» (хлеб) не находилось в «анонс».
+ACTIVITY_TEXT_WORDS = (
+    ("flammable", ("горюч", "легковоспламен", "лакокрас", "нефт", "нефтепродукт", "азс", "заправочн",
+                   "деревообработ", "химическ", "ёқилғи", "ёнилғи", "yoqilg", "yonilg", "neft", "kimyo",
+                   "fuel", "petrol", "chemical", "paint", "woodwork", "flammable")),
+    ("food", ("пищев", "хлеб", "хлебопек", "нон", "мясо", "мясн", "молоч", "кондитер", "мукомол", "макарон",
+              "озиқ-овқат", "озиқ овқат", "гўшт", "сут маҳсулот", "сут махсулот", "қандолат", "кандолат",
+              "тегирмон", "новвой", "нон-булка", "oziq-ovqat", "oziq ovqat", "non mahsulot", "non-bulka", "novvoy",
+              "go'sht", "goʻsht", "sut mahsulot", "qandolat", "tegirmon", "food", "bakery", "bread", "meat", "dairy", "confection", "flour mill")),
+    ("warehouse", ("склад", "хранени", "холодильн", "омбор", "сақлаш", "сақланадиган", "музлатгич", "совутгич",
+                   "ombor", "saqlash", "muzlatgich", "sovutgich", "warehouse", "storage", "cold store",
+                   "cold storage", "refrigerat")),
+    ("office", ("офис", "административ", "торгов", "магазин", "савдо", "дўкон", "ofis", "savdo", "do'kon",
+                "doʻkon", "office", "retail", "shop")),
+)
+# склад-холодильник: уточнение вида «склад» для подписи в акте (вид и деятельность — те же, warehouse)
+COLD_STORE_WORDS = ("холодильн", "музлатгич", "совутгич", "muzlatgich", "sovutgich", "cold store", "cold storage",
+                    "refrigerat")
+
+
+def _fold_text(text: str) -> str:
+    return " " + re.sub(r"\s+", " ", str(text or "").lower().replace("ё", "е").replace("ʻ", "'")
+                        .replace("‘", "'").replace("’", "'").replace("`", "'")) + " "
+
+
+def _has_word(folded: str, stem: str) -> bool:
+    """Слово, начинающееся с stem (граница слова слева): «нон» есть в «нон махсулотлари», нет в «анонс»."""
+    stem = stem.replace("ё", "е").replace("ʻ", "'")
+    return re.search(r"(?<![\w'])" + re.escape(stem), folded) is not None
+
+
+def activity_from_text(text: str) -> Optional[str]:
+    """Деятельность на объекте по описанию в документе (словарь ACTIVITY_TEXT_WORDS) или None — не угадываем."""
+    folded = _fold_text(text)
+    if not folded.strip():
+        return None
+    for code, words in ACTIVITY_TEXT_WORDS:
+        if any(_has_word(folded, w) for w in words):
+            return code
+    return None
+
+
+def cold_store(text: str) -> bool:
+    """Холодильник, склад-холодильник, музлатгич — по описанию объекта."""
+    folded = _fold_text(text)
+    return any(_has_word(folded, w) for w in COLD_STORE_WORDS)
+
+
 # поля техпаспорта и кадастра, которые берутся и из договора или заявления (данные объекта, не людей)
 EXTRA_DOC_KEYS = ("brand", "model", "year", "vin", "body_no", "chassis_no", "engine_no", "reg_no",
                   "cadastre_no", "build_year", "walls")
@@ -756,17 +806,38 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
 #  Вход старого движка: поля акта → поля risk_analytics
 # ================================================================================================
 
+def _default_activity(con, cls: str, product_code: Optional[str], otype: Optional[str]) -> tuple:
+    """
+    (тип объекта, деятельность по умолчанию для него). Тип — как у ra.apply_defaults: заданный, иначе по
+    продукту, иначе типовой для класса; деятельность — по таблице модуля ra.ACTIVITY_BY_OBJECT_TYPE.
+    Нет строки для типа — (тип, None): тогда деятельность подставит ra.apply_defaults, как раньше.
+    """
+    t = otype
+    if not t:
+        try:
+            ref = db.load_reference(con)
+            pd = ra.product_defaults(ref, product_code) if product_code else None
+        except Exception:                 # справочник не прочитан — решает ra.apply_defaults
+            pd = None
+        t = (pd or {}).get("object_type") or ra._defaults_for_classes([cls]).get("object_type")
+    return t, ra.ACTIVITY_BY_OBJECT_TYPE.get(t or "")
+
+
 def ra_context(con, *, cls: str, product_code: Optional[str], otype: Optional[str], group: str,
                kind: Optional[str], S: float, V: float, region: str, term_days: Optional[int],
-               year: Optional[int], o: dict, recognized: list) -> dict:
+               year: Optional[int], o: dict, recognized: list, text: str = "") -> dict:
     """
     Те же входные данные, что у акта, в форме risk_analytics. Чего нет — подставляет
     ra.apply_defaults (быстрый режим), каждая подстановка — в assumptions с пометкой «по умолчанию».
-    Возвращает {"ok", "must", "optional", "assumptions": [{"code", "params"}], "analysis", "error"}.
+    text — описание объекта из документа: по нему определяется деятельность на объекте, если её не ввели
+    и вид объекта её не задаёт (хлебопекарное производство → пищевое производство).
+    Возвращает {"ok", "must", "optional", "assumptions": [{"code", "params"}], "analysis", "error",
+    "sources": {поле: input | document | photo | text | kind | product | default}}.
     """
     must = {"class_code": cls, "product_code": product_code or "", "sum_insured": S, "object_value": V,
             "region": region}
     assumptions = []
+    sources = {}
     if otype:
         must["object_type"] = otype
     if term_days:
@@ -781,25 +852,54 @@ def ra_context(con, *, cls: str, product_code: Optional[str], otype: Optional[st
         vt = "special" if group == "special" else KIND_VEHICLE.get(kind or "")
         if vt:
             must["vehicle_type"] = vt
+            sources["vehicle_type"] = "kind"
         if year:
             must["year"] = int(year)
+            rec_y = next((r for r in recognized if r.get("key") in ("year", "manufacture_date") and r.get("value")),
+                         None)
+            sources["year"] = "input" if o.get("year") or not rec_y else (rec_y.get("source") or "document")
     if cls in ra.PROPERTY_CLASSES:
         cons = o.get("construction")
-        if not cons:
-            walls = next((r["value"] for r in recognized if r["key"] == "construction" and r.get("value")), "")
+        if cons:
+            sources["construction"] = "input"
+        else:
+            walls = next((r for r in recognized if r["key"] == "construction" and r.get("value")), None)
             from .analysis_docs import CONSTRUCTION_WORDS, _one
-            cons = _one(walls, CONSTRUCTION_WORDS) if walls else None
+            cons = _one(walls["value"], CONSTRUCTION_WORDS) if walls else None
+            if cons:
+                sources["construction"] = walls.get("source") or "document"
         if cons:
             must["construction"] = cons
-        act = o.get("activity") or KIND_ACTIVITY.get(kind or "")
+        # деятельность: ввод сотрудника → вид объекта (однозначный) → описание объекта в документе → умолчание
+        act = o.get("activity")
+        if act:
+            sources["activity"] = "input"
+        elif KIND_ACTIVITY.get(kind or ""):
+            act = KIND_ACTIVITY[kind]
+            sources["activity"] = "kind"
+        else:
+            act = activity_from_text(text)
+            if act:
+                sources["activity"] = "text"
+                assumptions.append({"code": "as_activity_text", "params": {"value": act}})
+        if not act:
+            # деятельность по умолчанию — согласованная с типом объекта (тот же тип, что подставит
+            # ra.apply_defaults): «производство» не получает «склад» из названия продукта (30.09.2026)
+            otype_eff, act = _default_activity(con, cls, product_code, otype)
+            if act:
+                sources["activity"] = "default"
+                assumptions.append({"code": "as_activity_by_type", "params": {"value": act, "type": otype_eff}})
         if act:
             must["activity"] = act
     optional = {}
     if o.get("protection"):
         optional["protection"] = o["protection"]
+        sources["protection"] = "input"
     if o.get("seismic_zone") is not None:
         optional["seismic_zone"] = o["seismic_zone"]
+        sources["seismic_zone"] = "input"
     if o.get("losses_count") is not None:
+        sources["losses_3y"] = "input"
         optional["losses_3y"] = {"count": o["losses_count"]}
         if o.get("losses_amount") is not None:
             optional["losses_3y"]["amount"] = o["losses_amount"]
@@ -810,18 +910,23 @@ def ra_context(con, *, cls: str, product_code: Optional[str], otype: Optional[st
         an = ra.analyze(con, m, op, assumptions=a)
     except Exception as e:                # сбой старого движка не роняет акт: блоки честно помечены
         return {"ok": False, "error": type(e).__name__, "must": must, "optional": optional,
-                "assumptions": assumptions, "analysis": None}
+                "assumptions": assumptions, "analysis": None, "sources": sources}
     if not an.get("ok"):
         v = an.get("validation") or {}
         return {"ok": False, "error": "validation:" + ",".join(sorted(list(v.get("missing") or [])
                                                                       + list((v.get("errors") or {})))),
-                "must": m, "optional": op, "assumptions": assumptions, "analysis": None}
+                "must": m, "optional": op, "assumptions": assumptions, "analysis": None, "sources": sources}
     for x in a:
         if x["key"] == "year":
             assumptions.append({"code": "as_year", "params": {}})
+            sources["year"] = "default"
         elif x["key"] in ("object_type", "construction", "activity", "vehicle_type", "term_months"):
             assumptions.append({"code": "as_" + x["key"], "params": {"value": x["value"]}})
-    return {"ok": True, "error": None, "must": m, "optional": op, "assumptions": assumptions, "analysis": an}
+            sources[x["key"]] = "default"
+    if otype and "object_type" not in sources:
+        sources["object_type"] = "kind"
+    return {"ok": True, "error": None, "must": m, "optional": op, "assumptions": assumptions, "analysis": an,
+            "sources": sources}
 
 
 # ================================================================================================
@@ -924,11 +1029,15 @@ def _floor_rate(rate_res: dict) -> float:
 
 
 def apply_multiplier(rate_res: dict, mult: float, S: float) -> tuple:
-    """Ставка и премия акта с множителем: ставка округляется до 4 знаков (как в акте), не ниже минимума."""
+    """
+    Ставка и премия акта с множителем, не ниже минимума. Премия считается от неокруглённой ставки
+    (ставка акта × множитель), показываемая ставка округляется до 4 знаков — иначе премия расходится с
+    множителем на округление ставки (0,5 % франшизы: 216 534 374, а не 216 485 340 сум).
+    """
     applied = rate_res.get("applied_pct")
     if applied is None:
         return None, None, False
-    raw = round(float(applied) * mult, 4)
+    raw = float(applied) * mult
     floor = _floor_rate(rate_res)
     floored = raw + 1e-12 < floor
     rate = floor if floored else raw

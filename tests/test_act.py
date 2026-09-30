@@ -29,6 +29,7 @@ import sys
 import tempfile
 import zipfile
 from datetime import date, datetime, timedelta
+from time import monotonic
 from pathlib import Path
 from urllib.parse import urlencode
 from xml.dom import minidom
@@ -309,7 +310,11 @@ def check_crane():
        and "из документа" in s1["Заводской (серийный) номер"]["note"], s1.get("Заводской (серийный) номер"))
     ok("в разделе 1 масса из документа и вариант с таблички",
        s1["Снаряжённая масса"]["value"] == "38 600 кг" and "36 170 кг" in s1["Снаряжённая масса"]["note"])
-    ok("чего нет — «данные недоступны»", s1["Цвет"]["value"] == "данные недоступны", s1.get("Цвет"))
+    # 30.09.2026: «данные недоступны» — не больше трёх строк, остальное одной строкой «Не указано: …»
+    na_rows = [r for r in a["sections"][0]["rows"] if r["value"] == "данные недоступны"]
+    ok("чего нет — «данные недоступны» не больше трёх строк, остальное — «Не указано»",
+       len(na_rows) <= 3 and "Цвет" not in s1 and "цвет" in (s1.get("Не указано") or {}).get("value", ""),
+       ([r["label"] for r in na_rows], s1.get("Не указано")))
     ok("цвет в списке недоступных данных", "Цвет" in a["missing"], a["missing"])
     text = all_text(a)
     ok("цифры в тексте совпадают с расчётом",
@@ -1574,8 +1579,13 @@ def check_franchise_apply():
        and rows["Ставка с учётом франшизы"]["value"] == act.pct(hand_rate, "ru")
        and act.money(round(applied / 100 * S), "ru") in rows["Страховая премия"]["note"], rows.get("Страховая премия"))
     ok("андеррайтеру — подтвердить франшизу", any("франшизу, применённую" in c for c in a["decision"]["checks"]))
-    ok("how: множитель и ставка акта, премия старого движка не переносится",
-       any("what_if" in h for h in fr["how"]) and any("не переносится" in h for h in fr["how"]), fr["how"])
+    # служебного имени функции (what_if) в тексте нет — проверяем смысл: множитель модуля франшизы и ставка акта
+    mult_txt = act._mult(fr["multiplier"], "ru")
+    ok("how: множитель модуля франшизы и ставка акта × множитель, премия модуля расчёта ставок не переносится",
+       any("из модуля франшизы" in h and "множитель " + mult_txt in h for h in fr["how"])
+       and any(h.startswith("Ставка акта") and act.pct(applied, "ru") + " × " + mult_txt in h
+               and act.pct(hand_rate, "ru") in h and "не переносится" in h for h in fr["how"])
+       and not any("what_if" in h or "движ" in h for h in fr["how"]), fr["how"])
     applied_id = a["id"]
     st, a2 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
                                         "optional": dict(CRANE_OPT, deductible={"amount": 29_450_000})})
@@ -4401,6 +4411,524 @@ def check_pdf_time_limit():
     ok("PDF — срок 8 с, DOCX — 5 с", st == 200 and seen and seen[0] == (".pdf", 8.0) and seen[1] == (".docx", 5.0), seen)
 
 
+# ------------------------------------------------------------------ 40. аналитика раздела 4 (30.09.2026)
+
+AN_TITLES_RU = ["Разбор по рискам: доля в нетто-ставке и уровень",
+                "Учтённые факторы: значение, источник, вклад в техническую ставку",
+                "Что изменит ставку (посчитано расчётным модулем)", "Состав тарифа", "Сценарии убытка подробно",
+                "Сценарии «что если» (расчёт при других данных объекта)",
+                "Лимит удержания и перестрахование", "Балл риска 0–100 (справочно)", "Рынок и статистика",
+                "Франшиза: варианты (справочно)", "Мероприятия: эффект на ставку и премию"]
+AN_SOURCES = {"input", "document", "photo", "plate", "marking", "text", "kind", "default", "not_set", "act_terms"}
+WH8_MUST = {"product_code": "0807", "sum_insured": 4_200_000_000, "object_value": 4_200_000_000,
+            "region": "Ташкентская область"}
+WH8_OPT = {"object_kind": "warehouse", "protection": "alarm", "seismic_zone": 8, "construction": "reinforced",
+           "losses_3y": {"count": 0, "small_count": 0}}
+AN_REPORT = {}
+
+
+def s4_titles(a):
+    return [li["title"] for li in a["sections"][3]["lists"]]
+
+
+def an_common(tag, a, S, term):
+    """Проверки, общие для всех объектов: блоки на месте, факторы с источниками, вклады сходятся, балл сходится."""
+    an = a.get("analytics") or {}
+    ok(f"{tag}: analytics есть, calibrated = 0", an.get("available") and an.get("calibrated") == 0, an.get("reason"))
+    titles = s4_titles(a)
+    ok(f"{tag}: в разделе 4 все блоки аналитики", all(x in titles for x in AN_TITLES_RU),
+       [x for x in AN_TITLES_RU if x not in titles])
+    items = an["factors"]["items"]
+    ok(f"{tag}: у каждого фактора источник и множитель", items and all(
+        f["source"] in AN_SOURCES and f["source_label"] and f["multiplier"] > 0 for f in items), items[:2])
+    total = an["factors"]["base_pct"] + sum(f["rate_pp"] or 0 for f in items)
+    ok(f"{tag}: вклады факторов складываются в техническую ставку",
+       abs(total - an["factors"]["technical_pct"]) < 2e-3, (total, an["factors"]["technical_pct"]))
+    sc = an["score"]
+    ok(f"{tag}: балл 0–100 = сумма вкладов составляющих", sc["available"] and 0 <= sc["score"] <= 100 and abs(
+        sum(c["contribution"] or 0 for c in sc["components"] if c["applicable"]) - sc["score"]) < 0.3, sc.get("score"))
+    sm = an["summary"]["sentences"]
+    ok(f"{tag}: резюме 5–7 предложений и первым абзацем раздела 4", 5 <= len(sm) <= 7
+       and a["sections"][3]["paragraphs"][0].startswith("Кратко: "), sm)
+    ok(f"{tag}: у внешних данных — ссылка на источник", all(s.get("url", "").startswith("http")
+                                                          for s in an["sources"]) and bool(an["sources"])
+       or not an["market"]["available"], an.get("sources"))
+    mk = an["market"]
+    ok(f"{tag}: рынок — ставка, дата среза и источник НАПП (или честно «нет данных»)",
+       (mk["available"] and mk["rate_pct"] and mk["rate_date"] and "napp.uz" in (mk["source"] or {}).get("url", ""))
+       or (not mk["available"] and any("нет данных" in x for li in a["sections"][3]["lists"]
+                                       if li["title"] == "Рынок и статистика" for x in li["items"])), mk)
+    li = next(x for x in a["sections"][3]["lists"] if x["title"] == "Рынок и статистика")
+    ok(f"{tag}: под рынком и статистикой — строки «Источник: …»",
+       any(x.startswith("Источник: ") for x in li["items"]), li["items"][-3:])
+    for it in an["stats"]["indicators"]:
+        if it["status"] == "ok":
+            ok(f"{tag}: показатель «{it['name']}» — с источником", it["sources"] and all(
+                (s.get("url") or "").startswith("http") for s in it["sources"]), it["sources"])
+            break
+    return an
+
+
+def check_analytics():
+    print("40. Аналитика раздела 4: риски, факторы, чувствительность, состав тарифа, сценарии, балл, рынок, франшиза")
+    from app import act_analytics as aa, act_extras as ax, market_picture as mp, risk_analytics as ra
+    from app.engine import calculate, PURPOSE_ANALYSIS
+    fresh()
+    model_on(False)
+
+    # --- 40а. автокран, класс 3 ---
+    t0 = monotonic()
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane", year=2026)})
+    sec = monotonic() - t0
+    ok("40а автокран: акт сформирован быстрее 2 с", st == 200 and sec < 2, (st, sec))
+    an = an_common("40а автокран", a, CRANE_MUST["sum_insured"], 365)
+    rk = an["risks"]
+    ok("40а: класс 3 не разбит на риски — одна строка 100 % и честная пометка",
+       rk["whole_class"] and len(rk["items"]) == 1 and rk["items"][0]["share_of_net_pct"] == 100.0
+       and any("не разбит на отдельные риски" in n for n in rk["notes"]), rk)
+    fx = {f["code"]: f for f in an["factors"]["items"]}
+    ok("40а: источники факторов — тип по виду объекта, убытки введены, год введён",
+       fx["veh_type"]["source"] == "kind" and fx["loss_history"]["source"] == "input"
+       and fx["veh_age"]["source"] == "input" and fx["antitheft"]["source"] == "not_set", fx)
+    with db.tx() as con:
+        ref = db.load_reference(con)
+        inp = Input(product_code="0318", class_code="3", object_type=CRANE_TYPE,
+                    value_amount=CRANE_MUST["object_value"], sum_insured=CRANE_MUST["sum_insured"], term_days=365,
+                    factors={"veh_type": "special", "veh_age": "a3", "loss_history": "clean"})
+        calc = calculate(ref, inp, purpose=PURPOSE_ANALYSIS)
+    tb = an["tariff"]
+    ok("40а: состав тарифа сходится с engine.calculate (нетто, техническая, минимум)",
+       tb["available"] and abs(tb["technical_pct"] - calc["rates"]["technical_pct"]) < 1e-9
+       and abs(tb["net_pct"] - calc["rates"]["net_pct"]) < 1e-9 and tb["min_pct"] == calc["rates"]["min_pct"],
+       (tb.get("technical_pct"), calc["rates"]))
+    ok("40а: тариф акта по-прежнему — ставка политики × поправка (техническая — справка)",
+       tb["act_rate_pct"] == a["rate"]["applied_pct"] and tb["policy_rate_pct"] == a["rate"]["base_pct"]
+       and a["premium"]["amount"] == round(a["rate"]["applied_pct"] / 100 * CRANE_MUST["sum_insured"])
+       and "считается по тарифной политике" in tb["conclusion"], tb.get("conclusion"))
+    ok("40а: вывод «Тариф акта … при технической ставке расчётного модуля … и рыночной …»",
+       tb["conclusion"].startswith("Тариф акта " + act.pct(a["rate"]["applied_pct"], "ru") + " при технической "
+                                   "ставке расчётного модуля " + act.pct(calc["rates"]["technical_pct"], "ru")),
+       tb["conclusion"])
+    sens = an["sensitivity"]["items"]
+    good = bool(sens)
+    for s in sens:
+        alt = Input(**{**inp.__dict__})
+        alt.factors = {**inp.factors, s["factor"]: next(o for (f, o), v in ref.coefficients.items()
+                                                         if f == s["factor"] and s["to"] ==
+                                                         tx.label(tx.OPTION_LABELS, f"{f}:{o}", "ru"))}
+        g1 = rate_for(ref, alt)["gross_pct"]
+        good = good and abs(round(g1, 4) - s["tech_after"]) < 1e-9
+    ok("40а: чувствительность посчитана движком (сверка с прямым rate_for), 3–5 вариантов",
+       good and 3 <= len(sens) <= 5, sens)
+    ok("40а: мера страхователя — эффект и на премию акта (не ниже минимума)",
+       any(s["kind"] == "measure" and s["act_premium_after"] is not None
+           and s["act_premium_after"] >= round(0.35 / 100 * CRANE_MUST["sum_insured"]) for s in sens), sens)
+    wi = {w["value"]: w for w in an["scenarios"]["whatif"]}
+    with db.tx() as con:
+        an2 = ra_same(con, {"class_code": "3", "product_code": "0318", "object_type": CRANE_TYPE,
+                            "sum_insured": CRANE_MUST["sum_insured"], "object_value": CRANE_MUST["object_value"],
+                            "region": CRANE_MUST["region"], "vehicle_type": "special", "year": 2026},
+                      {"losses_3y": {"count": 0}, "protection": "immo"})
+    ok("40а: «что если» с иммобилайзером — EML акта = PML модуля с тем же входом",
+       "immo" in wi and wi["immo"]["eml"] == round(an2["scenarios"]["PML"]["amount"])
+       and wi["immo"]["eml"] < an["scenarios"]["items"][1]["amount"], (wi.get("immo"), an2["scenarios"]["PML"]))
+    fr = an["franchise"]
+    ok("40а: таблица франшиз 0,5/1/2/5 % (потолок класса 3 — 5 %), вывод акта прежний",
+       fr["available"] and [r["pct"] for r in fr["rows"]] == [0.5, 1.0, 2.0, 5.0]
+       and a["franchise"]["text"] == "Франшиза не требуется" and fr["verdict"] == "Франшиза не требуется"
+       and all(r["premium"] >= round(0.35 / 100 * CRANE_MUST["sum_insured"]) for r in fr["rows"]), fr)
+    AN_REPORT["автокран"] = {"техническая": tb["technical_pct"], "тариф акта": tb["act_rate_pct"],
+                             "рынок": tb["market_rate_pct"], "балл": an["score"]["score"],
+                             "чувствительность": [(s["factor"], s["to"], s["delta_pct"]) for s in sens]}
+
+    # --- 40б. склад, класс 8 (4,2 млрд, сейсмозона 8, сигнализация, железобетон) ---
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST, "optional": WH8_OPT})
+    an = an_common("40б склад кл. 8", a, WH8_MUST["sum_insured"], 365)
+    items = an["risks"]["items"]
+    with db.tx() as con:
+        an_ra = ra_same(con, {"class_code": "8", "product_code": "0807", "object_type": "Склад",
+                              "sum_insured": WH8_MUST["sum_insured"], "object_value": WH8_MUST["object_value"],
+                              "region": WH8_MUST["region"], "construction": "reinforced", "activity": "warehouse"},
+                        {"protection": "alarm", "seismic_zone": 8, "losses_3y": {"count": 0}})
+    ok("40б: доли рисков — из risk_analytics, сумма 100 %",
+       abs(sum(i["share_of_net_pct"] for i in items) - 100) <= 0.3
+       and {i["code"]: i["share_of_net_pct"] for i in items} == {r["code"]: r["share_of_net_pct"] for r in an_ra["risks"]},
+       [(i["code"], i["share_of_net_pct"]) for i in items])
+    by = {i["code"]: i for i in items}
+    ok("40б: уровни по рискам с причиной — землетрясение от сейсмозоны, пожар ниже среднего",
+       by["earthquake"]["reason"]["code"] == "by_factor" and by["earthquake"]["reason"].get("factor") == "seismic"
+       and "Сейсмическая зона" in by["earthquake"]["why"] and by["fire"]["level"] in ("low", "moderate")
+       and all(i["level"] in ("low", "moderate", "high") and i["why"] for i in items), by["earthquake"])
+    sc = an["scenarios"]
+    ok("40б: сценарии — формула с числами, пожар по объекту и землетрясение по площадке 8 баллов",
+       sc["available"] and any("землетрясение: 4 200 000 000 сум (вся площадка, 8 баллов)" in x["formula"].replace(" ", " ")
+                               for x in sc["items"]), [x["formula"] for x in sc["items"]])
+    ok("40б: «что если» — спринклеры снижают EML (посчитано модулем)",
+       any(w["change"] == "protection" and w["value"] == "sprinkler" and w["eml"] < sc["items"][1]["amount"]
+           for w in sc["whatif"]), sc["whatif"])
+    ret = an["retention"]
+    ok("40б: удержание — 20 % × (средства + резервы) по Положению 1806, EML в пределах, «временно», оценка",
+       ret["known"] and ret["verdict"] == "within" and ret["status"] == "temporary"
+       and "20 % × (собственные средства" in ret["text"] and "Положению № 1806, п. 15" in ret["text"]
+       and ret["estimate"] is True and "оценка, не факт" in (ret["estimate_note"] or ""), ret)
+    s1 = {r["label"]: r for r in a["sections"][0]["rows"]}
+    ok("40б: раздел 1 здания — вид, адрес, кадастр, конструкция (введена), год постройки",
+       s1.get("Вид объекта", {}).get("value") == "склад" and "Адрес / место нахождения" in s1
+       and s1.get("Конструкция, материал стен", {}).get("value") == "железобетон, кирпич"
+       and ("Кадастровый номер" in s1 or "кадастровый номер" in s1.get("Не указано", {}).get("value", "")), s1)
+    AN_REPORT["склад кл. 8"] = {"PML/EML/MFL": [x["amount"] for x in sc["items"]], "балл": an["score"]["score"],
+                                "уровни": {k: v["level"] for k, v in by.items()}}
+
+    # --- 40в. склад, класс 9 ---
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    an = an_common("40в склад кл. 9", a, WH_MUST["sum_insured"], 365)
+    items = an["risks"]["items"]
+    ok("40в: риски класса 9 (кража со взломом, град…) — сумма 100 %",
+       abs(sum(i["share_of_net_pct"] for i in items) - 100) <= 0.3 and items[0]["code"] == "burglary", items[:2])
+    ok("40в: сейсмозона в балл класса 9 не входит", not next(c for c in an["score"]["components"]
+                                                          if c["code"] == "seismic")["applicable"])
+    ok("40в: сценарии класса 9 — кража, залив по помещению",
+       an["scenarios"]["available"] and all(x["parts"][0]["peril"] == "damage9" for x in an["scenarios"]["items"]))
+
+    # --- 40г. оборудование класса 8 по запросу филиала (продукт 0832, 47 397 852 345,04, 1 888 дн.) ---
+    st, b = upload([("sorov2.docx", DOCX_MIME, docx_table(BR_SAMPLE2))], {"lang": "ru"})
+    t0 = monotonic()
+    st, a = br_make(b["session"], 2, br_request(b))
+    sec = monotonic() - t0
+    ok("40г оборудование: акт быстрее 2 с", st == 200 and sec < 2, sec)
+    an = an_common("40г оборудование", a, BR_S2, 1888)
+    fx = {f["code"]: f for f in an["factors"]["items"]}
+    ok("40г: деятельность — по описанию документа («нон махсулотлари» → пищевое производство), не «склад»",
+       fx["activity"]["option"] == "food" and fx["activity"]["source"] == "text"
+       and "по описанию объекта" in fx["activity"]["source_label"], fx["activity"])
+    lvl = a["risk"]["level"]
+    applied = round(max(0.08 * (1 + ae.DEFAULT_SETTINGS["adj_pct"][lvl] / 100), 0.08), 4)
+    ok("40г: правила тарифа акта не изменились (0,08 % × поправка, премия на 1 888 дн.)",
+       a["rate"]["applied_pct"] == applied and a["premium"]["amount"] == round(BR_S2 * applied / 100 * 1888 / 365),
+       (a["rate"]["applied_pct"], a["premium"]["amount"]))
+    tb = an["tariff"]
+    ok("40г: такафул — нагрузка 25 % без прибыли компании, техническая ставка справочно",
+       tb["takaful"] and abs(tb["load_share"] - 0.25) < 1e-6 and tb["technical_pct"] > tb["act_rate_pct"], tb)
+    s1rows = a["sections"][0]["rows"]
+    s1 = {r["label"]: r for r in s1rows}
+    ok("40г: раздел 1 оборудования — наименование на языке акта, текст документа в примечании",
+       s1.get("Наименование", {}).get("value") == "машины и оборудование — пищевое производство"
+       and "Технологик асбоб ускуна нон" in (s1["Наименование"].get("note") or "")
+       and "по словарю" in s1["Наименование"]["note"], s1.get("Наименование"))
+    ok("40г: строки оборудования (производитель, модель, заводской номер, год, место установки), "
+       "«данные недоступны» ≤ 3, остальное — «Не указано»",
+       sum(1 for r in s1rows if r["value"] == "данные недоступны") <= 3 and "Не указано" in s1
+       and "Габариты" not in s1 and "Мощность двигателя" not in s1
+       and all(x in " ".join(r["label"] + " " + str(r["value"]) for r in s1rows).lower()
+               for x in ("модель", "заводской", "год выпуска", "место установки", "производитель")),
+       [(r["label"], r["value"]) for r in s1rows])
+    ok("40г: удержание — EML выше (защита не указана) → перестрахование или решение андеррайтера",
+       an["retention"]["verdict"] in ("eml_excess", "mfl_excess", "within") and an["retention"]["known"]
+       and "Вывод:" in an["retention"]["text"], an["retention"])
+    fr = an["franchise"]
+    with db.tx() as con:
+        ctx = ax.ra_context(con, cls="8", product_code="0832", otype="Машины и оборудование", group="equipment",
+                            kind="equipment", S=BR_S2, V=BR_S2, region="Ташкентская область", term_days=1888,
+                            year=None, o={}, recognized=[], text="нон махсулотлари ишлаб чиқариш")
+        em = ax._engine_multiplier(con, ctx, 1.0)
+    rr = {"applied_pct": a["rate"]["applied_pct"], "min_pct": a["rate"]["min_pct"], "term_days": 1888}
+    rate1, prem1, _fl = ax.apply_multiplier(rr, em["mult"], BR_S2)
+    row1 = next(r for r in fr["rows"] if r["pct"] == 1.0)
+    ok("40г: франшиза 1 % = ставка акта × множитель what_if (сверка с прямым вызовом), экономия = разница",
+       row1["premium"] == prem1 and row1["rate_pct"] == rate1
+       and row1["saving"] == a["premium"]["amount"] - prem1, (row1, prem1))
+    ms = an["measures"]
+    ok("40г: мероприятия — эффект на техническую ставку и премию акта", "items" in ms and all(
+        "техническая ставка" in m["text"] or "не влияет" in m["text"] for m in ms["items"]), ms)
+    ok("40г: вывод про франшизу прежний — «не требуется»", a["franchise"]["text"] == "Франшиза не требуется")
+    aid_eq = a["id"]
+    AN_REPORT["оборудование 0832"] = {"уровень акта": lvl, "тариф акта": a["rate"]["applied_pct"],
+                                      "премия": a["premium"]["amount"], "техническая": tb["technical_pct"],
+                                      "рынок": tb["market_rate_pct"], "балл": an["score"]["score"],
+                                      "PML/EML/MFL": [x["amount"] for x in an["scenarios"]["items"]],
+                                      "удержание": an["retention"].get("limit"),
+                                      "франшизы": [(r["pct"], r["premium"], r["saving"]) for r in fr["rows"]]}
+
+    # скан запроса: перевод описания — от модели (подменена), на языке акта
+    model_on(True)
+    REPLY["text"] = br_model_reply(2)
+    st, b3 = upload([("scan2.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    st, a3 = br_make(b3["session"], 2, br_request(b3))
+    s13 = {r["label"]: r for r in a3["sections"][0]["rows"]}
+    ok("40г: скан — наименование переводом модели, исходный текст в примечании",
+       "хлебобулочных" in str(s13.get("Наименование", {}).get("value")) and "перевод модели" in (
+           s13["Наименование"].get("note") or ""), s13.get("Наименование"))
+    model_on(False)
+
+    # --- 40д. три языка ---
+    for lang in ("uz", "en"):
+        st, x = call("GET", f"/act/{aid_eq}", params={"lang": lang})
+        s4 = x["sections"][3]
+        texts = [li["title"] for li in s4["lists"]] + s4["paragraphs"] + \
+                [c for li in s4["lists"] if li.get("table") for c in li["table"]["columns"]] + \
+                [str(c) for li in s4["lists"] if li.get("table") for r in li["table"]["rows"] for c in r] + \
+                [n for li in s4["lists"] for n in li.get("notes") or []] + x["analytics"]["summary"]["sentences"]
+        cyr = [t_ for t_ in texts if re.search(r"[А-Яа-яЁё]", t_ or "")]
+        ok(f"40д {lang}: аналитика раздела 4 без кириллицы (заголовки, таблицы, резюме)", not cyr, cyr[:4])
+        nm = x["sections"][0]["rows"][2]
+        ok(f"40д {lang}: наименование объекта — на языке акта, текст документа — в примечании",
+           not re.search(r"[А-Яа-яЁё]", str(nm["value"])) and "Технологик" in (nm.get("note") or ""), nm)
+
+    # --- 40е. Word и PDF ---
+    st, blob, h = call("GET", f"/act/{aid_eq}.docx", raw=True)
+    plain = re.sub(r"<[^>]+>", "", zipfile.ZipFile(io.BytesIO(blob)).read("word/document.xml").decode("utf-8"))
+    need = ["Разбор по рискам", "Учтённые факторы", "Что изменит ставку", "Состав тарифа", "Сценарии убытка подробно",
+            "Балл риска 0–100", "Рынок и статистика", "Франшиза: варианты", "Источник: НАПП", "Кратко:"]
+    ok("40е: DOCX — раздел 4 с таблицами аналитики и источниками", all(x in plain for x in need),
+       [x for x in need if x not in plain])
+    st, blob, h = call("GET", f"/act/{aid_eq}.pdf", raw=True)
+    text = pdf_text(pymupdf.open(stream=blob, filetype="pdf"))
+    ok("40е: PDF — те же блоки", all(x in text for x in need), [x for x in need if x not in text])
+
+    # --- 40ж. старый акт без аналитики показывается ---
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", aid_eq)[0]
+    stored = _json.loads(row["act_json"])
+    D = stored["data"]
+    D.pop("analytics", None)
+    D.pop("object_doc", None)
+    old = act.render(D, "ru", stored["meta"])
+    ok("40ж: старый акт без блока analytics показывается (available = false)",
+       old["analytics"]["available"] is False and old["analytics"]["reason"] == "old_act"
+       and len(old["sections"]) == 5)
+
+    # --- 40з. словарь деятельности и вида объекта (три языка) ---
+    ok("40з: деятельность по описанию — ru, uz кириллица и латиница, en; «анонс» — не хлеб",
+       ax.activity_from_text("Технологик асбоб ускуна нон махсулотлари ишлаб чиқариш учун") == "food"
+       and ax.activity_from_text("хлебопекарное производство") == "food"
+       and ax.activity_from_text("non mahsulotlari ishlab chiqarish uskunasi") == "food"
+       and ax.activity_from_text("bakery equipment") == "food"
+       and ax.activity_from_text("холодильник для хранения сельхозпродукции") == "warehouse"
+       and ax.activity_from_text("АЗС и склад ГСМ") == "flammable"
+       and ax.activity_from_text("анонс оборудования") is None and ax.activity_from_text("") is None)
+    ok("40з: склад-холодильник узнаётся по «музлатгич» и «холодильник»",
+       ax.cold_store("қишлоқ хўжалиги махсулотларини сақлаш учун музлатгич")
+       and ax.cold_store("холодильник") and not ax.cold_store("склад"))
+    ok("40з: пороги уровня риска помечены экспертными", aa.CALIBRATED == 0 and aa.PERIL_LEVEL["low_max"] < 1)
+    del mp, ra
+
+
+# ------------------------------------------------------------------ 41. замечания контролёра по аналитике (30.09.2026)
+
+ROOT_DIR = Path(__file__).resolve().parent.parent
+EQ_MUST = {"product_code": "0832", "sum_insured": BR_S2, "object_value": BR_S2, "region": "tashkent_region"}
+EQ_OPT = {"term_days": 1888, "object_kind": "equipment", "activity": "food",
+          "object_type": "Технологическое оборудование для производства хлебобулочных изделий"}
+# «движок» как жаргон (двигатель техники — «Dvigatelni bloklash», «engine immobilisation» — не жаргон)
+JARGON = re.compile(r"движ(?!ени)|dvigatel(?!ni)|\bengine\b(?! hours| lock| immobil)|Балл старого|what_if", re.I)
+
+
+def s4_texts(a):
+    """Все строки раздела 4: абзацы, строки, списки, таблицы, примечания."""
+    s4 = a["sections"][3]
+    out = list(s4["paragraphs"]) + [r["label"] + " " + str(r["value"]) + " " + str(r.get("note") or "") for r in s4["rows"]]
+    for li in s4["lists"]:
+        out += [li["title"]] + list(li["items"]) + list(li.get("notes") or [])
+        if li.get("table"):
+            out += list(li["table"]["columns"]) + [str(c) for r in li["table"]["rows"] for c in r]
+    return out
+
+
+def s4_list(a, title):
+    return next((li for li in a["sections"][3]["lists"] if li["title"] == title), {"items": []})
+
+
+def check_review_fixes():
+    print("41. Замечания контролёра по аналитике: регион, удержание-оценка, тип по умолчанию, доли, рынок, балл, "
+          "жаргон, уровни, склонения, вид документа, франшиза от неокруглённой ставки")
+    from app import act_analytics as aa, act_extras as ax, market_picture as mp
+    fresh()
+    model_on(False)
+
+    # --- 41.2. регион кодом экрана и названием — одна и та же статистика и один балл ---
+    st1, a1 = call("POST", "/act/make", {"lang": "ru", "must": EQ_MUST, "optional": EQ_OPT})
+    st2, a2 = call("POST", "/act/make", {"lang": "ru", "must": dict(EQ_MUST, region="Ташкентская область"),
+                                         "optional": EQ_OPT})
+    an1, an2 = a1["analytics"], a2["analytics"]
+    strip = lambda st: [{k: v for k, v in i.items() if k != "text"} for i in st["indicators"]]   # noqa: E731
+    ok("41.2: tashkent_region и «Ташкентская область» — одинаковые показатели региона и балл",
+       st1 == st2 == 200 and strip(an1["stats"]) == strip(an2["stats"])
+       and an1["score"]["score"] == an2["score"]["score"] == 50.9, (an1["score"]["score"], an2["score"]["score"]))
+    vh = next(i for i in an1["stats"]["indicators"] if i["id"] == "vulnerable_housing")
+    ok("41.2: показатель региона — Ташкентская область, 49,95 % (регион, а не республика)",
+       vh["scope"] == "region" and abs(vh["value"] - 49.95) < 1e-9 and "49,95" in vh["value_text"], vh)
+    with db.tx() as con:
+        ok("41.2: все 14 кодов регионов экрана узнаются модулями по названию",
+           all(mp.resolve_region(act.region_for_modules({"region": c, "region_code": c}))[0]
+               for c in act._region_names()) and len(act._region_names()) == 14)
+    del con
+
+    # --- 41.3. удержание — оценка: норма на временных цифрах, таблица линий — экспертная ---
+    ret = an1["retention"]
+    lines = " ".join(ret["lines"])
+    ok("41.3: verdict сохранён, добавлен estimate_note", ret["verdict"] == "eml_excess" and ret["estimate"] is True
+       and ret["estimate_note"] and ret["estimate_note"].startswith("Это оценка, не факт"), ret)
+    ok("41.3: лимит по Положению 1806 п. 15 — «цифры временные, до данных бухгалтерии» (company_financials)",
+       "по Положению № 1806, п. 15 = 20 % × (собственные средства" in nb(lines)
+       and "цифры временные, до данных бухгалтерии (источник: company_financials)" in lines, ret["lines"])
+    ok("41.3: «страховая сумма 47,4 млрд в лимит 84 млрд укладывается»",
+       "Страховая сумма 47 397 852 345 сум в лимит 84 000 000 000 сум укладывается" in nb(lines), ret["lines"])
+    ok("41.3: таблица линий класса 8 — внутреннее экспертное правило, не норма, не калибровано",
+       "Лимит по таблице линий класса 8 — 43 409 395 973 сум: внутреннее экспертное правило "
+       "(capacity.retention_table), не норма, не калибровано" in nb(lines), ret["lines"])
+    phrase = ("EML выше расчётного удержания по экспертной таблице — рекомендуем рассмотреть перестрахование или "
+              "решение андеррайтера (оценочно, цифры временные)")
+    ok("41.3: в «Кратко» — рекомендация, а не факт", any(phrase in s for s in an1["summary"]["sentences"]),
+       an1["summary"]["sentences"])
+    row = next(r for r in a1["sections"][3]["rows"] if r["label"] == "Лимит собственного удержания")
+    ok("41.3: строка раздела 4 — «рекомендуем рассмотреть…», без «нужно перестрахование»",
+       "рекомендуем рассмотреть перестрахование или решение андеррайтера (оценочно, цифры временные)" in row["note"]
+       and "до данных бухгалтерии" in row["note"] and "нужно перестрахование (оценочно)" not in row["note"], row)
+    how = s4_list(a1, "Как посчитаны сценарии убытка")["items"]
+    ok("41.3: «как посчитаны сценарии» — таблица линий не выдана за норму",
+       any("внутреннее экспертное правило, не норма" in h and "расчётное удержание" in h for h in how), how)
+    for lang in ("uz", "en"):
+        st, x = call("GET", f"/act/{a1['id']}", params={"lang": lang})
+        r = x["analytics"]["retention"]
+        ok(f"41.3 {lang}: удержание — оценка на языке акта (estimate_note, без кириллицы)",
+           r["estimate_note"] and "company_financials" in r["estimate_note"]
+           and not re.search(r"[А-Яа-яЁё]", " ".join(r["lines"])), r["lines"])
+
+    # --- 41.4. пример оборудования для снимков: запрос филиала даёт вид, деятельность и описание ---
+    br_file = ROOT_DIR / "sandbox" / "br30" / "sorov_equipment.docx"
+    ok("41.4: образец запроса филиала для снимков оборудования лежит в sandbox/br30", br_file.exists())
+    if br_file.exists():
+        st, b = upload([("sorov_equipment.docx", DOCX_MIME, br_file.read_bytes())], {"lang": "ru"})
+        st, ae_ = call("POST", "/act/make", {"session": b["session"], "lang": "ru", "recognized": b["recognized"],
+                                             "must": EQ_MUST, "optional": {"term_days": 1888,
+                                                                           "request": br_request(b)}})
+        base = next(r for r in ae_["analytics"]["tariff"]["rows"] if r["code"] == "base_net")
+        ok("41.4: по запросу филиала — оборудование 0,20 % и пищевое производство (не «производственное здание»)",
+           st == 200 and "машины и оборудование" in base["label"] and base["value"] == act.pct(0.2, "ru")
+           and next(f for f in ae_["analytics"]["factors"]["items"] if f["code"] == "activity")["option"] == "food",
+           base)
+
+    # --- 41.5. оборудование без документа: тип по умолчанию назван, деятельность согласована с типом ---
+    st, a0 = call("POST", "/act/make", {"lang": "ru", "must": EQ_MUST, "optional": {"term_days": 1888}})
+    s1 = {r["label"]: r for r in a0["sections"][0]["rows"]}
+    ok("41.5: раздел 1 — «принят по умолчанию: производственное здание», а не «данные недоступны»",
+       s1["Вид объекта"]["value"] == "принят по умолчанию: производственное здание"
+       and "уточните" in s1["Вид объекта"]["note"], s1.get("Вид объекта"))
+    base = next(r for r in a0["analytics"]["tariff"]["rows"] if r["code"] == "base_net")
+    ok("41.5: состав тарифа — пометка «вид объекта принят по умолчанию»",
+       "вид объекта принят по умолчанию: производственное здание" in base["note"], base)
+    fx = {f["code"]: f for f in a0["analytics"]["factors"]["items"]}
+    asm = s4_list(a0, "Принято по умолчанию (уточните)")["items"]
+    ok("41.5: деятельность по умолчанию согласована с типом (производство → пищевое производство, не склад)",
+       fx["activity"]["option"] == "food" and fx["activity"]["source"] == "default"
+       and any("по типу объекта «производственное здание»" in x for x in asm)
+       and not any("склад общего назначения" in x for x in asm), (fx["activity"], asm))
+    with db.tx() as con:
+        ok("41.5: правило согласования — таблица модуля (производство → food, склад → warehouse)",
+           ax._default_activity(con, "8", "0832", None) == ("Производство", "food")
+           and ax._default_activity(con, "8", "0807", "Склад") == ("Склад", "warehouse"))
+    ok("41.5: фактор по умолчанию помечен в «Кратко» и в разборе рисков",
+       any("(×1,2, принято по умолчанию)" in s for s in a0["analytics"]["summary"]["sentences"])
+       and "принято по умолчанию" in a0["analytics"]["risks"]["items"][0]["why"])
+
+    # --- 41.6. доли рисков: округление; автокран — без «Доли из справочника» ---
+    notes8 = a0["analytics"]["risks"]["notes"]
+    ok("41.6: класс 8 — «сумма 99,8 % — из-за округления долей»",
+       any("сумма 99,8 % — из-за округления долей" in nb(n) for n in notes8), notes8)
+    st, ac = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": CRANE_OPT})
+    nc = ac["analytics"]["risks"]["notes"]
+    ok("41.6: автокран — «не разбит на отдельные риски», без «Доли — из справочника рисков»",
+       any("не разбит на отдельные риски" in n for n in nc) and not any("Доли — из справочника" in n for n in nc), nc)
+
+    # --- 41.7. строка рынка: полный год отдельно, какая строка отчёта взята — по market_stats ---
+    mk_items = s4_list(a1, "Рынок и статистика")["items"]
+    with db.tx() as con:
+        last = db.rows(con, "SELECT MAX(report_date) d FROM market_stats WHERE row_key='cls8_9'")[0]["d"]
+        pk = db.rows(con, "SELECT premiums_ytd p FROM market_stats WHERE row_key='cls8_9' AND report_date=?", last)[0]["p"]
+        p8 = db.rows(con, "SELECT premiums_ytd p FROM market_stats WHERE row_key='cls8' AND report_date=?", last)[0]["p"]
+    fy = [x for x in mk_items if x.startswith("За ") and "год: ставка" in x]
+    ok("41.7: «За 2025 год: ставка …, убыточность …» — отдельной строкой, не хвостом убыточности среза",
+       len(fy) == 1 and not any("за 20" in x for x in mk_items if x.startswith("Убыточность класса")), mk_items[:4])
+    mli = s4_list(a1, "Рынок и статистика")
+    trows = {r[0]: r for r in mli["table"]["rows"]}
+    ok("41.7: в таблице документа полный год — две строки: ставка и убыточность",
+       "Рыночная ставка за 2025 год" in trows and "Убыточность рынка за 2025 год" in trows
+       and ";" not in trows["Рыночная ставка за 2025 год"][1], list(trows))
+    ok("41.7: пояснение о строке отчёта — под таблицей документа",
+       any(n.startswith("Взята строка классов 8 и 9 (cls8_9)") for n in mli["notes"]), mli.get("notes"))
+    rown = [x for x in mk_items if x.startswith("Взята строка классов 8 и 9 (cls8_9)")]
+    ok("41.7: «взята строка классов 8 и 9 (cls8_9); отдельная строка класса 8 мала» — числа из market_stats",
+       len(rown) == 1 and act.tx._num(round(pk), "ru") + " млн сум" in rown[0]
+       and act.tx._num(round(p8), "ru") + " млн сум" in rown[0] and "мала по объёму" in rown[0]
+       and "одной строкой" not in " ".join(mk_items), rown)
+
+    # --- 41.8. доля глинобитного жилья — только для зданий и складов ---
+    comp1 = next(c for c in an1["score"]["components"] if c["code"] == "external_stats")
+    vh1 = next(i for i in an1["stats"]["indicators"] if i["id"] == "vulnerable_housing")
+    ok("41.8: оборудование — жилой фонд не в балле, честное «нет показателей региона для этого вида объекта»",
+       not comp1["applicable"] and comp1["why"] == "нет показателей региона для этого вида объекта"
+       and vh1["used_in_score"] is False and vh1["excluded_for_kind"] and "в балл не входит" in vh1["text"], comp1)
+    comp0 = next(c for c in a0["analytics"]["score"]["components"] if c["code"] == "external_stats")
+    ok("41.8: здание (тип по умолчанию «производство») — показатель жилого фонда в балле",
+       comp0["applicable"] and comp0["points"] > 0, comp0)
+    ok("41.8: балл без показателя — та же формула модуля (сумма вкладов = балл)",
+       abs(sum(c["contribution"] or 0 for c in an1["score"]["components"] if c["applicable"])
+           - an1["score"]["score"]) < 0.3)
+    st, am_ = call("POST", "/act/make", {"lang": "ru", "must": dict(EQ_MUST, region="Марс"), "optional": EQ_OPT})
+    cm = next(c for c in am_["analytics"]["score"]["components"] if c["code"] == "external_stats")
+    ok("41.8: регион не распознан — так и написано, а не «нет показателей для класса»",
+       not cm["applicable"] and cm["why"].startswith("регион не распознан"), cm)
+
+    # --- 41.9. без жаргона на трёх языках ---
+    for tag, aid in (("оборудование", a1["id"]), ("автокран", ac["id"])):
+        for lang in ("ru", "uz", "en"):
+            st, x = call("GET", f"/act/{aid}", params={"lang": lang})
+            bad = [s for s in s4_texts(x) + x["analytics"]["summary"]["sentences"] + x["franchise"]["how"]
+                   if JARGON.search(s or "")]
+            ok(f"41.9 {tag} {lang}: в разделе 4 нет «движок», «Балл старого движка», what_if", not bad, bad[:3])
+    st, x = call("GET", f"/act/{a1['id']}", params={"lang": "ru"})
+    ok("41.9: «Балл риска (справочно)», «расчёт при других данных объекта», «посчитано расчётным модулем»",
+       x["analytics"]["score"]["text"].startswith("Балл риска (справочно) — ")
+       and "Сценарии «что если» (расчёт при других данных объекта)" in s4_titles(x)
+       and "Что изменит ставку (посчитано расчётным модулем)" in s4_titles(x))
+
+    # --- 41.10. одни и те же слова уровня у рисков и у акта ---
+    ok("41.10: уровни рисков и акта — низкий / умеренный / высокий на трёх языках",
+       all(tx.PERIL_LEVEL_LABELS[k] == tx.LEVEL_LABELS[k] for k in ("low", "moderate", "high")))
+    lv = {i["level_label"] for i in an1["risks"]["items"]}
+    ok("41.10: в разборе рисков нет «средний»", lv <= {"низкий", "умеренный", "высокий"}
+       and not any("иначе средний" in n or "уровень средний" in n for n in an1["risks"]["notes"])
+       and not any("уровень средний" in i["text"] for i in an1["risks"]["items"]), lv)
+
+    # --- мелочи: склонения, вид документа, франшиза от неокруглённой ставки ---
+    ok("склонение: 1 балл, 2 балла, 5 баллов, 11 баллов, 21 балл, 24 балла, 112 баллов, 2,5 балла",
+       [tx.count_text(n, "points", "ru", 1 if n == 2.5 else 0) for n in (1, 2, 5, 11, 21, 24, 112, 2.5)]
+       == ["1 балл", "2 балла", "5 баллов", "11 баллов", "21 балл", "24 балла", "112 баллов", "2,5 балла"]
+       and tx.count_text(24, "points", "uz") == "24 ball" and tx.count_text(1, "points", "en") == "1 point")
+    sc_items = s4_list(a1, "Балл риска 0–100 (справочно)")["items"]
+    ok("склонение в акте: «24 балла», «32 случая»",
+       any("MFL к лимиту удержания: 24 балла ×" in x for x in sc_items)
+       and any("32 случая" in nb(x) for x in mk_items) and not any("24 баллов" in x for x in sc_items),
+       [x for x in sc_items if "MFL" in x])
+    if br_file.exists():
+        for lang, want in (("ru", "запрос филиала"), ("uz", "filial soʻrovi"), ("en", "branch request")):
+            st, x = call("GET", f"/act/{ae_['id']}", params={"lang": lang})
+            r2 = [r for r in x["sections"][1]["rows"] if want in str(r["value"])]
+            ok(f"вид документа в разделе 2 на языке акта ({lang}): «{want}»", bool(r2)
+               and (lang == "ru" or "запрос филиала" not in " ".join(str(r["value"]) for r in x["sections"][1]["rows"])),
+               x["sections"][1]["rows"])
+    f05 = next(r for r in a0["analytics"]["franchise"]["rows"] if r["pct"] == 0.5)
+    rr = a0["rate"]
+    raw = rr["applied_pct"] * f05["multiplier"]
+    ok("франшиза 0,5 %: премия от неокруглённой ставки (216 534 374), ставка показана округлённой",
+       f05["premium"] == round(raw / 100 * BR_S2 * 1888 / 365) == 216_534_374
+       and f05["rate_pct"] == round(raw, 4), (f05, raw))
+    ok("франшиза: apply_multiplier — премия от неокруглённой ставки, ставка до 4 знаков",
+       ax.apply_multiplier({"applied_pct": 0.096, "min_pct": 0.08, "term_days": 365}, 0.9197, 1e9)
+       == (0.0883, round(0.096 * 0.9197 / 100 * 1e9), False))
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -4468,6 +4996,8 @@ def main():
             check_ct_ai_mask_labels()
             check_parties_amounts()
             check_pdf_time_limit()
+            check_analytics()
+            check_review_fixes()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -4484,6 +5014,10 @@ def main():
     if CT_REPORT:
         print("\nдоговор страхования:")
         for k, v in CT_REPORT.items():
+            print("  ", k, v)
+    if AN_REPORT:
+        print("\nаналитика раздела 4:")
+        for k, v in AN_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

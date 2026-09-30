@@ -32,9 +32,15 @@ sandbox/mk30/shots.json в формате ответа модели. Курса 
     премии +3 870 сум) на 390 и 1440 px и на узбекском; правка премии → source = input;
   • запрос + договор со скана — тот же запрос и договор sandbox/ct30/photos_b2_uzc_scan.json, cross_check собран
     app/contract_read.cross_check → карточки договора со скана и «Запрос и договор: расхождения» → акт с плиткой.
+Аналитика риска (30.09.2026): после «Без фото» — два акта настоящим POST /act/make: автокран (продукт 0318) и
+оборудование класса 8 по запросу филиала sandbox/br30/sorov_equipment.docx (настоящий POST /act/photos без модели:
+вид «оборудование», описание → пищевое производство, 0832, 47 397 852 345,04 сум, 1888 дн.; как в act_demo_equipment) →
+все карточки «Аналитики риска» раскрыты → снимки каждой карточки на 390 px, блок и крупные таблицы на 1440 px,
+раздел 4 документа с таблицами; оборудование — ещё и на узбекском (chat_an_*.png).
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
+    sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --analytics     (только аналитика риска)
 """
 import base64
 import json
@@ -351,7 +357,101 @@ FILL_STEP2 = """(async () => {
 })()"""
 
 
-def main():
+# оборудование класса 8 — как в примере акта (sandbox/act_demo_equipment.*): запрос филиала DOCX
+# sandbox/br30/sorov_equipment.docx (строки бланка 25.png, «Технологик асбоб ускуна нон махсулотлари ишлаб чиқариш
+# учун»). Настоящий POST /act/photos разбирает его без модели: вид объекта equipment, описание (→ деятельность
+# «пищевое производство»), код 0832, сумма = стоимость 47 397 852 345,04, срок 1888 дней; в POST /act/make уходят
+# session, recognized и optional.request — так же, как у сотрудника, загрузившего запрос филиала.
+# Без документа вид объекта принимается по умолчанию («производственное здание», 0,35 %) — это другой пример.
+BR_EQUIP = ROOT / "sandbox" / "br30" / "sorov_equipment.docx"
+FILL_EQUIP = """(async () => {
+  for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250));
+  if (CH.must.product_code !== "0832") wzPickProduct("0832");
+  Object.assign(CH.must, {region: "tashkent_region"});
+  wzSave();
+  wzPaint(true);
+})()"""
+EQUIP_INFO = """JSON.stringify({kind: CH.kind, prod: CH.must.product_code, s: CH.must.sum_insured, v: CH.must.object_value,
+  term: CH.opt.term_days, rec: CH.rec.filter(r => r.key === "object_type").map(r => r.value), session: !!CH.session})"""
+
+
+def ensure_equip_request():
+    """Запрос филиала для снимков оборудования: если файла нет — собирается тем же построителем, что в тестах."""
+    if BR_EQUIP.exists():
+        return
+    sys.path.insert(0, str(ROOT / "tests"))
+    import test_act as T                       # noqa: E402 — только docx_table и строки бланка BR_SAMPLE2
+    BR_EQUIP.write_bytes(T.docx_table(T.BR_SAMPLE2))
+# все карточки аналитики раскрыты, у первого риска раскрыта строка
+AN_OPEN = """(() => { CH.anOpen = {}; AN_CARDS.forEach(k => { CH.anOpen[k] = true; }); wzPaint(true);
+  const r = document.querySelector('details.an-rk'); if (r) r.open = true; window.scrollTo(0, 0); })()"""
+AN_INFO = """(() => { const a = CH.act, an = a && a.analytics; if (!an) return 'акта нет';
+  return [a.number, 'available=' + an.available + (an.reason ? ' (' + an.reason + ')' : ''),
+    'рисков ' + ((an.risks || {}).items || []).length, 'факторов ' + ((an.factors || {}).items || []).length,
+    'чувствительность ' + ((an.sensitivity || {}).items || []).length, 'тариф ' + (an.tariff || {}).available,
+    'база ' + (((an.tariff || {}).rows || [])[0] || {}).label + ' ' + (((an.tariff || {}).rows || [])[0] || {}).value,
+    'удержание ' + (an.retention || {}).verdict, 'балл ' + (an.score || {}).score,
+    'рынок ' + (an.market || {}).rate_pct, 'показателей ' + ((an.stats || {}).indicators || []).length,
+    'франшиза ' + ((an.franchise || {}).rows || []).length, 'таблиц в документе ' +
+    a.sections.reduce((n, s) => n + (s.lists || []).filter(l => l.table).length, 0)].join(' | '); })()"""
+
+
+def shoot_analytics(ws, bad):
+    """
+    Шаг 3 с раскрытой аналитикой риска (30.09.2026): автокран (продукт 0318) и оборудование класса 8 (0832,
+    47 397 852 345,04 сум, 1888 дней). Акты — настоящим POST /act/make временного сервера; карточки по одной
+    на 390 px, блок целиком и крупные таблицы на 1440 px, раздел 4 документа с таблицами; оборудование — на узбекском.
+    """
+    ensure_equip_request()
+    try:
+        ws.call("Fetch.disable")          # запрос филиала оборудования — настоящий POST /act/photos, без подмены
+    except RuntimeError:
+        pass
+    for key, fill in (("crane", FILL_STEP2), ("equip", FILL_EQUIP)):
+        js(ws, "actReset()", 1)
+        if key == "equip":
+            # запрос филиала: «Дальше» — POST /act/photos (DOCX разбирается сервером без модели) → шаг 2
+            set_files(ws, "#chatFile", [BR_EQUIP])
+            time.sleep(1)
+            js(ws, 'document.querySelector("#chatMain").click()', 5)
+            print("  оборудование, запрос филиала:", js(ws, EQUIP_INFO), "| ошибка:", js(ws, "CH.err") or "нет")
+        else:
+            js(ws, 'document.querySelector("#chatMain").click()', 1)      # «Без фото» → шаг 2
+        js(ws, fill, 2)
+        if key == "crane":
+            js(ws, 'Object.assign(CH.opt, {location: "open_area", losses_count: "0"}); wzSave()', 0.2)
+        js(ws, 'document.querySelector("#chatMain").click()', 0.5)        # «Сформировать акт»
+        for _ in range(80):
+            if js(ws, "!CH.busy && (CH.wz === 3 && !!CH.act || !!CH.err)"):
+                break
+            time.sleep(0.25)
+        time.sleep(1)
+        print(f"  аналитика ({key}): шаг", js(ws, "CH.wz"), "| ошибка:", js(ws, "CH.err") or "нет")
+        print("   ", js(ws, AN_INFO))
+        js(ws, AN_OPEN, 1)
+        cards = js(ws, "Array.from(document.querySelectorAll('details.an-c')).map(d => d.dataset.an)") or []
+        for c in cards:
+            bad.append(shot_el(ws, f"chat_an_{key}_{c}_390.png", 390, f'details.an-c[data-an="{c}"]'))
+        bad.append(shot_el(ws, f"chat_an_{key}_1440.png", 1440, ".an-box", scale=1))
+        for c in ("risks", "factors", "scen", "score", "market"):
+            bad.append(shot_el(ws, f"chat_an_{key}_{c}_1440.png", 1440, f'details.an-c[data-an="{c}"]', scale=1))
+        js(ws, "document.querySelectorAll('details.act-s').forEach(d => { d.open = d.dataset.sn === '4'; })", 0.3)
+        bad.append(shot_el(ws, f"chat_an_{key}_doc4_390.png", 390, 'details.act-s[data-sn="4"]'))
+        bad.append(shot_el(ws, f"chat_an_{key}_doc4_1440.png", 1440, 'details.act-s[data-sn="4"]', scale=1))
+    # узбекский: GET /act/{id}?lang=uz, карточки перерисованы на новом языке и остаются раскрытыми
+    js(ws, LANG_UZ, 5)
+    print("  аналитика на узбекском: язык акта", js(ws, "CH.act && CH.act.lang"))
+    js(ws, AN_OPEN, 1)
+    for c in ("sum", "risks", "factors", "sens", "ret", "market"):
+        bad.append(shot_el(ws, f"chat_an_equip_{c}_uz_390.png", 390, f'details.an-c[data-an="{c}"]'))
+    bad.append(shot_el(ws, "chat_an_equip_uz_1440.png", 1440, ".an-box", scale=1))
+    js(ws, "document.querySelectorAll('details.act-s').forEach(d => { d.open = d.dataset.sn === '4'; })", 0.3)
+    bad.append(shot_el(ws, "chat_an_equip_doc4_uz_390.png", 390, 'details.act-s[data-sn="4"]'))
+    js(ws, LANG_RU, 4)
+    js(ws, "actReset()", 1)
+
+
+def main(only_analytics=False):
     OUT.mkdir(exist_ok=True)
     with ShootInstance(PORT, "dev", keep=False):
         profile = tempfile.mkdtemp(prefix="edge-shoot-")
@@ -379,6 +479,13 @@ def main():
             ws.call("Page.navigate", url=f"http://127.0.0.1:{PORT}/tg")
             time.sleep(7)
             bad = []
+            if only_analytics:
+                shoot_analytics(ws, bad)
+                errs = console_errors(ws)
+                print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
+                      else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
+                print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:\n  " + "\n  ".join(errs))
+                return
             # шаг 1 «Фото»: пусто — внизу «Без фото», подсказка ракурсов по всем видам объектов
             bad.append(shot(ws, "chat_step1_390.png", 390))
 
@@ -614,6 +721,9 @@ def main():
             js(ws, "window.scrollTo(0, 0)", 0.3)
             bad.append(shot(ws, "chat_nophoto_390.png", 390, cap=3000))
 
+            # аналитика риска на шаге «Акт»: автокран и оборудование класса 8, 390 / 1440 px, узбекский
+            shoot_analytics(ws, bad)
+
             # остальные разделы в той же палитре
             js(ws, 'openTab("calc")', 3)
             bad.append(shot(ws, "tab_calc_390.png", 390, cap=2400))
@@ -639,4 +749,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--serve":
         serve_fake_model(int(sys.argv[2]), Path(sys.argv[3]))
     else:
-        main()
+        main(only_analytics="--analytics" in sys.argv[1:])
