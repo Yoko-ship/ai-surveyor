@@ -105,9 +105,11 @@ def cold_store(text: str) -> bool:
 EXTRA_DOC_KEYS = ("brand", "model", "year", "vin", "body_no", "chassis_no", "engine_no", "reg_no",
                   "cadastre_no", "build_year", "walls")
 # пределы разбора документа для акта (значения по умолчанию; действующие — act_settings.limits)
-DOC_LIMITS = {"doc_max_cells": 5000, "doc_max_rows": 200, "doc_max_cols": 30, "doc_max_sheets": 3,
-              "doc_max_line_chars": 500, "doc_max_para_chars": 4000, "doc_max_text_chars": 200_000,
-              "doc_parse_sec": 5, "doc_file_sec_pdf": 8, "doc_parse_total_sec": 12}
+# (30.09.2026: договор 0102 резался на строке реквизитов сторон — строка таблицы DOCX мерилась пределом ячейки
+#  в 500 знаков; у DOCX теперь свой предел строки таблицы и отдельный счёт абзацев)
+DOC_LIMITS = {"doc_max_cells": 10000, "doc_max_paras": 3000, "doc_max_rows": 200, "doc_max_cols": 30,
+              "doc_max_sheets": 3, "doc_max_line_chars": 500, "doc_max_row_chars": 4000, "doc_max_para_chars": 4000,
+              "doc_max_text_chars": 200_000, "doc_parse_sec": 5, "doc_file_sec_pdf": 8, "doc_parse_total_sec": 12}
 APPLICATION = "application"        # вид документа «заявление на страхование» (подпись — act_texts.DOC_KIND_LABELS)
 # документов, которые разбираются одновременно на весь сервер
 PARSE_SLOTS = 2
@@ -257,13 +259,15 @@ def doc_limits(limits: Optional[dict]) -> dict:
 
 
 class _Budget:
-    """Сколько ещё можно прочитать: ячеек (абзац тоже ячейка) и знаков текста. Лишнее — отбрасывается."""
+    """Сколько ещё можно прочитать: ячеек таблиц, абзацев текста (DOCX) и знаков. Лишнее — отбрасывается."""
 
     def __init__(self, lim: dict):
         self.cells = int(lim["doc_max_cells"])
+        self.paras = int(lim.get("doc_max_paras") or self.cells)
         self.chars = int(lim["doc_max_text_chars"])
         self.line = int(lim["doc_max_line_chars"])
         self.para = max(self.line, int(lim.get("doc_max_para_chars") or self.line))
+        self.row = max(self.line, int(lim.get("doc_max_row_chars") or self.line))
         self.rows = int(lim["doc_max_rows"])
         self.cols = int(lim["doc_max_cols"])
         self.sheets = int(lim["doc_max_sheets"])
@@ -291,15 +295,26 @@ class _Budget:
         self.chars -= n_chars
         return True
 
-    def fit_row(self, cells: list) -> list:
-        """Строка таблицы «ячейка | ячейка» не длиннее предела строки: правые ячейки отбрасываются."""
+    def take_para(self, n_chars: int) -> bool:
+        """Абзац текста DOCX: свой счёт абзацев (doc_max_paras) и общий счёт знаков."""
+        if self.paras < 1 or n_chars > self.chars:
+            self.truncated = True
+            return False
+        self.paras -= 1
+        self.chars -= n_chars
+        return True
+
+    def fit_row(self, cells: list, limit: Optional[int] = None) -> list:
+        """Строка таблицы «ячейка | ячейка» не длиннее предела строки: правые ячейки отбрасываются.
+        limit — свой предел (строка таблицы DOCX: реквизиты двух сторон в одной строке длиннее 500 знаков)."""
+        width = int(limit or self.line)
         out, used = [], 0
         for k, c in enumerate(cells):
             add = len(c) + (3 if out else 0)
-            if used + add > self.line:
+            if used + add > width:
                 if not any(cells[k:]):
                     break                  # дальше только пустые ячейки выравнивания — ничего не потеряно
-                room = self.line - used - (3 if out else 0)
+                room = width - used - (3 if out else 0)
                 if room > 0:
                     out.append(c[:room])
                 self.truncated = True
@@ -308,26 +323,74 @@ class _Budget:
             used += add
         return out
 
-    def fit_rows(self, rows: list) -> list:
+    def fit_rows(self, rows: list, limit: Optional[int] = None) -> list:
         """После выравнивания таблицы (ingest._clean_rows) строка снова приводится к пределу."""
-        return [self.fit_row(r) for r in rows]
+        return [self.fit_row(r, limit) for r in rows]
 
 
 def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+# что в абзаце DOCX не текст: запасная копия надписи (mc:Fallback повторяет mc:Choice), удалённые правкой
+# куски, коды полей, свойства абзаца и прогона (w:pPr/w:tabs/w:tab — позиции табуляции, а не знак табуляции)
+_PARA_SKIP = frozenset(("Fallback", "del", "delText", "instrText", "pPr", "rPr", "moveFrom"))
+
+
+def para_text(p) -> str:
+    """
+    Текст абзаца DOCX из дерева ElementTree (не регулярными выражениями по XML): все w:t абзаца подряд —
+    Word режет слово на несколько прогонов w:r (правописание, rsid), они склеиваются без пробела; w:tab —
+    табуляция, w:br и w:cr — перенос строки, w:noBreakHyphen — дефис. Абзацы надписи внутри абзаца — с новой строки.
+    """
+    out = []
+
+    def walk(node):
+        for ch in node:
+            n = _local(ch.tag)
+            if n in _PARA_SKIP:
+                continue
+            if n == "t":
+                out.append(ch.text or "")
+            elif n == "tab":
+                out.append("\t")
+            elif n in ("br", "cr"):
+                out.append("\n")
+            elif n == "noBreakHyphen":
+                out.append("-")
+            elif n == "p":
+                walk(ch)
+                out.append("\n")
+            else:
+                walk(ch)
+    walk(p)
+    return "".join(out).strip()
+
+
 def _read_docx_limited(path: Path, bud: _Budget) -> tuple:
     """
-    DOCX потоком (iterparse) с тем же смыслом, что ingest.read_docx: абзацы тела документа и таблицы
-    верхнего уровня (строка таблицы — «ячейка | ячейка»). Прочитанные элементы сразу очищаются;
-    срок проверяется на каждом элементе, пределы — на каждом абзаце и ячейке.
+    DOCX потоком (iterparse) с тем же смыслом, что ingest.read_docx: абзацы документа и таблицы верхнего
+    уровня (строка таблицы — «ячейка | ячейка»). Абзацы в блоках w:sdt и w:customXml — тоже текст документа;
+    вложенная таблица читается внутри своей ячейки. Прочитанные элементы сразу очищаются; срок проверяется
+    на каждом элементе, пределы — на каждом абзаце (doc_max_paras), ячейке (doc_max_cells), строке таблицы
+    (doc_max_row_chars) и по знакам (doc_max_text_chars).
     """
     from . import docparse as D
     from . import ingest
     lines, tables = [], []
     stack, parts, cells, rows = [], [], [], []
     body = None
+    tbl_depth = p_depth = 0
+
+    def row_line(cells_row: list) -> str:
+        return " | ".join(cells_row)
+
+    def finish_table():
+        got = bud.fit_rows(ingest._clean_rows(rows), bud.row)
+        if got:
+            tables.append({"name": "таблица %d" % (len(tables) + 1), "rows": got})
+            lines.extend(row_line(r) for r in got)
+
     with zipfile.ZipFile(path) as z:
         try:
             src = z.open("word/document.xml")
@@ -339,51 +402,65 @@ def _read_docx_limited(path: Path, bud: _Budget) -> tuple:
                 name = _local(el.tag)
                 if event == "start":
                     stack.append(name)
-                    if stack == ["document", "body"]:
+                    if name == "body" and len(stack) == 2:
                         body = el
+                    elif name == "tbl" and body is not None:
+                        tbl_depth += 1
+                    elif name == "p" and body is not None:
+                        p_depth += 1
                     continue
                 stack.pop()
-                if body is not None and stack == ["document", "body"]:
-                    # разобранный элемент тела убираем из дерева: пустые узлы не копятся в памяти
-                    _body_done(body, el)
-                where = stack[-4:]
-                in_body = stack == ["document", "body"]
-                in_cell = stack[-4:] == ["body", "tbl", "tr", "tc"] and len(stack) == 5
-                if name == "p" and (in_body or in_cell):
-                    txt = (bud.cut_para if in_body else bud.cut)(ingest._docx_para(el))
+                top_child = body is not None and len(stack) == 2
+                if body is None:
+                    continue
+                if name == "p":
+                    p_depth -= 1
+                    if p_depth:
+                        continue           # абзац надписи внутри абзаца — уже в тексте внешнего абзаца
+                    txt = bud.cut_para(para_text(el))
                     el.clear()
-                    if not txt:
-                        continue
-                    if not bud.take(1, len(txt) + 1):
-                        break
-                    (lines if in_body else parts).append(txt)
-                elif name == "tc" and where[-3:] == ["body", "tbl", "tr"] and len(stack) == 4:
-                    cells.append(bud.cut(" ".join(x for x in parts if x).strip()))
+                    if txt:
+                        if tbl_depth == 0:
+                            if not bud.take_para(len(txt) + 1):
+                                break
+                            lines.append(txt)
+                        else:
+                            parts.append(txt)
+                elif name == "tc" and tbl_depth == 1:
+                    cell = bud.cut_para(" ".join(x for x in parts if x).strip())
                     parts = []
                     el.clear()
-                elif name == "tr" and stack == ["document", "body", "tbl"]:
+                    if cell and not bud.take(1, 0):
+                        break
+                    cells.append(cell)
+                elif name == "tr" and tbl_depth == 1:
                     if any(cells):
                         if len(rows) >= bud.rows:
                             bud.truncated = True
                         else:
                             if len(cells) > bud.cols:
                                 bud.truncated = True
-                            rows.append(bud.fit_row(cells[:bud.cols]))
+                            row = bud.fit_row(cells[:bud.cols], bud.row)
+                            if not bud.take(0, len(row_line(row)) + 1):
+                                cells = []
+                                break
+                            rows.append(row)
                     cells = []
                     el.clear()
-                elif name == "tbl" and in_body:
-                    got = bud.fit_rows(ingest._clean_rows(rows))
-                    rows = []
-                    if got:
-                        tables.append({"name": "таблица %d" % (len(tables) + 1), "rows": got})
-                        lines.extend(" | ".join(r) for r in got)
+                elif name == "tbl":
+                    tbl_depth -= 1
+                    if tbl_depth == 0:
+                        finish_table()
+                        rows = []
+                        el.clear()
+                if top_child:
+                    # разобранный элемент тела убираем из дерева: пустые узлы не копятся в памяти
+                    _body_done(body, el)
                     el.clear()
-                elif in_body:
-                    el.clear()             # sectPr и прочее в теле — не текст
-    got = bud.fit_rows(ingest._clean_rows(rows))  # чтение оборвал предел посреди таблицы — прочитанное не теряем
-    if got:
-        tables.append({"name": "таблица %d" % (len(tables) + 1), "rows": got})
-        lines.extend(" | ".join(r) for r in got)
+    if rows or any(cells):
+        if any(cells) and len(rows) < bud.rows:
+            rows.append(bud.fit_row(cells[:bud.cols], bud.row))
+        finish_table()                     # чтение оборвал предел посреди таблицы — прочитанное не теряем
     return "\n".join(lines), tables
 
 

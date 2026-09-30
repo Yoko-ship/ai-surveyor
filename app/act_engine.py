@@ -80,11 +80,13 @@ DEFAULT_SETTINGS = {
         "doc_max_unzip_mb": 50,         # суммарный распакованный объём частей
         "doc_max_parts": 2000,          # частей в архиве документа
         # разбор текста документа (app/act_extras.read_limited): лишнее отбрасывается с пометкой
-        "doc_max_cells": 5000,          # ячеек таблиц и абзацев на файл
+        "doc_max_cells": 10000,         # ячеек таблиц на файл
+        "doc_max_paras": 3000,          # абзацев текста DOCX на файл
         "doc_max_rows": 200,            # строк с листа (таблицы)
         "doc_max_cols": 30,             # колонок с листа
         "doc_max_sheets": 3,            # листов книги XLSX
-        "doc_max_line_chars": 500,      # знаков в ячейке и строке таблицы
+        "doc_max_line_chars": 500,      # знаков в ячейке и строке таблицы XLSX/PDF, в строке текста PDF
+        "doc_max_row_chars": 4000,      # знаков в строке таблицы DOCX (реквизиты двух сторон в одной строке)
         "doc_max_para_chars": 4000,     # знаков в абзаце текста документа (пункт договора бывает длинным)
         "doc_max_text_chars": 200000,   # знаков текста на файл
         "doc_parse_sec": 5,             # срок разбора одного файла (DOCX, XLSX)
@@ -98,7 +100,8 @@ LIMIT_BOUNDS = {"max_image_mp": (1, 200), "pdf_max_pages": (1, 100), "pdf_text_m
                 "ai_calls_per_hour": (1, 100000), "ai_timeout_sec": (5, 120), "ai_deadline_sec": (5, 180),
                 "ai_max_mb": (1, 15), "send_per_hour": (1, 1000),
                 "doc_max_unzip_mb": (1, 500), "doc_max_parts": (10, 100000),
-                "doc_max_cells": (100, 100000), "doc_max_rows": (10, 5000), "doc_max_cols": (2, 200),
+                "doc_max_cells": (100, 100000), "doc_max_paras": (10, 100000),
+                "doc_max_row_chars": (50, 50000), "doc_max_rows": (10, 5000), "doc_max_cols": (2, 200),
                 "doc_max_sheets": (1, 50), "doc_max_line_chars": (50, 10000), "doc_max_para_chars": (50, 50000),
                 "doc_max_text_chars": (1000, 1000000), "doc_parse_sec": (0.1, 60),
                 "doc_file_sec_pdf": (0.1, 60), "doc_parse_total_sec": (0.1, 120)}

@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 1953,
+    "keys": 1954,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -1744,6 +1744,7 @@
   "tg.dq.fields_read": "Fields read: {n}",
   "tg.dq.pages": "pages: {n}",
   "tg.dq.truncated": "The contract is long — only part of the document was read. Check the terms against the original.",
+  "tg.dq.blank": "not filled in",
   "tg.dq.risks": "Insured risks",
   "tg.dq.excl": "Exclusions",
   "tg.dq.special": "Special terms · {n}",

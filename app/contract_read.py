@@ -12,6 +12,12 @@ object_facts) — скан и файл дают одинаковые цифры.
 Стороны: название возвращается только у юрлица (branch_request.party); физическое лицо — признак
 kind = individual. Персональные данные не извлекаются; в журналы — только счётчики.
 
+Бланк договора (30.09.2026): поля-подчёркивания («Договор №____», «____, именуемая … «Страхователь»», «составляет
+____ (____) сум») — не значения, а blank; много пустых ключевых полей — is_template: существенные условия и сверка
+не проверяются, модель не вызывается. Личное страхование (несчастные случаи, болезни) — class_hint accident/health,
+объект — жизнь и здоровье застрахованных лиц, таблица застрахованных по профессиям — schedule (список с фамилиями
+не читается, только число заполненных строк).
+
 Модуль без сети, без базы и без HTTP. Срок разбора — docparse.tick() внутри циклов.
 """
 import re
@@ -120,7 +126,9 @@ L = {
               "перечень рисков", "страхование производится на случай", "суғурта хавфлари", "sug'urta xavflari",
               "суғурта ҳодисаси", "sug'urta hodisasi", "суғурта ҳодисалари", "sug'urta hodisalari",
               "суғурта ҳодисаси деб", "sug'urta hodisasi deb", "insured risks", "insured perils", "perils insured",
-              "risks covered", "covered risks", "insured events", "insured event"),
+              "risks covered", "covered risks", "insured events", "insured event",
+              # личное страхование: «Страховой случай – травма или смерть…», раздел «Страховое покрытие»
+              "страховой случай", "страховое покрытие", "суғурта қоплами", "sug'urta qoplami", "insurance cover"),
     "exclusions": ("исключения из страхового покрытия", "исключения из страхования", "исключения",
                    "не являются страховыми случаями", "не является страховым случаем",
                    "не признаются страховыми случаями", "страховщик не несет ответственности",
@@ -136,6 +144,9 @@ L = {
     "items": ("перечень застрахованного имущества", "перечень имущества", "список имущества",
               "суғурталанган мол-мулк рўйхати", "sug'urtalangan mol-mulk ro'yxati", "мол-мулк рўйхати",
               "mol-mulk ro'yxati", "schedule of insured property", "schedule of property", "list of insured property"),
+    "insured_event": ("страховым случаем является", "страховым случаем признается", "страховой случай",
+                      "суғурта ҳодисаси деб", "sug'urta hodisasi deb", "суғурта ҳодисаси", "sug'urta hodisasi",
+                      "insured event"),
     "payment": ("порядок уплаты страховой премии", "порядок оплаты", "порядок уплаты", "график платежей",
                 "график уплаты", "график оплаты", "сроки уплаты", "уплачивается", "оплачивается",
                 "тўлов жадвали", "to'lov jadvali", "тўлаш тартиби", "to'lash tartibi", "тўланади", "to'lanadi",
@@ -201,6 +212,17 @@ RISK_WORDS = (
     ("electrical", ("короткое замыкание", "короткого замыкания", "электрическ", "қисқа туташув", "qisqa tutashuv",
                     "electrical")),
     ("collision", ("дтп", "дорожно-транспорт", "столкновен", "йўл-транспорт", "yo'l-transport", "collision")),
+    # личное страхование (классы 1 и 2): временная утрата трудоспособности — раньше инвалидности (общее слово)
+    ("death", ("смерт", "ўлим", "o'lim", "вафот", "vafot", "death")),
+    ("temp_disability", ("временной утрат", "временная утрат", "временную утрат", "временной потер",
+                         "временная потер", "временной нетрудоспособ", "временная нетрудоспособ",
+                         "вақтинча меҳнат қобилият", "vaqtincha mehnat qobiliyat", "вақтинча ногирон",
+                         "temporary disability", "temporary incapacity", "temporary loss of working")),
+    ("disability", ("инвалидност", "стойкой утрат", "стойкая утрат", "стойком повреждени", "стойкое повреждени",
+                    "ногиронлик", "nogironlik", "permanent disability", "disablement", "disability")),
+    # «шикаст» не берём: в узбекском договоре имущества «шикастланиш» — повреждение имущества
+    ("injury", ("травм", "телесн", "жароҳат", "jarohat", "injur", "bodily harm")),
+    ("illness", ("заболеван", "болезн", "касаллик", "kasallik", "illness", "sickness", "disease")),
 )
 EXCLUSION_WORDS = (
     ("war", ("военн", "войн", "уруш", "urush", "war", "hostilit")),
@@ -220,6 +242,12 @@ EXCLUSION_WORDS = (
     ("mould", ("плесен", "грибок", "mould", "mold")),
     ("pollution", ("загрязнен", "ифлослан", "ifloslan", "pollution", "contamination")),
     ("intoxication", ("алкогол", "опьянен", "наркот", "маст ҳол", "mast hol", "intoxicat")),
+    # личное страхование
+    ("doping", ("допинг", "doping")),
+    ("suicide", ("самоубийств", "суицид", "ўз жонига қасд", "o'z joniga qasd", "suicide")),
+    ("self_harm", ("членовредительств", "ўзига шикаст", "o'ziga shikast", "self-inflicted", "self-harm",
+                   "self inflicted")),
+    ("crime", ("преступлени", "уголовно наказуем", "жиноят", "jinoyat", "criminal act", "crime")),
 )
 
 
@@ -247,7 +275,9 @@ _NAME_HEAD = _F(("наименование", "объект", "имущество
                  "description", "item", "property"))
 _SUM_HEAD = _F(("страховая сумма", "суғурта суммаси", "sug'urta summasi", "sum insured", "сумма", "summa", "sum"))
 _NOTICE_CTX = _F(("уведом", "сообщ", "извест", "хабар", "xabar", "notify", "inform", "report"))
-_EVENT_CTX = _F(("случа", "ущерб", "ҳодиса", "hodisa", "loss", "claim", "event", "occurrence"))
+# «направить Страховщику письменное заявление» — тоже уведомление (оба слова в строке)
+_NOTICE_PAIR = (_F(("направ", "юбор", "yubor", "submit", "send")), _F(("заявлен", "ариза", "ariza", "claim")))
+_EVENT_CTX = _F(("случа", "ущерб", "событ", "ҳодиса", "hodisa", "loss", "claim", "event", "occurrence"))
 _TERM_EXCLUDE = re.compile(r"(уплат|оплат|рассроч|платеж|платёж|выплат|уведом|рассмотр|претензи|эксплуатац|"
                            r"стаж|гарант|давност|to'lov|тўлов|payment|notify)", re.I)
 _TYPE_UNCOND = _F(("безусловн", "shartsiz", "шартсиз", "unconditional"))
@@ -457,10 +487,25 @@ def _no_akt(f: str) -> str:
     return re.sub(r"(?<![a-z])akt(?=[a-z])", "_", f)
 
 
+# заголовок в две строки: «Договор №____» и на следующей строке «Страхования спортсменов от несчастных случаев»
+_TITLE_HEAD = re.compile(r"(?i)^\s*(?:договор|полис|contract|policy|agreement)\s*(?:(?:№|no\.?|n)\s*[\w/\-.]*)?\s*$")
+_TITLE_TAIL = re.compile(r"^(?:strahovaniya|strahovanie|strahovaniyu|of\s+insurance|insurance)\b")
+
+
+def _title_lines(head: list, head_F: list, n: int = 15):
+    """Строки-кандидаты в заголовок: каждая строка начала, а короткое «Договор №…» — ещё и вместе со следующей
+    строкой, если та продолжает заголовок («Страхования …»)."""
+    for k in range(min(n, len(head))):
+        yield head[k], head_F[k]
+        if k + 1 < len(head) and _TITLE_HEAD.match(head[k]) and _TITLE_TAIL.match(head_F[k + 1]):
+            yield head[k] + " " + head[k + 1], head_F[k] + " " + head_F[k + 1]
+
+
 def title_of(doc: _Doc) -> Optional[str]:
     """Строка-заголовок договора в начале документа: «ДОГОВОР СТРАХОВАНИЯ ИМУЩЕСТВА № 15/2026»,
-    «МОЛ-МУЛК СУҒУРТАСИ ШАРТНОМАСИ», «INSURANCE POLICY». Не больше 14 слов, не предложение письма."""
-    for raw, f in zip(doc.head[:15], doc.head_F[:15]):
+    «МОЛ-МУЛК СУҒУРТАСИ ШАРТНОМАСИ», «INSURANCE POLICY», «Договор №____ / Страхования спортсменов …» (две строки).
+    Не больше 14 слов, не предложение письма."""
+    for raw, f in _title_lines(doc.head, doc.head_F):
         if len(raw) > 200 or len(f.split()) > 14:
             continue
         if _TITLE_STOP_RX.search(_no_akt(f)):
@@ -497,7 +542,7 @@ def title_kind(text: str, tables: Optional[list] = None) -> Optional[str]:
     doc = SimpleNamespace(head=head, head_F=[D.fold(x) for x in head])
     title = title_of(doc)
     for pos, (raw, f) in enumerate(zip(doc.head[:15], doc.head_F[:15])):
-        if title is not None and raw == title:
+        if title is not None and (raw == title or title.startswith(raw + " ")):
             return "contract"
         if _app_title(raw, f, pos):
             return "application"
@@ -613,7 +658,8 @@ def _words_in(text: str, table) -> list:
 
 def _party_before(text: str, pos: int) -> Optional[str]:
     """Название стороны перед «именуемое в дальнейшем …»: от начала предложения или союза до этих слов."""
-    seg = text[max(0, pos - 300):pos]
+    # 600 знаков: перед «именуемое в дальнейшем» бывает длинная ссылка на лицензию («…серия СФ № …, выданной …»)
+    seg = text[max(0, pos - 600):pos]
     cut = 0
     for m in _CLAUSE_START.finditer(seg):
         cut = m.end()
@@ -633,10 +679,19 @@ def _role(word: str) -> Optional[str]:
     return None
 
 
-def _parties(doc: _Doc) -> dict:
+# определение термина в разделе «Определения»: «– физическое лицо, названное …», «– юридическое или физическое лицо, …»
+_DEFINITION = re.compile(r"(?:физическ|юридическ|дееспособн|лицо\b|лица\b|сторона\b|любое\s|организаци\w*,|"
+                         r"jismoniy\s+shaxs|yuridik\s+shaxs|жисмоний\s+шахс|юридик\s+шахс|"
+                         r"a\s+(?:natural|legal)\s+person|any\s+person|the\s+person)", re.I)
+
+
+def _parties(doc: _Doc, blank: Optional[set] = None) -> dict:
     """Стороны: сначала преамбула («ООО «X», именуемое в дальнейшем «Страхователь»»), затем строки
-    «Страхователь: ООО «X»». Возвращаются строки как в документе — решает party() (юрлицо или гражданин)."""
+    «Страхователь: ООО «X»». Возвращаются строки как в документе — решает party() (юрлицо или гражданин).
+    blank — сюда пишутся роли, у которых в бланке вместо названия подчёркивания («______, именуемая …»).
+    Определения («Выгодоприобретатель – физическое лицо, названное …») стороной не считаются."""
     got = {}
+    blank = set() if blank is None else blank
     pre = "\n".join(doc.head[:40])
     low = pre.replace("ʻ", "'").replace("’", "'").replace("‘", "'").replace("`", "'")
     for m in _HEREAFTER.finditer(low):
@@ -647,21 +702,256 @@ def _parties(doc: _Doc) -> dict:
         name = _party_before(pre, m.start())
         if name and re.search(r"[A-Za-zА-Яа-яЁё]", name):
             got[code] = name
+        elif name and blank_value(name):
+            blank.add(code)
     for code, labs in _PARTY_LAB.items():
         if code in got:
             continue
         for i, tail in find(doc, labs, max_prefix=0, sep=True):
+            sep = re.match(r"^\s*(?:\([^)]{0,60}\))?\s*([:|—–\-=])", tail)
             val = _strip_sep(tail)
+            if sep and sep.group(1) in "—–-" and _DEFINITION.match(val):
+                continue                   # «Выгодоприобретатель – физическое лицо, …» — определение термина
             if not re.search(r"[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ]{2}", val):
-                val = _strip_sep(_next_line(doc, i)) if not val else ""
+                val = _strip_sep(_next_line(doc, i)) if not val else val
             m = _PARTY_CUT.search(val)
             if m:
                 val = val[:m.start()]
             val = val.strip(" ,;:")
+            if val and blank_value(val):
+                blank.add(code)
+                continue
             if re.search(r"[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ]{2}", val) and not re.fullmatch(r"[_\s./]+", val):
                 got[code] = val
+                blank.discard(code)
                 break
     return got
+
+
+# ------------------------------------------------------------------ бланк договора (незаполненные поля)
+
+_UNDER = re.compile(r"_{3,}|…{2,}|\.{6,}")
+# пустая дата бланка: «____» ________ 20___г., «_____» ___________ 20___ года
+_BLANK_DATE = re.compile(r"[«\"“]\s*_{2,}\s*[»\"”]\s*_{2,}\s*(?:(?:19|20)?_*\s*(?:г\.?|года?|йил\w*|yil\w*)?)")
+# строки приказа, лицензии и приложения — не шапка договора: номер и дата там свои
+_NOT_HEAD = re.compile(r"(?:prikaz|prilojen|licenz|litsenz|license|licence|buyruq|ilova|utverjdayu|tasdiqlayman)")
+# поля бланка, по которым решается «это бланк»
+TEMPLATE_KEYS = ("contract_no", "contract_date", "policyholder", "sum_insured", "premium", "term")
+TEMPLATE_MIN = 3
+BLANK_CODES = KEY_FIELDS + ("place",)
+
+
+def blank_value(s) -> bool:
+    """Пустое поле бланка: только подчёркивания и служебные слова («г. ____», «___» _____ 20___г., «(______)»)."""
+    s = str(s or "")
+    if not _UNDER.search(s):
+        return False
+    rest = _UNDER.sub(" ", s)
+    rest = re.sub(r"(?i)(?<![A-Za-zА-Яа-яЁё])(?:г|гг|год|года|году|йил|yil|от|№|no|сум|сўм|so'm|с|по|до|dan|gacha)"
+                  r"(?![A-Za-zА-Яа-яЁё])\.?", " ", rest)
+    rest = re.sub(r"(?<!\d)(?:19|20)(?!\d)", " ", rest)
+    return not re.search(r"[A-Za-zА-Яа-яЁёЎўҚқҒғҲҳ]{2,}|\d", rest)
+
+
+def _blank_money(doc: _Doc, keys: tuple) -> bool:
+    """Сумма бланка: у подписи вместо числа — подчёркивания («составляет ______ (______) сум»)."""
+    for key in keys:
+        for i, tail in find(doc, _LAB[key], max_prefix=4):
+            head = tail[:160]
+            u = _UNDER.search(head)
+            if u and money(head) is None and not re.search(r"\d", head[:u.start()]):
+                return True
+    return False
+
+
+def _blanks(doc: _Doc, raw: dict, title: Optional[str], party_blank: set) -> list:
+    """Какие ключевые поля в документе стоят пустыми (подчёркивания вместо значения)."""
+    out = []
+    if not raw.get("contract_no") and title and re.search(r"(?:№|No\.?|N)\s*_{2,}", title):
+        out.append("contract_no")
+    head_line = None
+    for raw_l, f in zip(doc.head[:12], doc.head_F[:12]):
+        if len(raw_l) <= 200 and not _NOT_HEAD.search(f) and _BLANK_DATE.search(raw_l):
+            head_line = raw_l
+            break
+    if not raw.get("contract_date") and head_line:
+        out.append("contract_date")
+    if not raw.get("place") and head_line and blank_value(head_line[:_BLANK_DATE.search(head_line).start()]):
+        out.append("place")
+    if "policyholder" in party_blank and not raw.get("policyholder"):
+        out.append("policyholder")
+    if not raw.get("sum_insured") and _blank_money(doc, ("sum_insured_total", "sum_insured")):
+        out.append("sum_insured")
+    if not raw.get("premium") and _blank_money(doc, ("premium",)):
+        out.append("premium")
+    if not raw.get("term") and not raw.get("term_months"):
+        for ln, f in zip(doc.lines, doc.F):
+            if len(_BLANK_DATE.findall(ln)) >= 2 and any(w in f for w in ("srok", "v silu", "muddat", "period",
+                                                                           "deystv", "amal qil")):
+                out.append("term")
+                break
+    return out
+
+
+# ------------------------------------------------------------------ личное страхование (классы 1 и 2)
+
+_PERSONAL = (("accident", _F2(("несчастн", "бахтсиз ҳодиса", "baxtsiz hodisa", "accident"))),
+             ("health", _F2(("медицинск", "тиббий суғурта", "tibbiy sug'urta", "болезн", "заболеван", "касаллик",
+                             "kasallik", "health insurance", "medical insurance"))))
+_MANY_PERSONS = _F2(("застрахованным лицам", "застрахованных лиц", "список застрахованных", "застрахованные лица",
+                     "sug'urtalangan shaxslar", "суғурталанган шахслар", "insured persons"))
+PERSON_HINTS = ("accident", "health")
+
+
+def personal_hint(text) -> Optional[str]:
+    """Личное страхование по названию договора: несчастные случаи — accident (класс 1), болезни — health (класс 2)."""
+    f = " " + D.fold(str(text or "")) + " "
+    for code, words in _PERSONAL:
+        if any(w in f for w in words):
+            return code
+    return None
+
+
+def _person_object(product: Optional[str], many: bool, doc: _Doc) -> str:
+    """Объект личного страхования: жизнь и здоровье застрахованных лиц (и кого — из названия: «спортсменов»)."""
+    who = None
+    m = re.match(r"(?i)^\s*страховани\w*\s+(.+?)\s+(?:от|на\s+случай)\s", str(product or ""))
+    if m and re.fullmatch(r"[а-яё\- ]{3,60}", m.group(1).lower()) and not re.search(r"(?i)имуществ|ответствен",
+                                                                                     m.group(1)):
+        who = m.group(1).lower()
+    sample = " ".join(doc.head_F[:15])
+    if re.search(r"sug'urta|sugurta", sample):
+        base = "sug'urtalangan shaxslarning hayoti va sog'lig'i" if many else "sug'urtalangan shaxsning hayoti va sog'lig'i"
+    elif re.search(r"[ўқғҳ]", " ".join(doc.head[:15]).lower()):
+        base = "суғурталанган шахсларнинг ҳаёти ва соғлиғи" if many else "суғурталанган шахснинг ҳаёти ва соғлиғи"
+    elif not re.search(r"[а-яё]", " ".join(doc.head[:15]).lower()):
+        base = "life and health of the insured persons" if many else "life and health of the insured person"
+    else:
+        base = "жизнь и здоровье застрахованных лиц" if many else "жизнь и здоровье застрахованного лица"
+    return base + (" — " + who if who and many else "")
+
+
+def product_from_title(title: Optional[str]) -> Optional[str]:
+    """Название продукта из заголовка: «Договор №___ Страхования спортсменов от несчастных случаев» →
+    «Страхование спортсменов от несчастных случаев»; номер договора и пустое поле номера отбрасываются."""
+    if not title:
+        return None
+    s = re.sub(r"(?:№|(?<!\w)No\.?|(?<!\w)N(?=\s*[\d_]))\s*[\w/\-.]*", " ", title)
+    s = re.sub(r"\s+", " ", _UNDER.sub(" ", s.replace("_", " "))).strip(" ,.-–—")
+    m = re.match(r"(?i)^(?:договор\w*|полис\w*)\s+страховани\w*\s+(.+)$", s)
+    if m:
+        rest = m.group(1).strip()
+        if rest.isupper():
+            # «ИМУЩЕСТВА ЮРИДИЧЕСКИХ ЛИЦ (КАСКО)» — строчными, короткие сокращения остаются
+            rest = " ".join(w if len(re.sub(r"\W", "", w)) <= 5 else w.lower() for w in rest.split())
+        return ("Страхование " + rest)[:200]
+    return s[:200] or None
+
+
+# колонки таблицы застрахованных по профессиям (приложение к договору личного страхования)
+_SCHED_COLS = (
+    ("sum_total", _F(("страховая сумма всего", "общая страховая сумма", "жами суғурта суммаси", "jami sug'urta summasi",
+                      "total sum insured"))),
+    ("premium_total", _F(("страховая премия всего", "общая страховая премия", "жами суғурта мукофоти",
+                          "jami sug'urta mukofoti", "total premium"))),
+    ("premium_one", _F(("страховой платеж за одного", "страховой платёж за одного", "страховая премия за одного",
+                        "премия на одного", "бир кишига", "bir kishiga", "premium per person"))),
+    ("profession", _F(("профессия", "род занятий", "касби", "kasbi", "касб", "kasb", "occupation", "profession"))),
+    ("count", _F(("количество", "число застрахованных", "сони", "soni", "number of insured", "headcount"))),
+    ("personal_sum", _F(("персональная страховая сумма", "страховая сумма на одного", "индивидуальная страховая сумма",
+                         "шахсий суғурта суммаси", "shaxsiy sug'urta summasi", "sum insured per person"))),
+    ("rate", _F(("процентная ставка", "ставка", "тариф", "stavka", "tarif", "rate"))),
+)
+_NAME_COLS = _F(("фамилия", "ф и о", "фио", "имя", "familiya", "ism sharif", "исм шариф", "full name",
+                 "name of the insured"))
+SCHED_CODES = tuple(c for c, _ in _SCHED_COLS)
+MAX_SCHED = 30
+
+
+def _sched_num(s: str) -> Optional[float]:
+    v = br.amount(str(s or "")) if re.search(r"\d", str(s or "")) else None
+    return v
+
+
+def _schedule(doc: _Doc) -> tuple:
+    """Таблица застрахованных по профессиям: ({"columns", "items", "blank"} | None, число строк списка лиц).
+    Список с фамилиями не читается: считаются только заполненные строки (без имён)."""
+    sched, persons = None, None
+    for t in doc.tables:
+        rows = t.get("rows") or []
+        for r, row in enumerate(rows[:3]):
+            fs = [D.fold(str(c or "")) for c in row]
+            # список лиц: колонка «Фамилия, имя…» и колонка номера по порядку (подписи сторон «Ф.И.О.» — не список)
+            if any(any(w in f for w in _NAME_COLS) for f in fs) and \
+                    any(re.match(r"^\s*(?:№|n\b|no\b|п/п|t/r|т/р)", str(c or "").lower()) for c in row):
+                name_col = next(k for k, f in enumerate(fs) if any(w in f for w in _NAME_COLS))
+                n = 0
+                for row2 in rows[r + 1:]:
+                    if name_col < len(row2) and re.search(r"[A-Za-zА-Яа-яЁё]{2}", str(row2[name_col] or "")) \
+                            and not any(w in D.fold(str(row2[name_col])) for w in _TOTAL_WORDS):
+                        n += 1
+                persons = (persons or 0) + n
+                break
+            cols, used = {}, set()
+            for k, f in enumerate(fs):
+                for code, words in _SCHED_COLS:
+                    if code not in used and any(w in f for w in words):
+                        cols[k] = code
+                        used.add(code)
+                        break
+            if sched is None and len(cols) >= 3 and used & {"profession", "count"}:
+                items = []
+                for row2 in rows[r + 1:]:
+                    D.tick()
+                    cells = [str(c or "").strip() for c in row2]
+                    # строка нумерации колонок «1 | 2 | 3 …» — не данные
+                    if all(re.fullmatch(r"\d{1,2}", c) for c in cells if c) and \
+                            [int(c) for c in cells if c] == list(range(1, len([c for c in cells if c]) + 1)):
+                        continue
+                    it = {}
+                    for k, code in cols.items():
+                        if k >= len(cells) or not cells[k]:
+                            continue
+                        if code == "profession":
+                            it[code] = cells[k][:120]
+                        elif code == "rate":
+                            it[code] = br.tariff(cells[k])
+                        elif code == "count":
+                            v = _sched_num(cells[k])
+                            it[code] = int(v) if v and v == int(v) else None
+                        else:
+                            it[code] = _sched_num(cells[k])
+                    it = {k: v for k, v in it.items() if v not in (None, "")}
+                    if it and len(items) < MAX_SCHED:
+                        items.append(it)
+                sched = {"columns": [cols[k] for k in sorted(cols)], "items": items, "blank": not items}
+                break
+    return sched, persons
+
+
+def _schedule_of(v) -> Optional[dict]:
+    """Таблица застрахованных по профессиям — только известные колонки и числа (вход недоверенный)."""
+    if not isinstance(v, dict):
+        return None
+    cols = [c for c in (v.get("columns") or []) if c in SCHED_CODES][:len(SCHED_CODES)]
+    items = []
+    for it in (v.get("items") or [])[:MAX_SCHED]:
+        if not isinstance(it, dict):
+            continue
+        row = {}
+        for c in SCHED_CODES:
+            x = it.get(c)
+            if c == "profession":
+                x = _clean(x)
+                if x:
+                    row[c] = x[:120]
+            elif isinstance(x, (int, float)) and not isinstance(x, bool) and x >= 0:
+                row[c] = int(x) if c == "count" else float(x)
+        if row:
+            items.append(row)
+    if not cols and not items:
+        return None
+    return {"columns": cols, "items": items, "blank": not items}
 
 
 def _date_pos(raw: str) -> int:
@@ -678,7 +968,10 @@ def _date_pos(raw: str) -> int:
 
 def _head_date(doc: _Doc) -> tuple:
     """Дата договора и место заключения — из первых строк (строка с датой до условий договора)."""
-    for raw in doc.head[:10]:
+    for raw, f in zip(doc.head[:10], doc.head_F[:10]):
+        # преамбула (дата лицензии страховщика) и строки приказа или приложения — не дата договора
+        if len(raw) > 200 or _NOT_HEAD.search(f):
+            continue
         ds = br.dates_in(raw)
         if not ds:
             continue
@@ -692,9 +985,11 @@ def _head_date(doc: _Doc) -> tuple:
 
 
 def _contract_no(doc: _Doc, title: Optional[str]) -> Optional[str]:
+    # длинная строка — преамбула («… Лицензии … № 00058 …, заключили настоящий Договор»), номер там не договора
     cands = ([title] if title else []) + [raw for raw, f in zip(doc.head[:10], doc.head_F[:10])
-                                         if any(w in f for w in ("dogovor", "polis", "shartnoma", "contract",
-                                                                 "policy"))]
+                                         if len(raw) <= 200 and not _NOT_HEAD.search(f)
+                                         and any(w in f for w in ("dogovor", "polis", "shartnoma", "contract",
+                                                                  "policy"))]
     for raw in cands:
         if not raw:
             continue
@@ -850,7 +1145,9 @@ def _notice(doc: _Doc) -> Optional[str]:
     for i, f in enumerate(doc.F):
         if i % 200 == 0:
             D.tick()
-        if not (any(w in f for w in _NOTICE_CTX) and any(w in f for w in _EVENT_CTX)):
+        told = any(w in f for w in _NOTICE_CTX) or (any(w in f for w in _NOTICE_PAIR[0])
+                                                     and any(w in f for w in _NOTICE_PAIR[1]))
+        if not (told and any(w in f for w in _EVENT_CTX)):
             continue
         m = rx.search(doc.lines[i])
         if m:
@@ -871,15 +1168,18 @@ def extract(doc: _Doc) -> dict:
         raw["product_name"] = _strip_sep(tail)[:200] or None
         break
     if not raw.get("product_name") and title:
-        name = re.split(r"\s*(?:№|No\.?\s|N\s)", title, maxsplit=1)[0].strip(" ,.-")
-        raw["product_name"] = name[:200] or None
+        raw["product_name"] = product_from_title(title)
     for i, tail in find(doc, _LAB["product_code"], max_prefix=2):
         m = _CODE.search(tail)
         if m:
             raw["product_code"] = m.group(1)
             break
+    # «Приложение № … к приказу № …» в шапке — договор по форме, утверждённой приказом компании (шаблон компании)
+    head_f = " ".join(doc.head_F[:12])
+    raw["template_hint"] = bool(re.search(r"prilojenie", head_f) and re.search(r"prikaz", head_f)) or None
     D.tick()
-    raw.update(_parties(doc))
+    party_blank = set()
+    raw.update(_parties(doc, party_blank))
 
     # объект
     for key, sep in (("object", False), ("object_fallback", False)):
@@ -891,6 +1191,28 @@ def extract(doc: _Doc) -> dict:
                 break
         if raw.get("object"):
             break
+    # личное страхование: объект — жизнь и здоровье застрахованных лиц (в договоре так прямо не подписано)
+    person = personal_hint(raw.get("product_name") or title)
+    many = any(w in " " + " ".join(doc.F) + " " for w in _MANY_PERSONS) if person else False
+    if person:
+        raw["class_hint"] = person
+        raw["persons"] = "people" if many else "person"
+        if not raw.get("object"):
+            raw["object"] = _person_object(raw.get("product_name"), many, doc)
+    # страховой случай — как написано в договоре («Страховой случай – травма или смерть … во время соревнований»)
+    for i, tail in find(doc, _LAB["insured_event"], max_prefix=2):
+        v = _strip_sep(re.sub(r"(?i)^\s*(?:является|признается|признаётся|hisoblanadi|is)\b", "", tail))
+        if len(v) >= 10 and _has_sep(tail) or len(v) >= 30:
+            v = re.split(r",\s*с\s+наступлением\s+которого|,\s*при\s+наступлении\s+которого", v)[0]
+            raw["insured_event"] = v[:MAX_TEXT].strip(" ,;")
+            break
+    # когда действует защита (личное страхование): «во время спортивного соревнования»
+    for ln in doc.lines if person else ():
+        m = re.search(r"(?i)во\s+время\s+(?:участия\s+в\s+)?[а-яё\-]+(?:\s+[а-яё\-]+){0,4}", ln)
+        if m and re.search(r"(?i)несчастн|страхов", ln):
+            raw["cover_period"] = re.split(r"(?i)\s+в\s+течение\s", m.group(0))[0][:120]
+            break
+    raw["schedule"], raw["persons_listed"] = _schedule(doc)
     for key in ("address", "address_bare"):
         for i, tail in find(doc, _LAB[key], max_prefix=2, sep=(key == "address_bare")):
             if D.is_personal_label(doc.lines[i]):
@@ -942,6 +1264,11 @@ def extract(doc: _Doc) -> dict:
     raw["items"] = items
     raw["items_total"] = total
     raw["payment_mode"], raw["payments"] = _payments(doc)
+    # порядок оплаты словами: «единовременно в течение 5 (пяти) банковских дней после подписания …»
+    for i, tail in find(doc, _LAB["payment"], max_prefix=8):
+        if any(w in doc.F[i] for w in _SINGLE + _INSTAL):
+            raw["payment_text"] = _strip_sep(tail)[:200].rstrip(" .;") or None
+            break
     D.tick()
 
     # срок
@@ -1010,6 +1337,10 @@ def extract(doc: _Doc) -> dict:
             raw["special_terms"] = items_t[:MAX_LIST]
             break
     raw["notice"] = _notice(doc)
+    raw["blank"] = _blanks(doc, raw, title, party_blank)
+    sch = raw.get("schedule")
+    if sch and sch["blank"] and "rate" in sch["columns"] and raw.get("tariff") is None:
+        raw["blank"].append("tariff_pct")         # ставка — колонка пустой таблицы приложения
     return raw
 
 
@@ -1103,8 +1434,13 @@ def fields(raw: dict, inclusive: bool = True) -> dict:
     if not facts["class_hint"] and g("product_name"):
         facts_p = br.object_facts(g("product_name"))
         facts["class_hint"] = facts_p["class_hint"]
-    hint = str(raw.get("class_hint") or "").strip().lower()
-    if not facts["class_hint"] and hint in ("building", "equipment", "vehicle", "special_machinery", "cargo", "other"):
+    hint = str(raw.get("class_hint") or "").strip().lower() or (personal_hint(g("product_name")) or "")
+    if hint in PERSON_HINTS:
+        # личное страхование: вид объекта — люди (застрахованные лица), не здание и не техника
+        facts["class_hint"] = hint
+        facts["object_kind"] = "people" if raw.get("persons") != "person" else "person"
+    elif not facts["class_hint"] and hint in ("building", "equipment", "vehicle", "special_machinery", "cargo",
+                                              "other"):
         facts["class_hint"] = hint
     areas = dict(facts["areas"])
     for slot, key in (("land_m2", "land_area"), ("useful_m2", "useful_area"), ("total_m2", "total_area")):
@@ -1208,7 +1544,19 @@ def fields(raw: dict, inclusive: bool = True) -> dict:
         "territory": (g("territory") or "")[:200] or None,
         "special_terms": [s[:160] for s in (_clean(x) for x in (raw.get("special_terms") or [])[:MAX_LIST]) if s],
         "notice": notice[:80] if notice else None,
+        # личное страхование и бланк договора (30.09.2026)
+        "insured_event": (g("insured_event") or "")[:MAX_TEXT] or None,
+        "cover_period": (g("cover_period") or "")[:120] or None,
+        "payment_text": (g("payment_text") or "")[:200] or None,
+        "schedule": _schedule_of(raw.get("schedule")),
+        "persons_listed": raw.get("persons_listed") if isinstance(raw.get("persons_listed"), int) else None,
+        "template_hint": bool(raw.get("template_hint")),
     }
+    blank = [k for k in (raw.get("blank") or []) if isinstance(k, str) and k in BLANK_CODES]
+    # пустым считается только то, чего в итоге нет (модель или правила могли найти значение)
+    blank = [k for k in blank if k == "place" and not out["place"] or k != "place" and not present(out, k)]
+    out["blank"] = blank
+    out["is_template"] = sum(1 for k in blank if k in TEMPLATE_KEYS) >= TEMPLATE_MIN
     for k in ("brand", "model", "vin", "serial_no", "engine_no", "reg_no", "construction", "purpose"):
         if out[k]:
             out[k] = out[k][:120]
@@ -1228,14 +1576,20 @@ def present(f: dict, key: str) -> bool:
 
 
 def essentials(f: dict) -> list:
-    """Существенные условия договора имущественного страхования (ГК РУз, ст. 929): есть ли в договоре."""
-    have = {"object": present(f, "object"), "insured_event": bool(f.get("covered_risks")),
+    """Существенные условия договора имущественного страхования (ГК РУз, ст. 929): есть ли в договоре.
+    Бланк договора (is_template) не проверяется: условия проверяются по заполненному договору — пустой список."""
+    if f.get("is_template"):
+        return []
+    have = {"object": present(f, "object"), "insured_event": bool(f.get("covered_risks") or f.get("insured_event")),
             "sum_insured": present(f, "sum_insured"), "premium": present(f, "premium"), "term": present(f, "term")}
     return [{"code": c, "present": have[c]} for c in ESSENTIALS]
 
 
 def found_missing(f: dict) -> tuple:
+    """Найденные ключевые поля и недостающие; у бланка недостающие — незаполненные поля бланка."""
     found = [k for k in KEY_FIELDS if present(f, k)]
+    if f.get("is_template"):
+        return found, [k for k in KEY_FIELDS if k in (f.get("blank") or []) and k not in found]
     return found, [k for k in KEY_FIELDS if k not in found]
 
 
@@ -1262,7 +1616,8 @@ def parse_text(text: str, tables: Optional[list] = None, inclusive: bool = True,
             if not f.get("vin") and by.get(k):
                 f["vin"] = str(by[k])[:40]
     found, missing = found_missing(f)
-    return {"fields": f, "found": found, "missing": missing, "essentials": essentials(f)}
+    return {"fields": f, "found": found, "missing": missing, "essentials": essentials(f),
+            "is_template": bool(f.get("is_template"))}
 
 
 def from_model(raw, inclusive: bool = True, min_found: int = 2) -> Optional[dict]:
@@ -1454,7 +1809,10 @@ def excerpt(text: str, max_chars: int = 30000) -> tuple:
 # ------------------------------------------------------------------ дочитывание моделью (ai_assist)
 
 def need_assist(f: dict) -> bool:
-    """Разбор правилами нашёл меньше половины ключевых полей (сумма, премия, срок, объект)."""
+    """Разбор правилами нашёл меньше половины ключевых полей (сумма, премия, срок, объект).
+    Бланк договора модель не дочитывает: полей в нём нет — обращение было бы впустую."""
+    if f.get("is_template"):
+        return False
     return sum(1 for k in CORE if present(f, k)) * 2 < len(CORE)
 
 
@@ -1467,7 +1825,8 @@ def item_field(key: str) -> str:
     return _ITEM_FIELD.get(key, key)
 
 
-_SKIP_MERGE = ("term_inclusive", "term_error", "has_beneficiary", "has_pledger")
+_SKIP_MERGE = ("term_inclusive", "term_error", "has_beneficiary", "has_pledger", "blank", "is_template",
+               "template_hint", "schedule", "persons_listed")
 
 
 def _empty(key: str, v) -> bool:
@@ -1497,4 +1856,8 @@ def merge_missing(f: dict, ai: dict) -> list:
             filled.append(k)
     f["has_beneficiary"] = (f.get("beneficiary") or {}).get("kind") is not None
     f["has_pledger"] = (f.get("pledger") or {}).get("kind") is not None
+    if f.get("blank"):
+        f["blank"] = [k for k in f["blank"] if k == "place" and not f.get("place") or k != "place"
+                      and not present(f, k)]
+        f["is_template"] = sum(1 for k in f["blank"] if k in TEMPLATE_KEYS) >= TEMPLATE_MIN
     return filled

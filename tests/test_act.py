@@ -16,6 +16,10 @@ llm.chat_raw отдаёт заготовленный ответ, llm._post бр�
 Проверки 39а–39з (30.09.2026, вечер): источник условий решает сервер (правки «было → стало» в акте), вид документа по
 заголовку (полис, заявление), существенные условия без категоричности, сверка «запрос ↔ договор» как при загрузке,
 границы ввода, счёт не уходит в модель, стороны-юрлица, отрицательные суммы, срок разбора PDF.
+Проверки 40а–40в (30.09.2026, шаблон договора 0102): чтение DOCX деревом XML (прогоны, w:tab, w:br, w:sdt) и новые
+пределы (10 000 ячеек, 3 000 абзацев, 4 000 знаков в строке таблицы DOCX); бланк договора личного страхования на
+выдуманных данных (заголовок в две строки, подчёркивания, таблица приложения 1, пп. 2.6 и 5.4) — is_template, «не
+заполнено», без ст. 929 и сверки, модель не вызывается; тот же шаблон заполненный — полноценный договор со сверкой.
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
 import asyncio
@@ -1862,7 +1866,8 @@ def check_doc_limits():
     ok("места освобождены — договор снова разбирается", st == 200 and b["files"][0]["parsed"])
     errs = ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"], doc_max_rows=5)})
     ok("настройки: предел строк проверяется", any("doc_max_rows" in e for e in errs), errs)
-    ok("настройки по умолчанию: 5000 ячеек, 200 строк, 30 колонок, 3 листа, 500 знаков, 200 000 знаков, 5 с и 10 с",
+    ok("настройки по умолчанию: 10 000 ячеек, 3 000 абзацев, 200 строк, 30 колонок, 3 листа, 500 знаков, "
+       "4 000 знаков в строке DOCX, 200 000 знаков, 5 с и 8 с",
        {k: ae.DEFAULT_SETTINGS["limits"][k] for k in ax.DOC_LIMITS} == ax.DOC_LIMITS
        and not ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"])}))
 
@@ -4929,6 +4934,430 @@ def check_review_fixes():
        == (0.0883, round(0.096 * 0.9197 / 100 * 1e9), False))
 
 
+# ================================================================================================
+#  40. Бланк договора компании (шаблон с подчёркиваниями) и тот же шаблон заполненный — 30.09.2026
+#  Копия структуры шаблона «Договор №____ / Страхования спортсменов от несчастных случаев» на выдуманных
+#  данных: заголовок в две строки, подчёркивания, таблица приложения 1, пункты 2.6 и 5.4. Word-разметка —
+#  как у настоящего файла: слова разрезаны на прогоны w:r с rsid, закладки, проверка правописания, табуляции.
+# ================================================================================================
+
+TPL_DIRECTOR = "Т.Т. Тестов"                    # выдуманный руководитель в шапке («УТВЕРЖДАЮ»)
+TPL_SIGNER = "Сидоров Сидор Сидорович"          # выдуманный представитель страхователя (заполненный договор)
+TPL_ATHLETE = "Спортов Тест Тестович"           # выдуманный спортсмен в списке приложения 1
+TPL_LICENSE = "00099"
+TPL_REQ_INSURER = ("СТРАХОВЩИК: АО СО «INSON» Адрес: ______________________________ тел: "
+                   "_______________________________ факс: ______________________________ р/с: "
+                   "_______________________________ в __________________________________ МФО: "
+                   "_______________________________ ИНН: _______________________________ ОКОНХ: "
+                   "_____________________________")
+TPL_REQ_HOLDER = ("СТРАХОВАТЕЛЬ: _______________________ Адрес: ______________________________ тел: "
+                  "_______________________________ факс: ______________________________ р/с: "
+                  "_______________________________ в __________________________________ МФО: "
+                  "_______________________________ ИНН: _______________________________ ОКОНХ: конец реквизитов")
+
+
+def tpl_blocks(filled: bool = False) -> list:
+    """Блоки шаблона: ("p", текст) | ("sdt", текст) | ("tbl", строки). filled — те же места заполнены."""
+    u = lambda n: "_" * n                                                      # noqa: E731
+    no = "Договор № 17-НС/2026" if filled else "Договор №" + u(12)
+    place_date = ("г. Ташкент\t\t\t\t\t \t\t   «1» октября 2026 г." if filled
+                  else "г. " + u(15) + "\t\t\t\t\t \t\t   «____» ________ 20___г.")
+    holder = ("ООО «Спорт Клуб Тест», именуемое в дальнейшем «Страхователь», в лице директора " + TPL_SIGNER
+              if filled else u(48) + ", именуемая в дальнейшем «Страхователь», в лице " + u(44))
+    s_ins = "600 000 000 (шестьсот миллионов)" if filled else u(28) + " (" + u(60) + ")"
+    prem = "9 000 000 (девять миллионов)" if filled else u(33) + " (" + u(60) + ")"
+    term = ("с «1» октября 2026 года по «30» сентября 2027 года" if filled
+            else "с «_____» ___________ 20___ года по «_____» _________ 20____ года")
+    sched = [["Профессия (род занятия)", "Количество застрахованных \nлиц", "Персональная страховая \nсумма (сум)",
+              "Процентная ставка (%)", "Страховой \nплатеж за одного застрахованного лица (сум)",
+              "Страховая \nсумма ВСЕГО (гр2 х гр3)", "Страховая \nпремия ВСЕГО (гр2 х гр5)"],
+             ["1", "2", "3", "4", "5", "6", "7"]]
+    if filled:
+        sched.append(["Футболист", "20", "30 000 000", "1,5", "450 000", "600 000 000", "9 000 000"])
+    else:
+        sched.append(["", "", "", "", "", "", ""])
+    names = [["№ п/п", "Фамилия, Имя и Отчество", "Персональная страховая сумма, сум", "Выгодоприобретатель"],
+             ["1", "2", "3", "4"]]
+    for k in range(1, 16):
+        who = TPL_ATHLETE if filled and k == 1 else ""
+        names.append([f"{k}.", who, "30 000 000" if who else "", ""])
+    names.append(["", "Итого:", "", ""])
+    sign = [["ПОДПИСИ СТОРОН:", ""],
+            ["От имени Страховщика: Генеральный директор/ Директор " + u(17) + " филиала/ Иное уполномоченное лицо "
+             + u(18) + " (Ф.И.О.)", "От имени Страхователя: " + u(25) + " должность Ф.И.О."],
+            [u(25) + " подпись\t\t м.п.", u(25) + " подпись\t\t м.п."]]
+    filler = [("p", f"7.{k}. Стороны обязуются добросовестно исполнять условия настоящего Договора, своевременно "
+                    f"информировать друг друга об изменении реквизитов, адресов и банковских счетов, соблюдать "
+                    f"конфиденциальность сведений, полученных при исполнении настоящего Договора, и не передавать их "
+                    f"третьим лицам без письменного согласия другой стороны, за исключением случаев, прямо "
+                    f"предусмотренных законодательством Республики Узбекистан (пункт {k}).") for k in range(1, 61)]
+    return [
+        ("p", "«УТВЕРЖДАЮ»"), ("p", "Генеральный директор"), ("p", "АО СО «INSON»"), ("p", TPL_DIRECTOR),
+        ("p", "Приложение №___"), ("p", "К приказу №___ от «___» _________ 20___г."),
+        ("p", no), ("p", "Страхования спортсменов от несчастных случаев"), ("p", place_date),
+        ("p", "Акционерное Общество Страховая организация «INSON», действующее на основании Лицензии на осуществление "
+              "страховой деятельности серия ТС № " + TPL_LICENSE + " от «5» мая 2021 года, выданной уполномоченным "
+              "государственным органом по регулированию страхового рынка Республики Узбекистан, именуемое в "
+              "дальнейшем «Страховщик», в лице " + u(47) + ", действующего на основании " + u(21) + ", с одной "
+              "стороны, и " + holder + ", действующего на основании " + u(24) + ", с другой стороны заключили "
+              "настоящий Договор о нижеследующем:"),
+        ("p", "1. ПРЕДМЕТ ДОГОВОРА"),
+        ("p", "Страховщик обязуется в соответствии с условиями настоящего Договора выплатить при наступлении "
+              "страхового случая Застрахованным лицам, указанным в Приложении 1 к настоящему Договору, обусловленную "
+              "сумму, при условии, что Страхователь обязуется оплатить страховую премию в размере и сроки, указанные "
+              "в настоящем Договоре."),
+        ("p", "2. ОПРЕДЕЛЕНИЯ"),
+        ("p", "2.1. Страховой Полис – документ, удостоверяющий факт заключения настоящего Договора."),
+        ("p", "2.2. Страховая сумма – сумма денежных средств, представляющая собой предельный объем обязательств "
+              "Страховщика."),
+        ("p", "2.3. Страховая премия – плата за страхование, уплачиваемая Страхователем Страховщику."),
+        ("p", "2.4.\tЗастрахованное лицо (спортсмен) – физическое лицо, профессионально занимающееся спортом, чьи "
+              "имущественные интересы, связанные с жизнью и здоровьем, являются объектом страхования."),
+        ("p", "2.5. Выгодоприобретатель – физическое лицо, названное в Приложении 1 к настоящему Договору, в качестве "
+              "получателя страховой выплаты."),
+        ("p", "2.6.\tСтраховой случай – получение травматического повреждения или смерть Застрахованного лица в "
+              "результате несчастного случая, произошедшего во время спортивного соревнования в течение периода "
+              "страхования, с наступлением которого возникает обязанность Страховщика произвести страховую выплату."),
+        ("p", "2.7.\tНесчастный случай – внезапное, кратковременное событие, которое извне воздействует на организм "
+              "человека."),
+        ("p", "3. страховое ПОКРЫТИЕ"),
+        ("p", "3.1. Страховая защита предоставляется Застрахованным лицам от несчастных случаев, произошедших во время "
+              "участия в спортивных соревнованиях и приведших к:"),
+        ("p", "3.1.1. травматическим повреждениям Застрахованного лица;"),
+        ("p", "3.1.2. смерти Застрахованного лица."),
+        ("p", "4. ОБЩИЕ ИСКЛЮЧЕНИЯ"),
+        ("p", "4.1. По настоящему Договору не признаются страховым случаем события, произошедшие вследствие:"),
+        ("p", "а) военных действий и их последствий, народных волнений и забастовок;"),
+        ("p", "б) ядерного взрыва, радиации и радиоактивного заражения;"),
+        ("p", "в) умышленных действий Страхователя или Застрахованного лица, направленных на наступление страхового "
+              "случая;"),
+        ("p", "г) доказанного факта применения допинга;"),
+        ("p", "д) нахождения Застрахованного лица в состоянии алкогольного, наркотического или токсического "
+              "опьянения;"),
+        ("p", "е) самоубийства или покушения на самоубийство Застрахованного лица;"),
+        ("p", "ж) совершения Застрахованным лицом умышленного преступления."),
+        ("p", "5. CТРАХОВАЯ СУММА И СТРАХОВАЯ ПРЕМИЯ"),
+        ("p", "5.1. Общая страховая сумма по настоящему Договору составляет " + s_ins + " сум."),
+        ("p", "5.2. Персональная страховая сумма, установленная для каждого Застрахованного лица, указана в "
+              "Приложении 1 к настоящему Договору."),
+        ("p", "5.3. Страховая премия по настоящему Договору составляет " + prem + " сум."),
+        ("tbl", sched),
+        ("p", "5.4. Страховая премия оплачивается единовременно в течение 5 (пяти) банковских дней после подписания "
+              "настоящего Договора сторонами."),
+        ("sdt", "5.5. Все взаиморасчеты по настоящему Договору производятся в сумах Республики Узбекистан."),
+        ("p", "6. ВСТУПЛЕНИЕ В СИЛУ И СРОК ДЕЙСТВИЯ ДОГОВОРА"),
+        ("p", "6.1. Настоящий Договор вступает в силу с момента подписания сторонами. Обязательства Страховщика по "
+              "страховой выплате вступают в силу " + term + "."),
+        ("p", "7. ПРАВА И ОБЯЗАННОСТИ СТОРОН"),
+    ] + filler + [
+        ("p", "8. РАССМОТРЕНИЕ СТРАХОВОЙ ПРЕТЕНЗИИ"),
+        ("p", "8.1. При наступлении события, которое могло бы обосновать требование к Страховщику, Застрахованное лицо "
+              "обязано:"),
+        ("p", "– в течение 30 (тридцати) календарных дней после наступления события, направить Страховщику "
+              "письменное заявление с указанием причин и обстоятельств наступившего события."),
+        ("p", "9. ПОРЯДОК ОСУЩЕСТВЛЕНИЯ СТРАХОВОЙ ВЫПЛАТЫ"),
+        ("p", "9.1. При временной потере трудоспособности Застрахованным лицом страховая выплата производится по "
+              "таблице выплат, но не более 50% от персональной страховой суммы.\nПереносы строки внутри пункта "
+              "сохраняются."),
+        ("p", "9.2. При установлении Застрахованному лицу группы инвалидности страховая выплата производится в "
+              "размере от 60% до 100% персональной страховой суммы."),
+        ("p", "14. ЮРИДИЧЕСКИЕ АДРЕСА И РЕКВИЗИТЫ СТОРОН:"),
+        ("tbl", [[TPL_REQ_INSURER, TPL_REQ_HOLDER]] + sign),
+        ("p", "Приложение 1"), ("p", "к Договору страхования спортсменов"),
+        ("p", "от несчастных случаев №" + u(16)), ("p", "от «____» _________ 20___г."),
+        ("p", "СПИСОК"), ("p", "ЗАСТРАХОВАННЫХ СПОРТСМЕНОВ"),
+        ("tbl", names),
+        ("tbl", sign),
+    ]
+
+
+def _w_runs(text: str, k: int) -> str:
+    """Текст абзаца так, как его пишет Word: куски по нескольку знаков в разных w:r с rsid, между ними —
+    закладка и отметка правописания; «\\t» — w:tab, «\\n» — w:br."""
+    out = []
+    for i, part in enumerate(re.split(r"(\t|\n)", text)):
+        if part == "\t":
+            out.append("<w:r><w:tab/></w:r>")
+            continue
+        if part == "\n":
+            out.append("<w:r><w:br/></w:r>")
+            continue
+        for j in range(0, len(part), 7):
+            piece = part[j:j + 7]
+            if j and j % 21 == 0:
+                out.append(f'<w:proofErr w:type="spellStart"/><w:bookmarkStart w:id="{k}{j}" w:name="_x{k}{j}"/>'
+                           f'<w:bookmarkEnd w:id="{k}{j}"/>')
+            out.append(f'<w:r w:rsidR="00A1{k:04d}" w:rsidRPr="00B2{j:04d}"><w:rPr><w:rFonts w:ascii="Times New Roman"/>'
+                       f'<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">{_x(piece)}</w:t></w:r>')
+    return "".join(out)
+
+
+def _w_p(text: str, k: int) -> str:
+    # позиции табуляции в свойствах абзаца — не знак табуляции в тексте
+    return (f'<w:p w:rsidR="00C3{k:04d}"><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/></w:tabs>'
+            f'<w:jc w:val="both"/></w:pPr>{_w_runs(text, k)}</w:p>')
+
+
+def docx_word(blocks: list) -> bytes:
+    """DOCX с разметкой, как у Word: прогоны, rsid, закладки, блок w:sdt, таблицы с w:tcPr."""
+    ns = ('xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+          'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"')
+    body, k = [], 0
+    for kind, val in blocks:
+        k += 1
+        if kind == "p":
+            body.append(_w_p(val, k))
+        elif kind == "sdt":
+            body.append(f"<w:sdt><w:sdtPr><w:alias w:val=\"поле\"/></w:sdtPr><w:sdtContent>{_w_p(val, k)}"
+                        f"</w:sdtContent></w:sdt>")
+        else:
+            rows = "".join("<w:tr>" + "".join(
+                '<w:tc><w:tcPr><w:tcW w:w="1400" w:type="dxa"/></w:tcPr>'
+                + "".join(_w_p(line, k) for line in (c.split("\n") if c else [""])) + "</w:tc>" for c in r) + "</w:tr>"
+                for r in val)
+            body.append(f"<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr>{rows}</w:tbl>")
+    xml = (f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document {ns}><w:body>{"".join(body)}'
+           f'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/></w:sectPr></w:body></w:document>')
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", '<?xml version="1.0"?><Types/>')
+        z.writestr("word/document.xml", xml)
+    return buf.getvalue()
+
+
+def check_docx_reader():
+    print("40а. Чтение DOCX: текст из дерева XML (прогоны, табуляции, переносы, w:sdt), пределы 200 000 знаков / "
+          "3 000 абзацев / 10 000 ячеек")
+    from app import act_extras as ax, ingest
+    folder = Path(tempfile.mkdtemp(prefix="act-docx-"))
+    try:
+        p = folder / "tpl.docx"
+        p.write_bytes(docx_word(tpl_blocks()))
+        got = ax.read_limited(p, {})
+        text = got["text"]
+        ok(f"шаблон ≈{len(text) // 1000} тыс. знаков (больше 20 774) прочитан целиком, без пометки «часть»",
+           len(text) > 21000 and got["truncated"] is False and got["status"] is None, (len(text), got["truncated"]))
+        ok("в тексте нет разметки Word (ни «<w:», ни rsid, ни «</w:r>»)",
+           "<w:" not in text and "rsid" not in text and "</w:" not in text and "w:r" not in text, text[:200])
+        ok("слово, разрезанное на прогоны, склеено: «Страхования спортсменов от несчастных случаев»",
+           "\nСтрахования спортсменов от несчастных случаев\n" in text)
+        ok("w:tab — табуляция, w:br — перенос строки; позиции табуляции абзаца в текст не попали",
+           "г. " + "_" * 15 + "\t\t\t\t\t \t\t   «____»" in text and "50% от персональной страховой суммы.\nПереносы" in text
+           and "\n\t" not in text and not text.startswith("\t"))
+        ok("абзац в блоке w:sdt прочитан", "5.5. Все взаиморасчеты по настоящему Договору производятся в сумах" in text)
+        rq = next((t for t in got["tables"] if t["rows"] and t["rows"][0][0].startswith("СТРАХОВЩИК")), None)
+        ok("строка реквизитов длиннее 500 знаков — целиком (правая ячейка не обрезана)",
+           rq and rq["rows"][0][1].endswith("ОКОНХ: конец реквизитов") and len(" | ".join(rq["rows"][0])) > 500,
+           rq and len(" | ".join(rq["rows"][0])))
+        ok("таблица приложения 1 и список застрахованных прочитаны целиком (4 таблицы)",
+           len(got["tables"]) == 4 and got["tables"][0]["rows"][0][0] == "Профессия (род занятия)",
+           [t["rows"][0][:2] for t in got["tables"]])
+        r_old = ingest.read_file(p)
+        sdt = "5.5. Все взаиморасчеты по настоящему Договору производятся в сумах Республики Узбекистан."
+        ok("потоковое чтение = прежнее чтение без пределов, плюс абзац w:sdt (прежнее его теряло)",
+           r_old["text"].split() == text.replace(sdt + "\n", "").split() and sdt not in r_old["text"])
+        # пределы: 2 000 абзацев и ≈190 000 знаков — целиком; 3 001 абзац — «часть»; строка таблицы > 4 000 знаков
+        big = folder / "big.docx"
+        big.write_bytes(docx_bytes([_x(f"{k}. " + "Страховщик обязан рассмотреть заявление в срок. " * 2)[:94]
+                                    for k in range(2000)]))
+        g = ax.read_limited(big, {})
+        ok(f"2 000 абзацев, {len(g['text']) // 1000} тыс. знаков — прочитано целиком",
+           g["truncated"] is False and len(g["text"].splitlines()) == 2000 and len(g["text"]) > 180000,
+           (g["truncated"], len(g["text"])))
+        many = folder / "many.docx"
+        many.write_bytes(docx_bytes([f"пункт {k}" for k in range(3001)]))
+        g = ax.read_limited(many, {})
+        ok("3 001 абзац — предел абзацев (3 000): честная пометка «часть»",
+           g["truncated"] is True and len(g["text"].splitlines()) == 3000, len(g["text"].splitlines()))
+        wide = folder / "wide.docx"
+        wide.write_bytes(docx_mixed(["Договор"], [[["а" * 2500, "б" * 2500]]]))
+        g = ax.read_limited(wide, {})
+        ok("строка таблицы длиннее 4 000 знаков — обрезана с пометкой",
+           g["truncated"] is True and len(" | ".join(g["tables"][0]["rows"][0])) <= 4000)
+        cells = folder / "cells.docx"
+        cells.write_bytes(docx_mixed(["Договор"], [[[f"{r}-{c}" for c in range(10)] for r in range(150)]]))
+        g = ax.read_limited(cells, {})
+        ok("1 500 ячеек (меньше 10 000) — целиком", g["truncated"] is False
+           and len(g["tables"][0]["rows"]) == 150, (g["truncated"], len(g["tables"][0]["rows"])))
+        ok("предел ячеек из настроек по-прежнему работает (100)",
+           ax.read_limited(cells, {"doc_max_cells": 100})["truncated"] is True)
+        ok("пределы по умолчанию: 10 000 ячеек, 3 000 абзацев, 200 000 знаков, 4 000 знаков в строке DOCX, 5 с / 8 с",
+           ax.DOC_LIMITS["doc_max_cells"] == 10000 and ax.DOC_LIMITS["doc_max_paras"] == 3000
+           and ax.DOC_LIMITS["doc_max_text_chars"] == 200000 and ax.DOC_LIMITS["doc_max_row_chars"] == 4000
+           and ax.DOC_LIMITS["doc_parse_sec"] == 5 and ax.DOC_LIMITS["doc_file_sec_pdf"] == 8
+           and not ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"])})
+           and ae.check_settings({"limits": dict(ae.DEFAULT_SETTINGS["limits"], doc_max_paras=1)}))
+        # защита от «zip-бомбы» — прежняя: огромный распакованный объём отклоняется до разбора
+        st, b = upload([("bomb.docx", DOCX_MIME, docx_bomb(60))], {"lang": "ru"})
+        ok("zip-бомба в DOCX по-прежнему отклоняется до разбора", st == 422 and b["rejected"]
+           and "слишком большой" in b["rejected"][0]["error"], (st, b.get("rejected")))
+    finally:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+def check_contract_template():
+    print("40б. Бланк договора компании: заголовок в две строки, пустые поля, личное страхование (класс 1)")
+    from app import contract_read as cr
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = ct_ai_reply
+    blob = docx_word(tpl_blocks())
+    st, b = upload([("0102_contract.docx", DOCX_MIME, blob)], {"lang": "ru"})
+    c = ctb(b)
+    f = c.get("fields") or {}
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("бланк узнан как договор, прочитан целиком (без «только часть»)",
+       st == 200 and c.get("detected") and not c.get("truncated")
+       and not any("только часть" in n for n in b["notes"] + c.get("notes", [])), (st, b.get("notes")))
+    ok("заголовок в две строки: вид — договор, название продукта — «Страхование спортсменов от несчастных случаев»",
+       f.get("product_name") == "Страхование спортсменов от несчастных случаев"
+       and cr.title_kind("Договор №____\nСтрахования спортсменов от несчастных случаев\nг. ____") == "contract",
+       f.get("product_name"))
+    ok("код продукта из имени файла не взят (0102 нет ни в полях, ни в подсказке)",
+       f.get("product_code") is None and "product_code" not in (b.get("prefill") or {}), f.get("product_code"))
+    ok("«Приложение № к приказу» — пометка шаблона компании", f.get("template_hint") is True
+       and c.get("template_hint") is True and any("приложения к приказу" in n for n in c["notes"]), c.get("notes"))
+    ok("подсказка класса: несчастные случаи → класс 1, объект — люди",
+       f["class_hint"] == "accident" and b["class_hint"] == "accident" and b["suggest_classes"] == ["1"]
+       and f["object_kind"] == "people", (f["class_hint"], b.get("suggest_classes"), f["object_kind"]))
+    ok("бланк: is_template и незаполненные поля (номер, дата, место, страхователь, сумма, премия, срок)",
+       c.get("is_template") is True and f["is_template"] is True
+       and {"contract_no", "contract_date", "place", "policyholder", "sum_insured", "premium", "term"}
+       <= set(f["blank"]) and [x["code"] for x in c["blank"]][:3] == ["contract_no", "contract_date", "place"]
+       and c["blank_label"] == "не заполнено", (f.get("blank"), c.get("is_template")))
+    ok("пустые поля — не значения: номер не «00099» из лицензии, дата не дата лицензии, место не «г. ____»",
+       f["contract_no"] is None and f["contract_date"] is None and f["place"] is None
+       and TPL_LICENSE not in dump and "2021-05-05" not in dump, (f["contract_no"], f["contract_date"], f["place"]))
+    ok("страхователь не заполнен — не «физическое лицо»; страховщик — юрлицо «INSON»",
+       f["policyholder"] == {"kind": None, "name": None}
+       and f["insurer"] == {"kind": "legal", "name": "Акционерное Общество Страховая организация «INSON»"}
+       and f["beneficiary"]["kind"] is None and not any("физическое лицо" in n for n in c["notes"]),
+       (f["policyholder"], f["insurer"], f["beneficiary"]))
+    ok("честный текст: «Это бланк договора: поля … не заполнены. Существенные условия проверяются по заполненному»",
+       c["notes"][0].startswith("Это бланк договора: поля номер договора, дата договора")
+       and "не заполнены. Существенные условия проверяются по заполненному договору" in c["notes"][0], c["notes"])
+    ok("ст. 929 и сверка не выполняются: essentials пуст, request = null, missing — незаполненные поля",
+       c["essentials"] == [] and c["request"] is None and not any("ст. 929" in n for n in c["notes"])
+       and [x["code"] for x in c["missing"]] == ["contract_no", "contract_date", "policyholder", "sum_insured",
+                                                   "tariff_pct", "premium", "term"], (c["essentials"], c["missing"]))
+    ok("объект: жизнь и здоровье застрахованных лиц — спортсменов",
+       f["object_description"] == "жизнь и здоровье застрахованных лиц — спортсменов", f["object_description"])
+    ok("страховой случай (п. 2.6): травма или смерть от несчастного случая во время соревнования",
+       f["insured_event"].startswith("получение травматического повреждения или смерть Застрахованного лица")
+       and "с наступлением которого" not in f["insured_event"]
+       and f["cover_period"] == "во время спортивного соревнования", (f["insured_event"], f["cover_period"]))
+    ok("порядок оплаты (п. 5.4): единовременно в течение 5 банковских дней после подписания",
+       f["payment_mode"] == "single" and f["payment_text"] == "единовременно в течение 5 (пяти) банковских дней "
+       "после подписания настоящего Договора сторонами" and c["payment_mode_label"] == "единовременно",
+       f.get("payment_text"))
+    ok("срок уведомления: 30 календарных дней (письменное заявление страховщику)",
+       f["notice"] == "30 (тридцати) календарных дней", f["notice"])
+    ok("риски личного страхования: травма и смерть — подписями",
+       [x["code"] for x in f["covered_risks"]] == ["injury", "death"]
+       and [x["label"] for x in c["covered_risks"]] == ["травма", "смерть"], f["covered_risks"])
+    ok("исключения: военные действия, ядерные, умысел, допинг, опьянение, самоубийство, преступление",
+       {"war", "riots", "nuclear", "intent", "doping", "intoxication", "suicide", "crime"}
+       == {x["code"] for x in f["exclusions"]} and "применение допинга" in [x["label"] for x in c["exclusions"]],
+       f["exclusions"])
+    sch = f.get("schedule") or {}
+    ok("приложение 1: структура таблицы (7 колонок) распознана, строк нет — пусто",
+       sch.get("columns") == ["profession", "count", "personal_sum", "rate", "premium_one", "sum_total",
+                              "premium_total"] and sch["items"] == [] and sch["blank"] is True
+       and c["schedule"]["columns"][0]["label"] == "Профессия (род занятий)" and f["persons_listed"] == 0, sch)
+    ok("франшизы в шаблоне нет — null (не выдумана)", f["franchise"] is None)
+    ok("бланк: модель не вызывалась (дочитывать нечего)", not CALLS, len(CALLS))
+    with db.tx() as con:
+        saved = db.rows(con, "SELECT result_json FROM act_uploads WHERE id=?", b["session"])[0]["result_json"]
+        journal = _json.dumps(db.rows(con, "SELECT detail FROM audit WHERE entity=?", "act_upload:" + b["session"]),
+                              ensure_ascii=False)
+    ok("ФИО руководителя из шапки нигде: ни в ответе, ни в базе, ни в журнале",
+       "Тестов" not in dump + saved + journal, [x for x in ("Тестов",) if x in dump + saved + journal])
+    # бланк + запрос филиала: сверки «запрос ↔ договор» нет
+    st, b2 = upload([("tpl.docx", DOCX_MIME, blob), ("sorov1.docx", DOCX_MIME, docx_table(BR_SAMPLE1))],
+                    {"lang": "ru"})
+    ok("бланк и запрос филиала: сверки «запрос ↔ договор» нет", st == 200 and b2.get("branch_request")
+       and ctb(b2).get("is_template") and b2.get("cross_check") is None, b2.get("cross_check"))
+    # акт по бланку: contract_check не строится (как для заявления)
+    st, a = ct_make(b["session"], None, must={"product_code": "0102", "sum_insured": 600_000_000,
+                                              "object_value": 600_000_000, "region": "Ташкентская область"})
+    ok("акт по бланку: сверки договора и ст. 929 нет", st == 200 and not (a.get("contract_check") or {}).get("available")
+       and not ct_items(a), (st, (a.get("contract_check") or {}) if isinstance(a, dict) else a))
+    st, a2 = ct_make(b["session"], {"premium": 9_000_000, "term_days": 365},
+                     must={"product_code": "0102", "sum_insured": 600_000_000, "object_value": 600_000_000,
+                           "region": "Ташкентская область"})
+    ok("условия, присланные к бланку, в сверку договора не идут", st == 200
+       and not (a2.get("contract_check") or {}).get("available"), (a2.get("contract_check") or {}).get("available"))
+    # uz и en: тот же текст бланка на языке экрана
+    for lang, head in (("uz", "Bu shartnoma blankasi"), ("en", "This is a blank contract form")):
+        st, b3 = upload([("tpl.docx", DOCX_MIME, blob)], {"lang": lang})
+        ok(f"{lang}: пометка бланка и «не заполнено» на языке экрана",
+           ctb(b3)["notes"][0].startswith(head) and ctb(b3)["blank_label"] == ("toʻldirilmagan" if lang == "uz"
+                                                                                else "not filled in")
+           and [x["label"] for x in ctb(b3)["covered_risks"]] == (["jarohat", "vafot etish"] if lang == "uz"
+                                                                   else ["injury", "death"]), ctb(b3)["notes"][:1])
+    CT_REPORT["бланк 0102 (копия структуры)"] = {"blank": f["blank"], "product_name": f["product_name"],
+                                                 "found": [x["code"] for x in c["found"]]}
+    return b["session"]
+
+
+def check_contract_template_filled():
+    print("40в. Тот же шаблон заполнен: номер, дата, страхователь-юрлицо, сумма, премия, срок — полноценный договор")
+    fresh()
+    model_on(True)
+    CALLS.clear()
+    REPLY["text"] = ct_ai_reply
+    st, b = upload([("dogovor_nс.docx", DOCX_MIME, docx_word(tpl_blocks(filled=True)))], {"lang": "ru"})
+    c = ctb(b)
+    f = c.get("fields") or {}
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("заполненный шаблон — не бланк: is_template = false, пустых ключевых полей нет",
+       st == 200 and c.get("detected") and c["is_template"] is False and f["is_template"] is False
+       and not (set(f["blank"]) & {"contract_no", "contract_date", "policyholder", "sum_insured", "premium", "term"}),
+       f.get("blank"))
+    ok("номер, дата, место — из шапки (не номер и дата лицензии)",
+       f["contract_no"] == "17-НС/2026" and f["contract_date"] == "2026-10-01" and f["place"] == "г. Ташкент",
+       (f["contract_no"], f["contract_date"], f["place"]))
+    ok("страхователь — юрлицо без представителя; страховщик — «INSON»",
+       f["policyholder"] == {"kind": "legal", "name": "ООО «Спорт Клуб Тест»"}
+       and f["insurer"]["kind"] == "legal", f["policyholder"])
+    ok("сумма 600 млн, премия 9 млн, срок 01.10.2026–30.09.2027 = 365 дн.",
+       f["sum_insured"] == 6e8 and f["premium"] == 9e6 and f["term_from"] == "2026-10-01"
+       and f["term_to"] == "2027-09-30" and f["term_days"] == 365, (f["sum_insured"], f["premium"], f["term_days"]))
+    sch = f.get("schedule") or {}
+    ok("приложение 1: строка «Футболист · 20 · 30 млн · 1,5 % · 450 000 · 600 млн · 9 млн»",
+       sch.get("blank") is False and sch["items"] == [{"profession": "Футболист", "count": 20, "personal_sum": 3e7,
+                                                        "rate": 1.5, "premium_one": 450000.0, "sum_total": 6e8,
+                                                        "premium_total": 9e6}], sch)
+    ok("список застрахованных: одна строка — только число, без фамилии",
+       f["persons_listed"] == 1 and TPL_ATHLETE.split()[0] not in dump, f.get("persons_listed"))
+    ess = {e["code"]: e["present"] for e in c["essentials"]}
+    ok("существенные условия (ст. 929) проверяются — все есть; request готов",
+       ess == {"object": True, "insured_event": True, "sum_insured": True, "premium": True, "term": True}
+       and c["request"] and c["request"]["premium"] == 9e6 and c["request"]["term_days"] == 365, ess)
+    ok("ФИО руководителя и представителя нигде нет; модель не вызывалась (правила нашли главное)",
+       "Тестов" not in dump and "Сидоров" not in dump and not CALLS, len(CALLS))
+    st, a = ct_make(b["session"], c["request"], must={"product_code": "0102", "sum_insured": 600_000_000,
+                                                      "object_value": 600_000_000, "region": "Ташкентская область"})
+    it = ct_items(a)
+    ok("акт: сверка договора есть (contract_check), существенные условия — все есть",
+       st == 200 and (a.get("contract_check") or {}).get("available") and it.get("essentials", {}).get("verdict") == "ok"
+       and a["premium"]["term_days"] == 365, (st, list(it)))
+    # договор, где правила нашли мало: текст уходит в модель только замаскированным (ФИО руководителя — метка)
+    CALLS.clear()
+    lines = ["«УТВЕРЖДАЮ»", "Генеральный директор", "АО СО «INSON»", TPL_DIRECTOR, "Договор № 18-НС/2026",
+             "Страхования спортсменов от несчастных случаев", "г. Ташкент «2» октября 2026 г.",
+             "Акционерное Общество Страховая организация «INSON», именуемое в дальнейшем «Страховщик», и ООО «Спорт "
+             "Клуб Тест», именуемое в дальнейшем «Страхователь», заключили настоящий Договор.",
+             "Страховая сумма и премия определяются по приложению к договору.",
+             "2.6. Страховой случай – травма застрахованного лица во время соревнования."]
+    st, b2 = upload([("d18.docx", DOCX_MIME, docx_word([("p", x) for x in lines]))], {"lang": "ru"})
+    sent = " ".join(m["content"] for x in CALLS for m in x["messages"])
+    ok("правила нашли мало — модель дочитывает; ФИО руководителя в модель не ушло (метка [ФИО])",
+       len(CALLS) == 1 and "Тестов" not in sent and "[ФИО]" in sent and ctb(b2)["is_template"] is False,
+       (len(CALLS), sent[:300]))
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -4998,6 +5427,9 @@ def main():
             check_pdf_time_limit()
             check_analytics()
             check_review_fixes()
+            check_docx_reader()
+            check_contract_template()
+            check_contract_template_filled()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:

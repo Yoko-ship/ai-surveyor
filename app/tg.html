@@ -3780,6 +3780,9 @@ function dqCtFrom(c){
     missing: sArr(c.missing).map(x => sCode(typeof x === "string" ? x : x && x.code)).filter(Boolean),
     essentials: sArr(c.essentials).filter(e => e && sCode(e.code)).map(e => ({code: String(e.code), present: !!e.present})),
     covered_risks: risks(c.covered_risks), exclusions: risks(c.exclusions),
+    // бланк договора: какие поля не заполнены (подчёркивания) и строка «Это бланк договора…» из notes сервера
+    blank: sArr(c.blank).map(x => sCode(typeof x === "string" ? x : x && x.code)).filter(Boolean),
+    tpl: !!(c.is_template || c.tpl), tpl_note: sStr(c.tpl_note || (c.is_template ? sArr(c.notes)[0] : null), 400),
     req: req, orig: c.orig ? dqReq(c.orig, true) : dqReq(c.request, true)};
 }
 /* cross_check сервера → строки сверки двух документов (значения проверяются по коду строки) */
@@ -4076,12 +4079,14 @@ function ctCardHtml(){
   const c = CH.ct;
   if (!c) return "";
   const f = c.fields, ai = k => c.ai_fields.indexOf(k) >= 0, cur = f.currency;
+  // поле бланка не заполнено (подчёркивания в документе) — серым «не заполнено»
+  const blank = k => (c.blank || []).indexOf(k) >= 0 ? '<span class="muted">' + esc(T("tg.dq.blank", "не заполнено")) + "</span>" : "";
   const noDate = [f.contract_no ? T("tg.dq.no", "№ {v}", {v: f.contract_no}) : "", f.contract_date ? T("tg.dq.from_date", "от {d}", {d: dateOnly(f.contract_date)}) : ""].filter(Boolean).join(" ");
   const car = [f.brand, f.model].filter(Boolean).join(" ");
-  let rows = dqKv(T("tg.dq.no_date", "Номер и дата"), esc(noDate) + (f.place ? "<small>" + esc(f.place) + "</small>" : ""))
+  let rows = dqKv(T("tg.dq.no_date", "Номер и дата"), (esc(noDate) || blank("contract_no") || blank("contract_date")) + (f.place ? "<small>" + esc(f.place) + "</small>" : ""))
     + dqKv(T("tg.dq.ct_name", "Название"), esc(f.product_name || ""))
     + dqKv(T("tg.dq.insurer", "Страховщик"), dqPartyHtml(f.insurer))
-    + DQ_PARTIES.map(k => dqKv(dqLbl("tg.br.row." + k), dqPartyHtml(f[k]))).join("")
+    + DQ_PARTIES.map(k => dqKv(dqLbl("tg.br.row." + k), dqPartyHtml(f[k]) || blank(k))).join("")
     + dqKv(T("tg.br.row.object", "Объект страхования"), f.object_description ? esc(f.object_description) + dqAi(ai("object_description")) : "")
     + dqKv(T("tg.dq.address", "Адрес"), esc(f.address || f.region || ""))
     + dqKv(T("tg.act.f.cadastre_no", "Кадастровый номер"), f.cadastre_no ? '<span class="num">' + esc(f.cadastre_no) + "</span>" : "")
@@ -4091,8 +4096,10 @@ function ctCardHtml(){
     + dqKv(T("tg.dq.brand_model", "Марка и модель"), esc(car))
     + dqKv(T("tg.dq.vin", "VIN или заводской номер"), f.vin ? '<span class="num">' + esc(f.vin) + "</span>" : "")
     + dqKv(T("tg.act.f.reg_no", "Государственный номер"), f.reg_no ? '<span class="num">' + esc(f.reg_no) + "</span>" : "")
-    + dqKv(T("tg.br.row.sum_insured", "Страховая сумма"), f.sum_insured != null ? '<span class="num">' + esc(dqMoney(f.sum_insured, cur)) + "</span>" + dqAi(ai("sum_insured")) : "")
-    + dqKv(T("tg.br.row.object_value", "Страховая стоимость"), f.object_value != null ? '<span class="num">' + esc(dqMoney(f.object_value, cur)) + "</span>" + dqAi(ai("object_value")) : "");
+    + dqKv(T("tg.br.row.sum_insured", "Страховая сумма"), f.sum_insured != null ? '<span class="num">' + esc(dqMoney(f.sum_insured, cur)) + "</span>" + dqAi(ai("sum_insured")) : blank("sum_insured"))
+    + dqKv(T("tg.br.row.object_value", "Страховая стоимость"), f.object_value != null ? '<span class="num">' + esc(dqMoney(f.object_value, cur)) + "</span>" + dqAi(ai("object_value")) : "")
+    + dqKv(T("tg.br.row.premium", "Страховая премия"), blank("premium"))
+    + dqKv(T("tg.br.row.term", "Срок страхования"), blank("term"));
   if (f.items.length) {
     rows += dqKv(T("tg.dq.items", "Объекты по договору"), f.items.map(x => esc((x.name || T("tg.dq.item_noname", "без названия")) + " — " + dqMoney(x.sum, cur))).join("<br>"));
   }
@@ -4113,6 +4120,7 @@ function ctCardHtml(){
   return '<div class="card dq-card" id="ctCard"><div class="dq-top"><h2>' + esc(T("tg.dq.ct_title", "Договор страхования")) + "</h2>"
     + '<span class="tag">' + esc(src) + "</span></div>"
     + '<p class="sub">' + esc(T("tg.dq.fields_read", "Прочитано полей: {n}", {n: c.found_n}) + (c.pages ? " · " + T("tg.dq.pages", "страниц: {n}", {n: c.pages}) : "")) + "</p>"
+    + (c.tpl && c.tpl_note ? '<p class="note warn">' + esc(c.tpl_note) + "</p>" : "")
     + (c.truncated ? '<p class="note warn">' + esc(T("tg.dq.truncated", "Договор длинный — прочитана только часть документа. Проверьте условия по оригиналу.")) + "</p>" : "")
     + '<div class="dq-kv">' + rows + "</div>"
     + (c.covered_risks.length ? '<div class="h3">' + esc(T("tg.dq.risks", "Застрахованные риски")) + '</div><div class="dq-chips">' + chips(c.covered_risks, "tg.ct.risk.") + "</div>" : "")
@@ -4120,7 +4128,7 @@ function ctCardHtml(){
     + (f.special_terms.length ? '<details class="mini"><summary>' + esc(T("tg.dq.special", "Особые условия · {n}", {n: f.special_terms.length})) + "</summary><ul>"
       + f.special_terms.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></details>" : "")
     + ess
-    + (c.missing.length ? '<p class="note warn">' + esc(T("tg.dq.ct_missing", "Не найдено в договоре: {what}.", {what: c.missing.map(x => dqLbl("tg.ct.miss." + x)).filter(Boolean).join(", ")})) + "</p>" : "")
+    + (c.missing.length && !c.tpl ? '<p class="note warn">' + esc(T("tg.dq.ct_missing", "Не найдено в договоре: {what}.", {what: c.missing.map(x => dqLbl("tg.ct.miss." + x)).filter(Boolean).join(", ")})) + "</p>" : "")
     + (c.ai_fields.length ? '<p class="note">' + esc(T("tg.dq.ai_note", "Значения с пометкой «прочитано моделью» модель взяла из текста договора — сверьте их с оригиналом.")) + "</p>" : "")
     + dqEditHtml("ct")
     + "</div>";

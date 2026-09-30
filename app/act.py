@@ -111,7 +111,9 @@ MODEL_SOURCES = ("photo", "plate", "document", "marking")
 CONDITIONS = ("new", "good", "worn", "damaged")
 CLASS_HINTS = ("special_machinery", "vehicle", "building", "equipment", "cargo", "other")
 HINT_CLASSES = {"special_machinery": ["3"], "vehicle": ["3"], "building": ["8", "9"], "equipment": ["8", "9"],
-                "cargo": ["7"], "other": []}
+                "cargo": ["7"], "other": [],
+                # личное страхование по договору (app/contract_read.personal_hint): несчастные случаи, болезни
+                "accident": ["1"], "health": ["2"]}
 EMPTY_VALUES = {"", "null", "none", "n/a", "na", "-", "—", "unknown", "нет", "не видно", "неизвестно",
                 "не указано", "yoʻq", "not visible"}
 COMPANY_MARKERS = ("co.", "co,", "ltd", "llc", "inc", "gmbh", "group", "machinery", "corporation", "corp",
@@ -1219,7 +1221,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         dropped_br += n
         opts = limits.get("_contract") or ae.DEFAULT_SETTINGS["contract"]
         text = texts.get(ctr["file"])
-        if opts.get("ai_assist") and text and cr.need_assist(ctr["fields"]) and llm.enabled():
+        if opts.get("ai_assist") and text and not ctr["fields"].get("is_template") and cr.need_assist(ctr["fields"]) \
+                and llm.enabled():
             left = float(limits["ai_deadline_sec"]) - (time.monotonic() - t_docs)
             ct_ai["asked"] = True
             got = contract_text_model(text, lang, limits, int(opts.get("ai_max_chars") or 30000), inclusive,
@@ -1251,8 +1254,9 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         ctr["found"], ctr["missing"] = cr.found_missing(ctr["fields"])
         ctr["essentials"] = cr.essentials(ctr["fields"])
         ctr["ai"] = ct_ai
+    # бланк договора (пустые поля) с запросом не сверяется: сверять нечего — как с заявлением
     cross = cr.cross_check(brq["fields"], ctr["fields"], float(limits.get("_tolerance") or 1000)) \
-        if brq and ctr else None
+        if brq and ctr and not ctr["fields"].get("is_template") else None
     if "region" in prefill:
         prefill["region"]["code"] = region_code(prefill["region"]["value"])
     all_fields = fields + doc_fields
@@ -1270,6 +1274,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                 kind = bf["object_kind"]
             if (not hint or hint == "other") and bf.get("class_hint"):
                 hint = bf["class_hint"]
+        if ctr and (not hint or hint == "other") and ctr["fields"].get("class_hint") in cr.PERSON_HINTS:
+            hint = ctr["fields"]["class_hint"]    # договор личного страхования: подсказка класса 1 или 2
         kind_text = tx.OBJECT_KINDS[kind][0] if kind and tx.OBJECT_KINDS[kind][0] else ""
         group = ae.object_group(cls, kind_text, hint or "")
         seen = sorted(set(views.values()))
@@ -1411,7 +1417,9 @@ def branch_view(brq: Optional[dict], lang: str) -> Optional[dict]:
 CT_TEXT_KEYS = {"object_description": "object_type", "address": "additional_info", "construction": "construction",
                 "purpose": "additional_info", "territory": "additional_info", "product_name": "additional_info",
                 "place": "additional_info", "notice": "additional_info", "term_text": "additional_info",
-                "contract_no": "additional_info", "brand": "brand", "model": "model", "vin": "serial_no",
+                "contract_no": "additional_info", "insured_event": "additional_info",
+                "cover_period": "additional_info", "payment_text": "additional_info",
+                "brand": "brand", "model": "model", "vin": "serial_no",
                 "serial_no": "serial_no", "engine_no": "engine_no", "cadastre_no": "cadastre_no"}
 
 
@@ -1453,6 +1461,15 @@ def ct_clean(f: dict) -> tuple:
     items = [x for x in f.get("items") or [] if not bad("object_type", x.get("name"))]
     n += len(f.get("items") or []) - len(items)
     f["items"] = items
+    sch = f.get("schedule")
+    if sch:
+        rows = []
+        for x in sch.get("items") or []:
+            if x.get("profession") and bad("additional_info", x["profession"]):
+                x = {k: v for k, v in x.items() if k != "profession"}
+                n += 1
+            rows.append(x)
+        f["schedule"] = dict(sch, items=rows)
     f["has_beneficiary"] = (f.get("beneficiary") or {}).get("kind") is not None
     f["has_pledger"] = (f.get("pledger") or {}).get("kind") is not None
     return f, n
@@ -1496,6 +1513,8 @@ def contract_view(ctr: Optional[dict], lang: str) -> Optional[dict]:
     if not ctr:
         return None
     f = ctr["fields"]
+    if f.get("is_template"):
+        return _template_view(ctr, lang)
     notes = []
     for code in cr.PARTY_CODES:
         if (f.get(code) or {}).get("kind") == "individual":
@@ -1535,7 +1554,50 @@ def contract_view(ctr: Optional[dict], lang: str) -> Optional[dict]:
             "payment_mode_label": tx.label(tx.PAYMENT_MODE_LABELS, f["payment_mode"], lang)
             if f.get("payment_mode") else None,
             "request": cr.request_of(f, ctr.get("source") or "document"),
+            "is_template": False, "template_hint": bool(f.get("template_hint")),
+            "blank": _labels(tx.CT_BLANK_LABELS, f.get("blank") or [], lang), "blank_label": t("ct_blank", lang),
+            "schedule": _schedule_view(f.get("schedule"), lang),
             "notes": notes, "check_label": t("prefill_check", lang)}
+
+
+def _schedule_view(sch: Optional[dict], lang: str) -> Optional[dict]:
+    """Таблица застрахованных по профессиям (приложение к договору личного страхования): колонки подписями."""
+    if not sch:
+        return None
+    return {"columns": _labels(tx.CT_SCHED_LABELS, sch.get("columns") or [], lang), "items": sch.get("items") or [],
+            "blank": bool(sch.get("blank"))}
+
+
+def _template_view(ctr: dict, lang: str) -> dict:
+    """
+    Бланк договора (поля — подчёркивания): что в нём есть (вид страхования, страховщик, страховой случай,
+    исключения, порядок оплаты, таблица приложения) и какие поля не заполнены. Существенные условия
+    (ГК ст. 929) и сверка с расчётом не выполняются — они проверяются по заполненному договору; готового
+    optional.contract нет (request = None).
+    """
+    f = ctr["fields"]
+    blank = f.get("blank") or []
+    what = ", ".join(tx.label(tx.CT_BLANK_LABELS, k, lang).lower() for k in blank)
+    notes = [t("ct_template", lang, what=what)]
+    if f.get("template_hint"):
+        notes.append(t("ct_template_form", lang))
+    if ctr.get("truncated"):
+        notes.append(t("ct_truncated", lang))
+    return {"detected": True, "kind_label": tx.label(tx.DOC_KIND_LABELS, cr.KIND, lang),
+            "is_template": True, "template_hint": bool(f.get("template_hint")),
+            "source": ctr.get("source"), "source_label": tx.label(tx.CT_SOURCE_LABELS, ctr.get("source"), lang),
+            "file": ctr.get("file"), "pages": ctr.get("pages"), "truncated": bool(ctr.get("truncated")),
+            "fields": f, "field_sources": {}, "ai_fields": [],
+            "found": _labels(tx.CT_FIELD_LABELS, ctr.get("found") or [], lang),
+            "missing": _labels(tx.CT_FIELD_LABELS, ctr.get("missing") or [], lang),
+            "blank": _labels(tx.CT_BLANK_LABELS, blank, lang), "blank_label": t("ct_blank", lang),
+            "essentials": [], "legal_ref": tx.label(tx.LEGAL_REFS, ae.ESSENTIAL_REF, lang),
+            "covered_risks": _risk_view(f.get("covered_risks"), tx.RISK_LABELS, lang),
+            "exclusions": _risk_view(f.get("exclusions"), tx.EXCLUSION_LABELS, lang),
+            "payment_mode_label": tx.label(tx.PAYMENT_MODE_LABELS, f["payment_mode"], lang)
+            if f.get("payment_mode") else None,
+            "schedule": _schedule_view(f.get("schedule"), lang),
+            "request": None, "notes": notes, "check_label": t("prefill_check", lang)}
 
 
 def _x_value(code: str, v, lang: str, by: Optional[str] = None) -> str:
@@ -2481,6 +2543,9 @@ def _trust_doc(prefix: str, sent: Optional[dict], block: Optional[dict], upload_
     Возвращает (условия | None, {source_kind, origin, edits, field_sources, doc_missing}).
     """
     keys = RQ_COMPARE if prefix == "rq" else CT_COMPARE
+    if prefix == "ct" and ((block or {}).get("fields") or {}).get("is_template"):
+        # загружен бланк договора (поля не заполнены): сверки договора с расчётом нет — как у заявления
+        return None, None
     if sent is None:
         if not block:
             return None, None

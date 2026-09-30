@@ -1959,6 +1959,13 @@ RISK_LABELS = {
     "breakdown": {"ru": "поломка, авария оборудования", "uz": "uskunaning buzilishi", "en": "machinery breakdown"},
     "electrical": {"ru": "короткое замыкание", "uz": "qisqa tutashuv", "en": "electrical damage"},
     "collision": {"ru": "ДТП, столкновение", "uz": "yoʻl-transport hodisasi", "en": "collision"},
+    # личное страхование (классы 1 и 2)
+    "death": {"ru": "смерть", "uz": "vafot etish", "en": "death"},
+    "temp_disability": {"ru": "временная утрата трудоспособности", "uz": "mehnat qobiliyatini vaqtincha yoʻqotish",
+                        "en": "temporary disability"},
+    "disability": {"ru": "инвалидность", "uz": "nogironlik", "en": "permanent disability"},
+    "injury": {"ru": "травма", "uz": "jarohat", "en": "injury"},
+    "illness": {"ru": "заболевание", "uz": "kasallik", "en": "illness"},
     "other": {"ru": "другое", "uz": "boshqa", "en": "other"},
 }
 EXCLUSION_LABELS = {
@@ -1976,7 +1983,28 @@ EXCLUSION_LABELS = {
     "mould": {"ru": "плесень, грибок", "uz": "mogʻor", "en": "mould"},
     "pollution": {"ru": "загрязнение", "uz": "ifloslanish", "en": "pollution"},
     "intoxication": {"ru": "алкогольное или наркотическое опьянение", "uz": "mast holat", "en": "intoxication"},
+    # личное страхование
+    "doping": {"ru": "применение допинга", "uz": "doping qoʻllash", "en": "use of doping"},
+    "suicide": {"ru": "самоубийство или покушение на него", "uz": "oʻz joniga qasd qilish", "en": "suicide"},
+    "self_harm": {"ru": "умышленное причинение вреда своему здоровью", "uz": "oʻziga qasddan shikast yetkazish",
+                  "en": "self-inflicted injury"},
+    "crime": {"ru": "совершение преступления", "uz": "jinoyat sodir etish", "en": "committing a crime"},
     "other": {"ru": "другое", "uz": "boshqa", "en": "other"},
+}
+# незаполненные поля бланка договора (contract.blank)
+CT_BLANK_LABELS = dict(CT_FIELD_LABELS, place={"ru": "Место заключения", "uz": "Tuzilgan joyi",
+                                               "en": "Place of signing"})
+# колонки таблицы застрахованных по профессиям (приложение к договору личного страхования)
+CT_SCHED_LABELS = {
+    "profession": {"ru": "Профессия (род занятий)", "uz": "Kasbi (faoliyat turi)", "en": "Occupation"},
+    "count": {"ru": "Количество застрахованных", "uz": "Sugʻurtalanganlar soni", "en": "Number of insured persons"},
+    "personal_sum": {"ru": "Персональная страховая сумма", "uz": "Shaxsiy sugʻurta summasi",
+                     "en": "Sum insured per person"},
+    "rate": {"ru": "Ставка, %", "uz": "Stavka, %", "en": "Rate, %"},
+    "premium_one": {"ru": "Премия за одного застрахованного", "uz": "Bir kishi uchun sugʻurta mukofoti",
+                    "en": "Premium per person"},
+    "sum_total": {"ru": "Страховая сумма всего", "uz": "Jami sugʻurta summasi", "en": "Total sum insured"},
+    "premium_total": {"ru": "Страховая премия всего", "uz": "Jami sugʻurta mukofoti", "en": "Total premium"},
 }
 PAYMENT_MODE_LABELS = {"single": {"ru": "единовременно", "uz": "bir martalik", "en": "in one payment"},
                        "installments": {"ru": "в рассрочку", "uz": "boʻlib-boʻlib", "en": "in instalments"}}
@@ -2158,6 +2186,17 @@ TX.update({
                            "boʻyicha tekshiring",
                      "en": "The contract exceeds the parsing limit — only part of the text was read; check the terms "
                            "against the original"},
+    # ---------- бланк договора (поля не заполнены) ----------
+    "ct_template": {"ru": "Это бланк договора: поля {what} не заполнены. Существенные условия проверяются по "
+                          "заполненному договору",
+                    "uz": "Bu shartnoma blankasi: {what} maydonlari toʻldirilmagan. Muhim shartlar toʻldirilgan "
+                          "shartnoma boʻyicha tekshiriladi",
+                    "en": "This is a blank contract form: {what} are not filled in. Essential terms are checked "
+                          "against the completed contract"},
+    "ct_template_form": {"ru": "Форма договора из приложения к приказу компании",
+                         "uz": "Kompaniya buyrugʻi ilovasidagi shartnoma shakli",
+                         "en": "Contract form from an annex to a company order"},
+    "ct_blank": {"ru": "не заполнено", "uz": "toʻldirilmagan", "en": "not filled in"},
     "doc_scan_pages": {"ru": "В длинном PDF нет текстового слоя — модели он не отправлен: сканы читаются не длиннее "
                              "предела страниц, загрузите нужные страницы отдельно",
                        "uz": "Uzun PDFda matn qatlami yoʻq — modelga yuborilmadi: skanlar betlar chegarasigacha "
