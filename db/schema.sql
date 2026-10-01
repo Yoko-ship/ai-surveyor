@@ -75,6 +75,20 @@ CREATE TABLE IF NOT EXISTS min_rates (
     min_rate_pct      REAL NOT NULL
 );
 
+-- Правки минимальной ставки страховщика (app/min_rates.py, 01.10.2026): у каждой правки администратора или
+-- импорта из Excel — своя версия тарифа (tariff_versions) и строка min_rates; здесь — тип ставки, кто, когда,
+-- примечание. Старые версии не удаляются: акт берёт минимум, действующий на свою дату.
+CREATE TABLE IF NOT EXISTS min_rate_versions (
+    tariff_version_id INTEGER PRIMARY KEY REFERENCES tariff_versions(id),
+    product_code      TEXT NOT NULL,
+    min_rate_pct      REAL NOT NULL,
+    rate_type         TEXT NOT NULL DEFAULT 'annual',   -- annual (годовая) | fixed (на весь срок)
+    source            TEXT NOT NULL,                    -- admin | import
+    created_at        TEXT NOT NULL,
+    created_by        TEXT,
+    note              TEXT
+);
+
 -- Коэффициенты андеррайтинга: фактор -> вариант -> множитель
 CREATE TABLE IF NOT EXISTS coefficients (
     id          INTEGER PRIMARY KEY,

@@ -575,13 +575,23 @@ def _load_reference(con, today: str) -> Reference:
               for r in rows(con, "SELECT * FROM perils")}
     load = sum(r["share"] for r in rows(con, "SELECT share FROM load_components"))
     min_rates = {}
-    for r in rows(con, """SELECT m.product_code, m.payer_type, m.min_rate_pct, v.level FROM min_rates m
-                          JOIN tariff_versions v ON v.id = m.tariff_version_id
-                          WHERE v.effective_from <= ? AND (v.effective_to IS NULL OR v.effective_to >= ?)""",
-                  today, today):
+    mr_rows = rows(con, """SELECT m.product_code, m.payer_type, m.min_rate_pct, v.level, v.id AS vid,
+                                  v.effective_from FROM min_rates m
+                           JOIN tariff_versions v ON v.id = m.tariff_version_id
+                           WHERE v.effective_from <= ? AND (v.effective_to IS NULL OR v.effective_to >= ?)""",
+                   today, today)
+    # по продукту и уровню действует одна версия — с наибольшей датой начала, при равных датах — более поздняя
+    # (больший id): правка минимальной ставки администратором (app/min_rates.py) заменяет ставку тарифной политики
+    # с даты начала, а не складывается с ней по максимуму. Внутри версии — по типу клиента.
+    latest = {}
+    for r in mr_rows:
+        k = (r["product_code"], r["level"])
+        latest[k] = max(latest.get(k, ("", 0)), (str(r["effective_from"]), int(r["vid"])))
+    for r in mr_rows:
+        if (str(r["effective_from"]), int(r["vid"])) != latest[(r["product_code"], r["level"])]:
+            continue
         slot = "regulator" if r["level"] == "регулятор" else "company"
         d = min_rates.setdefault(r["product_code"], {"company": {}, "regulator": {}})
-        # несколько действующих версий одного уровня — берём наибольшую ставку
         d[slot][r["payer_type"]] = max(d[slot].get(r["payer_type"], 0), r["min_rate_pct"])
     pcs = {}
     for r in rows(con, "SELECT product_code, class_code FROM product_classes ORDER BY part_no"):

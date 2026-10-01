@@ -29,6 +29,14 @@ calibrated = 0). Действует строка с наибольшей вер�
 required_views / clauses / measures (по группе объекта акта или default), notes. Подписи — ru/uz/en в самом JSON.
 Все доли, веса и параметры — экспертные (calibrated = 0), пока нет статистики убытков компании.
 
+Файл 1.4.0 (02.10.2026): у каждого шаблона — factor_groups, подгруппы и факторы повышения и понижения тарифа по
+документу «Факторы тарифа по классам и подгруппам»: группа {code, label, input, options: [{code, label, coef, note}]}.
+Значение группы вводится полем шаблона (input: optional.class_fields.<код> или прежнее уточнение акта —
+optional.location, optional.protection, optional.construction): новые поля выбора — в optional, уже существующие
+(место хранения, защита, конструкция, вид транспорта груза, вид деятельности, территория 18…) — не дублируются, группа
+ссылается на них; варианты группы = options поля (check_factor_groups).
+Коэффициенты экспертные (calibrated = 0); как они влияют на ставку — act_engine.factor_adjust.
+
 Модуль без HTTP и без сети: чтение файла, таблица, проверка структуры, выдача на языке.
 """
 import json
@@ -66,6 +74,13 @@ TEMPLATE_RULES = ("people", "frequency", "unit", "full_loss", "shipment", "limit
 SCENARIO_RULES = ENGINE_RULES + TEMPLATE_RULES
 SCENARIOS = ("PML", "EML", "MFL")
 DIRECTIONS = ("up", "down", "both")
+# группы факторов тарифа (factor_groups, файл 1.4.0 от 02.10.2026, документ «Факторы тарифа по классам и
+# подгруппам»): коэффициент варианта — в границах FACTOR_COEF_BOUNDS, у группы не меньше FACTOR_MIN_OPTIONS вариантов.
+# Коэффициенты экспертные (calibrated = 0); границы — защита от опечатки администратора, а не тариф
+FACTOR_COEF_BOUNDS = (0.5, 3.0)
+FACTOR_MIN_OPTIONS = 2
+# поле «да/нет» в группе факторов: варианты группы — yes и no
+FACTOR_BOOL_OPTIONS = ("yes", "no")
 # пределы правки администратора (PUT /act/templates/{class}): размер JSON шаблона и длина одной подписи
 MAX_TEMPLATE_BYTES = 200 * 1024
 MAX_LABEL_CHARS = 500
@@ -540,6 +555,13 @@ def check_labels(tpl: dict) -> list:
     for r in ((tpl.get("risks") or {}).get("items") or []) if isinstance(tpl.get("risks"), dict) else []:
         if isinstance(r, dict):
             need.append((f"risks.{r.get('code')}", r.get("label")))
+    # группы факторов тарифа и их варианты — на трёх языках (пояснение note — только ru)
+    for g in tpl.get("factor_groups") or [] if isinstance(tpl.get("factor_groups"), list) else []:
+        if isinstance(g, dict):
+            need.append((f"factor_groups.{g.get('code')}", g.get("label")))
+            for o in g.get("options") or [] if isinstance(g.get("options"), list) else []:
+                if isinstance(o, dict):
+                    need.append((f"factor_groups.{g.get('code')}.{o.get('code')}", o.get("label")))
     missing = []
     for path, lab in need:
         if not isinstance(lab, dict):
@@ -568,6 +590,68 @@ def check_labels(tpl: dict) -> list:
                     missing.append(f"{what} {c}.{lg}")
     if missing:
         errs.append("нет перевода uz/en: " + ", ".join(missing[:40]) + (" …" if len(missing) > 40 else ""))
+    return errs
+
+
+def check_factor_groups(tpl: dict) -> list:
+    """
+    Группы факторов тарифа (factor_groups): [{code, label {ru, uz, en}, input, options: [{code, label, coef, note}]}].
+    Коды групп уникальны, коды вариантов уникальны в группе; у группы не меньше двух вариантов; коэффициент — число
+    от 0,5 до 3; поле ввода группы (input) есть в шаблоне (optional, а если поле уже обязательное — must, без
+    повтора): поле выбора — варианты группы совпадают с его options, поле «да/нет» — варианты yes и no. Нет блока —
+    ошибок нет (шаблон старой версии, правка администратора).
+    """
+    fg = tpl.get("factor_groups")
+    if fg is None:
+        return []
+    if not isinstance(fg, list):
+        return ["factor_groups: список групп {code, label, input, options}"]
+    errs, seen = [], set()
+    lo, hi = FACTOR_COEF_BOUNDS
+    fields = {f.get("input"): f for f in list(tpl.get("must") or []) + list(tpl.get("optional") or [])
+              if isinstance(f, dict) and f.get("input")}
+    for g in fg:
+        if not isinstance(g, dict) or not isinstance(g.get("code"), str) or not g["code"] or not _has_ru(g.get("label")):
+            errs.append("factor_groups: группа {code, label: {ru, uz, en}, input, options}")
+            continue
+        name = f"factor_groups.{g['code']}"
+        if g["code"] in seen:
+            errs.append(f"factor_groups: повтор группы {g['code']}")
+        seen.add(g["code"])
+        opts = g.get("options")
+        if not isinstance(opts, list) or len(opts) < FACTOR_MIN_OPTIONS:
+            errs.append(f"{name}.options: не меньше {FACTOR_MIN_OPTIONS} вариантов")
+            continue
+        codes = []
+        for o in opts:
+            if not isinstance(o, dict) or not isinstance(o.get("code"), str) or not o["code"]                     or not _has_ru(o.get("label")):
+                errs.append(f"{name}.options: вариант {{code, label: {{ru, uz, en}}, coef, note}}")
+                break
+            oc = o["code"]
+            if oc in codes:
+                errs.append(f"{name}.options: повтор варианта {oc}")
+            codes.append(oc)
+            c = o.get("coef")
+            if not _num_ok(c) or not lo <= float(c) <= hi:
+                errs.append(f"{name}.{oc}.coef: число от {lo:g} до {hi:g}, передано "
+                            f"{json.dumps(c, ensure_ascii=False)[:40]}")
+            if o.get("note") is not None and not _has_ru(o.get("note")):
+                errs.append(f"{name}.{oc}.note: подпись ru")
+        inp = g.get("input")
+        f = fields.get(inp) if isinstance(inp, str) else None
+        if f is None:
+            errs.append(f"{name}.input: в шаблоне (must, optional) нет поля с вводом {inp}")
+            continue
+        if f.get("type") == "bool":
+            want = list(FACTOR_BOOL_OPTIONS)
+        elif f.get("type") == "choice":
+            want = [str(x) for x in f.get("options") or []]
+        else:
+            errs.append(f"{name}.input: поле {f.get('code')} — выбор (choice) или да/нет (bool), а не {f.get('type')}")
+            continue
+        if sorted(codes) != sorted(want):
+            errs.append(f"{name}.options: варианты группы не совпадают с вариантами поля {f.get('code')} — "
+                        f"в группе {', '.join(codes)}; в поле {', '.join(want)}")
     return errs
 
 
@@ -697,6 +781,7 @@ def validate(tpl, cls: str, con=None) -> list:
     _codes_by_group(tpl["measures"], "measures", measure_codes(con), errs)
     if not isinstance(tpl["notes"], list):
         errs.append("notes: список")
+    errs += check_factor_groups(tpl)
     errs += check_labels(tpl)
     return errs
 
@@ -745,6 +830,12 @@ def class_fields(tpl: Optional[dict]) -> dict:
         if str(f.get("input") or "").startswith("optional.class_fields."):
             out[f["code"]] = f
     return out
+
+
+def factor_groups(tpl: Optional[dict]) -> list:
+    """Группы факторов тарифа шаблона (factor_groups) — список; нет блока — пусто."""
+    fg = (tpl or {}).get("factor_groups")
+    return [g for g in fg if isinstance(g, dict) and g.get("code")] if isinstance(fg, list) else []
 
 
 def template_risks(tpl: Optional[dict], cls: str) -> list:

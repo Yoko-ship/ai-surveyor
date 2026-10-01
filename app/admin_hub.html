@@ -170,6 +170,7 @@ var NAV = [
   why:"Всё, из чего складывается ставка: версии, минимумы, коэффициенты, справочники, нормы износа.",
   items:[
    {id:"forms",     title:"Версии, ставки, продукты", why:"Формы админки: версия тарифов, минимальная ставка, коэффициент, продукт."},
+   {id:"minrates",  title:"Минимальные ставки страховщика", why:"Минимальная ставка и тип ставки по каждому продукту: правка в строке новой версией с датой начала, история версий, импорт из Excel с предпросмотром."},
    {id:"reference", title:"Справочники", why:"Продукты, классы, опасности, коэффициенты, чек-листы, правила, минимальные ставки."},
    {id:"valuation", title:"Оценка: износ и настройки", why:"Процент износа за год, остаточный минимум и настройки оценки."},
    {id:"templates", title:"Шаблоны классов", why:"Шаблон анализа по каждому из 17 классов: поля, риски, ракурсы, документы. Правка — новой версией, старые версии хранятся."},
@@ -219,6 +220,9 @@ async function api(path, options) {
   try { body = await r.json(); } catch (e) { body = null; }
   if (!r.ok) {
     var d = body && body.detail ? (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail)) : "";
+    if (!d && body && body.errors && typeof body.errors === "object") {   /* 422 с ошибками по полям */
+      d = Object.keys(body.errors).map(function (k) { return k + ": " + body.errors[k]; }).join("; ");
+    }
     if (r.status === 401) d = d || "Нужно войти в систему";
     if (r.status === 403) d = d || "Раздел открыт только администратору";
     throw new Error(d || ("сервер ответил " + r.status));
@@ -528,6 +532,140 @@ V.tariffs_valuation = async function (el) {
       }
       m.textContent = "Сохранено. Обновляем…";
       open_section("tariffs", "valuation");
+    } catch (err) { m.className = "msg bad"; m.textContent = "Не сохранилось: " + err.message; }
+  };
+};
+/* --- Минимальные ставки страховщика (01.10.2026, app/min_rates.py) ---
+   GET /reference/min-rates — продукты с действующей ставкой, типом и датой; PUT /reference/min-rates/{код} — новая
+   версия (администратор): min_rate_pct, rate_type (annual | fixed), effective_from (не раньше сегодня), note;
+   GET /reference/min-rates/{код}/history — все версии (из тарифной политики 54-П и правки); импорт из Excel:
+   GET /reference/min-rates/template.xlsx, POST /reference/min-rates/import?apply=0 — предпросмотр, apply=1 — запись. */
+var MR_TYPE = {annual: "годовая", fixed: "на весь срок"};
+var MR_SRC = {policy: "тарифная политика", admin: "правка администратора", "import": "импорт из Excel"};
+var MRS = {items: [], q: "", file: null};
+function mr_today() { return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+function mr_rows() {
+  var q = MRS.q.toLowerCase();
+  return MRS.items.filter(function (x) {
+    return !q || String(x.code).toLowerCase().indexOf(q) >= 0 || String(x.name || "").toLowerCase().indexOf(q) >= 0;
+  }).map(function (x) {
+    var c = esc(x.code);
+    if (!x.editable) {
+      return "<tr><td>" + c + "</td><td>" + esc(x.name) + '</td><td colspan="4">' +
+        '<span class="v warn">обязательный вид: ставку устанавливает нормативный акт</span></td><td>' +
+        esc(x.rate_text || "") + '</td><td><button class="btn btn-secondary btn-sm" type="button" data-mhist="' + c +
+        '">История</button></td></tr>';
+    }
+    var next = x.next ? '<div class="note">с ' + esc(x.next.effective_from) + ": " + pct(x.next.min_rate_pct) + "</div>" : "";
+    return "<tr><td>" + c + "</td><td>" + esc(x.name) + '</td><td class="n"><input data-mcode="' + c +
+      '" data-f="min_rate_pct" type="number" step="0.0001" min="0" value="' + esc(x.min_rate_pct == null ? "" : x.min_rate_pct) +
+      '" style="max-width:96px"></td><td><select data-mcode="' + c + '" data-f="rate_type">' +
+      ["annual", "fixed"].map(function (t) {
+        return '<option value="' + t + '"' + (x.rate_type === t ? " selected" : "") + ">" + MR_TYPE[t] + "</option>";
+      }).join("") + '</select></td><td><input data-mcode="' + c + '" data-f="effective_from" type="date" min="' + mr_today() +
+      '" value="' + mr_today() + '"></td><td><input data-mcode="' + c + '" data-f="note" maxlength="300" placeholder="примечание"></td>' +
+      "<td>" + esc(x.source_label || "—") + (x.effective_from ? '<div class="note">действует с ' + esc(x.effective_from) + "</div>" : "") +
+      next + '</td><td><button class="btn btn-primary btn-sm" type="button" data-msave="' + c + '">Сохранить</button> ' +
+      '<button class="btn btn-secondary btn-sm" type="button" data-mhist="' + c + '">История</button></td></tr>';
+  });
+}
+function mr_table() {
+  $("#mrTable").innerHTML = tbl(["Код", "Продукт", "Мин. ставка, %", "Тип ставки", "Действует с", "Примечание",
+    "Сейчас действует", ""], mr_rows(), "Продуктов не найдено");
+}
+async function mr_history(code) {
+  var box = $("#mrHist");
+  box.innerHTML = '<div class="card"><p class="note">Загружаем историю…</p></div>';
+  try {
+    var d = await api("/reference/min-rates/" + encodeURIComponent(code) + "/history");
+    box.innerHTML = '<div class="card"><h3>История минимальной ставки — ' + esc(code) + "</h3>" +
+      '<p class="note">Старые версии не удаляются: акт и расчёт берут ставку, действующую на свою дату.</p>' +
+      tbl(["Версия", "Ставка", "Тип", "Действует с", "Источник", "Кто", "Когда", "Примечание", ""],
+        (d.history || []).slice().reverse().map(function (h) {
+          return '<tr><td class="n">' + esc(h.version_id) + '</td><td class="n">' + pct(h.min_rate_pct) +
+            (h.payer_type ? " (" + esc(h.payer_type) + ")" : "") + "</td><td>" + esc(MR_TYPE[h.rate_type] || h.rate_type) +
+            "</td><td>" + esc(h.effective_from) + "</td><td>" + esc(h.source_label || MR_SRC[h.source] || "") + "</td><td>" +
+            esc(h.created_by || "—") + "</td><td>" + when(h.created_at) + "</td><td>" + esc(h.note || "") + "</td><td>" +
+            (h.active ? '<span class="v ok">действует</span>' : h.future ? '<span class="v warn">с будущей даты</span>' : "") +
+            "</td></tr>";
+        }), "Версий нет") + "</div>";
+  } catch (err) { box.innerHTML = fail(err); }
+}
+async function mr_import(apply) {
+  var m = $("#mrImpMsg"), out = $("#mrImp");
+  if (!MRS.file) { m.className = "msg bad"; m.textContent = "Выберите файл Excel (.xlsx)."; return; }
+  m.className = "msg"; m.textContent = apply ? "Записываем…" : "Проверяем файл…";
+  var fd = new FormData(); fd.append("file", MRS.file);
+  try {
+    var r = await fetch("/reference/min-rates/import?apply=" + (apply ? 1 : 0), {method: "POST", body: fd,
+                                                                              headers: {Accept: "application/json"}});
+    var j = null; try { j = await r.json(); } catch (e) { j = null; }
+    var pv = (j && j.preview) || null;
+    if (pv) {
+      out.innerHTML = tbl(["Строка", "Код", "Продукт", "Сейчас", "Станет", "Ошибки"], pv.items.map(function (x) {
+        var now = x.now && x.now.min_rate_pct != null ? pct(x.now.min_rate_pct) + ", " + (MR_TYPE[x.now.rate_type] || "") : "—";
+        var nw = x.new ? pct(x.new.min_rate_pct) + ", " + MR_TYPE[x.new.rate_type] + ", с " + esc(x.new.effective_from) : "—";
+        var er = Object.keys(x.errors || {}).map(function (k) { return esc(k + ": " + x.errors[k]); }).join("<br>");
+        return '<tr><td class="n">' + esc(x.row) + "</td><td>" + esc(x.product_code) + "</td><td>" + esc(x.product_name || "") +
+          "</td><td>" + now + "</td><td>" + nw + "</td><td>" + (er ? '<span class="v stop">' + er + "</span>" : '<span class="v ok">ок</span>') +
+          "</td></tr>";
+      }), "Строк нет");
+    }
+    if (!r.ok) {
+      m.className = "msg bad";
+      m.textContent = "Не записано: " + ((j && (typeof j.detail === "string" ? j.detail : "")) || ("сервер ответил " + r.status));
+      return;
+    }
+    if (apply) {
+      m.textContent = "Записано версий: " + (j.saved || []).length + ". Обновляем таблицу…";
+      MRS.file = null;
+      V.tariffs_minrates($("#mrRoot").parentNode);
+    } else {
+      m.textContent = pv.can_apply ? "Ошибок нет: строк " + pv.rows + ". Проверьте «станет» и нажмите «Записать»."
+        : "В файле ошибок: " + pv.errors + " — исправьте файл и загрузите снова. Ничего не записано.";
+      $("#mrApply").disabled = !pv.can_apply;
+    }
+  } catch (err) { m.className = "msg bad"; m.textContent = "Не получилось: " + err.message; }
+}
+V.tariffs_minrates = async function (el) {
+  var d = await api("/reference/min-rates");
+  MRS.items = d.items || [];
+  el.innerHTML = '<div id="mrRoot"></div><div class="card"><h3>Минимальные ставки страховщика</h3>' +
+    '<p class="note">Минимальную ставку назначает страховщик. Каждая правка — новая версия с датой начала, автором и ' +
+    "примечанием; прежние сохраняются (значения тарифной политики — версия «из тарифной политики, приказ 54-П»). " +
+    "Дата начала — не раньше сегодняшней: старые акты и расчёты остаются на ставке своей даты. Тип ставки: годовая — " +
+    "премия = сумма × ставка × дни / 365; на весь срок — премия = сумма × ставка.</p>" +
+    '<label>Поиск<input id="mrQ" placeholder="код или название продукта" value="' + esc(MRS.q) + '"></label>' +
+    '<div id="mrTable"></div><div class="msg" id="mrMsg"></div></div><div id="mrHist"></div>' +
+    '<div class="card"><h3>Импорт из Excel</h3><p class="note">Колонки: код продукта, минимальная ставка, %, тип ставки ' +
+    "(annual / fixed), дата начала, примечание. Сначала предпросмотр — «было → станет» и ошибки по строкам; записывается " +
+    'только файл без ошибок. <a href="/reference/min-rates/template.xlsx">Скачать шаблон</a>.</p>' +
+    '<label>Файл<input id="mrFile" type="file" accept=".xlsx"></label> ' +
+    '<button class="btn btn-secondary btn-sm" type="button" id="mrPrev">Предпросмотр</button> ' +
+    '<button class="btn btn-primary btn-sm" type="button" id="mrApply" disabled>Записать</button>' +
+    '<div class="msg" id="mrImpMsg"></div><div id="mrImp"></div></div>';
+  mr_table();
+  $("#mrQ").oninput = function (e) { MRS.q = e.target.value || ""; mr_table(); };
+  $("#mrFile").onchange = function (e) { MRS.file = e.target.files[0] || null; $("#mrApply").disabled = true; };
+  $("#mrPrev").onclick = function () { mr_import(false); };
+  $("#mrApply").onclick = function () { mr_import(true); };
+  el.onclick = async function (e) {
+    var b = e.target.closest ? e.target.closest("[data-msave],[data-mhist]") : null;
+    if (!b) return;
+    if (b.dataset.mhist) { mr_history(b.dataset.mhist); return; }
+    var code = b.dataset.msave, m = $("#mrMsg");
+    var get = function (f) { return el.querySelector('[data-mcode="' + code + '"][data-f="' + f + '"]').value; };
+    m.className = "msg"; m.textContent = "Сохраняем…";
+    try {
+      var j = await send("/reference/min-rates/" + encodeURIComponent(code), "PUT", {
+        min_rate_pct: get("min_rate_pct") === "" ? null : Number(get("min_rate_pct")), rate_type: get("rate_type"),
+        effective_from: get("effective_from"), note: get("note")});
+      m.textContent = "Сохранено: " + code + " — " + pct(j.saved.min_rate_pct) + ", " + MR_TYPE[j.saved.rate_type] +
+        ", с " + j.saved.effective_from + ". Новая версия № " + j.saved.version_id + ".";
+      var d2 = await api("/reference/min-rates");
+      MRS.items = d2.items || [];
+      mr_table();
+      mr_history(code);
     } catch (err) { m.className = "msg bad"; m.textContent = "Не сохранилось: " + err.message; }
   };
 };

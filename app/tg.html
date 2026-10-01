@@ -250,6 +250,8 @@ label.chk input{width:22px;height:22px;min-height:22px;flex:none;margin:0;accent
 @media (min-width:600px){.fgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (min-width:1100px){.fgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .fgrid>div{min-width:0}
+.tf-fac-h{margin-top:6px}
+.tf-fac-h .hint{display:block;margin:0 0 4px}
 .fgrid label.f{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
 .req{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--warn)}
 .unit{font-weight:400;color:var(--muted)}
@@ -834,6 +836,72 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .rf-ovl{font-size:12px;color:var(--muted)}
 .rf-c{margin:4px 0 6px}
 .rf .srcbar{margin-top:8px}
+.rf-minsrc{margin:0 0 10px;font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.rf-minsrc b{font-family:var(--mono)}
+.rf-minsrc span{color:var(--muted)}
+/* отметка «с факторами объекта» на вилке ставки — справочная, цветом ссылки */
+.rf-lab.pos-factors b{color:var(--link)}
+.rf-doc.pos-factors{border-bottom-color:var(--link)}
+.rf-leg .sw-fac{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid var(--link)}
+.rf-t tr[data-code="factors"] td{color:var(--muted)}
+.rf-t tr[data-code="factors"] td b{color:var(--link)}
+/* карточка «Факторы объекта» шага «Акт» */
+.fa .rf-top{margin-bottom:2px}
+.fa-mode{margin:0;text-transform:none;letter-spacing:0;font-weight:700}
+.fa-mode.ap{border-color:var(--accent);background:var(--accent-bg);color:var(--accent)}
+.fa-fill{margin:8px 0 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.fa-t td small.fa-note{display:block;margin-top:2px;font-size:11.5px;line-height:1.35;color:var(--muted)}
+.fa-t td.n{white-space:nowrap}
+.fa-t td.fa-k b{font-family:var(--mono)}
+.fa-t td.fa-k.up b{color:var(--warn)}
+.fa-t td.fa-k.down b{color:var(--good)}
+.fa-facts{margin-top:10px}
+.fa-warn{margin:8px 0 0;font-size:13px;line-height:1.45;color:var(--warn)}
+.fa-unf{margin:0;padding-left:18px;font-size:13px;line-height:1.5}
+.fa-unf li{overflow-wrap:anywhere}
+.fa-how{margin-top:10px}
+.fa-how ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--muted)}
+.fa-part+.fa-part{margin-top:14px;padding-top:4px;border-top:1px solid var(--line)}
+.fa-uncal{margin:12px 0 0;font-size:11.5px;line-height:1.4;color:var(--muted)}
+/* шаг 3: ставка ниже минимальной — можно ли застраховать (01.10.2026). Цвет ответа: да — --good, при условиях —
+   --warn, нет — --stop; доводы «за» и «против» — две колонки от 600 px, на телефоне друг под другом */
+.bm{--bm:var(--warn)}
+.bm.bm-allowed{--bm:var(--good)}
+.bm.bm-not_allowed{--bm:var(--stop)}
+.bm-ans{margin:12px 0 0;padding:10px 14px;border-left:4px solid var(--bm);border-radius:10px;background:var(--soft2)}
+.bm-ans .eyebrow{margin:0 0 2px}
+.bm-ans b{display:block;font:800 26px/1.2 var(--sans);color:var(--bm)}
+.bm-ans small{display:block;margin-top:4px;font-size:12.5px;line-height:1.4;color:var(--muted)}
+.bm-line{margin:12px 0 0;font-size:14px;line-height:1.5;overflow-wrap:anywhere}
+.bm-line b{font-family:var(--mono);white-space:nowrap}
+.bm-cols{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin-top:14px}
+@media (min-width:600px){.bm-cols{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.bm-col{min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.bm-col h3{display:flex;align-items:baseline;gap:8px;margin:0 0 6px;font-size:13px;font-weight:800}
+.bm-col h3 i{font:700 12px/1 var(--mono);font-style:normal;color:var(--muted)}
+.bm-col.for h3{color:var(--good)}
+.bm-col.against h3{color:var(--stop)}
+.bm-col ul{margin:0;padding:0;list-style:none}
+.bm-col li{position:relative;margin:0;padding:6px 0 6px 14px;border-top:1px solid var(--line);font-size:13px;line-height:1.45;overflow-wrap:anywhere}
+.bm-col li:first-child{border-top:0}
+.bm-col li::before{content:"";position:absolute;left:0;top:13px;width:6px;height:6px;border-radius:50%;background:var(--muted)}
+.bm-col.for li::before{background:var(--good)}
+.bm-col.against li::before{background:var(--stop)}
+.bm-col li.ef-none::before{background:var(--muted)}
+.bm-ef{display:inline-block;margin:0 0 2px;padding:1px 7px;border:1px solid currentColor;border-radius:999px;font-size:10.5px;font-weight:800;line-height:1.4}
+.bm-ef.blocks,.bm-ef.no_conditions{color:var(--stop)}
+.bm-ef.no_yes{color:var(--warn)}
+.bm-col .none{color:var(--muted);font-size:13px}
+.bm-conds{margin:6px 0 0;padding-left:22px;font-size:13.5px;line-height:1.5}
+.bm-conds li{margin:3px 0;overflow-wrap:anywhere}
+.bm-uw{margin:14px 0 0;font-weight:700;font-size:14px}
+.bm .note{margin-top:6px}
+.bm-ov span{font-weight:700}
+.bm-ov.v-ok span{color:var(--good)}
+.bm-ov.v-warn span{color:var(--warn)}
+.bm-ov.v-stop span{color:var(--stop)}
+.rq-rate .hint:empty{display:none}
+.rq-rate .rq-src{color:var(--ink)}
 /* шаг 3: страховой скоринг объекта (01.10.2026) — как отчёт бюро: полосы цвета бренда, шкала 0–500, плашка класса.
    --sco — scoring.brand_color из ответа; в тёмной теме текст цвета бренда светлее, полосы те же */
 .sco{padding:0;overflow:hidden;--sco:#0B4F8A;--sco-ink:var(--sco)}
@@ -3831,7 +3899,7 @@ function wzTermHtml(){
 }
 /* «Дополнительно»: необязательные поля лёгкого движка (ТЗ, п. 6 и 8.1–8.4) */
 const OPT_KEYS = ["year", "location", "guard", "protection", "seismic_zone", "construction", "activity",
-  "losses_count", "losses_small", "losses_amount", "want_lower", "price_new", "purchase_year"];
+  "losses_count", "losses_small", "losses_amount", "want_lower", "price_new", "purchase_year", "req_rate"];
 /* выпадающий список «Дополнительно»; пусто — сервер берёт значение по умолчанию и пишет это в акте */
 function optSelect(key, label, codes, nameFn, hint){
   const v = CH.opt[key] == null ? "" : String(CH.opt[key]), err = CH.errs[key];
@@ -3994,8 +4062,42 @@ function wzMoreHtml(){
     + optYesNo("want_lower", T("tg.act.want_lower", "Клиент просит снизить премию"))
     + optInput("price_new", T("tg.act.price_new", "Цена покупки"), "money", T("tg.act.price_hint", "С годом покупки покажем стоимость с учётом износа — как ориентир."))
     + optInput("purchase_year", T("tg.act.purchase_year", "Год покупки"), "year")
+    + rqRateHtml()
     + '<div class="full fr-set" id="wzFr">' + wzFrHtml() + "</div>"
     + "</div></div></details>";
+}
+/* запрошенная ставка (01.10.2026): необязательно; уходит в акт как optional.requested_rate_pct. Пусто — сервер берёт
+   тариф из договора, иначе из запроса филиала (app/act.py, _below_min_block): он показан как подставленный, ввод
+   сотрудника главнее. Ниже минимальной ставки — акт отвечает, можно ли застраховать (below_min_assessment). */
+function rqDocRate(){
+  for (const k of ["ct", "br"]) {
+    const d = CH[k], v = d && d.req ? d.req.tariff_pct : null;
+    if (isNum(v) && Number(v) > 0) return {v: Number(v), k: k};
+  }
+  return null;
+}
+function rqSrcText(){
+  const d = rqDocRate(), own = String(CH.opt.req_rate == null ? "" : CH.opt.req_rate).trim() !== "";
+  if (!d) return "";
+  const p = pct(d.v, Math.max(2, dp(d.v)));
+  if (own) return d.k === "ct" ? T("tg.act.req_rate_own_ct", "В договоре — {p}; в акт уйдёт ваша ставка.", {p: p})
+    : T("tg.act.req_rate_own_br", "В запросе филиала — {p}; в акт уйдёт ваша ставка.", {p: p});
+  return d.k === "ct" ? T("tg.act.req_rate_doc_ct", "Подставлено из договора: {p}. Впишите свою — акт возьмёт её.", {p: p})
+    : T("tg.act.req_rate_doc_br", "Подставлено из запроса филиала: {p}. Впишите свою — акт возьмёт её.", {p: p});
+}
+function rqSrcPaint(){
+  const s = $("#wzRqSrc"), el = $("#wzo-req_rate"), d = rqDocRate();
+  if (s) s.textContent = rqSrcText();
+  if (el) el.placeholder = d ? nf(d.v, dp(d.v)) : "0,05";
+}
+function rqRateHtml(){
+  const v = CH.opt.req_rate, err = CH.errs.req_rate, d = rqDocRate();
+  return '<div class="full rq-rate' + (err ? " bad" : "") + '"><label class="f" for="wzo-req_rate">' + esc(T("tg.act.f.req_rate", "Запрошенная ставка, % годовых")) + "</label>"
+    + '<div class="fr-val"><input id="wzo-req_rate" type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" maxlength="8" data-fk="req_rate" data-scope="opt" data-decimal="1"'
+    + ' value="' + esc(v == null ? "" : v) + '" placeholder="' + esc(d ? nf(d.v, dp(d.v)) : "0,05") + '"><span class="unit">%</span></div>'
+    + '<span class="hint">' + esc(T("tg.act.req_rate_hint", "Необязательно. Если филиал или клиент просят ставку ниже тарифа — впишите, акт оценит, можно ли.")) + "</span>"
+    + '<span class="hint rq-src" id="wzRqSrc">' + esc(rqSrcText()) + "</span>"
+    + '<span class="ferr" id="wzErr-req_rate">' + esc(err || "") + "</span></div>";
 }
 function wzClearErr(key){
   if (!CH.errs[key]) return;
@@ -4007,6 +4109,11 @@ function wzClearErr(key){
 function wzFieldInput(el){
   if (el.dataset.money) groupDigitsLive(el);
   if (el.dataset.int && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
+  if (el.dataset.decimal) {
+    // только цифры и один разделитель дробной части
+    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
+    if (c !== el.value) el.value = c;
+  }
   const box = el.dataset.scope === "opt" ? CH.opt : CH.must, key = el.dataset.fk, raw = String(el.value || "").trim();
   if (raw === "") delete box[key];
   else box[key] = el.dataset.money ? num(raw) : raw;
@@ -4016,6 +4123,7 @@ function wzFieldInput(el){
   if (key === "losses_count" || key === "losses_small" || key === "losses_amount") wzClearErr("losses_count");
   if (key === "sum_insured") { const eq = $("#wzFrEq"); if (eq) eq.textContent = frEqText(); ptPaintLive(); }
   if (key === "object_value") mkPart("sum");   // расхождение с медианой объявлений — сразу
+  if (key === "req_rate") rqSrcPaint();
   if (el.dataset.scope === "opt") wzMoreCount();
   wzSave();
 }
@@ -4141,8 +4249,14 @@ function tfSet(s, g, v){
   const key = g.t === "kind" ? (s === "m" ? "object_kind" : "kind") : g.key;
   if (v == null || v === "") delete box[key]; else box[key] = v;
 }
-/* подпись варианта выбора: уточнения акта — прежние подписи; поля класса — словарь */
+/* подпись варианта выбора поля класса: сначала подпись сервера на языке запроса (option_labels шаблона),
+   затем известный словарь, иначе «вариант N». field — поле шаблона (объект) или его код */
 function cfOptName(field, c, i){
+  const own = field && typeof field === "object" ? anStr(anObj(field.option_labels)[c]).trim() : "";
+  if (own) return own;
+  return cfOptDict(field && typeof field === "object" ? field.code : field, c, i);
+}
+function cfOptDict(field, c, i){
   switch (field + "." + c) {
     case "activity_kind.consult": return T("tg.tpl.o.activity_kind.consult", "консультации, офисные услуги");
     case "activity_kind.trade": return T("tg.tpl.o.activity_kind.trade", "торговля");
@@ -4171,13 +4285,15 @@ function cfOptName(field, c, i){
   }
 }
 function tfOptName(f, g, cls, c, i){
+  const own = anStr(anObj(f.option_labels)[c]).trim();
+  if (own) return own;
   if (g.t === "opt") {
     if (g.key === "protection") return protName(cls === "3" ? "3" : "8", c);
     if (g.key === "location") return locName(c);
     if (g.key === "construction") return consName(c);
     if (g.key === "activity") return actvName(c);
   }
-  return cfOptName(f.code, c, i);
+  return cfOptDict(f.code, c, i);
 }
 /* одно поле шаблона; s — "m" (договор) или номер части */
 function tfHtml(f, s, cls){
@@ -4304,6 +4420,15 @@ function tplCardHtml(){
   if (docs.length) h += '<div class="h3">' + esc(T("tg.tpl.docs", "Документы по классу")) + '</div><ul class="tpl-docs">' + docs.map(d => "<li>" + esc(d) + "</li>").join("") + "</ul>";
   return h + '<span class="ferr" id="wzErr-cf">' + esc(err || "") + "</span></section>";
 }
+/* необязательные поля класса: обычные, затем поля факторов тарифа (factor: true) под своим подзаголовком.
+   Ничего обязательным не становится: пустое поле акт покажет в «Уточнить» карточки «Факторы объекта». */
+function tfFactorSplit(fs, render){
+  const plain = fs.filter(f => f.factor !== true), fac = fs.filter(f => f.factor === true);
+  return plain.map(render).join("")
+    + (fac.length ? '<div class="full tf-fac-h"><div class="h3">' + esc(T("tg.tpl.factors_h", "Факторы тарифа")) + "</div>"
+      + '<span class="hint">' + esc(T("tg.tpl.factors_hint", "Необязательно. Каждый вариант меняет ставку на свой коэффициент — акт покажет, на сколько.")) + "</span></div>"
+      + fac.map(render).join("") : "");
+}
 /* «Дополнительно»: необязательные поля класса из шаблона */
 function tplMoreHtml(){
   const cls = wzClass(), t = tplMainShown() ? tplOf(cls) : null;
@@ -4311,7 +4436,7 @@ function tplMoreHtml(){
   const fs = tfList(t.template.optional).filter(f => tfTarget(f).t !== "opt");
   if (!fs.length) return "";
   return '<div class="full"><div class="h3">' + esc(T("tg.tpl.more_h", "Поля класса: {name}", {name: anStr(t.template.name)})) + "</div></div>"
-    + fs.map(f => tfHtml(f, "m", cls)).join("");
+    + tfFactorSplit(fs, f => tfHtml(f, "m", cls));
 }
 function tplMoreCount(){
   const t = tplMainShown() ? tplOf(wzClass()) : null;
@@ -4465,7 +4590,7 @@ function ptRowHtml(it, i){
     const more = tfList(t.template.optional, i > 0);
     if (more.length) {
       h += '<details class="pt-more"' + (CH.ptMore && CH.ptMore[i] ? " open" : "") + ' data-ptmore="' + i + '"><summary>' + esc(T("tg.pt.more", "Ещё поля класса · {n}", {n: more.length}))
-        + '</summary><div class="fgrid pt-g">' + more.map(f => tfHtml(f, String(i), it.cls)).join("") + "</div></details>";
+        + '</summary><div class="fgrid pt-g">' + tfFactorSplit(more, f => tfHtml(f, String(i), it.cls)) + "</div></details>";
     }
   }
   return h + "</div>";
@@ -5034,6 +5159,7 @@ function dqInput(el){
   }
   wzClearErr(k);
   dqSrcPaint(k);
+  if (f === "tariff_pct") rqSrcPaint();
   wzSave();
 }
 function dqFrSet(k, v){
@@ -6200,7 +6326,8 @@ const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_i
   want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
   protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr",
   market: "market", request: "br", contract: "ct", credit_report: "cb",
-  class_fields: "cf", object_kind: "cf", parts: "parts", same_object: "parts", parts_confirmed: "parts"};
+  class_fields: "cf", object_kind: "cf", parts: "parts", same_object: "parts", parts_confirmed: "parts",
+  requested_rate_pct: "req_rate"};
 function errText(field){
   switch (field) {
     case "br": return T("tg.dq.err_br", "Проверьте условия запроса филиала: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
@@ -6213,6 +6340,7 @@ function errText(field){
     case "year": case "purchase_year": return T("tg.act.err_year", "Год — четыре цифры, не раньше 1950 и не позже текущего.");
     case "losses_count": return T("tg.act.err_losses", "Убытков — целое число; мелких не больше, чем всех.");
     case "term_days": return T("tg.act.err_term", "Срок — целое число дней от 1 до 3660. Или оставьте поле пустым.");
+    case "req_rate": return T("tg.act.err_req_rate", "Запрошенная ставка — число больше 0 и не больше 100, например 0,05. Или оставьте поле пустым.");
     case "fr": return T("tg.act.err_fr", "Размер франшизы — больше нуля и не больше 50 % страховой суммы (суммой — не больше половины). Или выберите «Не применять».");
     case "market": return T("tg.mk.err_market", "Проверьте объявления: цена — число больше нуля, год — от 1950, ссылка — https://…, курс доллара — от 100 до 1 000 000 сумов.");
     case "protection": case "seismic_zone": case "construction": case "activity":
@@ -6241,6 +6369,8 @@ function actBody(){
   if (o.price_new) opt.price_new = Number(o.price_new);
   if (o.purchase_year) opt.purchase_year = Number(o.purchase_year);
   if (o.term_days) opt.term_days = Number(o.term_days);
+  // запрошенная ставка сотрудника; пусто — сервер возьмёт тариф договора или запроса филиала
+  if (o.req_rate != null && String(o.req_rate).trim() !== "" && dec(o.req_rate) > 0) opt.requested_rate_pct = dec(o.req_rate);
   // уточнения сценариев — только допустимые для класса (app/act.py: validate)
   const cls = wzClass();
   if (o.protection && protCodes(cls).indexOf(o.protection) >= 0) opt.protection = o.protection;
@@ -6290,6 +6420,7 @@ async function actMake(){
   ["year", "purchase_year"].forEach(k => { if (o[k] && !/^\d{4}$/.test(String(o[k]))) e[k] = errText(k); });
   if (o.losses_small != null && o.losses_count != null && Number(o.losses_small) > Number(o.losses_count)) e.losses_count = errText("losses_count");
   if (o.term_days && !(/^\d{1,4}$/.test(String(o.term_days)) && Number(o.term_days) >= 1 && Number(o.term_days) <= 3660)) e.term_days = errText("term_days");
+  if (o.req_rate != null && String(o.req_rate).trim() !== "") { const x = dec(o.req_rate); if (!(x > 0 && x <= 100)) e.req_rate = errText("req_rate"); }
   const f = CH.fr;
   if (f.on && !wzStatutory()) {
     const S = Number(m.sum_insured) || 0;
@@ -6634,6 +6765,11 @@ function wzStep3Html(){
   const disc = (a.discrepancies || []).length;
   const ratio = val.ratio_pct == null || isNaN(Number(val.ratio_pct)) ? T("tg.act.na", "данные недоступны") : pct(val.ratio_pct, Number(val.ratio_pct) % 1 ? 2 : 0);
   const rateNote = actRateNote(a);
+  // тип ставки продукта (rate.rate_type_label): годовая или фиксированная на весь срок; у фиксированной — годовой эквивалент
+  const R = anObj(a.rate), rtl = anStr(R.rate_type_label), fixed = R.rate_type === "fixed";
+  const rtNote = rtl ? (fixed ? T("tg.act.rate_type_fixed", "ставка {t}, на весь срок", {t: rtl}) : T("tg.act.rate_type", "ставка {t}", {t: rtl})) : "";
+  const rtEquiv = fixed && isNum(R.annual_equiv_pct) ? T("tg.act.rate_equiv", "годовой эквивалент {p} — для сравнения с рынком",
+    {p: pct(R.annual_equiv_pct, Math.max(2, dp(R.annual_equiv_pct)))}) : "";
   // итоговый вывод раздела 3 (сервер: value.final_verdict); в старых актах его нет — вывод по заявленной стоимости
   const fv = val.final_verdict || val.verdict;
   // многолетний договор: премия — на весь срок, тариф — годовой
@@ -6656,6 +6792,10 @@ function wzStep3Html(){
     + sco
     // вилка ставки — сразу после скоринга (без скоринга — первой), развёрнута
     + rfCardHtml(a)
+    // ставка ниже минимальной: можно ли застраховать — сразу после вилки (только если оценка есть)
+    + bmCardHtml(a)
+    // факторы объекта по подгруппам класса — после вилки и оценки заниженной ставки
+    + faCardHtml(a)
     + (sco ? '<details class="card act-sum act-sumd ' + tone + '" id="actSumD"' + (CH.sumOpen ? " open" : "") + "><summary><span><b>"
         + esc(T("tg.sc.sum_title", "Сводка акта")) + "</b><small>" + esc((P ? T("tg.sc.sum_sub_dec", "Рекомендация: {d}", {d: decName(dec)})
           : T("tg.sc.sum_sub", "Рекомендация: {d} · тариф {r} · премия {p}", {d: decName(dec), r: actRate(a), p: actPremium(a)}))
@@ -6668,7 +6808,8 @@ function wzStep3Html(){
     + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
     + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
     + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>"
-    + (rateNote || multi ? "<em>" + esc([multi ? T("tg.act.rate_annual", "годовых") : "", rateNote].filter(Boolean).join("; ")) + "</em>" : "") + "</div>"
+    + (rateNote || multi || rtNote ? "<em>" + esc([rtNote || (multi ? T("tg.act.rate_annual", "годовых") : ""), rateNote].filter(Boolean).join("; ")) + "</em>" : "")
+    + (rtEquiv ? "<em>" + esc(rtEquiv) + "</em>" : "") + "</div>"
     + "<div><span>" + esc(T("tg.act.premium", "Премия")) + "</span><b>" + esc(actPremium(a)) + "</b>"
     + (prem.term_days || frApplied(a) ? "<em>" + esc([frApplied(a) ? T("tg.act.prem_with_fr", "с франшизой") : "",
         prem.term_days ? T("tg.act.term", "за {n} дн.", {n: prem.term_days}) : "", multi ? T("tg.act.term_whole", "на весь срок") : ""].filter(Boolean).join(", ")) + "</em>" : "") + "</div>"
@@ -6679,6 +6820,7 @@ function wzStep3Html(){
     + actFrHtml(a))
     + (rfOv ? '<p class="act-line"><b>' + esc(T("tg.rf.title", "Вилка ставки")) + ":</b> " + esc(rfOv)
       + ' <span class="rf-ovl">' + esc(T("tg.rf.ov_label", "минимум – рекомендуемая – рынок")) + "</span></p>" : "")
+    + bmOvHtml(a)
     + actMvHtml(a)
     + actCheckHtml(a.request_check, "rq")
     + actCheckHtml(a.contract_check, "ct")
@@ -6842,7 +6984,7 @@ function actAltHtml(a){
    ставки «после поправки региона» — той же формулой, что act_engine.apply_fork: round(акт × (1 + регион / 100), 4).
    Шкала — HTML с положением в процентах: 0 … max(отметки без технической) × 1,1; техническая за краем — стрелкой.
    Подписи раскладываются по рядам заранее для двух ширин (телефон ~266 px, шире 600 px ~476 px), чтобы не наезжали. */
-const RF_CODES = ["min", "act", "adjusted", "market", "request", "contract", "technical"];
+const RF_CODES = ["min", "act", "adjusted", "market", "request", "contract", "technical", "factors"];
 const RF_MAIN = ["min", "act", "adjusted", "market"];
 const RF_W = {n: 266, w: 476, x: 620};    // ширина шкалы, по которой раскладываются подписи: телефон, от 600 и от 1000 px
 const rfR4 = x => Math.round(Number(x) * 10000) / 10000;
@@ -6856,6 +6998,7 @@ function rfShort(code){
     case "market": return T("tg.rf.s_market", "рынок");
     case "request": return T("tg.rf.s_request", "запрос филиала");
     case "contract": return T("tg.rf.s_contract", "договор");
+    case "factors": return T("tg.rf.s_factors", "с факторами объекта");
     default: return T("tg.rf.s_technical", "техническая");
   }
 }
@@ -6905,12 +7048,12 @@ function rfLayout(F){
   const tech = ms.filter(m => m.code === "technical")[0] || null;
   const techOver = !!tech && Number(tech.rate_pct) > max;
   const upper = rfGroups(ms.filter(m => RF_MAIN.indexOf(m.code) >= 0), x);
-  const lower = rfGroups(ms.filter(m => m.code === "request" || m.code === "contract" || (m.code === "technical" && !techOver)), x);
+  const lower = rfGroups(ms.filter(m => m.code === "request" || m.code === "contract" || m.code === "factors" || (m.code === "technical" && !techOver)), x);
   if (techOver) lower.push({rate: Number(tech.rate_pct), x: 100, marks: [tech], over: true});
   [upper, lower].forEach(gs => gs.forEach(g => {
     g.rec = g.marks.some(m => m.is_recommended === true);
     const doc = g.marks.filter(m => m.code === "request" || m.code === "contract")[0];
-    g.pos = doc ? rfDocPos(F, doc.code) : "";
+    g.pos = doc ? rfDocPos(F, doc.code) : g.marks.some(m => m.code === "factors") ? "factors" : "";
     g.val = (g.over ? "→ " : "") + rfFmt(g.rate);
     g.name = g.marks.map(m => rfShort(m.code)).join(" = ") + (g.marks.some(m => m.code === "technical") ? ", " + T("tg.rf.ref", "справочно") : "");
   }));
@@ -6946,7 +7089,7 @@ function rfScaleHtml(F, L){
   L.lower.forEach(g => {
     const doc = g.marks.filter(m => m.code === "request" || m.code === "contract")[0];
     if (g.over) tr += '<i class="rf-over" aria-hidden="true"></i>';
-    else if (doc) tr += '<i class="rf-doc pos-' + g.pos + '" data-codes="' + esc(g.marks.map(m => m.code).join(" ")) + '" style="left:' + g.x + '%"></i>';
+    else if (doc || g.pos === "factors") tr += '<i class="rf-doc pos-' + g.pos + '" data-codes="' + esc(g.marks.map(m => m.code).join(" ")) + '" style="left:' + g.x + '%"></i>';
     if (!g.over && g.marks.some(m => m.code === "technical")) tr += '<i class="rf-tech" style="left:' + g.x + '%"></i>';
   });
   const aria = T("tg.rf.aria", "Шкала ставок от 0 до {max}: {list}", {max: rfFmt(L.max),
@@ -6962,6 +7105,7 @@ function rfScaleHtml(F, L){
     + (xk != null && xk > xm ? '<li><i class="sw-corr"></i>' + esc(T("tg.rf.lg_corr", "от минимума до рынка")) + "</li>" : "")
     + (L.upper.some(g => g.rec) ? '<li><i class="sw-rec"></i>' + esc(T("tg.rf.lg_rec", "рекомендуемая ставка")) + "</li>" : "")
     + (L.lower.some(g => g.marks.some(m => m.code === "request" || m.code === "contract")) ? '<li><i class="sw-doc"></i>' + esc(T("tg.rf.lg_doc", "ставка из документа")) + "</li>" : "")
+    + (L.lower.some(g => g.marks.some(m => m.code === "factors")) ? '<li><i class="sw-fac"></i>' + esc(T("tg.rf.lg_fac", "с факторами объекта")) + "</li>" : "")
     + (L.tech ? '<li><i class="sw-tech"></i>' + esc(T("tg.rf.lg_tech", "техническая ставка — справочно, в премию не идёт")) + "</li>" : "")
     + "</ul>";
 }
@@ -7095,6 +7239,7 @@ function rfCardHtml(a){
   return '<section class="card act-card rf" id="rfCard" aria-label="' + esc(anStr(F.title) || T("tg.rf.title", "Вилка ставки")) + '">' + head
     + '<p class="rf-sum">' + esc(anStr(F.summary)) + "</p>"
     + rfScaleHtml(F, L)
+    + rfMinSrcHtml(a, by)
     + (ms.length ? rfTableHtml(F, ms) : "")
     + (P ? (parts.length ? '<h3 class="rf-h">' + esc(T("tg.rf.parts_h", "Вилки частей")) + '</h3><ul class="rf-parts">'
         + parts.map(p => "<li><b>" + esc(T("tg.rf.part_n", "Часть {n}, класс {c}", {n: anStr(p.index), c: anStr(p.class_code)})) + ":</b> " + esc(p.summary) + "</li>").join("") + "</ul>" : "")
@@ -7103,6 +7248,17 @@ function rfCardHtml(a){
     + rfModeHtml(F)
     + rfHowHtml(F, "act")
     + "</section>";
+}
+/* источник минимальной ставки у отметки «минимальная»: min_rate.source_text (иначе rate.min_source) и тип ставки —
+   «минимальная ставка страховщика (установлена администратором …)» или «из тарифной политики, приказ 54-П» */
+function rfMinSrcHtml(a, by){
+  const mr = anObj(a.min_rate), r = anObj(a.rate);
+  const src = anStr(mr.source_text) || anStr(r.min_source);
+  const v = isNum(mr.min_pct) ? mr.min_pct : by && by.min ? by.min.rate_pct : r.min_pct;
+  if (!src || !isNum(v)) return "";
+  const tl = anStr(mr.rate_type_label);
+  return '<p class="rf-minsrc">' + esc(T("tg.rf.min_src", "Минимальная ставка")) + " <b>" + esc(rfFmt(v)) + "</b>"
+    + (tl ? " <span>(" + esc(tl) + ")</span>" : "") + " — " + esc(src) + "</p>";
 }
 /* компактная вилка части договора: шкала и итог */
 function rfPartHtml(p){
@@ -7119,6 +7275,188 @@ function rfPartHtml(p){
     + "</div>";
 }
 /* ---------- /вилка ставки ---------- */
+/* ---------- шаг 3: ставка ниже минимальной — можно ли застраховать (01.10.2026) ----------
+   Блок below_min_assessment ответа /act/make и GET /act/{id} (app/act.py → _below_min_view; правило —
+   act_engine.below_min_assess, пороги — настройка акта below_min). Здесь ничего не пересчитывается: ответ, доводы
+   с цифрами, условия и пометка — как отдаёт сервер на языке акта; коды (verdict, sign, effect, requested_source)
+   выбирают только цвет и подпись словаря, неизвестный код на экран не выводится. Карточка — только при available. */
+const BM_V = ["allowed", "allowed_with_conditions", "not_allowed"];
+const BM_EF = ["blocks", "no_conditions", "no_yes"];
+function bmTone(v){ return v === "allowed" ? "ok" : v === "not_allowed" ? "stop" : v === "allowed_with_conditions" ? "warn" : ""; }
+function bmAnswer(B){
+  switch (B.verdict) {
+    case "allowed": return T("tg.bm.v_allowed", "Да");
+    case "allowed_with_conditions": return T("tg.bm.v_allowed_with_conditions", "Да, при условиях");
+    case "not_allowed": return T("tg.bm.v_not_allowed", "Нет");
+    default: return anStr(B.verdict_label);
+  }
+}
+function bmSrc(B){
+  switch (B.requested_source) {
+    case "request": return T("tg.bm.src_request", "из запроса филиала");
+    case "contract": return T("tg.bm.src_contract", "из договора");
+    case "employee": return T("tg.bm.src_employee", "введено сотрудником");
+    default: return anStr(B.requested_source_label);
+  }
+}
+function bmEf(e){
+  switch (e) {
+    case "blocks": return T("tg.bm.ef_blocks", "исключает отступление");
+    case "no_conditions": return T("tg.bm.ef_no", "даёт ответ «нет»");
+    case "no_yes": return T("tg.bm.ef_cond", "нужны условия");
+    default: return "";
+  }
+}
+/* «Запрошено 0,05 % (из запроса филиала) при минимуме 0,08 % — ниже на 0,03 %, недобор премии за срок (365 дн.) 300 000 сум» */
+function bmLineText(B){
+  const p = v => isNum(v) ? pct(v, Math.max(2, dp(v))) : T("tg.act.na", "данные недоступны");
+  const src = bmSrc(B);
+  let s = T("tg.bm.line", "Запрошено {req}{src} при минимуме {min} — ниже на {gap}", {req: p(B.requested_pct),
+    src: src ? " (" + src + ")" : "", min: p(B.min_pct), gap: p(B.gap_pct)});
+  if (isNum(B.shortfall)) {
+    s += isNum(B.term_days) ? T("tg.bm.line_short_days", ", недобор премии за срок ({n} дн.) {sum}", {n: B.term_days, sum: money(B.shortfall)})
+      : T("tg.bm.line_short", ", недобор премии за срок {sum}", {sum: money(B.shortfall)});
+  }
+  if (B.rate_type === "fixed" && isNum(B.requested_annual_pct)) {
+    s += ". " + T("tg.bm.line_fixed", "Ставка фиксированная, на весь срок; годовой эквивалент запрошенной — {p}", {p: p(B.requested_annual_pct)});
+  }
+  return s;
+}
+function bmColHtml(cls, title, list){
+  const ord = r => { const i = BM_EF.indexOf(r.effect); return i < 0 ? 9 : i; };
+  const L = list.slice().sort((a, b) => ord(a) - ord(b));
+  return '<div class="bm-col ' + cls + '"><h3>' + esc(title) + "<i>" + L.length + "</i></h3>"
+    + (L.length ? "<ul>" + L.map(r => {
+      const ef = cls === "against" && BM_EF.indexOf(r.effect) >= 0 ? r.effect : "";
+      return '<li class="ef-' + (ef || "none") + '">' + (ef ? '<span class="bm-ef ' + ef + '">' + esc(bmEf(ef)) + "</span><br>" : "") + esc(anStr(r.text)) + "</li>";
+    }).join("") + "</ul>" : '<p class="none">' + esc(T("tg.bm.none", "доводов нет")) + "</p>")
+    + "</div>";
+}
+function bmCardHtml(a){
+  const B = anObj(a && a.below_min_assessment);
+  if (B.available !== true || BM_V.indexOf(B.verdict) < 0) return "";
+  const rs = anArr(B.reasons).filter(r => r && anStr(r.text) && (r.sign === "for" || r.sign === "against"));
+  const conds = anArr(B.conditions).map(c => anStr(anObj(c).text)).filter(Boolean);
+  // служебное имя настройки в скобках («(below_min)») на экран не выводится
+  const note = anStr(B.note).replace(/\s*\(\s*below_min\s*\)/g, "");
+  const title = T("tg.bm.title", "Ставка ниже минимальной: можно ли застраховать");
+  return '<section class="card act-card bm bm-' + esc(B.verdict) + '" id="bmCard" aria-label="' + esc(title) + '">'
+    + '<div class="rf-top"><h2>' + esc(title) + "</h2>"
+    + (B.calibrated ? "" : '<span class="tag off rf-unc">' + esc(T("tg.bm.uncal", "правило разработчика, не калибровано")) + "</span>") + "</div>"
+    + '<div class="bm-ans"><p class="eyebrow">' + esc(T("tg.bm.q", "Можно ли застраховать по запрошенной ставке")) + "</p>"
+    + "<b>" + esc(bmAnswer(B)) + "</b>"
+    + (B.verdict === "not_allowed" && B.hard === true ? "<small>" + esc(T("tg.bm.hard", "Есть довод, который исключает отступление, — условия не помогут.")) + "</small>" : "")
+    + "</div>"
+    + '<p class="bm-line">' + esc(bmLineText(B)) + "</p>"
+    + '<div class="bm-cols">'
+    + bmColHtml("for", T("tg.bm.for", "За"), rs.filter(r => r.sign === "for"))
+    + bmColHtml("against", T("tg.bm.against", "Против"), rs.filter(r => r.sign === "against"))
+    + "</div>"
+    + (conds.length && B.verdict !== "not_allowed" ? '<h3 class="rf-h">' + esc(B.verdict === "allowed" ? T("tg.bm.conds_yes", "Условие") : T("tg.bm.conds", "Условия"))
+      + '</h3><ol class="bm-conds">' + conds.map(c => "<li>" + esc(c) + "</li>").join("") + "</ol>" : "")
+    + '<p class="bm-uw">' + esc(T("tg.bm.uw", "Окончательное решение — андеррайтер.")) + "</p>"
+    + (note ? '<p class="note">' + esc(note) + "</p>" : "")
+    + "</section>";
+}
+/* строка общего обзора below_min (scoring.overview) — для сводки акта; без скоринга — ответ оценки */
+function bmOvHtml(a){
+  const ov = anArr(anObj(a && a.scoring).overview).filter(o => o && o.code === "below_min")[0];
+  const B = anObj(a && a.below_min_assessment);
+  let label = "", val = "", raw = "";
+  if (ov) { label = anStr(ov.label); val = anStr(ov.value); raw = anStr(ov.raw); }
+  else if (B.available === true) { val = anStr(B.verdict_label); raw = anStr(B.verdict); }
+  if (!val) return "";
+  label = label || T("tg.bm.ov_label", "ставка ниже минимальной: можно ли принять");
+  const tone = bmTone(raw);
+  return '<p class="act-line bm-ov' + (tone ? " v-" + tone : "") + '"><b>' + esc(label.charAt(0).toUpperCase() + label.slice(1)) + ":</b> <span>" + esc(val) + "</span></p>";
+}
+/* ---------- /ставка ниже минимальной ---------- */
+/* ---------- факторы объекта (02.10.2026) ----------
+   Блок factor_adjustment ответа /act/make и GET /act/{id} (app/act.py → _factor_view, коэффициенты — act_engine.factor_adjust).
+   Здесь ничего не пересчитывается: группы, коэффициенты, ставки после каждого фактора и вклад в премию — как отдал сервер.
+   Режим reference — ставка акта не менялась (справочно), apply — ставка и премия акта посчитаны с коэффициентами.
+   Комплексный продукт — by_parts: подблок на каждую часть. Акты до 02.10.2026 — reason = old_act. */
+const faMult = c => "×" + Number(c).toLocaleString(LOC(), {minimumFractionDigits: 2, maximumFractionDigits: 3});
+const faDelta = v => !isNum(v) ? "—" : Number(v) > 0 ? "+" + money(Number(v)) : Number(v) < 0 ? "−" + money(-Number(v)) : money(0);
+const faModeTag = ap => '<span class="tag fa-mode' + (ap ? " ap" : " off") + '">'
+  + esc(ap ? T("tg.act.fa_mode_apply", "применено к ставке") : T("tg.act.fa_mode_ref", "справочно")) + "</span>";
+/* тело блока одной части или договора */
+function faBodyHtml(F){
+  const E = anObj(F.effect), ap = F.mode === "apply" && E.applied_to_act === true;
+  const applied = anArr(F.applied).filter(x => x && isNum(x.coef));
+  const unf = anArr(F.unfilled).map(u => anStr(anObj(u).label) || anStr(anObj(u).group)).filter(Boolean);
+  const total = isNum(F.groups) ? Number(F.groups) : applied.length + unf.length;
+  const cols = [T("tg.act.fa_col_group", "Группа"), T("tg.act.fa_col_option", "Вариант"), T("tg.act.fa_col_coef", "Коэффициент"),
+    T("tg.act.fa_col_rate", "Ставка после"), T("tg.act.fa_col_prem", "Премия ±")];
+  let h = '<p class="fa-fill">' + esc(T("tg.act.fa_filled", "Заполнено {n} из {m}", {n: applied.length, m: total})) + "</p>";
+  if (applied.length) {
+    h += '<table class="an-t fold fa-t"><thead><tr>' + cols.map((c, i) => "<th" + (i >= 2 ? ' class="n"' : "") + ">" + esc(c) + "</th>").join("") + "</tr></thead><tbody>"
+      + applied.map(x => {
+        const c = Number(x.coef), dir = c > 1 ? " up" : c < 1 ? " down" : "";
+        return '<tr data-group="' + esc(anStr(x.group)) + '"><td class="h" data-l="' + esc(cols[0]) + '">' + esc(anStr(x.group_label) || anStr(x.group)) + "</td>"
+          + '<td data-l="' + esc(cols[1]) + '">' + esc(anStr(x.label) || anStr(x.option))
+          + (anStr(x.note) ? '<small class="fa-note">' + esc(x.note) + "</small>" : "") + "</td>"
+          + '<td class="n fa-k' + dir + '" data-l="' + esc(cols[2]) + '"><b>' + esc(faMult(c)) + "</b></td>"
+          + '<td class="n" data-l="' + esc(cols[3]) + '">' + esc(isNum(x.rate_pct) ? rfFmt(x.rate_pct) : "—") + "</td>"
+          + '<td class="n" data-l="' + esc(cols[4]) + '">' + esc(faDelta(x.premium_delta)) + "</td></tr>";
+      }).join("") + "</tbody></table>";
+  } else {
+    h += '<p class="note">' + esc(T("tg.act.fa_none", "Факторы не заполнены — ставка без поправок по объекту.")) + "</p>";
+  }
+  if (E.available === true) {
+    const facts = [[T("tg.act.fa_mult", "Множитель"), isNum(F.product) ? faMult(F.product) : "—"],
+      [T("tg.act.fa_rate", "Ставка"), rfFmt(E.base_pct) + " → " + rfFmt(E.rate_pct)],
+      [T("tg.act.fa_prem", "Премия"), (isNum(E.base_premium) ? money(E.base_premium) : "—") + " → " + (isNum(E.premium) ? money(E.premium) : "—")
+        + (isNum(E.delta_premium) ? " (" + faDelta(E.delta_premium) + ")" : "")]];
+    h += '<dl class="rf-facts fa-facts">' + facts.map(f => "<div><dt>" + esc(f[0]) + "</dt><dd>" + esc(f[1]) + "</dd></div>").join("") + "</dl>";
+  } else if (E.reason === "statutory" || E.reason === "no_rate") {
+    h += '<p class="note">' + esc(E.reason === "statutory" ? T("tg.act.fa_statutory", "Обязательный вид: ставка установлена законом, факторы её не меняют.")
+      : T("tg.act.fa_no_rate", "Ставка акта не определена — влияние факторов не посчитано.")) + "</p>";
+  }
+  const B = anArr(F.bounds);
+  if (F.clamped === true && isNum(B[0]) && isNum(B[1])) {
+    h += '<p class="fa-warn">' + esc(T("tg.act.fa_clamped", "Произведение коэффициентов {raw} ограничено границами {lo} – {hi}.",
+      {raw: isNum(F.raw_product) ? faMult(F.raw_product) : "—", lo: faMult(B[0]), hi: faMult(B[1])})) + "</p>";
+  }
+  if (E.floored === true) {
+    h += '<p class="fa-warn">' + esc(T("tg.act.fa_floored", "Ставка не ниже минимальной: {p}.", {p: isNum(E.min_pct) ? rfFmt(E.min_pct) : "—"})) + "</p>";
+  }
+  if (E.available === true) {
+    h += '<p class="rf-mode fa-st' + (ap ? " ap" : "") + '">' + esc(ap ? T("tg.act.fa_applied", "Ставка и премия акта посчитаны с этими коэффициентами.")
+      : T("tg.act.fa_ref_note", "Справочно: ставка акта не менялась. Так изменилась бы ставка, если применить коэффициенты.")) + "</p>";
+  }
+  if (unf.length) {
+    h += '<h3 class="rf-h">' + esc(T("tg.act.fa_unfilled", "Уточнить")) + '</h3><ul class="fa-unf">' + unf.map(u => "<li>" + esc(u) + "</li>").join("") + "</ul>";
+  }
+  const ex = anArr(F.explain).map(anStr).filter(Boolean);
+  if (ex.length) {
+    h += '<details class="mini fa-how"><summary>' + esc(T("tg.act.fa_how", "Как посчитано")) + "</summary><ul>" + ex.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></details>";
+  }
+  return h;
+}
+function faCardHtml(a){
+  if (!a || !a.factor_adjustment) return "";
+  const F = anObj(a.factor_adjustment), title = T("tg.act.fa_title", "Факторы объекта");
+  // класс без групп факторов — карточки нет
+  if (F.reason === "no_groups") return "";
+  const uncal = '<p class="fa-uncal">' + esc(T("tg.act.fa_uncal", "Экспертные коэффициенты, не калибровано.")) + "</p>";
+  const parts = F.by_parts === true ? anArr(F.parts).filter(p => p && p.available === true) : [];
+  const ap = F.by_parts === true ? parts.some(p => p.mode === "apply" && anObj(p.effect).applied_to_act === true)
+    : F.mode === "apply" && anObj(F.effect).applied_to_act === true;
+  const head = '<div class="rf-top"><h2>' + esc(title) + "</h2>" + (F.available === true ? faModeTag(ap) : "") + "</div>";
+  const open = '<section class="card act-card fa" id="faCard" aria-label="' + esc(title) + '">' + head;
+  if (F.available !== true) {
+    return F.reason === "old_act" ? open + '<p class="note">' + esc(T("tg.act.fa_old", "Для этого акта факторы объекта не посчитаны — сформируйте акт заново.")) + "</p></section>" : "";
+  }
+  if (F.by_parts === true) {
+    if (!parts.length) return "";
+    return open + parts.map(p => '<div class="fa-part" data-fapart="' + esc(anStr(p.index)) + '"><h3 class="an-h4">'
+      + esc(T("tg.act.fa_part", "Часть {n}, класс {c}", {n: anStr(p.index), c: anStr(p.class_code)}) + (anStr(p.label) ? " · " + anStr(p.label) : "")) + "</h3>"
+      + faBodyHtml(p) + "</div>").join("") + uncal + "</section>";
+  }
+  return open + faBodyHtml(F) + uncal + "</section>";
+}
+/* ---------- /факторы объекта ---------- */
 /* ---------- шаг 3: «Аналитика риска» (заказчик 30.09.2026: «нужно дать более детализированную аналитику») ----------
    Всё — из ответа сервера a.analytics (app/act.py → _analytics_view): числа и подписи на языке акта. Коды (уровень,
    источник, вердикт, что ввести) выбирают только оформление и подпись словаря; неизвестный код на экран не выводится.

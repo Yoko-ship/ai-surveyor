@@ -22,6 +22,10 @@
 5. clauses, required_views, discrepancies, decision — по ТЗ 5, 8.5, 8.6, 7.
 9. Комплексные продукты по частям (30.09.2026): ставки частей из текста тарифа, минимум класса части, ставка части,
    деление суммы, сопоставление объектов договора с классами, сценарии, удержание и итоги договора.
+10. Минимальная ставка страховщика и заниженная ставка (01.10.2026): тип ставки продукта (annual — премия = сумма ×
+   ставка × дни / 365; fixed — сумма × ставка на весь срок, годовой эквивалент × 365 / дни для рынка) и
+   below_min_assess — можно ли застраховать по запрошенной ставке ниже минимальной: да / да при условиях / нет,
+   доводы за и против с цифрами. Правило разработчика (настройки below_min), не утверждено страховщиком.
 """
 import math
 import re
@@ -115,6 +119,25 @@ DEFAULT_SETTINGS = {
                    "cap_at_market": True},
         "calibrated": 0,
     },
+    # оценка заниженной ставки (01.10.2026, задание заказчика «если ниже тарифа — можно ли застраховать: да/нет,
+    # почему»): ставка запроса филиала, договора или введённая сотрудником ниже минимальной ставки страховщика.
+    # Правило разработчика, не утверждено страховщиком; окончательное решение — андеррайтер. Экспертно, calibrated = 0.
+    #   min_share_pct     — запрошенная ставка не ниже стольких % минимальной (иначе «нет»);
+    #   market_max_ratio  — для «да»: рыночная ставка класса не выше запрошенной (годовой) более чем во столько раз…
+    #   low_loss_ratio_pct — …или убыточность класса по НАПП ниже этого порога;
+    #   losses_block      — убытков за 3 года, с которых — «нет» без обсуждения;
+    #   net_check         — calibrated: запрошенная ниже нетто-ставки расчётного модуля даёт «нет», только если базовая
+    #                       ставка класса калибрована на статистике компании (экспертная нетто-ставка — довод «против»
+    #                       и условие «подтвердить»); always — «нет» и по экспертной нетто-ставке.
+    "below_min": {"min_share_pct": 60, "market_max_ratio": 2, "low_loss_ratio_pct": 40, "losses_block": 2,
+                  "net_check": "calibrated", "calibrated": 0},
+    # факторы объекта по подгруппам класса (02.10.2026, документ «Факторы тарифа по классам и подгруппам»; группы и
+    # коэффициенты — factor_groups шаблона класса, экспертно, calibrated = 0). Итоговый множитель = произведение
+    # коэффициентов заполненных групп в границах [min_product; max_product].
+    #   mode: reference — ставка акта не меняется, в вилке ставки отметка «с учётом факторов объекта — справочно»
+    #         (ставка акта × множитель, не ниже минимума);
+    #         apply — ставка акта = тариф × поправка уровня × множитель, не ниже минимальной; премия — от неё.
+    "factors": {"mode": "reference", "min_product": 0.5, "max_product": 2.5, "calibrated": 0},
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
@@ -469,10 +492,29 @@ def _percent_in(text: str) -> Optional[float]:
     return float(found[0].replace(",", "."))
 
 
+def premium_by_type(rate_pct: float, sum_insured: float, term_days: int, rate_type: str = "annual") -> float:
+    """Премия по типу ставки продукта (app/min_rates.py): annual — сумма × ставка × дни / 365 (engine.premium_of);
+    fixed — сумма × ставка на весь срок, без деления на срок. 100 млн, 0,5 %, 1 095 дн.: 1 500 000 против 500 000."""
+    if rate_type == "fixed":
+        return rate_pct / 100 * sum_insured
+    return premium_of(rate_pct, sum_insured, term_days)
+
+
+def annual_pct(rate_pct: Optional[float], term_days: int, rate_type: str = "annual") -> Optional[float]:
+    """Годовой эквивалент ставки для сравнения с рынком и нетто-ставкой: fixed × 365 / дни; annual — как есть."""
+    if rate_pct is None:
+        return None
+    if rate_type == "fixed":
+        return round(float(rate_pct) * 365 / max(int(term_days or 365), 1), 6)
+    return float(rate_pct)
+
+
 def rate(ref, product: Optional[dict], class_code: str, level: str, sum_insured: float,
          term_days: int = 365, object_type: Optional[str] = None, payer_type: Optional[str] = None,
-         settings: Optional[dict] = None) -> dict:
+         settings: Optional[dict] = None, rate_type: str = "annual") -> dict:
     """
+    rate_type — тип ставки продукта (app/min_rates.py): annual (по умолчанию) | fixed — ставка на весь срок, премия
+    = сумма × ставка без деления на срок; годовой эквивалент (× 365 / дни) — в annual_equiv_pct для сравнения с рынком.
     product: {"code", "name", "pricing_mode", "rate_text"} или None (выбран только класс).
     Возвращает {"mode": tariff|statutory|undefined, "base_pct", "base_source", "adj_pct", "calc_pct",
                 "applied_pct", "min_pct", "min_applied", "premium", "term_days", "object_type",
@@ -485,7 +527,8 @@ def rate(ref, product: Optional[dict], class_code: str, level: str, sum_insured:
            "applied_pct": None, "min_pct": None, "min_applied": False, "premium": None,
            "term_days": int(term_days), "object_type": object_type, "class_code": class_code,
            "product_code": code, "pricing_mode": mode_raw, "calibrated": CALIBRATED, "how": [],
-           "engine_chain": []}
+           "engine_chain": [], "rate_type": "annual", "annual_equiv_pct": None}
+    rt = "fixed" if rate_type == "fixed" and mode_raw != STATUTORY_MODE else "annual"
 
     if mode_raw in NEGOTIATED_MODES:
         out["mode"] = "undefined"
@@ -556,9 +599,17 @@ def rate(ref, product: Optional[dict], class_code: str, level: str, sum_insured:
         out["how"].append({"code": "how_min_none", "params": {}})
     out["applied_pct"] = round(applied, 4)
     # премия считается от уже округлённой ставки — так ручной пересчёт по акту даёт ту же цифру
-    out["premium"] = round(premium_of(out["applied_pct"], sum_insured, term_days))
-    out["how"].append({"code": "how_premium", "params": {"sum": sum_insured, "rate": out["applied_pct"],
-                                                         "days": term_days, "premium": out["premium"]}})
+    out["rate_type"] = rt
+    out["premium"] = round(premium_by_type(out["applied_pct"], sum_insured, term_days, rt))
+    if rt == "fixed":
+        out["annual_equiv_pct"] = round(annual_pct(out["applied_pct"], term_days, rt), 4)
+        out["how"].append({"code": "how_premium_fixed", "params": {"sum": sum_insured, "rate": out["applied_pct"],
+                                                                   "premium": out["premium"]}})
+        out["how"].append({"code": "how_rate_annual_equiv", "params": {"rate": out["applied_pct"], "days": term_days,
+                                                                       "calc": out["annual_equiv_pct"]}})
+    else:
+        out["how"].append({"code": "how_premium", "params": {"sum": sum_insured, "rate": out["applied_pct"],
+                                                             "days": term_days, "premium": out["premium"]}})
     return out
 
 
@@ -926,6 +977,32 @@ def check_settings(s: dict) -> list:
         if extra:
             errs.append("napp: неизвестные ключи " + ", ".join(extra))
     errs += check_fork_settings((s or {}).get("rate_fork"))
+    errs += check_below_min_settings(m.get("below_min"))
+    errs += check_factor_settings(m.get("factors"))
+    return errs
+
+
+BELOW_MIN_BOUNDS = {"min_share_pct": (0, 100), "market_max_ratio": (1, 100), "low_loss_ratio_pct": (0, 200),
+                    "losses_block": (1, 100)}
+BELOW_MIN_NET = ("calibrated", "always")
+
+
+def check_below_min_settings(bm) -> list:
+    """Настройки оценки заниженной ставки: числа в пределах BELOW_MIN_BOUNDS, net_check — calibrated | always."""
+    if not isinstance(bm, dict):
+        return ["below_min: словарь {min_share_pct, market_max_ratio, low_loss_ratio_pct, losses_block, net_check}"]
+    errs = []
+    for key, (lo, hi) in BELOW_MIN_BOUNDS.items():
+        v = bm.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+            errs.append(f"below_min.{key}: число от {lo} до {hi}")
+    if bm.get("losses_block") is not None and not isinstance(bm.get("losses_block"), bool)             and isinstance(bm.get("losses_block"), (int, float)) and float(bm["losses_block"]) != int(bm["losses_block"]):
+        errs.append("below_min.losses_block: целое число")
+    if bm.get("net_check") not in BELOW_MIN_NET:
+        errs.append("below_min.net_check: calibrated или always")
+    extra = [k for k in bm if k not in BELOW_MIN_BOUNDS and k not in ("net_check", "calibrated")]
+    if extra:
+        errs.append("below_min: неизвестные ключи " + ", ".join(extra))
     return errs
 
 
@@ -1290,8 +1367,11 @@ def _rq_summary(items: list, prefix: str) -> dict:
 
 def request_check(req: Optional[dict], *, rate_res: dict, rate_final: Optional[float],
                   premium_final: Optional[float], sum_insured: float, object_value: float, value: dict, fr: dict,
-                  term_from_request: bool = False, settings: Optional[dict] = None, prefix: str = "rq") -> dict:
+                  term_from_request: bool = False, settings: Optional[dict] = None, prefix: str = "rq",
+                  rate_type: str = "annual") -> dict:
     """
+    rate_type — тип ставки продукта (app/min_rates.py): annual — премия по тарифу документа = сумма × тариф × дни / 365;
+    fixed — сумма × тариф (ставка на весь срок). Ставка документа сравнивается с минимумом в том же типе.
     Сверка запроса филиала с расчётом акта (коды и числа; слова — app/act_texts.py).
     req: {"tariff_pct", "premium", "franchise": {"applied", "text", "pct", "amount"}, "term_from", "term_to",
           "term_days", "sum_insured", "source"} — после проверки ввода (app/act.py validate).
@@ -1340,16 +1420,16 @@ def request_check(req: Optional[dict], *, rate_res: dict, rate_final: Optional[f
     S_req = req.get("sum_insured") or sum_insured
     if pr is None:
         items.append(_rq_item_p("premium_request", None, None, "missing", "rq_premium_none"))
-    elif tr is None or not days_req:
+    elif tr is None or (not days_req and rate_type != "fixed"):
         items.append(_rq_item_p("premium_request", pr, None, "missing", "rq_premium_request_na", req=pr))
     else:
         # до тийинов: расхождение видно точно (123 322 000 − 123 321 917,81 = 82,19)
-        calc = round(premium_of(tr, S_req, days_req), 2)
+        calc = round(premium_by_type(tr, S_req, days_req or 365, rate_type), 2)
         v = "ok" if abs(pr - calc) <= tol + 1e-9 else "differs"
         items.append(_rq_item_p("premium_request", pr, calc, v, None, req=pr, calc=calc, diff=round(pr - calc, 2),
                               tol=tol, rate=tr, sum=S_req, days=days_req))
-        out["how"].append({"code": f"{prefix}_how_premium", "params": {"sum": S_req, "rate": tr, "days": days_req,
-                                                               "premium": calc}})
+        out["how"].append({"code": f"{prefix}_how_premium" + ("_fixed" if rate_type == "fixed" else ""),
+                           "params": {"sum": S_req, "rate": tr, "days": days_req, "premium": calc}})
     # 4. справочно: премия запроса против премии акта (по ставке акта, с учётом применённой франшизы)
     if pr is not None and premium_final is not None:
         v = "ok" if abs(pr - premium_final) <= tol + 1e-9 else "differs"
@@ -1399,7 +1479,8 @@ def request_check(req: Optional[dict], *, rate_res: dict, rate_final: Optional[f
                                "params": {"date_from": req["term_from"], "date_to": req["term_to"],
                                           "days": days_req}})
     out["how"].append({"code": f"{prefix}_how_tol", "params": {"tol": tol}})
-    out["how"].append({"code": f"{prefix}_how_annual", "params": {}})
+    out["how"].append({"code": f"{prefix}_how_" + ("fixed" if rate_type == "fixed" else "annual"), "params": {}})
+    out["rate_type"] = rate_type
     out["items"] = items
     out["summary"] = _rq_summary(items, prefix)
     return out
@@ -1420,7 +1501,8 @@ def request_checks(rc: dict, prefix: str = "rq") -> list:
 
 def contract_check(ct: Optional[dict], *, rate_res: dict, rate_final: Optional[float],
                    premium_final: Optional[float], sum_insured: float, object_value: float, value: dict, fr: dict,
-                   term_from_contract: bool = False, settings: Optional[dict] = None) -> dict:
+                   term_from_contract: bool = False, settings: Optional[dict] = None,
+                   rate_type: str = "annual") -> dict:
     """
     Сверка договора страхования с расчётом акта: те же проверки, что у запроса филиала (request_check,
     тексты ct_*), и ещё три: сумма графика платежей против премии договора (допуск premium_tolerance),
@@ -1430,7 +1512,8 @@ def contract_check(ct: Optional[dict], *, rate_res: dict, rate_final: Optional[f
     """
     out = request_check(ct, rate_res=rate_res, rate_final=rate_final, premium_final=premium_final,
                         sum_insured=sum_insured, object_value=object_value, value=value, fr=fr,
-                        term_from_request=term_from_contract, settings=settings, prefix="ct")
+                        term_from_request=term_from_contract, settings=settings, prefix="ct",
+                        rate_type=rate_type)
     if not out["available"]:
         return out
     tol = out["tolerance"]
@@ -2157,7 +2240,7 @@ FORK_MODES = ("reference", "apply")
 FORK_GROUPS = ("special", "vehicle", "property", "equipment", "cargo", "liability", "other", "*")
 FORK_LR_BASIS = ("last", "full_year")
 FORK_MARKET_BASIS = ("full_year_if_available", "last")
-FORK_MARKS = ("min", "act", "adjusted", "market", "request", "contract", "technical")
+FORK_MARKS = ("min", "act", "adjusted", "market", "request", "contract", "technical", "factors")
 
 
 def fork_settings(st: Optional[dict]) -> dict:
@@ -2437,11 +2520,13 @@ def _mark(code, rate, S, term, source, note=None, **params) -> dict:
 def fork_build(*, rate_res: dict, adj: Optional[dict], sum_insured: float, market: dict, sources: dict,
                request_pct: Optional[float] = None, contract_pct: Optional[float] = None,
                technical_pct: Optional[float] = None, premium_final: Optional[float] = None,
-               franchise_applied: bool = False, mode: str = "reference") -> dict:
+               franchise_applied: bool = False, mode: str = "reference", factors: Optional[dict] = None) -> dict:
     """
     Вилка ставки одного класса (коды и числа). sources — источники из базы (act_analytics.fork_data):
     policy, policy_act, adjusted, market, request, contract, technical, statutory. Отметки по шкале: min, act,
     adjusted, market, затем ставки документов (request, contract) и справочная техническая (technical).
+    factors — factor_adjust с effect (02.10.2026): в режиме reference и при заполненных факторах — последняя отметка
+    factors «с учётом факторов объекта — справочно» = ставка акта × множитель, не ниже минимума (factor_mark).
     """
     S = float(sum_insured or 0)
     term = int(rate_res.get("term_days") or 365)
@@ -2495,6 +2580,10 @@ def fork_build(*, rate_res: dict, adj: Optional[dict], sum_insured: float, marke
             marks.append(_mark(code, val, S, term, sources.get(code), "pos_" + pos))
     if technical_pct is not None:
         marks.append(_mark("technical", technical_pct, S, term, sources.get("technical"), "technical"))
+    fm = factor_mark(adj["act_pct"], factors, minp)
+    if fm is not None:
+        marks.append(_mark("factors", fm[0], S, term, {"kind": "factors"}, "factors_min" if fm[1] else "factors",
+                           mult=(factors or {}).get("product")))
     rec_code = "adjusted" if applied else "act"
     for m in marks:
         m["is_recommended"] = m["code"] == rec_code
@@ -2548,3 +2637,369 @@ def fork_contract(parts: list, sum_insured: float, term_days: int, request_pct: 
     out.update(marks=marks, available=bool(rec),
                recommended={"code": rec_code, "rate_pct": rec["rate_pct"], "premium": rec["premium"]} if rec else None)
     return out
+
+
+# ================================================================================================
+#  10. Оценка заниженной ставки (01.10.2026): «можно ли застраховать по ставке ниже минимальной — да / нет, почему»
+# ================================================================================================
+
+BM_VERDICTS = ("allowed", "allowed_with_conditions", "not_allowed")
+BM_CONDITIONS = ("cond_franchise", "cond_measures", "cond_territory", "cond_reinspect", "cond_docs_confirm",
+                 "cond_uw_authority")
+
+
+def _bm_reason(code: str, sign: str, value=None, effect: str = "none", **params) -> dict:
+    """Довод оценки: sign — for | against; effect — что довод делает с ответом: blocks («нет» без обсуждения),
+    no_conditions (нельзя и «при условиях» — «нет»), no_yes (не выше «да при условиях»), none (справочно)."""
+    return {"code": code, "sign": sign, "value": value, "effect": effect, "params": params}
+
+
+def below_min_assess(*, requested_pct: Optional[float], requested_source: Optional[str], min_pct: Optional[float],
+                     rate_type: str = "annual", term_days: int = 365, sum_insured: float = 0,
+                     statutory: bool = False, level: Optional[str] = None, losses_count: Optional[int] = None,
+                     documents: Optional[bool] = None, object_new: Optional[bool] = None,
+                     net_pct: Optional[float] = None, net_calibrated: bool = False,
+                     retention_within: Optional[bool] = None, eml: Optional[float] = None,
+                     retention_limit: Optional[float] = None, market_rate_pct: Optional[float] = None,
+                     loss_ratio_pct: Optional[float] = None, settings: Optional[dict] = None) -> dict:
+    """
+    Можно ли застраховать объект по запрошенной ставке ниже минимальной ставки страховщика (коды и числа; слова —
+    app/act_texts.py). Правило разработчика, не утверждено страховщиком; окончательное решение — андеррайтер.
+
+    «нет» без обсуждения (effect = blocks): обязательный вид (тариф нормативного акта); уровень риска высокий;
+    убытков за 3 года ≥ losses_block; запрошенная ставка (годовая) ниже нетто-ставки расчётного модуля — если
+    нетто-ставка известна и калибрована (net_check = always — и экспертная); EML выше лимита удержания; документов
+    на объект нет.
+    «нет» (effect = no_conditions): запрошенная ставка ниже min_share_pct % минимальной; был убыток (меньше losses_block).
+    «да при условиях»: уровень не выше умеренного, убытков нет, ставка не ниже min_share_pct % минимальной и не ниже
+    нетто-ставки; условия — франшиза, мероприятия, ограничение территории, повторный осмотр, подтверждение документов,
+    решение андеррайтера с полномочиями по отступлению (+ справка об убытках, подтверждение нетто-ставки — если их нет).
+    «да»: дополнительно уровень низкий, объект новый с документами, убытков нет (известно), ставка покрывает нетто-ставку
+    (известно) и рыночная ставка класса не выше запрошенной более чем в market_max_ratio раз или убыточность класса
+    ниже low_loss_ratio_pct %. Условие — решение андеррайтера с полномочиями по отступлению.
+    Ставки сравниваются в одном типе: фиксированная (на весь срок) пересчитывается в годовую (× 365 / дни) для
+    сравнения с рынком и нетто-ставкой. Недобор премии за срок = (минимум − запрошенная) × сумма (× дни / 365 у годовой).
+    Запрошенная ставка не ниже минимальной (или чего-то нет) — available = false: оценки нет, сверка как раньше.
+    """
+    st = merge_settings(settings).get("below_min") or DEFAULT_SETTINGS["below_min"]
+    out = {"available": False, "reason": None, "requested_pct": requested_pct, "requested_source": requested_source,
+           "min_pct": min_pct, "rate_type": rate_type, "calibrated": CALIBRATED,
+           "rule": {k: st.get(k) for k in ("min_share_pct", "market_max_ratio", "low_loss_ratio_pct", "losses_block",
+                                           "net_check")}}
+    if requested_pct is None:
+        out["reason"] = "no_requested"
+        return out
+    if min_pct is None:
+        out["reason"] = "no_min"
+        return out
+    req, mn = float(requested_pct), float(min_pct)
+    if req + 1e-9 >= mn:
+        out["reason"] = "not_below"
+        return out
+    term = int(term_days or 365)
+    S = float(sum_insured or 0)
+    gap = round(mn - req, 6)
+    gap_rel = round(gap / mn * 100, 2) if mn else None
+    share = round(req / mn * 100, 2) if mn else None
+    req_y = annual_pct(req, term, rate_type)
+    shortfall = round(premium_by_type(gap, S, term, rate_type))
+    reasons, conds = [], []
+
+    # 1. обязательный вид
+    if statutory:
+        reasons.append(_bm_reason("bm_statutory", "against", True, "blocks"))
+    # 2. уровень риска
+    if level == "high":
+        reasons.append(_bm_reason("bm_level", "against", level, "blocks", level=level))
+    elif level == "moderate":
+        reasons.append(_bm_reason("bm_level", "against", level, "no_yes", level=level))
+    elif level == "low":
+        reasons.append(_bm_reason("bm_level", "for", level, "none", level=level))
+    # 3. убытки за 3 года
+    block = int(st.get("losses_block", 2))
+    if losses_count is None:
+        reasons.append(_bm_reason("bm_losses_unknown", "against", None, "no_yes"))
+        conds.append("cond_losses_cert")
+    elif losses_count >= block:
+        reasons.append(_bm_reason("bm_losses", "against", losses_count, "blocks", n=losses_count, block=block))
+    elif losses_count > 0:
+        reasons.append(_bm_reason("bm_losses_some", "against", losses_count, "no_conditions", n=losses_count))
+    else:
+        reasons.append(_bm_reason("bm_losses_none", "for", 0, "none"))
+    # 4. нетто-ставка расчётного модуля: покрывает ли запрошенная ставка ожидаемый убыток
+    if net_pct is None:
+        reasons.append(_bm_reason("bm_net_unknown", "against", None, "no_yes"))
+        conds.append("cond_net_confirm")
+    elif req_y + 1e-9 >= float(net_pct):
+        reasons.append(_bm_reason("bm_net_ok", "for", round(float(net_pct), 4), "none", req=round(req_y, 4),
+                                  net=round(float(net_pct), 4), calibrated=bool(net_calibrated)))
+    elif net_calibrated or st.get("net_check") == "always":
+        reasons.append(_bm_reason("bm_net_below", "against", round(float(net_pct), 4), "blocks", req=round(req_y, 4),
+                                  net=round(float(net_pct), 4), calibrated=bool(net_calibrated)))
+    else:
+        reasons.append(_bm_reason("bm_net_below_expert", "against", round(float(net_pct), 4), "no_yes",
+                                  req=round(req_y, 4), net=round(float(net_pct), 4), calibrated=False))
+        conds.append("cond_net_confirm")
+    # 5. удержание: EML против лимита на один риск (Положение 1806, п. 15)
+    if retention_within is False:
+        reasons.append(_bm_reason("bm_retention_over", "against", eml, "blocks", eml=eml, limit=retention_limit))
+    elif retention_within is True:
+        reasons.append(_bm_reason("bm_retention_ok", "for", eml, "none", eml=eml, limit=retention_limit))
+    else:
+        reasons.append(_bm_reason("bm_retention_unknown", "against", None, "none"))
+    # 6. документы на объект
+    if documents:
+        reasons.append(_bm_reason("bm_docs", "for", True, "none"))
+    else:
+        reasons.append(_bm_reason("bm_no_docs", "against", False, "blocks"))
+    # 7. насколько ставка ниже минимума
+    lim_share = float(st.get("min_share_pct", 60))
+    if share is not None and share + 1e-9 >= lim_share:
+        reasons.append(_bm_reason("bm_share_ok", "for", share, "none", share=share, lim=lim_share))
+    else:
+        reasons.append(_bm_reason("bm_share_low", "against", share, "no_conditions", share=share, lim=lim_share))
+    # 8. объект новый
+    if object_new and documents:
+        reasons.append(_bm_reason("bm_new", "for", True, "none"))
+    else:
+        reasons.append(_bm_reason("bm_not_new", "against", object_new, "no_yes"))
+    # 9. рынок класса (НАПП): ставка и убыточность
+    ratio_max = float(st.get("market_max_ratio", 2))
+    lr_low = float(st.get("low_loss_ratio_pct", 40))
+    market_ok = lr_ok = None
+    if market_rate_pct is not None and req_y:
+        ratio = round(float(market_rate_pct) / req_y, 2)
+        market_ok = ratio <= ratio_max + 1e-9
+        reasons.append(_bm_reason("bm_market_ok" if market_ok else "bm_market_high", "for" if market_ok else "against",
+                                  ratio, "none", market=market_rate_pct, req=round(req_y, 4), ratio=ratio,
+                                  lim=ratio_max))
+    if loss_ratio_pct is not None:
+        lr_ok = float(loss_ratio_pct) < lr_low
+        reasons.append(_bm_reason("bm_lr_low" if lr_ok else "bm_lr_high", "for" if lr_ok else "against",
+                                  round(float(loss_ratio_pct), 2), "none", lr=round(float(loss_ratio_pct), 2),
+                                  lim=lr_low))
+    if not (market_ok or lr_ok):
+        reasons.append(_bm_reason("bm_market_unknown" if market_ok is None and lr_ok is None else "bm_market_no",
+                                  "against", None, "no_yes", lim=ratio_max, lr_lim=lr_low))
+    # 10. разрыв до минимума и недобор премии — всегда «против», справочно
+    reasons.append(_bm_reason("bm_gap", "against", gap, "none", gap=gap, gap_rel=gap_rel, shortfall=shortfall,
+                              days=term, rate_type=rate_type))
+
+    effects = {r["effect"] for r in reasons}
+    if "blocks" in effects or "no_conditions" in effects:
+        verdict = "not_allowed"
+    elif "no_yes" in effects:
+        verdict = "allowed_with_conditions"
+    else:
+        verdict = "allowed"
+    if verdict == "allowed_with_conditions":
+        conditions = list(BM_CONDITIONS[:-1]) + [c for c in conds if c not in BM_CONDITIONS] + ["cond_uw_authority"]
+    elif verdict == "allowed":
+        conditions = ["cond_uw_authority"]
+    else:
+        conditions = []
+    out.update(available=True, reason=None, gap_pct=gap, gap_rel_pct=gap_rel, share_pct=share,
+               requested_annual_pct=round(req_y, 4) if rate_type == "fixed" else None,
+               shortfall=shortfall, term_days=term, sum_insured=S, verdict=verdict,
+               hard="blocks" in effects, reasons=reasons, conditions=conditions)
+    return out
+
+
+
+# ================================================================================================
+#  13. Факторы объекта по подгруппам класса (02.10.2026)
+# ================================================================================================
+#
+# Документ «Факторы тарифа по классам и подгруппам» (02.10.2026): у каждого класса — подгруппы объектов и факторы,
+# которые повышают (+) или понижают (−) тариф. В шаблоне класса (class_templates, файл 1.4.0) — factor_groups:
+# группа {code, label, input, options: [{code, label, coef, note}]}; значение группы — поле optional шаблона
+# (optional.class_fields.<код> или уточнение акта optional.location / protection / construction). Коэффициенты
+# экспертные (calibrated = 0), утверждает актуарий страховщика.
+#   * множитель = произведение коэффициентов заполненных групп, в границах настроек factors.min_product …
+#     max_product; незаполненная группа ставку не меняет и уходит в «уточнить»;
+#   * reference (по умолчанию) — ставка акта прежняя, в вилке отметка factors = ставка акта × множитель, не ниже
+#     минимума; apply — ставка акта = тариф × поправка уровня × множитель, не ниже минимальной; премия от неё.
+# Пример (класс 3, автокран 0318, 2 945 000 000 сум, 365 дней, ставка акта 0,42 % = 0,35 % × 1,2): дизель 1,05 ×
+# такси и аренда 1,4 × открытая площадка 1,15 = 1,6905 → 0,42 % × 1,6905 = 0,71 % (0,71001 → 0,71);
+# премия 12 369 000 → 20 909 500 сум (справочно; в режиме apply — премия акта).
+
+FACTOR_MODES = ("reference", "apply")
+FACTOR_PRODUCT_LIMITS = (0.1, 10.0)       # пределы самих границ множителя в настройке (защита от опечатки)
+
+
+def factor_settings(settings: Optional[dict]) -> dict:
+    """Настройки факторов объекта поверх умолчаний: {mode, min_product, max_product, calibrated}."""
+    d = DEFAULT_SETTINGS["factors"]
+    raw = (settings or {}).get("factors") if isinstance((settings or {}).get("factors"), dict) else {}
+    out = {**d, **raw}
+    out["calibrated"] = CALIBRATED
+    return out
+
+
+def check_factor_settings(fs) -> list:
+    """Настройка factors: mode — reference | apply; 0,1 ≤ min_product ≤ 1 ≤ max_product ≤ 10; calibrated — 0."""
+    if not isinstance(fs, dict):
+        return ["factors: словарь {mode, min_product, max_product}"]
+    errs = []
+    extra = [k for k in fs if k not in ("mode", "min_product", "max_product", "calibrated")]
+    if extra:
+        errs.append("factors: неизвестные ключи " + ", ".join(extra))
+    if fs.get("mode") not in FACTOR_MODES:
+        errs.append("factors.mode: reference или apply")
+    lo_lim, hi_lim = FACTOR_PRODUCT_LIMITS
+    lo, hi = fs.get("min_product"), fs.get("max_product")
+    if isinstance(lo, bool) or not isinstance(lo, (int, float)) or not lo_lim <= lo <= 1:
+        errs.append("factors.min_product: число от " + f"{lo_lim:g}".replace(".", ",") + " до 1")
+    if isinstance(hi, bool) or not isinstance(hi, (int, float)) or not 1 <= hi <= hi_lim:
+        errs.append("factors.max_product: число от 1 до " + f"{hi_lim:g}".replace(".", ","))
+    if "calibrated" in fs and fs["calibrated"] != 0:
+        errs.append("factors.calibrated: 0 — коэффициенты экспертные, не калиброваны")
+    return errs
+
+
+def _round4(x: float) -> float:
+    """Множитель до 4 знаков по правилу «половина — вверх» (0,87975 → 0,8798, а не 0,8797 из-за двоичной записи)."""
+    return round_half_up(float(x) * 10000 + 1e-9) / 10000
+
+
+def _factor_value(group: dict, class_fields: dict, refinements: dict) -> Optional[str]:
+    """Значение группы из ввода: optional.class_fields.<код> — поля класса, optional.<код> — уточнения акта;
+    да/нет → yes / no (варианты группы для поля «да/нет»)."""
+    inp = str(group.get("input") or "")
+    if inp.startswith("optional.class_fields."):
+        v = class_fields.get(inp[len("optional.class_fields."):])
+    elif inp.startswith("optional."):
+        v = refinements.get(inp[len("optional."):])
+    else:
+        v = None
+    if isinstance(v, bool):
+        return "yes" if v else "no"
+    return None if v in (None, "") else str(v)
+
+
+def factor_adjust(class_fields: Optional[dict], template: Optional[dict], settings: Optional[dict] = None,
+                  refinements: Optional[dict] = None) -> dict:
+    """
+    Факторы объекта по группам шаблона класса (factor_groups). class_fields — поля класса акта
+    (optional.class_fields), refinements — уточнения акта (optional: location, protection, construction …).
+    Возвращает {"mode", "product", "raw_product", "clamped", "bounds", "applied": [{group, group_label, option,
+    label, coef, note}], "unfilled": [{group, label}], "groups", "calibrated": 0}. Подписи — как в шаблоне
+    ({ru, uz, en}), слова на языке акта собирает app/act.py.
+    Пример: дизель 1,05 × такси 1,4 × улица 1,15 = 1,6905; электро 1,15 × гараж 0,85 × личное 0,9 = 0,8798.
+    """
+    fs = factor_settings(settings)
+    cf, rf = dict(class_fields or {}), dict(refinements or {})
+    groups = [g for g in (template or {}).get("factor_groups") or [] if isinstance(g, dict) and g.get("code")]
+    applied, unfilled = [], []
+    raw = 1.0
+    for g in groups:
+        v = _factor_value(g, cf, rf)
+        opt = next((o for o in g.get("options") or [] if isinstance(o, dict) and o.get("code") == v), None) \
+            if v is not None else None
+        if opt is None:
+            unfilled.append({"group": g["code"], "label": g.get("label")})
+            continue
+        coef = float(opt["coef"])
+        raw *= coef
+        applied.append({"group": g["code"], "group_label": g.get("label"), "option": opt["code"],
+                        "label": opt.get("label"), "coef": coef, "note": opt.get("note")})
+    lo, hi = float(fs["min_product"]), float(fs["max_product"])
+    prod = min(hi, max(lo, raw))
+    return {"mode": fs["mode"], "product": _round4(prod), "raw_product": _round4(raw),
+            "clamped": "max" if raw > hi + 1e-12 else ("min" if raw < lo - 1e-12 else None), "bounds": [lo, hi],
+            "applied": applied, "unfilled": unfilled, "groups": len(groups), "calibrated": CALIBRATED}
+
+
+def factor_mark(act_pct: Optional[float], fa: Optional[dict], min_pct: Optional[float]) -> Optional[tuple]:
+    """Отметка вилки «с учётом факторов объекта» (режим reference): (ставка акта × множитель, округлена до 4 знаков,
+    не ниже минимума; поднята ли до минимума). None — режим apply, факторы не заполнены или ставки нет."""
+    if not fa or fa.get("mode") != "reference" or not fa.get("applied") or act_pct is None:
+        return None
+    if (fa.get("effect") or {}).get("available") is False:
+        return None
+    r = round(float(act_pct) * float(fa["product"]), 4)
+    if min_pct is not None and r + 1e-12 < float(min_pct):
+        return round(float(min_pct), 4), True
+    return r, False
+
+
+def factor_effect(fa: dict, rate_res: dict, sum_insured: float) -> dict:
+    """
+    Как факторы объекта меняют ставку и премию (fa["effect"]) и, в режиме apply, ставку акта (rate_res — на месте).
+    База: reference — ставка акта (applied_pct); apply — тариф × поправка уровня (calc_pct) до минимума. Шаги —
+    по каждому фактору: ставка после него и вклад в премию в сумах (премии считаются от ставок, округлённых до
+    4 знаков, — сумма вкладов равна разнице премий). Границы множителя и минимальная ставка — отдельные шаги.
+    reason (effect недоступен): statutory — обязательный вид, ставка по нормативному акту без поправок; no_rate —
+    ставки нет (по программе, по согласованию); none_filled — ни одна группа не заполнена.
+    """
+    eff = {"available": False, "reason": None, "applied_to_act": False, "calibrated": CALIBRATED}
+    fa["effect"] = eff
+    mode = rate_res.get("mode")
+    if mode in ("statutory", "statutory_undefined"):
+        eff["reason"] = "statutory"
+        return fa
+    if mode != "tariff" or rate_res.get("applied_pct") is None:
+        eff["reason"] = "no_rate"
+        return fa
+    if not fa.get("applied"):
+        eff["reason"] = "none_filled"
+        return fa
+    S = float(sum_insured or 0)
+    term = int(rate_res.get("term_days") or 365)
+    rt = rate_res.get("rate_type") or "annual"
+    minp = rate_res.get("min_pct")
+
+    def prem(x):
+        return round(premium_by_type(round(float(x), 4), S, term, rt))
+
+    apply = fa.get("mode") == "apply"
+    base = float(rate_res["calc_pct"] if apply and rate_res.get("calc_pct") is not None else rate_res["applied_pct"])
+    p0 = prem(base)
+    steps, r, prev = [], base, p0
+    for a in fa["applied"]:
+        r *= a["coef"]
+        p = prem(r)
+        steps.append({"kind": "factor", "group": a["group"], "option": a["option"], "coef": a["coef"],
+                      "rate_pct": round(r, 4), "premium": p, "premium_delta": p - prev})
+        prev = p
+    rate = round(base * float(fa["product"]), 4)
+    if fa.get("clamped"):
+        p = prem(rate)
+        steps.append({"kind": "bound", "group": None, "option": fa["clamped"], "coef": fa["product"],
+                      "rate_pct": rate, "premium": p, "premium_delta": p - prev})
+        prev = p
+    floored = False
+    if minp is not None and rate + 1e-12 < float(minp):
+        rate, floored = round(float(minp), 4), True
+        p = prem(rate)
+        steps.append({"kind": "min", "group": None, "option": None, "coef": None, "rate_pct": rate, "premium": p,
+                      "premium_delta": p - prev})
+        prev = p
+    premium = prem(rate)
+    eff.update(available=True, reason=None, base="calc" if apply else "act", base_pct=round(base, 4),
+               base_premium=p0, rate_pct=rate, premium=premium, delta_premium=premium - p0, floored=floored,
+               min_pct=minp, rate_type=rt, term_days=term, sum_insured=S, steps=steps)
+    if apply:
+        rate_res["factor_act_pct"] = rate_res["applied_pct"]
+        rate_res["factor_act_premium"] = rate_res.get("premium")
+        rate_res["factors_applied"] = True
+        rate_res["factor_product"] = fa["product"]
+        how = [h for h in rate_res["how"] if h["code"] not in ("how_premium", "how_premium_fixed", "how_min_applied", "how_min_ok",
+                                                              "how_rate_annual_equiv")]
+        how.append({"code": "how_factors", "params": {"calc": round(base, 4), "fmult": fa["product"],
+                                                      "rate": round(base * float(fa["product"]), 4)}})
+        if floored:
+            how.append({"code": "how_factors_min", "params": {"min": minp}})
+        rate_res["applied_pct"] = rate
+        rate_res["min_applied"] = floored
+        rate_res["premium"] = premium
+        if rt == "fixed":
+            rate_res["annual_equiv_pct"] = round(annual_pct(rate, term, rt), 4)
+            how.append({"code": "how_premium_fixed", "params": {"sum": S, "rate": rate, "premium": premium}})
+            how.append({"code": "how_rate_annual_equiv", "params": {"rate": rate, "days": term,
+                                                                    "calc": rate_res["annual_equiv_pct"]}})
+        else:
+            how.append({"code": "how_premium", "params": {"sum": S, "rate": rate, "days": term, "premium": premium}})
+        rate_res["how"] = how
+        eff["applied_to_act"] = True
+    return fa

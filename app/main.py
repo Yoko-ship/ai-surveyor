@@ -297,6 +297,10 @@ REF_SQL = {
 
 @app.get("/reference/{name}")
 def reference(name: str):
+    if name == "min-rates":
+        # минимальные ставки страховщика с версиями (app/min_rates.py); путь общий с остальными справочниками
+        from . import min_rates
+        return min_rates.list_min_rates()
     if name not in REF_SQL:
         raise HTTPException(404, "Нет такого справочника")
     with db.tx() as con:
@@ -1044,7 +1048,7 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
                     ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),
                     ("legal", "legal_router"), ("surveyor_chat", "surveyor_chat_router"),
-                    ("act", "act_router")):
+                    ("act", "act_router"), ("min_rates", "min_rates_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

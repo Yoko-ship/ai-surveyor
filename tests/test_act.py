@@ -24,6 +24,8 @@ llm.chat_raw отдаёт заготовленный ответ, llm._post бр�
 договор из частей, класс без аналитики), первая страница PDF и секция Word с картинкой, scoring.pdf/png и права,
 отчёт кредитного бюро КАТМ (PDF с текстом на выдуманных данных, физлицо без ФИО, скан с подменённой моделью,
 проверки заёмщика, правки сотрудника, классы 14/15 и не кредитный), три языка.
+Проверки 46 (02.10.2026): факторы объекта по подгруппам класса (шаблоны 1.4.0, factor_groups) — множитель, режимы
+reference (премии прежние) и apply (не ниже минимума), незаполненное — в «уточнить», проверка шаблона, части 0305.
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
 import asyncio
@@ -5391,9 +5393,9 @@ def check_templates_ref():
     print("41а. Шаблоны всех классов: файл, таблица class_templates, структура, доли, оговорки, мероприятия, ракурсы")
     from app import class_templates as ctm
     data = ctm.load_file()
-    ok("файл шаблонов: версия 1.3.0 от 01.10.2026, 20 шаблонов: 1–18, 13з, 16у (свои, без ссылок); классов жизни "
+    ok("файл шаблонов: версия 1.4.0 от 02.10.2026, 20 шаблонов: 1–18, 13з, 16у (свои, без ссылок); классов жизни "
        "и блока classification.life_classes_uz нет",
-       data["version"] == "1.3.0" and data["date"] == "2026-10-01" and list(data["classes"]) ==
+       data["version"] == "1.4.0" and data["date"] == "2026-10-02" and list(data["classes"]) ==
        [str(i) for i in range(1, 19)] + ["13з", "16у"] and data["aliases"] == {}
        and "life_classes_uz" not in (data.get("classification") or {}),
        list(data["classes"]))
@@ -5461,8 +5463,8 @@ def check_templates_api():
     print("41б. API шаблонов: список, класс на трёх языках, история; PUT — проверка структуры и новая версия")
     fresh()
     st, lst = call("GET", "/act/templates", params={"lang": "ru"})
-    ok("GET /act/templates — 20 шаблонов кратко (18 классов + 13з, 16у), версия файла 1.3.0, признак variant",
-       st == 200 and len(lst["templates"]) == 20 and lst["file_version"] == "1.3.0"
+    ok("GET /act/templates — 20 шаблонов кратко (18 классов + 13з, 16у), версия файла 1.4.0, признак variant",
+       st == 200 and len(lst["templates"]) == 20 and lst["file_version"] == "1.4.0"
        and [x["class_code"] for x in lst["templates"]] == [str(i) for i in range(1, 19)] + ["13з", "16у"]
        and lst["counts"] == {"всего": 20, "классов": 18, "вариантов": 2}
        and [x["class_code"] for x in lst["templates"] if x["variant"]] == ["13з", "16у"]
@@ -5516,12 +5518,12 @@ def check_templates_api():
         new["risks"]["items"][0]["share_pct"] = 20.2          # 20,2 + 30 + 30 + 15 = 95,2 → поправим травму
         new["risks"]["items"][3]["share_pct"] = 19.6          # сумма 99,8 — в пределах ± 0,5
         st, r = call("PUT", "/act/templates/1", {"template": new, "note": "тест: доли НС"})
-        ok("PUT с хорошей структурой — новая версия 1.4 (правка администратора к файлу 1.3.0)",
-           st == 200 and r["version"] == "1.4" and r["source"] == "admin"
+        ok("PUT с хорошей структурой — новая версия 1.5 (правка администратора к файлу 1.4.0)",
+           st == 200 and r["version"] == "1.5" and r["source"] == "admin"
            and r["template"]["risks"]["items"][0]["share_pct"] == 20.2, (st, str(r)[:300]))
         st, h = call("GET", "/act/templates/1/history")
-        ok("история: версия файла 1.3.0 и правка 1.4 — обе сохранены",
-           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.3.0", "file"), ("1.4", "admin")],
+        ok("история: версия файла 1.4.0 и правка 1.5 — обе сохранены",
+           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.4.0", "file"), ("1.5", "admin")],
            h)
         # файл той же версии правку не затирает
         from app import class_templates as ctm
@@ -5529,16 +5531,16 @@ def check_templates_api():
         with db.tx() as con:
             ctm.ensure(con)
             cur = ctm.current(con, "1")
-        ok("ensure с файлом 1.3.0 не затирает правку 1.4", cur["version"] == "1.4" and cur["source"] == "admin",
+        ok("ensure с файлом 1.4.0 не затирает правку 1.5", cur["version"] == "1.5" and cur["source"] == "admin",
            cur["version"])
         st, a = call("POST", "/act/make", {"lang": "ru", "must": {"class_code": "1", "sum_insured": 1_000_000_000,
                                                                 "object_value": 1_000_000_000, "region": "Ташкент"}})
         shares = {i["code"]: i["share_of_net_pct"] for i in a["analytics"]["risks"]["items"]}
         ok("акт класса 1 берёт действующую версию шаблона (смерть 20,2 %)",
-           st == 200 and shares.get("pa_death") == 20.2 and a["template"]["version"] == "1.4", shares)
+           st == 200 and shares.get("pa_death") == 20.2 and a["template"]["version"] == "1.5", shares)
         # вернуть доли файла: ещё одна версия (история не удаляется)
         st, r = call("PUT", "/act/templates/1", {"template": good})
-        ok("возврат долей — версия 1.5, история из трёх строк", st == 200 and r["version"] == "1.5", r.get("version"))
+        ok("возврат долей — версия 1.6, история из трёх строк", st == 200 and r["version"] == "1.6", r.get("version"))
     finally:
         HEADERS.clear()
 
@@ -5823,8 +5825,10 @@ def check_templates_class18():
        and [m["method"] for m in t["valuation_methods"]] == [6] and t["object"]["people"] is True)
     ok("класс 18: дополнительные — возраст агрегатами, сеть клиник, франшиза, сооплата, период ожидания, обращения, "
        "средний счёт, убытки за 3 года",
-       [f["code"] for f in t["optional"]] == ["age_structure", "clinics", "deductible", "copay_pct", "waiting_days",
-                                              "avg_visits", "avg_bill", "losses_3y"]
+       [f["code"] for f in t["optional"] if not f.get("factor")] == ["age_structure", "clinics", "deductible",
+                                                                     "copay_pct", "waiting_days", "avg_visits",
+                                                                     "avg_bill", "losses_3y"]
+       and [f["code"] for f in t["optional"] if f.get("factor")] == ["occupation_group", "program_level"]
        and "агрегаты" in t["optional"][0]["label"]["ru"])
     shares = [(r["code"], r["share_pct"]) for r in t["risks"]["items"]]
     ok("класс 18: риски — амбулатория 35, стационар 30, экстренная 12, лекарства 10, беременность и роды 7, "
@@ -6420,7 +6424,7 @@ def _row_18(path):
 
 
 def check_templates_sync():
-    print("41г. Сервер: refsync доводит шаблоны 1.3.0 и класс 18 (старая база), классов жизни не заводит; новая "
+    print("41г. Сервер: refsync доводит шаблоны 1.4.0 и класс 18 (старая база), классов жизни не заводит; новая "
           "версия файла; db_build на копии")
     import importlib
     from app import class_templates as ctm, refsync
@@ -6438,8 +6442,8 @@ def check_templates_sync():
         res = refsync.sync_templates(disk)
         con = sqlite3.connect(str(disk))
         n = con.execute("SELECT COUNT(*), COUNT(DISTINCT class_code) FROM class_templates").fetchone()
-        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 20 шаблонов версии 1.3.0 (с классом 18)",
-           res["status"] == "обновлено" and n == (20, 20) and res["version"] == "1.3.0"
+        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 20 шаблонов версии 1.4.0 (с классом 18)",
+           res["status"] == "обновлено" and n == (20, 20) and res["version"] == "1.4.0"
            and "18" in (res.get("added") or []), (res.get("status"), n))
         life, nullable, fk = _life_rows(disk)
         ok("старая база (учётная группа NOT NULL): refsync снял NOT NULL и добавил только класс 18 — branch «общее», "
@@ -6472,8 +6476,8 @@ def check_templates_sync():
             ctm.reset_cache()
             ctm._file_cache.update(mtime=None, data=None)
         hist = [tuple(r) for r in con.execute("SELECT version, source FROM class_templates WHERE class_code='13' ORDER BY id")]
-        ok("файл 2.0 новее — добавлен всем 20 шаблонам; история класса 13: 1.3.0 файл, 1.1 админ, 2.0 файл",
-           len(res3["added"]) == 20 and hist == [("1.3.0", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
+        ok("файл 2.0 новее — добавлен всем 20 шаблонам; история класса 13: 1.4.0 файл, 1.1 админ, 2.0 файл",
+           len(res3["added"]) == 20 and hist == [("1.4.0", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
         con.close()
         # образ собран до 1.2.0 (в classes нет класса 18): обновление справочников из образа его не теряет
         image = folder / "image.db"
@@ -7563,8 +7567,10 @@ def check_rate_fork():
        a["rate"]["applied_pct"] == 0.42 and a["premium"]["amount"] == 12_369_000 and not a["rate"]["fork_applied"],
        (a["rate"]["applied_pct"], a["premium"]["amount"]))
     rf, mk, reg, mkt = _rf_common("автокран", a, S)
-    ok("автокран: отметки min 0,35 / act 0,42 (рекомендуем) / adjusted / market / technical",
-       list(mk) == ["min", "act", "adjusted", "market", "technical"] and mk["min"]["rate_pct"] == 0.35
+    ok("автокран: отметки min 0,35 / act 0,42 (рекомендуем) / adjusted / market / technical / factors (место хранения "
+       "«открытая площадка» × 1,15 → 0,483 %, справочно)",
+       list(mk) == ["min", "act", "adjusted", "market", "technical", "factors"] and mk["min"]["rate_pct"] == 0.35
+       and mk["factors"]["rate_pct"] == 0.483 and not mk["factors"]["is_recommended"]
        and mk["act"]["is_recommended"] and rf["recommended"] == {"code": "act", "rate_pct": 0.42, "premium": 12_369_000}
        and rf["mode"] == "reference", list(mk))
     ids = {i["id"]: i for i in rf["adjustments"]["region"]["indicators"]}
@@ -7852,6 +7858,610 @@ def check_rate_fork():
        and "Вилка ставки" not in [x["title"] for x in old["sections"][3]["lists"]])
 
 
+# ------------------------------------------------------------------ 45. минимальная ставка страховщика и заниженная ставка
+# (01.10.2026): «минимальную ставку пусть назначает сам страховщик; если ниже тарифа — можно ли застраховать: да/нет,
+# почему». Версии минимальной ставки (app/min_rates.py), тип ставки annual | fixed, оценка below_min_assessment.
+
+BM_REPORT = {}
+BM_S = 1_000_000_000
+BM_REQ = {"tariff_pct": 0.05, "term_from": "2026-10-01", "term_to": "2027-09-30"}      # 365 дн. включительно
+BM_OPT = {"object_type": "Оборудование", "location": "open_area", "documents_provided": True,
+          "losses_3y": {"count": 0, "small_count": 0, "amount": 0}}
+
+
+def bm_make(product="0832", optional=None, request=None, S=BM_S, lang="ru"):
+    body = {"lang": lang, "must": {"product_code": product, "sum_insured": S, "object_value": S,
+                                   "region": "Ташкентская область"},
+            "optional": dict(optional if optional is not None else BM_OPT)}
+    if request is not None:
+        body["optional"]["request"] = request
+    return call("POST", "/act/make", body)
+
+
+def _bm_codes(bm):
+    return {r["code"]: r for r in bm.get("reasons") or []}
+
+
+def _cyr(s) -> bool:
+    return bool(re.search(r"[А-Яа-яЁё]", str(s)))
+
+
+def check_rate_type_engine():
+    print("45а. Тип ставки и оценка заниженной ставки — чистые функции (100 млн, 0,5 %, 3 года)")
+    import dataclasses
+    from app import min_rates as mrs
+    ok("премия: годовая 100 млн × 0,5 % × 1 095 / 365 = 1 500 000; фиксированная 100 млн × 0,5 % = 500 000",
+       round(ae.premium_by_type(0.5, 100e6, 1095)) == 1_500_000
+       and round(ae.premium_by_type(0.5, 100e6, 1095, "fixed")) == 500_000
+       and round(mrs.premium(0.5, 100e6, 1095, "fixed")) == 500_000)
+    ok("годовой эквивалент фиксированной 0,5 % на 1 095 дн. = 0,1667 %; годовая — без пересчёта",
+       round(ae.annual_pct(0.5, 1095, "fixed"), 4) == 0.1667 and ae.annual_pct(0.5, 1095) == 0.5)
+    with db.tx() as con:
+        ref = db.load_reference(con)
+    ref2 = dataclasses.replace(ref, min_rates={**ref.min_rates, "0832": {"company": {None: 0.5}, "regulator": {}}})
+    prod = {"code": "0832", "name": "т", "pricing_mode": "ставка", "rate_text": "0,5%"}
+    ra = ae.rate(ref2, prod, "8", "low", 100e6, 1095, None, None, {})
+    rf = ae.rate(ref2, prod, "8", "low", 100e6, 1095, None, None, {}, rate_type="fixed")
+    ok("ae.rate: годовая — премия 1 500 000; фиксированная — 500 000, годовой эквивалент 0,1667 %",
+       ra["premium"] == 1_500_000 and ra["rate_type"] == "annual" and rf["premium"] == 500_000
+       and rf["rate_type"] == "fixed" and rf["annual_equiv_pct"] == 0.1667 and rf["applied_pct"] == 0.5,
+       (ra["premium"], rf["premium"], rf.get("annual_equiv_pct")))
+    ok("ae.rate fixed: «как посчитано» — премия без деления на срок и годовой эквивалент",
+       [h["code"] for h in rf["how"]][-2:] == ["how_premium_fixed", "how_rate_annual_equiv"])
+    rq = {"tariff_pct": 0.5, "premium": 500_000, "term_days": 1095, "source": "input"}
+    val = {"verdict": "normal", "ratio_pct": 100}
+    c_fix = ae.request_check(rq, rate_res=rf, rate_final=0.5, premium_final=500_000, sum_insured=100e6,
+                             object_value=100e6, value=val, fr={}, rate_type="fixed")
+    c_ann = ae.request_check(rq, rate_res=ra, rate_final=0.5, premium_final=1_500_000, sum_insured=100e6,
+                             object_value=100e6, value=val, fr={})
+    pf = {i["code"]: i for i in c_fix["items"]}["premium_request"]
+    pa = {i["code"]: i for i in c_ann["items"]}["premium_request"]
+    ok("сверка запроса по типу ставки: fixed — 500 000 сходится; annual — расчёт 1 500 000, премия 500 000 расходится",
+       pf["verdict"] == "ok" and pf["calculated"] == 500_000 and pa["verdict"] == "differs"
+       and pa["calculated"] == 1_500_000, (pf, pa))
+
+    base = dict(requested_pct=0.05, requested_source="request", min_pct=0.08, term_days=365, sum_insured=BM_S,
+                level="moderate", losses_count=0, documents=True, object_new=False, net_pct=0.04,
+                net_calibrated=False, retention_within=True, eml=BM_S, retention_limit=43e9, market_rate_pct=0.185,
+                loss_ratio_pct=24.78)
+    r = ae.below_min_assess(**base, settings={"below_min": {"min_share_pct": 70}})
+    ok("0,05 при минимуме 0,08: 62,5 % минимальной ниже порога 70 % (явная настройка) — «нет»",
+       r["available"] and r["verdict"] == "not_allowed" and r["share_pct"] == 62.5 and r["shortfall"] == 300_000
+       and _bm_codes(r)["bm_share_low"]["effect"] == "no_conditions" and r["rule"]["min_share_pct"] == 70,
+       r.get("verdict"))
+    r = ae.below_min_assess(**base)
+    ok("порог по умолчанию 60 %: 62,5 % ≥ 60 %, умеренный уровень, убытков нет, нетто покрыта — «да при условиях», "
+       "шесть условий",
+       ae.DEFAULT_SETTINGS["below_min"]["min_share_pct"] == 60 and r["rule"]["min_share_pct"] == 60
+       and r["verdict"] == "allowed_with_conditions" and r["conditions"] == list(ae.BM_CONDITIONS)
+       and _bm_codes(r)["bm_share_ok"]["sign"] == "for", r.get("conditions"))
+    r = ae.below_min_assess(**dict(base, losses_count=2), settings={"below_min": {"min_share_pct": 60}})
+    ok("2 убытка за 3 года — «нет» без обсуждения", r["verdict"] == "not_allowed" and r["hard"]
+       and _bm_codes(r)["bm_losses"]["effect"] == "blocks")
+    r = ae.below_min_assess(**dict(base, statutory=True, requested_pct=0.07))
+    ok("обязательный вид — «нет» без обсуждения", r["verdict"] == "not_allowed" and r["hard"]
+       and "bm_statutory" in _bm_codes(r))
+    r = ae.below_min_assess(**dict(base, level="high", requested_pct=0.07))
+    ok("уровень высокий — «нет»", r["verdict"] == "not_allowed" and _bm_codes(r)["bm_level"]["effect"] == "blocks")
+    r = ae.below_min_assess(**dict(base, retention_within=False, eml=50e9, requested_pct=0.07))
+    ok("EML выше удержания — «нет»", r["verdict"] == "not_allowed" and "bm_retention_over" in _bm_codes(r))
+    r = ae.below_min_assess(**dict(base, documents=False, requested_pct=0.07))
+    ok("документов нет — «нет»", r["verdict"] == "not_allowed" and "bm_no_docs" in _bm_codes(r))
+    yes = dict(base, level="low", object_new=True, requested_pct=0.07, net_pct=0.05, market_rate_pct=0.1)
+    r = ae.below_min_assess(**yes)
+    ok("низкий уровень, новый объект с документами, убытков нет, нетто покрыта, рынок ≤ 2× — «да» (условие — "
+       "полномочия андеррайтера)", r["verdict"] == "allowed" and r["conditions"] == ["cond_uw_authority"]
+       and all(x["sign"] == "for" for x in r["reasons"] if x["code"] != "bm_gap"), r.get("reasons"))
+    r = ae.below_min_assess(**dict(yes, market_rate_pct=0.5, loss_ratio_pct=55))
+    ok("рынок выше запрошенной в 7 раз и убыточность 55 % — уже не «да», а «при условиях»",
+       r["verdict"] == "allowed_with_conditions" and "bm_market_no" in _bm_codes(r))
+    r = ae.below_min_assess(**dict(yes, net_pct=0.09, net_calibrated=True))
+    ok("запрошенная ниже калиброванной нетто-ставки — «нет» без обсуждения",
+       r["verdict"] == "not_allowed" and _bm_codes(r)["bm_net_below"]["effect"] == "blocks")
+    r = ae.below_min_assess(**dict(yes, net_pct=0.09, net_calibrated=False))
+    ok("ниже экспертной нетто-ставки (net_check = calibrated) — «при условиях» с подтверждением андеррайтера",
+       r["verdict"] == "allowed_with_conditions" and "cond_net_confirm" in r["conditions"])
+    r = ae.below_min_assess(**dict(yes, net_pct=0.09), settings={"below_min": {"net_check": "always"}})
+    ok("net_check = always: ниже экспертной нетто-ставки — «нет»", r["verdict"] == "not_allowed")
+    r = ae.below_min_assess(**dict(base, requested_pct=0.08))
+    ok("запрошенная не ниже минимальной — оценки нет (available = false)", not r["available"]
+       and r["reason"] == "not_below")
+    r = ae.below_min_assess(**dict(yes, rate_type="fixed", term_days=1095, requested_pct=0.15, min_pct=0.2,
+                                   sum_insured=100e6))
+    ok("фиксированная ставка: недобор = (0,2 − 0,15) % × 100 млн = 50 000 без деления на срок; годовой эквивалент "
+       "запрошенной 0,05 %", r["shortfall"] == 50_000 and r["requested_annual_pct"] == 0.05, r.get("shortfall"))
+    errs = ae.check_settings({"below_min": {"min_share_pct": 140, "net_check": "x"}})
+    ok("настройки below_min проверяются", any("min_share_pct" in e for e in errs) and any("net_check" in e for e in errs),
+       errs)
+
+
+def check_below_min_act():
+    print("45б. Акт: 0832, запрос филиала 0,05 % при минимуме 0,08 % — да / нет / при условиях, доводы, недобор премии")
+    fresh()
+    model_on(False)
+    set_act_settings({"below_min": {"min_share_pct": 70}})
+    st, a = bm_make(request=BM_REQ)
+    bm = a["below_min_assessment"]
+    ok("0832: уровень умеренный, документы есть, убытков нет; порог 70 % (явная настройка) — «нет»: 62,5 % минимальной",
+       st == 200 and a["risk"]["level"] == "moderate" and bm["available"] and bm["verdict"] == "not_allowed"
+       and bm["verdict_label"] == "нет" and "62,5" in bm["text"] and "70" in bm["text"], (a["risk"]["level"], bm.get("text")))
+    BM_REPORT["0832 порог 70 %"] = (bm["verdict"], bm["share_pct"], bm["shortfall"])
+    set_act_settings(None)                 # порог по умолчанию — 60 %
+    st, a = bm_make(request=BM_REQ)
+    bm = a["below_min_assessment"]
+    rs = _bm_codes(bm)
+    ok("порог по умолчанию 60 %: «да, при условиях»; requested 0,05, min 0,08, разрыв 0,03 п. п., источник — запрос "
+       "филиала",
+       bm["rule"]["min_share_pct"] == 60 and bm["verdict"] == "allowed_with_conditions" and bm["verdict_label"] == "да, при условиях"
+       and bm["requested_pct"] == 0.05 and bm["min_pct"] == 0.08 and bm["gap_pct"] == 0.03
+       and bm["requested_source"] == "request" and bm["calibrated"] == 0, bm.get("text"))
+    ok("условия: франшиза, мероприятия, территория, повторный осмотр, документы, нетто-ставка, полномочия андеррайтера",
+       [c["code"] for c in bm["conditions"]] == ["cond_franchise", "cond_measures", "cond_territory", "cond_reinspect",
+                                                 "cond_docs_confirm", "cond_net_confirm", "cond_uw_authority"]
+       and all(c["text"] for c in bm["conditions"]), [c["code"] for c in bm["conditions"]])
+    ok("недобор премии за срок: (0,08 − 0,05) % × 1 млрд × 365 / 365 = 300 000 сум",
+       bm["shortfall"] == 300_000 and "300 000 сум" in nb(bm["text"]) and "300 000" in nb(rs["bm_gap"]["text"]),
+       bm.get("shortfall"))
+    ok("доводы «за» и «против» с цифрами: уровень, убытки, нетто-ставка 0,18 % против 0,05 %, рынок 0,185 %, "
+       "удержание, документы, разрыв",
+       {"bm_level", "bm_losses_none", "bm_net_below_expert", "bm_retention_ok", "bm_docs", "bm_share_ok",
+        "bm_not_new", "bm_gap"} <= set(rs) and {"for", "against"} == {r["sign"] for r in bm["reasons"]}
+       and "0,18" in nb(rs["bm_net_below_expert"]["text"]) and "0,05" in nb(rs["bm_net_below_expert"]["text"])
+       and any(k in rs for k in ("bm_market_high", "bm_market_ok")), [(r["code"], r["sign"]) for r in bm["reasons"]])
+    ok("пометка: правило разработчика, не утверждено страховщиком; решение — андеррайтер",
+       "правило разработчика" in bm["note"].lower() and "андеррайтер" in bm["note"])
+    ok("decision.checks: «Отступление от минимальной ставки … да, при условиях — решение андеррайтера»",
+       any(c.startswith("Отступление от минимальной ставки") and "да, при условиях" in c
+           for c in a["decision"]["checks"]) and a["decision"]["code"] != "accept", a["decision"]["checks"])
+    titles = [li["title"] for li in a["sections"][3]["lists"]]
+    ok("раздел 4: подраздел «Ставка ниже минимальной: можно ли застраховать»; раздел 5 — ответ по запрошенной ставке",
+       "Ставка ниже минимальной: можно ли застраховать" in titles
+       and any("только при условиях" in p for p in a["sections"][4]["paragraphs"]), titles)
+    ov = {o["code"]: o for o in a["scoring"]["overview"]}
+    ok("скоринг: строка обзора «ставка ниже минимальной: можно ли принять» — да, при условиях",
+       ov["below_min"]["value"] == "да, при условиях" and ov["below_min"]["raw"] == "allowed_with_conditions")
+    BM_REPORT["0832 порог 60 %"] = (bm["verdict"], bm["shortfall"], [c["code"] for c in bm["conditions"]])
+    BM_REPORT["0832 доводы"] = [(r["sign"], r["text"]) for r in bm["reasons"]]
+    cond_aid = a["id"]
+
+    st, a = bm_make(optional=dict(BM_OPT, losses_3y={"count": 2, "small_count": 0, "amount": 0}), request=BM_REQ)
+    bm = a["below_min_assessment"]
+    ok("тот же запрос с 2 убытками за 3 года — «нет» без обсуждения; рекомендация не «принять без оговорок»",
+       bm["verdict"] == "not_allowed" and bm["hard"] and _bm_codes(bm)["bm_losses"]["effect"] == "blocks"
+       and a["decision"]["code"] != "accept"
+       and any("принять объект нельзя" in p for p in a["sections"][4]["paragraphs"]), bm.get("text"))
+    BM_REPORT["0832 2 убытка"] = bm["verdict"]
+
+    st, a = bm_make("0820", dict(BM_OPT, requested_rate_pct=0.3))
+    bm = a["below_min_assessment"]
+    ok("обязательный вид 0820 (0,4 % по ПКМ № 532), запрошено 0,3 % — «нет»: тариф нормативного акта",
+       st == 200 and bm["available"] and bm["verdict"] == "not_allowed" and "bm_statutory" in _bm_codes(bm)
+       and bm["min_pct"] == 0.4, (st, bm.get("text")))
+
+    with db.tx() as con:
+        mn = db.rows(con, "SELECT min_rate_pct FROM min_rates WHERE product_code='0901'")[0]["min_rate_pct"]
+    rq = round(mn * 0.9, 4)
+    st, a = bm_make("0901", {"location": "guarded", "documents_provided": True, "year": date.today().year,
+                             "losses_3y": {"count": 0, "small_count": 0, "amount": 0}, "requested_rate_pct": rq},
+                    S=100_000_000)
+    bm = a["below_min_assessment"]
+    ok("0901: уровень низкий, объект новый с документами, убытков нет, ставка покрывает нетто-ставку — «да»",
+       a["risk"]["level"] == "low" and bm["verdict"] == "allowed" and bm["requested_source"] == "employee"
+       and [c["code"] for c in bm["conditions"]] == ["cond_uw_authority"]
+       and "bm_net_ok" in _bm_codes(bm) and "bm_new" in _bm_codes(bm), (a["risk"]["level"], bm.get("text")))
+    BM_REPORT["0901 низкий, новый"] = (bm["verdict"], rq, mn)
+
+    set_act_settings({"below_min": {"min_share_pct": 60, "net_check": "always"}})
+    st, a = bm_make(optional=dict(BM_OPT, requested_rate_pct=0.07))
+    bm = a["below_min_assessment"]
+    ok("запрошенная 0,07 % ниже нетто-ставки расчётного модуля 0,18 % (net_check = always) — «нет»: ставка не "
+       "покрывает ожидаемый убыток", bm["verdict"] == "not_allowed" and _bm_codes(bm)["bm_net_below"]["effect"] == "blocks"
+       and "не покрывает ожидаемый убыток" in _bm_codes(bm)["bm_net_below"]["text"], bm.get("text"))
+    set_act_settings(None)
+
+    st, a = bm_make(optional=dict(BM_OPT, requested_rate_pct=0.1))
+    ok("запрошенная 0,1 % не ниже минимальной 0,08 % — блока нет (available = false), строка обзора — «не ниже минимума»",
+       a["below_min_assessment"]["available"] is False and a["below_min_assessment"]["reason"] == "not_below"
+       and {o["code"]: o for o in a["scoring"]["overview"]}["below_min"]["value"] == "не ниже минимума")
+
+    # три языка, Word и PDF
+    for lg in ("uz", "en"):
+        st, x = call("GET", f"/act/{cond_aid}", params={"lang": lg})
+        b = x["below_min_assessment"]
+        ok(f"{lg}: оценка на языке акта без кириллицы (ответ, доводы, условия, пометка)",
+           b["verdict_label"] == {"uz": "ha, shartlar bilan", "en": "yes, subject to conditions"}[lg]
+           and not _cyr(b["text"]) and not any(_cyr(r["text"]) for r in b["reasons"])
+           and not any(_cyr(c["text"]) for c in b["conditions"]) and not _cyr(b["note"]), b["text"][:300])
+    dx, pf = docx_plain(cond_aid), pdf_plain(cond_aid)
+    ok("Word и PDF: подраздел, ответ и недобор премии",
+       all(s_ in dx and s_ in pf for s_ in ("Ставка ниже минимальной: можно ли застраховать", "да, при условиях",
+                                             "300 000 сум")), (len(dx), len(pf)))
+    dx_en = docx_plain(cond_aid, "en")
+    ok("Word en: «Rate below the minimum» и «yes, subject to conditions»",
+       "Rate below the minimum" in dx_en and "yes, subject to conditions" in dx_en)
+    return cond_aid
+
+
+def check_min_rates_admin(old_aid):
+    print("45в. Минимальная ставка страховщика: правка администратором, версии по дате, история, импорт, тип ставки")
+    fresh()
+    model_on(False)
+    from app import min_rates as mrs
+    today = date.today()
+    st, h = call("GET", "/reference/min-rates/0832/history")
+    ok("история 0832: одна версия «из тарифной политики, приказ 54-П», 0,08 %, годовая, действует",
+       st == 200 and len(h["history"]) == 1 and h["history"][0]["source_label"] == "из тарифной политики, приказ 54-П"
+       and h["history"][0]["min_rate_pct"] == 0.08 and h["history"][0]["rate_type"] == "annual"
+       and h["history"][0]["active"], h)
+    st, _ = call("PUT", "/reference/min-rates/0832", {"min_rate_pct": 0.06})
+    ok("правка без входа — отказ (guard)", st in (401, 403), st)
+    HEADERS.append(_admin_header("minrate_admin"))
+    try:
+        st, r = call("PUT", "/reference/min-rates/0832", {"min_rate_pct": 0.06,
+                                                          "effective_from": (today - timedelta(days=1)).isoformat()})
+        ok("дата начала в прошлом — 422 (старые расчёты воспроизводятся)", st == 422 and "effective_from" in r["errors"], r)
+        st, r = call("PUT", "/reference/min-rates/0832", {"min_rate_pct": 0.06, "rate_type": "monthly"})
+        ok("неизвестный тип ставки — 422", st == 422 and "rate_type" in r["errors"], r)
+        st, r = call("PUT", "/reference/min-rates/0820", {"min_rate_pct": 0.3})
+        ok("обязательный вид — 422: ставку устанавливает нормативный акт", st == 422, r)
+        st, r = call("PUT", "/reference/min-rates/0832", {"min_rate_pct": 0.06, "effective_from": today.isoformat(),
+                                                          "note": "решение правления № 7"})
+        ok("PUT 0832: 0,06 % с сегодняшнего дня — новая версия", st == 200 and r["saved"]["min_rate_pct"] == 0.06
+           and r["current"]["pct"] == 0.06 and r["current"]["source"] == "admin", r)
+        nxt = (today + timedelta(days=1)).isoformat()
+        st, r2 = call("PUT", "/reference/min-rates/0832", {"min_rate_pct": 0.07, "effective_from": nxt,
+                                                           "note": "с завтрашнего дня"})
+        ok("PUT 0832: 0,07 % с завтрашнего дня — версия сохранена, сегодня ещё действует 0,06 %",
+           st == 200 and r2["current"]["pct"] == 0.06, r2.get("current"))
+        st, h = call("GET", "/reference/min-rates/0832/history")
+        hs = h["history"]
+        ok("история: три версии — тарифная политика, правка (действует), правка с будущей даты; автор и примечание",
+           len(hs) == 3 and [x["source"] for x in hs] == ["policy", "admin", "admin"] and hs[1]["active"]
+           and hs[2]["future"] and hs[1]["created_by"] == "minrate_admin" and hs[1]["note"] == "решение правления № 7",
+           [(x["source"], x["min_rate_pct"], x["active"]) for x in hs])
+        with db.tx() as con:
+            on_next = mrs.on_date(con, "0832", nxt)
+            on_old = mrs.on_date(con, "0832", "2026-01-15")
+        ok("on_date: на завтра — 0,07 %, на 15.01.2026 — 0,08 % из тарифной политики (пересчёт по дате)",
+           on_next["pct"] == 0.07 and on_old["pct"] == 0.08 and on_old["source"] == "policy", (on_next, on_old))
+        st, lst = call("GET", "/reference/min-rates")
+        row = next(x for x in lst["items"] if x["code"] == "0832")
+        ok("GET /reference/min-rates: 0832 — 0,06 %, годовая, с сегодняшнего дня, следующая версия 0,07 %",
+           row["min_rate_pct"] == 0.06 and row["rate_type"] == "annual" and row["effective_from"] == today.isoformat()
+           and row["next"]["min_rate_pct"] == 0.07, row)
+    finally:
+        HEADERS.clear()
+
+    st, a = bm_make(optional=dict(BM_OPT), request=BM_REQ)
+    src = a["min_rate"]["source_text"]
+    want = f"минимальная ставка страховщика (установлена администратором, действует с {today.strftime('%d.%m.%Y')}, " \
+           f"примечание: решение правления № 7)"
+    ok("новый акт: минимум 0,06 % — правка администратора; источник в акте, в «как посчитано» и в вилке",
+       a["rate"]["min_pct"] == 0.06 and src == want and any(want in h_ for h_ in a["rate"]["how"])
+       and any(want in (m.get("source") or {}).get("title", "") for m in a["rate_fork"]["marks"] if m["code"] == "min"),
+       (a["rate"]["min_pct"], src))
+    ok("оценка заниженной ставки сравнивает с минимумом страховщика 0,06 %",
+       a["below_min_assessment"]["min_pct"] == 0.06 and want in a["below_min_assessment"]["text"])
+    st, old = call("GET", f"/act/{old_aid}")
+    ok("старый акт — прежний минимум 0,08 % из тарифной политики (данные акта не пересчитываются задним числом)",
+       old["rate"]["min_pct"] == 0.08 and old["min_rate"]["source_text"] == "из тарифной политики, приказ 54-П"
+       and old["below_min_assessment"]["min_pct"] == 0.08, old["min_rate"])
+    with db.tx() as con:
+        ref = db.load_reference(con)
+    ok("калькулятор видит ту же версию: engine.min_rate(0832) = 0,06 %", min_rate(ref, "0832")["company"] == 0.06)
+    st, calc = call("POST", "/calculate", {"product_code": "0832", "class_code": "8", "object_type": "Машины и оборудование",
+                                           "value_amount": 1e9, "sum_insured": 1e9, "term_days": 365, "factors": {}})
+    ok("/calculate по 0832: минимум 0,06 %", st == 200 and calc["rates"]["min_pct"] == 0.06, (st, calc.get("rates")))
+
+    # импорт из Excel
+    import openpyxl
+    st, blob, hd = call("GET", "/reference/min-rates/template.xlsx", raw=True)
+    ok("шаблон импорта: xlsx с колонками код, ставка, тип, дата, примечание", st == 200 and blob[:2] == b"PK"
+       and [c.value for c in openpyxl.load_workbook(io.BytesIO(blob)).active[1]][:4]
+       == ["Код продукта", "Минимальная ставка, %", "Тип ставки (annual / fixed)", "Дата начала (ДД.ММ.ГГГГ)"])
+
+    def xl(rows):
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(["Код продукта", "Минимальная ставка, %", "Тип ставки", "Дата начала", "Примечание"])
+        for r_ in rows:
+            ws.append(r_)
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    def imp(blob_, apply):
+        boundary = "----insonmr"
+        crlf = "\r\n"
+        payload = (f'--{boundary}{crlf}Content-Disposition: form-data; name="file"; filename="m.xlsx"{crlf}'
+                   f'Content-Type: {XLSX_MIME}{crlf}{crlf}').encode() + blob_ + f"{crlf}--{boundary}--{crlf}".encode()
+        hdrs = [(b"host", b"test"), (b"content-type", f"multipart/form-data; boundary={boundary}".encode()),
+                (b"content-length", str(len(payload)).encode())] + _cookie_hdr()
+        return _send("POST", "/reference/min-rates/import", {"apply": apply}, hdrs, payload)
+
+    with db.tx() as con:
+        cls8 = [r["code"] for r in db.rows(con, "SELECT p.code FROM products p JOIN product_classes pc ON "
+                                                "pc.product_code = p.code WHERE pc.class_code='8' AND p.pricing_mode='ставка' "
+                                                "AND p.code NOT IN ('0832') ORDER BY p.code")]
+    pa, pb = cls8[0], cls8[1]
+    bad = xl([[pa, 0.5, "fixed", today.strftime("%d.%m.%Y"), "импорт"], ["9999", 0.1, "annual", today.isoformat(), ""],
+              [pb, "0,5", "годовая", (today - timedelta(days=3)).isoformat(), ""]])
+    HEADERS.append(_admin_header("minrate_admin2"))
+    try:
+        st, r = imp(bad, 0)
+        ok("импорт: предпросмотр — 3 строки, 2 с ошибками (нет продукта, дата в прошлом), записать нельзя",
+           st == 200 and r["preview"]["rows"] == 3 and r["preview"]["errors"] == 2 and not r["preview"]["can_apply"]
+           and r["applied"] is False, r)
+        st, r = imp(bad, 1)
+        with db.tx() as con:
+            n_a = len(mrs.history(con, pa))
+        ok("импорт с ошибками и apply=1 — 422, ничего не записано", st == 422 and n_a == 1, (st, n_a))
+        good = xl([[pa, 0.5, "fixed", today.strftime("%d.%m.%Y"), "импорт: на весь срок"],
+                   [pb, "0,5", "годовая", today.isoformat(), "импорт: годовая"]])
+        st, r = imp(good, 0)
+        ok("импорт без ошибок: предпросмотр «было → станет»", st == 200 and r["preview"]["can_apply"]
+           and r["preview"]["items"][0]["new"]["rate_type"] == "fixed" and r["preview"]["items"][0]["now"]["min_rate_pct"]
+           is not None, r)
+        st, r = imp(good, 1)
+        ok("импорт apply=1: две версии с источником «импорт из Excel»", st == 200 and r["applied"]
+           and len(r["saved"]) == 2 and all(x_["source"] == "import" for x_ in r["saved"]), r)
+    finally:
+        HEADERS.clear()
+    st, h = call("GET", f"/reference/min-rates/{pa}/history")
+    ok("история после импорта: версия тарифной политики сохранена, новая — импорт, тип fixed; автор скрыт от гостя",
+       [x["source"] for x in h["history"]] == ["policy", "import"] and h["history"][1]["rate_type"] == "fixed"
+       and h["history"][1]["created_by"] == "администратор", h["history"])
+
+    # тип ставки в акте: 100 млн, 0,5 %, 3 года — 500 000 против 1 500 000
+    low = {"location": "guarded", "documents_provided": True, "losses_3y": {"count": 0, "small_count": 0, "amount": 0},
+           "term_days": 1095}
+    st, af = bm_make(pa, dict(low, request={"tariff_pct": 0.5, "premium": 500_000, "term_days": 1095}), S=100_000_000)
+    st2, an = bm_make(pb, dict(low, request={"tariff_pct": 0.5, "premium": 1_500_000, "term_days": 1095}), S=100_000_000)
+    itf, ita = rq_items(af), rq_items(an)
+    ok("акт fixed: уровень низкий, ставка 0,5 % на весь срок, премия 500 000; годовой эквивалент 0,1667 %",
+       af["risk"]["level"] == "low" and af["rate"]["rate_type"] == "fixed" and af["rate"]["applied_pct"] == 0.5
+       and af["premium"]["amount"] == 500_000 and af["rate"]["annual_equiv_pct"] == 0.1667,
+       (af["risk"]["level"], af["rate"].get("rate_type"), af["premium"]["amount"]))
+    ok("акт annual: та же ставка 0,5 % на 1 095 дн. — премия 1 500 000",
+       an["rate"]["rate_type"] == "annual" and an["premium"]["amount"] == 1_500_000, an["premium"]["amount"])
+    ok("сверка запроса по типу ставки продукта: обе премии сходятся (500 000 и 1 500 000)",
+       itf["premium_request"]["verdict"] == "ok" and itf["premium_request"]["calculated"] == 500_000
+       and ita["premium_request"]["verdict"] == "ok" and ita["premium_request"]["calculated"] == 1_500_000,
+       (itf["premium_request"], ita["premium_request"]))
+    rows4 = {r_["label"]: r_ for r_ in af["sections"][3]["rows"]}
+    ok("акт fixed: в разделе 4 обе ставки — фиксированная и годовой эквивалент; вилка — в годовом выражении",
+       rows4.get("Тип ставки", {}).get("value") == "фиксированная (на весь срок)"
+       and "0,1667" in nb(rows4.get("Годовой эквивалент ставки (для сравнения с рынком)", {}).get("value", ""))
+       and af["rate_fork"]["rate_type"] == "fixed"
+       and next(m for m in af["rate_fork"]["marks"] if m["code"] == "act")["rate_pct"] == 0.1667
+       and next(m for m in af["rate_fork"]["marks"] if m["code"] == "act")["premium"] == 500_000,
+       (list(rows4), af["rate_fork"].get("marks")))
+    ok("акт fixed: в «как посчитано» — премия без деления на срок", any("без деления на срок" in h_
+                                                                       for h_ in af["rate"]["how"]))
+    BM_REPORT["тип ставки"] = {"fixed": af["premium"]["amount"], "annual": an["premium"]["amount"]}
+    # контрольные цифры движка не изменились (склад 4,2 млрд, производство 8/9, спецтехника — tests/test_quick_mode.py)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ok("автокран: ставка 0,42 % и премия 12 369 000 — прежние", a["rate"]["applied_pct"] == 0.42
+       and a["premium"]["amount"] == 12_369_000 and a["rate"]["rate_type"] == "annual")
+
+
+FA_REPORT = {}
+
+
+def check_factor_groups():
+    print("46. Факторы объекта по подгруппам класса (шаблоны 1.4.0, factor_groups): множитель, справочно и в ставке, "
+          "незаполненное — в «уточнить», проверка шаблона, части комплексного продукта, Word и PDF")
+    from app import class_templates as ctm
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    data = ctm.load_file()
+    t3 = data["classes"]["3"]
+    groups = {g["code"]: g for g in t3["factor_groups"]}
+    opt3 = {f["code"]: f for f in t3["optional"]}
+    ok("шаблоны 1.4.0: у всех 20 шаблонов есть factor_groups, проверка проходит; у каждой группы нейтральный вариант 1,0 "
+       "и пометка «экспертно, не калибровано»",
+       data["version"] == "1.4.0" and all(t.get("factor_groups") for t in data["classes"].values())
+       and all(not ctm.validate(t, c) for c, t in data["classes"].items())
+       and all(any(o["coef"] == 1.0 for o in g["options"]) for t in data["classes"].values()
+               for g in t["factor_groups"])
+       and all("экспертно, не калибровано" in o["note"]["ru"] for t in data["classes"].values()
+               for g in t["factor_groups"] for o in g["options"])
+       and all(g["calibrated"] == 0 for t in data["classes"].values() for g in t["factor_groups"]))
+    ok("класс 3: тип транспорта, топливо и привод, использование, хранение, противоугонная защита, водители; хранение и "
+       "защита — ссылки на прежние поля (без повтора), новые — поля выбора optional.class_fields",
+       list(groups) == ["veh_group", "fuel", "usage", "location", "protection", "drivers_profile"]
+       and groups["location"]["input"] == "optional.location" and groups["protection"]["input"] == "optional.protection"
+       and [o["code"] for o in groups["fuel"]["options"]] == ["petrol", "diesel", "lpg", "cng", "hybrid", "electric",
+                                                              "other"]
+       and opt3["fuel"]["type"] == "choice" and opt3["fuel"]["input"] == "optional.class_fields.fuel"
+       and opt3["fuel"]["options"] == [o["code"] for o in groups["fuel"]["options"]]
+       and opt3["fuel"]["option_labels"]["electric"]["uz"] == "elektromobil"
+       and sum(1 for f in t3["optional"] if f["code"] == "location") == 1, list(groups))
+
+    # --- чистые функции
+    up = ae.factor_adjust({"fuel": "diesel", "usage": "taxi_rent"}, t3, None, {"location": "open_area"})
+    down = ae.factor_adjust({"fuel": "electric", "usage": "personal"}, t3, None, {"location": "closed_storage"})
+    ok("класс 3: дизель × такси × улица = 1,05 × 1,4 × 1,15 = 1,6905 > 1; электро × гараж × личное = 1,15 × 0,85 × "
+       "0,9 = 0,8798 < 1",
+       up["product"] == 1.6905 and up["product"] > 1 and down["product"] == 0.8798 and down["product"] < 1
+       and up["mode"] == "reference" and up["calibrated"] == 0
+       and [(a["group"], a["option"], a["coef"]) for a in up["applied"]] ==
+       [("fuel", "diesel", 1.05), ("usage", "taxi_rent", 1.4), ("location", "open_area", 1.15)],
+       (up["product"], down["product"]))
+    ok("незаполненные группы — в unfilled (тип транспорта, защита, водители), ставку не меняют",
+       [u["group"] for u in up["unfilled"]] == ["veh_group", "protection", "drivers_profile"]
+       and up["unfilled"][0]["label"]["ru"].startswith("Тип транспорта"), up["unfilled"])
+    nothing = ae.factor_adjust({}, t3)
+    ok("ничего не заполнено — множитель 1, все 6 групп в unfilled",
+       nothing["product"] == 1.0 and not nothing["applied"] and len(nothing["unfilled"]) == 6)
+    t1 = data["classes"]["1"]
+    pa = ae.factor_adjust({"cover_24h": True, "occupation_group": "office"}, t1)
+    ok("поле «да/нет» (класс 1, круглосуточное покрытие): да → вариант yes × 1,15; офис × 0,85 → 0,9775",
+       pa["product"] == 0.9775 and ("cover_24h", "yes") in [(a["group"], a["option"]) for a in pa["applied"]],
+       pa["product"])
+    big = ae.factor_adjust({"veh_group": "moto", "fuel": "other", "usage": "taxi_rent", "drivers_profile": "violations"},
+                           t3, None, {"location": "construction", "protection": "none"})
+    ok("границы множителя: мото 1,4 × прочее топливо 1,25 × такси 1,4 × нарушения 1,3 × стройплощадка 1,2 × без защиты 1,1 = 4,2042 → 2,5 (настройка max_product)",
+       big["raw_product"] == 4.2042 and big["product"] == 2.5 and big["clamped"] == "max", big["raw_product"])
+    # вклад каждого фактора в сумах: автокран 0318, ставка акта 0,42 %, 2 945 000 000 сум, 365 дней
+    S = CRANE_MUST["sum_insured"]
+    rr = {"mode": "tariff", "applied_pct": 0.42, "calc_pct": 0.42, "min_pct": 0.35, "premium": 12_369_000,
+          "term_days": 365, "rate_type": "annual", "how": []}
+    fa = ae.factor_effect(ae.factor_adjust({"fuel": "diesel", "usage": "taxi_rent"}, t3, None,
+                                           {"location": "open_area"}), dict(rr), S)
+    e = fa["effect"]
+    ok("справочно: 0,42 % × 1,6905 = 0,71 %, премия 12 369 000 → 20 909 500; вклады 618 450 + 5 194 980 + 2 727 070 = "
+       "8 540 500 сум",
+       e["available"] and not e["applied_to_act"] and e["rate_pct"] == 0.71 and e["premium"] == 20_909_500
+       and [x["premium_delta"] for x in e["steps"]] == [618_450, 5_194_980, 2_727_070]
+       and sum(x["premium_delta"] for x in e["steps"]) == e["delta_premium"] == 8_540_500, e)
+    low = ae.factor_adjust({"fuel": "electric", "usage": "personal"}, t3, {"factors": {"mode": "apply"}},
+                           {"location": "closed_storage", "protection": "tracker"})
+    r2 = dict(rr, how=[{"code": "how_premium", "params": {}}])
+    ae.factor_effect(low, r2, S)
+    ok("apply: 0,42 % × 0,7918 = 0,3326 % ниже минимума 0,35 % → ставка акта 0,35 %, премия 10 307 500; «как "
+       "посчитано» — строки факторов и минимума",
+       low["product"] == 0.7918 and r2["applied_pct"] == 0.35 and r2["premium"] == 10_307_500 and r2["min_applied"]
+       and r2["factors_applied"] and r2["factor_act_pct"] == 0.42 and low["effect"]["floored"]
+       and [h["code"] for h in r2["how"]] == ["how_factors", "how_factors_min", "how_premium"], r2)
+    st_ = ae.factor_effect(ae.factor_adjust({"veh_group": "car"}, t3), {"mode": "statutory", "applied_pct": 0.4,
+                                                                        "how": []}, S)
+    ok("обязательный вид: факторы ставку не меняют (effect.reason = statutory)",
+       not st_["effect"]["available"] and st_["effect"]["reason"] == "statutory")
+    errs = ae.check_settings({"factors": {"mode": "x", "min_product": 2, "max_product": 0.5, "extra": 1}})
+    ok("настройки factors проверяются: режим, границы множителя, лишние ключи",
+       any("factors.mode" in x for x in errs) and any("min_product" in x for x in errs)
+       and any("max_product" in x for x in errs) and any("неизвестные" in x for x in errs)
+       and not ae.check_settings({"factors": {"mode": "apply"}}), errs)
+    # --- проверка шаблона
+    bad = _json.loads(_json.dumps(t3))
+    bad["factor_groups"][1]["options"][1]["coef"] = 5
+    bad["factor_groups"][2]["options"] = bad["factor_groups"][2]["options"][:1]
+    bad["factor_groups"][3]["options"] = bad["factor_groups"][3]["options"][:-1]
+    bad["factor_groups"].append(dict(bad["factor_groups"][0]))
+    verrs = " | ".join(ctm.validate(bad, "3"))
+    ok("проверка шаблона ловит плохой коэффициент (5 > 3), группу из одного варианта, несовпадение с полем, повтор группы",
+       "fuel.diesel.coef" in verrs and "usage.options: не меньше 2" in verrs and "location.options" in verrs
+       and "повтор группы veh_group" in verrs, verrs)
+    bad2 = _json.loads(_json.dumps(t3))
+    bad2["factor_groups"][0]["input"] = "optional.class_fields.nope"
+    ok("группа без поля ввода в шаблоне — ошибка", any("nope" in x for x in ctm.validate(bad2, "3")))
+
+    # --- акт: режим по умолчанию (reference) — премия автокрана прежняя
+    cf = {"fuel": "diesel", "usage": "taxi_rent"}
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane", class_fields=cf)})
+    fa = a.get("factor_adjustment") or {}
+    mk = {m["code"]: m for m in a["rate_fork"]["marks"]}
+    ok("автокран 0318, reference: ставка 0,42 % и премия 12 369 000 не меняются; факторы 1,6905 справочно",
+       st == 200 and a["rate"]["applied_pct"] == 0.42 and a["premium"]["amount"] == 12_369_000
+       and not a["rate"]["factors_applied"] and fa.get("mode") == "reference" and fa.get("product") == 1.6905
+       and fa["effect"]["rate_pct"] == 0.71 and fa["effect"]["premium"] == 20_909_500 and fa["calibrated"] == 0,
+       (st, a.get("rate", {}).get("applied_pct"), fa.get("product")))
+    ok("вилка: отметка «С учётом факторов объекта (справочно)» 0,71 % / 20 909 500, не рекомендуемая",
+       mk.get("factors", {}).get("rate_pct") == 0.71 and mk["factors"]["premium"] == 20_909_500
+       and not mk["factors"]["is_recommended"] and mk["factors"]["label"] == "С учётом факторов объекта (справочно)"
+       and "1,6905" in mk["factors"]["note"], mk.get("factors"))
+    ok("factor_adjustment: применённые с подписями и вкладом в сумах, незаполненные — в «уточнить»",
+       [(x["group"], x["option"], x["premium_delta"]) for x in fa["applied"]] ==
+       [("fuel", "diesel", 618_450), ("usage", "taxi_rent", 5_194_980), ("location", "open_area", 2_727_070)]
+       and fa["applied"][0]["label"] == "дизель" and fa["applied"][0]["group_label"] == "Топливо и привод"
+       and [u["group"] for u in fa["unfilled"]] == ["veh_group", "protection", "drivers_profile"], fa.get("applied"))
+    ex = nb(" ".join(fa.get("explain") or []))
+    ok("пояснение построчно: база, каждый фактор (+618 450 сум …), итог 0,42 % → 0,71 %, режим справочно, уточнить",
+       "База — ставка акта 0,42 %" in ex and "Топливо и привод: дизель — × 1,05" in ex and "+618 450 сум" in ex
+       and "Итоговый множитель 1,6905: ставка 0,42 % → 0,71 %, премия 12 369 000 сум → 20 909 500 сум" in ex
+       and "Режим «справочно»" in ex and "Уточнить (ставку не меняет): Тип транспорта" in ex, ex[:600])
+    s4, s5 = a["sections"][3], a["sections"][4]
+    row = next((r for r in s4["rows"] if r["label"] == "Факторы объекта"), None)
+    ok("раздел 4: строка «Факторы объекта: … итоговый множитель 1,6905», режим справочно; перечень после вилки",
+       row and "итоговый множитель 1,6905" in row["value"] and "режим справочно" in row["note"]
+       and [x["title"] for x in s4["lists"]].index("Факторы объекта по подгруппам класса") ==
+       [x["title"] for x in s4["lists"]].index("Вилка ставки") + 1, row)
+    ok("раздел 5: фраза о факторах и перечень «Уточнить факторы объекта»",
+       any(p.startswith("Факторы объекта (справочно, экспертно): ставка с их учётом 0,71") for p in s5["paragraphs"])
+       and any(li["title"] == "Уточнить факторы объекта" and len(li["items"]) == 3 for li in s5["lists"]),
+       s5["paragraphs"])
+    aid = a["id"]
+    st, g = call("GET", f"/act/{aid}", params={"lang": "uz"})
+    ok("GET /act/{id}?lang=uz: тот же factor_adjustment на узбекском",
+       st == 200 and g["factor_adjustment"]["product"] == 1.6905
+       and g["factor_adjustment"]["applied"][0]["label"] == "dizel"
+       and any("Yakuniy koeffitsiyent 1,6905" in x for x in g["factor_adjustment"]["explain"]),
+       g.get("factor_adjustment", {}).get("explain"))
+    dx, pf = docx_plain(aid), pdf_plain(aid)
+    ok("Word и PDF собираются: строка и перечень факторов объекта в разделе 4",
+       "Факторы объекта по подгруппам класса" in dx and "итоговый множитель 1,6905" in dx
+       and "Факторы объекта по подгруппам класса" in pf, (dx.count("Факторы объекта"), pf.count("Факторы объекта")))
+    FA_REPORT["автокран reference"] = (a["rate"]["applied_pct"], a["premium"]["amount"], fa["product"],
+                                       fa["effect"]["rate_pct"], fa["effect"]["premium"])
+    # неверное значение поля выбора — 422
+    st, e = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, class_fields={"fuel": "coal"})})
+    ok("неизвестный вариант поля класса (топливо «coal») — 422", st == 422 and "fuel" in str(e), (st, str(e)[:200]))
+
+    # --- режим apply: ставка акта = тариф × уровень × множитель, не ниже минимума
+    set_act_settings({"factors": {"mode": "apply"}})
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane", class_fields=cf)})
+    fa = a["factor_adjustment"]
+    ok("apply: ставка акта 0,35 × 1,2 × 1,6905 = 0,71 %, премия 20 909 500; вилка рекомендует ставку акта, отметки "
+       "factors нет",
+       st == 200 and a["rate"]["applied_pct"] == 0.71 and a["premium"]["amount"] == 20_909_500
+       and a["rate"]["factors_applied"] and a["rate"]["factor_act_pct"] == 0.42 and fa["effect"]["applied_to_act"]
+       and "factors" not in {m["code"] for m in a["rate_fork"]["marks"]}
+       and a["rate_fork"]["recommended"]["rate_pct"] == 0.71
+       and any(h.startswith("Факторы объекта × 1,6905") for h in a["rate"]["how"]), (a["rate"]["applied_pct"],
+                                                                                    a["premium"]["amount"]))
+    row = next((r for r in a["sections"][3]["rows"] if r["label"] == "Факторы объекта"), {})
+    ok("apply: строка раздела 4 — «режим применён», раздел 5 — «Ставка акта учитывает факторы объекта»",
+       "режим применён" in (row.get("note") or "")
+       and any(p.startswith("Ставка акта учитывает факторы объекта") for p in a["sections"][4]["paragraphs"]), row)
+    FA_REPORT["автокран apply"] = (a["rate"]["applied_pct"], a["premium"]["amount"])
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, location="closed_storage", protection="tracker",
+                                                        object_kind="truck_crane",
+                                                        class_fields={"fuel": "electric", "usage": "personal"})})
+    ok("apply: множитель 0,7918 опускает ставку ниже минимума 0,35 % — применён минимум, премия 10 307 500",
+       st == 200 and a["factor_adjustment"]["product"] == 0.7918 and a["rate"]["applied_pct"] == 0.35
+       and a["rate"]["applied_pct"] >= a["rate"]["min_pct"] and a["premium"]["amount"] == 10_307_500
+       and a["rate"]["min_applied"], (a["rate"]["applied_pct"], a["premium"]["amount"]))
+    FA_REPORT["автокран apply, ниже минимума"] = (a["rate"]["applied_pct"], a["premium"]["amount"])
+
+    # --- комплексный продукт 0305 (ТС + НС + ОТВ): факторы по шаблону класса каждой части
+    must = {"product_code": "0305", "sum_insured": 400_000_000, "object_value": 100_000_000, "region": "Ташкент"}
+    parts = [{"class_code": "3", "sum_insured": 100_000_000,
+              "fields": {"class_fields": {"fuel": "diesel", "usage": "taxi_rent"}}},
+             {"class_code": "1", "sum_insured": 200_000_000, "fields": {"class_fields": {"occupation_group": "office"}}},
+             {"class_code": "13", "sum_insured": 100_000_000}]
+    set_act_settings(None)
+    st, k0 = _pt_make(must, {"losses_3y": {"count": 0}, "documents_provided": True,
+                             "parts": [{"class_code": p["class_code"], "sum_insured": p["sum_insured"]} for p in parts]})
+    st, k = _pt_make(must, {"losses_3y": {"count": 0}, "documents_provided": True, "parts": parts})
+    fk = k.get("factor_adjustment") or {}
+    pp = {p["class_code"]: p for p in fk.get("parts") or []}
+    ok("0305 reference: факторы по частям (класс 3 — 1,47; класс 1 — 0,85; класс 13 — не заполнено); премии частей и "
+       "договора прежние",
+       st == 200 and fk.get("by_parts") and pp["3"]["product"] == 1.47 and pp["1"]["product"] == 0.85
+       and pp["13"]["product"] == 1.0 and [u["group"] for u in pp["13"]["unfilled"]] == ["activity_kind"]
+       and [p["premium"] for p in k["parts"]["items"]] == [p["premium"] for p in k0["parts"]["items"]]
+       and k["premium"]["amount"] == k0["premium"]["amount"], (fk.get("parts"), k["premium"]["amount"]))
+    set_act_settings({"factors": {"mode": "apply"}})
+    st, ka = _pt_make(must, {"losses_3y": {"count": 0}, "documents_provided": True, "parts": parts})
+    pa_ = ka["parts"]["items"]
+    ok("0305 apply: меняется ставка частей 3 (× 1,47) и 1 (× 0,85, не ниже минимума 0,5 %), часть 13 — прежняя",
+       st == 200 and pa_[0]["rate"]["applied_pct"] > k["parts"]["items"][0]["rate"]["applied_pct"]
+       and pa_[1]["rate"]["applied_pct"] >= pa_[1]["rate"]["min_pct"]
+       and pa_[2]["rate"]["applied_pct"] == k["parts"]["items"][2]["rate"]["applied_pct"]
+       and all(p["rate"]["applied_pct"] >= p["rate"]["min_pct"] for p in pa_),
+       [(p["rate"]["applied_pct"], p["rate"]["min_pct"]) for p in pa_])
+    FA_REPORT["0305 по частям, reference"] = ([p["premium"] for p in k["parts"]["items"]], k["premium"]["amount"])
+    FA_REPORT["0305 по частям, apply"] = ([p["rate"]["applied_pct"] for p in pa_], ka["premium"]["amount"])
+    set_act_settings(None)
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -7945,6 +8555,10 @@ def main():
             check_credit_scan_off()
             check_rate_fork_engine()
             check_rate_fork()
+            check_rate_type_engine()
+            bm_aid = check_below_min_act()
+            check_min_rates_admin(bm_aid)
+            check_factor_groups()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -7981,6 +8595,14 @@ def main():
     if RF_REPORT:
         print("\nвилка ставки (минимум, акт, с учётом региона и рынка, рынок, поправка региона %, рынка %, …):")
         for k, v in RF_REPORT.items():
+            print("  ", k, v)
+    if BM_REPORT:
+        print("\nминимальная ставка страховщика и заниженная ставка:")
+        for k, v in BM_REPORT.items():
+            print("  ", k, v)
+    if FA_REPORT:
+        print("\nфакторы объекта по подгруппам класса (ставка, премия, множитель …):")
+        for k, v in FA_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

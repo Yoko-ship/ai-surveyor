@@ -172,7 +172,9 @@ ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"
 # то же по началу пути: у удаления нормы износа код в адресе (/valuation/norms/{code}),
 # и точное совпадение из ADMIN_METHOD_PATH его не ловило
 ADMIN_METHOD_PREFIX = {("DELETE", "/valuation/norms/"),
-                       ("PUT", "/act/templates/")}           # шаблоны анализа по классам (app/act.py)
+                       ("PUT", "/act/templates/"),           # шаблоны анализа по классам (app/act.py)
+                       # минимальные ставки страховщика: правка и импорт из Excel (app/min_rates.py)
+                       ("PUT", "/reference/min-rates/"), ("POST", "/reference/min-rates/")}
 
 # --- разделы, закрытые ролью (таблица прав: docs/Регистрация и роли.md, раздел 8) ---
 # Админ проходит везде (auth.check_role), поэтому в списках его можно не повторять.

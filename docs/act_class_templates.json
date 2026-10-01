@@ -1,9 +1,9 @@
 {
- "version": "1.3.0",
- "date": "2026-10-01",
+ "version": "1.4.0",
+ "date": "2026-10-02",
  "calibrated": 0,
- "source": "ТЗ — Приложение А. Шаблоны анализа по классам, версия 1.3 от 01.10.2026; класс 18 общего страхования — ПКМ № 80 от 21.02.2022, прил. 6, п. 12 (ред. ПКМ № 458 от 23.07.2025)",
- "note": "Шаблоны анализа по всем классам общего страхования (А.3): 18 классов (1–18; класс 18 «Tibbiy sugʻurta» — медицинское страхование, добавлен в 1.2.0 по решению заказчика) и варианты 13з и 16у — свои шаблоны, всего 20. Классы страхования жизни в шаблоны не входят (в 1.3.0 убраны по указанию заказчика: нужны все классы общего страхования). Источник истины в репозитории; при старте сервер доводит таблицу class_templates и класс 18 в справочнике classes (app/class_templates.py.ensure), правки администратора — новая версия строки (PUT /act/templates/{class}), история сохраняется; новая версия файла при действующей правке администратора её не заменяет — добавляется в историю как «доступна новая версия шаблона из поставки». Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0). Классы 8 и 9 берут риски из таблицы perils базы (доли там тоже оценка разработчика). Учётная группа класса 18 не задана: в Положении 1882, п. 10 его нет.",
+ "source": "ТЗ — Приложение А. Шаблоны анализа по классам, версия 1.3 от 01.10.2026; класс 18 общего страхования — ПКМ № 80 от 21.02.2022, прил. 6, п. 12 (ред. ПКМ № 458 от 23.07.2025); факторы тарифа — «Факторы тарифа по классам и подгруппам» от 02.10.2026",
+ "note": "Шаблоны анализа по всем классам общего страхования (А.3): 18 классов (1–18; класс 18 «Tibbiy sugʻurta» — медицинское страхование, добавлен в 1.2.0 по решению заказчика) и варианты 13з и 16у — свои шаблоны, всего 20. Классы страхования жизни в шаблоны не входят (в 1.3.0 убраны по указанию заказчика: нужны все классы общего страхования). Источник истины в репозитории; при старте сервер доводит таблицу class_templates и класс 18 в справочнике classes (app/class_templates.py.ensure), правки администратора — новая версия строки (PUT /act/templates/{class}), история сохраняется; новая версия файла при действующей правке администратора её не заменяет — добавляется в историю как «доступна новая версия шаблона из поставки». Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0). Классы 8 и 9 берут риски из таблицы perils базы (доли там тоже оценка разработчика). Учётная группа класса 18 не задана: в Положении 1882, п. 10 его нет. В 1.4.0 у каждого шаблона — factor_groups: подгруппы и факторы повышения и понижения тарифа (документ «Факторы тарифа по классам и подгруппам» от 02.10.2026) с коэффициентами; у нейтрального варианта 1,0. Коэффициенты экспертные, не калиброваны (calibrated = 0): их утверждает актуарий страховщика. Значения вводятся полями выбора optional (optional.class_fields.<код> или прежние уточнения акта: место хранения, защита, конструкция). По умолчанию факторы ставку акта не меняют — показываются справочно (настройка act_settings.factors.mode).",
  "common_must": [
   {
    "code": "product_or_class",
@@ -166,6 +166,112 @@
       "ru": "сверх приложения А, экспертно",
       "uz": "A ilovadan tashqari, ekspert baho",
       "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "occupation_group",
+     "type": "choice",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      "office",
+      "workers",
+      "drivers",
+      "sports",
+      "hazardous",
+      "students",
+      "mixed"
+     ],
+     "option_labels": {
+      "office": {
+       "ru": "офисные работники",
+       "uz": "ofis xodimlari",
+       "en": "office workers"
+      },
+      "workers": {
+       "ru": "рабочие: стройка, производство",
+       "uz": "ishchilar: qurilish, ishlab chiqarish",
+       "en": "manual workers: construction, industry"
+      },
+      "drivers": {
+       "ru": "водители и перевозчики",
+       "uz": "haydovchilar va tashuvchilar",
+       "en": "drivers and carriers"
+      },
+      "sports": {
+       "ru": "спортсмены",
+       "uz": "sportchilar",
+       "en": "athletes"
+      },
+      "hazardous": {
+       "ru": "шахтёры, нефтяники, энергетики",
+       "uz": "shaxtyorlar, neftchilar, energetiklar",
+       "en": "miners, oil and power workers"
+      },
+      "students": {
+       "ru": "дети и студенты",
+       "uz": "bolalar va talabalar",
+       "en": "children and students"
+      },
+      "mixed": {
+       "ru": "смешанная группа",
+       "uz": "aralash guruh",
+       "en": "mixed group"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "territory",
+     "type": "choice",
+     "label": {
+      "ru": "Территория покрытия",
+      "uz": "Qoplash hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      "region",
+      "uzbekistan",
+      "cis",
+      "worldwide"
+     ],
+     "option_labels": {
+      "region": {
+       "ru": "один регион Узбекистана",
+       "uz": "Oʻzbekistonning bitta hududi",
+       "en": "one region of Uzbekistan"
+      },
+      "uzbekistan": {
+       "ru": "весь Узбекистан",
+       "uz": "butun Oʻzbekiston",
+       "en": "all of Uzbekistan"
+      },
+      "cis": {
+       "ru": "Узбекистан и страны СНГ",
+       "uz": "Oʻzbekiston va MDH davlatlari",
+       "en": "Uzbekistan and CIS countries"
+      },
+      "worldwide": {
+       "ru": "весь мир",
+       "uz": "butun dunyo",
+       "en": "worldwide"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
      }
     },
     {
@@ -412,7 +518,201 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "occupation_group",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      {
+       "code": "office",
+       "label": {
+        "ru": "офисные работники",
+        "uz": "ofis xodimlari",
+        "en": "office workers"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "низкий травматизм; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "workers",
+       "label": {
+        "ru": "рабочие: стройка, производство",
+        "uz": "ishchilar: qurilish, ishlab chiqarish",
+        "en": "manual workers: construction, industry"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "высотные работы, механизмы, химия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "drivers",
+       "label": {
+        "ru": "водители и перевозчики",
+        "uz": "haydovchilar va tashuvchilar",
+        "en": "drivers and carriers"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "дальние рейсы, ночь; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sports",
+       "label": {
+        "ru": "спортсмены",
+        "uz": "sportchilar",
+        "en": "athletes"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "контактные и экстремальные виды, соревнования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hazardous",
+       "label": {
+        "ru": "шахтёры, нефтяники, энергетики",
+        "uz": "shaxtyorlar, neftchilar, energetiklar",
+        "en": "miners, oil and power workers"
+       },
+       "coef": 1.5,
+       "note": {
+        "ru": "высокая опасность профессии; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "students",
+       "label": {
+        "ru": "дети и студенты",
+        "uz": "bolalar va talabalar",
+        "en": "children and students"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "активность и спорт уравновешены покрытием в учебное время; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mixed",
+       "label": {
+        "ru": "смешанная группа",
+        "uz": "aralash guruh",
+        "en": "mixed group"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "cover_24h",
+     "label": {
+      "ru": "Круглосуточное покрытие",
+      "uz": "Kecha-kunduz qoplama",
+      "en": "24-hour cover"
+     },
+     "input": "optional.class_fields.cover_24h",
+     "options": [
+      {
+       "code": "yes",
+       "label": {
+        "ru": "круглосуточно",
+        "uz": "kecha-kunduz",
+        "en": "24 hours"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "покрыты и быт, и дорога, и отдых; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "no",
+       "label": {
+        "ru": "только рабочее время",
+        "uz": "faqat ish vaqti",
+        "en": "working hours only"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "territory",
+     "label": {
+      "ru": "Территория покрытия",
+      "uz": "Qoplash hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      {
+       "code": "region",
+       "label": {
+        "ru": "один регион Узбекистана",
+        "uz": "Oʻzbekistonning bitta hududi",
+        "en": "one region of Uzbekistan"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "согласованные клиники рядом; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "uzbekistan",
+       "label": {
+        "ru": "весь Узбекистан",
+        "uz": "butun Oʻzbekiston",
+        "en": "all of Uzbekistan"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cis",
+       "label": {
+        "ru": "Узбекистан и страны СНГ",
+        "uz": "Oʻzbekiston va MDH davlatlari",
+        "en": "Uzbekistan and CIS countries"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "поездки за рубеж — выше расходы на лечение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "worldwide",
+       "label": {
+        "ru": "весь мир",
+        "uz": "butun dunyo",
+        "en": "worldwide"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "дорогое лечение за рубежом; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "2": {
    "class_code": "2",
@@ -532,6 +832,150 @@
       "ru": "сверх приложения А, экспертно",
       "uz": "A ilovadan tashqari, ekspert baho",
       "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "occupation_group",
+     "type": "choice",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      "office",
+      "workers",
+      "drivers",
+      "sports",
+      "hazardous",
+      "students",
+      "mixed"
+     ],
+     "option_labels": {
+      "office": {
+       "ru": "офисные работники",
+       "uz": "ofis xodimlari",
+       "en": "office workers"
+      },
+      "workers": {
+       "ru": "рабочие: стройка, производство",
+       "uz": "ishchilar: qurilish, ishlab chiqarish",
+       "en": "manual workers: construction, industry"
+      },
+      "drivers": {
+       "ru": "водители и перевозчики",
+       "uz": "haydovchilar va tashuvchilar",
+       "en": "drivers and carriers"
+      },
+      "sports": {
+       "ru": "спортсмены",
+       "uz": "sportchilar",
+       "en": "athletes"
+      },
+      "hazardous": {
+       "ru": "шахтёры, нефтяники, энергетики",
+       "uz": "shaxtyorlar, neftchilar, energetiklar",
+       "en": "miners, oil and power workers"
+      },
+      "students": {
+       "ru": "дети и студенты",
+       "uz": "bolalar va talabalar",
+       "en": "children and students"
+      },
+      "mixed": {
+       "ru": "смешанная группа",
+       "uz": "aralash guruh",
+       "en": "mixed group"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "territory",
+     "type": "choice",
+     "label": {
+      "ru": "Территория покрытия",
+      "uz": "Qoplash hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      "region",
+      "uzbekistan",
+      "cis",
+      "worldwide"
+     ],
+     "option_labels": {
+      "region": {
+       "ru": "один регион Узбекистана",
+       "uz": "Oʻzbekistonning bitta hududi",
+       "en": "one region of Uzbekistan"
+      },
+      "uzbekistan": {
+       "ru": "весь Узбекистан",
+       "uz": "butun Oʻzbekiston",
+       "en": "all of Uzbekistan"
+      },
+      "cis": {
+       "ru": "Узбекистан и страны СНГ",
+       "uz": "Oʻzbekiston va MDH davlatlari",
+       "en": "Uzbekistan and CIS countries"
+      },
+      "worldwide": {
+       "ru": "весь мир",
+       "uz": "butun dunyo",
+       "en": "worldwide"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "program_level",
+     "type": "choice",
+     "label": {
+      "ru": "Широта программы",
+      "uz": "Dastur kengligi",
+      "en": "Programme scope"
+     },
+     "input": "optional.class_fields.program_level",
+     "options": [
+      "limited",
+      "standard",
+      "wide"
+     ],
+     "option_labels": {
+      "limited": {
+       "ru": "ограниченная, согласованные клиники",
+       "uz": "cheklangan, kelishilgan klinikalar",
+       "en": "limited, agreed clinics"
+      },
+      "standard": {
+       "ru": "стандартная",
+       "uz": "standart",
+       "en": "standard"
+      },
+      "wide": {
+       "ru": "широкая: стоматология, роды, дорогие клиники",
+       "uz": "keng: stomatologiya, tugʻruq, qimmat klinikalar",
+       "en": "wide: dental, maternity, expensive clinics"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
      }
     },
     {
@@ -786,7 +1230,213 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "occupation_group",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      {
+       "code": "office",
+       "label": {
+        "ru": "офисные работники",
+        "uz": "ofis xodimlari",
+        "en": "office workers"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "низкий травматизм; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "workers",
+       "label": {
+        "ru": "рабочие: стройка, производство",
+        "uz": "ishchilar: qurilish, ishlab chiqarish",
+        "en": "manual workers: construction, industry"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "высотные работы, механизмы, химия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "drivers",
+       "label": {
+        "ru": "водители и перевозчики",
+        "uz": "haydovchilar va tashuvchilar",
+        "en": "drivers and carriers"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "дальние рейсы, ночь; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sports",
+       "label": {
+        "ru": "спортсмены",
+        "uz": "sportchilar",
+        "en": "athletes"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "контактные и экстремальные виды, соревнования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hazardous",
+       "label": {
+        "ru": "шахтёры, нефтяники, энергетики",
+        "uz": "shaxtyorlar, neftchilar, energetiklar",
+        "en": "miners, oil and power workers"
+       },
+       "coef": 1.5,
+       "note": {
+        "ru": "высокая опасность профессии; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "students",
+       "label": {
+        "ru": "дети и студенты",
+        "uz": "bolalar va talabalar",
+        "en": "children and students"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "активность и спорт уравновешены покрытием в учебное время; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mixed",
+       "label": {
+        "ru": "смешанная группа",
+        "uz": "aralash guruh",
+        "en": "mixed group"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "territory",
+     "label": {
+      "ru": "Территория покрытия",
+      "uz": "Qoplash hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      {
+       "code": "region",
+       "label": {
+        "ru": "один регион Узбекистана",
+        "uz": "Oʻzbekistonning bitta hududi",
+        "en": "one region of Uzbekistan"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "согласованные клиники рядом; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "uzbekistan",
+       "label": {
+        "ru": "весь Узбекистан",
+        "uz": "butun Oʻzbekiston",
+        "en": "all of Uzbekistan"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cis",
+       "label": {
+        "ru": "Узбекистан и страны СНГ",
+        "uz": "Oʻzbekiston va MDH davlatlari",
+        "en": "Uzbekistan and CIS countries"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "поездки за рубеж — выше расходы на лечение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "worldwide",
+       "label": {
+        "ru": "весь мир",
+        "uz": "butun dunyo",
+        "en": "worldwide"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "дорогое лечение за рубежом; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "program_level",
+     "label": {
+      "ru": "Широта программы",
+      "uz": "Dastur kengligi",
+      "en": "Programme scope"
+     },
+     "input": "optional.class_fields.program_level",
+     "options": [
+      {
+       "code": "limited",
+       "label": {
+        "ru": "ограниченная, согласованные клиники",
+        "uz": "cheklangan, kelishilgan klinikalar",
+        "en": "limited, agreed clinics"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "узкий список услуг и клиник; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "стандартная",
+        "uz": "standart",
+        "en": "standard"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "wide",
+       "label": {
+        "ru": "широкая: стоматология, роды, дорогие клиники",
+        "uz": "keng: stomatologiya, tugʻruq, qimmat klinikalar",
+        "en": "wide: dental, maternity, expensive clinics"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "дорогие и частые услуги; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "3": {
    "class_code": "3",
@@ -1040,7 +1690,29 @@
       "alarm",
       "immo",
       "tracker"
-     ]
+     ],
+     "option_labels": {
+      "none": {
+       "ru": "нет",
+       "uz": "yoʻq",
+       "en": "none"
+      },
+      "alarm": {
+       "ru": "штатная сигнализация",
+       "uz": "zavod signalizatsiyasi",
+       "en": "factory alarm"
+      },
+      "immo": {
+       "ru": "сигнализация и иммобилайзер",
+       "uz": "signalizatsiya va immobilayzer",
+       "en": "alarm and immobiliser"
+      },
+      "tracker": {
+       "ru": "спутниковый поиск с блокировкой",
+       "uz": "blokirovkali sunʼiy yoʻldosh qidiruvi",
+       "en": "satellite tracking with immobilisation"
+      }
+     }
     },
     {
      "code": "drivers",
@@ -1068,7 +1740,39 @@
       "guarded",
       "closed_storage",
       "other"
-     ]
+     ],
+     "option_labels": {
+      "open_area": {
+       "ru": "открытая площадка, улица",
+       "uz": "ochiq maydon, koʻcha",
+       "en": "open area, street"
+      },
+      "construction": {
+       "ru": "строительная площадка",
+       "uz": "qurilish maydoni",
+       "en": "construction site"
+      },
+      "port": {
+       "ru": "порт",
+       "uz": "port",
+       "en": "port"
+      },
+      "guarded": {
+       "ru": "охраняемая стоянка",
+       "uz": "qoʻriqlanadigan turargoh",
+       "en": "guarded parking"
+      },
+      "closed_storage": {
+       "ru": "гараж, закрытое хранение",
+       "uz": "garaj, yopiq saqlash",
+       "en": "garage, closed storage"
+      },
+      "other": {
+       "ru": "другое место",
+       "uz": "boshqa joy",
+       "en": "other place"
+      }
+     }
     },
     {
      "code": "guard",
@@ -1079,6 +1783,236 @@
       "en": "Security"
      },
      "input": "optional.guard"
+    },
+    {
+     "code": "veh_group",
+     "type": "choice",
+     "label": {
+      "ru": "Тип транспорта (для тарифа)",
+      "uz": "Transport turi (tarif uchun)",
+      "en": "Vehicle type (for rating)"
+     },
+     "input": "optional.class_fields.veh_group",
+     "options": [
+      "car",
+      "truck",
+      "bus",
+      "trailer",
+      "special_wheeled",
+      "special_tracked",
+      "agro",
+      "moto"
+     ],
+     "option_labels": {
+      "car": {
+       "ru": "легковой автомобиль",
+       "uz": "yengil avtomobil",
+       "en": "passenger car"
+      },
+      "truck": {
+       "ru": "грузовой автомобиль",
+       "uz": "yuk avtomobili",
+       "en": "truck"
+      },
+      "bus": {
+       "ru": "автобус, микроавтобус",
+       "uz": "avtobus, mikroavtobus",
+       "en": "bus, minibus"
+      },
+      "trailer": {
+       "ru": "прицеп, полуприцеп",
+       "uz": "tirkama, yarim tirkama",
+       "en": "trailer, semi-trailer"
+      },
+      "special_wheeled": {
+       "ru": "спецтехника колёсная: краны, погрузчики, бетононасосы",
+       "uz": "gʻildirakli maxsus texnika: kranlar, yuklagichlar, beton nasoslari",
+       "en": "wheeled special machinery: cranes, loaders, concrete pumps"
+      },
+      "special_tracked": {
+       "ru": "спецтехника гусеничная: экскаваторы, бульдозеры",
+       "uz": "zanjirli maxsus texnika: ekskavatorlar, buldozerlar",
+       "en": "tracked machinery: excavators, bulldozers"
+      },
+      "agro": {
+       "ru": "сельхозтехника: тракторы, комбайны",
+       "uz": "qishloq xoʻjaligi texnikasi: traktorlar, kombaynlar",
+       "en": "farm machinery: tractors, combines"
+      },
+      "moto": {
+       "ru": "мотоцикл, мопед",
+       "uz": "mototsikl, moped",
+       "en": "motorcycle, moped"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "fuel",
+     "type": "choice",
+     "label": {
+      "ru": "Топливо и привод",
+      "uz": "Yoqilgʻi va yuritma",
+      "en": "Fuel and drive"
+     },
+     "input": "optional.class_fields.fuel",
+     "options": [
+      "petrol",
+      "diesel",
+      "lpg",
+      "cng",
+      "hybrid",
+      "electric",
+      "other"
+     ],
+     "option_labels": {
+      "petrol": {
+       "ru": "бензин",
+       "uz": "benzin",
+       "en": "petrol"
+      },
+      "diesel": {
+       "ru": "дизель",
+       "uz": "dizel",
+       "en": "diesel"
+      },
+      "lpg": {
+       "ru": "газ пропан-бутан",
+       "uz": "propan-butan gazi",
+       "en": "LPG (propane-butane)"
+      },
+      "cng": {
+       "ru": "газ метан",
+       "uz": "metan gazi",
+       "en": "CNG (methane)"
+      },
+      "hybrid": {
+       "ru": "гибрид",
+       "uz": "gibrid",
+       "en": "hybrid"
+      },
+      "electric": {
+       "ru": "электромобиль",
+       "uz": "elektromobil",
+       "en": "electric"
+      },
+      "other": {
+       "ru": "водород и прочие редкие",
+       "uz": "vodorod va boshqa kam uchraydiganlar",
+       "en": "hydrogen and other rare"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "usage",
+     "type": "choice",
+     "label": {
+      "ru": "Использование",
+      "uz": "Foydalanish",
+      "en": "Use"
+     },
+     "input": "optional.class_fields.usage",
+     "options": [
+      "personal",
+      "business",
+      "taxi_rent",
+      "carriage",
+      "training"
+     ],
+     "option_labels": {
+      "personal": {
+       "ru": "личное",
+       "uz": "shaxsiy",
+       "en": "personal"
+      },
+      "business": {
+       "ru": "служебное",
+       "uz": "xizmat",
+       "en": "business"
+      },
+      "taxi_rent": {
+       "ru": "такси, аренда, каршеринг",
+       "uz": "taksi, ijara, karshering",
+       "en": "taxi, rental, car sharing"
+      },
+      "carriage": {
+       "ru": "перевозки и доставка",
+       "uz": "tashish va yetkazib berish",
+       "en": "carriage and delivery"
+      },
+      "training": {
+       "ru": "обучение вождению",
+       "uz": "haydashni oʻrgatish",
+       "en": "driver training"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "drivers_profile",
+     "type": "choice",
+     "label": {
+      "ru": "Водители (для тарифа)",
+      "uz": "Haydovchilar (tarif uchun)",
+      "en": "Drivers (for rating)"
+     },
+     "input": "optional.class_fields.drivers_profile",
+     "options": [
+      "experienced",
+      "standard",
+      "young",
+      "unlimited",
+      "violations"
+     ],
+     "option_labels": {
+      "experienced": {
+       "ru": "стаж более 5 лет, ограниченный список, без нарушений",
+       "uz": "staji 5 yildan ortiq, cheklangan roʻyxat, qoidabuzarliksiz",
+       "en": "over 5 years' experience, named drivers, clean record"
+      },
+      "standard": {
+       "ru": "обычные",
+       "uz": "oddiy",
+       "en": "standard"
+      },
+      "young": {
+       "ru": "стаж до 3 лет или возраст до 23 лет",
+       "uz": "staji 3 yilgacha yoki yoshi 23 gacha",
+       "en": "under 3 years' experience or under 23"
+      },
+      "unlimited": {
+       "ru": "без ограничения списка водителей",
+       "uz": "haydovchilar roʻyxati cheklanmagan",
+       "en": "any driver"
+      },
+      "violations": {
+       "ru": "нарушения ПДД или лишение прав в прошлом",
+       "uz": "YHQ buzilishlari yoki ilgari huquqdan mahrum qilingan",
+       "en": "traffic violations or past licence suspension"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -1425,7 +2359,501 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "veh_group",
+     "label": {
+      "ru": "Тип транспорта (для тарифа)",
+      "uz": "Transport turi (tarif uchun)",
+      "en": "Vehicle type (for rating)"
+     },
+     "input": "optional.class_fields.veh_group",
+     "options": [
+      {
+       "code": "car",
+       "label": {
+        "ru": "легковой автомобиль",
+        "uz": "yengil avtomobil",
+        "en": "passenger car"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "truck",
+       "label": {
+        "ru": "грузовой автомобиль",
+        "uz": "yuk avtomobili",
+        "en": "truck"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "междугородние рейсы, тяжёлые условия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "bus",
+       "label": {
+        "ru": "автобус, микроавтобус",
+        "uz": "avtobus, mikroavtobus",
+        "en": "bus, minibus"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "пассажиры, маршрутная работа; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "trailer",
+       "label": {
+        "ru": "прицеп, полуприцеп",
+        "uz": "tirkama, yarim tirkama",
+        "en": "trailer, semi-trailer"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "нет своего двигателя и водителя; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "special_wheeled",
+       "label": {
+        "ru": "спецтехника колёсная: краны, погрузчики, бетононасосы",
+        "uz": "gʻildirakli maxsus texnika: kranlar, yuklagichlar, beton nasoslari",
+        "en": "wheeled special machinery: cranes, loaders, concrete pumps"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "стройка, работа у ЛЭП, аренда; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "special_tracked",
+       "label": {
+        "ru": "спецтехника гусеничная: экскаваторы, бульдозеры",
+        "uz": "zanjirli maxsus texnika: ekskavatorlar, buldozerlar",
+        "en": "tracked machinery: excavators, bulldozers"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "карьеры, перевозка на трале; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "agro",
+       "label": {
+        "ru": "сельхозтехника: тракторы, комбайны",
+        "uz": "qishloq xoʻjaligi texnikasi: traktorlar, kombaynlar",
+        "en": "farm machinery: tractors, combines"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "сезонная работа, малый пробег; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "moto",
+       "label": {
+        "ru": "мотоцикл, мопед",
+        "uz": "mototsikl, moped",
+        "en": "motorcycle, moped"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "высокая частота ДТП и краж; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "fuel",
+     "label": {
+      "ru": "Топливо и привод",
+      "uz": "Yoqilgʻi va yuritma",
+      "en": "Fuel and drive"
+     },
+     "input": "optional.class_fields.fuel",
+     "options": [
+      {
+       "code": "petrol",
+       "label": {
+        "ru": "бензин",
+        "uz": "benzin",
+        "en": "petrol"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "diesel",
+       "label": {
+        "ru": "дизель",
+        "uz": "dizel",
+        "en": "diesel"
+       },
+       "coef": 1.05,
+       "note": {
+        "ru": "утечки топлива на старых двигателях, работа в холод; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "lpg",
+       "label": {
+        "ru": "газ пропан-бутан",
+        "uz": "propan-butan gazi",
+        "en": "LPG (propane-butane)"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "кустарная установка и баллоны без освидетельствования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cng",
+       "label": {
+        "ru": "газ метан",
+        "uz": "metan gazi",
+        "en": "CNG (methane)"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "высокое давление в баллонах, старые баллоны; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hybrid",
+       "label": {
+        "ru": "гибрид",
+        "uz": "gibrid",
+        "en": "hybrid"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "дорогая батарея и ремонт, мало сервисов; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "electric",
+       "label": {
+        "ru": "электромобиль",
+        "uz": "elektromobil",
+        "en": "electric"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "батарея — до половины стоимости, риск возгорания, дорогие запчасти; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "other",
+       "label": {
+        "ru": "водород и прочие редкие",
+        "uz": "vodorod va boshqa kam uchraydiganlar",
+        "en": "hydrogen and other rare"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "нет сервиса и запчастей в стране; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "usage",
+     "label": {
+      "ru": "Использование",
+      "uz": "Foydalanish",
+      "en": "Use"
+     },
+     "input": "optional.class_fields.usage",
+     "options": [
+      {
+       "code": "personal",
+       "label": {
+        "ru": "личное",
+        "uz": "shaxsiy",
+        "en": "personal"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "малый пробег, один водитель; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "business",
+       "label": {
+        "ru": "служебное",
+        "uz": "xizmat",
+        "en": "business"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "taxi_rent",
+       "label": {
+        "ru": "такси, аренда, каршеринг",
+        "uz": "taksi, ijara, karshering",
+        "en": "taxi, rental, car sharing"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "интенсивная эксплуатация, много водителей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "carriage",
+       "label": {
+        "ru": "перевозки и доставка",
+        "uz": "tashish va yetkazib berish",
+        "en": "carriage and delivery"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "большой пробег, работа по графику; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "training",
+       "label": {
+        "ru": "обучение вождению",
+        "uz": "haydashni oʻrgatish",
+        "en": "driver training"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "неопытные водители; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "location",
+     "label": {
+      "ru": "Хранение ночью",
+      "uz": "Tunda saqlash",
+      "en": "Overnight storage"
+     },
+     "input": "optional.location",
+     "options": [
+      {
+       "code": "open_area",
+       "label": {
+        "ru": "открытая площадка, улица",
+        "uz": "ochiq maydon, koʻcha",
+        "en": "open area, street"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "кражи и повреждения без присмотра; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "construction",
+       "label": {
+        "ru": "строительная площадка",
+        "uz": "qurilish maydoni",
+        "en": "construction site"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "посторонние и чужая техника на площадке; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "port",
+       "label": {
+        "ru": "порт",
+        "uz": "port",
+        "en": "port"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "открытое хранение, погрузочные работы рядом; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "guarded",
+       "label": {
+        "ru": "охраняемая стоянка",
+        "uz": "qoʻriqlanadigan turargoh",
+        "en": "guarded parking"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "охрана и видеонаблюдение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "closed_storage",
+       "label": {
+        "ru": "гараж, закрытое хранение",
+        "uz": "garaj, yopiq saqlash",
+        "en": "garage, closed storage"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "защита от краж и погоды; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "other",
+       "label": {
+        "ru": "другое место",
+        "uz": "boshqa joy",
+        "en": "other place"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "protection",
+     "label": {
+      "ru": "Противоугонная защита",
+      "uz": "Oʻgʻirlikka qarshi himoya",
+      "en": "Anti-theft protection"
+     },
+     "input": "optional.protection",
+     "options": [
+      {
+       "code": "none",
+       "label": {
+        "ru": "нет",
+        "uz": "yoʻq",
+        "en": "none"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "угон без препятствий; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "alarm",
+       "label": {
+        "ru": "штатная сигнализация",
+        "uz": "zavod signalizatsiyasi",
+        "en": "factory alarm"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "immo",
+       "label": {
+        "ru": "сигнализация и иммобилайзер",
+        "uz": "signalizatsiya va immobilayzer",
+        "en": "alarm and immobiliser"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "двигатель не заводится без ключа; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "tracker",
+       "label": {
+        "ru": "спутниковый поиск с блокировкой",
+        "uz": "blokirovkali sunʼiy yoʻldosh qidiruvi",
+        "en": "satellite tracking with immobilisation"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "машину находят и блокируют; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "drivers_profile",
+     "label": {
+      "ru": "Водители (для тарифа)",
+      "uz": "Haydovchilar (tarif uchun)",
+      "en": "Drivers (for rating)"
+     },
+     "input": "optional.class_fields.drivers_profile",
+     "options": [
+      {
+       "code": "experienced",
+       "label": {
+        "ru": "стаж более 5 лет, ограниченный список, без нарушений",
+        "uz": "staji 5 yildan ortiq, cheklangan roʻyxat, qoidabuzarliksiz",
+        "en": "over 5 years' experience, named drivers, clean record"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "опытные водители; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "обычные",
+        "uz": "oddiy",
+        "en": "standard"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "young",
+       "label": {
+        "ru": "стаж до 3 лет или возраст до 23 лет",
+        "uz": "staji 3 yilgacha yoki yoshi 23 gacha",
+        "en": "under 3 years' experience or under 23"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "неопытные и молодые водители; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "unlimited",
+       "label": {
+        "ru": "без ограничения списка водителей",
+        "uz": "haydovchilar roʻyxati cheklanmagan",
+        "en": "any driver"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "много водителей, частая смена; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "violations",
+       "label": {
+        "ru": "нарушения ПДД или лишение прав в прошлом",
+        "uz": "YHQ buzilishlari yoki ilgari huquqdan mahrum qilingan",
+        "en": "traffic violations or past licence suspension"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "история нарушений; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "4": {
    "class_code": "4",
@@ -1538,6 +2966,94 @@
       "en": "Repair schedule"
      },
      "input": "optional.class_fields.repair_due"
+    },
+    {
+     "code": "rail_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Подвижной состав",
+      "uz": "Harakat tarkibi",
+      "en": "Rolling stock"
+     },
+     "input": "optional.class_fields.rail_kind",
+     "options": [
+      "locomotive",
+      "passenger",
+      "freight",
+      "tank",
+      "tank_food"
+     ],
+     "option_labels": {
+      "locomotive": {
+       "ru": "локомотив",
+       "uz": "lokomotiv",
+       "en": "locomotive"
+      },
+      "passenger": {
+       "ru": "пассажирский вагон",
+       "uz": "yoʻlovchi vagoni",
+       "en": "passenger coach"
+      },
+      "freight": {
+       "ru": "грузовой вагон, платформа",
+       "uz": "yuk vagoni, platforma",
+       "en": "freight wagon, flatcar"
+      },
+      "tank": {
+       "ru": "цистерна с опасным грузом",
+       "uz": "xavfli yukli sisterna",
+       "en": "tank car with dangerous goods"
+      },
+      "tank_food": {
+       "ru": "цистерна пищевая",
+       "uz": "oziq-ovqat sisternasi",
+       "en": "food-grade tank car"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "repair_state",
+     "type": "choice",
+     "label": {
+      "ru": "Плановые ремонты",
+      "uz": "Rejali taʼmirlar",
+      "en": "Scheduled repairs"
+     },
+     "input": "optional.class_fields.repair_state",
+     "options": [
+      "recent",
+      "on_time",
+      "overdue"
+     ],
+     "option_labels": {
+      "recent": {
+       "ru": "недавний капремонт или новый",
+       "uz": "yaqinda kapital taʼmir yoki yangi",
+       "en": "recently overhauled or new"
+      },
+      "on_time": {
+       "ru": "ремонты в срок",
+       "uz": "taʼmirlar oʻz vaqtida",
+       "en": "repairs on schedule"
+      },
+      "overdue": {
+       "ru": "ремонт или освидетельствование просрочены",
+       "uz": "taʼmir yoki koʻrik muddati oʻtgan",
+       "en": "repair or inspection overdue"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -1804,7 +3320,129 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "rail_kind",
+     "label": {
+      "ru": "Подвижной состав",
+      "uz": "Harakat tarkibi",
+      "en": "Rolling stock"
+     },
+     "input": "optional.class_fields.rail_kind",
+     "options": [
+      {
+       "code": "locomotive",
+       "label": {
+        "ru": "локомотив",
+        "uz": "lokomotiv",
+        "en": "locomotive"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "маневровая работа, возраст; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "passenger",
+       "label": {
+        "ru": "пассажирский вагон",
+        "uz": "yoʻlovchi vagoni",
+        "en": "passenger coach"
+       },
+       "coef": 1.05,
+       "note": {
+        "ru": "международные маршруты, тормозные системы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "freight",
+       "label": {
+        "ru": "грузовой вагон, платформа",
+        "uz": "yuk vagoni, platforma",
+        "en": "freight wagon, flatcar"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "tank",
+       "label": {
+        "ru": "цистерна с опасным грузом",
+        "uz": "xavfli yukli sisterna",
+        "en": "tank car with dangerous goods"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "нефть, газ, химия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "tank_food",
+       "label": {
+        "ru": "цистерна пищевая",
+        "uz": "oziq-ovqat sisternasi",
+        "en": "food-grade tank car"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "безопасный груз; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "repair_state",
+     "label": {
+      "ru": "Плановые ремонты",
+      "uz": "Rejali taʼmirlar",
+      "en": "Scheduled repairs"
+     },
+     "input": "optional.class_fields.repair_state",
+     "options": [
+      {
+       "code": "recent",
+       "label": {
+        "ru": "недавний капремонт или новый",
+        "uz": "yaqinda kapital taʼmir yoki yangi",
+        "en": "recently overhauled or new"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "свежее освидетельствование; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "on_time",
+       "label": {
+        "ru": "ремонты в срок",
+        "uz": "taʼmirlar oʻz vaqtida",
+        "en": "repairs on schedule"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "overdue",
+       "label": {
+        "ru": "ремонт или освидетельствование просрочены",
+        "uz": "taʼmir yoki koʻrik muddati oʻtgan",
+        "en": "repair or inspection overdue"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "износ, отказ тормозов или котла; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "5": {
    "class_code": "5",
@@ -1929,6 +3567,94 @@
       "en": "Flight geography"
      },
      "input": "optional.class_fields.geography"
+    },
+    {
+     "code": "aircraft_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид воздушного судна",
+      "uz": "Havo kemasi turi",
+      "en": "Aircraft type"
+     },
+     "input": "optional.class_fields.aircraft_kind",
+     "options": [
+      "passenger",
+      "cargo",
+      "helicopter",
+      "private",
+      "drone"
+     ],
+     "option_labels": {
+      "passenger": {
+       "ru": "пассажирский самолёт",
+       "uz": "yoʻlovchi samolyoti",
+       "en": "passenger aircraft"
+      },
+      "cargo": {
+       "ru": "грузовой самолёт",
+       "uz": "yuk samolyoti",
+       "en": "cargo aircraft"
+      },
+      "helicopter": {
+       "ru": "вертолёт",
+       "uz": "vertolyot",
+       "en": "helicopter"
+      },
+      "private": {
+       "ru": "малая и частная авиация",
+       "uz": "kichik va xususiy aviatsiya",
+       "en": "general and private aviation"
+      },
+      "drone": {
+       "ru": "беспилотник",
+       "uz": "uchuvchisiz apparat",
+       "en": "drone"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "crew_level",
+     "type": "choice",
+     "label": {
+      "ru": "Экипаж",
+      "uz": "Ekipaj",
+      "en": "Crew"
+     },
+     "input": "optional.class_fields.crew_level",
+     "options": [
+      "professional",
+      "standard",
+      "amateur"
+     ],
+     "option_labels": {
+      "professional": {
+       "ru": "профессиональный, большой налёт",
+       "uz": "professional, katta parvoz soati",
+       "en": "professional, high flight hours"
+      },
+      "standard": {
+       "ru": "обычный",
+       "uz": "oddiy",
+       "en": "standard"
+      },
+      "amateur": {
+       "ru": "любительский, малый налёт",
+       "uz": "havaskor, kam parvoz soati",
+       "en": "amateur, low flight hours"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -2203,7 +3929,129 @@
    ],
    "aliases": [],
    "reinsurance_usually": true,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "aircraft_kind",
+     "label": {
+      "ru": "Вид воздушного судна",
+      "uz": "Havo kemasi turi",
+      "en": "Aircraft type"
+     },
+     "input": "optional.class_fields.aircraft_kind",
+     "options": [
+      {
+       "code": "passenger",
+       "label": {
+        "ru": "пассажирский самолёт",
+        "uz": "yoʻlovchi samolyoti",
+        "en": "passenger aircraft"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cargo",
+       "label": {
+        "ru": "грузовой самолёт",
+        "uz": "yuk samolyoti",
+        "en": "cargo aircraft"
+       },
+       "coef": 1.05,
+       "note": {
+        "ru": "ночные рейсы, нерегулярные аэродромы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "helicopter",
+       "label": {
+        "ru": "вертолёт",
+        "uz": "vertolyot",
+        "en": "helicopter"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "малые высоты, сельхозработы, горы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "private",
+       "label": {
+        "ru": "малая и частная авиация",
+        "uz": "kichik va xususiy aviatsiya",
+        "en": "general and private aviation"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "любительская эксплуатация; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "drone",
+       "label": {
+        "ru": "беспилотник",
+        "uz": "uchuvchisiz apparat",
+        "en": "drone"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "полёты над людьми, ручное управление; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "crew_level",
+     "label": {
+      "ru": "Экипаж",
+      "uz": "Ekipaj",
+      "en": "Crew"
+     },
+     "input": "optional.class_fields.crew_level",
+     "options": [
+      {
+       "code": "professional",
+       "label": {
+        "ru": "профессиональный, большой налёт",
+        "uz": "professional, katta parvoz soati",
+        "en": "professional, high flight hours"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "опыт экипажа; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "обычный",
+        "uz": "oddiy",
+        "en": "standard"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "amateur",
+       "label": {
+        "ru": "любительский, малый налёт",
+        "uz": "havaskor, kam parvoz soati",
+        "en": "amateur, low flight hours"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "мало опыта; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "6": {
    "class_code": "6",
@@ -2308,6 +4156,88 @@
       "en": "Season"
      },
      "input": "optional.class_fields.season"
+    },
+    {
+     "code": "vessel_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид судна",
+      "uz": "Kema turi",
+      "en": "Vessel type"
+     },
+     "input": "optional.class_fields.vessel_kind",
+     "options": [
+      "cargo_tanker",
+      "passenger",
+      "pleasure",
+      "floating"
+     ],
+     "option_labels": {
+      "cargo_tanker": {
+       "ru": "сухогруз, танкер",
+       "uz": "quruq yuk kemasi, tanker",
+       "en": "dry cargo ship, tanker"
+      },
+      "passenger": {
+       "ru": "пассажирское судно",
+       "uz": "yoʻlovchi kemasi",
+       "en": "passenger vessel"
+      },
+      "pleasure": {
+       "ru": "речное, прогулочное, катер",
+       "uz": "daryo, sayr kemasi, kater",
+       "en": "river or pleasure craft, boat"
+      },
+      "floating": {
+       "ru": "баржа, понтон",
+       "uz": "barja, ponton",
+       "en": "barge, pontoon"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "class_status",
+     "type": "choice",
+     "label": {
+      "ru": "Класс судна",
+      "uz": "Kema klassi",
+      "en": "Vessel class"
+     },
+     "input": "optional.class_fields.class_status",
+     "options": [
+      "valid",
+      "standard",
+      "none"
+     ],
+     "option_labels": {
+      "valid": {
+       "ru": "действующий класс, свежее освидетельствование",
+       "uz": "amaldagi klass, yangi koʻrik",
+       "en": "valid class, recent survey"
+      },
+      "standard": {
+       "ru": "класс есть",
+       "uz": "klass bor",
+       "en": "class held"
+      },
+      "none": {
+       "ru": "нет класса, судно старше 20 лет",
+       "uz": "klass yoʻq, kema 20 yoshdan katta",
+       "en": "no class, vessel over 20 years"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -2576,7 +4506,117 @@
    ],
    "aliases": [],
    "reinsurance_usually": true,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "vessel_kind",
+     "label": {
+      "ru": "Вид судна",
+      "uz": "Kema turi",
+      "en": "Vessel type"
+     },
+     "input": "optional.class_fields.vessel_kind",
+     "options": [
+      {
+       "code": "cargo_tanker",
+       "label": {
+        "ru": "сухогруз, танкер",
+        "uz": "quruq yuk kemasi, tanker",
+        "en": "dry cargo ship, tanker"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "passenger",
+       "label": {
+        "ru": "пассажирское судно",
+        "uz": "yoʻlovchi kemasi",
+        "en": "passenger vessel"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "шторма, много пассажиров; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "pleasure",
+       "label": {
+        "ru": "речное, прогулочное, катер",
+        "uz": "daryo, sayr kemasi, kater",
+        "en": "river or pleasure craft, boat"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "любительское управление, стоянка без охраны; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "floating",
+       "label": {
+        "ru": "баржа, понтон",
+        "uz": "barja, ponton",
+        "en": "barge, pontoon"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "стационарная работа; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "class_status",
+     "label": {
+      "ru": "Класс судна",
+      "uz": "Kema klassi",
+      "en": "Vessel class"
+     },
+     "input": "optional.class_fields.class_status",
+     "options": [
+      {
+       "code": "valid",
+       "label": {
+        "ru": "действующий класс, свежее освидетельствование",
+        "uz": "amaldagi klass, yangi koʻrik",
+        "en": "valid class, recent survey"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "техническое состояние подтверждено; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "класс есть",
+        "uz": "klass bor",
+        "en": "class held"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "none",
+       "label": {
+        "ru": "нет класса, судно старше 20 лет",
+        "uz": "klass yoʻq, kema 20 yoshdan katta",
+        "en": "no class, vessel over 20 years"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "состояние не подтверждено; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "7": {
    "class_code": "7",
@@ -2629,7 +4669,34 @@
       "air",
       "sea",
       "multi"
-     ]
+     ],
+     "option_labels": {
+      "auto": {
+       "ru": "автомобильный",
+       "uz": "avtomobil",
+       "en": "road"
+      },
+      "rail": {
+       "ru": "железнодорожный",
+       "uz": "temir yoʻl",
+       "en": "rail"
+      },
+      "air": {
+       "ru": "воздушный",
+       "uz": "havo",
+       "en": "air"
+      },
+      "sea": {
+       "ru": "морской",
+       "uz": "dengiz",
+       "en": "sea"
+      },
+      "multi": {
+       "ru": "смешанный",
+       "uz": "aralash",
+       "en": "multimodal"
+      }
+     }
     },
     {
      "code": "route",
@@ -2657,7 +4724,29 @@
       "factory",
       "standard",
       "none"
-     ]
+     ],
+     "option_labels": {
+      "container": {
+       "ru": "контейнер",
+       "uz": "konteyner",
+       "en": "container"
+      },
+      "factory": {
+       "ru": "заводская упаковка",
+       "uz": "zavod qadogʻi",
+       "en": "factory packaging"
+      },
+      "standard": {
+       "ru": "обычная упаковка",
+       "uz": "oddiy qadoq",
+       "en": "standard packaging"
+      },
+      "none": {
+       "ru": "без упаковки",
+       "uz": "qadoqsiz",
+       "en": "no packaging"
+      }
+     }
     },
     {
      "code": "transshipments",
@@ -2721,6 +4810,68 @@
       "ru": "сверх приложения А, экспертно",
       "uz": "A ilovadan tashqari, ekspert baho",
       "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "cargo_group",
+     "type": "choice",
+     "label": {
+      "ru": "Вид груза (для тарифа)",
+      "uz": "Yuk turi (tarif uchun)",
+      "en": "Cargo type (for rating)"
+     },
+     "input": "optional.class_fields.cargo_group",
+     "options": [
+      "general",
+      "fragile",
+      "perishable",
+      "valuable",
+      "bulk",
+      "oversized",
+      "dangerous"
+     ],
+     "option_labels": {
+      "general": {
+       "ru": "обычный груз",
+       "uz": "oddiy yuk",
+       "en": "general cargo"
+      },
+      "fragile": {
+       "ru": "хрупкий: стекло, электроника, приборы",
+       "uz": "moʻrt: shisha, elektronika, asboblar",
+       "en": "fragile: glass, electronics, instruments"
+      },
+      "perishable": {
+       "ru": "скоропортящийся: продукты, медикаменты",
+       "uz": "tez buziladigan: oziq-ovqat, dori-darmon",
+       "en": "perishable: food, medicines"
+      },
+      "valuable": {
+       "ru": "дорогой и ликвидный: техника, телефоны, табак, алкоголь",
+       "uz": "qimmat va likvid: texnika, telefonlar, tamaki, alkogol",
+       "en": "high-value: electronics, phones, tobacco, alcohol"
+      },
+      "bulk": {
+       "ru": "насыпной и наливной: зерно, цемент, нефтепродукты",
+       "uz": "sochiluvchan va quyiluvchan: don, sement, neft mahsulotlari",
+       "en": "bulk and liquid: grain, cement, oil products"
+      },
+      "oversized": {
+       "ru": "негабарит и тяжеловес",
+       "uz": "oʻlchamdan tashqari va ogʻir yuk",
+       "en": "oversized and heavy-lift"
+      },
+      "dangerous": {
+       "ru": "опасный: химия, газ",
+       "uz": "xavfli: kimyo, gaz",
+       "en": "dangerous: chemicals, gas"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
      }
     },
     {
@@ -2994,7 +5145,237 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "cargo_group",
+     "label": {
+      "ru": "Вид груза (для тарифа)",
+      "uz": "Yuk turi (tarif uchun)",
+      "en": "Cargo type (for rating)"
+     },
+     "input": "optional.class_fields.cargo_group",
+     "options": [
+      {
+       "code": "general",
+       "label": {
+        "ru": "обычный груз",
+        "uz": "oddiy yuk",
+        "en": "general cargo"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "fragile",
+       "label": {
+        "ru": "хрупкий: стекло, электроника, приборы",
+        "uz": "moʻrt: shisha, elektronika, asboblar",
+        "en": "fragile: glass, electronics, instruments"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "бой при перевалках; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "perishable",
+       "label": {
+        "ru": "скоропортящийся: продукты, медикаменты",
+        "uz": "tez buziladigan: oziq-ovqat, dori-darmon",
+        "en": "perishable: food, medicines"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "порча без температурного контроля; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "valuable",
+       "label": {
+        "ru": "дорогой и ликвидный: техника, телефоны, табак, алкоголь",
+        "uz": "qimmat va likvid: texnika, telefonlar, tamaki, alkogol",
+        "en": "high-value: electronics, phones, tobacco, alcohol"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "привлекательность для краж; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "bulk",
+       "label": {
+        "ru": "насыпной и наливной: зерно, цемент, нефтепродукты",
+        "uz": "sochiluvchan va quyiluvchan: don, sement, neft mahsulotlari",
+        "en": "bulk and liquid: grain, cement, oil products"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "подмочка, утечки, недостача; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "oversized",
+       "label": {
+        "ru": "негабарит и тяжеловес",
+        "uz": "oʻlchamdan tashqari va ogʻir yuk",
+        "en": "oversized and heavy-lift"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "сложная погрузка, крановые работы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "dangerous",
+       "label": {
+        "ru": "опасный: химия, газ",
+        "uz": "xavfli: kimyo, gaz",
+        "en": "dangerous: chemicals, gas"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "класс опасности, транзит через города; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "transport_mode",
+     "label": {
+      "ru": "Вид транспорта",
+      "uz": "Transport turi",
+      "en": "Mode of transport"
+     },
+     "input": "optional.class_fields.transport_mode",
+     "options": [
+      {
+       "code": "auto",
+       "label": {
+        "ru": "автомобильный",
+        "uz": "avtomobil",
+        "en": "road"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "rail",
+       "label": {
+        "ru": "железнодорожный",
+        "uz": "temir yoʻl",
+        "en": "rail"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "контейнеры, прямой маршрут; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "air",
+       "label": {
+        "ru": "воздушный",
+        "uz": "havo",
+        "en": "air"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "короткое время в пути; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sea",
+       "label": {
+        "ru": "морской",
+        "uz": "dengiz",
+        "en": "sea"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "палубный груз, сезон штормов; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "multi",
+       "label": {
+        "ru": "смешанный",
+        "uz": "aralash",
+        "en": "multimodal"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "каждая перевалка добавляет риск; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "packaging",
+     "label": {
+      "ru": "Упаковка",
+      "uz": "Qadoq",
+      "en": "Packaging"
+     },
+     "input": "optional.class_fields.packaging",
+     "options": [
+      {
+       "code": "container",
+       "label": {
+        "ru": "контейнер",
+        "uz": "konteyner",
+        "en": "container"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "груз закрыт и закреплён; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "factory",
+       "label": {
+        "ru": "заводская упаковка",
+        "uz": "zavod qadogʻi",
+        "en": "factory packaging"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "штатная защита груза; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "обычная упаковка",
+        "uz": "oddiy qadoq",
+        "en": "standard packaging"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "none",
+       "label": {
+        "ru": "без упаковки",
+        "uz": "qadoqsiz",
+        "en": "no packaging"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "повреждения при погрузке и перевалке; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "8": {
    "class_code": "8",
@@ -3101,7 +5482,24 @@
       "reinforced",
       "mixed",
       "wood"
-     ]
+     ],
+     "option_labels": {
+      "reinforced": {
+       "ru": "железобетон, кирпич, камень",
+       "uz": "temir-beton, gʻisht, tosh",
+       "en": "reinforced concrete, brick, stone"
+      },
+      "mixed": {
+       "ru": "смешанные, металлокаркас",
+       "uz": "aralash, metall karkas",
+       "en": "mixed, steel frame"
+      },
+      "wood": {
+       "ru": "дерево, сэндвич-панели",
+       "uz": "yogʻoch, sendvich-panellar",
+       "en": "timber, sandwich panels"
+      }
+     }
     },
     {
      "code": "activity",
@@ -3135,7 +5533,29 @@
       "alarm",
       "alarm_guard",
       "sprinkler"
-     ]
+     ],
+     "option_labels": {
+      "none": {
+       "ru": "нет сигнализации и охраны",
+       "uz": "signalizatsiya va qoʻriqlash yoʻq",
+       "en": "no alarm or guard"
+      },
+      "alarm": {
+       "ru": "пожарная сигнализация",
+       "uz": "yongʻin signalizatsiyasi",
+       "en": "fire alarm"
+      },
+      "alarm_guard": {
+       "ru": "сигнализация и охрана",
+       "uz": "signalizatsiya va qoʻriqlash",
+       "en": "alarm and guard"
+      },
+      "sprinkler": {
+       "ru": "сигнализация, охрана, спринклеры",
+       "uz": "signalizatsiya, qoʻriqlash, sprinklerlar",
+       "en": "alarm, guard, sprinklers"
+      }
+     }
     },
     {
      "code": "seismic_zone",
@@ -3216,6 +5636,324 @@
       "en": "Business interruption"
      },
      "input": "optional.class_fields.business_interruption"
+    },
+    {
+     "code": "object_group",
+     "type": "choice",
+     "label": {
+      "ru": "Тип объекта (для тарифа)",
+      "uz": "Obyekt turi (tarif uchun)",
+      "en": "Object type (for rating)"
+     },
+     "input": "optional.class_fields.object_group",
+     "options": [
+      "flat",
+      "house",
+      "office",
+      "retail",
+      "market",
+      "warehouse",
+      "production",
+      "hotel_food",
+      "agro",
+      "energy",
+      "unfinished"
+     ],
+     "option_labels": {
+      "flat": {
+       "ru": "квартира в кирпичном или панельном доме",
+       "uz": "gʻisht yoki panel uydagi kvartira",
+       "en": "flat in a brick or panel building"
+      },
+      "house": {
+       "ru": "частный жилой дом",
+       "uz": "xususiy turar-joy uyi",
+       "en": "private house"
+      },
+      "office": {
+       "ru": "офис",
+       "uz": "ofis",
+       "en": "office"
+      },
+      "retail": {
+       "ru": "магазин, торговля",
+       "uz": "doʻkon, savdo",
+       "en": "shop, retail"
+      },
+      "market": {
+       "ru": "рынок, временные павильоны",
+       "uz": "bozor, vaqtinchalik pavilonlar",
+       "en": "market, temporary pavilions"
+      },
+      "warehouse": {
+       "ru": "склад",
+       "uz": "ombor",
+       "en": "warehouse"
+      },
+      "production": {
+       "ru": "производство",
+       "uz": "ishlab chiqarish",
+       "en": "manufacturing"
+      },
+      "hotel_food": {
+       "ru": "гостиница, общепит",
+       "uz": "mehmonxona, umumiy ovqatlanish",
+       "en": "hotel, catering"
+      },
+      "agro": {
+       "ru": "сельхозобъект: теплица, ферма, хранилище",
+       "uz": "qishloq xoʻjaligi obyekti: issiqxona, ferma, ombor",
+       "en": "farm: greenhouse, livestock, storage"
+      },
+      "energy": {
+       "ru": "объект энергетики, АЗС",
+       "uz": "energetika obyekti, YoQSH",
+       "en": "power facility, filling station"
+      },
+      "unfinished": {
+       "ru": "незавершённое строительство",
+       "uz": "tugallanmagan qurilish",
+       "en": "construction in progress"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "walls_special",
+     "type": "choice",
+     "label": {
+      "ru": "Особенности конструкции",
+      "uz": "Konstruksiya xususiyatlari",
+      "en": "Construction specifics"
+     },
+     "input": "optional.class_fields.walls_special",
+     "options": [
+      "none",
+      "sandwich_eps",
+      "sandwich_wool",
+      "fire_treated",
+      "adobe",
+      "light"
+     ],
+     "option_labels": {
+      "none": {
+       "ru": "нет особенностей",
+       "uz": "xususiyat yoʻq",
+       "en": "none"
+      },
+      "sandwich_eps": {
+       "ru": "сэндвич-панели с пенополистиролом",
+       "uz": "penopolistirolli sendvich-panellar",
+       "en": "sandwich panels with EPS core"
+      },
+      "sandwich_wool": {
+       "ru": "сэндвич-панели с минеральной ватой",
+       "uz": "mineral paxtali sendvich-panellar",
+       "en": "sandwich panels with mineral wool"
+      },
+      "fire_treated": {
+       "ru": "огнезащитная обработка дерева",
+       "uz": "yogʻochga olovdan himoya ishlovi",
+       "en": "fire-retardant treated timber"
+      },
+      "adobe": {
+       "ru": "глинобитные, саманные",
+       "uz": "paxsa, guvala",
+       "en": "adobe, mud brick"
+      },
+      "light": {
+       "ru": "лёгкие и временные: павильоны, навесы",
+       "uz": "yengil va vaqtinchalik: pavilonlar, ayvonlar",
+       "en": "light and temporary: pavilions, sheds"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "nature_risk",
+     "type": "choice",
+     "label": {
+      "ru": "Риск стихии на площадке",
+      "uz": "Maydondagi tabiiy ofat xavfi",
+      "en": "Natural hazard at the site"
+     },
+     "input": "optional.class_fields.nature_risk",
+     "options": [
+      "ordinary",
+      "seismic_high",
+      "seismic_ok",
+      "flood",
+      "wind_hail",
+      "landslide"
+     ],
+     "option_labels": {
+      "ordinary": {
+       "ru": "обычный",
+       "uz": "oddiy",
+       "en": "ordinary"
+      },
+      "seismic_high": {
+       "ru": "сейсмозона 8–9 баллов, здание без сейсмостойкости",
+       "uz": "8–9 ballik seysmik zona, bino seysmik chidamsiz",
+       "en": "seismic zone 8–9, not earthquake-resistant"
+      },
+      "seismic_ok": {
+       "ru": "зона 7 и ниже или сейсмостойкий проект с обследованием",
+       "uz": "7 ball va undan past zona yoki tekshirilgan seysmik chidamli loyiha",
+       "en": "zone 7 or lower, or surveyed earthquake-resistant design"
+      },
+      "flood": {
+       "ru": "пойма, низина, предгорье с сухими руслами",
+       "uz": "daryo qayiri, pastqamlik, quruq oʻzanli togʻ etagi",
+       "en": "flood plain, lowland, foothills with dry beds"
+      },
+      "wind_hail": {
+       "ru": "открытая площадка, лёгкая или плоская кровля",
+       "uz": "ochiq maydon, yengil yoki tekis tom",
+       "en": "exposed site, light or flat roof"
+      },
+      "landslide": {
+       "ru": "склон, насыпной грунт",
+       "uz": "qiyalik, toʻkma grunt",
+       "en": "slope, fill ground"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "electrics",
+     "type": "choice",
+     "label": {
+      "ru": "Электрика",
+      "uz": "Elektr tarmogʻi",
+      "en": "Electrical wiring"
+     },
+     "input": "optional.class_fields.electrics",
+     "options": [
+      "new",
+      "normal",
+      "old"
+     ],
+     "option_labels": {
+      "new": {
+       "ru": "новая проводка, УЗО, стабилизаторы",
+       "uz": "yangi simlar, HOQ, stabilizatorlar",
+       "en": "new wiring, RCDs, stabilisers"
+      },
+      "normal": {
+       "ru": "обычная",
+       "uz": "oddiy",
+       "en": "ordinary"
+      },
+      "old": {
+       "ru": "старая проводка, перегрузка",
+       "uz": "eski simlar, ortiqcha yuklama",
+       "en": "old wiring, overloads"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "heating",
+     "type": "choice",
+     "label": {
+      "ru": "Отопление",
+      "uz": "Isitish",
+      "en": "Heating"
+     },
+     "input": "optional.class_fields.heating",
+     "options": [
+      "central",
+      "auto",
+      "stoves"
+     ],
+     "option_labels": {
+      "central": {
+       "ru": "центральное",
+       "uz": "markaziy",
+       "en": "central"
+      },
+      "auto": {
+       "ru": "автоматизированное",
+       "uz": "avtomatlashtirilgan",
+       "en": "automated"
+      },
+      "stoves": {
+       "ru": "печи, самодельные обогреватели, газ без автоматики",
+       "uz": "pechlar, qoʻlbola isitgichlar, avtomatikasiz gaz",
+       "en": "stoves, home-made heaters, gas without controls"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "wear_level",
+     "type": "choice",
+     "label": {
+      "ru": "Износ",
+      "uz": "Eskirish",
+      "en": "Wear"
+     },
+     "input": "optional.class_fields.wear_level",
+     "options": [
+      "new",
+      "normal",
+      "high",
+      "emergency"
+     ],
+     "option_labels": {
+      "new": {
+       "ru": "новое или после капремонта",
+       "uz": "yangi yoki kapital taʼmirdan keyin",
+       "en": "new or after overhaul"
+      },
+      "normal": {
+       "ru": "до 50 %",
+       "uz": "50 % gacha",
+       "en": "up to 50 %"
+      },
+      "high": {
+       "ru": "более 50 %",
+       "uz": "50 % dan ortiq",
+       "en": "over 50 %"
+      },
+      "emergency": {
+       "ru": "аварийное состояние",
+       "uz": "avariya holati",
+       "en": "dilapidated"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -3556,7 +6294,585 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "object_group",
+     "label": {
+      "ru": "Тип объекта (для тарифа)",
+      "uz": "Obyekt turi (tarif uchun)",
+      "en": "Object type (for rating)"
+     },
+     "input": "optional.class_fields.object_group",
+     "options": [
+      {
+       "code": "flat",
+       "label": {
+        "ru": "квартира в кирпичном или панельном доме",
+        "uz": "gʻisht yoki panel uydagi kvartira",
+        "en": "flat in a brick or panel building"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "негорючий дом, центральное отопление; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "house",
+       "label": {
+        "ru": "частный жилой дом",
+        "uz": "xususiy turar-joy uyi",
+        "en": "private house"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "печи, старая проводка, дерево; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "office",
+       "label": {
+        "ru": "офис",
+        "uz": "ofis",
+        "en": "office"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "мало горючего, сигнализация; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "retail",
+       "label": {
+        "ru": "магазин, торговля",
+        "uz": "doʻkon, savdo",
+        "en": "shop, retail"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "market",
+       "label": {
+        "ru": "рынок, временные павильоны",
+        "uz": "bozor, vaqtinchalik pavilonlar",
+        "en": "market, temporary pavilions"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "плотная застройка, горючий товар; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "warehouse",
+       "label": {
+        "ru": "склад",
+        "uz": "ombor",
+        "en": "warehouse"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "высокая загрузка, горючая упаковка; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "production",
+       "label": {
+        "ru": "производство",
+        "uz": "ishlab chiqarish",
+        "en": "manufacturing"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "горючие материалы, печи, покраска; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hotel_food",
+       "label": {
+        "ru": "гостиница, общепит",
+        "uz": "mehmonxona, umumiy ovqatlanish",
+        "en": "hotel, catering"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "кухни, много людей, ночной режим; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "agro",
+       "label": {
+        "ru": "сельхозобъект: теплица, ферма, хранилище",
+        "uz": "qishloq xoʻjaligi obyekti: issiqxona, ferma, ombor",
+        "en": "farm: greenhouse, livestock, storage"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "сено, пыль, слабая электрика; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "energy",
+       "label": {
+        "ru": "объект энергетики, АЗС",
+        "uz": "energetika obyekti, YoQSH",
+        "en": "power facility, filling station"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "топливо, газ, высокое напряжение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "unfinished",
+       "label": {
+        "ru": "незавершённое строительство",
+        "uz": "tugallanmagan qurilish",
+        "en": "construction in progress"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "нет защиты, открытые конструкции; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "construction",
+     "label": {
+      "ru": "Конструкция, материал стен",
+      "uz": "Konstruksiya, devor materiali",
+      "en": "Construction, wall material"
+     },
+     "input": "optional.construction",
+     "options": [
+      {
+       "code": "reinforced",
+       "label": {
+        "ru": "железобетон, кирпич, камень",
+        "uz": "temir-beton, gʻisht, tosh",
+        "en": "reinforced concrete, brick, stone"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "негорючие стены и перекрытия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mixed",
+       "label": {
+        "ru": "смешанные, металлокаркас",
+        "uz": "aralash, metall karkas",
+        "en": "mixed, steel frame"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: часть конструкций горит; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "wood",
+       "label": {
+        "ru": "дерево, сэндвич-панели",
+        "uz": "yogʻoch, sendvich-panellar",
+        "en": "timber, sandwich panels"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "горючие стены и утеплитель; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "walls_special",
+     "label": {
+      "ru": "Особенности конструкции",
+      "uz": "Konstruksiya xususiyatlari",
+      "en": "Construction specifics"
+     },
+     "input": "optional.class_fields.walls_special",
+     "options": [
+      {
+       "code": "none",
+       "label": {
+        "ru": "нет особенностей",
+        "uz": "xususiyat yoʻq",
+        "en": "none"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sandwich_eps",
+       "label": {
+        "ru": "сэндвич-панели с пенополистиролом",
+        "uz": "penopolistirolli sendvich-panellar",
+        "en": "sandwich panels with EPS core"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "горючий утеплитель; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sandwich_wool",
+       "label": {
+        "ru": "сэндвич-панели с минеральной ватой",
+        "uz": "mineral paxtali sendvich-panellar",
+        "en": "sandwich panels with mineral wool"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "негорючий утеплитель; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "fire_treated",
+       "label": {
+        "ru": "огнезащитная обработка дерева",
+        "uz": "yogʻochga olovdan himoya ishlovi",
+        "en": "fire-retardant treated timber"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "дерево горит медленнее; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "adobe",
+       "label": {
+        "ru": "глинобитные, саманные",
+        "uz": "paxsa, guvala",
+        "en": "adobe, mud brick"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "разрушение при землетрясении и ливнях; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "light",
+       "label": {
+        "ru": "лёгкие и временные: павильоны, навесы",
+        "uz": "yengil va vaqtinchalik: pavilonlar, ayvonlar",
+        "en": "light and temporary: pavilions, sheds"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "ветер, снег, пожар; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "nature_risk",
+     "label": {
+      "ru": "Риск стихии на площадке",
+      "uz": "Maydondagi tabiiy ofat xavfi",
+      "en": "Natural hazard at the site"
+     },
+     "input": "optional.class_fields.nature_risk",
+     "options": [
+      {
+       "code": "ordinary",
+       "label": {
+        "ru": "обычный",
+        "uz": "oddiy",
+        "en": "ordinary"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "seismic_high",
+       "label": {
+        "ru": "сейсмозона 8–9 баллов, здание без сейсмостойкости",
+        "uz": "8–9 ballik seysmik zona, bino seysmik chidamsiz",
+        "en": "seismic zone 8–9, not earthquake-resistant"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "разрушение при землетрясении; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "seismic_ok",
+       "label": {
+        "ru": "зона 7 и ниже или сейсмостойкий проект с обследованием",
+        "uz": "7 ball va undan past zona yoki tekshirilgan seysmik chidamli loyiha",
+        "en": "zone 7 or lower, or surveyed earthquake-resistant design"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "здание выдержит расчётное землетрясение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "flood",
+       "label": {
+        "ru": "пойма, низина, предгорье с сухими руслами",
+        "uz": "daryo qayiri, pastqamlik, quruq oʻzanli togʻ etagi",
+        "en": "flood plain, lowland, foothills with dry beds"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "наводнение и сель; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "wind_hail",
+       "label": {
+        "ru": "открытая площадка, лёгкая или плоская кровля",
+        "uz": "ochiq maydon, yengil yoki tekis tom",
+        "en": "exposed site, light or flat roof"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "буря, ливень, град; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "landslide",
+       "label": {
+        "ru": "склон, насыпной грунт",
+        "uz": "qiyalik, toʻkma grunt",
+        "en": "slope, fill ground"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "просадка грунта и оползень; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "protection",
+     "label": {
+      "ru": "Пожарная защита",
+      "uz": "Yongʻindan himoya",
+      "en": "Fire protection"
+     },
+     "input": "optional.protection",
+     "options": [
+      {
+       "code": "none",
+       "label": {
+        "ru": "нет сигнализации и охраны",
+        "uz": "signalizatsiya va qoʻriqlash yoʻq",
+        "en": "no alarm or guard"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "пожар обнаруживают поздно; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "alarm",
+       "label": {
+        "ru": "пожарная сигнализация",
+        "uz": "yongʻin signalizatsiyasi",
+        "en": "fire alarm"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "alarm_guard",
+       "label": {
+        "ru": "сигнализация и охрана",
+        "uz": "signalizatsiya va qoʻriqlash",
+        "en": "alarm and guard"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "вывод на пульт, охрана; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sprinkler",
+       "label": {
+        "ru": "сигнализация, охрана, спринклеры",
+        "uz": "signalizatsiya, qoʻriqlash, sprinklerlar",
+        "en": "alarm, guard, sprinklers"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "автоматическое тушение; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "electrics",
+     "label": {
+      "ru": "Электрика",
+      "uz": "Elektr tarmogʻi",
+      "en": "Electrical wiring"
+     },
+     "input": "optional.class_fields.electrics",
+     "options": [
+      {
+       "code": "new",
+       "label": {
+        "ru": "новая проводка, УЗО, стабилизаторы",
+        "uz": "yangi simlar, HOQ, stabilizatorlar",
+        "en": "new wiring, RCDs, stabilisers"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "меньше коротких замыканий; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "normal",
+       "label": {
+        "ru": "обычная",
+        "uz": "oddiy",
+        "en": "ordinary"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "old",
+       "label": {
+        "ru": "старая проводка, перегрузка",
+        "uz": "eski simlar, ortiqcha yuklama",
+        "en": "old wiring, overloads"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "короткое замыкание — частая причина пожара; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "heating",
+     "label": {
+      "ru": "Отопление",
+      "uz": "Isitish",
+      "en": "Heating"
+     },
+     "input": "optional.class_fields.heating",
+     "options": [
+      {
+       "code": "central",
+       "label": {
+        "ru": "центральное",
+        "uz": "markaziy",
+        "en": "central"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "нет открытого огня на объекте; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "auto",
+       "label": {
+        "ru": "автоматизированное",
+        "uz": "avtomatlashtirilgan",
+        "en": "automated"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "stoves",
+       "label": {
+        "ru": "печи, самодельные обогреватели, газ без автоматики",
+        "uz": "pechlar, qoʻlbola isitgichlar, avtomatikasiz gaz",
+        "en": "stoves, home-made heaters, gas without controls"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "открытый огонь и перегрев; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "wear_level",
+     "label": {
+      "ru": "Износ",
+      "uz": "Eskirish",
+      "en": "Wear"
+     },
+     "input": "optional.class_fields.wear_level",
+     "options": [
+      {
+       "code": "new",
+       "label": {
+        "ru": "новое или после капремонта",
+        "uz": "yangi yoki kapital taʼmirdan keyin",
+        "en": "new or after overhaul"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "конструкции и сети в порядке; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "normal",
+       "label": {
+        "ru": "до 50 %",
+        "uz": "50 % gacha",
+        "en": "up to 50 %"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "high",
+       "label": {
+        "ru": "более 50 %",
+        "uz": "50 % dan ortiq",
+        "en": "over 50 %"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "ветхие конструкции и сети; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "emergency",
+       "label": {
+        "ru": "аварийное состояние",
+        "uz": "avariya holati",
+        "en": "dilapidated"
+       },
+       "coef": 1.5,
+       "note": {
+        "ru": "высокий риск обрушения и пожара; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "9": {
    "class_code": "9",
@@ -3703,7 +7019,29 @@
       "alarm",
       "alarm_guard",
       "sprinkler"
-     ]
+     ],
+     "option_labels": {
+      "none": {
+       "ru": "нет сигнализации и охраны",
+       "uz": "signalizatsiya va qoʻriqlash yoʻq",
+       "en": "no alarm or guard"
+      },
+      "alarm": {
+       "ru": "сигнализация",
+       "uz": "signalizatsiya",
+       "en": "alarm"
+      },
+      "alarm_guard": {
+       "ru": "сигнализация и охрана",
+       "uz": "signalizatsiya va qoʻriqlash",
+       "en": "alarm and guard"
+      },
+      "sprinkler": {
+       "ru": "сигнализация, охрана, спринклеры",
+       "uz": "signalizatsiya, qoʻriqlash, sprinklerlar",
+       "en": "alarm, guard, sprinklers"
+      }
+     }
     },
     {
      "code": "bars",
@@ -3734,6 +7072,62 @@
       "en": "Condition of pipes and wiring"
      },
      "input": "optional.class_fields.pipes"
+    },
+    {
+     "code": "object_group",
+     "type": "choice",
+     "label": {
+      "ru": "Тип объекта и товара",
+      "uz": "Obyekt va tovar turi",
+      "en": "Object and goods type"
+     },
+     "input": "optional.class_fields.object_group",
+     "options": [
+      "liquid_goods",
+      "office_tech",
+      "warehouse",
+      "equipment",
+      "dwelling",
+      "glass"
+     ],
+     "option_labels": {
+      "liquid_goods": {
+       "ru": "магазин или склад ликвидного товара: электроника, телефоны, алкоголь, табак, ювелирные изделия",
+       "uz": "likvid tovar doʻkoni yoki ombori: elektronika, telefonlar, alkogol, tamaki, zargarlik buyumlari",
+       "en": "shop or store of high-value goods: electronics, phones, alcohol, tobacco, jewellery"
+      },
+      "office_tech": {
+       "ru": "офис с техникой",
+       "uz": "texnikali ofis",
+       "en": "office with equipment"
+      },
+      "warehouse": {
+       "ru": "склад обычного товара",
+       "uz": "oddiy tovar ombori",
+       "en": "store of ordinary goods"
+      },
+      "equipment": {
+       "ru": "оборудование",
+       "uz": "uskunalar",
+       "en": "equipment"
+      },
+      "dwelling": {
+       "ru": "жильё",
+       "uz": "turar-joy",
+       "en": "dwelling"
+      },
+      "glass": {
+       "ru": "стёкла и витрины на оживлённой улице",
+       "uz": "gavjum koʻchadagi oynalar va vitrinalar",
+       "en": "glass and shop windows on a busy street"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -4027,7 +7421,153 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "object_group",
+     "label": {
+      "ru": "Тип объекта и товара",
+      "uz": "Obyekt va tovar turi",
+      "en": "Object and goods type"
+     },
+     "input": "optional.class_fields.object_group",
+     "options": [
+      {
+       "code": "liquid_goods",
+       "label": {
+        "ru": "магазин или склад ликвидного товара: электроника, телефоны, алкоголь, табак, ювелирные изделия",
+        "uz": "likvid tovar doʻkoni yoki ombori: elektronika, telefonlar, alkogol, tamaki, zargarlik buyumlari",
+        "en": "shop or store of high-value goods: electronics, phones, alcohol, tobacco, jewellery"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "высокая привлекательность для кражи; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "office_tech",
+       "label": {
+        "ru": "офис с техникой",
+        "uz": "texnikali ofis",
+        "en": "office with equipment"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "ноутбуки и серверы, свободный доступ; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "warehouse",
+       "label": {
+        "ru": "склад обычного товара",
+        "uz": "oddiy tovar ombori",
+        "en": "store of ordinary goods"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "equipment",
+       "label": {
+        "ru": "оборудование",
+        "uz": "uskunalar",
+        "en": "equipment"
+       },
+       "coef": 1.05,
+       "note": {
+        "ru": "износ, перепады напряжения; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "dwelling",
+       "label": {
+        "ru": "жильё",
+        "uz": "turar-joy",
+        "en": "dwelling"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "малая ценность содержимого; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "glass",
+       "label": {
+        "ru": "стёкла и витрины на оживлённой улице",
+        "uz": "gavjum koʻchadagi oynalar va vitrinalar",
+        "en": "glass and shop windows on a busy street"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "бой стёкол; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "protection",
+     "label": {
+      "ru": "Охрана и сигнализация",
+      "uz": "Qoʻriqlash va signalizatsiya",
+      "en": "Security and alarm"
+     },
+     "input": "optional.protection",
+     "options": [
+      {
+       "code": "none",
+       "label": {
+        "ru": "нет сигнализации и охраны",
+        "uz": "signalizatsiya va qoʻriqlash yoʻq",
+        "en": "no alarm or guard"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "кража без препятствий; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "alarm",
+       "label": {
+        "ru": "сигнализация",
+        "uz": "signalizatsiya",
+        "en": "alarm"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "alarm_guard",
+       "label": {
+        "ru": "сигнализация и охрана",
+        "uz": "signalizatsiya va qoʻriqlash",
+        "en": "alarm and guard"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "охрана на объекте; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sprinkler",
+       "label": {
+        "ru": "сигнализация, охрана, спринклеры",
+        "uz": "signalizatsiya, qoʻriqlash, sprinklerlar",
+        "en": "alarm, guard, sprinklers"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "охрана на объекте; спринклеры от кражи не защищают; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "10": {
    "class_code": "10",
@@ -4165,6 +7705,94 @@
       "ru": "сверх приложения А, экспертно",
       "uz": "A ilovadan tashqari, ekspert baho",
       "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "veh_group",
+     "type": "choice",
+     "label": {
+      "ru": "Тип транспорта (для тарифа)",
+      "uz": "Transport turi (tarif uchun)",
+      "en": "Vehicle type (for rating)"
+     },
+     "input": "optional.class_fields.veh_group",
+     "options": [
+      "car",
+      "truck_bus",
+      "special",
+      "moto"
+     ],
+     "option_labels": {
+      "car": {
+       "ru": "легковой автомобиль",
+       "uz": "yengil avtomobil",
+       "en": "passenger car"
+      },
+      "truck_bus": {
+       "ru": "грузовой автомобиль, автобус",
+       "uz": "yuk avtomobili, avtobus",
+       "en": "truck, bus"
+      },
+      "special": {
+       "ru": "спецтехника на закрытой территории",
+       "uz": "yopiq hududdagi maxsus texnika",
+       "en": "special machinery on closed sites"
+      },
+      "moto": {
+       "ru": "мотоцикл",
+       "uz": "mototsikl",
+       "en": "motorcycle"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "usage",
+     "type": "choice",
+     "label": {
+      "ru": "Использование",
+      "uz": "Foydalanish",
+      "en": "Use"
+     },
+     "input": "optional.class_fields.usage",
+     "options": [
+      "personal",
+      "business",
+      "taxi_rent",
+      "international"
+     ],
+     "option_labels": {
+      "personal": {
+       "ru": "личное",
+       "uz": "shaxsiy",
+       "en": "personal"
+      },
+      "business": {
+       "ru": "служебное",
+       "uz": "xizmat",
+       "en": "business"
+      },
+      "taxi_rent": {
+       "ru": "такси, аренда",
+       "uz": "taksi, ijara",
+       "en": "taxi, rental"
+      },
+      "international": {
+       "ru": "международные перевозки, опасные грузы",
+       "uz": "xalqaro tashuvlar, xavfli yuklar",
+       "en": "international carriage, dangerous goods"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
      }
     },
     {
@@ -4398,7 +8026,129 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "veh_group",
+     "label": {
+      "ru": "Тип транспорта (для тарифа)",
+      "uz": "Transport turi (tarif uchun)",
+      "en": "Vehicle type (for rating)"
+     },
+     "input": "optional.class_fields.veh_group",
+     "options": [
+      {
+       "code": "car",
+       "label": {
+        "ru": "легковой автомобиль",
+        "uz": "yengil avtomobil",
+        "en": "passenger car"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "truck_bus",
+       "label": {
+        "ru": "грузовой автомобиль, автобус",
+        "uz": "yuk avtomobili, avtobus",
+        "en": "truck, bus"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "пассажиры, тяжёлые последствия ДТП; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "special",
+       "label": {
+        "ru": "спецтехника на закрытой территории",
+        "uz": "yopiq hududdagi maxsus texnika",
+        "en": "special machinery on closed sites"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "редкий выезд на дороги общего пользования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "moto",
+       "label": {
+        "ru": "мотоцикл",
+        "uz": "mototsikl",
+        "en": "motorcycle"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "высокая частота ДТП; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "usage",
+     "label": {
+      "ru": "Использование",
+      "uz": "Foydalanish",
+      "en": "Use"
+     },
+     "input": "optional.class_fields.usage",
+     "options": [
+      {
+       "code": "personal",
+       "label": {
+        "ru": "личное",
+        "uz": "shaxsiy",
+        "en": "personal"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "стаж, малый пробег; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "business",
+       "label": {
+        "ru": "служебное",
+        "uz": "xizmat",
+        "en": "business"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "taxi_rent",
+       "label": {
+        "ru": "такси, аренда",
+        "uz": "taksi, ijara",
+        "en": "taxi, rental"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "интенсивная эксплуатация, много водителей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "international",
+       "label": {
+        "ru": "международные перевозки, опасные грузы",
+        "uz": "xalqaro tashuvlar, xavfli yuklar",
+        "en": "international carriage, dangerous goods"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "высокие лимиты и тяжёлые последствия; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "11": {
    "class_code": "11",
@@ -4494,6 +8244,56 @@
       "en": "Type of carriage"
      },
      "input": "optional.class_fields.carriage_kind"
+    },
+    {
+     "code": "liab_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид ответственности",
+      "uz": "Javobgarlik turi",
+      "en": "Liability type"
+     },
+     "input": "optional.class_fields.liab_kind",
+     "options": [
+      "passengers",
+      "cargo",
+      "cargo_dangerous",
+      "ground_city",
+      "ground_rural"
+     ],
+     "option_labels": {
+      "passengers": {
+       "ru": "перед пассажирами",
+       "uz": "yoʻlovchilar oldida",
+       "en": "to passengers"
+      },
+      "cargo": {
+       "ru": "за обычный груз",
+       "uz": "oddiy yuk uchun",
+       "en": "for ordinary cargo"
+      },
+      "cargo_dangerous": {
+       "ru": "за опасный или ценный груз",
+       "uz": "xavfli yoki qimmatbaho yuk uchun",
+       "en": "for dangerous or valuable cargo"
+      },
+      "ground_city": {
+       "ru": "третьи лица на земле: полёты над городами",
+       "uz": "yerdagi uchinchi shaxslar: shaharlar ustida parvoz",
+       "en": "third parties on the ground: flights over cities"
+      },
+      "ground_rural": {
+       "ru": "третьи лица на земле: малонаселённая местность",
+       "uz": "yerdagi uchinchi shaxslar: aholi siyrak joylar",
+       "en": "third parties on the ground: sparsely populated areas"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -4717,7 +8517,81 @@
    ],
    "aliases": [],
    "reinsurance_usually": true,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "liab_kind",
+     "label": {
+      "ru": "Вид ответственности",
+      "uz": "Javobgarlik turi",
+      "en": "Liability type"
+     },
+     "input": "optional.class_fields.liab_kind",
+     "options": [
+      {
+       "code": "passengers",
+       "label": {
+        "ru": "перед пассажирами",
+        "uz": "yoʻlovchilar oldida",
+        "en": "to passengers"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "число пассажиров, конвенции с высокими лимитами; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cargo",
+       "label": {
+        "ru": "за обычный груз",
+        "uz": "oddiy yuk uchun",
+        "en": "for ordinary cargo"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cargo_dangerous",
+       "label": {
+        "ru": "за опасный или ценный груз",
+        "uz": "xavfli yoki qimmatbaho yuk uchun",
+        "en": "for dangerous or valuable cargo"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "тяжёлые последствия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "ground_city",
+       "label": {
+        "ru": "третьи лица на земле: полёты над городами",
+        "uz": "yerdagi uchinchi shaxslar: shaharlar ustida parvoz",
+        "en": "third parties on the ground: flights over cities"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "плотная застройка под трассой; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "ground_rural",
+       "label": {
+        "ru": "третьи лица на земле: малонаселённая местность",
+        "uz": "yerdagi uchinchi shaxslar: aholi siyrak joylar",
+        "en": "third parties on the ground: sparsely populated areas"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "мало людей и строений под трассой; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "12": {
    "class_code": "12",
@@ -4813,6 +8687,56 @@
       "en": "Number of passengers"
      },
      "input": "optional.class_fields.passengers"
+    },
+    {
+     "code": "liab_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид ответственности",
+      "uz": "Javobgarlik turi",
+      "en": "Liability type"
+     },
+     "input": "optional.class_fields.liab_kind",
+     "options": [
+      "passengers",
+      "cargo",
+      "cargo_dangerous",
+      "pollution_tanker",
+      "pollution_dry"
+     ],
+     "option_labels": {
+      "passengers": {
+       "ru": "перед пассажирами",
+       "uz": "yoʻlovchilar oldida",
+       "en": "to passengers"
+      },
+      "cargo": {
+       "ru": "за обычный груз",
+       "uz": "oddiy yuk uchun",
+       "en": "for ordinary cargo"
+      },
+      "cargo_dangerous": {
+       "ru": "за опасный или ценный груз",
+       "uz": "xavfli yoki qimmatbaho yuk uchun",
+       "en": "for dangerous or valuable cargo"
+      },
+      "pollution_tanker": {
+       "ru": "загрязнение: танкер, старое судно, нет плана разливов",
+       "uz": "ifloslanish: tanker, eski kema, toʻkilish rejasi yoʻq",
+       "en": "pollution: tanker, old vessel, no spill plan"
+      },
+      "pollution_dry": {
+       "ru": "загрязнение: сухогруз с планом и оборудованием",
+       "uz": "ifloslanish: reja va uskunali quruq yuk kemasi",
+       "en": "pollution: dry cargo vessel with plan and equipment"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -5038,7 +8962,81 @@
    ],
    "aliases": [],
    "reinsurance_usually": true,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "liab_kind",
+     "label": {
+      "ru": "Вид ответственности",
+      "uz": "Javobgarlik turi",
+      "en": "Liability type"
+     },
+     "input": "optional.class_fields.liab_kind",
+     "options": [
+      {
+       "code": "passengers",
+       "label": {
+        "ru": "перед пассажирами",
+        "uz": "yoʻlovchilar oldida",
+        "en": "to passengers"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "число пассажиров; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cargo",
+       "label": {
+        "ru": "за обычный груз",
+        "uz": "oddiy yuk uchun",
+        "en": "for ordinary cargo"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cargo_dangerous",
+       "label": {
+        "ru": "за опасный или ценный груз",
+        "uz": "xavfli yoki qimmatbaho yuk uchun",
+        "en": "for dangerous or valuable cargo"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "тяжёлые последствия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "pollution_tanker",
+       "label": {
+        "ru": "загрязнение: танкер, старое судно, нет плана разливов",
+        "uz": "ifloslanish: tanker, eski kema, toʻkilish rejasi yoʻq",
+        "en": "pollution: tanker, old vessel, no spill plan"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "крупный экологический ущерб; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "pollution_dry",
+       "label": {
+        "ru": "загрязнение: сухогруз с планом и оборудованием",
+        "uz": "ifloslanish: reja va uskunali quruq yuk kemasi",
+        "en": "pollution: dry cargo vessel with plan and equipment"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "малый объём топлива, готовность к разливу; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "13": {
    "class_code": "13",
@@ -5098,7 +9096,39 @@
       "build",
       "medical",
       "hazard"
-     ]
+     ],
+     "option_labels": {
+      "consult": {
+       "ru": "консультации, офисные услуги, профессиональная ответственность",
+       "uz": "maslahatlar, ofis xizmatlari, kasbiy javobgarlik",
+       "en": "consulting, office services, professional liability"
+      },
+      "trade": {
+       "ru": "торговля и общепит",
+       "uz": "savdo va umumiy ovqatlanish",
+       "en": "retail and catering"
+      },
+      "transport": {
+       "ru": "перевозчики (ответственность за груз)",
+       "uz": "tashuvchilar (yuk uchun javobgarlik)",
+       "en": "carriers (cargo liability)"
+      },
+      "build": {
+       "ru": "строительство и монтаж",
+       "uz": "qurilish va montaj",
+       "en": "construction and erection"
+      },
+      "medical": {
+       "ru": "медицина и фармация",
+       "uz": "tibbiyot va farmatsiya",
+       "en": "medicine and pharmacy"
+      },
+      "hazard": {
+       "ru": "опасный производственный объект",
+       "uz": "xavfli ishlab chiqarish obyekti",
+       "en": "hazardous industrial facility"
+      }
+     }
     },
     {
      "code": "turnover_or_payroll",
@@ -5409,7 +9439,93 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "activity_kind",
+     "label": {
+      "ru": "Вид деятельности",
+      "uz": "Faoliyat turi",
+      "en": "Activity"
+     },
+     "input": "optional.class_fields.activity_kind",
+     "options": [
+      {
+       "code": "consult",
+       "label": {
+        "ru": "консультации, офисные услуги, профессиональная ответственность",
+        "uz": "maslahatlar, ofis xizmatlari, kasbiy javobgarlik",
+        "en": "consulting, office services, professional liability"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "trade",
+       "label": {
+        "ru": "торговля и общепит",
+        "uz": "savdo va umumiy ovqatlanish",
+        "en": "retail and catering"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "поток посетителей, пищевые отравления; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "transport",
+       "label": {
+        "ru": "перевозчики (ответственность за груз)",
+        "uz": "tashuvchilar (yuk uchun javobgarlik)",
+        "en": "carriers (cargo liability)"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "ценные и опасные грузы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "build",
+       "label": {
+        "ru": "строительство и монтаж",
+        "uz": "qurilish va montaj",
+        "en": "construction and erection"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "высотные работы, жилая застройка; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "medical",
+       "label": {
+        "ru": "медицина и фармация",
+        "uz": "tibbiyot va farmatsiya",
+        "en": "medicine and pharmacy"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "хирургия, стоматология, косметология; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hazard",
+       "label": {
+        "ru": "опасный производственный объект",
+        "uz": "xavfli ishlab chiqarish obyekti",
+        "en": "hazardous industrial facility"
+       },
+       "coef": 1.5,
+       "note": {
+        "ru": "класс опасности, аварии; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "14": {
    "class_code": "14",
@@ -5487,7 +9603,34 @@
       "trade",
       "build",
       "agro"
-     ]
+     ],
+     "option_labels": {
+      "manufacturing": {
+       "ru": "производство",
+       "uz": "ishlab chiqarish",
+       "en": "manufacturing"
+      },
+      "services": {
+       "ru": "услуги",
+       "uz": "xizmatlar",
+       "en": "services"
+      },
+      "trade": {
+       "ru": "торговля",
+       "uz": "savdo",
+       "en": "trade"
+      },
+      "build": {
+       "ru": "строительство",
+       "uz": "qurilish",
+       "en": "construction"
+      },
+      "agro": {
+       "ru": "сельское хозяйство",
+       "uz": "qishloq xoʻjaligi",
+       "en": "agriculture"
+      }
+     }
     },
     {
      "code": "credit_history",
@@ -5502,7 +9645,24 @@
       "clean",
       "minor",
       "bad"
-     ]
+     ],
+     "option_labels": {
+      "clean": {
+       "ru": "без просрочек",
+       "uz": "muddati oʻtmagan",
+       "en": "no arrears"
+      },
+      "minor": {
+       "ru": "мелкие просрочки",
+       "uz": "kichik kechikishlar",
+       "en": "minor arrears"
+      },
+      "bad": {
+       "ru": "серьёзные просрочки",
+       "uz": "jiddiy kechikishlar",
+       "en": "serious arrears"
+      }
+     }
     },
     {
      "code": "purpose",
@@ -5513,6 +9673,56 @@
       "en": "Loan purpose"
      },
      "input": "optional.class_fields.purpose"
+    },
+    {
+     "code": "credit_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид кредита",
+      "uz": "Kredit turi",
+      "en": "Loan type"
+     },
+     "input": "optional.class_fields.credit_kind",
+     "options": [
+      "auto",
+      "mortgage",
+      "consumer",
+      "business",
+      "micro"
+     ],
+     "option_labels": {
+      "auto": {
+       "ru": "автокредит",
+       "uz": "avtokredit",
+       "en": "car loan"
+      },
+      "mortgage": {
+       "ru": "ипотека",
+       "uz": "ipoteka",
+       "en": "mortgage"
+      },
+      "consumer": {
+       "ru": "потребительский кредит",
+       "uz": "isteʼmol krediti",
+       "en": "consumer loan"
+      },
+      "business": {
+       "ru": "кредит бизнесу",
+       "uz": "biznes uchun kredit",
+       "en": "business loan"
+      },
+      "micro": {
+       "ru": "микрозаём",
+       "uz": "mikroqarz",
+       "en": "microloan"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     }
    ],
    "valuation_methods": [
@@ -5722,7 +9932,201 @@
     }
    ],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "credit_kind",
+     "label": {
+      "ru": "Вид кредита",
+      "uz": "Kredit turi",
+      "en": "Loan type"
+     },
+     "input": "optional.class_fields.credit_kind",
+     "options": [
+      {
+       "code": "auto",
+       "label": {
+        "ru": "автокредит",
+        "uz": "avtokredit",
+        "en": "car loan"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант (КАСКО на залог — отдельно); экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mortgage",
+       "label": {
+        "ru": "ипотека",
+        "uz": "ipoteka",
+        "en": "mortgage"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "залог — недвижимость, длинная история платежей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "consumer",
+       "label": {
+        "ru": "потребительский кредит",
+        "uz": "isteʼmol krediti",
+        "en": "consumer loan"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "нет обеспечения; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "business",
+       "label": {
+        "ru": "кредит бизнесу",
+        "uz": "biznes uchun kredit",
+        "en": "business loan"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "отраслевой риск; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "micro",
+       "label": {
+        "ru": "микрозаём",
+        "uz": "mikroqarz",
+        "en": "microloan"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "много мелких заёмщиков без истории; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "borrower_industry",
+     "label": {
+      "ru": "Отрасль заёмщика",
+      "uz": "Qarz oluvchi tarmogʻi",
+      "en": "Borrower's industry"
+     },
+     "input": "optional.class_fields.borrower_industry",
+     "options": [
+      {
+       "code": "manufacturing",
+       "label": {
+        "ru": "производство",
+        "uz": "ishlab chiqarish",
+        "en": "manufacturing"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "устойчивая отрасль, отчётность; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "services",
+       "label": {
+        "ru": "услуги",
+        "uz": "xizmatlar",
+        "en": "services"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "trade",
+       "label": {
+        "ru": "торговля",
+        "uz": "savdo",
+        "en": "trade"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "сезонный товар; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "build",
+       "label": {
+        "ru": "строительство",
+        "uz": "qurilish",
+        "en": "construction"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "длинный цикл, авансы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "agro",
+       "label": {
+        "ru": "сельское хозяйство",
+        "uz": "qishloq xoʻjaligi",
+        "en": "agriculture"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "погода, урожай без страхования; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "credit_history",
+     "label": {
+      "ru": "Кредитная история",
+      "uz": "Kredit tarixi",
+      "en": "Credit history"
+     },
+     "input": "optional.class_fields.credit_history",
+     "options": [
+      {
+       "code": "clean",
+       "label": {
+        "ru": "без просрочек",
+        "uz": "muddati oʻtmagan",
+        "en": "no arrears"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: тариф продукта рассчитан на заёмщика без просрочек; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "minor",
+       "label": {
+        "ru": "мелкие просрочки",
+        "uz": "kichik kechikishlar",
+        "en": "minor arrears"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "были задержки платежей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "bad",
+       "label": {
+        "ru": "серьёзные просрочки",
+        "uz": "jiddiy kechikishlar",
+        "en": "serious arrears"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "высокая вероятность невозврата; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "15": {
    "class_code": "15",
@@ -5821,6 +10225,88 @@
      },
      "input": "optional.class_fields.counter_security",
      "unit": "UZS"
+    },
+    {
+     "code": "guarantee_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид гарантии",
+      "uz": "Kafolat turi",
+      "en": "Guarantee type"
+     },
+     "input": "optional.class_fields.guarantee_kind",
+     "options": [
+      "performance",
+      "advance",
+      "customs_tax",
+      "tender"
+     ],
+     "option_labels": {
+      "performance": {
+       "ru": "исполнение контракта",
+       "uz": "shartnomani bajarish",
+       "en": "performance bond"
+      },
+      "advance": {
+       "ru": "возврат аванса",
+       "uz": "avansni qaytarish",
+       "en": "advance payment bond"
+      },
+      "customs_tax": {
+       "ru": "таможенная, налоговая",
+       "uz": "bojxona, soliq",
+       "en": "customs, tax"
+      },
+      "tender": {
+       "ru": "тендерная",
+       "uz": "tender",
+       "en": "bid bond"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "contract_share",
+     "type": "choice",
+     "label": {
+      "ru": "Контракт к обороту принципала",
+      "uz": "Shartnomaning prinsipal aylanmasiga nisbati",
+      "en": "Contract to principal's turnover"
+     },
+     "input": "optional.class_fields.contract_share",
+     "options": [
+      "small",
+      "normal",
+      "large"
+     ],
+     "option_labels": {
+      "small": {
+       "ru": "малая доля, опыт таких контрактов",
+       "uz": "kichik ulush, bunday shartnomalar tajribasi",
+       "en": "small share, experience of such contracts"
+      },
+      "normal": {
+       "ru": "обычная",
+       "uz": "oddiy",
+       "en": "ordinary"
+      },
+      "large": {
+       "ru": "большой контракт, первый такого размера",
+       "uz": "katta shartnoma, bunday hajmda birinchi",
+       "en": "large contract, first of its size"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     }
    ],
    "valuation_methods": [
@@ -6022,7 +10508,117 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "guarantee_kind",
+     "label": {
+      "ru": "Вид гарантии",
+      "uz": "Kafolat turi",
+      "en": "Guarantee type"
+     },
+     "input": "optional.class_fields.guarantee_kind",
+     "options": [
+      {
+       "code": "performance",
+       "label": {
+        "ru": "исполнение контракта",
+        "uz": "shartnomani bajarish",
+        "en": "performance bond"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "advance",
+       "label": {
+        "ru": "возврат аванса",
+        "uz": "avansni qaytarish",
+        "en": "advance payment bond"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "большой аванс без контроля расходования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "customs_tax",
+       "label": {
+        "ru": "таможенная, налоговая",
+        "uz": "bojxona, soliq",
+        "en": "customs, tax"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "короткий срок, история платежей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "tender",
+       "label": {
+        "ru": "тендерная",
+        "uz": "tender",
+        "en": "bid bond"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "малая сумма, короткий срок; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "contract_share",
+     "label": {
+      "ru": "Контракт к обороту принципала",
+      "uz": "Shartnomaning prinsipal aylanmasiga nisbati",
+      "en": "Contract to principal's turnover"
+     },
+     "input": "optional.class_fields.contract_share",
+     "options": [
+      {
+       "code": "small",
+       "label": {
+        "ru": "малая доля, опыт таких контрактов",
+        "uz": "kichik ulush, bunday shartnomalar tajribasi",
+        "en": "small share, experience of such contracts"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "принципал уже справлялся; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "normal",
+       "label": {
+        "ru": "обычная",
+        "uz": "oddiy",
+        "en": "ordinary"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "large",
+       "label": {
+        "ru": "большой контракт, первый такого размера",
+        "uz": "katta shartnoma, bunday hajmda birinchi",
+        "en": "large contract, first of its size"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "нет опыта исполнения; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "16": {
    "class_code": "16",
@@ -6131,6 +10727,88 @@
       "en": "Dependence on suppliers"
      },
      "input": "optional.class_fields.supplier_dependence"
+    },
+    {
+     "code": "fin_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид финансового риска",
+      "uz": "Moliyaviy xavf turi",
+      "en": "Financial risk type"
+     },
+     "input": "optional.class_fields.fin_kind",
+     "options": [
+      "bi",
+      "profit",
+      "counterparty",
+      "rent"
+     ],
+     "option_labels": {
+      "bi": {
+       "ru": "перерыв в производстве",
+       "uz": "ishlab chiqarishdagi uzilish",
+       "en": "business interruption"
+      },
+      "profit": {
+       "ru": "потеря прибыли",
+       "uz": "foyda yoʻqotilishi",
+       "en": "loss of profit"
+      },
+      "counterparty": {
+       "ru": "неисполнение контрагентом",
+       "uz": "kontragent tomonidan bajarilmaslik",
+       "en": "counterparty default"
+      },
+      "rent": {
+       "ru": "потеря арендной платы",
+       "uz": "ijara haqining yoʻqotilishi",
+       "en": "loss of rent"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "dependence",
+     "type": "choice",
+     "label": {
+      "ru": "Зависимость",
+      "uz": "Bogʻliqlik",
+      "en": "Dependence"
+     },
+     "input": "optional.class_fields.dependence",
+     "options": [
+      "single",
+      "normal",
+      "diversified"
+     ],
+     "option_labels": {
+      "single": {
+       "ru": "одно здание, одна линия, один поставщик или арендатор",
+       "uz": "bitta bino, bitta liniya, bitta yetkazib beruvchi yoki ijarachi",
+       "en": "one site, one line, one supplier or tenant"
+      },
+      "normal": {
+       "ru": "обычная",
+       "uz": "oddiy",
+       "en": "ordinary"
+      },
+      "diversified": {
+       "ru": "резервные площадки, много поставщиков или арендаторов",
+       "uz": "zaxira maydonlar, koʻp yetkazib beruvchi yoki ijarachi",
+       "en": "backup sites, many suppliers or tenants"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     }
    ],
    "valuation_methods": [
@@ -6340,7 +11018,117 @@
     }
    ],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "fin_kind",
+     "label": {
+      "ru": "Вид финансового риска",
+      "uz": "Moliyaviy xavf turi",
+      "en": "Financial risk type"
+     },
+     "input": "optional.class_fields.fin_kind",
+     "options": [
+      {
+       "code": "bi",
+       "label": {
+        "ru": "перерыв в производстве",
+        "uz": "ishlab chiqarishdagi uzilish",
+        "en": "business interruption"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "долгий срок восстановления; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "profit",
+       "label": {
+        "ru": "потеря прибыли",
+        "uz": "foyda yoʻqotilishi",
+        "en": "loss of profit"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "counterparty",
+       "label": {
+        "ru": "неисполнение контрагентом",
+        "uz": "kontragent tomonidan bajarilmaslik",
+        "en": "counterparty default"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "контрагент без истории, предоплата; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "rent",
+       "label": {
+        "ru": "потеря арендной платы",
+        "uz": "ijara haqining yoʻqotilishi",
+        "en": "loss of rent"
+       },
+       "coef": 1.05,
+       "note": {
+        "ru": "зависимость от арендаторов; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "dependence",
+     "label": {
+      "ru": "Зависимость",
+      "uz": "Bogʻliqlik",
+      "en": "Dependence"
+     },
+     "input": "optional.class_fields.dependence",
+     "options": [
+      {
+       "code": "single",
+       "label": {
+        "ru": "одно здание, одна линия, один поставщик или арендатор",
+        "uz": "bitta bino, bitta liniya, bitta yetkazib beruvchi yoki ijarachi",
+        "en": "one site, one line, one supplier or tenant"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "нет замены при убытке; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "normal",
+       "label": {
+        "ru": "обычная",
+        "uz": "oddiy",
+        "en": "ordinary"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "diversified",
+       "label": {
+        "ru": "резервные площадки, много поставщиков или арендаторов",
+        "uz": "zaxira maydonlar, koʻp yetkazib beruvchi yoki ijarachi",
+        "en": "backup sites, many suppliers or tenants"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "быстрая замена; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "17": {
    "class_code": "17",
@@ -6436,6 +11224,82 @@
       "ru": "сверх приложения А, экспертно",
       "uz": "A ilovadan tashqari, ekspert baho",
       "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "dispute_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид споров",
+      "uz": "Nizolar turi",
+      "en": "Dispute type"
+     },
+     "input": "optional.class_fields.dispute_kind",
+     "options": [
+      "labour",
+      "commercial",
+      "tax"
+     ],
+     "option_labels": {
+      "labour": {
+       "ru": "трудовые",
+       "uz": "mehnat",
+       "en": "employment"
+      },
+      "commercial": {
+       "ru": "хозяйственные",
+       "uz": "xoʻjalik",
+       "en": "commercial"
+      },
+      "tax": {
+       "ru": "налоговые",
+       "uz": "soliq",
+       "en": "tax"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "dispute_history",
+     "type": "choice",
+     "label": {
+      "ru": "Споры в прошлом",
+      "uz": "Oʻtgan nizolar",
+      "en": "Past disputes"
+     },
+     "input": "optional.class_fields.dispute_history",
+     "options": [
+      "none",
+      "some",
+      "many"
+     ],
+     "option_labels": {
+      "none": {
+       "ru": "не было, досудебное урегулирование",
+       "uz": "boʻlmagan, sudgacha hal qilish",
+       "en": "none, pre-trial settlement"
+      },
+      "some": {
+       "ru": "единичные",
+       "uz": "yakka",
+       "en": "isolated"
+      },
+      "many": {
+       "ru": "частые, большой штат и текучесть",
+       "uz": "tez-tez, katta shtat va kadrlar qoʻnimsizligi",
+       "en": "frequent, large staff and turnover"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
      }
     }
    ],
@@ -6626,7 +11490,105 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "dispute_kind",
+     "label": {
+      "ru": "Вид споров",
+      "uz": "Nizolar turi",
+      "en": "Dispute type"
+     },
+     "input": "optional.class_fields.dispute_kind",
+     "options": [
+      {
+       "code": "labour",
+       "label": {
+        "ru": "трудовые",
+        "uz": "mehnat",
+        "en": "employment"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "commercial",
+       "label": {
+        "ru": "хозяйственные",
+        "uz": "xoʻjalik",
+        "en": "commercial"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "много контрактов, споры в прошлом; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "tax",
+       "label": {
+        "ru": "налоговые",
+        "uz": "soliq",
+        "en": "tax"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "сложные схемы, проверки в прошлом; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "dispute_history",
+     "label": {
+      "ru": "Споры в прошлом",
+      "uz": "Oʻtgan nizolar",
+      "en": "Past disputes"
+     },
+     "input": "optional.class_fields.dispute_history",
+     "options": [
+      {
+       "code": "none",
+       "label": {
+        "ru": "не было, досудебное урегулирование",
+        "uz": "boʻlmagan, sudgacha hal qilish",
+        "en": "none, pre-trial settlement"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "чистая история; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "some",
+       "label": {
+        "ru": "единичные",
+        "uz": "yakka",
+        "en": "isolated"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "many",
+       "label": {
+        "ru": "частые, большой штат и текучесть",
+        "uz": "tez-tez, katta shtat va kadrlar qoʻnimsizligi",
+        "en": "frequent, large staff and turnover"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "высокая частота споров; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "18": {
    "class_code": "18",
@@ -6764,6 +11726,106 @@
       "en": "Clinic network"
      },
      "input": "optional.class_fields.clinics"
+    },
+    {
+     "code": "occupation_group",
+     "type": "choice",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      "office",
+      "workers",
+      "drivers",
+      "sports",
+      "hazardous",
+      "students",
+      "mixed"
+     ],
+     "option_labels": {
+      "office": {
+       "ru": "офисные работники",
+       "uz": "ofis xodimlari",
+       "en": "office workers"
+      },
+      "workers": {
+       "ru": "рабочие: стройка, производство",
+       "uz": "ishchilar: qurilish, ishlab chiqarish",
+       "en": "manual workers: construction, industry"
+      },
+      "drivers": {
+       "ru": "водители и перевозчики",
+       "uz": "haydovchilar va tashuvchilar",
+       "en": "drivers and carriers"
+      },
+      "sports": {
+       "ru": "спортсмены",
+       "uz": "sportchilar",
+       "en": "athletes"
+      },
+      "hazardous": {
+       "ru": "шахтёры, нефтяники, энергетики",
+       "uz": "shaxtyorlar, neftchilar, energetiklar",
+       "en": "miners, oil and power workers"
+      },
+      "students": {
+       "ru": "дети и студенты",
+       "uz": "bolalar va talabalar",
+       "en": "children and students"
+      },
+      "mixed": {
+       "ru": "смешанная группа",
+       "uz": "aralash guruh",
+       "en": "mixed group"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
+    },
+    {
+     "code": "program_level",
+     "type": "choice",
+     "label": {
+      "ru": "Широта программы",
+      "uz": "Dastur kengligi",
+      "en": "Programme scope"
+     },
+     "input": "optional.class_fields.program_level",
+     "options": [
+      "limited",
+      "standard",
+      "wide"
+     ],
+     "option_labels": {
+      "limited": {
+       "ru": "ограниченная, согласованные клиники",
+       "uz": "cheklangan, kelishilgan klinikalar",
+       "en": "limited, agreed clinics"
+      },
+      "standard": {
+       "ru": "стандартная",
+       "uz": "standart",
+       "en": "standard"
+      },
+      "wide": {
+       "ru": "широкая: стоматология, роды, дорогие клиники",
+       "uz": "keng: stomatologiya, tugʻruq, qimmat klinikalar",
+       "en": "wide: dental, maternity, expensive clinics"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "deductible",
@@ -7151,7 +12213,213 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "occupation_group",
+     "label": {
+      "ru": "Профессия и занятия (для тарифа)",
+      "uz": "Kasb va mashgʻulot (tarif uchun)",
+      "en": "Occupation (for rating)"
+     },
+     "input": "optional.class_fields.occupation_group",
+     "options": [
+      {
+       "code": "office",
+       "label": {
+        "ru": "офисные работники",
+        "uz": "ofis xodimlari",
+        "en": "office workers"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "низкий травматизм; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "workers",
+       "label": {
+        "ru": "рабочие: стройка, производство",
+        "uz": "ishchilar: qurilish, ishlab chiqarish",
+        "en": "manual workers: construction, industry"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "высотные работы, механизмы, химия; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "drivers",
+       "label": {
+        "ru": "водители и перевозчики",
+        "uz": "haydovchilar va tashuvchilar",
+        "en": "drivers and carriers"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "дальние рейсы, ночь; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "sports",
+       "label": {
+        "ru": "спортсмены",
+        "uz": "sportchilar",
+        "en": "athletes"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "контактные и экстремальные виды, соревнования; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "hazardous",
+       "label": {
+        "ru": "шахтёры, нефтяники, энергетики",
+        "uz": "shaxtyorlar, neftchilar, energetiklar",
+        "en": "miners, oil and power workers"
+       },
+       "coef": 1.5,
+       "note": {
+        "ru": "высокая опасность профессии; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "students",
+       "label": {
+        "ru": "дети и студенты",
+        "uz": "bolalar va talabalar",
+        "en": "children and students"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "активность и спорт уравновешены покрытием в учебное время; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mixed",
+       "label": {
+        "ru": "смешанная группа",
+        "uz": "aralash guruh",
+        "en": "mixed group"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "territory",
+     "label": {
+      "ru": "Территория действия",
+      "uz": "Amal qilish hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      {
+       "code": "region",
+       "label": {
+        "ru": "один регион Узбекистана",
+        "uz": "Oʻzbekistonning bitta hududi",
+        "en": "one region of Uzbekistan"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "согласованные клиники рядом; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "uzbekistan",
+       "label": {
+        "ru": "весь Узбекистан",
+        "uz": "butun Oʻzbekiston",
+        "en": "all of Uzbekistan"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "cis",
+       "label": {
+        "ru": "Узбекистан и страны СНГ",
+        "uz": "Oʻzbekiston va MDH davlatlari",
+        "en": "Uzbekistan and CIS countries"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "поездки за рубеж — выше расходы на лечение; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "worldwide",
+       "label": {
+        "ru": "весь мир",
+        "uz": "butun dunyo",
+        "en": "worldwide"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "дорогое лечение за рубежом; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "program_level",
+     "label": {
+      "ru": "Широта программы",
+      "uz": "Dastur kengligi",
+      "en": "Programme scope"
+     },
+     "input": "optional.class_fields.program_level",
+     "options": [
+      {
+       "code": "limited",
+       "label": {
+        "ru": "ограниченная, согласованные клиники",
+        "uz": "cheklangan, kelishilgan klinikalar",
+        "en": "limited, agreed clinics"
+       },
+       "coef": 0.85,
+       "note": {
+        "ru": "узкий список услуг и клиник; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "стандартная",
+        "uz": "standart",
+        "en": "standard"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "wide",
+       "label": {
+        "ru": "широкая: стоматология, роды, дорогие клиники",
+        "uz": "keng: stomatologiya, tugʻruq, qimmat klinikalar",
+        "en": "wide: dental, maternity, expensive clinics"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "дорогие и частые услуги; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "13з": {
    "class_code": "13з",
@@ -7338,6 +12606,56 @@
       "en": "Loan purpose"
      },
      "input": "optional.class_fields.purpose"
+    },
+    {
+     "code": "credit_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид кредита",
+      "uz": "Kredit turi",
+      "en": "Loan type"
+     },
+     "input": "optional.class_fields.credit_kind",
+     "options": [
+      "auto",
+      "mortgage",
+      "consumer",
+      "business",
+      "micro"
+     ],
+     "option_labels": {
+      "auto": {
+       "ru": "автокредит",
+       "uz": "avtokredit",
+       "en": "car loan"
+      },
+      "mortgage": {
+       "ru": "ипотека",
+       "uz": "ipoteka",
+       "en": "mortgage"
+      },
+      "consumer": {
+       "ru": "потребительский кредит",
+       "uz": "isteʼmol krediti",
+       "en": "consumer loan"
+      },
+      "business": {
+       "ru": "кредит бизнесу",
+       "uz": "biznes uchun kredit",
+       "en": "business loan"
+      },
+      "micro": {
+       "ru": "микрозаём",
+       "uz": "mikroqarz",
+       "en": "microloan"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -7617,7 +12935,261 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "credit_kind",
+     "label": {
+      "ru": "Вид кредита",
+      "uz": "Kredit turi",
+      "en": "Loan type"
+     },
+     "input": "optional.class_fields.credit_kind",
+     "options": [
+      {
+       "code": "auto",
+       "label": {
+        "ru": "автокредит",
+        "uz": "avtokredit",
+        "en": "car loan"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант (КАСКО на залог — отдельно); экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "mortgage",
+       "label": {
+        "ru": "ипотека",
+        "uz": "ipoteka",
+        "en": "mortgage"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "залог — недвижимость, длинная история платежей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "consumer",
+       "label": {
+        "ru": "потребительский кредит",
+        "uz": "isteʼmol krediti",
+        "en": "consumer loan"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "нет обеспечения; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "business",
+       "label": {
+        "ru": "кредит бизнесу",
+        "uz": "biznes uchun kredit",
+        "en": "business loan"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "отраслевой риск; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "micro",
+       "label": {
+        "ru": "микрозаём",
+        "uz": "mikroqarz",
+        "en": "microloan"
+       },
+       "coef": 1.35,
+       "note": {
+        "ru": "много мелких заёмщиков без истории; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "borrower_industry",
+     "label": {
+      "ru": "Отрасль заёмщика",
+      "uz": "Qarz oluvchi tarmogʻi",
+      "en": "Borrower's industry"
+     },
+     "input": "optional.class_fields.borrower_industry",
+     "options": [
+      {
+       "code": "manufacturing",
+       "label": {
+        "ru": "производство",
+        "uz": "ishlab chiqarish",
+        "en": "manufacturing"
+       },
+       "coef": 0.95,
+       "note": {
+        "ru": "устойчивая отрасль, отчётность; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "services",
+       "label": {
+        "ru": "услуги",
+        "uz": "xizmatlar",
+        "en": "services"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "trade",
+       "label": {
+        "ru": "торговля",
+        "uz": "savdo",
+        "en": "trade"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "сезонный товар; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "build",
+       "label": {
+        "ru": "строительство",
+        "uz": "qurilish",
+        "en": "construction"
+       },
+       "coef": 1.25,
+       "note": {
+        "ru": "длинный цикл, авансы; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "agro",
+       "label": {
+        "ru": "сельское хозяйство",
+        "uz": "qishloq xoʻjaligi",
+        "en": "agriculture"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "погода, урожай без страхования; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "credit_history",
+     "label": {
+      "ru": "Кредитная история",
+      "uz": "Kredit tarixi",
+      "en": "Credit history"
+     },
+     "input": "optional.class_fields.credit_history",
+     "options": [
+      {
+       "code": "clean",
+       "label": {
+        "ru": "без просрочек",
+        "uz": "muddati oʻtmagan",
+        "en": "no arrears"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: тариф продукта рассчитан на заёмщика без просрочек; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "minor",
+       "label": {
+        "ru": "мелкие просрочки",
+        "uz": "kichik kechikishlar",
+        "en": "minor arrears"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "были задержки платежей; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "bad",
+       "label": {
+        "ru": "серьёзные просрочки",
+        "uz": "jiddiy kechikishlar",
+        "en": "serious arrears"
+       },
+       "coef": 1.4,
+       "note": {
+        "ru": "высокая вероятность невозврата; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "borrower_kind",
+     "label": {
+      "ru": "Вид заёмщика",
+      "uz": "Qarz oluvchi turi",
+      "en": "Borrower type"
+     },
+     "input": "optional.class_fields.borrower_kind",
+     "options": [
+      {
+       "code": "legal",
+       "label": {
+        "ru": "юридическое лицо",
+        "uz": "yuridik shaxs",
+        "en": "legal entity"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: отчётность; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "entrepreneur",
+       "label": {
+        "ru": "индивидуальный предприниматель",
+        "uz": "yakka tartibdagi tadbirkor",
+        "en": "sole trader"
+       },
+       "coef": 1.1,
+       "note": {
+        "ru": "меньше отчётности и обеспечения; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "farm",
+       "label": {
+        "ru": "фермерское или дехканское хозяйство",
+        "uz": "fermer yoki dehqon xoʻjaligi",
+        "en": "farm"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "доход зависит от погоды и урожая; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "individual",
+       "label": {
+        "ru": "физическое лицо",
+        "uz": "jismoniy shaxs",
+        "en": "individual"
+       },
+       "coef": 1.15,
+       "note": {
+        "ru": "доход одного человека, нет залога бизнеса; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   },
   "16у": {
    "class_code": "16у",
@@ -7835,6 +13407,38 @@
       "en": "Yield by year over 5 years, c/ha"
      },
      "input": "optional.class_fields.yield_history"
+    },
+    {
+     "code": "crops",
+     "type": "choice",
+     "label": {
+      "ru": "Число культур",
+      "uz": "Ekinlar soni",
+      "en": "Number of crops"
+     },
+     "input": "optional.class_fields.crops",
+     "options": [
+      "single",
+      "several"
+     ],
+     "option_labels": {
+      "single": {
+       "ru": "одна культура",
+       "uz": "bitta ekin",
+       "en": "single crop"
+      },
+      "several": {
+       "ru": "несколько культур",
+       "uz": "bir nechta ekin",
+       "en": "several crops"
+      }
+     },
+     "factor": true,
+     "note": {
+      "ru": "подгруппа для факторов тарифа; экспертно, не калибровано",
+      "uz": "tarif omillari uchun kichik guruh; ekspert baho, kalibrlanmagan",
+      "en": "subgroup for tariff factors; expert estimate, not calibrated"
+     }
     },
     {
      "code": "losses_3y",
@@ -8195,7 +13799,141 @@
    ],
    "aliases": [],
    "reinsurance_usually": false,
-   "calibrated": 0
+   "calibrated": 0,
+   "factor_groups": [
+    {
+     "code": "irrigation",
+     "label": {
+      "ru": "Орошение",
+      "uz": "Sugʻorish",
+      "en": "Irrigation"
+     },
+     "input": "optional.class_fields.irrigation",
+     "options": [
+      {
+       "code": "irrigated",
+       "label": {
+        "ru": "орошаемое поле",
+        "uz": "sugʻoriladigan dala",
+        "en": "irrigated"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: засуха меньше влияет на урожай; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "drip",
+       "label": {
+        "ru": "капельное орошение",
+        "uz": "tomchilatib sugʻorish",
+        "en": "drip irrigation"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "стабильная влажность; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "rainfed",
+       "label": {
+        "ru": "богара (без орошения)",
+        "uz": "lalmi (sugʻorilmaydigan)",
+        "en": "rain-fed"
+       },
+       "coef": 1.3,
+       "note": {
+        "ru": "урожай зависит от осадков; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "agrotech",
+     "label": {
+      "ru": "Агротехника",
+      "uz": "Agrotexnika",
+      "en": "Agronomic practice"
+     },
+     "input": "optional.class_fields.agrotech",
+     "options": [
+      {
+       "code": "high",
+       "label": {
+        "ru": "интенсивная (по технологической карте)",
+        "uz": "intensiv (texnologik xarita boʻyicha)",
+        "en": "intensive"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "соблюдение технологии; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "standard",
+       "label": {
+        "ru": "обычная",
+        "uz": "oddiy",
+        "en": "standard"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "low",
+       "label": {
+        "ru": "упрощённая",
+        "uz": "soddalashtirilgan",
+        "en": "basic"
+       },
+       "coef": 1.2,
+       "note": {
+        "ru": "нарушения технологии; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    },
+    {
+     "code": "crops",
+     "label": {
+      "ru": "Число культур",
+      "uz": "Ekinlar soni",
+      "en": "Number of crops"
+     },
+     "input": "optional.class_fields.crops",
+     "options": [
+      {
+       "code": "single",
+       "label": {
+        "ru": "одна культура",
+        "uz": "bitta ekin",
+        "en": "single crop"
+       },
+       "coef": 1.0,
+       "note": {
+        "ru": "нейтральный вариант: тариф продукта — на одну культуру; экспертно, не калибровано"
+       }
+      },
+      {
+       "code": "several",
+       "label": {
+        "ru": "несколько культур",
+        "uz": "bir nechta ekin",
+        "en": "several crops"
+       },
+       "coef": 0.9,
+       "note": {
+        "ru": "разброс рисков; экспертно, не калибровано"
+       }
+      }
+     ],
+     "calibrated": 0
+    }
+   ]
   }
  },
  "legacy_aliases": {

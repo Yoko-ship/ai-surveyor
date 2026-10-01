@@ -33,7 +33,7 @@ DARK = (0.10, 0.11, 0.13)
 LIGHT = (0.90, 0.91, 0.92)
 WHITE = (1, 1, 1)
 OVERVIEW_CODES = ("sum", "value", "ratio", "tariff", "premium", "term", "losses", "docs", "disc", "views",
-                  "pml", "eml", "mfl", "retention", "market", "fork", "franchise", "checks")
+                  "pml", "eml", "mfl", "retention", "market", "fork", "below_min", "franchise", "checks")
 
 
 def rgb(hex_color: Optional[str]) -> tuple:
@@ -226,6 +226,14 @@ def _overview(D: dict, out: dict, S: dict, lang: str) -> list:
     items["fork"] = (rf.get("overview") or no, {k: (rf.get("recommended") or {}).get("rate_pct") if k == "rec" else
                                             next((m["rate_pct"] for m in rf.get("marks") or [] if m["code"] == k), None)
                                             for k in ("min", "rec", "market")})
+    # запрошенная ставка ниже минимальной (01.10.2026): можно ли принять — да / да, при условиях / нет
+    bm = out.get("below_min_assessment") or {}
+    if bm.get("available"):
+        items["below_min"] = (bm.get("verdict_label") or NA, bm.get("verdict"))
+    elif bm.get("reason") == "not_below":
+        items["below_min"] = (t("sc_v_bm_not_below", lang), None)
+    else:
+        items["below_min"] = (t("sc_v_bm_none", lang), None)
     items["franchise"] = ((out.get("franchise") or {}).get("text") or NA, None)
     nc = len((out.get("decision") or {}).get("checks") or [])
     items["checks"] = (str(nc), nc)

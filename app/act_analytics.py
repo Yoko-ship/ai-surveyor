@@ -681,8 +681,15 @@ def measures_effect(meas: dict, tech: Optional[float]) -> dict:
 #  9. Вилка ставки (01.10.2026): данные региона (stat.uz, data.egov.uz) и рынка (НАПП) для поправок
 # ================================================================================================
 
-def _policy_source(con, product_code: Optional[str], min_pct: Optional[float], min_source: Optional[str]) -> dict:
-    """Источник минимальной ставки: действующая версия тарифной политики (или ставка части из текста тарифа)."""
+def _policy_source(con, product_code: Optional[str], min_pct: Optional[float], min_source: Optional[str],
+                   min_info: Optional[dict] = None) -> dict:
+    """Источник минимальной ставки: правка администратора (минимальная ставка страховщика, app/min_rates.py),
+    действующая версия тарифной политики (или ставка части из текста тарифа)."""
+    if min_info and min_info.get("source") in ("admin", "import") and min_source not in ("rate_text",
+                                                                                         "rate_text_common"):
+        return {"kind": "insurer_min", "title_ru": min_info.get("label_ru"), "url": None,
+                "as_of": min_info.get("effective_from"), "product_code": product_code, "part_text": False,
+                "row": {k: min_info.get(k) for k in ("source", "effective_from", "note", "document_ref", "name")}}
     row = None
     if product_code and min_pct is not None:
         rows = db.rows(con, "SELECT v.level, v.name, v.document_ref, v.effective_from FROM min_rates m "
@@ -719,7 +726,7 @@ def _stat_source(i: dict) -> Optional[dict]:
 
 def fork_data(con, *, cls: str, region: str, group: Optional[str], fs: dict, product_code: Optional[str] = None,
               min_pct: Optional[float] = None, min_source: Optional[str] = None,
-              statutory_ref: Optional[str] = None) -> dict:
+              statutory_ref: Optional[str] = None, min_info: Optional[dict] = None) -> dict:
     """
     Данные для поправок вилки ставки — только чтение базы (stat_series, market_stats, tariff_versions):
       region — показатели региона для класса и вида объекта (risk_stats, отношение «регион / республика»)
@@ -796,7 +803,7 @@ def fork_data(con, *, cls: str, region: str, group: Optional[str], fs: dict, pro
                   if m.get("rate_pct") is not None else None)
     except Exception as e:                      # рынок не прочитан — поправки рынка нет, причина видна
         mk["error"] = type(e).__name__
-    policy = _policy_source(con, product_code, min_pct, min_source)
+    policy = _policy_source(con, product_code, min_pct, min_source, min_info)
     stat_srcs = [x["source"] for x in inds if x["used"] and x["source"]]
     adjusted_src = {"kind": "adjusted", "title_ru": "; ".join(dict.fromkeys(
         [s["title_ru"] for s in stat_srcs] + ([mk["source"]["title_ru"]] if mk.get("source") else []))) or None,

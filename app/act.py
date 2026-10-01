@@ -116,6 +116,7 @@ from . import act_market as am
 from . import market_picture as mpic
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
+from . import min_rates as mrs
 from .act_texts import money, pct, t
 
 router = APIRouter()
@@ -303,9 +304,13 @@ def insurer_name(settings: dict) -> Optional[str]:
 
 
 def tariff_version(con, level: str) -> Optional[int]:
+    """Действующая версия тарифов уровня (без версий отдельных правок минимальной ставки — их id в D["min_rate"])."""
     today = date.today().isoformat()
+    mrs.ensure(con)
     r = con.execute("SELECT id FROM tariff_versions WHERE level=? AND effective_from <= ? AND "
-                    "(effective_to IS NULL OR effective_to >= ?) ORDER BY effective_from DESC, id DESC LIMIT 1",
+                    "(effective_to IS NULL OR effective_to >= ?) AND id NOT IN "
+                    "(SELECT tariff_version_id FROM min_rate_versions) "
+                    "ORDER BY effective_from DESC, id DESC LIMIT 1",
                     (level, today, today)).fetchone()
     return r[0] if r else None
 
@@ -2397,6 +2402,15 @@ def validate(con, body: dict) -> tuple:
             errs["price_new"] = "нужно число больше нуля"
         else:
             o["price_new"] = p
+    # запрошенная ставка, введённая сотрудником (01.10.2026): если ниже минимальной ставки страховщика — акт отвечает,
+    # можно ли застраховать по ней (оценка below_min_assessment); в типе ставки продукта (годовая или на весь срок)
+    rr = opt.get("requested_rate_pct")
+    if rr not in (None, ""):
+        x = _money_in(rr)
+        if x is None or not 0 < x <= 100:
+            errs["requested_rate_pct"] = "процент больше 0 и не больше 100"
+        else:
+            o["requested_rate_pct"] = x
     # стоимость, которую клиент заявил до того, как сотрудник заменил её медианой объявлений
     dvo = opt.get("declared_value_original")
     if dvo not in (None, ""):
@@ -3307,20 +3321,34 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         o["term_source"] = "contract"
         term_from_contract = True
     term = o.get("term_days") or 365
-    rate_res = ae.rate(ref, product, cls, risk["level"], m["sum_insured"], term, otype, o.get("payer_type"), st)
+    # минимальная ставка страховщика на дату акта (app/min_rates.py): источник (правка администратора или тарифная
+    # политика) и тип ставки продукта (annual | fixed); тот же минимум движок берёт из справочника (db.load_reference)
+    min_info = _min_info(con, product, o.get("payer_type"))
+    rate_type = (min_info or {}).get("rate_type") or "annual"
+    rate_res = ae.rate(ref, product, cls, risk["level"], m["sum_insured"], term, otype, o.get("payer_type"), st,
+                       rate_type=rate_type)
+    _min_how(rate_res, min_info)
     # класс без продуктов страховщика (16у, 18) — акт по шаблону, ставка не определена: тарифной политики по классу
     # нет, экспертная базовая ставка справочника (если есть) ставкой акта не становится
     if not product and ctpl.products_count(con, cls) == 0:
         rate_res = _no_products_rate(rate_res, cls)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
+    multi = bool(clean.get("parts")) or len(m.get("product_classes") or []) > 1
+    # факторы объекта по подгруппам класса (02.10.2026, factor_groups шаблона): режим reference — ставка акта прежняя,
+    # множитель справочно (отметка вилки); apply — ставка акта = тариф × поправка уровня × множитель, не ниже минимума,
+    # до вилки, франшизы и сверок. Комплексный продукт — по шаблону класса каждой части (_part_calc)
+    fa = ae.factor_adjust(o.get("class_fields"), tpl, st, o)
+    if not multi:
+        ae.factor_effect(fa, rate_res, m["sum_insured"])
     # вилка ставки (01.10.2026): поправки региона (stat.uz) и рынка (НАПП) к ставке акта; в режиме apply ставка с
     # поправками становится ставкой акта до франшизы, мероприятий и сверок — всё дальше считается от неё
-    multi = bool(clean.get("parts")) or len(m.get("product_classes") or []) > 1
     fork_errors = []
     fs = ae.fork_settings(st)
     fork_in, fork_adj = _fork_prepare(con, fs, cls=cls, region=region_for_modules(m), group=group_ra,
-                                      product=product, rate_res=rate_res, errors=fork_errors)
-    if not multi:
+                                      product=product, rate_res=_annual_view(rate_res), errors=fork_errors,
+                                      min_info=min_info)
+    if not multi and rate_res.get("rate_type") != "fixed":
+        # у фиксированной ставки (на весь срок) вилка — справочно в годовом выражении, ставку акта не меняет
         ae.apply_fork(rate_res, fork_adj, m["sum_insured"])
     value = ae.value_check(m["sum_insured"], m["object_value"], st, o.get("price_new"), o.get("purchase_year"),
                            group, kind_type or obj_text)
@@ -3498,8 +3526,20 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         D["template"]["products_count"] = n_prod
         D["template"]["no_products_note"] = dict(ctpl.NO_PRODUCTS_NOTE) if n_prod == 0 else None
     if not multi:
-        D["rate_fork"] = _fork_finish(fork_in, fork_adj, fs, rate_res, m["sum_insured"], (req or {}).get("tariff_pct"),
-                                      (ct or {}).get("tariff_pct"), analytics, premium_final, bool(fr.get("applied")))
+        rt_ = rate_res.get("rate_type") or "annual"
+        D["rate_fork"] = _fork_finish(fork_in, fork_adj, fs, _annual_view(rate_res), m["sum_insured"],
+                                      ae.annual_pct((req or {}).get("tariff_pct"), term, rt_),
+                                      ae.annual_pct((ct or {}).get("tariff_pct"), term, rt_), analytics,
+                                      premium_final, bool(fr.get("applied")), factors=fa)
+        D["factor_adjustment"] = fa
+        if rt_ == "fixed":
+            D["rate_fork"]["rate_type"] = "fixed"         # отметки — годовой эквивалент фиксированной ставки
+    # минимальная ставка страховщика и её источник — в данных акта: старый акт показывает минимум своей даты
+    D["min_rate"] = _min_block(min_info, rate_res)
+    # оценка заниженной ставки (01.10.2026): запрошенная ставка ниже минимальной — можно ли застраховать
+    D["below_min"] = _below_min_block(D, o, req, ct, rate_res, analytics, scen, risk, documents, y, st,
+                                      statutory, multi, _net_calibrated(con, cls, analytics))
+    _below_min_decision(D)
     if multi:
         C = {"ref": ref, "st": st, "th": th, "m": m, "o": o, "product": product, "recognized": recognized,
              "upload": upload, "kind": kind, "obj_text": " ".join(x for x in (obj_doc.get("original"),
@@ -3513,6 +3553,11 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
              "docs": docs, "mchecks": mchecks, "disc": disc, "inspection": inspection, "missing_key": missing_key,
              "block_errors": block_errors}
         _apply_parts(con, clean, D, C)
+        # факторы объекта комплексного продукта — по каждой части (шаблон класса части)
+        D["factor_adjustment"] = {"by_parts": True, "mode": ae.factor_settings(st)["mode"],
+                                  "parts": [dict(p.get("factor_adjustment") or {}, index=p["index"],
+                                                 class_code=p["class_code"]) for p in D["parts"]["items"]],
+                                  "calibrated": ae.CALIBRATED}
     # страховой скоринг (01.10.2026): цвет полос страницы скоринга — из настроек
     D["scoring_style"] = {"brand_color": (st.get("scoring") or {}).get("brand_color") or asc.DEFAULT_BRAND}
     # отчёт кредитного бюро (КАТМ): проверки андеррайтеру для кредитных классов; уровень и ставку не меняет
@@ -3528,6 +3573,141 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     return D
 
 
+def _min_info(con, product: Optional[dict], payer_type: Optional[str] = None) -> Optional[dict]:
+    """Минимальная ставка страховщика по продукту на дату акта (сегодня) с источником и типом ставки; сбой — None
+    (акт формируется как раньше, тип ставки — годовая)."""
+    code = (product or {}).get("code")
+    if not code:
+        return None
+    try:
+        return mrs.on_date(con, code, date.today(), payer_type)
+    except Exception as e:
+        print("акт: минимальная ставка страховщика не прочитана:", type(e).__name__)
+        return None
+
+
+def _min_applies(min_info: Optional[dict], rate_res: dict) -> bool:
+    """Минимум акта — это минимальная ставка страховщика (а не минимум регулятора выше неё)."""
+    return bool(min_info) and rate_res.get("min_pct") is not None and rate_res.get("mode") == "tariff" \
+        and abs(float(min_info["pct"]) - float(rate_res["min_pct"])) < 1e-9
+
+
+def _min_src_row(min_info: dict) -> dict:
+    return {k: min_info.get(k) for k in ("source", "effective_from", "note", "document_ref", "name")}
+
+
+def _min_how(rate_res: dict, min_info: Optional[dict]) -> None:
+    """Строка «как посчитано»: откуда минимальная ставка (правка администратора с датой и примечанием или тарифная
+    политика) — сразу после сравнения с минимумом."""
+    if not _min_applies(min_info, rate_res):
+        return
+    how = rate_res["how"]
+    at = next((i for i, h in enumerate(how) if h["code"] in ("how_min_ok", "how_min_applied")), None)
+    item = {"code": "how_min_src", "params": {"min_src": _min_src_row(min_info)}}
+    if at is None:
+        how.append(item)
+    else:
+        how.insert(at + 1, item)
+
+
+def _min_block(min_info: Optional[dict], rate_res: dict) -> dict:
+    """Минимальная ставка акта и её источник — в данных акта (старый акт показывает минимум своей даты)."""
+    applies = _min_applies(min_info, rate_res)
+    out = {"min_pct": rate_res.get("min_pct"), "rate_type": rate_res.get("rate_type") or "annual",
+           "insurer": applies, "calibrated": ae.CALIBRATED}
+    if min_info:
+        out.update(insurer_pct=min_info["pct"], source=min_info["source"], version_id=min_info["version_id"],
+                   effective_from=min_info["effective_from"], note=min_info.get("note"),
+                   document_ref=min_info.get("document_ref"), name=min_info.get("name"),
+                   set_at=min_info.get("created_at"))
+    return out
+
+
+def _annual_view(rate_res: dict) -> dict:
+    """Ставка акта в годовом выражении для вилки и рынка: у фиксированной (на весь срок) — × 365 / дни; премия та же."""
+    if rate_res.get("rate_type") != "fixed" or rate_res.get("applied_pct") is None:
+        return rate_res
+    term = int(rate_res.get("term_days") or 365)
+    out = dict(rate_res)
+    for k in ("applied_pct", "min_pct", "calc_pct", "base_pct"):
+        if out.get(k) is not None:
+            out[k] = round(ae.annual_pct(out[k], term, "fixed"), 4)
+    return out
+
+
+def _net_calibrated(con, cls: str, analytics: Optional[dict]) -> bool:
+    """Калибрована ли базовая нетто-ставка, на которой стоит нетто-ставка расчётного модуля (base_rates.calibrated)."""
+    tf = (analytics or {}).get("tariff") or {}
+    if not tf.get("available"):
+        return False
+    try:
+        rows = db.rows(con, "SELECT object_type, calibrated FROM base_rates WHERE class_code=?", cls)
+    except Exception:
+        return False
+    if tf.get("base_kind") == "object_type":
+        return any(r["object_type"] == tf.get("object_type") and r["calibrated"] for r in rows)
+    return bool(rows) and all(r["calibrated"] for r in rows)
+
+
+def _below_min_block(D: dict, o: dict, req: Optional[dict], ct: Optional[dict], rate_res: dict,
+                     analytics: Optional[dict], scen: Optional[dict], risk: dict, documents: bool, y, st: dict,
+                     statutory: bool, multi: bool, net_cal: bool) -> dict:
+    """Оценка заниженной ставки (act_engine.below_min_assess) по данным акта: запрошенная ставка — введённая
+    сотрудником, иначе из договора, иначе из запроса филиала."""
+    if o.get("requested_rate_pct") is not None:
+        rq, src = o["requested_rate_pct"], "employee"
+    elif (ct or {}).get("tariff_pct") is not None:
+        rq, src = ct["tariff_pct"], "contract"
+    elif (req or {}).get("tariff_pct") is not None:
+        rq, src = req["tariff_pct"], "request"
+    else:
+        rq, src = None, None
+    base = {"available": False, "requested_pct": rq, "requested_source": src, "min_pct": rate_res.get("min_pct"),
+            "calibrated": ae.CALIBRATED}
+    if multi:
+        return dict(base, reason="by_parts")
+    if rate_res.get("mode") not in ("tariff", "statutory"):
+        return dict(base, reason="no_rate")
+    an = analytics if (analytics or {}).get("available") else {}
+    tf = an.get("tariff") or {}
+    net = tf.get("net_pct") if tf.get("available") else None
+    sc = scen or {}
+    ret = sc.get("retention") or {}
+    within = ret.get("within") if ret.get("known") else None
+    eml = ((sc.get("items") or {}).get("EML") or {}).get("amount")
+    mk = an.get("market") or {}
+    mrate = mk.get("rate_pct") if mk.get("available") else None
+    lr = mk.get("loss_ratio_pct") if mk.get("available") else None
+    fork_mk = ((D.get("rate_fork") or {}).get("adjustments") or {}).get("market") or {}
+    if fork_mk.get("loss_ratio_pct") is not None:
+        lr = fork_mk["loss_ratio_pct"]            # та же база убыточности, что у поправки рынка вилки
+    if mrate is None:
+        mrate = ((D.get("rate_fork") or {}).get("market_data") or {}).get("rate_pct")
+    new_years = int(st.get("new_object_years", 1))
+    obj_new = (date.today().year - int(y) <= new_years) if y else None
+    out = ae.below_min_assess(
+        requested_pct=rq, requested_source=src, min_pct=rate_res.get("min_pct"),
+        rate_type=rate_res.get("rate_type") or "annual", term_days=rate_res.get("term_days") or 365,
+        sum_insured=D["must"]["sum_insured"], statutory=statutory, level=risk.get("level"),
+        losses_count=o.get("losses_count"), documents=bool(documents), object_new=obj_new, net_pct=net,
+        net_calibrated=net_cal, retention_within=within, eml=eml, retention_limit=ret.get("limit"),
+        market_rate_pct=mrate, loss_ratio_pct=lr, settings=st)
+    out["min_insurer"] = bool((D.get("min_rate") or {}).get("insurer"))
+    return out
+
+
+def _below_min_decision(D: dict) -> None:
+    """Пункт «Отступление от минимальной ставки» в проверках андеррайтера; «принять без оговорок» уже нельзя."""
+    bm = D.get("below_min") or {}
+    if not bm.get("available"):
+        return
+    D["decision"]["checks"].append({"code": "c_below_min", "params": {"verdict": bm["verdict"],
+                                                                      "req": bm["requested_pct"],
+                                                                      "min": bm["min_pct"]}})
+    if D["decision"]["code"] == "d_accept":
+        D["decision"]["code"] = "d_accept_with_clauses"
+
+
 def _no_products_rate(rate_res: dict, cls: str) -> dict:
     """Класс без продуктов страховщика (16у, 18): ставка и премия не определены — тарифной политики по классу нет;
     экспертная базовая ставка справочника (если есть) в «как посчитана ставка» не выдаётся за ставку акта."""
@@ -3538,13 +3718,14 @@ def _no_products_rate(rate_res: dict, cls: str) -> dict:
 
 
 def _fork_prepare(con, fs: dict, *, cls: str, region: str, group: Optional[str], product: Optional[dict],
-                  rate_res: dict, errors: list, min_source: Optional[str] = None) -> tuple:
+                  rate_res: dict, errors: list, min_source: Optional[str] = None,
+                  min_info: Optional[dict] = None) -> tuple:
     """Данные региона и рынка (только чтение базы) и поправки вилки к ставке акта → (данные, поправки) или
     (None, None) при сбое: акт формируется, вилка — с reason = error."""
     try:
         fin = aa.fork_data(con, cls=cls, region=region, group=group, fs=fs, product_code=(product or {}).get("code"),
                            min_pct=rate_res.get("min_pct"), min_source=min_source,
-                           statutory_ref=(product or {}).get("rate_text"))
+                           statutory_ref=(product or {}).get("rate_text"), min_info=min_info)
     except Exception as e:
         errors.append({"block": "rate_fork", "error": type(e).__name__})
         return None, None
@@ -3552,8 +3733,9 @@ def _fork_prepare(con, fs: dict, *, cls: str, region: str, group: Optional[str],
 
 
 def _fork_finish(fin: Optional[dict], adj: Optional[dict], fs: dict, rate_res: dict, S: float, request_pct, contract_pct,
-                 analytics: Optional[dict], premium_final, fr_applied: bool) -> dict:
-    """Вилка ставки одного класса (act_engine.fork_build) с данными региона и рынка для показа."""
+                 analytics: Optional[dict], premium_final, fr_applied: bool, factors: Optional[dict] = None) -> dict:
+    """Вилка ставки одного класса (act_engine.fork_build) с данными региона и рынка для показа; factors — факторы
+    объекта (act_engine.factor_adjust с effect): в режиме reference — отметка «с учётом факторов объекта»."""
     if fin is None:
         return {"available": False, "reason": "error", "mode": fs["mode"], "unit": "% годовых", "marks": [],
                 "adjustments": None, "recommended": None, "position": {"request": "none", "contract": "none"},
@@ -3561,7 +3743,8 @@ def _fork_finish(fin: Optional[dict], adj: Optional[dict], fs: dict, rate_res: d
     tech = ((analytics or {}).get("engine") or {}).get("technical_pct") if (analytics or {}).get("available") else None
     out = ae.fork_build(rate_res=rate_res, adj=adj, sum_insured=S, market=fin["market"], sources=fin["sources"],
                         request_pct=request_pct, contract_pct=contract_pct, technical_pct=tech,
-                        premium_final=premium_final, franchise_applied=fr_applied, mode=fs["mode"])
+                        premium_final=premium_final, franchise_applied=fr_applied, mode=fs["mode"],
+                        factors=factors)
     mk = fin["market"]
     out["market_data"] = {k: mk.get(k) for k in ("rate_pct", "rate_date", "loss_ratio_pct", "loss_ratio_full_year_pct",
                                                  "rate_full_year_pct", "full_year_period", "row_key", "pack",
@@ -3608,14 +3791,16 @@ def _doc_checks(st: dict, m: dict, docs: dict, rate_res: dict, rate_final, premi
     rf = rate_final if rate_res["mode"] not in ("undefined", "multi") else None
     rc = ae.request_check(req, rate_res=rate_res, rate_final=rf, premium_final=premium_final,
                           sum_insured=m["sum_insured"], object_value=m["object_value"], value=value, fr=fr,
-                          term_from_request=docs["term_from_request"], settings=st)
+                          term_from_request=docs["term_from_request"], settings=st,
+                          rate_type=rate_res.get("rate_type") or "annual")
     _attach_trust(rc, docs["rq_trust"])
     rq_checks = ae.request_checks(rc)
     if (docs["rq_trust"] or {}).get("edits"):
         rq_checks.append({"code": "c_rq_edits", "params": {"n": len(docs["rq_trust"]["edits"])}})
     cc = ae.contract_check(ct, rate_res=rate_res, rate_final=rf, premium_final=premium_final,
                            sum_insured=m["sum_insured"], object_value=m["object_value"], value=value, fr=fr,
-                           term_from_contract=docs["term_from_contract"], settings=st)
+                           term_from_contract=docs["term_from_contract"], settings=st,
+                           rate_type=rate_res.get("rate_type") or "annual")
     _attach_trust(cc, docs["ct_trust"])
     ct_checks = ae.request_checks(cc, "ct")
     if (docs["ct_trust"] or {}).get("edits"):
@@ -3754,6 +3939,8 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     cm = ae.class_min(ref, product, cls)
     rate_res = ae.part_rate(ref, product, cls, risk["level"], S, term, otype, op.get("payer_type"), st, cm)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
+    # факторы объекта части (02.10.2026): по шаблону класса части, до вилки и франшизы
+    fa = ae.factor_effect(ae.factor_adjust(op.get("class_fields"), tpl, st, op), rate_res, S)
     # вилка ставки части (01.10.2026): поправки региона и рынка по классу и виду объекта части
     fs = C.get("fs") or ae.fork_settings(st)
     ferrs = []
@@ -3845,7 +4032,8 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
         "scenarios": scen, "measures": meas, "analytics": analytics, "clauses": clauses, "checks": checks,
         "missing": _part_missing(tpl, op, kind, main, C["recognized"]),
         "rate_fork": _fork_finish(fork_in, fork_adj, fs, rate_res, S, None, None, analytics, premium_final,
-                                  bool(fr.get("applied"))),
+                                  bool(fr.get("applied")), factors=fa),
+        "factor_adjustment": fa,
         "optional": {k: v for k, v in op.items() if v is not None},
         "template": _template_block(tpl_row, group, group_ra, views_req, clause_codes, tpl_risks, scen,
                                     op.get("class_fields")),
@@ -4232,6 +4420,8 @@ def _class_label(code: Optional[str], name_ru: Optional[str], lang: str) -> str:
 
 
 def _fmt_param(key: str, v, lang: str):
+    if key == "min_src":                    # источник минимальной ставки (app/min_rates.py) на языке акта
+        return mrs.source_label(v or {}, lang) or t("na", lang)
     if key in ("base", "rate", "min", "calc"):
         return pct(v, lang)
     if key == "adj":
@@ -4246,6 +4436,8 @@ def _fmt_param(key: str, v, lang: str):
         return _otype_label(v, lang)
     if key == "spct":                       # поправка со знаком: +15 % / −3,2 % (вилка ставки)
         return _spct(v, lang, 2)
+    if key == "fmult":                      # множитель факторов объекта: 1,6905
+        return _mult(v, lang)
     return v
 
 
@@ -4283,6 +4475,9 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
     if c["code"] in ("c_tpl_credit_over", "c_part_credit_over", "c_credit_need_data", "c_part_credit_need_data"):
         return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), share=p.get("share_pct", 50),
                  **{k: money(p.get(k), lang) for k in ("sum", "insurable", "excess", "credit", "collateral")})
+    if c["code"] == "c_below_min":
+        return t("c_below_min", lang, req=pct(p.get("req"), lang), min=pct(p.get("min"), lang),
+                 verdict=t("bm_v_" + str(p.get("verdict")), lang))
     if c["code"] == "c_tpl_crop_over":
         return t(c["code"], lang, **{k: money(p.get(k), lang) for k in ("sum", "value")})
     if c["code"] in ("c_credit_holder_not_bank", "c_part_credit_holder_not_bank"):
@@ -4765,7 +4960,11 @@ def _fork_src(src: Optional[dict], lang: str) -> Optional[dict]:
         # название документа в справочнике — по-русски; на других языках — название словами акта и номер приказа
         order = _order_ref_text(title, lang)
         title = t("rf_doc_regulator" if kind == "regulator" else "rf_doc_policy", lang) + (f" — {order}" if order else "")
-    if kind in ("policy", "regulator"):
+    if kind == "insurer_min":
+        # минимальная ставка страховщика (правка администратора, app/min_rates.py): «… (установлена администратором
+        # 02.10.2026, примечание …)»
+        title = mrs.source_label(src.get("row") or {}, lang) or title
+    elif kind in ("policy", "regulator"):
         title = t("rf_src_policy_part", lang, title=title, code=src.get("product_code") or "") if src.get("part_text") \
             else t("rf_src_policy", lang, title=title, date=_date(src.get("as_of")))
     elif kind == "policy_act":
@@ -4776,7 +4975,7 @@ def _fork_src(src: Optional[dict], lang: str) -> Optional[dict]:
         title = t("rf_src_napp_claims", lang, date=_date(src.get("as_of")))
     elif kind == "adjusted":
         title = t("rf_src_adjusted", lang)
-    elif kind in ("request", "contract", "technical", "parts"):
+    elif kind in ("request", "contract", "technical", "parts", "factors"):
         title = t("rf_src_" + kind, lang)
     elif kind == "statutory":
         title = t("rf_src_statutory", lang, title=_act_ref_text(title, lang))
@@ -4824,6 +5023,8 @@ def _fork_note(m: dict, lang: str, F: dict) -> str:
         return t("rf_n_" + code, lang, reg=_sg(p.get("region"), lang), mkt=_sg(p.get("market"), lang))
     if code in ("market", "market_below_min"):
         return t("rf_n_" + code, lang, date=_date((m.get("source") or {}).get("as_of")))
+    if code in ("factors", "factors_min"):
+        return t("rf_n_" + code, lang, mult=_mult(p.get("mult") or 1, lang))
     return t("rf_n_" + code, lang) if code else ""
 
 
@@ -5056,11 +5257,13 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
         how.append(t("rf_mode_" + (F.get("mode") or "reference"), lang))
         if F.get("franchise_applied") and F.get("premium_final") is not None:
             how.append(t("rf_fr_note", lang, premium=money(F["premium_final"], lang)))
+        if F.get("rate_type") == "fixed":
+            how.append(t("rf_fixed_note", lang, days=F.get("term_days")))
         how.append(t("rf_calibrated", lang))
     # источники: отметки и показатели (без повторов)
     seen, src_lines = set(), []
     for s in [m["source"] for m in marks if m.get("source")] + srcs:
-        if s.get("kind") in ("adjusted", "policy_act", "request", "contract", "technical", "parts"):
+        if s.get("kind") in ("adjusted", "policy_act", "request", "contract", "technical", "parts", "factors"):
             continue
         key = (s["title"], s.get("url"))
         if key in seen:
@@ -5086,6 +5289,7 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
           "reference_only": bool(F.get("reference_only")), "term_days": F.get("term_days"),
           # премия акта с учётом применённой франшизы (та же, что premium.amount)
           "premium_final": F.get("premium_final"), "franchise_applied": bool(F.get("franchise_applied")),
+          "rate_type": F.get("rate_type") or "annual",
           "table": table, "calibrated": ae.CALIBRATED}
     row = None
     if F.get("available") and reason != "parts_reference" and "adjusted" in by:
@@ -5267,6 +5471,11 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     if mode == "tariff":
         rows4 += [_row(t("applied_rate", lang), pct(rate_res["applied_pct"], lang),
                        t("min_applied", lang) if rate_res["min_applied"] else None)]
+        if rate_res.get("rate_type") == "fixed":
+            # фиксированная ставка (на весь срок): тип и годовой эквивалент для сравнения с рынком — обе ставки
+            rows4 += [_row(t("rate_type_row", lang), t("rate_type_fixed", lang)),
+                      _row(t("rate_annual_equiv_row", lang), pct(rate_res.get("annual_equiv_pct"), lang),
+                           f"{pct(rate_res['applied_pct'], lang)} × 365 / {rate_res['term_days']}")]
         if pf["franchise_applied"]:
             rows4.append(_row(t("rate_with_fr", lang), pct(pf["rate_pct"], lang),
                               t("min_applied", lang) if fr.get("floor_applied") else None))
@@ -5276,7 +5485,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         rows4 += [_row(t("base_rate", lang), pct(rate_res["base_pct"], lang)),
                   _row(t("adj", lang), "+" + pct(rate_res["adj_pct"], lang), t("uncalibrated", lang)),
                   _row(t("min_rate", lang), pct(rate_res["min_pct"], lang) if rate_res["min_pct"] is not None
-                       else NA),
+                       else NA, _min_src_text(D, lang)),
                   _row(t("premium", lang), money(pf["amount"], lang), prem_note)]
     elif mode == "statutory":
         rows4 += [_row(t("applied_rate", lang), pct(rate_res["applied_pct"], lang), t("rate_by_act", lang)),
@@ -5293,6 +5502,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         _fork_view(D.get("rate_fork"), lang, must["class_code"])
     if not PV and FV.get("row") and mode == "tariff":
         rows4.append(FV["row"])
+    # факторы объекта по подгруппам класса (02.10.2026): строка (у частей — по строке на часть) и перечень ниже
+    FAV = _factor_view(D, lang)
+    rows4 += FAV["rows"]
     fr_text = PV["fr_text"] if PV else _fr_text(fr, lang)
     if not PV:
         rows4.append(_row(t("franchise", lang), fr_text))
@@ -5316,6 +5528,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                                                           "calibrated": ae.CALIBRATED}}
     if FV.get("list"):
         lists4.append(FV["list"])            # «Вилка ставки» — сразу после «Как посчитан тариф»
+    if FAV["lines"]:
+        # «Факторы объекта по подгруппам класса» — после вилки: построчно, вклад каждого фактора в сумах
+        lists4.append({"title": t("fa_title", lang), "items": FAV["lines"]})
     lists4 += anv["lists"]
     if fr.get("grounds"):
         lists4.append({"title": t("fr_grounds", lang), "items": [_text(g, lang) for g in fr["grounds"]]})
@@ -5352,11 +5567,18 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     if bv["available"]:
         # «Заёмщик: данные кредитного бюро» (01.10.2026): в уровень риска и ставку не входит
         lists4.append({"title": t("cb_title", lang), "items": bv["lines"]})
+    bmv = _below_min_view(D, lang)
+    if bmv["json"]["available"]:
+        # «Ставка ниже минимальной: можно ли застраховать» (01.10.2026): ответ, доводы за и против, условия
+        lists4.append({"title": t("bm_title", lang), "items": bmv["lines"]})
     s4 = {"n": 4, "title": t("s4", lang), "paragraphs": p4, "rows": rows4, "lists": lists4}
 
     # ---------- раздел 5 ----------
     dec = D["decision"]
     p5 = [t(dec["code"], lang)]
+    if bmv["json"]["available"]:
+        # рекомендация акта — по ставке акта; по запрошенной ставке ниже минимума — ответ оценки
+        p5.append(bmv["s5"])
     lists5 = []
     if D["discrepancies"]:
         lists5.append({"title": t("disc_title", lang), "items": [_disc_text(d, lang, D["group"]) for d in D["discrepancies"]]})
@@ -5371,6 +5593,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         missing_labels.append(t("session_not_found", lang))
     if missing_labels:
         lists5.append({"title": t("missing_title", lang), "items": missing_labels})
+    p5 += FAV["s5"]
+    if FAV["unfilled"]:
+        lists5.append({"title": t("fa_unfilled_title", lang), "items": FAV["unfilled"]})
     if PV:
         # распределение суммы по классам: подтверждено сотрудником или принято по умолчанию; поля частей
         p5.append(PV["s5_paragraph"])
@@ -5411,6 +5636,14 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                  "product_classes": (must.get("product_classes") or []),
                  # вилка ставки, режим apply: ставка акта уже с поправками региона и рынка (01.10.2026)
                  "fork_applied": bool(rate_res.get("fork_applied")), "fork_act_pct": rate_res.get("fork_act_pct"),
+                 # факторы объекта, режим apply (02.10.2026): ставка акта уже с множителем факторов
+                 "factors_applied": bool(rate_res.get("factors_applied")),
+                 "factor_act_pct": rate_res.get("factor_act_pct"),
+                 # тип ставки продукта (01.10.2026): annual | fixed; у fixed — годовой эквивалент для рынка
+                 "rate_type": rate_res.get("rate_type") or "annual",
+                 "rate_type_label": t("rate_type_" + (rate_res.get("rate_type") or "annual"), lang),
+                 "annual_equiv_pct": rate_res.get("annual_equiv_pct"),
+                 "min_source": _min_src_text(D, lang),
                  **(PV["rate_extra"] if PV else {})},
         "premium": {"amount": pf["amount"], "term_days": rate_res["term_days"], "currency": "UZS",
                     "text": money(pf["amount"], lang) if pf["amount"] is not None else NA,
@@ -5428,6 +5661,10 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         "market_value": mv["json"],
         "request_check": rcv["json"],
         "contract_check": ccv["json"],
+        # оценка заниженной ставки (01.10.2026); ставка не ниже минимума или её нет — available = false
+        "below_min_assessment": bmv["json"],
+        # минимальная ставка страховщика на дату акта и её источник (app/min_rates.py)
+        "min_rate": _min_rate_view(D, lang),
         "cross_check": xv or {"available": False},
         "franchise": {"needed": bool(fr.get("needed")), "text": fr_text,
                       "grounds": [{"code": g["code"], "text": _text(g, lang)} for g in fr.get("grounds") or []],
@@ -5467,6 +5704,9 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         "borrower": bv["json"],
         # вилка ставки (01.10.2026): отметки, поправки региона и рынка с источниками, вывод одной фразой
         "rate_fork": dict(FV["json"], overview=FV.get("overview")),
+        # факторы объекта по подгруппам класса (02.10.2026): множитель, применённые и незаполненные группы, вклад
+        # каждого фактора в сумах, строки пояснения на языке акта; экспертно, calibrated = 0
+        "factor_adjustment": FAV["json"],
     }
     # страховой скоринг объекта (01.10.2026): представление посчитанного акта; сбой показа не роняет акт
     try:
@@ -5475,6 +5715,105 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         print("акт: скоринг не показан:", type(e).__name__, e)
         out["scoring"] = {"available": False, "reason": "render_error", "calibrated": ae.CALIBRATED}
     return out
+
+
+def _min_src_text(D: dict, lang: str) -> Optional[str]:
+    """Источник минимальной ставки акта словами; акты до 01.10.2026 (без D["min_rate"]) — None."""
+    mb = D.get("min_rate") or {}
+    if not mb.get("insurer") or not mb.get("source"):
+        return None
+    return mrs.source_label({k: mb.get(k) for k in ("source", "effective_from", "note", "document_ref", "name")},
+                            lang)
+
+
+def _min_rate_view(D: dict, lang: str) -> dict:
+    mb = D.get("min_rate")
+    if not mb:
+        return {"available": False, "reason": "old_act"}
+    rt = mb.get("rate_type") or "annual"
+    return {"available": mb.get("min_pct") is not None, "min_pct": mb.get("min_pct"), "rate_type": rt,
+            "rate_type_label": t("rate_type_" + rt, lang), "insurer": bool(mb.get("insurer")),
+            "source": mb.get("source"), "effective_from": mb.get("effective_from"), "note": mb.get("note"),
+            "version_id": mb.get("version_id"), "source_text": _min_src_text(D, lang)}
+
+
+def _bm_params(code: str, p: dict, lang: str) -> dict:
+    out = {}
+    for k, v in (p or {}).items():
+        if v is None:
+            out[k] = t("na", lang)
+        elif k in ("req", "net", "market", "gap"):
+            out[k] = pct(v, lang)
+        elif k in ("share", "lim", "lr", "gap_rel") and code not in ("bm_market_ok", "bm_market_high"):
+            v1 = round(float(v), 1)
+            out[k] = tx.pct_fixed(v1, lang, 0 if v1 == int(v1) else 1)
+        elif k in ("eml", "limit", "shortfall"):
+            out[k] = money(v, lang)
+        elif k in ("ratio", "lim"):
+            out[k] = tx._num(float(v), lang, 2).rstrip("0").rstrip(",.") if float(v) != int(float(v)) \
+                else str(int(float(v)))
+        else:
+            out[k] = v
+    if code in ("bm_net_ok", "bm_net_below"):
+        out["cal"] = "" if p.get("calibrated") else t("bm_cal_expert", lang)
+    return out
+
+
+def _bm_reason_text(r: dict, lang: str) -> str:
+    code = r["code"]
+    p = r.get("params") or {}
+    if code == "bm_level":
+        return t("bm_level_" + str(p.get("level")), lang)
+    if code == "bm_gap" and p.get("rate_type") == "fixed":
+        code = "bm_gap_fixed"
+    return t(code, lang, **_bm_params(r["code"], p, lang))
+
+
+def _below_min_view(D: dict, lang: str) -> dict:
+    """Оценка заниженной ставки на языке акта: строки раздела 4, абзац раздела 5 и JSON below_min_assessment."""
+    bm = D.get("below_min") or {}
+    js = {"available": bool(bm.get("available")), "reason": bm.get("reason") if bm else "old_act",
+          "requested_pct": bm.get("requested_pct"), "requested_source": bm.get("requested_source"),
+          "requested_source_label": t("bm_src_" + bm["requested_source"], lang) if bm.get("requested_source") else None,
+          "min_pct": bm.get("min_pct"), "calibrated": ae.CALIBRATED, "note": t("bm_note", lang)}
+    if not js["available"]:
+        return {"lines": [], "s5": None, "json": js}
+    verdict = bm["verdict"]
+    vlabel = t("bm_v_" + verdict, lang)
+    reasons = [{"code": r["code"], "sign": r["sign"], "effect": r["effect"], "value": r.get("value"),
+                "text": _bm_reason_text(r, lang)} for r in bm["reasons"]]
+    conds = [{"code": c, "text": t(c, lang)} for c in bm.get("conditions") or []]
+    min_src = _min_src_text(D, lang) or t("bm_min_insurer" if bm.get("min_insurer") else "bm_min_regulator", lang)
+    head = t("bm_head", lang, req=pct(bm["requested_pct"], lang), src=js["requested_source_label"],
+             min=pct(bm["min_pct"], lang), min_src=min_src, verdict=vlabel)
+    parts = [head]
+    if verdict == "not_allowed":
+        why = [r["text"] for r in reasons if r["effect"] in ("blocks", "no_conditions")]
+        parts.append(t("bm_why_no", lang, why="; ".join(why)))
+    elif verdict == "allowed_with_conditions":
+        why = [r["text"] for r in reasons if r["effect"] == "no_yes"]
+        parts.append(t("bm_why_cond", lang, why="; ".join(why)))
+        parts.append(t("bm_conds", lang, what="; ".join(c["text"] for c in conds)))
+    else:
+        parts.append(t("bm_why_yes", lang))
+        parts.append(t("bm_conds", lang, what="; ".join(c["text"] for c in conds)))
+    sf = t("bm_shortfall_fixed" if bm.get("rate_type") == "fixed" else "bm_shortfall", lang,
+           days=bm.get("term_days"), sum=money(bm.get("shortfall"), lang))
+    parts.append(sf)
+    text = " ".join(parts)
+    js.update(gap_pct=bm.get("gap_pct"), gap_rel_pct=bm.get("gap_rel_pct"), share_pct=bm.get("share_pct"),
+              shortfall=bm.get("shortfall"), shortfall_text=money(bm.get("shortfall"), lang),
+              term_days=bm.get("term_days"), rate_type=bm.get("rate_type"),
+              requested_annual_pct=bm.get("requested_annual_pct"), verdict=verdict, verdict_label=vlabel,
+              hard=bool(bm.get("hard")), reasons=reasons, conditions=conds, text=text, min_source_text=min_src,
+              rule=bm.get("rule"))
+    lines = [text]
+    lines += [t("bm_line", lang, sign=t("bm_" + r["sign"], lang), text=r["text"]) for r in reasons]
+    lines.append(js["note"])
+    rate = ((D.get("premium_final") or {}).get("rate_pct"))
+    s5 = t("bm_s5_" + verdict, lang, req=pct(bm["requested_pct"], lang), min=pct(bm["min_pct"], lang),
+           rate=pct(rate, lang))
+    return {"lines": lines, "s5": s5, "json": js}
 
 
 def _borrower_view(b: Optional[dict], lang: str) -> dict:
@@ -7491,3 +7830,112 @@ def build_pdf(act: dict, scoring_only: bool = False) -> bytes:
     pdf.rule()
     pdf.para(act["footer"], size=10, bold=True)
     return pdf.finish()
+
+
+# ================================================================================================
+#  Факторы объекта по подгруппам класса (02.10.2026): показ на языке акта
+# ================================================================================================
+
+def _fa_one(fa: dict, lang: str) -> dict:
+    """
+    Факторы объекта одного класса (act_engine.factor_adjust с effect) на языке акта: {"json", "lines", "row",
+    "s5", "unfilled"}. Строки — построчно: база, каждый фактор с коэффициентом, ставкой после него и вкладом в премию
+    в сумах, границы множителя и минимум (если сработали), итог, режим, что уточнить.
+    """
+    L = lambda x: ctpl.localize(x, lang) if x is not None else None  # noqa: E731
+    eff = fa.get("effect") or {}
+    steps = {x["group"]: x for x in eff.get("steps") or [] if x.get("kind") == "factor"}
+    applied, lines = [], [t("fa_head", lang, n=len(fa.get("applied") or []), total=fa.get("groups") or 0)]
+    if eff.get("available"):
+        lines.append(t("fa_base_" + (eff.get("base") or "act"), lang, rate=pct(eff["base_pct"], lang)))
+    for a in fa.get("applied") or []:
+        stp = steps.get(a["group"]) if eff.get("available") else None
+        g, o, note = L(a.get("group_label")) or a["group"], L(a.get("label")) or a["option"], L(a.get("note")) or ""
+        kw = {"group": g, "option": o, "coef": _mult(a["coef"], lang), "note": note}
+        lines.append(t("fa_line_sum", lang, rate=pct(stp["rate_pct"], lang), delta=_smoney(stp["premium_delta"], lang),
+                       **kw) if stp else t("fa_line", lang, **kw))
+        applied.append({"group": a["group"], "group_label": g, "option": a["option"], "label": o, "coef": a["coef"],
+                        "note": note, "rate_pct": stp["rate_pct"] if stp else None,
+                        "premium_delta": stp["premium_delta"] if stp else None})
+    for x in eff.get("steps") or []:
+        if x.get("kind") == "bound":
+            lo, hi = fa.get("bounds") or [None, None]
+            lines.append(t("fa_bound", lang, raw=_mult(fa.get("raw_product") or 0, lang), lo=_mult(lo, lang),
+                           hi=_mult(hi, lang), mult=_mult(fa["product"], lang), rate=pct(x["rate_pct"], lang),
+                           delta=_smoney(x["premium_delta"], lang)))
+        elif x.get("kind") == "min":
+            lines.append(t("fa_min", lang, min=pct(x["rate_pct"], lang), delta=_smoney(x["premium_delta"], lang)))
+    reason = eff.get("reason")
+    if eff.get("available"):
+        lines.append(t("fa_total", lang, mult=_mult(fa["product"], lang), base=pct(eff["base_pct"], lang),
+                       rate=pct(eff["rate_pct"], lang), p0=money(eff["base_premium"], lang),
+                       p1=money(eff["premium"], lang), delta=_smoney(eff["delta_premium"], lang)))
+    elif reason in ("statutory", "no_rate"):
+        lines.append(t("fa_" + reason, lang))
+    elif not fa.get("applied"):
+        lines.append(t("fa_none", lang))
+    mode = fa.get("mode") or "reference"
+    if reason != "statutory":
+        lines.append(t("fa_mode_" + mode, lang))
+    unfilled = [{"group": u["group"], "label": L(u.get("label")) or u["group"]} for u in fa.get("unfilled") or []]
+    if unfilled:
+        lines.append(t("fa_unfilled", lang, items=", ".join(u["label"] for u in unfilled)))
+    # строка раздела 4: факторы, множитель, режим
+    if applied:
+        value = t("fa_row_value", lang, items="; ".join(f"{a['label']} × {_mult(a['coef'], lang)}" for a in applied),
+                  mult=_mult(fa["product"], lang))
+    else:
+        value = t("fa_row_none", lang)
+    if reason in ("statutory", "no_rate"):
+        note = t("fa_row_note_" + reason, lang)
+    elif eff.get("available") and eff.get("applied_to_act"):
+        note = t("fa_row_note_apply", lang)
+    elif eff.get("available"):
+        note = t("fa_row_note_reference", lang, rate=pct(eff["rate_pct"], lang), premium=money(eff["premium"], lang))
+    else:
+        note = None
+    s5 = []
+    if eff.get("available"):
+        s5.append(t("fa_s5_apply", lang, mult=_mult(fa["product"], lang)) if eff.get("applied_to_act")
+                  else t("fa_s5_reference", lang, rate=pct(eff["rate_pct"], lang), premium=money(eff["premium"], lang)))
+    js = {"available": True, "mode": mode, "product": fa.get("product"), "raw_product": fa.get("raw_product"),
+          "clamped": fa.get("clamped"), "bounds": fa.get("bounds"), "groups": fa.get("groups"), "applied": applied,
+          "unfilled": unfilled,
+          "effect": {k: eff.get(k) for k in ("available", "reason", "applied_to_act", "base", "base_pct",
+                                             "base_premium", "rate_pct", "premium", "delta_premium", "floored",
+                                             "min_pct", "rate_type", "term_days", "steps")},
+          "explain": lines, "calibrated": ae.CALIBRATED}
+    return {"json": js, "lines": lines, "row": (value, note), "s5": s5, "unfilled": [u["label"] for u in unfilled]}
+
+
+def _factor_view(D: dict, lang: str) -> dict:
+    """
+    Блок factor_adjustment ответа, строки раздела 4, фраза раздела 5 и перечень «уточнить». Акты до 02.10.2026 —
+    без блока (available = false, reason = old_act); шаблон без групп факторов — пусто.
+    """
+    FA = D.get("factor_adjustment")
+    empty = {"json": {"available": False, "reason": "old_act", "calibrated": ae.CALIBRATED}, "rows": [], "lines": [],
+             "s5": [], "unfilled": []}
+    if not FA:
+        return empty
+    if FA.get("by_parts"):
+        parts, rows, lines, s5, unf = [], [], [], [], []
+        for pf in FA.get("parts") or []:
+            if not pf.get("groups"):
+                continue
+            one = _fa_one(pf, lang)
+            n, cls = pf.get("index"), pf.get("class_code")
+            parts.append(dict(one["json"], index=n, class_code=cls))
+            rows.append(_row(t("fa_row_part", lang, n=n), one["row"][0], one["row"][1]))
+            lines += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["lines"]]
+            s5 += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["s5"]]
+            unf += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["unfilled"]]
+        return {"json": {"available": bool(parts), "by_parts": True, "mode": FA.get("mode"), "parts": parts,
+                         "explain": lines, "calibrated": ae.CALIBRATED},
+                "rows": rows, "lines": lines, "s5": s5, "unfilled": unf}
+    if not FA.get("groups"):
+        return dict(empty, json={"available": False, "reason": "no_groups", "mode": FA.get("mode"),
+                                 "calibrated": ae.CALIBRATED})
+    one = _fa_one(FA, lang)
+    return {"json": one["json"], "rows": [_row(t("fa_row", lang), one["row"][0], one["row"][1])],
+            "lines": one["lines"], "s5": one["s5"], "unfilled": one["unfilled"]}
