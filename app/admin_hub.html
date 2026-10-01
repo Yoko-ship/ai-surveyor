@@ -543,19 +543,23 @@ var TPL_VIEWS = {front: "спереди", back: "сзади", left: "левый 
   packaging: "упаковка", marking: "маркировка", transport: "транспорт", other: "другое"};
 var TPL_GROUPS = {"default": "все объекты класса", vehicle: "транспорт", special: "спецтехника", property: "здание, помещение",
   equipment: "оборудование", cargo: "груз"};
-var TPL_SRC = {file: "файл справочника", admin: "правка администратора", file_only: "файл (база только для чтения)"};
+var TPL_SRC = {file: "файл справочника", admin: "правка администратора", file_only: "файл (база только для чтения)",
+  file_pending: "новая версия из поставки (не действует)"};
 var TPLS = {cls: null, lang: "ru"};
 V.tariffs_templates = async function (el, arg) {
   var d = await api("/act/templates?lang=ru");
   var rows = (d.templates || []).map(function (t) {
-    return '<tr class="pick" data-tcls="' + esc(t.class_code) + '"><td class="n">' + esc(t.class_code) + "</td><td>" + esc(t.name) +
+    // вариант — отметка «вариант класса N»; новая версия файла при действующей правке — «доступна новая версия»
+    var tag = (t.variant ? " (вариант класса " + (t.variant_of || "") + ")" : "") +
+      (t.pending_file_version ? " — доступна новая версия шаблона из поставки " + t.pending_file_version : "");
+    return '<tr class="pick" data-tcls="' + esc(t.class_code) + '"><td class="n">' + esc(t.class_code) + "</td><td>" + esc(t.name + tag) +
       '</td><td class="n">' + esc(t.version) + "</td><td>" + when(t.updated_at) + "</td><td>" + esc(TPL_SRC[t.source] || "—") +
       '</td><td class="n">' + (t.must || []).length + '</td><td><button class="btn btn-secondary btn-sm" type="button" data-tcls="' +
       esc(t.class_code) + '">Открыть</button></td></tr>';
   });
   el.innerHTML = '<div class="card"><h3>Шаблоны по классам</h3><p class="note">Файл справочника ' + esc(d.file_version || "—") +
-    " от " + esc(d.file_date || "—") + '. Доли рисков, веса и параметры — экспертные, не калиброваны по убыткам компании. ' +
-    "Классы 13з и 16у считаются по шаблонам 14 и 16.</p>" +
+    " от " + esc(d.file_date || "—") + '. Доли рисков, веса и параметры — оценка разработчика, не утверждено страховщиком (не калиброваны по убыткам компании). ' +
+    "Все классы общего страхования 1–18; варианты 13з и 16у — свои шаблоны.</p>" +
     tbl(["Класс", "Название", "Версия", "Изменён", "Источник", "Обязательных полей", ""], rows, "Шаблонов нет") + "</div>" +
     '<div id="tplOne"></div>';
   el.onclick = function (e) {
@@ -600,6 +604,8 @@ async function tpl_one() {
     " — " + esc(t.name) + '</h3><div class="bar" style="margin:0" role="group" aria-label="Язык шаблона">' + langs + "</div></div>" +
     '<p class="note">Версия ' + esc(one.version) + " · " + esc(TPL_SRC[one.source] || "—") + " · изменён " + when(one.updated_at) +
     (one.updated_by ? " · " + esc(one.updated_by) : "") + ". Коэффициенты экспертные, не калиброваны.</p>" +
+    (one.pending_file_version ? '<p class="note">Доступна новая версия шаблона из поставки ' + esc(one.pending_file_version) +
+      " — она в истории версий и не действует: действует правка администратора. Чтобы принять её, перенесите изменения в JSON и сохраните.</p>" : "") +
     '<div class="kv tpl-kv">' +
     "<span>Объект</span><b>" + esc((t.object || {}).description) + "</b>" +
     tpl_list("Виды объекта", ((t.object || {}).kinds || []).map(function (k) { return k.label; })) +

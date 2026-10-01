@@ -111,6 +111,7 @@ GUEST_GET_EXACT = {
     "/legal/faq", "/legal/acts",
     "/valuation/norms",                                # нормы износа: чтение открыто, запись — админ
     "/market/rows", "/market/series", "/market/status",
+    "/market/branches", "/market/claims",              # подразделения и претензии из открытых отчётов НАПП
     "/stat/indicators", "/stat/risk-indicators",
     "/analytics/risk/fields", "/analytics/risk/thresholds", "/analytics/risk/docs",
     "/analytics/risk/presets", "/analytics/risk/last",

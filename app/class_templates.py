@@ -1,5 +1,13 @@
 """
-Шаблоны анализа по классам (ТЗ — Приложение А, версия 1.0 от 27.09.2026) — справочник, а не код.
+Шаблоны анализа по классам (ТЗ — Приложение А, версия 1.3 от 01.10.2026) — справочник, а не код.
+
+Состав (файл 1.3.0): все классы общего страхования — 18 классов (1–18) и варианты 13з и 16у (свои полноценные
+шаблоны, раньше — ссылки на 14 и 16), всего 20. Классов страхования жизни в шаблонах нет (указание заказчика
+01.10.2026: нужны все классы общего страхования); строки L*, если они вдруг есть в таблицах classes или
+class_templates, игнорируются и не показываются. Класс 18 «Tibbiy sugʻurta» (медицинское страхование, классификатор
+страховой деятельности: ПКМ № 80 от 21.02.2022, прил. 6, п. 12, ред. ПКМ № 458 от 23.07.2025) заводится и в таблицу
+classes (branch = 'общее', kind = 'личное', учётная группа NULL: в Положении 1882, п. 10 класса 18 нет):
+ensure_classes, вызывается из ensure (старт сервера через refsync, tools/db_build.py).
 
 Источник истины в репозитории — docs/act_class_templates.json (версия и дата файла). В базе — таблица
 class_templates: одна строка на версию шаблона класса (class_code, version, json, updated_at, updated_by,
@@ -9,8 +17,11 @@ calibrated = 0). Действует строка с наибольшей вер�
     её нет, и добавляет шаблон класса из файла, если в базе его нет или версия файла новее последней версии в базе.
     Старые версии не удаляются (история).
   * правка администратора (PUT /act/templates/{class}, app/act.py) — новая строка с версией «+0,1» к последней;
-    файл с той же или меньшей версией её не затирает.
-  * 13з и 16у анализируются по шаблонам 14 и 16 (aliases файла).
+    файл её не затирает: пока действует правка администратора, новая версия файла добавляется в историю строкой
+    source = 'file_pending' («доступна новая версия шаблона из поставки», pending_file_version в
+    GET /act/templates/{class}), действующей остаётся правка. Версии «1.2» и «1.2.0» равны (ver()).
+  * 13з и 16у — свои шаблоны; LEGACY_ALIASES (13з → 14, 16у → 16) — только запасной путь, если шаблона варианта
+    нет ни в базе, ни в файле (старый файл шаблонов).
 
 Шаблон класса — восемь полей приложения А плюс то, что нужно акту: object (описание, kinds, people), must (не
 больше четырёх полей сверх общих), optional, valuation_methods, risks (source = perils у классов 8 и 9 — доли из
@@ -32,16 +43,26 @@ TEMPLATES_FILE = db.ROOT / "docs" / "act_class_templates.json"
 CLAUSES_FILE = db.ROOT / "docs" / "act_clauses.json"
 MEASURES_FILE = db.ROOT / "docs" / "act_measures.json"
 LANGS = ("ru", "uz", "en")
-CLASS_CODES = tuple(str(i) for i in range(1, 18))
+GENERAL_CODES = tuple(str(i) for i in range(1, 19))          # общее страхование, классы 1–18
+# классы общего страхования, которых нет в Положении 1882, п. 10 (учётная группа РНП не задана — NULL); их строки
+# в справочнике classes заводит ensure_classes из файла шаблонов: 18 — «Tibbiy sugʻurta» (ПКМ № 80, прил. 6)
+GENERAL_NO_GROUP_CODES = ("18",)
+VARIANT_CODES = ("13з", "16у")                                 # варианты классов 13 и 16 (Положение 1882, п. 10)
+CLASS_CODES = GENERAL_CODES + VARIANT_CODES
+# строка file_pending: версия файла, пришедшая при действующей правке администратора (в истории, не действует)
+PENDING = "file_pending"
+# запасной путь для старого файла шаблонов (до 1.1.0): шаблона варианта нет — берётся шаблон основного класса
+LEGACY_ALIASES = {"13з": "14", "16у": "16"}
 MAX_MUST = 4
 SHARE_TOLERANCE = 0.5
 FIELD_TYPES = ("int", "number", "money", "text", "bool", "choice", "year", "kind", "losses", "deductible")
-VALUATION_METHODS = (1, 2, 3, 4, 5, 6, "agreed")
+# crop — стоимость урожая: площадь × средняя урожайность за 5 лет × цена единицы продукции (вариант 16у)
+VALUATION_METHODS = (1, 2, 3, 4, 5, 6, "agreed", "crop")
 # правило сценария: engine = risk_analytics — считает модуль аналитики рисков (классы 3, 8, 9); template — простое
 # экспертное правило act_extras.simple_scenarios
 ENGINE_RULES = ("vehicle", "property8", "property9")
 TEMPLATE_RULES = ("people", "frequency", "unit", "full_loss", "shipment", "limit", "full_limit", "full_sum",
-                  "credit", "bi", "dispute")
+                  "credit", "bi", "dispute", "crop")
 SCENARIO_RULES = ENGINE_RULES + TEMPLATE_RULES
 SCENARIOS = ("PML", "EML", "MFL")
 DIRECTIONS = ("up", "down", "both")
@@ -124,9 +145,58 @@ def aliases() -> dict:
 
 
 def base_class(cls: Optional[str]) -> Optional[str]:
-    """Класс, чей шаблон берётся: 13з → 14, 16у → 16, остальные — сами."""
+    """Класс, чей шаблон берётся: свой (13з и 16у — тоже свои с файла 1.1.0); ссылка aliases файла — только если
+    она там задана. Запасной путь старого файла (13з → 14) — в current()."""
     c = str(cls or "").strip()
     return aliases().get(c, c) or None
+
+
+def is_life_code(code) -> bool:
+    """Код класса страхования жизни (L1…): таких шаблонов нет — строки игнорируются и не показываются."""
+    return str(code or "").strip().upper().startswith("L")
+
+
+def general_extra_class_rows(data: Optional[dict] = None) -> list:
+    """Строки classes для классов общего страхования без учётной группы в Положении 1882 (класс 18):
+    (code, name, NULL, 'общее', 'личное'). Учётная группа — решение страховщика, до него NULL."""
+    try:
+        data = data or load_file()
+    except (OSError, ValueError):
+        return []
+    out = []
+    for code in GENERAL_NO_GROUP_CODES:
+        tpl = (data.get("classes") or {}).get(code)
+        if tpl:
+            out.append((code, tpl["name"]["ru"], tpl.get("accounting_group"), "общее", "личное"))
+    return out
+
+
+def ensure_classes(con, data: Optional[dict] = None) -> list:
+    """
+    Класс 18 общего страхования в таблице classes (правило проекта № 3: справочник полный, ничего не исключаем):
+    недостающий добавляется, имеющийся не меняется. Колонка group_code ещё NOT NULL (база до миграции
+    app/db.py._classes_group_nullable) — ничего не делает. Возвращает коды добавленных классов.
+    """
+    try:
+        info = con.execute("PRAGMA table_info(classes)").fetchall()
+    except Exception:
+        return []
+    cols = {r[1]: r[3] for r in info}
+    if not cols or cols.get("group_code"):
+        return []
+    have = {r[0] for r in con.execute("SELECT code FROM classes")}
+    added = []
+    for row in general_extra_class_rows(data):
+        if row[0] in have:
+            continue
+        con.execute("INSERT INTO classes (code, name, group_code, branch, kind) VALUES (?,?,?,?,?)", row)
+        added.append(row[0])
+    if added:
+        db.audit(con, WHO_FILE, "классы из файла шаблонов добавлены в справочник", "classes",
+                 {"classes": added, "источник": "ПКМ № 80 от 21.02.2022, прил. 6, п. 12 (ред. ПКМ № 458 от 23.07.2025)",
+                  "учётная группа": "NULL — класса 18 нет в Положении 1882, п. 10"})
+        db.invalidate_reference()
+    return added
 
 
 # ================================================================================================
@@ -134,11 +204,14 @@ def base_class(cls: Optional[str]) -> Optional[str]:
 # ================================================================================================
 
 def ver(v) -> tuple:
-    """«1.0» → (1, 0); неразборчивое — (0,)."""
+    """«1.0» → (1, 0); «1.2» и «1.2.0» — одна версия (нули в конце отбрасываются); неразборчивое — (0,)."""
     try:
-        return tuple(int(x) for x in str(v).strip().split("."))
+        t = [int(x) for x in str(v).strip().split(".")]
     except (TypeError, ValueError):
         return (0,)
+    while len(t) > 1 and t[-1] == 0:
+        t.pop()
+    return tuple(t)
 
 
 def bump(v) -> str:
@@ -166,8 +239,13 @@ def _db_key(con) -> str:
 
 def ensure(con, force: bool = False) -> dict:
     """
-    Таблица есть и шаблоны файла доведены: класса в базе нет или версия файла новее — новая строка (source = file).
-    Правка администратора с той же или большей версией остаётся действующей. Возвращает {"added": [...]}.
+    Таблица есть и шаблоны файла доведены. Версия файла для класса ещё не загружалась:
+      * строк класса нет или действует строка файла с меньшей версией — новая строка source = file (действует);
+      * действует правка администратора (source = admin) — файл её молча не заменяет: строка source = file_pending
+        уходит в историю с пометкой «доступна новая версия шаблона из поставки», действующей остаётся правка;
+      * действует строка файла с той же или большей версией — ничего.
+    Версии сравниваются ver(): «1.2» = «1.2.0». Строки классов жизни (L*) не трогаются и не показываются.
+    Возвращает {"added": [...], "pending": [...]}.
     """
     try:
         data = load_file()
@@ -181,29 +259,52 @@ def ensure(con, force: bool = False) -> dict:
     with _lock:
         ensure_table(con)
         fv = str(data.get("version") or "1.0")
-        added = []
-        last = {r[0]: r[1] for r in con.execute(
-            "SELECT class_code, version FROM class_templates t WHERE id = "
-            "(SELECT MAX(id) FROM class_templates x WHERE x.class_code = t.class_code)")}
-        best = {}
-        for cls, v in con.execute("SELECT class_code, version FROM class_templates"):
-            if cls not in best or ver(v) > ver(best[cls]):
-                best[cls] = v
+        added, pending = [], []
+        rows = {}
+        for r in con.execute("SELECT id, class_code, version, source FROM class_templates"):
+            rows.setdefault(r[1], []).append({"id": r[0], "version": r[2], "source": r[3]})
+        last = {}
         for cls, tpl in (data.get("classes") or {}).items():
-            cur = best.get(cls)
-            if cur is not None and ver(fv) <= ver(cur):
+            if is_life_code(cls):
                 continue
+            have = rows.get(cls) or []
+            if any(x["source"] in ("file", PENDING) and ver(x["version"]) == ver(fv) for x in have):
+                continue                       # эта версия файла уже загружена (действует или ждёт в истории)
+            act = _active(have)
+            last[cls] = act["version"] if act else None
+            if act and act["source"] == "admin":
+                src, note = PENDING, (f"доступна новая версия шаблона из поставки: docs/act_class_templates.json {fv} "
+                                      f"от {data.get('date')}; действует правка администратора {act['version']}")
+            elif act and ver(fv) <= ver(act["version"]):
+                continue
+            else:
+                src, note = "file", f"docs/act_class_templates.json {fv} от {data.get('date')}"
             con.execute("INSERT INTO class_templates (class_code, version, json, source, file_version, updated_at, "
                         "updated_by, calibrated, note) VALUES (?,?,?,?,?,?,?,?,?)",
-                        (cls, fv, json.dumps(tpl, ensure_ascii=False), "file", fv, db.now(), WHO_FILE, CALIBRATED,
-                         f"docs/act_class_templates.json {fv} от {data.get('date')}"))
-            added.append(cls)
+                        (cls, fv, json.dumps(tpl, ensure_ascii=False), src, fv, db.now(), WHO_FILE, CALIBRATED, note))
+            (pending if src == PENDING else added).append(cls)
         if added:
             db.audit(con, WHO_FILE, "шаблоны классов доведены из файла", "class_templates",
                      {"version": fv, "date": data.get("date"), "classes": added,
                       "было": {c: last.get(c) for c in added}})
+        if pending:
+            db.audit(con, WHO_FILE, "доступна новая версия шаблона из поставки", "class_templates",
+                     {"version": fv, "date": data.get("date"), "classes": pending,
+                      "действует правка администратора": {c: last.get(c) for c in pending}})
+        try:
+            cls_added = ensure_classes(con, data)
+        except Exception as e:             # справочник классов не довели — шаблоны всё равно работают
+            print("шаблоны классов: класс 18 не добавлен в classes:", type(e).__name__)
+            cls_added = []
         _ensured.add(key)
-    return {"added": added, "version": fv}
+    return {"added": added, "pending": pending, "version": fv, "classes_added": cls_added}
+
+
+def _active(rows: list) -> Optional[dict]:
+    """Действующая строка класса: наибольшая версия среди строк файла и правок администратора (строки file_pending
+    — только история); при равных версиях — более поздняя строка."""
+    live = [r for r in rows if r.get("source") != PENDING]
+    return max(live, key=lambda x: (ver(x["version"]), x["id"])) if live else None
 
 
 def reset_cache() -> None:
@@ -225,7 +326,7 @@ def current(con, cls: Optional[str]) -> Optional[dict]:
     нет и довести не удалось (база только для чтения) — шаблон из файла с пометкой source = file_only.
     """
     b = base_class(cls)
-    if not b:
+    if not b or is_life_code(b):           # классов жизни в шаблонах нет; строки L* в таблице не показываются
         return None
     try:
         ensure(con)
@@ -233,33 +334,65 @@ def current(con, cls: Optional[str]) -> Optional[dict]:
     except Exception as e:                 # только чтение или сбой таблицы — берём файл
         print("шаблоны классов: таблица не прочитана:", type(e).__name__)
         rows = []
-    if rows:
-        out = max(rows, key=lambda x: (ver(x["version"]), x["id"]))
+    out = _active(rows)
+    if out is not None:
+        # новая версия файла ждёт в истории (действует правка администратора) — pending_file_version
+        newer = [r for r in rows if r["source"] == PENDING and r["id"] > out["id"]]
+        out = dict(out, pending_file_version=max(newer, key=lambda x: x["id"])["version"] if newer else None)
     else:
         try:
             tpl = (load_file().get("classes") or {}).get(b)
         except (OSError, ValueError):
             tpl = None
         if not tpl:
+            alt = LEGACY_ALIASES.get(b)
+            if alt and alt != b:          # старый файл без шаблона варианта: 13з → 14, 16у → 16
+                out = current(con, alt)
+                if out:
+                    out["requested_class"] = str(cls)
+                    out["alias_of"] = alt
+                return out
             return None
         out = {"id": None, "class_code": b, "version": str(load_file().get("version")), "template": tpl,
                "source": "file_only", "file_version": str(load_file().get("version")), "updated_at": None,
-               "updated_by": None, "calibrated": CALIBRATED, "note": None}
+               "updated_by": None, "calibrated": CALIBRATED, "note": None, "pending_file_version": None}
     out["requested_class"] = str(cls)
     out["alias_of"] = b if b != str(cls) else None
     return out
 
 
 def all_current(con) -> list:
-    return [x for x in (current(con, c) for c in CLASS_CODES) if x]
+    """Все действующие шаблоны: классы общего страхования 1–18 и варианты 13з и 16у (каждый — свой, без ссылок)."""
+    return [x for x in (current(con, c) for c in CLASS_CODES) if x and x.get("alias_of") is None]
+
+
+def products_count(con, cls: str) -> Optional[int]:
+    """Сколько продуктов страховщика относится к классу (product_classes); база не прочитана — None."""
+    try:
+        return con.execute("SELECT COUNT(DISTINCT product_code) FROM product_classes WHERE class_code=?",
+                           (str(cls),)).fetchone()[0]
+    except Exception:
+        return None
+
+
+NO_PRODUCTS_NOTE = {"ru": "У страховщика нет продуктов этого класса: акт формируется по шаблону, ставка не определена",
+                    "uz": "Sugʻurtalovchida bu klass mahsulotlari yoʻq: dalolatnoma shablon boʻyicha tuziladi, tarif "
+                          "aniqlanmagan",
+                    "en": "The insurer has no products in this class: the report follows the template, the rate is "
+                          "not determined"}
 
 
 def history(con, cls: str) -> list:
     b = base_class(cls)
+    if not b or is_life_code(b):
+        return []
     ensure(con)
     rows = [_row(r) for r in con.execute(f"SELECT {COLS} FROM class_templates WHERE class_code=? ORDER BY id", (b,))]
     for r in rows:
         r.pop("template", None)
+        if r["source"] == PENDING:
+            r["pending"] = True
+            r["pending_note"] = "доступна новая версия шаблона из поставки"
     return rows
 
 
@@ -460,6 +593,9 @@ def validate(tpl, cls: str, con=None) -> list:
         return [f"шаблон больше {MAX_TEMPLATE_BYTES // 1024} КБ ({round(size / 1024)} КБ)"]
     if tpl.get("class_code") not in (None, b):
         errs.append(f"class_code: {tpl.get('class_code')} не совпадает с классом {b}")
+    # варианты 13з и 16у — variant: true и variant_of 13 / 16
+    if b in VARIANT_CODES and (tpl.get("variant") is not True or tpl.get("variant_of") != b[:-1]):
+        errs.append(f"variant: вариант {b} — variant: true, variant_of: {b[:-1]}")
     for key in ("name", "object", "must", "optional", "valuation_methods", "risks", "factors", "scenario_rule",
                 "documents", "stats", "required_views", "clauses", "measures", "notes"):
         if key not in tpl:
@@ -496,7 +632,7 @@ def validate(tpl, cls: str, con=None) -> list:
     vm = tpl["valuation_methods"]
     if not isinstance(vm, list) or not vm or any(not isinstance(m, dict) or m.get("method") not in VALUATION_METHODS
                                                  for m in vm):
-        errs.append("valuation_methods: список {method: 1–6 | agreed, when}")
+        errs.append("valuation_methods: список {method: 1–6 | agreed | crop, when}")
     rk = tpl["risks"]
     if not isinstance(rk, dict) or rk.get("source") not in ("perils", "template"):
         errs.append("risks: {source: perils | template, items: [...]}")
@@ -682,7 +818,13 @@ def view(row: dict, lang: str, con=None, full: bool = True) -> dict:
     """Шаблон для ответа API: подписи на языке lang; полный — с документами из checklists базы."""
     tpl = row["template"]
     meta = {k: row.get(k) for k in ("class_code", "version", "source", "file_version", "updated_at", "updated_by",
-                                    "requested_class", "alias_of")}
+                                    "requested_class", "alias_of", "pending_file_version")}
+    # вариант класса (13з, 16у)
+    meta.update(variant=bool(tpl.get("variant")), variant_of=tpl.get("variant_of"))
+    if con is not None:
+        n = products_count(con, row["class_code"])
+        meta["products_count"] = n
+        meta["no_products_note"] = localize(NO_PRODUCTS_NOTE, lang) if n == 0 else None
     if not full:
         rk = tpl.get("risks") or {}
         return {**meta, "name": localize(tpl.get("name"), lang), "lang": lang,

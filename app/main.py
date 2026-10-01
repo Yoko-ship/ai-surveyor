@@ -283,9 +283,10 @@ def health():
             "updated": updates}
 
 
+CLASSES_SHOWN, CLASSES_ORDER = db.CLASSES_SHOWN, db.CLASSES_ORDER
 REF_SQL = {
     "products": "SELECT p.*, (SELECT group_concat(class_code) FROM product_classes pc WHERE pc.product_code=p.code) AS classes FROM products p ORDER BY code",
-    "classes": "SELECT * FROM classes ORDER BY CAST(code AS INTEGER), code",
+    "classes": f"SELECT * FROM classes WHERE {CLASSES_SHOWN} ORDER BY {CLASSES_ORDER}",
     "perils": "SELECT * FROM perils ORDER BY class_code, base_share DESC",
     "coefficients": "SELECT * FROM coefficients ORDER BY factor_code, id",
     "checklists": "SELECT * FROM checklists ORDER BY scope_type, scope_code, id",
@@ -503,6 +504,12 @@ def market_series(row: str = "cls8_9"):
     """Ряд по строке отчёта: нарастающий итог, квартальные приросты и производные показатели."""
     with db.tx() as con:
         pts = db.rows(con, "SELECT * FROM market_stats WHERE row_key=? ORDER BY report_date", row)
+        # пометки (01.10.2026): итог комплексного заменён суммой пакетов и т. п. — таблицы может ещё не быть
+        try:
+            notes = {r["report_date"]: r["note"] for r in db.rows(
+                con, "SELECT report_date, note FROM market_stats_notes WHERE row_key=?", row)}
+        except Exception:
+            notes = {}
     out, prev = [], None
     # срез «01 января» — это итог за ПРЕДЫДУЩИЙ год, поэтому учётный год у него на единицу меньше
     eff_year = lambda d: int(d[:4]) - 1 if d[5:] == "01-01" else int(d[:4])
@@ -525,7 +532,7 @@ def market_series(row: str = "cls8_9"):
         out.append({"date": d, "label": label, "premiums_ytd": p["premiums_ytd"], "payouts_ytd": p["payouts_ytd"],
                     "liabilities": p["liabilities"], "q_premiums": q_prem, "q_payouts": q_pay,
                     "loss_ratio": (p["payouts_ytd"] / p["premiums_ytd"] * 100) if p["premiums_ytd"] else None,
-                    "annual_rate": ann, "source": p["source_file"]})
+                    "annual_rate": ann, "source": p["source_file"], "note": notes.get(d)})
         prev = p
     return {"row": row, "name": pts[0]["row_name"] if pts else row, "points": out}
 
@@ -544,6 +551,24 @@ def market_status():
     return {"points": n, "dates": dates, "last_refresh": _refresh_state["last"],
             "running": _refresh_state["running"], "log": _refresh_state["log"],
             "schedule": "каждые 24 часа, первая проверка через минуту после старта"}
+
+
+@app.get("/market/branches")
+def market_branches(date: str = "", company: str = "company:INSON AJ"):
+    """Обособленные подразделения страховщика по регионам (листы 2.12–2.14 отчёта НАПП) на срез: премии, выплаты,
+    договоры, убыточность и средняя премия; рядом — итог компании и рынок региона. Только чтение napp_branches."""
+    from . import market_picture as mp
+    with db.tx() as con:
+        return mp.branches_table(con, date or None, company or mp.INSON_ROW)
+
+
+@app.get("/market/claims")
+def market_claims(region: str = ""):
+    """Претензии (НАПП, листы 3.5/3.4/3.2 и 2.10/2.7/2.5) на последний срез: регион против республики и INSON
+    против рынка. Только чтение napp_claims."""
+    from . import market_picture as mp
+    with db.tx() as con:
+        return {"region": mp.region_claims(con, region or None), "company": mp.company_claims(con)}
 
 
 @app.get("/stats", response_class=HTMLResponse)

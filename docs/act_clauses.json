@@ -1,275 +1,435 @@
 {
-  "version": "2026-09-30",
+  "version": "2026-10-01",
   "calibrated": 0,
   "note": "Готовый список оговорок сюрвейерского акта по группам объекта (ТЗ лёгкой версии 2.0, п. 8.5). Все оговорки экспертные: страховщик может заменить их своими (ТЗ п. 16.2). Читает app/act.py; код не меняется при правке файла.",
   "groups": {
     "special": [
-      {"code": "sp_attachments_storage",
-       "ru": "Навесное и сменное оборудование в нерабочее время хранится на охраняемой территории или в закрытом помещении; хищение оборудования, оставленного без охраны, не покрывается.",
-       "uz": "Osma va almashtiriladigan uskunalar ish vaqtidan tashqari qoʻriqlanadigan hududda yoki yopiq xonada saqlanadi; qoʻriqsiz qoldirilgan uskunaning oʻgʻirlanishi qoplanmaydi.",
-       "en": "Attachments and interchangeable equipment are kept in a guarded area or indoors outside working hours; theft of equipment left unguarded is not covered."},
-      {"code": "sp_territory",
-       "ru": "Территория покрытия ограничена местами эксплуатации, указанными в договоре; перемещение на другой объект — с уведомлением страховщика.",
-       "uz": "Qoplama hududi shartnomada koʻrsatilgan foydalanish joylari bilan cheklanadi; boshqa obyektga koʻchirish sugʻurtalovchini xabardor qilgan holda amalga oshiriladi.",
-       "en": "Territory of cover is limited to the places of operation stated in the contract; moving to another site requires notice to the insurer."},
-      {"code": "sp_reinspection",
-       "ru": "Повторный осмотр через 12 месяцев или через 2 000 моточасов — что наступит раньше.",
-       "uz": "12 oydan keyin yoki 2 000 motosoatdan keyin — qaysi biri oldin kelsa — qayta koʻzdan kechirish.",
-       "en": "Re-inspection after 12 months or 2,000 engine hours, whichever comes first."},
-      {"code": "sp_operator",
-       "ru": "Управление — только машинистом с действующим удостоверением на данный вид техники.",
-       "uz": "Boshqarish — faqat ushbu turdagi texnika uchun amaldagi guvohnomaga ega mashinist tomonidan.",
-       "en": "Operation only by an operator holding a valid licence for this type of machinery."},
-      {"code": "sp_rated_load",
-       "ru": "Работа в пределах паспортной грузоподъёмности и условий завода-изготовителя; убыток от перегруза не покрывается.",
-       "uz": "Pasportdagi yuk koʻtarish quvvati va ishlab chiqaruvchi shartlari doirasida ishlash; ortiqcha yuklash natijasidagi zarar qoplanmaydi.",
-       "en": "Operation within the rated capacity and the manufacturer's conditions; loss caused by overloading is not covered."}
+      {
+        "code": "sp_attachments_storage",
+        "ru": "Навесное и сменное оборудование в нерабочее время хранится на охраняемой территории или в закрытом помещении; хищение оборудования, оставленного без охраны, не покрывается.",
+        "uz": "Osma va almashtiriladigan uskunalar ish vaqtidan tashqari qoʻriqlanadigan hududda yoki yopiq xonada saqlanadi; qoʻriqsiz qoldirilgan uskunaning oʻgʻirlanishi qoplanmaydi.",
+        "en": "Attachments and interchangeable equipment are kept in a guarded area or indoors outside working hours; theft of equipment left unguarded is not covered."
+      },
+      {
+        "code": "sp_territory",
+        "ru": "Территория покрытия ограничена местами эксплуатации, указанными в договоре; перемещение на другой объект — с уведомлением страховщика.",
+        "uz": "Qoplama hududi shartnomada koʻrsatilgan foydalanish joylari bilan cheklanadi; boshqa obyektga koʻchirish sugʻurtalovchini xabardor qilgan holda amalga oshiriladi.",
+        "en": "Territory of cover is limited to the places of operation stated in the contract; moving to another site requires notice to the insurer."
+      },
+      {
+        "code": "sp_reinspection",
+        "ru": "Повторный осмотр через 12 месяцев или через 2 000 моточасов — что наступит раньше.",
+        "uz": "12 oydan keyin yoki 2 000 motosoatdan keyin — qaysi biri oldin kelsa — qayta koʻzdan kechirish.",
+        "en": "Re-inspection after 12 months or 2,000 engine hours, whichever comes first."
+      },
+      {
+        "code": "sp_operator",
+        "ru": "Управление — только машинистом с действующим удостоверением на данный вид техники.",
+        "uz": "Boshqarish — faqat ushbu turdagi texnika uchun amaldagi guvohnomaga ega mashinist tomonidan.",
+        "en": "Operation only by an operator holding a valid licence for this type of machinery."
+      },
+      {
+        "code": "sp_rated_load",
+        "ru": "Работа в пределах паспортной грузоподъёмности и условий завода-изготовителя; убыток от перегруза не покрывается.",
+        "uz": "Pasportdagi yuk koʻtarish quvvati va ishlab chiqaruvchi shartlari doirasida ishlash; ortiqcha yuklash natijasidagi zarar qoplanmaydi.",
+        "en": "Operation within the rated capacity and the manufacturer's conditions; loss caused by overloading is not covered."
+      }
     ],
     "vehicle": [
-      {"code": "vh_night_parking",
-       "ru": "В ночное время транспортное средство находится на охраняемой стоянке или в гараже.",
-       "uz": "Tungi vaqtda transport vositasi qoʻriqlanadigan avtoturargohda yoki garajda turadi.",
-       "en": "At night the vehicle is kept in a guarded car park or a garage."},
-      {"code": "vh_drivers",
-       "ru": "Управление — только лицами с действующим водительским удостоверением соответствующей категории.",
-       "uz": "Boshqarish — faqat tegishli toifadagi amaldagi haydovchilik guvohnomasiga ega shaxslar tomonidan.",
-       "en": "Driving only by persons holding a valid driving licence of the relevant category."},
-      {"code": "vh_reinspection",
-       "ru": "Повторный осмотр при продлении договора.",
-       "uz": "Shartnoma uzaytirilganda qayta koʻzdan kechirish.",
-       "en": "Re-inspection on renewal."}
+      {
+        "code": "vh_night_parking",
+        "ru": "В ночное время транспортное средство находится на охраняемой стоянке или в гараже.",
+        "uz": "Tungi vaqtda transport vositasi qoʻriqlanadigan avtoturargohda yoki garajda turadi.",
+        "en": "At night the vehicle is kept in a guarded car park or a garage."
+      },
+      {
+        "code": "vh_drivers",
+        "ru": "Управление — только лицами с действующим водительским удостоверением соответствующей категории.",
+        "uz": "Boshqarish — faqat tegishli toifadagi amaldagi haydovchilik guvohnomasiga ega shaxslar tomonidan.",
+        "en": "Driving only by persons holding a valid driving licence of the relevant category."
+      },
+      {
+        "code": "vh_reinspection",
+        "ru": "Повторный осмотр при продлении договора.",
+        "uz": "Shartnoma uzaytirilganda qayta koʻzdan kechirish.",
+        "en": "Re-inspection on renewal."
+      }
     ],
     "property": [
-      {"code": "pr_fire_systems",
-       "ru": "Средства пожаротушения и пожарная сигнализация поддерживаются в исправном состоянии и проверяются в установленные сроки.",
-       "uz": "Yongʻin oʻchirish vositalari va yongʻin signalizatsiyasi soz holatda saqlanadi va belgilangan muddatlarda tekshiriladi.",
-       "en": "Fire-fighting equipment and fire alarms are kept in working order and inspected on schedule."},
-      {"code": "pr_electrical",
-       "ru": "Электропроводка и электрощиты обслуживаются; убыток от короткого замыкания при заведомо неисправной проводке не покрывается.",
-       "uz": "Elektr simlari va elektr shitlari texnik xizmat koʻrsatiladi; ataylab nosoz simlar sababli qisqa tutashuvdan zarar qoplanmaydi.",
-       "en": "Wiring and electrical panels are maintained; loss from a short circuit with knowingly faulty wiring is not covered."},
-      {"code": "pr_combustibles",
-       "ru": "Горючие материалы хранятся отдельно от источников огня, в объёмах не выше заявленных.",
-       "uz": "Yonuvchi materiallar olov manbalaridan alohida, eʼlon qilinganidan ortiq boʻlmagan hajmda saqlanadi.",
-       "en": "Combustible materials are stored away from ignition sources and within the declared quantities."},
-      {"code": "pr_vacancy",
-       "ru": "Если объект пустует дольше 30 дней подряд, страхователь уведомляет страховщика.",
-       "uz": "Obyekt ketma-ket 30 kundan ortiq boʻsh tursa, sugʻurtalanuvchi sugʻurtalovchini xabardor qiladi.",
-       "en": "If the premises are vacant for more than 30 consecutive days, the insured notifies the insurer."}
+      {
+        "code": "pr_fire_systems",
+        "ru": "Средства пожаротушения и пожарная сигнализация поддерживаются в исправном состоянии и проверяются в установленные сроки.",
+        "uz": "Yongʻin oʻchirish vositalari va yongʻin signalizatsiyasi soz holatda saqlanadi va belgilangan muddatlarda tekshiriladi.",
+        "en": "Fire-fighting equipment and fire alarms are kept in working order and inspected on schedule."
+      },
+      {
+        "code": "pr_electrical",
+        "ru": "Электропроводка и электрощиты обслуживаются; убыток от короткого замыкания при заведомо неисправной проводке не покрывается.",
+        "uz": "Elektr simlari va elektr shitlari texnik xizmat koʻrsatiladi; ataylab nosoz simlar sababli qisqa tutashuvdan zarar qoplanmaydi.",
+        "en": "Wiring and electrical panels are maintained; loss from a short circuit with knowingly faulty wiring is not covered."
+      },
+      {
+        "code": "pr_combustibles",
+        "ru": "Горючие материалы хранятся отдельно от источников огня, в объёмах не выше заявленных.",
+        "uz": "Yonuvchi materiallar olov manbalaridan alohida, eʼlon qilinganidan ortiq boʻlmagan hajmda saqlanadi.",
+        "en": "Combustible materials are stored away from ignition sources and within the declared quantities."
+      },
+      {
+        "code": "pr_vacancy",
+        "ru": "Если объект пустует дольше 30 дней подряд, страхователь уведомляет страховщика.",
+        "uz": "Obyekt ketma-ket 30 kundan ortiq boʻsh tursa, sugʻurtalanuvchi sugʻurtalovchini xabardor qiladi.",
+        "en": "If the premises are vacant for more than 30 consecutive days, the insured notifies the insurer."
+      }
     ],
     "equipment": [
-      {"code": "eq_manufacturer",
-       "ru": "Эксплуатация и техническое обслуживание — по инструкции завода-изготовителя, с журналом обслуживания.",
-       "uz": "Foydalanish va texnik xizmat koʻrsatish — ishlab chiqaruvchi yoʻriqnomasiga koʻra, xizmat jurnali bilan.",
-       "en": "Operation and maintenance per the manufacturer's instructions, with a maintenance log."},
-      {"code": "eq_voltage",
-       "ru": "Защита от перепадов напряжения; убыток от перепада без защиты покрывается с учётом этого обстоятельства по решению андеррайтера.",
-       "uz": "Kuchlanish oʻzgarishidan himoya; himoyasiz kuchlanish oʻzgarishidan zarar anderrayter qarori bilan ushbu holatni hisobga olgan holda qoplanadi.",
-       "en": "Surge protection; a surge loss without protection is settled taking this into account at the underwriter's discretion."},
-      {"code": "eq_location",
-       "ru": "Оборудование находится по адресу, указанному в договоре; перемещение — с уведомлением страховщика.",
-       "uz": "Uskuna shartnomada koʻrsatilgan manzilda joylashadi; koʻchirish sugʻurtalovchini xabardor qilgan holda.",
-       "en": "The equipment stays at the address stated in the contract; relocation requires notice to the insurer."}
+      {
+        "code": "eq_manufacturer",
+        "ru": "Эксплуатация и техническое обслуживание — по инструкции завода-изготовителя, с журналом обслуживания.",
+        "uz": "Foydalanish va texnik xizmat koʻrsatish — ishlab chiqaruvchi yoʻriqnomasiga koʻra, xizmat jurnali bilan.",
+        "en": "Operation and maintenance per the manufacturer's instructions, with a maintenance log."
+      },
+      {
+        "code": "eq_voltage",
+        "ru": "Защита от перепадов напряжения; убыток от перепада без защиты покрывается с учётом этого обстоятельства по решению андеррайтера.",
+        "uz": "Kuchlanish oʻzgarishidan himoya; himoyasiz kuchlanish oʻzgarishidan zarar anderrayter qarori bilan ushbu holatni hisobga olgan holda qoplanadi.",
+        "en": "Surge protection; a surge loss without protection is settled taking this into account at the underwriter's discretion."
+      },
+      {
+        "code": "eq_location",
+        "ru": "Оборудование находится по адресу, указанному в договоре; перемещение — с уведомлением страховщика.",
+        "uz": "Uskuna shartnomada koʻrsatilgan manzilda joylashadi; koʻchirish sugʻurtalovchini xabardor qilgan holda.",
+        "en": "The equipment stays at the address stated in the contract; relocation requires notice to the insurer."
+      }
     ],
     "cargo": [
-      {"code": "cg_packaging",
-       "ru": "Упаковка соответствует характеру груза и условиям перевозки; убыток из-за ненадлежащей упаковки не покрывается.",
-       "uz": "Qadoq yuk xususiyati va tashish shartlariga mos keladi; nomaqbul qadoq sababli zarar qoplanmaydi.",
-       "en": "Packaging suits the nature of the cargo and the carriage conditions; loss due to improper packing is not covered."},
-      {"code": "cg_route",
-       "ru": "Перевозка по маршруту и в сроки, указанные в договоре; стоянки в пути — на охраняемых площадках.",
-       "uz": "Tashish shartnomada koʻrsatilgan yoʻnalish va muddatlarda; yoʻldagi toʻxtashlar — qoʻriqlanadigan maydonlarda.",
-       "en": "Carriage along the route and within the dates stated in the contract; stops en route only at guarded sites."},
-      {"code": "cg_marking",
-       "ru": "Маркировка груза соответствует товаросопроводительным документам.",
-       "uz": "Yuk markirovkasi tovarga ilova qilingan hujjatlarga mos keladi.",
-       "en": "Cargo marking matches the shipping documents."}
+      {
+        "code": "cg_packaging",
+        "ru": "Упаковка соответствует характеру груза и условиям перевозки; убыток из-за ненадлежащей упаковки не покрывается.",
+        "uz": "Qadoq yuk xususiyati va tashish shartlariga mos keladi; nomaqbul qadoq sababli zarar qoplanmaydi.",
+        "en": "Packaging suits the nature of the cargo and the carriage conditions; loss due to improper packing is not covered."
+      },
+      {
+        "code": "cg_route",
+        "ru": "Перевозка по маршруту и в сроки, указанные в договоре; стоянки в пути — на охраняемых площадках.",
+        "uz": "Tashish shartnomada koʻrsatilgan yoʻnalish va muddatlarda; yoʻldagi toʻxtashlar — qoʻriqlanadigan maydonlarda.",
+        "en": "Carriage along the route and within the dates stated in the contract; stops en route only at guarded sites."
+      },
+      {
+        "code": "cg_marking",
+        "ru": "Маркировка груза соответствует товаросопроводительным документам.",
+        "uz": "Yuk markirovkasi tovarga ilova qilingan hujjatlarga mos keladi.",
+        "en": "Cargo marking matches the shipping documents."
+      }
     ],
     "liability": [
-      {"code": "lb_limit",
-       "ru": "Лимит ответственности на один страховой случай и на весь срок договора указывается отдельно.",
-       "uz": "Bitta sugʻurta hodisasi va shartnomaning butun muddati uchun javobgarlik limiti alohida koʻrsatiladi.",
-       "en": "The limit of liability per occurrence and in the aggregate is stated separately."},
-      {"code": "lb_activity",
-       "ru": "Покрытие действует только для заявленного вида деятельности и места её осуществления.",
-       "uz": "Qoplama faqat eʼlon qilingan faoliyat turi va uni amalga oshirish joyi uchun amal qiladi.",
-       "en": "Cover applies only to the declared activity and its place of performance."}
+      {
+        "code": "lb_limit",
+        "ru": "Лимит ответственности на один страховой случай и на весь срок договора указывается отдельно.",
+        "uz": "Bitta sugʻurta hodisasi va shartnomaning butun muddati uchun javobgarlik limiti alohida koʻrsatiladi.",
+        "en": "The limit of liability per occurrence and in the aggregate is stated separately."
+      },
+      {
+        "code": "lb_activity",
+        "ru": "Покрытие действует только для заявленного вида деятельности и места её осуществления.",
+        "uz": "Qoplama faqat eʼlon qilingan faoliyat turi va uni amalga oshirish joyi uchun amal qiladi.",
+        "en": "Cover applies only to the declared activity and its place of performance."
+      }
     ],
     "other": [
-      {"code": "ot_declared",
-       "ru": "Условия страхования действуют при соответствии объекта сведениям, заявленным при осмотре.",
-       "uz": "Sugʻurta shartlari obyekt koʻzdan kechirishda bildirilgan maʼlumotlarga mos kelganda amal qiladi.",
-       "en": "The terms apply provided the object matches the information declared at inspection."}
+      {
+        "code": "ot_declared",
+        "ru": "Условия страхования действуют при соответствии объекта сведениям, заявленным при осмотре.",
+        "uz": "Sugʻurta shartlari obyekt koʻzdan kechirishda bildirilgan maʼlumotlarga mos kelganda amal qiladi.",
+        "en": "The terms apply provided the object matches the information declared at inspection."
+      }
     ],
     "personal": [
-      {"code": "pa_list",
-       "ru": "Список застрахованных (число, профессии) — приложение к договору; изменения списка страхователь сообщает страховщику до начала их работы.",
-       "uz": "Sugʻurtalanganlar roʻyxati (soni, kasblari) — shartnoma ilovasi; roʻyxat oʻzgarishi haqida sugʻurtalanuvchi ular ishni boshlashidan oldin sugʻurtalovchiga xabar beradi.",
-       "en": "The list of insured persons (number, occupations) is an annex to the contract; the policyholder reports changes before the persons start work."},
-      {"code": "pa_hazard",
-       "ru": "Опасные виды спорта и работ покрываются, только если они заявлены и указаны в договоре.",
-       "uz": "Xavfli sport va ish turlari faqat eʼlon qilingan va shartnomada koʻrsatilgan boʻlsa qoplanadi.",
-       "en": "Hazardous sports and work are covered only if declared and stated in the contract."},
-      {"code": "pa_cover_time",
-       "ru": "Время действия покрытия (круглосуточно или только рабочее время) указывается в договоре.",
-       "uz": "Qoplama amal qilish vaqti (kecha-kunduz yoki faqat ish vaqti) shartnomada koʻrsatiladi.",
-       "en": "The period of cover (24 hours or working hours only) is stated in the contract."}
+      {
+        "code": "pa_list",
+        "ru": "Список застрахованных (число, профессии) — приложение к договору; изменения списка страхователь сообщает страховщику до начала их работы.",
+        "uz": "Sugʻurtalanganlar roʻyxati (soni, kasblari) — shartnoma ilovasi; roʻyxat oʻzgarishi haqida sugʻurtalanuvchi ular ishni boshlashidan oldin sugʻurtalovchiga xabar beradi.",
+        "en": "The list of insured persons (number, occupations) is an annex to the contract; the policyholder reports changes before the persons start work."
+      },
+      {
+        "code": "pa_hazard",
+        "ru": "Опасные виды спорта и работ покрываются, только если они заявлены и указаны в договоре.",
+        "uz": "Xavfli sport va ish turlari faqat eʼlon qilingan va shartnomada koʻrsatilgan boʻlsa qoplanadi.",
+        "en": "Hazardous sports and work are covered only if declared and stated in the contract."
+      },
+      {
+        "code": "pa_cover_time",
+        "ru": "Время действия покрытия (круглосуточно или только рабочее время) указывается в договоре.",
+        "uz": "Qoplama amal qilish vaqti (kecha-kunduz yoki faqat ish vaqti) shartnomada koʻrsatiladi.",
+        "en": "The period of cover (24 hours or working hours only) is stated in the contract."
+      }
     ],
     "health": [
-      {"code": "hl_program",
-       "ru": "Медицинская помощь оплачивается по программе страхования и в клиниках из согласованного списка.",
-       "uz": "Tibbiy yordam sugʻurta dasturi boʻyicha va kelishilgan roʻyxatdagi klinikalarda toʻlanadi.",
-       "en": "Medical care is paid under the insurance programme and at clinics on the agreed list."},
-      {"code": "hl_preexisting",
-       "ru": "Заболевания, известные до начала договора и не заявленные, не покрываются.",
-       "uz": "Shartnoma boshlanishidan oldin maʼlum boʻlgan va eʼlon qilinmagan kasalliklar qoplanmaydi.",
-       "en": "Conditions known before the contract and not declared are not covered."},
-      {"code": "hl_waiting",
-       "ru": "Для плановой помощи действует период ожидания, указанный в договоре; экстренная помощь — с первого дня.",
-       "uz": "Rejali yordam uchun shartnomada koʻrsatilgan kutish davri amal qiladi; shoshilinch yordam — birinchi kundan.",
-       "en": "Planned care is subject to the waiting period stated in the contract; emergency care applies from day one."}
+      {
+        "code": "hl_program",
+        "ru": "Медицинская помощь оплачивается по программе страхования и в клиниках из согласованного списка.",
+        "uz": "Tibbiy yordam sugʻurta dasturi boʻyicha va kelishilgan roʻyxatdagi klinikalarda toʻlanadi.",
+        "en": "Medical care is paid under the insurance programme and at clinics on the agreed list."
+      },
+      {
+        "code": "hl_preexisting",
+        "ru": "Заболевания, известные до начала договора и не заявленные, не покрываются.",
+        "uz": "Shartnoma boshlanishidan oldin maʼlum boʻlgan va eʼlon qilinmagan kasalliklar qoplanmaydi.",
+        "en": "Conditions known before the contract and not declared are not covered."
+      },
+      {
+        "code": "hl_waiting",
+        "ru": "Для плановой помощи действует период ожидания, указанный в договоре; экстренная помощь — с первого дня.",
+        "uz": "Rejali yordam uchun shartnomada koʻrsatilgan kutish davri amal qiladi; shoshilinch yordam — birinchi kundan.",
+        "en": "Planned care is subject to the waiting period stated in the contract; emergency care applies from day one."
+      },
+      {
+        "code": "hl_copay",
+        "ru": "Франшиза и сооплата застрахованного применяются к каждому счёту клиники в размере, указанном в программе.",
+        "uz": "Franshiza va sugʻurtalanganning birgalikda toʻlovi har bir klinika hisobiga dasturda koʻrsatilgan miqdorda qoʻllanadi.",
+        "en": "The deductible and the insured's co-payment apply to each clinic bill as stated in the programme."
+      }
     ],
     "rail": [
-      {"code": "rl_repairs",
-       "ru": "Плановые ремонты подвижного состава проводятся в установленные сроки; о просрочке ремонта страхователь уведомляет страховщика.",
-       "uz": "Harakat tarkibining rejali taʼmirlari belgilangan muddatlarda oʻtkaziladi; taʼmir kechiksa, sugʻurtalanuvchi sugʻurtalovchini xabardor qiladi.",
-       "en": "Scheduled repairs are carried out on time; the policyholder notifies the insurer of any overdue repair."},
-      {"code": "rl_dangerous",
-       "ru": "Опасные грузы перевозятся только по правилам перевозки опасных грузов и при их указании в договоре.",
-       "uz": "Xavfli yuklar faqat xavfli yuklarni tashish qoidalari boʻyicha va shartnomada koʻrsatilgan boʻlsa tashiladi.",
-       "en": "Dangerous goods are carried only under the dangerous goods rules and if stated in the contract."},
-      {"code": "rl_routes",
-       "ru": "Покрытие действует на маршрутах, указанных в договоре.",
-       "uz": "Qoplama shartnomada koʻrsatilgan yoʻnalishlarda amal qiladi.",
-       "en": "Cover applies on the routes stated in the contract."}
+      {
+        "code": "rl_repairs",
+        "ru": "Плановые ремонты подвижного состава проводятся в установленные сроки; о просрочке ремонта страхователь уведомляет страховщика.",
+        "uz": "Harakat tarkibining rejali taʼmirlari belgilangan muddatlarda oʻtkaziladi; taʼmir kechiksa, sugʻurtalanuvchi sugʻurtalovchini xabardor qiladi.",
+        "en": "Scheduled repairs are carried out on time; the policyholder notifies the insurer of any overdue repair."
+      },
+      {
+        "code": "rl_dangerous",
+        "ru": "Опасные грузы перевозятся только по правилам перевозки опасных грузов и при их указании в договоре.",
+        "uz": "Xavfli yuklar faqat xavfli yuklarni tashish qoidalari boʻyicha va shartnomada koʻrsatilgan boʻlsa tashiladi.",
+        "en": "Dangerous goods are carried only under the dangerous goods rules and if stated in the contract."
+      },
+      {
+        "code": "rl_routes",
+        "ru": "Покрытие действует на маршрутах, указанных в договоре.",
+        "uz": "Qoplama shartnomada koʻrsatilgan yoʻnalishlarda amal qiladi.",
+        "en": "Cover applies on the routes stated in the contract."
+      }
     ],
     "aviation": [
-      {"code": "av_airworthiness",
-       "ru": "Покрытие действует при действующем сертификате лётной годности воздушного судна.",
-       "uz": "Qoplama havo kemasining amaldagi parvozga yaroqlilik sertifikati boʻlganda amal qiladi.",
-       "en": "Cover applies while the aircraft holds a valid certificate of airworthiness."},
-      {"code": "av_crew",
-       "ru": "Управление — только экипажем с действующими свидетельствами на данный тип воздушного судна.",
-       "uz": "Boshqarish — faqat ushbu turdagi havo kemasi uchun amaldagi guvohnomalarga ega ekipaj tomonidan.",
-       "en": "The aircraft is operated only by crew holding valid licences for the type."},
-      {"code": "av_geography",
-       "ru": "Покрытие ограничено географией полётов и видом эксплуатации, указанными в договоре.",
-       "uz": "Qoplama shartnomada koʻrsatilgan parvozlar geografiyasi va foydalanish turi bilan cheklanadi.",
-       "en": "Cover is limited to the flight geography and type of operation stated in the contract."}
+      {
+        "code": "av_airworthiness",
+        "ru": "Покрытие действует при действующем сертификате лётной годности воздушного судна.",
+        "uz": "Qoplama havo kemasining amaldagi parvozga yaroqlilik sertifikati boʻlganda amal qiladi.",
+        "en": "Cover applies while the aircraft holds a valid certificate of airworthiness."
+      },
+      {
+        "code": "av_crew",
+        "ru": "Управление — только экипажем с действующими свидетельствами на данный тип воздушного судна.",
+        "uz": "Boshqarish — faqat ushbu turdagi havo kemasi uchun amaldagi guvohnomalarga ega ekipaj tomonidan.",
+        "en": "The aircraft is operated only by crew holding valid licences for the type."
+      },
+      {
+        "code": "av_geography",
+        "ru": "Покрытие ограничено географией полётов и видом эксплуатации, указанными в договоре.",
+        "uz": "Qoplama shartnomada koʻrsatilgan parvozlar geografiyasi va foydalanish turi bilan cheklanadi.",
+        "en": "Cover is limited to the flight geography and type of operation stated in the contract."
+      }
     ],
     "marine": [
-      {"code": "mr_class",
-       "ru": "Судно имеет действующий класс и документы о годности к плаванию на весь срок договора.",
-       "uz": "Kema shartnomaning butun muddatiga amaldagi klass va suzishga yaroqlilik hujjatlariga ega.",
-       "en": "The vessel keeps a valid class and seaworthiness documents for the whole term."},
-      {"code": "mr_area",
-       "ru": "Покрытие действует в районе и в сезон плавания, указанных в договоре.",
-       "uz": "Qoplama shartnomada koʻrsatilgan suzish hududi va mavsumida amal qiladi.",
-       "en": "Cover applies within the navigation area and season stated in the contract."},
-      {"code": "mr_crew",
-       "ru": "Судно укомплектовано экипажем с действующими дипломами и свидетельствами.",
-       "uz": "Kema amaldagi diplom va guvohnomalarga ega ekipaj bilan taʼminlangan.",
-       "en": "The vessel is manned by crew holding valid certificates."}
+      {
+        "code": "mr_class",
+        "ru": "Судно имеет действующий класс и документы о годности к плаванию на весь срок договора.",
+        "uz": "Kema shartnomaning butun muddatiga amaldagi klass va suzishga yaroqlilik hujjatlariga ega.",
+        "en": "The vessel keeps a valid class and seaworthiness documents for the whole term."
+      },
+      {
+        "code": "mr_area",
+        "ru": "Покрытие действует в районе и в сезон плавания, указанных в договоре.",
+        "uz": "Qoplama shartnomada koʻrsatilgan suzish hududi va mavsumida amal qiladi.",
+        "en": "Cover applies within the navigation area and season stated in the contract."
+      },
+      {
+        "code": "mr_crew",
+        "ru": "Судно укомплектовано экипажем с действующими дипломами и свидетельствами.",
+        "uz": "Kema amaldagi diplom va guvohnomalarga ega ekipaj bilan taʼminlangan.",
+        "en": "The vessel is manned by crew holding valid certificates."
+      }
     ],
     "motor_liability": [
-      {"code": "mt_statutory",
-       "ru": "Обязательный вид: страховая сумма, тариф и порядок выплат — по закону; франшиза не применяется.",
-       "uz": "Majburiy tur: sugʻurta summasi, tarif va toʻlov tartibi — qonun boʻyicha; franshiza qoʻllanmaydi.",
-       "en": "Compulsory line: the sum insured, tariff and settlement follow the law; no deductible applies."},
-      {"code": "mt_territory",
-       "ru": "Покрытие действует на территории использования транспорта, указанной в договоре.",
-       "uz": "Qoplama shartnomada koʻrsatilgan transportdan foydalanish hududida amal qiladi.",
-       "en": "Cover applies within the territory of use stated in the contract."},
-      {"code": "mt_drivers",
-       "ru": "Управление — лицами с правом управления транспортом соответствующей категории.",
-       "uz": "Boshqarish — tegishli toifadagi transportni boshqarish huquqiga ega shaxslar tomonidan.",
-       "en": "Driving only by persons entitled to drive vehicles of the relevant category."}
+      {
+        "code": "mt_statutory",
+        "ru": "Обязательный вид: страховая сумма, тариф и порядок выплат — по закону; франшиза не применяется.",
+        "uz": "Majburiy tur: sugʻurta summasi, tarif va toʻlov tartibi — qonun boʻyicha; franshiza qoʻllanmaydi.",
+        "en": "Compulsory line: the sum insured, tariff and settlement follow the law; no deductible applies."
+      },
+      {
+        "code": "mt_territory",
+        "ru": "Покрытие действует на территории использования транспорта, указанной в договоре.",
+        "uz": "Qoplama shartnomada koʻrsatilgan transportdan foydalanish hududida amal qiladi.",
+        "en": "Cover applies within the territory of use stated in the contract."
+      },
+      {
+        "code": "mt_drivers",
+        "ru": "Управление — лицами с правом управления транспортом соответствующей категории.",
+        "uz": "Boshqarish — tegishli toifadagi transportni boshqarish huquqiga ega shaxslar tomonidan.",
+        "en": "Driving only by persons entitled to drive vehicles of the relevant category."
+      }
     ],
     "aviation_liability": [
-      {"code": "al_conventions",
-       "ru": "Лимиты ответственности перед пассажирами и за багаж — не ниже требований международных конвенций, применимых к перевозке.",
-       "uz": "Yoʻlovchilar va bagaj oldidagi javobgarlik limitlari — tashishga tatbiq etiladigan xalqaro konvensiyalar talablaridan past emas.",
-       "en": "Limits for passengers and baggage are not below the international conventions applicable to the carriage."},
-      {"code": "al_carriage_docs",
-       "ru": "Перевозка оформляется договорами перевозки (билеты, авианакладные) по правилам перевозчика.",
-       "uz": "Tashish tashuvchi qoidalari boʻyicha tashish shartnomalari (chiptalar, aviayuk xatlari) bilan rasmiylashtiriladi.",
-       "en": "Carriage is documented by contracts of carriage (tickets, air waybills) under the carrier's conditions."}
+      {
+        "code": "al_conventions",
+        "ru": "Лимиты ответственности перед пассажирами и за багаж — не ниже требований международных конвенций, применимых к перевозке.",
+        "uz": "Yoʻlovchilar va bagaj oldidagi javobgarlik limitlari — tashishga tatbiq etiladigan xalqaro konvensiyalar talablaridan past emas.",
+        "en": "Limits for passengers and baggage are not below the international conventions applicable to the carriage."
+      },
+      {
+        "code": "al_carriage_docs",
+        "ru": "Перевозка оформляется договорами перевозки (билеты, авианакладные) по правилам перевозчика.",
+        "uz": "Tashish tashuvchi qoidalari boʻyicha tashish shartnomalari (chiptalar, aviayuk xatlari) bilan rasmiylashtiriladi.",
+        "en": "Carriage is documented by contracts of carriage (tickets, air waybills) under the carrier's conditions."
+      }
     ],
     "marine_liability": [
-      {"code": "ml_pollution",
-       "ru": "Загрязнение воды покрывается, только если оно внезапное и случайное.",
-       "uz": "Suvning ifloslanishi faqat toʻsatdan va tasodifan yuz bergan boʻlsa qoplanadi.",
-       "en": "Water pollution is covered only if sudden and accidental."}
+      {
+        "code": "ml_pollution",
+        "ru": "Загрязнение воды покрывается, только если оно внезапное и случайное.",
+        "uz": "Suvning ifloslanishi faqat toʻsatdan va tasodifan yuz bergan boʻlsa qoplanadi.",
+        "en": "Water pollution is covered only if sudden and accidental."
+      }
     ],
     "general_liability": [
-      {"code": "lb_prior_claims",
-       "ru": "Претензии по событиям, известным страхователю до начала договора, не покрываются.",
-       "uz": "Shartnoma boshlanishidan oldin sugʻurtalanuvchiga maʼlum boʻlgan hodisalar boʻyicha daʼvolar qoplanmaydi.",
-       "en": "Claims arising from events known to the policyholder before the contract are not covered."},
-      {"code": "lb_employer_payroll",
-       "ru": "Для обязательного страхования ответственности работодателя страховая сумма равна годовому фонду оплаты труда; изменение фонда — повод пересчитать премию.",
-       "uz": "Ish beruvchi javobgarligini majburiy sugʻurtalashda sugʻurta summasi yillik mehnatga haq toʻlash fondiga teng; fond oʻzgarsa, mukofot qayta hisoblanadi.",
-       "en": "For compulsory employer's liability the sum insured equals the annual payroll; a change of payroll triggers a premium recalculation."}
+      {
+        "code": "lb_prior_claims",
+        "ru": "Претензии по событиям, известным страхователю до начала договора, не покрываются.",
+        "uz": "Shartnoma boshlanishidan oldin sugʻurtalanuvchiga maʼlum boʻlgan hodisalar boʻyicha daʼvolar qoplanmaydi.",
+        "en": "Claims arising from events known to the policyholder before the contract are not covered."
+      },
+      {
+        "code": "lb_employer_payroll",
+        "ru": "Для обязательного страхования ответственности работодателя страховая сумма равна годовому фонду оплаты труда; изменение фонда — повод пересчитать премию.",
+        "uz": "Ish beruvchi javobgarligini majburiy sugʻurtalashda sugʻurta summasi yillik mehnatga haq toʻlash fondiga teng; fond oʻzgarsa, mukofot qayta hisoblanadi.",
+        "en": "For compulsory employer's liability the sum insured equals the annual payroll; a change of payroll triggers a premium recalculation."
+      }
     ],
     "credit": [
-      {"code": "cr_unsecured",
-       "ru": "Страхуется только необеспеченная часть кредита и не более 50 % его суммы.",
-       "uz": "Faqat kreditning taʼminlanmagan qismi va uning summasining 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi.",
-       "en": "Only the unsecured part of the loan and not more than 50 % of its amount is insured."},
-      {"code": "cr_bank",
-       "ru": "Страхователь и плательщик премии — банк-кредитор.",
-       "uz": "Sugʻurtalanuvchi va mukofot toʻlovchi — kreditor bank.",
-       "en": "The policyholder and premium payer is the lending bank."},
-      {"code": "cr_overdue_notice",
-       "ru": "О просрочке платежа заёмщика более 30 дней банк уведомляет страховщика в течение 10 рабочих дней.",
-       "uz": "Qarz oluvchi toʻlovi 30 kundan ortiq kechiksa, bank 10 ish kuni ichida sugʻurtalovchini xabardor qiladi.",
-       "en": "The bank notifies the insurer within 10 working days of any borrower payment overdue by more than 30 days."},
-      {"code": "cr_changes",
-       "ru": "Изменение условий кредита (срок, сумма, обеспечение) — только с согласия страховщика.",
-       "uz": "Kredit shartlarini (muddat, summa, taʼminot) oʻzgartirish — faqat sugʻurtalovchi roziligi bilan.",
-       "en": "Changes to the loan terms (term, amount, collateral) require the insurer's consent."}
+      {
+        "code": "cr_unsecured",
+        "ru": "Страхуется только необеспеченная часть кредита и не более 50 % его суммы.",
+        "uz": "Faqat kreditning taʼminlanmagan qismi va uning summasining 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi.",
+        "en": "Only the unsecured part of the loan and not more than 50 % of its amount is insured."
+      },
+      {
+        "code": "cr_bank",
+        "ru": "Страхователь и плательщик премии — банк-кредитор.",
+        "uz": "Sugʻurtalanuvchi va mukofot toʻlovchi — kreditor bank.",
+        "en": "The policyholder and premium payer is the lending bank."
+      },
+      {
+        "code": "cr_overdue_notice",
+        "ru": "О просрочке платежа заёмщика более 30 дней банк уведомляет страховщика в течение 10 рабочих дней.",
+        "uz": "Qarz oluvchi toʻlovi 30 kundan ortiq kechiksa, bank 10 ish kuni ichida sugʻurtalovchini xabardor qiladi.",
+        "en": "The bank notifies the insurer within 10 working days of any borrower payment overdue by more than 30 days."
+      },
+      {
+        "code": "cr_changes",
+        "ru": "Изменение условий кредита (срок, сумма, обеспечение) — только с согласия страховщика.",
+        "uz": "Kredit shartlarini (muddat, summa, taʼminot) oʻzgartirish — faqat sugʻurtalovchi roziligi bilan.",
+        "en": "Changes to the loan terms (term, amount, collateral) require the insurer's consent."
+      }
     ],
     "guarantee": [
-      {"code": "gt_contract",
-       "ru": "Гарантия действует по договору, указанному в полисе; изменение договора — только с согласия страховщика.",
-       "uz": "Kafolat polisda koʻrsatilgan shartnoma boʻyicha amal qiladi; shartnomani oʻzgartirish — faqat sugʻurtalovchi roziligi bilan.",
-       "en": "The guarantee covers the contract named in the policy; changes to it require the insurer's consent."},
-      {"code": "gt_counter",
-       "ru": "Встречное обеспечение принципала оформляется до выдачи гарантии и поддерживается весь срок.",
-       "uz": "Prinsipalning qarshi taʼminoti kafolat berilishidan oldin rasmiylashtiriladi va butun muddat davomida saqlanadi.",
-       "en": "The principal's counter-security is arranged before issue and maintained for the whole term."},
-      {"code": "gt_notice",
-       "ru": "О признаках неисполнения обязательства страхователь уведомляет страховщика незамедлительно.",
-       "uz": "Majburiyat bajarilmasligi belgilari haqida sugʻurtalanuvchi sugʻurtalovchini darhol xabardor qiladi.",
-       "en": "The policyholder notifies the insurer immediately of any sign of non-performance."}
+      {
+        "code": "gt_contract",
+        "ru": "Гарантия действует по договору, указанному в полисе; изменение договора — только с согласия страховщика.",
+        "uz": "Kafolat polisda koʻrsatilgan shartnoma boʻyicha amal qiladi; shartnomani oʻzgartirish — faqat sugʻurtalovchi roziligi bilan.",
+        "en": "The guarantee covers the contract named in the policy; changes to it require the insurer's consent."
+      },
+      {
+        "code": "gt_counter",
+        "ru": "Встречное обеспечение принципала оформляется до выдачи гарантии и поддерживается весь срок.",
+        "uz": "Prinsipalning qarshi taʼminoti kafolat berilishidan oldin rasmiylashtiriladi va butun muddat davomida saqlanadi.",
+        "en": "The principal's counter-security is arranged before issue and maintained for the whole term."
+      },
+      {
+        "code": "gt_notice",
+        "ru": "О признаках неисполнения обязательства страхователь уведомляет страховщика незамедлительно.",
+        "uz": "Majburiyat bajarilmasligi belgilari haqida sugʻurtalanuvchi sugʻurtalovchini darhol xabardor qiladi.",
+        "en": "The policyholder notifies the insurer immediately of any sign of non-performance."
+      }
     ],
     "financial": [
-      {"code": "fn_period",
-       "ru": "Период ответственности и срок восстановления указываются в договоре; убыток сверх периода не покрывается.",
-       "uz": "Javobgarlik davri va tiklanish muddati shartnomada koʻrsatiladi; davrdan ortiq zarar qoplanmaydi.",
-       "en": "The indemnity period and recovery time are stated in the contract; losses beyond the period are not covered."},
-      {"code": "fn_records",
-       "ru": "Размер убытка определяется по данным бухгалтерского учёта и отчётности страхователя.",
-       "uz": "Zarar miqdori sugʻurtalanuvchining buxgalteriya hisobi va hisobotlari maʼlumotlari boʻyicha aniqlanadi.",
-       "en": "The loss is measured from the policyholder's accounts and financial statements."},
-      {"code": "fn_trigger",
-       "ru": "Перерыв в производстве покрывается, только если он вызван застрахованным событием, указанным в договоре.",
-       "uz": "Ishlab chiqarishdagi tanaffus faqat shartnomada koʻrsatilgan sugʻurtalangan hodisa sababli boʻlsa qoplanadi.",
-       "en": "Business interruption is covered only if caused by an insured event stated in the contract."}
+      {
+        "code": "fn_period",
+        "ru": "Период ответственности и срок восстановления указываются в договоре; убыток сверх периода не покрывается.",
+        "uz": "Javobgarlik davri va tiklanish muddati shartnomada koʻrsatiladi; davrdan ortiq zarar qoplanmaydi.",
+        "en": "The indemnity period and recovery time are stated in the contract; losses beyond the period are not covered."
+      },
+      {
+        "code": "fn_records",
+        "ru": "Размер убытка определяется по данным бухгалтерского учёта и отчётности страхователя.",
+        "uz": "Zarar miqdori sugʻurtalanuvchining buxgalteriya hisobi va hisobotlari maʼlumotlari boʻyicha aniqlanadi.",
+        "en": "The loss is measured from the policyholder's accounts and financial statements."
+      },
+      {
+        "code": "fn_trigger",
+        "ru": "Перерыв в производстве покрывается, только если он вызван застрахованным событием, указанным в договоре.",
+        "uz": "Ishlab chiqarishdagi tanaffus faqat shartnomada koʻrsatilgan sugʻurtalangan hodisa sababli boʻlsa qoplanadi.",
+        "en": "Business interruption is covered only if caused by an insured event stated in the contract."
+      }
     ],
     "legal": [
-      {"code": "lg_prior",
-       "ru": "Споры по событиям, известным страхователю до начала договора, не покрываются.",
-       "uz": "Shartnoma boshlanishidan oldin sugʻurtalanuvchiga maʼlum boʻlgan hodisalar boʻyicha nizolar qoplanmaydi.",
-       "en": "Disputes arising from events known before the contract are not covered."},
-      {"code": "lg_limit",
-       "ru": "Расходы возмещаются в пределах лимита на один спор и общего лимита по договору.",
-       "uz": "Xarajatlar bitta nizoga limit va shartnoma boʻyicha umumiy limit doirasida qoplanadi.",
-       "en": "Costs are reimbursed within the per-dispute limit and the overall limit of the contract."},
-      {"code": "lg_counsel_choice",
-       "ru": "Представитель выбирается по согласованию со страховщиком; расходы сверх согласованных ставок не покрываются.",
-       "uz": "Vakil sugʻurtalovchi bilan kelishilgan holda tanlanadi; kelishilgan stavkalardan ortiq xarajatlar qoplanmaydi.",
-       "en": "Counsel is chosen in agreement with the insurer; fees above agreed rates are not covered."}
+      {
+        "code": "lg_prior",
+        "ru": "Споры по событиям, известным страхователю до начала договора, не покрываются.",
+        "uz": "Shartnoma boshlanishidan oldin sugʻurtalanuvchiga maʼlum boʻlgan hodisalar boʻyicha nizolar qoplanmaydi.",
+        "en": "Disputes arising from events known before the contract are not covered."
+      },
+      {
+        "code": "lg_limit",
+        "ru": "Расходы возмещаются в пределах лимита на один спор и общего лимита по договору.",
+        "uz": "Xarajatlar bitta nizoga limit va shartnoma boʻyicha umumiy limit doirasida qoplanadi.",
+        "en": "Costs are reimbursed within the per-dispute limit and the overall limit of the contract."
+      },
+      {
+        "code": "lg_counsel_choice",
+        "ru": "Представитель выбирается по согласованию со страховщиком; расходы сверх согласованных ставок не покрываются.",
+        "uz": "Vakil sugʻurtalovchi bilan kelishilgan holda tanlanadi; kelishilgan stavkalardan ortiq xarajatlar qoplanmaydi.",
+        "en": "Counsel is chosen in agreement with the insurer; fees above agreed rates are not covered."
+      }
+    ],
+    "borrower": [
+      {
+        "code": "bl_liability_object",
+        "ru": "Страхуется гражданская ответственность заёмщика перед банком-кредитором за непогашение кредита; страхователь и плательщик премии — банк-кредитор (правило компании, требования НАПП).",
+        "uz": "Qarz oluvchining kreditni qaytarmaganligi uchun kreditor bank oldidagi fuqarolik javobgarligi sugʻurtalanadi; sugʻurtalanuvchi va mukofot toʻlovchi — kreditor bank (kompaniya qoidasi, SNAP talablari).",
+        "en": "The borrower's civil liability to the lending bank for non-repayment of the loan is insured; the policyholder and premium payer is the lending bank (company rule, regulator's requirements)."
+      },
+      {
+        "code": "bl_bureau",
+        "ru": "Перед заключением договора и при каждой пролонгации банк предоставляет свежий отчёт кредитного бюро (КАТМ) о заёмщике.",
+        "uz": "Shartnoma tuzishdan oldin va har bir uzaytirishda bank qarz oluvchi haqida kredit byurosining (KATM) yangi hisobotini taqdim etadi.",
+        "en": "Before the contract and at each extension the bank provides a fresh credit bureau (KATM) report on the borrower."
+      }
+    ],
+    "crop": [
+      {
+        "code": "cp_yield_basis",
+        "ru": "Ущерб определяется как недобор урожая против средней урожайности за 5 лет на застрахованной площади по цене, указанной в договоре.",
+        "uz": "Zarar sugʻurtalangan maydonda 5 yillik oʻrtacha hosildorlikka nisbatan hosil kam olinishi sifatida, shartnomada koʻrsatilgan narx boʻyicha aniqlanadi.",
+        "en": "The loss is the shortfall of the harvest against the 5-year average yield on the insured area, at the price stated in the contract."
+      },
+      {
+        "code": "cp_area_declared",
+        "ru": "Застрахованы посевы на заявленных полях и площади; смена культуры или площади — только по согласованию со страховщиком.",
+        "uz": "Eʼlon qilingan dalalar va maydondagi ekinlar sugʻurtalangan; ekin yoki maydonni oʻzgartirish — faqat sugʻurtalovchi bilan kelishilgan holda.",
+        "en": "Crops on the declared fields and area are insured; a change of crop or area only with the insurer's consent."
+      },
+      {
+        "code": "cp_agrotech",
+        "ru": "Покрытие действует при соблюдении агротехнических требований (сроки сева, полив, защита растений); нарушение — основание для уменьшения выплаты по правилам страхования.",
+        "uz": "Qoplama agrotexnik talablarga (ekish muddatlari, sugʻorish, oʻsimliklarni himoya qilish) rioya qilinganda amal qiladi; buzilishi — sugʻurta qoidalariga koʻra toʻlovni kamaytirish uchun asos.",
+        "en": "Cover applies provided agronomic requirements are met (sowing dates, irrigation, plant protection); a breach is grounds for reducing the payment under the insurance rules."
+      },
+      {
+        "code": "cp_notice_expert",
+        "ru": "О страховом случае сообщить в течение трёх дней; размер ущерба определяет независимый эксперт по осмотру поля (по образцу ЗРУ-1056, ст. 29–30).",
+        "uz": "Sugʻurta hodisasi haqida uch kun ichida xabar berish; zarar miqdorini dalani koʻzdan kechirish asosida mustaqil ekspert belgilaydi (OʻRQ-1056, 29–30-moddalar namunasida).",
+        "en": "Report the insured event within three days; the loss is assessed by an independent expert after inspecting the field (modelled on Law ZRU-1056, arts. 29–30)."
+      }
     ]
   }
 }

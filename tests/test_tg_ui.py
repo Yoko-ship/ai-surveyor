@@ -1052,6 +1052,195 @@ def _run_scoring(html):
     assert _html_esc(sc0["gauge_caption"]) in out["img"], "в окне просмотра картинки нет подписи под шкалой"
 
 
+def check_rate_fork(html):
+    """Шаг «Акт»: карточка «Вилка ставки» (01.10.2026) — шкала, таблица отметок, из чего сложилась, части, обязательный вид."""
+    must = {
+        "+ sco\n    // вилка ставки — сразу после скоринга (без скоринга — первой), развёрнута\n    + rfCardHtml(a)":
+            "карточка вилки не сразу после скоринга",
+        "+ rfPartHtml(p)": "в карточке части нет её вилки",
+        'T("tg.rf.sum_sub", "вилка {v}"': "в свёрнутой сводке нет строки вилки",
+        'T("tg.rf.uncal", "поправки экспертные, не калиброваны")': "нет пометки «поправки экспертные, не калиброваны»",
+        'T("tg.rf.lg_zone", "ниже минимума — только с отступлением")': "зона ниже минимума не подписана",
+        'T("tg.rf.mode_reference", "Премия акта посчитана по ставке акта. Ставка с учётом региона и рынка показана справочно.")':
+            "нет пометки режима reference",
+        'T("tg.rf.mode_apply", "Премия акта посчитана по ставке с учётом региона и рынка.")': "нет пометки режима apply",
+        "el.dataset.rfhow": "раскрытие «Как посчитано» не запоминается",
+        ".rf-zone{": "нет штриховки зоны ниже минимума",
+        "@media (min-width:600px){\n  .rf-up{": "подписи шкалы не раскладываются заново шире 600 px",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "вилка ставки: " + "; ".join(miss)
+    _run_rate_fork(html)
+    print("22ж. вилка ставки: шкала пропорциональна ставкам, совпадающие отметки, запрос ниже минимума, техническая "
+          "за краем, части, обязательный вид — ок")
+
+
+def _run_rate_fork(html):
+    """Карточка вилки из tg.html в node на настоящих ответах сервера (sandbox/act_demo*.json) и их вариантах."""
+    import copy
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    if not node:
+        print("   (node не найден — отрисовка вилки не проверена)")
+        return
+    root = Path(__file__).resolve().parent.parent
+
+    def line(prefix):
+        return re.search(r"(?m)^" + re.escape(prefix) + r".*$", html).group(0)
+
+    rf_block = html[html.index("/* ---------- шаг 3: вилка ставки"):html.index("/* ---------- /вилка ставки ---------- */")]
+    an_block = html[html.index("/* ---------- шаг 3: «Аналитика риска»"):html.index("function actRowsHtml(")]
+    js = "\n".join([
+        'const T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };',
+        "const window = {I18N_LANG: 'ru'}; const LOC = () => 'ru-RU';",
+        line("const esc = "), line("const nf = "), line("const fmt = "), line("const pct = "), line("const SUM = "),
+        line("const money = "), _fn(html, "compact"), html[html.index("const dateOnly = "):html.index("const spin = ")],
+        line("const dp = "), line("const sgnMoney = "), line("const isNum = "), _fn(html, "levelName"), _fn(html, "scName"),
+        _fn(html, "ptAct"),
+        "const CH = {anOpen: {}, rfOpen: {act: true}};",
+        an_block, rf_block,
+        "const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+        "const strip = L => L && {max: L.max, techOver: L.techOver, rows: L.rows,"
+        " upper: L.upper.map(g => ({x: g.x, rate: g.rate, codes: g.marks.map(m => m.code), rec: g.rec, n: g.n, w: g.w, x2: g.x2, val: g.val, name: g.name})),"
+        " lower: L.lower.map(g => ({x: g.x, rate: g.rate, codes: g.marks.map(m => m.code), over: !!g.over, pos: g.pos, n: g.n, w: g.w, x2: g.x2, val: g.val, name: g.name}))};",
+        "const out = inp.acts.map(a => { CH.act = a; return {card: rfCardHtml(a), lay: strip(a.rate_fork && a.rate_fork.available ? rfLayout(a.rate_fork) : null)}; });",
+        "out.push({part: rfPartHtml(inp.part)});",
+        "console.log(JSON.stringify(out));"])
+    crane = _json.loads((root / "sandbox" / "act_demo.json").read_text(encoding="utf-8"))
+    equip = _json.loads((root / "sandbox" / "act_demo_equipment.json").read_text(encoding="utf-8"))
+    # склад класса 8: поправка региона −3,2 % (жилой фонд по материалу стен) — в форме ответа сервера, как test_act 45б
+    wh = copy.deepcopy(crane)
+    F = wh["rate_fork"]
+    for m, r in zip(F["marks"], (0.05, 0.06, 0.0581, 0.185, 0.3872)):
+        m["rate_pct"] = r
+    for m in F["marks"]:
+        m["is_recommended"] = m["code"] == "act"
+    F["recommended"] = {"code": "act", "rate_pct": 0.06, "premium": 2520000}
+    F["adjustments"]["region"].update(pct=-3.2, raw_pct=-3.2, clamped=None, indicators=[
+        {"id": "vulnerable_housing", "name": "Доля глинобитного жилья", "region_value": 49.9509, "country_value": 53.3629,
+         "ratio": 0.936, "effect_pct": -3.2, "period": "2025", "unit": "% жилищного фонда", "used": True, "why": None,
+         "source": {"title": "stat.uz — Распределение жилищного фонда по материалу стен", "url": "https://stat.uz/ru/ofitsialnaya-statistika/environment",
+                    "as_of": "2025", "kind": "stat"}},
+        {"id": "emergencies", "name": "Чрезвычайные ситуации (всего)", "region_value": None, "country_value": None, "ratio": None,
+         "effect_pct": None, "period": "2026-Q2", "used": False, "why": "no_regional", "why_text": "нет разреза по регионам — только республика",
+         "source": {"title": "data.egov.uz — ЧС", "url": "http://data.egov.uz/x", "as_of": "2026-Q2", "kind": "stat"}}])
+    wh["rate"] = dict(wh["rate"], base_pct=0.06, adj_pct=0.0, min_pct=0.05)
+    # режим apply и техническая ставка внутри шкалы
+    ap = copy.deepcopy(crane)
+    ap["rate_fork"]["mode"] = "apply"
+    next(m for m in ap["rate_fork"]["marks"] if m["code"] == "technical")["rate_pct"] = 0.5
+    # обязательный вид и продукт без ставки — ответы сервера (app/act.py → _fork_view)
+    stat = dict(crane, rate_fork={"available": False, "reason": "statutory", "mode": "reference", "title": "Вилка ставки", "unit": "% годовых",
+                                  "marks": [{"code": "act", "label": "Ставка акта", "rate_pct": 0.4, "premium": 4000000, "is_recommended": True,
+                                             "source": {"title": "нормативный акт: ПКМ №532", "url": None, "as_of": None, "kind": "statutory"},
+                                             "note": "ставка установлена нормативным актом — без поправок"}],
+                                  "adjustments": None, "recommended": {"code": "act", "rate_pct": 0.4, "premium": 4000000},
+                                  "position": {"request": "none", "contract": "none"},
+                                  "summary": "Тариф установлен нормативным актом: 0,40 % (ПКМ №532) — вилки нет.", "how": [], "calibrated": 0,
+                                  "overview": "— – 0,40 – — %"})
+    mk = next(m for m in crane["rate_fork"]["marks"] if m["code"] == "market")
+    undef = dict(crane, rate_fork={"available": False, "reason": "undefined", "mode": "reference", "title": "Вилка ставки", "marks": [mk],
+                                   "adjustments": None, "recommended": None, "position": {"request": "none", "contract": "none"},
+                                   "summary": "Ставка по продукту не определена — вилки нет; рыночный ориентир 0,695 %.", "how": [], "calibrated": 0})
+    old = {k: v for k, v in crane.items() if k != "rate_fork"}
+    # договор из частей: справочная вилка договора (reason parts_reference) и вилки частей
+    pmarks = [{"code": c, "label": lab, "rate_pct": 0.5 if c != "adjusted" else 0.545, "premium": 500000 if c != "adjusted" else 545000,
+               "is_recommended": c == "act", "source": {"title": "части договора (см. вилки частей)", "url": None, "kind": "parts"},
+               "note": "сумма премий частей; ставка договора — справочно"}
+              for c, lab in (("min", "Минимальная"), ("act", "Ставка акта"), ("adjusted", "С учётом региона и рынка"))]
+    parts = dict(crane, parts={"mode": "multi", "items": [{"index": 1, "class_code": "3"}, {"index": 2, "class_code": "14"}]},
+                 rate_fork={"available": True, "reason": "parts_reference", "mode": "reference", "title": "Вилка ставки", "marks": pmarks,
+                            "adjustments": None, "recommended": {"code": "act", "rate_pct": 0.5, "premium": 500000},
+                            "position": {"request": "none", "contract": "none"}, "how": [], "calibrated": 0,
+                            "summary": "Договор из частей: вилка по каждой части (ниже); по договору справочно — минимум 0,50 %.",
+                            "parts": [{"index": 1, "class_code": "3", "summary": "Допустимо от 0,50 % (минимум); рекомендуем 0,50 %; рынок 0,695 %."},
+                                      {"index": 2, "class_code": "14", "summary": "Допустимо от 0,50 % (минимум); рекомендуем 0,50 %; рынок 0,942 %."}]})
+    part = {"index": 1, "class_code": "3", "rate_fork": equip["rate_fork"]}
+    acts = [crane, equip, wh, ap, stat, undef, old, parts]
+    with tempfile.TemporaryDirectory(prefix="tg-rf-") as tmp:
+        f = Path(tmp) / "rf.js"
+        f.write_text(js, encoding="utf-8")
+        res = subprocess.run([node, str(f)], input=_json.dumps({"acts": acts, "part": part}, ensure_ascii=False), capture_output=True,
+                             text=True, encoding="utf-8", timeout=60)
+    assert res.returncode == 0, "node: " + res.stderr[-1200:]
+    out = _json.loads(res.stdout)
+    cards = [o.get("card") for o in out[:-1]] + [out[-1]["part"]]
+    for i, c in enumerate(cards):
+        text = re.sub(r"<[^>]+>", " ", c)
+        bad = [w for w in ("undefined", "null", "NaN", "[object Object]", "calibrated", "rate_fork", "tg.rf.", "rf_", "parts_reference",
+                           "below_min", "statutory") if w in text]
+        assert not bad, f"вилка {i}: на экране служебное {bad}"
+        assert not re.search(r'href="(?!https://)', c), f"вилка {i}: ссылка не https"
+    # 1) положение отметок пропорционально ставкам: x = ставка / (max без технической × 1,1) × 100
+    for i in (0, 1, 2, 3):
+        F, lay = acts[i]["rate_fork"], out[i]["lay"]
+        on = [m for m in F["marks"] if m["code"] != "technical"]
+        mx = max(m["rate_pct"] for m in on) * 1.1
+        assert abs(lay["max"] - mx) < 1e-9, (i, lay["max"], mx)
+        xs = {}
+        for g in lay["upper"] + lay["lower"]:
+            for c in g["codes"]:
+                xs[c] = g
+        for m in on + [m for m in F["marks"] if m["code"] == "technical" and m["rate_pct"] <= mx]:
+            assert abs(xs[m["code"]]["x"] - m["rate_pct"] / mx * 100) < 0.01, (i, m["code"], xs[m["code"]]["x"])
+        assert xs["min"]["x"] <= xs["act"]["x"] < xs["market"]["x"], f"вилка {i}: минимум не левее ставки акта или рынок не правее"
+        # подписи в одном ряду не наезжают — для телефона и для широкого экрана
+        for side in ("upper", "lower"):
+            for k in ("n", "w", "x2"):
+                rows = {}
+                for g in lay[side]:
+                    rows.setdefault(g[k]["r"], []).append((g[k]["l"], g[k]["l"] + g[k]["w"]))
+                for r, seg in rows.items():
+                    seg.sort()
+                    assert all(b[0] >= a[1] + 1.99 for a, b in zip(seg, seg[1:])), f"вилка {i}: подписи наезжают ({side}, {k}, ряд {r}): {seg}"
+                    assert all(0 <= s[0] and s[1] <= 100.0001 for s in seg), f"вилка {i}: подпись за краем шкалы {seg}"
+    # 2) совпадающие отметки — одна подпись и одна отметка: автокран минимум = акт 0,35; оборудование акт = регион и рынок 0,096
+    up0 = {tuple(g["codes"]): g for g in out[0]["lay"]["upper"]}
+    assert ("min", "act") in up0 and up0[("min", "act")]["rec"] and up0[("min", "act")]["name"] == "минимум = акт", up0.keys()
+    assert out[0]["card"].count('class="rf-tk') == 3 and out[0]["card"].count('class="rf-tk best"') == 1, "автокран: не три отметки сверху"
+    up1 = {tuple(g["codes"]): g for g in out[1]["lay"]["upper"]}
+    assert ("act", "adjusted") in up1 and up1[("act", "adjusted")]["rec"], up1.keys()
+    # 3) запрос филиала 0,05 % — ниже минимума 0,08 %: маркер снизу, левее минимума, предупреждающий цвет
+    lo1 = {tuple(g["codes"]): g for g in out[1]["lay"]["lower"]}
+    rq = lo1[("request",)]
+    assert rq["pos"] == "below_min" and rq["x"] < up1[("min",)]["x"] and abs(rq["x"] - 0.05 / out[1]["lay"]["max"] * 100) < 0.01, rq
+    assert 'class="rf-doc pos-below_min"' in out[1]["card"] and "rf-lab pos-below_min" in out[1]["card"], "запрос ниже минимума не выделен"
+    assert 'class="rf-docrow pos-below_min"' in out[1]["card"], "в таблице строка запроса не выделена"
+    # 4) техническая ставка далеко за шкалой — шкала не растянута, стрелка «→ X %» у правого края
+    for i in (0, 1, 2):
+        lay = out[i]["lay"]
+        tech = [g for g in lay["lower"] if "technical" in g["codes"]][0]
+        assert lay["techOver"] and tech["over"] and tech["x"] == 100 and tech["val"].startswith("→ "), (i, tech)
+        assert 'class="rf-over"' in out[i]["card"] and 'class="rf-tech"' not in out[i]["card"], f"вилка {i}: техническая не стрелкой"
+    assert not out[3]["lay"]["techOver"] and 'class="rf-tech"' in out[3]["card"], "техническая в пределах шкалы — тонкой отметкой"
+    # 5) таблица отметок: строка на отметку, одна рекомендуемая; источники со ссылкой; из чего сложилась; режим
+    for i in (0, 1, 2, 3):
+        c, F = out[i]["card"], acts[i]["rate_fork"]
+        assert c.count("<tr data-code=") == len(F["marks"]) and c.count('class="rf-rec"') == 1, f"вилка {i}: таблица отметок"
+        assert _html_esc(F["summary"]) in c and "поправки экспертные, не калиброваны" in c, f"вилка {i}: нет итога или пометки"
+        assert "Из чего сложилась" in c and "Поправка региона" in c and "Поправка рынка" in c and "Итог: с учётом региона и рынка" in c
+        assert 'href="https://napp.uz/pages/statistics-and-analysis-for-im"' in c and 'class="srcbar act-src rf-src"' in c, f"вилка {i}: нет НАПП"
+        assert "только с отступлением" in c, f"вилка {i}: зона ниже минимума не подписана"
+    c0 = out[0]["card"]
+    assert "Ставка тарифной политики" in c0 and "+15%" in c0 and "→ 0,4025%" in c0 and "×1,735" in c0, "автокран: шаги не те"
+    assert 'href="https://data.egov.uz/rus/data/6114e27e114fbfdc20c354cc"' in c0 and "stat.uz" in c0, "автокран: нет источников региона"
+    assert "показана справочно" in c0 and "Как посчитано" in c0 and 'data-rfhow="act" open' in c0, "автокран: режим или «Как посчитано»"
+    assert "−3,2%" in out[2]["card"] and "не учтён — нет разреза по регионам" in out[2]["card"], "склад: поправка −3,2 % или неучтённый показатель"
+    assert 'href="http://' not in out[2]["card"], "ссылка http на экране"
+    assert "Премия акта посчитана по ставке с учётом региона и рынка." in out[3]["card"], "apply: нет пометки режима"
+    # 6) обязательный вид, ставка не определена, старый акт, договор из частей
+    assert "rf-na" in out[4]["card"] and "ПКМ №532" in out[4]["card"] and "rf-scale" not in out[4]["card"], "обязательный вид"
+    assert "Рыночный ориентир" in out[5]["card"] and "napp.uz" in out[5]["card"] and "rf-scale" not in out[5]["card"], "ставка не определена"
+    assert "сформируйте акт заново" in out[6]["card"], "старый акт без вилки"
+    cp = out[7]["card"]
+    assert "Вилки частей" in cp and "Часть 1, класс 3" in cp and "Часть 2, класс 14" in cp and "справочная" in cp and "Из чего сложилась" not in cp
+    assert cp.count("<tr data-code=") == 3 and "rf-scale" in cp, "договор из частей: справочная вилка"
+    pp = out[-1]["part"]
+    assert 'data-rfpart="1"' in pp and "rf-scale" in pp and _html_esc(equip["rate_fork"]["summary"]) in pp and "<table" not in pp, "компактная вилка части"
+
+
 def check_parts_templates(html):
     """
     Шаблоны классов и комплексный продукт по частям (30.09.2026): поля класса из GET /act/templates/{класс} на шаге 2,
@@ -1119,6 +1308,8 @@ def _run_parts(html):
         " refs: {products: [{code: '0312', classes: ['3', '14']}, {code: '1301', classes: ['13']}],"
         " classes: [{code: '3', name: 'Наземный транспорт'}, {code: '13', name: 'Общая ответственность'}, {code: '14', name: 'Кредиты'}]}};",
         an_block, pt_block,
+        # вилка ставки части (01.10.2026): карточка части рисует компактную вилку
+        html[html.index("/* ---------- шаг 3: вилка ставки"):html.index("/* ---------- /вилка ставки ---------- */")],
         "const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
         "Object.keys(inp.tpls).forEach(c => { TPL.cache[tplKey(c)] = inp.tpls[c]; });",
         "const a = inp.act, out = {};",
@@ -1362,6 +1553,7 @@ if __name__ == "__main__":
             check_branch_contract(html)
             check_act_analytics(html)
             check_scoring(html)
+            check_rate_fork(html)
             check_parts_templates(html)
             check_calc_tab(html)
             check_compact_and_view(html)

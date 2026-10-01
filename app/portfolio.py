@@ -429,7 +429,9 @@ def reference_lists(con) -> dict:
                 for p in db.rows(con, "SELECT code, name FROM products ORDER BY code")]
     # «13з», «16у» — рядом со своими номерами; сортируем в Python, без приведения типов в SQL
     num = lambda c: (int(re.match(r"\d+", c).group()) if re.match(r"\d+", c) else 999, c)
-    classes = sorted(db.rows(con, "SELECT code, name FROM classes"), key=lambda c: num(c["code"]))
+    # как на экранах и в /reference/classes (db.CLASSES_SHOWN): строк L* (жизнь) в шаблоне и проверке нет
+    classes = sorted(db.rows(con, f"SELECT code, name FROM classes WHERE {db.CLASSES_SHOWN}"),
+                     key=lambda c: num(c["code"]))
     regions = db.rows(con, """SELECT row_key, MAX(row_name) row_name FROM market_stats
                               WHERE row_key LIKE 'region:%' GROUP BY row_key ORDER BY 2""")
     regions = [{"key": r["row_key"], "name": r["row_name"]} for r in regions] or \

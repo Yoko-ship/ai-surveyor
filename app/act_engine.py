@@ -79,6 +79,42 @@ DEFAULT_SETTINGS = {
     # max_age_days — отчёт старше стольких дней считается устаревшим. Экспертно, calibrated = 0
     # allow_scan — сканы и фото отчёта бюро отдавать языковой модели (по умолчанию нет: в отчёте кредитная история)
     "credit_report": {"low_class": "C", "max_age_days": 30, "allow_scan": False},
+    # данные НАПП в разделе 4 акта (01.10.2026): branch_min_contracts — если у подразделений INSON в регионе
+    # (все вместе, по отчёту НАПП) договоров меньше этого числа, у строки пометка «малая база» (убыточность и
+    # средняя премия на малом числе договоров неустойчивы). Экспертно, calibrated = 0
+    "napp": {"branch_min_contracts": 200},
+    # вилка ставки (01.10.2026): минимум → ставка акта → с учётом региона и рынка → рынок. Экспертно, calibrated = 0.
+    # mode: reference — премия акта по ставке акта, ставка с поправками показывается рядом справочно;
+    #       apply — ставка с поправками становится ставкой акта (премия, франшиза, мероприятия, сверки — от неё).
+    # region: поправка = среднее по подходящим показателям (отношение «регион / республика» − 1) × sensitivity,
+    #         в границах [min_pct; max_pct] %; indicators — {класс: {группа объекта | "*": [id показателей
+    #         app/risk_stats.py]}}: какие показатели говорят о риске этого класса и вида объекта.
+    #         claims_freq (01.10.2026) — частота страховых претензий региона к республике по отчёту НАПП (листы 3.5
+    #         и 3.4, всё общее страхование) — в списках классов 3, 7, 8, 9, но с ВЕСОМ 0 (замечание контролёра
+    #         01.10.2026): НАПП относит претензии к месту головных офисов страховщиков и онлайн-продаж — 88,8 %
+    #         претензий страны на 01.07.2026 записаны на город Ташкент, у 13 регионов отношение 0,11–0,65. Показатель
+    #         виден в акте справочно; администратор может включить его, задав вес больше 0.
+    #         weights — {id показателя: вес} во взвешенном среднем вкладов (нет в словаре — вес 1; вес 0 — показатель
+    #         показывается, но в поправку не входит).
+    # market: если ставка акта ниже рыночной (НАПП) и убыточность класса ≥ порога — надбавка steps [[порог %, +%]];
+    #         loss_ratio — по последнему срезу НАПП (last) или по полному году (full_year); cap_at_market — надбавка
+    #         рынка не поднимает ставку выше рыночной (потолок = рыночная ставка).
+    #         basis (01.10.2026) — при loss_ratio = last: full_year_if_available — если по последнему срезу ступень
+    #         выше, чем по полному году (скачок убыточности за неполный год, например пакет 3,14: 81,9 % за полугодие
+    #         2026 против 2,5 % за 2025 год), берётся ступень по полному году с пометкой; last — всегда срез.
+    "rate_fork": {
+        "mode": "reference",
+        "region": {"sensitivity": 0.5, "min_pct": -10, "max_pct": 15,
+                   "indicators": {"3": {"*": ["road_accidents", "thefts", "claims_freq"]},
+                                  "7": {"*": ["road_accidents", "thefts", "claims_freq"]},
+                                  "8": {"property": ["vulnerable_housing", "emergencies", "claims_freq"],
+                                        "*": ["emergencies", "claims_freq"]},
+                                  "9": {"*": ["crimes_total", "thefts", "claims_freq"]}},
+                   "weights": {"claims_freq": 0.0}},
+        "market": {"steps": [[60, 10], [80, 20]], "loss_ratio": "last", "basis": "full_year_if_available",
+                   "cap_at_market": True},
+        "calibrated": 0,
+    },
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
@@ -740,17 +776,27 @@ def decision(risk: dict, rate_res: dict, value: dict, fr: dict, disc: list, insp
 #  Настройки
 # ================================================================================================
 
-def merge_settings(custom: Optional[dict]) -> dict:
-    out = {k: (dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
-           for k, v in DEFAULT_SETTINGS.items()}
-    for k, v in (custom or {}).items():
-        if k not in DEFAULT_SETTINGS:
-            continue
+def deep_merge(base: Optional[dict], patch: Optional[dict]) -> dict:
+    """Глубокое слияние настроек: словари сливаются по ключам на любой глубине, остальное (числа, строки, списки)
+    из patch заменяет значение base. Ни base, ни patch не меняются. Частичная правка администратора
+    (PUT /act/settings) так не сбрасывает прежние правки: {"rate_fork": {"market": {"cap_at_market": false}}}
+    меняет один флаг, а не весь блок rate_fork."""
+    out = {k: (deep_merge(v, {}) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
+           for k, v in (base or {}).items()}
+    for k, v in (patch or {}).items():
         if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = {**out[k], **v}
+            out[k] = deep_merge(out[k], v)
+        elif isinstance(v, dict):
+            out[k] = deep_merge(v, {})
         else:
-            out[k] = v
+            out[k] = list(v) if isinstance(v, list) else v
     return out
+
+
+def merge_settings(custom: Optional[dict]) -> dict:
+    """Настройки по умолчанию с правками администратора поверх (глубоко, deep_merge); неизвестные ключи верхнего
+    уровня отбрасываются."""
+    return deep_merge(DEFAULT_SETTINGS, {k: v for k, v in (custom or {}).items() if k in DEFAULT_SETTINGS})
 
 
 def check_settings(s: dict) -> list:
@@ -869,6 +915,17 @@ def check_settings(s: dict) -> list:
         extra = [k for k in crs if k not in ("low_class", "max_age_days", "allow_scan")]
         if extra:
             errs.append("credit_report: неизвестные ключи " + ", ".join(extra))
+    nps = m["napp"] if isinstance(m["napp"], dict) else None
+    if nps is None:
+        errs.append("napp: словарь {branch_min_contracts}")
+    else:
+        v = nps.get("branch_min_contracts")
+        if isinstance(v, bool) or not isinstance(v, int) or not 0 <= v <= 1_000_000:
+            errs.append("napp.branch_min_contracts: целое от 0 до 1 000 000")
+        extra = [k for k in nps if k != "branch_min_contracts"]
+        if extra:
+            errs.append("napp: неизвестные ключи " + ", ".join(extra))
+    errs += check_fork_settings((s or {}).get("rate_fork"))
     return errs
 
 
@@ -2077,4 +2134,417 @@ def borrower_checks(fields: Optional[dict], credit_product: bool, settings: Opti
     mx = int(st.get("max_age_days") or 30)
     if days is None or days > mx:
         out.append({"code": "borrower_stale", "params": {"days": days, "max": mx}})
+    return out
+
+
+# ================================================================================================
+#  12. Вилка ставки (01.10.2026): минимум → ставка акта → с учётом региона и рынка → рынок
+# ================================================================================================
+#
+# Заказчик: «система выдаёт вилку ставки с объяснением, из чего она сложилась», и ставка должна опираться на
+# подключённые данные (stat.uz / data.egov.uz — показатели региона, НАПП — рынок класса). Правило:
+#   1. минимальная ставка — тарифная политика (ниже — только отступление);
+#   2. ставка акта — как прежде (rate / part_rate), не меняется;
+#   3. ставка с учётом региона и рынка = ставка акта × (1 + поправка региона) × (1 + поправка рынка), не ниже минимума;
+#      поправка региона = среднее по подходящим показателям (отношение «регион / республика» − 1) × чувствительность,
+#      в границах rate_fork.region.min_pct … max_pct; поправка рынка — ступени по убыточности класса НАПП, если
+#      ставка акта ниже рыночной;
+#   4. рыночная ставка — средняя по классу по НАПП (верхний ориентир; бывает ниже минимума — это показывается).
+# Здесь только числа и коды; данные из базы собирает act_analytics.fork_data, слова — act.py и act_texts.py.
+# Все пороги — экспертные (calibrated = 0), задаются настройкой rate_fork.
+
+FORK_MODES = ("reference", "apply")
+FORK_GROUPS = ("special", "vehicle", "property", "equipment", "cargo", "liability", "other", "*")
+FORK_LR_BASIS = ("last", "full_year")
+FORK_MARKET_BASIS = ("full_year_if_available", "last")
+FORK_MARKS = ("min", "act", "adjusted", "market", "request", "contract", "technical")
+
+
+def fork_settings(st: Optional[dict]) -> dict:
+    """Настройки вилки поверх умолчаний: region и market сливаются по ключам (правка одного ключа не стирает
+    остальные)."""
+    d = DEFAULT_SETTINGS["rate_fork"]
+    raw = (st or {}).get("rate_fork") if isinstance((st or {}).get("rate_fork"), dict) else {}
+    out = {"mode": raw.get("mode", d["mode"]), "calibrated": CALIBRATED}
+    for k in ("region", "market"):
+        sub = raw.get(k) if isinstance(raw.get(k), dict) else {}
+        out[k] = {**d[k], **sub}
+    return out
+
+
+def check_fork_settings(raw) -> list:
+    """Ошибки настройки rate_fork (пустой список — верно). raw — то, что прислал администратор (или None)."""
+    if raw is None:
+        return []
+    if not isinstance(raw, dict):
+        return ["rate_fork: словарь {mode, region, market}"]
+    errs = []
+    extra = [k for k in raw if k not in ("mode", "region", "market", "calibrated")]
+    if extra:
+        errs.append("rate_fork: неизвестные ключи " + ", ".join(extra))
+    if "calibrated" in raw and raw["calibrated"] != 0:
+        errs.append("rate_fork.calibrated: 0 — пороги экспертные, не калиброваны")
+    for k in ("region", "market"):
+        if k in raw and not isinstance(raw[k], dict):
+            errs.append(f"rate_fork.{k}: словарь")
+    fs = fork_settings({"rate_fork": raw})
+    if fs["mode"] not in FORK_MODES:
+        errs.append("rate_fork.mode: reference или apply")
+    rg = fs["region"]
+    extra = [k for k in rg if k not in ("sensitivity", "min_pct", "max_pct", "indicators", "weights")]
+    if extra:
+        errs.append("rate_fork.region: неизвестные ключи " + ", ".join(extra))
+    for key, lo, hi in (("sensitivity", 0, 3), ("min_pct", -50, 0), ("max_pct", 0, 100)):
+        v = rg.get(key)
+        if isinstance(v, bool) or not isinstance(v, (int, float)) or not lo <= v <= hi:
+            errs.append(f"rate_fork.region.{key}: число от {lo} до {hi}")
+    ind = rg.get("indicators")
+    if not isinstance(ind, dict):
+        errs.append("rate_fork.region.indicators: словарь {класс: {группа объекта: [показатели]}}")
+    else:
+        from . import risk_stats              # справочник показателей (без базы и сети)
+        for cls, by_group in ind.items():
+            if not isinstance(by_group, dict):
+                errs.append(f"rate_fork.region.indicators.{cls}: словарь {{группа: [показатели]}}")
+                continue
+            for g, ids in by_group.items():
+                if g not in FORK_GROUPS:
+                    errs.append(f"rate_fork.region.indicators.{cls}: группа «{g}» — одна из " + ", ".join(FORK_GROUPS))
+                if not isinstance(ids, list) or any(not isinstance(x, str) for x in ids):
+                    errs.append(f"rate_fork.region.indicators.{cls}.{g}: список кодов показателей")
+                    continue
+                bad = [x for x in ids if x not in risk_stats.BY_ID]
+                if bad:
+                    errs.append(f"rate_fork.region.indicators.{cls}.{g}: нет показателей " + ", ".join(bad))
+    wts = rg.get("weights", {})
+    if not isinstance(wts, dict):
+        errs.append("rate_fork.region.weights: словарь {показатель: вес}")
+    else:
+        from . import risk_stats
+        for k, v in wts.items():
+            if k not in risk_stats.BY_ID:
+                errs.append(f"rate_fork.region.weights: нет показателя {k}")
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not 0 <= v <= 5:
+                errs.append(f"rate_fork.region.weights.{k}: число от 0 до 5")
+    mk = fs["market"]
+    extra = [k for k in mk if k not in ("steps", "loss_ratio", "basis", "cap_at_market")]
+    if extra:
+        errs.append("rate_fork.market: неизвестные ключи " + ", ".join(extra))
+    if mk.get("basis") not in FORK_MARKET_BASIS:
+        errs.append("rate_fork.market.basis: full_year_if_available или last")
+    if not isinstance(mk.get("cap_at_market"), bool):
+        errs.append("rate_fork.market.cap_at_market: true или false")
+    if mk.get("loss_ratio") not in FORK_LR_BASIS:
+        errs.append("rate_fork.market.loss_ratio: last или full_year")
+    steps = mk.get("steps")
+    ok_steps = isinstance(steps, list) and all(
+        isinstance(s, (list, tuple)) and len(s) == 2 and all(isinstance(x, (int, float)) and not isinstance(x, bool)
+                                                            for x in s) for s in steps)
+    if not ok_steps:
+        errs.append("rate_fork.market.steps: список пар [убыточность %, надбавка %]")
+    else:
+        if any(not (0 <= s[0] <= 1000 and 0 <= s[1] <= 100) for s in steps):
+            errs.append("rate_fork.market.steps: убыточность 0–1000 %, надбавка 0–100 %")
+        if any(b[0] <= a[0] or b[1] < a[1] for a, b in zip(steps, steps[1:])):
+            errs.append("rate_fork.market.steps: пороги по возрастанию, надбавка не убывает")
+    return errs
+
+
+def fork_indicator_ids(fs: dict, cls: str, group: Optional[str]) -> tuple:
+    """(показатели для класса и вида объекта, показатели класса, которые к этому виду не относятся)."""
+    by_group = (fs["region"].get("indicators") or {}).get(str(cls)) or {}
+    ids = list(by_group.get(group or "") if (group or "") in by_group else by_group.get("*") or [])
+    other = []
+    for xs in by_group.values():
+        for x in xs:
+            if x not in ids and x not in other:
+                other.append(x)
+    return ids, other
+
+
+def fork_region(indicators: list, fs: dict, region_known: bool, class_has_rules: bool) -> dict:
+    """
+    Поправка региона. indicators — [{id, ratio (регион / республика) или None, used}] отобранные для класса и вида.
+    Вклад показателя = (ratio − 1) × sensitivity × 100 %, поправка = среднее вкладов (взвешенное по
+    rate_fork.region.weights, по умолчанию вес 1), в границах [min_pct; max_pct].
+    Пример: ДТП 1,735 и кражи 1,215 при чувствительности 0,5 → (36,75 + 10,75) / 2 = 23,75 % → граница +15 %.
+    reason (если поправки нет): no_rules — для класса показателей нет; kind — к виду объекта не подходят;
+    region_unknown — регион не распознан; no_regional — у показателей нет сравнения региона с республикой;
+    zero_weight — сравнение есть только у показателей с весом 0 (act_analytics.fork_data ставит им why =
+    weight_zero и used = false: показатель виден, в поправку не входит).
+    """
+    rg = fs["region"]
+    sens, lo, hi = float(rg["sensitivity"]), float(rg["min_pct"]), float(rg["max_pct"])
+    out = {"pct": 0.0, "raw_pct": None, "clamped": None, "bounds": [lo, hi], "sensitivity": sens, "used": 0,
+           "reason": None, "calibrated": CALIBRATED}
+    wts = rg.get("weights") or {}
+    used = [i for i in indicators if i.get("ratio") is not None and i.get("used") is not False]
+    effects = [round((float(i["ratio"]) - 1) * sens * 100, 4) for i in used]
+    weights = [float(wts.get(i.get("id"), 1.0)) for i in used]
+    if not class_has_rules:
+        out["reason"] = "no_rules"
+    elif not indicators:
+        out["reason"] = "kind"
+    elif not region_known:
+        out["reason"] = "region_unknown"
+    elif not effects:
+        # сравнение есть только у показателей с весом 0 (claims_freq по умолчанию) — поправки нет по настройке
+        out["reason"] = "zero_weight" if any(i.get("why") == "weight_zero" for i in indicators) else "no_regional"
+    if out["reason"]:
+        return out
+    wsum = sum(weights)
+    raw = round(sum(e * w for e, w in zip(effects, weights)) / wsum, 2) if wsum else 0.0
+    out["weights"] = {i.get("id"): w for i, w in zip(used, weights) if w != 1.0}
+    out.update(pct=round(min(hi, max(lo, raw)), 2), raw_pct=raw, used=len(effects),
+               clamped="max" if raw > hi else ("min" if raw < lo else None))
+    return out
+
+
+def fork_market(act_pct: Optional[float], market_pct: Optional[float], loss_ratio: Optional[float],
+                fs: dict) -> dict:
+    """
+    Поправка рынка: ставка акта ниже рыночной и убыточность класса не ниже порога ступени → надбавка ступени
+    (по умолчанию ≥ 60 % → +10 %, ≥ 80 % → +20 %). reason: no_data — нет рыночной ставки или убыточности;
+    no_rate — у акта нет ставки; act_not_below — ставка акта не ниже рыночной; lr_below — убыточность ниже порогов;
+    applied — надбавка применена.
+    """
+    steps = [[float(s[0]), float(s[1])] for s in fs["market"]["steps"]]
+    out = {"pct": 0.0, "reason": None, "threshold": None, "steps": steps, "calibrated": CALIBRATED}
+    if market_pct is None or loss_ratio is None:
+        out["reason"] = "no_data"
+    elif act_pct is None:
+        out["reason"] = "no_rate"
+    elif float(act_pct) + 1e-12 >= float(market_pct):
+        out["reason"] = "act_not_below"
+    else:
+        hit = [s for s in steps if float(loss_ratio) + 1e-9 >= s[0]]
+        if not hit:
+            out["reason"] = "lr_below"
+        else:
+            out.update(pct=hit[-1][1], threshold=hit[-1][0], reason="applied")
+    return out
+
+
+def _step_of(lr: Optional[float], steps: list) -> float:
+    if lr is None:
+        return 0.0
+    hit = [float(x[1]) for x in steps if float(lr) + 1e-9 >= float(x[0])]
+    return hit[-1] if hit else 0.0
+
+
+def fork_market_lr(market: dict, fs: dict) -> tuple:
+    """
+    Убыточность для поправки рынка: (значение %, база last | full_year, взят ли полный год вместо среза).
+    loss_ratio = full_year — всегда полный год. loss_ratio = last и basis = full_year_if_available (по умолчанию):
+    если по последнему срезу ступень надбавки выше, чем по полному году (скачок убыточности за неполный год —
+    пакет 3,14 на 01.07.2026: 81,9 % против 2,5 % за 2025 год), берётся полный год с пометкой (full_year_switch).
+    basis = last — всегда срез. Полного года нет — срез.
+    """
+    mset = fs["market"]
+    last, fy = market.get("loss_ratio_pct"), market.get("loss_ratio_full_year_pct")
+    if mset.get("loss_ratio") == "full_year":
+        return fy, "full_year", False
+    if mset.get("basis", "full_year_if_available") == "full_year_if_available" and last is not None \
+            and fy is not None:
+        steps = [[float(x[0]), float(x[1])] for x in mset["steps"]]
+        if _step_of(fy, steps) < _step_of(last, steps):
+            return fy, "full_year", True
+    return last, "last", False
+
+
+def fork_rate(act_pct: float, region_pct: float, market_pct: float, min_pct: Optional[float]) -> tuple:
+    """(ставка с учётом региона и рынка, округлена до 4 знаков; поднята ли до минимума)."""
+    r = round(float(act_pct) * (1 + float(region_pct) / 100) * (1 + float(market_pct) / 100), 4)
+    if min_pct is not None and r + 1e-12 < float(min_pct):
+        return round(float(min_pct), 4), True
+    return r, False
+
+
+def fork_position(rate_pct: Optional[float], min_pct: Optional[float], market_pct: Optional[float]) -> str:
+    """Где ставка документа на шкале: below_min | above_market | inside | none."""
+    if rate_pct is None:
+        return "none"
+    if min_pct is not None and float(rate_pct) + 1e-9 < float(min_pct):
+        return "below_min"
+    if market_pct is not None and float(rate_pct) > float(market_pct) + 1e-9:
+        return "above_market"
+    return "inside"
+
+
+def fork_adjust(rate_res: dict, region: dict, market: dict, fs: dict) -> Optional[dict]:
+    """
+    Поправки и ставка п. 3 для ставки акта rate_res (режим tariff). region — fork_region, market — данные НАПП
+    {rate_pct, loss_ratio_pct, loss_ratio_full_year_pct}. None — у акта нет тарифной ставки (обязательный вид,
+    «по программе»).
+    """
+    if rate_res.get("mode") != "tariff" or rate_res.get("applied_pct") is None:
+        return None
+    act = float(rate_res["applied_pct"])
+    lr, basis, fy_switch = fork_market_lr(market, fs)
+    mk = fork_market(act, market.get("rate_pct"), lr, fs)
+    mk.update(loss_ratio_pct=lr, market_rate_pct=market.get("rate_pct"), basis=basis, act_pct=act,
+              loss_ratio_last_pct=market.get("loss_ratio_pct"),
+              loss_ratio_full_year_pct=market.get("loss_ratio_full_year_pct"),
+              full_year_period=market.get("full_year_period"), full_year_switch=fy_switch,
+              cap_at_market=bool(fs["market"].get("cap_at_market", True)), capped=False, effective_pct=mk["pct"])
+    rate, floored = fork_rate(act, region["pct"], mk["pct"], rate_res.get("min_pct"))
+    mrate = market.get("rate_pct")
+    if mk["cap_at_market"] and mk["reason"] == "applied" and mrate is not None and rate > float(mrate) + 1e-12:
+        # потолок: надбавка рынка поднимает ставку не выше рыночной; поправка региона и минимум — как есть
+        after_reg = round(act * (1 + float(region["pct"]) / 100), 4)
+        rate, floored = fork_rate(max(after_reg, float(mrate)), 0, 0, rate_res.get("min_pct"))
+        mk.update(capped=True, effective_pct=round((rate / after_reg - 1) * 100, 2) if after_reg else 0.0)
+    return {"act_pct": act, "act_premium": rate_res.get("premium"), "region": region, "market": mk,
+            "adjusted_pct": rate, "floored": floored, "mode": fs["mode"], "calibrated": CALIBRATED}
+
+
+def apply_fork(rate_res: dict, adj: Optional[dict], sum_insured: float) -> dict:
+    """
+    Режим apply: ставка п. 3 становится ставкой акта — applied_pct, премия и строки «как посчитано» (обе поправки).
+    rate_res меняется на месте; прежняя ставка и премия — fork_act_pct, fork_act_premium (отметка «ставка акта»).
+    """
+    if not adj or adj.get("mode") != "apply":
+        return rate_res
+    term = int(rate_res.get("term_days") or 365)
+    rate_res["fork_act_pct"] = adj["act_pct"]
+    rate_res["fork_act_premium"] = rate_res.get("premium")
+    rate_res["fork_applied"] = True
+    how = [h for h in rate_res["how"] if h["code"] != "how_premium"]
+    after_reg = round(adj["act_pct"] * (1 + adj["region"]["pct"] / 100), 4)
+    how.append({"code": "how_fork_region", "params": {"base": adj["act_pct"], "spct": adj["region"]["pct"],
+                                                      "rate": after_reg}})
+    how.append({"code": "how_fork_market", "params": {"base": after_reg,
+                                                      "spct": adj["market"].get("effective_pct", adj["market"]["pct"]),
+                                                      "rate": adj["adjusted_pct"]}})
+    if adj["market"].get("capped"):
+        how.append({"code": "how_fork_market_cap", "params": {"market": adj["market"].get("market_rate_pct")}})
+    if adj.get("floored"):
+        how.append({"code": "how_fork_min", "params": {"min": rate_res.get("min_pct")}})
+    rate_res["applied_pct"] = adj["adjusted_pct"]
+    rate_res["premium"] = round(premium_of(rate_res["applied_pct"], sum_insured, term))
+    how.append({"code": "how_premium", "params": {"sum": sum_insured, "rate": rate_res["applied_pct"],
+                                                  "days": term, "premium": rate_res["premium"]}})
+    rate_res["how"] = how
+    return rate_res
+
+
+def _mark(code, rate, S, term, source, note=None, **params) -> dict:
+    prem = round(premium_of(float(rate), S, term)) if rate is not None and S else None
+    return {"code": code, "rate_pct": None if rate is None else round(float(rate), 4), "premium": prem,
+            "is_recommended": False, "source": source, "note": note, "params": params}
+
+
+def fork_build(*, rate_res: dict, adj: Optional[dict], sum_insured: float, market: dict, sources: dict,
+               request_pct: Optional[float] = None, contract_pct: Optional[float] = None,
+               technical_pct: Optional[float] = None, premium_final: Optional[float] = None,
+               franchise_applied: bool = False, mode: str = "reference") -> dict:
+    """
+    Вилка ставки одного класса (коды и числа). sources — источники из базы (act_analytics.fork_data):
+    policy, policy_act, adjusted, market, request, contract, technical, statutory. Отметки по шкале: min, act,
+    adjusted, market, затем ставки документов (request, contract) и справочная техническая (technical).
+    """
+    S = float(sum_insured or 0)
+    term = int(rate_res.get("term_days") or 365)
+    rm = rate_res.get("mode")
+    mrate = market.get("rate_pct")
+    minp = rate_res.get("min_pct")
+    out = {"available": False, "reason": None, "mode": mode, "unit": "% годовых", "marks": [],
+           "adjustments": None, "recommended": None, "position": {"request": "none", "contract": "none"},
+           "term_days": term, "sum_insured": S, "franchise_applied": bool(franchise_applied),
+           "premium_final": premium_final, "calibrated": CALIBRATED}
+    market_mark = None
+    if mrate is not None:
+        below = minp is not None and rm == "tariff" and mrate + 1e-9 < float(minp)
+        market_mark = _mark("market", mrate, S, term, sources.get("market"), "market_below_min" if below else "market")
+    if rm in ("statutory", "statutory_undefined"):
+        out["reason"] = rm
+        if rate_res.get("applied_pct") is not None:
+            m = _mark("act", rate_res["applied_pct"], S, term, sources.get("statutory"), "statutory")
+            m["premium"] = rate_res.get("premium")
+            m["is_recommended"] = True
+            out["marks"] = [m]
+            out["recommended"] = {"code": "act", "rate_pct": m["rate_pct"], "premium": m["premium"]}
+        return out
+    if rm != "tariff" or adj is None:
+        out["reason"] = "undefined"
+        if market_mark:
+            out["marks"] = [market_mark]
+        return out
+    applied = bool(rate_res.get("fork_applied"))
+    act_prem = rate_res.get("fork_act_premium") if applied else rate_res.get("premium")
+    marks = []
+    if minp is not None:
+        marks.append(_mark("min", minp, S, term, sources.get("policy"), "min"))
+    a = _mark("act", adj["act_pct"], S, term, sources.get("policy_act"), "act", level=rate_res.get("adj_pct"))
+    if act_prem is not None:
+        a["premium"] = act_prem
+    marks.append(a)
+    ad = _mark("adjusted", adj["adjusted_pct"], S, term, sources.get("adjusted"),
+               "adjusted_min" if adj.get("floored") else "adjusted",
+               region=adj["region"]["pct"], market=adj["market"].get("effective_pct", adj["market"]["pct"]),
+               capped=bool(adj["market"].get("capped")))
+    if applied:
+        ad["premium"] = rate_res.get("premium")
+    marks.append(ad)
+    if market_mark:
+        marks.append(market_mark)
+    for code, val in (("request", request_pct), ("contract", contract_pct)):
+        if val is not None:
+            pos = fork_position(val, minp, mrate)
+            out["position"][code] = pos
+            marks.append(_mark(code, val, S, term, sources.get(code), "pos_" + pos))
+    if technical_pct is not None:
+        marks.append(_mark("technical", technical_pct, S, term, sources.get("technical"), "technical"))
+    rec_code = "adjusted" if applied else "act"
+    for m in marks:
+        m["is_recommended"] = m["code"] == rec_code
+    rec = next(m for m in marks if m["code"] == rec_code)
+    out.update(available=True, marks=marks,
+               adjustments={"region": adj["region"], "market": adj["market"], "floored": bool(adj.get("floored"))},
+               recommended={"code": rec_code, "rate_pct": rec["rate_pct"], "premium": rec["premium"]})
+    return out
+
+
+def fork_contract(parts: list, sum_insured: float, term_days: int, request_pct: Optional[float] = None,
+                  contract_pct: Optional[float] = None, mode: str = "reference") -> dict:
+    """
+    Справочная вилка договора из частей: по каждой отметке min, act, adjusted — сумма премий частей и ставка
+    договора = сумма премий / страховая сумма × 365 / срок (как справочная ставка договора; минимум по ней не
+    проверяется — правило проекта № 5). Нет отметки у части — нет отметки договора. Рынка у договора нет
+    (рынок — по классу каждой части). parts — [{"rate_fork": …}].
+    """
+    S = float(sum_insured or 0)
+    term = int(term_days or 365)
+    out = {"available": False, "reason": "parts_reference", "reference_only": True, "mode": mode,
+           "unit": "% годовых", "marks": [], "adjustments": None, "recommended": None,
+           "position": {"request": "none", "contract": "none"}, "term_days": term, "sum_insured": S,
+           "calibrated": CALIBRATED}
+    forks = [p.get("rate_fork") or {} for p in parts]
+    if not forks or not S:
+        return out
+    marks = []
+    for code in ("min", "act", "adjusted"):
+        prems = []
+        for f in forks:
+            m = next((x for x in f.get("marks") or [] if x["code"] == code), None)
+            if m is None and f.get("reason") == "statutory":
+                # обязательная часть: одна ставка по нормативному акту — та же во всех отметках
+                m = next((x for x in f.get("marks") or [] if x["code"] == "act"), None)
+            prems.append(m.get("premium") if m else None)
+        if any(x is None for x in prems):
+            continue
+        total = round(sum(prems))
+        marks.append({"code": code, "rate_pct": round(total / S * 100 * 365 / term, 4), "premium": total,
+                      "is_recommended": False, "source": {"kind": "parts"}, "note": "parts_" + code, "params": {}})
+    for code, val in (("request", request_pct), ("contract", contract_pct)):
+        if val is not None:
+            marks.append({"code": code, "rate_pct": round(float(val), 4),
+                          "premium": round(premium_of(float(val), S, term)), "is_recommended": False,
+                          "source": {"kind": code}, "note": "parts_doc", "params": {}})
+    rec_code = "adjusted" if mode == "apply" else "act"
+    for m in marks:
+        m["is_recommended"] = m["code"] == rec_code
+    rec = next((m for m in marks if m["code"] == rec_code), None)
+    out.update(marks=marks, available=bool(rec),
+               recommended={"code": rec_code, "rate_pct": rec["rate_pct"], "premium": rec["premium"]} if rec else None)
     return out

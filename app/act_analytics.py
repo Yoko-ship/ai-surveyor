@@ -18,6 +18,7 @@ stat_series), в сеть модуль не ходит. Возвращает к�
 Все пороги и доли — экспертные (calibrated = 0).
 """
 import math
+import re
 from datetime import date
 from typing import Optional
 
@@ -555,9 +556,19 @@ def market(con, cls: str, product_code: Optional[str], region: str, act_rate: Op
            "calibrated": CALIBRATED}
     if out["source"]:
         out["source"]["slice"] = mk.get("rate_date")
+    # комплексный продукт (01.10.2026): строка — пакет НАПП с классами продукта (точный или ближайший) или,
+    # если такого пакета нет, строка класса; how — exact | nearest | class, слова — act.py
+    pcx = mk.get("pack_choice")
+    out["pack_choice"] = dict(pcx) if pcx else None
+    if pcx:
+        out["pack_classes"] = list(pcx.get("pack_classes") or [])
+        prem = (mk.get("premiums") or {}).get("value")
+        out["pack_premiums"] = _r(prem, 1) if prem is not None else None
+    # одиночные строки классов продукта рядом с пакетом (правило проекта № 5 — ставка по каждому классу)
+    out["class_rows"] = list(mk.get("class_rows") or [])
     # какая строка отчёта взята: у 8 и 9 — строка пакета «8, 9»; по данным market_stats сравниваем её объём
     # с отдельной строкой класса (market_picture.ALTERNATIVES) — почему взят пакет, видно по цифрам
-    if out["pack"]:
+    if out["pack"] and not pcx:
         prem = (mk.get("premiums") or {}).get("value")
         alt = next((a for a in mk.get("alternatives") or [] if a.get("row_key") == "cls" + str(cls)), None)
         out["pack_classes"] = [x for x in (mk.get("row_key") or "")[3:].split("_") if x]
@@ -570,6 +581,16 @@ def market(con, cls: str, product_code: Optional[str], region: str, act_rate: Op
     digits = "".join(ch for ch in fy_period if ch.isdigit())[:4]
     out["full_year"] = int(digits) if digits else None
     return out
+
+
+def napp_extra(con, region: Optional[str]) -> dict:
+    """Претензии региона и рынка/INSON, подразделения INSON в регионе (НАПП) — для раздела 4 «Рынок и статистика».
+    Только чтение napp_claims / napp_branches; нет листа за последний срез — блок с reason и note (пропуск).
+    Вес claims_freq в поправке региона и порог малой базы подразделений act.py дописывает из настроек
+    (claims_weight, branch_min_contracts)."""
+    return {"available": True, "region_claims": mp.region_claims(con, region),
+            "company_claims": mp.company_claims(con), "branches": mp.branches(con, region),
+            "calibrated": CALIBRATED}
 
 
 def stats(an: dict, excluded: Optional[list] = None) -> dict:
@@ -657,6 +678,141 @@ def measures_effect(meas: dict, tech: Optional[float]) -> dict:
 
 
 # ================================================================================================
+#  9. Вилка ставки (01.10.2026): данные региона (stat.uz, data.egov.uz) и рынка (НАПП) для поправок
+# ================================================================================================
+
+def _policy_source(con, product_code: Optional[str], min_pct: Optional[float], min_source: Optional[str]) -> dict:
+    """Источник минимальной ставки: действующая версия тарифной политики (или ставка части из текста тарифа)."""
+    row = None
+    if product_code and min_pct is not None:
+        rows = db.rows(con, "SELECT v.level, v.name, v.document_ref, v.effective_from FROM min_rates m "
+                            "JOIN tariff_versions v ON v.id = m.tariff_version_id WHERE m.product_code=? "
+                            "AND abs(m.min_rate_pct - ?) < 1e-9 ORDER BY v.effective_from DESC LIMIT 1",
+                       product_code, float(min_pct))
+        row = rows[0] if rows else None
+    if row is None:
+        rows = db.rows(con, "SELECT level, name, document_ref, effective_from FROM tariff_versions "
+                            "WHERE level='компания' ORDER BY effective_from DESC LIMIT 1")
+        row = rows[0] if rows else {}
+    title = " — ".join(x for x in (row.get("name"), row.get("document_ref")) if x) or "тарифная политика"
+    return {"kind": "regulator" if row.get("level") == "регулятор" else "policy", "title_ru": title, "url": None,
+            "as_of": row.get("effective_from"), "product_code": product_code,
+            "part_text": min_source in ("rate_text", "rate_text_common")}
+
+
+def _act_ref(text: Optional[str]) -> Optional[str]:
+    """«0,4% (ПКМ №532)» → «ПКМ №532»: ставка показывается отдельно, в источнике — только нормативный акт."""
+    if not text:
+        return None
+    m = re.search(r"\(([^()]+)\)", str(text))
+    return m.group(1).strip() if m else str(text).strip()
+
+
+def _stat_source(i: dict) -> Optional[dict]:
+    s = (i.get("src") or [None])[0]
+    if not s:
+        return None
+    return {"kind": "stat", "title_ru": "%s — %s" % (s.get("source") or "stat.uz", s.get("name") or s.get("id")),
+            "url": s.get("url") or s.get("data_url"), "as_of": s.get("period"), "fetched_at": s.get("fetched_at"),
+            "dataset": s.get("id")}
+
+
+def fork_data(con, *, cls: str, region: str, group: Optional[str], fs: dict, product_code: Optional[str] = None,
+              min_pct: Optional[float] = None, min_source: Optional[str] = None,
+              statutory_ref: Optional[str] = None) -> dict:
+    """
+    Данные для поправок вилки ставки — только чтение базы (stat_series, market_stats, tariff_versions):
+      region — показатели региона для класса и вида объекта (risk_stats, отношение «регион / республика»)
+               и поправка ae.fork_region;
+      market — рыночная ставка и убыточность класса (market_picture, НАПП) с датой среза и ссылкой;
+      sources — источники отметок вилки.
+    """
+    from . import act_engine as ae
+    from . import risk_stats as rs
+    key = rs._region_key(region) if region else None
+    known = bool(key) and key != "total"
+    ids, other = ae.fork_indicator_ids(fs, cls, group)
+    sens = float(fs["region"]["sensitivity"])
+    wts = fs["region"].get("weights") or {}
+    inds = []
+    for iid in ids + other:
+        spec = rs.BY_ID.get(iid)
+        if not spec:
+            continue
+        for_kind = iid in ids
+        try:
+            i = rs._one(con, spec, cls, key, {}) if for_kind else {"name": spec["name"], "src": []}
+        except Exception as e:                  # один показатель не прочитан — остальные считаются
+            i = {"name": spec["name"], "src": [], "error": type(e).__name__}
+        lv = i.get("level_vs_country") or {}
+        ratio = lv.get("ratio")
+        why = None
+        if not for_kind:
+            why = "kind"
+        elif not known:
+            why = "region_unknown"
+        elif i.get("value") is None:
+            why = "no_data"
+        elif ratio is None:
+            why = "no_regional"
+        elif float(wts.get(iid, 1.0)) == 0:
+            # вес 0 в настройке (claims_freq по умолчанию): значение и сравнение показываются, в поправку не входят
+            why = "weight_zero"
+        used = why is None
+        per1000 = spec["kind"] == rs.COUNT_PC
+        src_i = _stat_source(i)
+        if spec["kind"] == rs.NAPP_CLAIMS and src_i:
+            # частота претензий — из отчёта НАПП (листы 3.5 и 3.4), подпись источника — act.py (rf_src_napp_claims)
+            src_i = dict(src_i, kind="napp_claims", as_of=i.get("date") or src_i.get("as_of"))
+        inds.append({"id": iid, "name_ru": i.get("name") or spec["name"], "kind": spec["kind"],
+                     "unit_ru": ("%s на 1 000 жителей" % spec["unit"]) if per1000 else spec["unit"],
+                     "region_value": lv.get("region"), "country_value": lv.get("country"), "ratio": ratio,
+                     "period": i.get("period"), "value": i.get("value"), "value_unit_ru": spec["unit"],
+                     "effect_pct": round((ratio - 1) * sens * 100, 2) if used else None,
+                     "weight": float(wts.get(iid, 1.0)),
+                     "used": used, "why": why, "source": src_i,
+                     "scope": i.get("scope"), "calibrated": CALIBRATED})
+    applicable = [x for x in inds if x["why"] != "kind"]
+    reg = ae.fork_region(applicable, fs, known, bool(ids or other))
+    reg.update(region_key=key, region_name_ru=(mp.resolve_region(region)[1] if region else None),
+               region_requested=region or None, indicators=inds,
+               not_found_ru=rs.NOT_FOUND.get(str(cls)))
+    # рынок класса (НАПП)
+    mk = {"rate_pct": None, "rate_date": None, "loss_ratio_pct": None, "loss_ratio_full_year_pct": None,
+          "row_key": None, "source": None, "pack": False}
+    try:
+        # комплексный продукт: поправка рынка — по пакету НАПП продукта (и для частей договора), а не по классу
+        p = mp.picture(con, cls, product_code, None)
+        m = p["market"]
+        srcs = {s["id"]: s for s in p["sources"]}
+        s = srcs.get(m.get("rate_src")) or {}
+        mk.update(rate_pct=m.get("rate_pct"), rate_date=m.get("rate_date"), loss_ratio_pct=m.get("loss_ratio_pct"),
+                  loss_ratio_full_year_pct=m.get("loss_ratio_full_year_pct"),
+                  full_year_period=m.get("rate_full_year_period"), row_key=m.get("row_key"),
+                  pack=m.get("row_kind") == "пакет классов", pack_choice=m.get("pack_choice"),
+                  class_rows=list(m.get("class_rows") or []),
+                  source={"kind": "napp", "title_ru": s.get("title") or mp.NAPP_TITLE,
+                          "url": s.get("url") or mp.NAPP_PAGE, "as_of": m.get("rate_date")}
+                  if m.get("rate_pct") is not None else None)
+    except Exception as e:                      # рынок не прочитан — поправки рынка нет, причина видна
+        mk["error"] = type(e).__name__
+    policy = _policy_source(con, product_code, min_pct, min_source)
+    stat_srcs = [x["source"] for x in inds if x["used"] and x["source"]]
+    adjusted_src = {"kind": "adjusted", "title_ru": "; ".join(dict.fromkeys(
+        [s["title_ru"] for s in stat_srcs] + ([mk["source"]["title_ru"]] if mk.get("source") else []))) or None,
+        "url": (stat_srcs[0]["url"] if stat_srcs else (mk.get("source") or {}).get("url")),
+        "as_of": max([s["as_of"] for s in stat_srcs if s.get("as_of")] or [None], key=lambda x: x or ""),
+        "items": stat_srcs + ([mk["source"]] if mk.get("source") else [])}
+    sources = {"policy": policy, "policy_act": dict(policy, kind="policy_act"), "adjusted": adjusted_src,
+               "market": mk.get("source"), "request": {"kind": "request", "title_ru": None, "url": None,
+                                                        "as_of": None},
+               "contract": {"kind": "contract", "title_ru": None, "url": None, "as_of": None},
+               "technical": {"kind": "technical", "title_ru": None, "url": None, "as_of": None},
+               "statutory": {"kind": "statutory", "title_ru": _act_ref(statutory_ref), "url": None, "as_of": None}}
+    return {"region": reg, "market": mk, "sources": sources, "calibrated": CALIBRATED}
+
+
+# ================================================================================================
 #  Сборка
 # ================================================================================================
 
@@ -697,6 +853,7 @@ def build(con, ctx: dict, *, cls: str, product_code: Optional[str], region: str,
                 {"items": []})["items"]
     mk = safe("market", lambda: market(con, cls, product_code, region, rate_res.get("applied_pct"),
                                        calc["rates"]["technical_pct"]), {})
+    napp = safe("napp", lambda: napp_extra(con, region), {})
     excluded = housing_excluded(an, group)
     out.update(
         available=True,
@@ -716,6 +873,7 @@ def build(con, ctx: dict, *, cls: str, product_code: Optional[str], region: str,
         score=safe("score", lambda: score(an, act_level, th, excluded), {}),
         market=mk,
         stats=safe("stats", lambda: stats(an, excluded), {"indicators": []}),
+        napp=napp,
         group=group,
         franchise=safe("franchise", lambda: franchise_table(con, ctx, rate_res, S, cls, statutory, th), {"rows": []}),
         measures=safe("measures", lambda: measures_effect(meas, calc["rates"]["technical_pct"]), {"items": []}),

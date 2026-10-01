@@ -984,6 +984,53 @@ TX.update({
     "as_tpl_dispute": {"ru": "лимит на один спор не указан — взята страховая сумма",
                        "uz": "bitta nizoga limit koʻrsatilmagan — sugʻurta summasi olindi",
                        "en": "the limit per dispute is not stated — the sum insured is used"},
+    # урожай сельхозкультур (вариант 16у, правило crop), 01.10.2026
+    "tpl_crop_ok": {"ru": "Стоимость урожая: {area} га × {yield} ц/га × {price} за центнер = {value}; страховая сумма "
+                          "{sum} равна стоимости",
+                    "uz": "Hosil qiymati: {area} ga × {yield} s/ga × sentner uchun {price} = {value}; sugʻurta summasi "
+                          "{sum} qiymatga teng",
+                    "en": "Crop value: {area} ha × {yield} c/ha × {price} per centner = {value}; the sum insured {sum} "
+                          "equals the value"},
+    "tpl_crop_under": {"ru": "Стоимость урожая: {area} га × {yield} ц/га × {price} за центнер = {value}; страховая "
+                             "сумма {sum} ниже стоимости ({pct} %) — выплата пропорционально (ГК РУз, ст. 936)",
+                       "uz": "Hosil qiymati: {area} ga × {yield} s/ga × sentner uchun {price} = {value}; sugʻurta "
+                             "summasi {sum} qiymatdan past ({pct} %) — toʻlov mutanosib (FK, 936-modda)",
+                       "en": "Crop value: {area} ha × {yield} c/ha × {price} per centner = {value}; the sum insured "
+                             "{sum} is below the value ({pct} %) — proportional payment (Civil Code, art. 936)"},
+    "tpl_crop_over": {"ru": "Стоимость урожая: {area} га × {yield} ц/га × {price} за центнер = {value}; страховая "
+                            "сумма {sum} выше стоимости на {excess} — недопустимо (ГК РУз, ст. 938)",
+                      "uz": "Hosil qiymati: {area} ga × {yield} s/ga × sentner uchun {price} = {value}; sugʻurta "
+                            "summasi {sum} qiymatdan {excess} ga yuqori — yoʻl qoʻyilmaydi (FK, 938-modda)",
+                      "en": "Crop value: {area} ha × {yield} c/ha × {price} per centner = {value}; the sum insured "
+                            "{sum} exceeds the value by {excess} — not allowed (Civil Code, art. 938)"},
+    "c_tpl_crop_over": {"ru": "Урожай: страховая сумма {sum} выше страховой стоимости урожая {value} (площадь × "
+                              "средняя урожайность за 5 лет × цена) — уменьшить до {value} (ГК РУз, ст. 938)",
+                        "uz": "Hosil: sugʻurta summasi {sum} hosilning sugʻurta qiymati {value} dan yuqori (maydon × "
+                              "5 yillik oʻrtacha hosildorlik × narx) — {value} gacha kamaytirish (FK, 938-modda)",
+                        "en": "Crop: the sum insured {sum} exceeds the insured value of the crop {value} (area × "
+                              "5-year average yield × price) — reduce to {value} (Civil Code, art. 938)"},
+    "as_tpl_crop_value": {"ru": "площадь, средняя урожайность за 5 лет или цена не указаны — стоимость урожая не "
+                                "рассчитана, взята стоимость объекта",
+                          "uz": "maydon, 5 yillik oʻrtacha hosildorlik yoki narx koʻrsatilmagan — hosil qiymati "
+                                "hisoblanmadi, obyekt qiymati olindi",
+                          "en": "the area, 5-year average yield or price is not stated — the crop value was not "
+                                "calculated, the object value is used"},
+    "as_tpl_crop_shares": {"ru": "PML — потеря {pl} % урожая на {pa} % площади, EML — гибель {el} % урожая на {ea} % "
+                                 "площади, MFL — полная гибель на всей площади: доли экспертные (оценка разработчика, "
+                                 "не утверждено страховщиком)",
+                           "uz": "PML — maydonning {pa} % ida hosilning {pl} % i yoʻqotilishi, EML — maydonning {ea} % "
+                                 "ida hosilning {el} % i nobud boʻlishi, MFL — butun maydonda toʻliq nobud boʻlish: "
+                                 "ulushlar ekspert bahosi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+                           "en": "PML — loss of {pl} % of the crop on {pa} % of the area, EML — loss of {el} % of the "
+                                 "crop on {ea} % of the area, MFL — total loss on the whole area: expert shares "
+                                 "(developer's estimate, not approved by the insurer)"},
+    # класс без продуктов страховщика (16у, 18), 01.10.2026
+    "how_no_products": {"ru": "У страховщика нет продуктов класса {cls} — тарифной политики по классу нет, ставка не "
+                              "определена, акт сформирован по шаблону класса",
+                        "uz": "Sugʻurtalovchida {cls}-klass mahsulotlari yoʻq — klass boʻyicha tarif siyosati yoʻq, "
+                              "tarif aniqlanmagan, dalolatnoma klass shabloni boʻyicha tuzildi",
+                        "en": "The insurer has no products in class {cls} — there is no tariff policy for the class, "
+                              "the rate is not determined, the report follows the class template"},
     "an_r_template": {"ru": "В справочнике рисков класс {cls} не разбит на риски: доли — экспертные доли шаблона класса "
                             "(приложение А), сумма {total}, не калибровано. {note}",
                       "uz": "Xavflar maʼlumotnomasida {cls}-klass xavflarga boʻlinmagan: ulushlar — klass shablonining "
@@ -2651,6 +2698,19 @@ STAT_LABELS = {
                                    "uz": "Qurilish narxlari indeksi (oʻtgan yil dekabriga)",
                                    "en": "Construction price index (to December of the previous year)"},
 }
+# оговорки показателей вилки ставки (01.10.2026): что показатель измеряет на самом деле — в карточке и в документе
+STAT_CAVEATS = {
+    "road_accidents": {"ru": "все ДТП региона, а не страховые случаи",
+                       "uz": "hududdagi barcha YTH, sugʻurta hodisalari emas",
+                       "en": "all road accidents in the region, not insured events"},
+    "thefts": {"ru": "все кражи, угоны отдельно не публикуются",
+               "uz": "barcha oʻgʻirliklar, avtomobil oʻgʻirlash alohida eʼlon qilinmaydi",
+               "en": "all thefts; vehicle thefts are not published separately"},
+    "vulnerable_housing": {"ru": "доля глинобитного жилья — свойство жилого фонда региона, не конструкции объекта",
+                           "uz": "paxsa uylar ulushi — hudud uy-joy fondining xususiyati, obyekt konstruksiyasiniki emas",
+                           "en": "the share of adobe housing describes the region's housing stock, not the object's "
+                                 "construction"},
+}
 STAT_UNITS = {
     "ДТП": {"ru": "ДТП", "uz": "YTH", "en": "accidents"},
     "человек": {"ru": "человек", "uz": "kishi", "en": "people"},
@@ -4000,4 +4060,551 @@ TX.update({
                          "yozuvlari boʻyicha qidiriladi) — qoʻlda kiriting",
                    "en": "Report date not found (looked up by the request time, request date, application date or "
                          "consent date labels) — enter it manually"},
+})
+
+# --------------------------------------------------------------------------- #
+#  Вилка ставки (01.10.2026): минимум → ставка акта → с учётом региона и рынка → рынок
+# --------------------------------------------------------------------------- #
+FORK_POS_LABELS = {
+    "below_min": {"ru": "ниже минимума", "uz": "minimumdan past", "en": "below the minimum"},
+    "inside": {"ru": "внутри вилки", "uz": "oraliq ichida", "en": "within the range"},
+    "above_market": {"ru": "выше рынка", "uz": "bozordan yuqori", "en": "above the market"},
+    "none": {"ru": "нет", "uz": "yoʻq", "en": "none"},
+}
+FORK_WHY_LABELS = {
+    "kind": {"ru": "к этому виду объекта не относится", "uz": "bu obyekt turiga taalluqli emas",
+             "en": "does not apply to this kind of object"},
+    "no_regional": {"ru": "нет разреза по регионам — только республика", "uz": "hududlar kesimi yoʻq — faqat respublika",
+                    "en": "no regional breakdown — country only"},
+    "no_data": {"ru": "нет данных", "uz": "maʼlumot yoʻq", "en": "no data"},
+    "region_unknown": {"ru": "регион не распознан", "uz": "hudud aniqlanmadi", "en": "region not recognised"},
+    # вес 0 в настройке rate_fork.region.weights (claims_freq по умолчанию, 01.10.2026)
+    "weight_zero": {"ru": "показан справочно, в поправку не входит (вес 0 в настройке)",
+                    "uz": "maʼlumot uchun koʻrsatilgan, tuzatishga kirmaydi (sozlamada vazn 0)",
+                    "en": "shown for reference, not part of the adjustment (weight 0 in the settings)"},
+}
+TX.update({
+    "rf_title": {"ru": "Вилка ставки", "uz": "Tarif oraligʻi", "en": "Rate range"},
+    "rf_unit": {"ru": "% годовых", "uz": "yillik %", "en": "% per annum"},
+    "rf_col_mark": {"ru": "Отметка", "uz": "Belgi", "en": "Mark"},
+    "rf_col_rate": {"ru": "Ставка, % годовых", "uz": "Tarif, yillik %", "en": "Rate, % p.a."},
+    "rf_col_premium": {"ru": "Премия за срок", "uz": "Muddat uchun mukofot", "en": "Premium for the term"},
+    "rf_col_why": {"ru": "Из чего сложилась", "uz": "Nimadan tashkil topgan", "en": "How it is built"},
+    "rf_col_src": {"ru": "Источник", "uz": "Manba", "en": "Source"},
+    "rf_m_min": {"ru": "Минимальная", "uz": "Minimal", "en": "Minimum"},
+    "rf_m_act": {"ru": "Ставка акта", "uz": "Dalolatnoma tarifi", "en": "Report rate"},
+    "rf_m_adjusted": {"ru": "С учётом региона и рынка", "uz": "Hudud va bozorni hisobga olgan holda",
+                      "en": "Adjusted for region and market"},
+    "rf_m_market": {"ru": "Рыночная (НАПП)", "uz": "Bozor (SHNMA)", "en": "Market (NAPP)"},
+    "rf_m_request": {"ru": "Запрос филиала", "uz": "Filial soʻrovi", "en": "Branch request"},
+    "rf_m_contract": {"ru": "Договор", "uz": "Shartnoma", "en": "Contract"},
+    "rf_m_technical": {"ru": "Техническая ставка расчётного модуля (справочно)",
+                       "uz": "Hisob-kitob modulining texnik tarifi (maʼlumot uchun)",
+                       "en": "Rating module technical rate (for reference)"},
+    "rf_recommended": {"ru": "рекомендуем", "uz": "tavsiya etamiz", "en": "recommended"},
+    "rf_rec_short": {"ru": "рек.", "uz": "tavs.", "en": "rec."},
+    "rf_doc_policy": {"ru": "Тарифная политика INSON", "uz": "INSON tarif siyosati", "en": "INSON tariff policy"},
+    "rf_doc_regulator": {"ru": "Тарифы регулятора", "uz": "Regulyator tariflari", "en": "Regulator's tariffs"},
+    "rf_doc_regulation": {"ru": "нормативный акт", "uz": "normativ hujjat", "en": "regulation"},
+    "rf_an_applied": {"ru": "с поправками региона и рынка (вилка ставки, режим «применить»)",
+                      "uz": "hudud va bozor tuzatishlari bilan (tarif oraligʻi, «qoʻllash» rejimi)",
+                      "en": "with region and market adjustments (rate range, “apply” mode)"},
+    "rf_n_min": {"ru": "минимальная ставка продукта по тарифной политике; ниже — только отступление (решение андеррайтера)",
+                 "uz": "tarif siyosati boʻyicha mahsulotning minimal tarifi; undan past — faqat chetlanish (anderrayter "
+                       "qarori)",
+                 "en": "the product's minimum rate under the tariff policy; below it — only by a deviation "
+                       "(underwriter's decision)"},
+    "rf_n_act": {"ru": "ставка тарифной политики × поправка по уровню риска {adj} (экспертно), не ниже минимума",
+                 "uz": "tarif siyosati tarifi × xavf darajasi boʻyicha tuzatish {adj} (ekspert baho), minimumdan past emas",
+                 "en": "tariff-policy rate × risk-level adjustment {adj} (expert), not below the minimum"},
+    "rf_n_adjusted": {"ru": "ставка акта × (1 {reg}) × (1 {mkt}): поправки региона и рынка (экспертно, не калибровано)",
+                      "uz": "dalolatnoma tarifi × (1 {reg}) × (1 {mkt}): hudud va bozor tuzatishlari (ekspert baho, "
+                            "kalibrlanmagan)",
+                      "en": "report rate × (1 {reg}) × (1 {mkt}): region and market adjustments (expert, not calibrated)"},
+    "rf_n_adjusted_min": {"ru": "ставка акта × (1 {reg}) × (1 {mkt}) ниже минимума — применён минимум",
+                          "uz": "dalolatnoma tarifi × (1 {reg}) × (1 {mkt}) minimumdan past — minimum qoʻllanildi",
+                          "en": "report rate × (1 {reg}) × (1 {mkt}) is below the minimum — the minimum applies"},
+    "rf_n_market": {"ru": "средняя ставка рынка по классу: премии / страховые обязательства (срез {date}); верхний "
+                          "ориентир", "uz": "klass boʻyicha bozorning oʻrtacha tarifi: mukofotlar / sugʻurta "
+                                           "majburiyatlari ({date} kesimi); yuqori moʻljal",
+                    "en": "average market rate for the class: premiums / insurance liabilities (snapshot {date}); "
+                          "upper benchmark"},
+    "rf_n_market_below_min": {"ru": "средняя ставка рынка (срез {date}) ниже минимальной ставки продукта — это ориентир, "
+                                    "вилку не меняет",
+                              "uz": "bozorning oʻrtacha tarifi ({date} kesimi) mahsulotning minimal tarifidan past — bu "
+                                    "moʻljal, oraliqni oʻzgartirmaydi",
+                              "en": "the average market rate (snapshot {date}) is below the product minimum — a benchmark "
+                                    "only, it does not change the range"},
+    "rf_n_pos_below_min": {"ru": "ниже минимума — нужно отступление (решение андеррайтера)",
+                           "uz": "minimumdan past — chetlanish kerak (anderrayter qarori)",
+                           "en": "below the minimum — a deviation is needed (underwriter's decision)"},
+    "rf_n_pos_inside": {"ru": "внутри вилки (не ниже минимума и не выше рынка)",
+                        "uz": "oraliq ichida (minimumdan past emas va bozordan yuqori emas)",
+                        "en": "within the range (not below the minimum, not above the market)"},
+    "rf_n_pos_above_market": {"ru": "выше рыночной ставки", "uz": "bozor tarifidan yuqori",
+                              "en": "above the market rate"},
+    "rf_n_technical": {"ru": "справочно: база × доли рисков × коэффициенты, с нагрузкой; в премию акта не идёт",
+                       "uz": "maʼlumot uchun: baza × xavflar ulushi × koeffitsiyentlar, yuklama bilan; dalolatnoma "
+                             "mukofotiga kirmaydi",
+                       "en": "for reference: base × peril shares × factors, with loading; not used in the report premium"},
+    "rf_n_statutory": {"ru": "ставка установлена нормативным актом — без поправок",
+                       "uz": "tarif normativ hujjat bilan belgilangan — tuzatishlarsiz",
+                       "en": "the rate is set by a regulation — no adjustments"},
+    "rf_n_parts_min": {"ru": "сумма премий частей по минимальным ставкам; ставка договора — справочно",
+                       "uz": "qismlar mukofotlari yigʻindisi minimal tariflar boʻyicha; shartnoma tarifi — maʼlumot uchun",
+                       "en": "sum of the parts' premiums at the minimum rates; contract rate for reference"},
+    "rf_n_parts_act": {"ru": "сумма премий частей по ставкам акта; ставка договора — справочно",
+                       "uz": "qismlar mukofotlari yigʻindisi dalolatnoma tariflari boʻyicha; shartnoma tarifi — maʼlumot "
+                             "uchun",
+                       "en": "sum of the parts' premiums at the report rates; contract rate for reference"},
+    "rf_n_parts_adjusted": {"ru": "сумма премий частей с учётом региона и рынка; ставка договора — справочно",
+                            "uz": "hudud va bozorni hisobga olgan qismlar mukofotlari yigʻindisi; shartnoma tarifi — "
+                                  "maʼlumot uchun",
+                            "en": "sum of the parts' premiums adjusted for region and market; contract rate for "
+                                  "reference"},
+    "rf_n_parts_doc": {"ru": "ставка документа по договору в целом — сравнивать с частями", "uz":
+                       "hujjatdagi umumiy shartnoma tarifi — qismlar bilan solishtiring",
+                       "en": "the document's rate for the whole contract — compare with the parts"},
+    "rf_src_policy": {"ru": "{title}, действует с {date}", "uz": "{title}, {date} dan amalda",
+                      "en": "{title}, effective from {date}"},
+    "rf_src_policy_part": {"ru": "{title}: ставка части в тексте тарифа продукта {code}",
+                           "uz": "{title}: {code} mahsulot tarifi matnidagi qism tarifi",
+                           "en": "{title}: the part's rate in the tariff text of product {code}"},
+    "rf_src_policy_act": {"ru": "{title} + поправка по уровню риска (настройки акта, экспертно)",
+                          "uz": "{title} + xavf darajasi boʻyicha tuzatish (dalolatnoma sozlamalari, ekspert baho)",
+                          "en": "{title} + risk-level adjustment (report settings, expert)"},
+    "rf_src_napp": {"ru": "НАПП — отчёт о страховом рынке, срез {date}", "uz": "SHNMA — sugʻurta bozori hisoboti, "
+                                                                                  "{date} kesimi",
+                    "en": "NAPP — insurance market report, snapshot {date}"},
+    "rf_src_adjusted": {"ru": "ставка акта + stat.uz / data.egov.uz + НАПП (поправки — ниже)",
+                        "uz": "dalolatnoma tarifi + stat.uz / data.egov.uz + SHNMA (tuzatishlar — pastda)",
+                        "en": "report rate + stat.uz / data.egov.uz + NAPP (adjustments below)"},
+    "rf_src_request": {"ru": "запрос филиала", "uz": "filial soʻrovi", "en": "branch request"},
+    "rf_src_contract": {"ru": "договор страхования", "uz": "sugʻurta shartnomasi", "en": "insurance contract"},
+    "rf_src_technical": {"ru": "расчётный модуль (справочник базовых ставок и коэффициентов)",
+                         "uz": "hisob-kitob moduli (bazaviy tariflar va koeffitsiyentlar maʼlumotnomasi)",
+                         "en": "rating module (base rates and factors reference)"},
+    "rf_src_statutory": {"ru": "нормативный акт: {title}", "uz": "normativ hujjat: {title}",
+                         "en": "regulation: {title}"},
+    "rf_src_parts": {"ru": "части договора (см. вилки частей)", "uz": "shartnoma qismlari (qismlar oraligʻiga qarang)",
+                     "en": "contract parts (see the parts' ranges)"},
+    "rf_src_line": {"ru": "Источник: {title} — {url}", "uz": "Manba: {title} — {url}", "en": "Source: {title} — {url}"},
+    "rf_sum": {"ru": "Допустимо от {min} (минимум); рекомендуем {rec}; рынок {market}.",
+               "uz": "{min} dan ruxsat etiladi (minimum); tavsiya etamiz {rec}; bozor {market}.",
+               "en": "Acceptable from {min} (minimum); we recommend {rec}; market {market}."},
+    "rf_sum_nomarket": {"ru": "Допустимо от {min} (минимум); рекомендуем {rec}; рыночной ставки по классу в данных НАПП "
+                              "нет.",
+                        "uz": "{min} dan ruxsat etiladi (minimum); tavsiya etamiz {rec}; SHNMA maʼlumotlarida klass "
+                              "boʻyicha bozor tarifi yoʻq.",
+                        "en": "Acceptable from {min} (minimum); we recommend {rec}; there is no market rate for the "
+                              "class in the NAPP data."},
+    "rf_sum_adj": {"ru": " С учётом региона и рынка — {adj} (справочно).",
+                   "uz": " Hudud va bozorni hisobga olgan holda — {adj} (maʼlumot uchun).",
+                   "en": " Adjusted for region and market — {adj} (for reference)."},
+    "rf_sum_act": {"ru": " Ставка акта до поправок — {act}.", "uz": " Tuzatishlargacha dalolatnoma tarifi — {act}.",
+                   "en": " Report rate before adjustments — {act}."},
+    "rf_sum_doc": {"ru": " {what} {rate} — {pos}.", "uz": " {what} {rate} — {pos}.", "en": " {what} {rate} — {pos}."},
+    "rf_sum_statutory": {"ru": "Тариф установлен нормативным актом: {rate} ({ref}) — вилки нет.",
+                         "uz": "Tarif normativ hujjat bilan belgilangan: {rate} ({ref}) — oraliq yoʻq.",
+                         "en": "The rate is set by a regulation: {rate} ({ref}) — no range."},
+    "rf_sum_statutory_na": {"ru": "Тариф установлен нормативным актом ({ref}); числа ставки в справочнике нет — вилки "
+                                  "нет.",
+                            "uz": "Tarif normativ hujjat bilan belgilangan ({ref}); maʼlumotnomada tarif raqami yoʻq — "
+                                  "oraliq yoʻq.",
+                            "en": "The rate is set by a regulation ({ref}); the reference has no rate figure — no range."},
+    "rf_sum_undefined": {"ru": "Ставка по продукту не определена (по программе, по согласованию или по генеральному "
+                               "договору) — вилки нет; рыночный ориентир {market}.",
+                         "uz": "Mahsulot boʻyicha tarif aniqlanmagan (dastur, kelishuv yoki bosh shartnoma boʻyicha) — "
+                               "oraliq yoʻq; bozor moʻljali {market}.",
+                         "en": "The product rate is not defined (by programme, by agreement or under a general "
+                               "agreement) — no range; market benchmark {market}."},
+    "rf_sum_undefined_nomarket": {"ru": "Ставка по продукту не определена (по программе, по согласованию или по "
+                                        "генеральному договору) — вилки нет; рыночной ставки по классу нет.",
+                                  "uz": "Mahsulot boʻyicha tarif aniqlanmagan (dastur, kelishuv yoki bosh shartnoma "
+                                        "boʻyicha) — oraliq yoʻq; klass boʻyicha bozor tarifi yoʻq.",
+                                  "en": "The product rate is not defined (by programme, by agreement or under a general "
+                                        "agreement) — no range; there is no market rate for the class."},
+    "rf_sum_parts": {"ru": "Договор из частей: вилка по каждой части (ниже); по договору справочно — минимум {min}, "
+                           "ставка акта {act}, с учётом региона и рынка {adj}.",
+                     "uz": "Qismlardan iborat shartnoma: har bir qism boʻyicha oraliq (pastda); shartnoma boʻyicha "
+                           "maʼlumot uchun — minimum {min}, dalolatnoma tarifi {act}, hudud va bozor bilan {adj}.",
+                     "en": "Contract made of parts: a range for each part (below); for the contract, for reference — "
+                           "minimum {min}, report rate {act}, adjusted for region and market {adj}."},
+    "rf_sum_error": {"ru": "Вилка ставки не посчитана (данные региона и рынка не прочитаны) — ставка акта не изменилась.",
+                     "uz": "Tarif oraligʻi hisoblanmadi (hudud va bozor maʼlumotlari oʻqilmadi) — dalolatnoma tarifi "
+                           "oʻzgarmadi.",
+                     "en": "The rate range was not calculated (region and market data not read) — the report rate is "
+                           "unchanged."},
+    "rf_reg_title": {"ru": "Поправка региона: {pct}", "uz": "Hudud tuzatishi: {pct}", "en": "Region adjustment: {pct}"},
+    "rf_reg_how": {"ru": "среднее по показателям (отношение «регион / республика» − 1) × {sens}, в границах от {lo} до "
+                         "{hi}", "uz": "koʻrsatkichlar boʻyicha oʻrtacha (\"hudud / respublika\" nisbati − 1) × {sens}, "
+                                       "{lo} dan {hi} gacha chegarada",
+                   "en": "average over indicators of (region / country ratio − 1) × {sens}, bounded from {lo} to {hi}"},
+    "rf_reg_raw": {"ru": "расчётная поправка {raw} ограничена границей {lim}",
+                   "uz": "hisoblangan tuzatish {raw} {lim} chegarasi bilan cheklandi",
+                   "en": "the calculated adjustment {raw} is capped at {lim}"},
+    "rf_reg_ind": {"ru": "{name} ({period}): регион {reg}, республика {cty} {unit} — отношение {ratio} → {effect}",
+                   "uz": "{name} ({period}): hudud {reg}, respublika {cty} {unit} — nisbat {ratio} → {effect}",
+                   "en": "{name} ({period}): region {reg}, country {cty} {unit} — ratio {ratio} → {effect}"},
+    "rf_reg_ind_off": {"ru": "{name}: не учтён — {why}", "uz": "{name}: hisobga olinmadi — {why}",
+                       "en": "{name}: not used — {why}"},
+    "rf_reg_none": {"ru": "нет данных по региону для этого вида объекта — поправка 0",
+                    "uz": "bu obyekt turi uchun hudud boʻyicha maʼlumot yoʻq — tuzatish 0",
+                    "en": "no regional data for this kind of object — adjustment 0"},
+    "rf_reg_r_no_rules": {"ru": "для класса {cls} показатели региона в правило вилки не входят",
+                          "uz": "{cls}-klass uchun hudud koʻrsatkichlari oraliq qoidasiga kirmaydi",
+                          "en": "for class {cls} no regional indicators are part of the range rule"},
+    "rf_reg_r_kind": {"ru": "показатели класса {cls} к этому виду объекта не относятся",
+                      "uz": "{cls}-klass koʻrsatkichlari bu obyekt turiga taalluqli emas",
+                      "en": "the class {cls} indicators do not apply to this kind of object"},
+    "rf_reg_r_region_unknown": {"ru": "регион «{region}» не распознан", "uz": "«{region}» hududi aniqlanmadi",
+                                "en": "region “{region}” not recognised"},
+    "rf_reg_r_zero_weight": {"ru": "сравнение региона с республикой есть только у показателей с весом 0 в настройке",
+                             "uz": "hududni respublika bilan taqqoslash faqat sozlamada vazni 0 boʻlgan "
+                                   "koʻrsatkichlarda bor",
+                             "en": "only indicators with weight 0 in the settings compare the region with the "
+                                   "country"},
+    "rf_reg_r_no_regional": {"ru": "у показателей нет разреза по регионам за общий период",
+                             "uz": "koʻrsatkichlarda umumiy davr uchun hududlar kesimi yoʻq",
+                             "en": "the indicators have no regional breakdown for a common period"},
+    "rf_mkt_title": {"ru": "Поправка рынка: {pct}", "uz": "Bozor tuzatishi: {pct}", "en": "Market adjustment: {pct}"},
+    "rf_mkt_applied": {"ru": "ставка акта {act} ниже рыночной {market}, убыточность класса {lr} (срез {date}) не ниже "
+                             "порога {thr} → {pct}",
+                       "uz": "dalolatnoma tarifi {act} bozor tarifi {market} dan past, klass zararliligi {lr} ({date} "
+                             "kesimi) {thr} chegarasidan past emas → {pct}",
+                       "en": "the report rate {act} is below the market {market}, the class loss ratio {lr} (snapshot "
+                             "{date}) is at least {thr} → {pct}"},
+    "rf_mkt_act_not_below": {"ru": "ставка акта {act} не ниже рыночной {market} (срез {date}) — поправки нет",
+                             "uz": "dalolatnoma tarifi {act} bozor tarifi {market} dan past emas ({date} kesimi) — "
+                                   "tuzatish yoʻq",
+                             "en": "the report rate {act} is not below the market {market} (snapshot {date}) — "
+                                   "no adjustment"},
+    "rf_mkt_lr_below": {"ru": "ставка акта {act} ниже рыночной {market}, но убыточность класса {lr} (срез {date}) ниже "
+                              "порога {thr} — поправки нет",
+                        "uz": "dalolatnoma tarifi {act} bozor tarifi {market} dan past, lekin klass zararliligi {lr} "
+                              "({date} kesimi) {thr} chegarasidan past — tuzatish yoʻq",
+                        "en": "the report rate {act} is below the market {market}, but the class loss ratio {lr} "
+                              "(snapshot {date}) is below the {thr} threshold — no adjustment"},
+    "rf_mkt_no_data": {"ru": "нет данных НАПП по классу (рыночной ставки или убыточности) — поправка 0",
+                       "uz": "klass boʻyicha SHNMA maʼlumoti yoʻq (bozor tarifi yoki zararlilik) — tuzatish 0",
+                       "en": "no NAPP data for the class (market rate or loss ratio) — adjustment 0"},
+    "rf_mkt_steps": {"ru": "ступени надбавки: {steps}; убыточность — выплаты / премии {basis}",
+                     "uz": "ustama bosqichlari: {steps}; zararlilik — toʻlovlar / mukofotlar {basis}",
+                     "en": "surcharge steps: {steps}; loss ratio — payouts / premiums {basis}"},
+    "rf_mkt_step": {"ru": "убыточность от {thr} → {pct}", "uz": "zararlilik {thr} dan → {pct}",
+                    "en": "loss ratio from {thr} → {pct}"},
+    "rf_mkt_basis_last": {"ru": "последнего среза", "uz": "oxirgi kesim", "en": "of the latest snapshot"},
+    "rf_mkt_basis_full_year": {"ru": "за полный год", "uz": "toʻliq yil uchun", "en": "for the full year"},
+    "rf_mkt_pack": {"ru": "для классов 8 и 9 в отчёте НАПП одна строка «8, 9» — ставка и убыточность пакета",
+                    "uz": "8 va 9-klasslar uchun SHNMA hisobotida bitta «8, 9» qatori — paket tarifi va zararliligi",
+                    "en": "for classes 8 and 9 the NAPP report has one line “8, 9” — the package rate and loss ratio"},
+    "rf_mode_reference": {"ru": "Режим «справочно»: премия акта считается по ставке акта; ставка с учётом региона и "
+                                "рынка и премия по ней показаны рядом.",
+                          "uz": "«Maʼlumot uchun» rejimi: dalolatnoma mukofoti dalolatnoma tarifi boʻyicha hisoblanadi; "
+                                "hudud va bozorni hisobga olgan tarif va unga koʻra mukofot yonida koʻrsatilgan.",
+                          "en": "“Reference” mode: the report premium is calculated at the report rate; the rate "
+                                "adjusted for region and market and its premium are shown alongside."},
+    "rf_mode_apply": {"ru": "Режим «применить»: ставка с учётом региона и рынка стала ставкой акта — премия, франшиза, "
+                            "мероприятия и сверки посчитаны от неё.",
+                      "uz": "«Qoʻllash» rejimi: hudud va bozorni hisobga olgan tarif dalolatnoma tarifiga aylandi — "
+                            "mukofot, franshiza, tadbirlar va solishtirishlar undan hisoblangan.",
+                      "en": "“Apply” mode: the rate adjusted for region and market became the report rate — the "
+                            "premium, deductible, measures and checks are calculated from it."},
+    "rf_fr_note": {"ru": "С учётом применённой франшизы премия акта — {premium}.",
+                   "uz": "Qoʻllanilgan franshiza hisobga olinganda dalolatnoma mukofoti — {premium}.",
+                   "en": "With the deductible applied, the report premium is {premium}."},
+    "rf_calibrated": {"ru": "Чувствительность, границы и ступени — экспертные, не калиброваны (настройки акта, раздел "
+                            "«Вилка ставки»).",
+                      "uz": "Sezgirlik, chegaralar va bosqichlar — ekspert baho, kalibrlanmagan (dalolatnoma "
+                            "sozlamalari, «Tarif oraligʻi» boʻlimi).",
+                      "en": "Sensitivity, bounds and steps are expert values, not calibrated (report settings, "
+                            "«Rate range» section)."},
+    # потолок поправки рынка (01.10.2026): надбавка не поднимает ставку выше рыночной
+    "rf_mkt_capped": {"ru": "надбавка рынка ограничена рыночной ставкой {market}: ставка с поправками не выше рыночной "
+                            "(фактическая надбавка {pct})",
+                      "uz": "bozor ustamasi bozor tarifi {market} bilan cheklangan: tuzatishli tarif bozor tarifidan "
+                            "yuqori emas (amaldagi ustama {pct})",
+                      "en": "the market loading is capped at the market rate {market}: the adjusted rate is not above "
+                            "the market rate (actual loading {pct})"},
+    "rf_mkt_cap_on": {"ru": "потолок — рыночная ставка: надбавка рынка не поднимает ставку выше неё",
+                      "uz": "chegara — bozor tarifi: bozor ustamasi tarifni undan yuqori koʻtarmaydi",
+                      "en": "ceiling — the market rate: the market loading does not lift the rate above it"},
+    # оговорки показателей региона (01.10.2026): что именно измеряет показатель
+    "rf_caveat": {"ru": "оговорка: {text}", "uz": "izoh: {text}", "en": "caveat: {text}"},
+    "rf_row_adjusted": {"ru": "Ставка с учётом региона и рынка", "uz": "Hudud va bozorni hisobga olgan tarif",
+                        "en": "Rate adjusted for region and market"},
+    "rf_row_adjusted_note": {"ru": "справочно; премия {premium}", "uz": "maʼlumot uchun; mukofot {premium}",
+                             "en": "for reference; premium {premium}"},
+    "rf_row_act": {"ru": "Ставка акта до поправок региона и рынка", "uz": "Hudud va bozor tuzatishlarigacha "
+                                                                         "dalolatnoma tarifi",
+                   "en": "Report rate before region and market adjustments"},
+    "rf_row_act_note": {"ru": "премия {premium}", "uz": "mukofot {premium}", "en": "premium {premium}"},
+    "rf_parts_title": {"ru": "Вилка ставки по частям", "uz": "Qismlar boʻyicha tarif oraligʻi",
+                       "en": "Rate range by part"},
+    "rf_col_part": {"ru": "Часть", "uz": "Qism", "en": "Part"},
+    "rf_contract_row": {"ru": "Договор (справочно)", "uz": "Shartnoma (maʼlumot uchun)", "en": "Contract (reference)"},
+    "rf_part_line": {"ru": "{part}: {text}", "uz": "{part}: {text}", "en": "{part}: {text}"},
+    "how_fork_region": {"ru": "Поправка региона {spct} (показатели stat.uz / data.egov.uz к республике, экспертно): "
+                              "{base} → {rate}",
+                        "uz": "Hudud tuzatishi {spct} (stat.uz / data.egov.uz koʻrsatkichlari respublikaga nisbatan, "
+                              "ekspert baho): {base} → {rate}",
+                        "en": "Region adjustment {spct} (stat.uz / data.egov.uz indicators against the country, expert): "
+                              "{base} → {rate}"},
+    "how_fork_market": {"ru": "Поправка рынка {spct} (НАПП: рыночная ставка и убыточность класса, экспертно): "
+                              "{base} → {rate}",
+                        "uz": "Bozor tuzatishi {spct} (SHNMA: klassning bozor tarifi va zararliligi, ekspert baho): "
+                              "{base} → {rate}",
+                        "en": "Market adjustment {spct} (NAPP: class market rate and loss ratio, expert): "
+                              "{base} → {rate}"},
+    "how_fork_market_cap": {"ru": "Надбавка рынка ограничена рыночной ставкой {market}: ставка не выше рыночной "
+                                  "(настройка «потолок — рыночная ставка»)",
+                            "uz": "Bozor ustamasi bozor tarifi {market} bilan cheklangan: tarif bozordan yuqori emas "
+                                  "(«chegara — bozor tarifi» sozlamasi)",
+                            "en": "The market loading is capped at the market rate {market}: the rate is not above "
+                                  "the market (setting «ceiling — market rate»)"},
+    "how_fork_min": {"ru": "Ставка с поправками ниже минимума — применён минимум {min}",
+                     "uz": "Tuzatishlar bilan tarif minimumdan past — minimum {min} qoʻllanildi",
+                     "en": "The adjusted rate is below the minimum — the minimum {min} applies"},
+    "sc_o_fork": {"ru": "вилка ставки: минимум – акт – рынок", "uz": "tarif oraligʻi: minimum – dalolatnoma – bozor",
+                  "en": "rate range: minimum – report – market"},
+})
+
+# ---------- НАПП (01.10.2026): комплексное страхование (пакеты классов), претензии, подразделения ----------
+STAT_LABELS["claims_freq"] = {"ru": "Частота страховых претензий (НАПП)", "uz": "Sugʻurta daʼvolari chastotasi (SHNMA)",
+                              "en": "Insurance claims frequency (NAPP)"}
+STAT_UNITS["претензий на 1 000 договоров"] = {"ru": "претензий на 1 000 договоров", "uz": "1 000 shartnomaga daʼvo",
+                                             "en": "claims per 1,000 contracts"}
+STAT_CAVEATS["claims_freq"] = {"ru": "все претензии общего страхования региона, без разреза по классам; претензии "
+                                     "учитываются по месту головных офисов страховщиков — почти все приходятся на "
+                                     "город Ташкент",
+                               "uz": "hududdagi umumiy sugʻurta boʻyicha barcha daʼvolar, klasslar kesimisiz; daʼvolar "
+                                     "sugʻurtachilarning bosh ofislari joylashgan joy boʻyicha hisobga olinadi — deyarli "
+                                     "barchasi Toshkent shahriga toʻgʻri keladi",
+                               "en": "all general-insurance claims in the region, not broken down by class; claims "
+                                     "are recorded where insurers' head offices are — almost all fall on Tashkent "
+                                     "city"}
+# Оговорки к строкам претензий НАПП (раздел 4 акта, /market/claims) — замечание контролёра 01.10.2026.
+# market_picture.claims_caveats(lang, доля) подставляет долю города Ташкента в претензиях страны на срез.
+CLAIMS_CAVEATS = {
+    "not_events": {"ru": "претензии — заявления о выплате, а не страховые случаи: число случаев и их частоту в "
+                         "актуарном смысле отчёт НАПП не даёт",
+                   "uz": "daʼvolar — toʻlov haqidagi arizalar, sugʻurta hodisalari emas: SHNMA hisobotida hodisalar "
+                         "soni va ularning aktuar maʼnodagi chastotasi yoʻq",
+                   "en": "claims are applications for payment, not insured events: the NAPP report gives neither "
+                         "the number of events nor their actuarial frequency"},
+    "ytd_vs_date": {"ru": "в числителе — претензии с начала года, в знаменателе — договоры, действующие на дату "
+                          "среза (договоры разной длительности, сезонность не учтена)",
+                    "uz": "suratda — yil boshidan beri daʼvolar, maxrajda — kesim sanasida amaldagi shartnomalar "
+                          "(shartnomalar muddati turlicha, mavsumiylik hisobga olinmagan)",
+                    "en": "the numerator is claims since the start of the year, the denominator is contracts in "
+                          "force on the snapshot date (contracts of different length, seasonality ignored)"},
+    "payout_periods": {"ru": "средняя выплата — выплаты за период к числу оплаченных претензий за тот же период: "
+                             "выплаты могут относиться к претензиям прошлых периодов",
+                       "uz": "oʻrtacha toʻlov — davr uchun toʻlovlar shu davrda toʻlangan daʼvolar soniga: toʻlovlar "
+                             "oʻtgan davrlar daʼvolariga tegishli boʻlishi mumkin",
+                       "en": "the average payment is payouts for the period over claims paid in the same period: "
+                             "payouts may relate to claims of earlier periods"},
+    "capital": {"ru": "претензии и выплаты сосредоточены в городе Ташкенте — там головные офисы страховщиков и "
+                      "онлайн-продажи: {share} претензий страны на этот срез",
+                "uz": "daʼvolar va toʻlovlar Toshkent shahrida jamlangan — sugʻurtachilarning bosh ofislari va "
+                      "onlayn savdo shu yerda: ushbu kesimda mamlakat daʼvolarining {share}",
+                "en": "claims and payouts are concentrated in Tashkent city, where insurers' head offices and "
+                      "online sales are: {share} of the country's claims in this snapshot"},
+    "slices": {"ru": "значения «на 1 000 договоров» за срезы 3, 6, 9 и 12 месяцев между собой несопоставимы — "
+                     "сравнивать можно только регион с республикой на одном срезе",
+               "uz": "3, 6, 9 va 12 oylik kesimlardagi «1 000 shartnomaga» qiymatlarini oʻzaro solishtirib "
+                     "boʻlmaydi — faqat bitta kesimda hududni respublika bilan solishtirish mumkin",
+               "en": "“per 1,000 contracts” values of the 3-, 6-, 9- and 12-month snapshots are not comparable "
+                     "with each other — compare only the region with the country within one snapshot"},
+    "general_only": {"ru": "только общее страхование; разреза «регион × класс» и «страховщик × класс» в отчёте "
+                           "НАПП нет",
+                     "uz": "faqat umumiy sugʻurta; SHNMA hisobotida «hudud × klass» va «sugʻurtachi × klass» "
+                           "kesimlari yoʻq",
+                     "en": "general insurance only; the NAPP report has no “region × class” or “insurer × class” "
+                           "breakdown"},
+}
+CLAIMS_CAVEAT_CAPITAL_NA = {
+    "ru": "претензии и выплаты сосредоточены в городе Ташкенте — там головные офисы страховщиков и онлайн-продажи",
+    "uz": "daʼvolar va toʻlovlar Toshkent shahrida jamlangan — sugʻurtachilarning bosh ofislari va onlayn savdo "
+          "shu yerda",
+    "en": "claims and payouts are concentrated in Tashkent city, where insurers' head offices and online sales are"}
+TX.update({
+    # какая строка НАПП взята для комплексного продукта (поправка рынка вилки)
+    "rf_mkt_pack_exact": {"ru": "рынок — пакет НАПП «{pack}»: тот же набор классов, что у продукта {code}; ставка и "
+                                "убыточность пакета, а не отдельного класса",
+                          "uz": "bozor — SHNMA «{pack}» paketi: {code} mahsuloti bilan bir xil klasslar toʻplami; "
+                                "alohida klass emas, paket tarifi va zararliligi",
+                          "en": "market — NAPP package “{pack}”: the same set of classes as product {code}; the "
+                                "package rate and loss ratio, not a single class"},
+    "rf_mkt_pack_nearest": {"ru": "рынок — пакет НАПП «{pack}»: ближайший к составу продукта {code} ({classes}) — "
+                                  "пакета ровно с этими классами в отчёте нет",
+                            "uz": "bozor — SHNMA «{pack}» paketi: {code} mahsuloti tarkibiga ({classes}) eng yaqini — "
+                                  "hisobotda aynan shu klasslar paketi yoʻq",
+                            "en": "market — NAPP package “{pack}”: the closest to product {code} ({classes}) — the "
+                                  "report has no package with exactly these classes"},
+    "rf_mkt_pack_class": {"ru": "пакета НАПП с классами продукта {code} ({classes}) в отчёте нет — рынок по строке "
+                                "класса {cls}",
+                          "uz": "hisobotda {code} mahsuloti klasslari ({classes}) bilan SHNMA paketi yoʻq — bozor "
+                                "{cls}-klass qatori boʻyicha",
+                          "en": "the NAPP report has no package with the classes of product {code} ({classes}) — "
+                                "the market is the class {cls} row"},
+    "rf_mkt_fy_switch": {"ru": "по последнему срезу {last}, за полный {year} год {fy} — взята оценка за полный год "
+                               "(скачок убыточности за неполный год)",
+                         "uz": "oxirgi kesim boʻyicha {last}, toʻliq {year} yil uchun {fy} — toʻliq yil bahosi olindi "
+                               "(toʻliq boʻlmagan yildagi zararlilik sakrashi)",
+                         "en": "{last} by the latest snapshot, {fy} for the full year {year} — the full-year estimate "
+                               "is used (loss-ratio jump within an incomplete year)"},
+    "rf_mkt_pack_fy": {"ru": "пакет за полный {year} год: ставка {rate}, убыточность {lr}",
+                       "uz": "paket toʻliq {year} yil uchun: tarif {rate}, zararlilik {lr}",
+                       "en": "the package for the full year {year}: rate {rate}, loss ratio {lr}"},
+    "rf_mkt_class_rows": {"ru": "по одиночным строкам классов: {rows} (убыточность, срез {date}; ставка: {rates})",
+                          "uz": "klasslarning alohida qatorlari boʻyicha: {rows} (zararlilik, {date} kesimi; tarif: "
+                                "{rates})",
+                          "en": "by the single class rows: {rows} (loss ratio, snapshot {date}; rate: {rates})"},
+    "rf_mkt_class_row": {"ru": "класс {cls} — {v}", "uz": "{cls}-klass — {v}", "en": "class {cls} — {v}"},
+    "rf_mkt_class_row_na": {"ru": "класс {cls} — нет строки", "uz": "{cls}-klass — qator yoʻq",
+                            "en": "class {cls} — no row"},
+    "an_m_class_label": {"ru": "Класс {cls} отдельно (НАПП)", "uz": "{cls}-klass alohida (SHNMA)",
+                         "en": "Class {cls} alone (NAPP)"},
+    "an_m_class_value": {"ru": "ставка {rate}; убыточность {lr}", "uz": "tarif {rate}; zararlilik {lr}",
+                         "en": "rate {rate}; loss ratio {lr}"},
+    "an_m_class_fy": {"ru": "; за {year} год: ставка {rate}, убыточность {lr}",
+                      "uz": "; {year} yil uchun: tarif {rate}, zararlilik {lr}",
+                      "en": "; for {year}: rate {rate}, loss ratio {lr}"},
+    "rf_mkt_pack_sub": {"ru": "; подкласс {sub} в отчёте НАПП входит в свой класс",
+                        "uz": "; {sub} kichik klassi SHNMA hisobotida oʻz klassiga kiradi",
+                        "en": "; subclass {sub} is included in its class in the NAPP report"},
+    "rf_src_napp_claims": {"ru": "НАПП — страховой отчёт, претензии и договоры по регионам (листы 3.5, 3.4), срез на "
+                                 "{date}",
+                           "uz": "SHNMA — sugʻurta hisoboti, hududlar boʻyicha daʼvolar va shartnomalar (3.5, 3.4 "
+                                 "varaqlar), {date} holatiga kesim",
+                           "en": "NAPP — insurance report, claims and contracts by region (sheets 3.5, 3.4), "
+                                 "snapshot as of {date}"},
+    # раздел 4: пакет продукта в строке рынка
+    "an_m_pack_label": {"ru": "строка классов {pack}", "uz": "{pack} klasslar qatori", "en": "row for classes {pack}"},
+    "an_m_prod_exact": {"ru": "Взят пакет НАПП «{pack}» — тот же набор классов, что у продукта {code}; ставка и "
+                              "убыточность — по пакету, а не по отдельному классу.",
+                        "uz": "SHNMA «{pack}» paketi olindi — {code} mahsuloti bilan bir xil klasslar toʻplami; tarif "
+                              "va zararlilik — alohida klass emas, paket boʻyicha.",
+                        "en": "The NAPP package “{pack}” is used — the same set of classes as product {code}; the "
+                              "rate and loss ratio are for the package, not a single class."},
+    "an_m_prod_nearest": {"ru": "Взят пакет НАПП «{pack}» — ближайший к составу продукта {code} ({classes}): пакета "
+                                "ровно с этими классами в отчёте нет.",
+                          "uz": "SHNMA «{pack}» paketi olindi — {code} mahsuloti tarkibiga ({classes}) eng yaqini: "
+                                "hisobotda aynan shu klasslar paketi yoʻq.",
+                          "en": "The NAPP package “{pack}” is used — the closest to product {code} ({classes}): the "
+                                "report has no package with exactly these classes."},
+    "an_m_prod_class": {"ru": "Пакета НАПП с классами продукта {code} ({classes}) в отчёте нет — взята строка "
+                              "класса {cls}.",
+                        "uz": "Hisobotda {code} mahsuloti klasslari ({classes}) bilan SHNMA paketi yoʻq — "
+                              "{cls}-klass qatori olindi.",
+                        "en": "The NAPP report has no package with the classes of product {code} ({classes}) — the "
+                              "class {cls} row is used."},
+    "an_m_prod_sub": {"ru": " Подкласс {sub} в отчёте НАПП входит в свой класс.",
+                      "uz": " {sub} kichik klassi SHNMA hisobotida oʻz klassiga kiradi.",
+                      "en": " Subclass {sub} is included in its class in the NAPP report."},
+    # раздел 4: претензии и подразделения (НАПП)
+    "an_np_rc_name": {"ru": "Претензии в регионе (НАПП)", "uz": "Hududdagi sugʻurta daʼvolari (SHNMA)",
+                      "en": "Insurance claims in the region (NAPP)"},
+    "an_np_rc_name_rep": {"ru": "Претензии по республике (НАПП)", "uz": "Respublika boʻyicha sugʻurta daʼvolari (SHNMA)",
+                          "en": "Insurance claims, whole country (NAPP)"},
+    "an_np_per1000": {"ru": "{f} на 1 000 договоров", "uz": "1 000 shartnomaga {f}", "en": "{f} per 1,000 contracts"},
+    "an_np_rc_line": {"ru": "Претензии в регионе: {f} на 1 000 договоров, по республике {cf}; доля отказов {r} "
+                            "(республика {cr}); средняя выплата {a} (республика {ca}); претензий {n}; источник НАПП, "
+                            "срез {date} ({m} мес.)",
+                      "uz": "Hududdagi daʼvolar: 1 000 shartnomaga {f}, respublika boʻyicha {cf}; rad etilganlar "
+                            "ulushi {r} (respublika {cr}); oʻrtacha toʻlov {a} (respublika {ca}); daʼvolar {n}; manba "
+                            "SHNMA, {date} holatiga kesim ({m} oy)",
+                      "en": "Claims in the region: {f} per 1,000 contracts, country {cf}; refusals {r} (country "
+                            "{cr}); average payment {a} (country {ca}); claims {n}; source NAPP, snapshot {date} "
+                            "({m} months)"},
+    "an_np_rc_rep_line": {"ru": "Претензии по республике: {cf} на 1 000 договоров; доля отказов {cr}; средняя выплата "
+                                "{ca}; регион не задан — сравнения с регионом нет; источник НАПП, срез {date} ({m} мес.)",
+                          "uz": "Respublika boʻyicha daʼvolar: 1 000 shartnomaga {cf}; rad etilganlar ulushi {cr}; "
+                                "oʻrtacha toʻlov {ca}; hudud koʻrsatilmagan — taqqoslash yoʻq; manba SHNMA, {date} "
+                                "holatiga kesim ({m} oy)",
+                          "en": "Claims, whole country: {cf} per 1,000 contracts; refusals {cr}; average payment {ca}; "
+                                "no region given — no comparison; source NAPP, snapshot {date} ({m} months)"},
+    "an_np_cc_name": {"ru": "Претензии: рынок / INSON (НАПП)", "uz": "Daʼvolar: bozor / INSON (SHNMA)",
+                      "en": "Claims: market / INSON (NAPP)"},
+    "an_np_cc_value": {"ru": "INSON {cf} / рынок {mf} на 1 000 договоров",
+                       "uz": "1 000 shartnomaga INSON {cf} / bozor {mf}",
+                       "en": "INSON {cf} / market {mf} per 1,000 contracts"},
+    "an_np_cc_line": {"ru": "Претензии: рынок {mn} ({mf} на 1 000 договоров, отказов {mr}, средняя выплата {ma}) / "
+                            "INSON {cn} ({cf} на 1 000 договоров, отказов {cr}, средняя выплата {ca}); источник НАПП, "
+                            "срез {date} ({m} мес.)",
+                      "uz": "Daʼvolar: bozor {mn} (1 000 shartnomaga {mf}, rad etilgan {mr}, oʻrtacha toʻlov {ma}) / "
+                            "INSON {cn} (1 000 shartnomaga {cf}, rad etilgan {cr}, oʻrtacha toʻlov {ca}); manba SHNMA, "
+                            "{date} holatiga kesim ({m} oy)",
+                      "en": "Claims: market {mn} ({mf} per 1,000 contracts, refusals {mr}, average payment {ma}) / "
+                            "INSON {cn} ({cf} per 1,000 contracts, refusals {cr}, average payment {ca}); source NAPP, "
+                            "snapshot {date} ({m} months)"},
+    "an_np_br_name": {"ru": "Подразделения INSON в регионе (все вместе, по отчёту НАПП)",
+                      "uz": "INSONning hududdagi boʻlinmalari (barchasi birga, SHNMA hisoboti boʻyicha)",
+                      "en": "INSON subdivisions in the region (all together, per the NAPP report)"},
+    "an_np_br_value": {"ru": "убыточность {lr} / по компании {clr}", "uz": "zararlilik {lr} / kompaniya boʻyicha {clr}",
+                       "en": "loss ratio {lr} / company {clr}"},
+    "an_np_br_line": {"ru": "Подразделения INSON в регионе (все вместе, по отчёту НАПП): убыточность {lr} против "
+                            "среднего по компании {clr}; средняя премия на договор {ap} против {cap}; премии {p} млн "
+                            "сум, договоров {n}; источник НАПП, срез {date}",
+                      "uz": "INSONning hududdagi boʻlinmalari (barchasi birga, SHNMA hisoboti boʻyicha): zararlilik "
+                            "{lr}, kompaniya boʻyicha oʻrtacha {clr}; shartnomaga oʻrtacha mukofot {ap}, kompaniyada "
+                            "{cap}; mukofotlar {p} mln soʻm, shartnomalar {n}; manba SHNMA, {date} holatiga kesim",
+                      "en": "INSON subdivisions in the region (all together, per the NAPP report): loss ratio {lr} "
+                            "against the company average {clr}; average premium per contract {ap} against {cap}; "
+                            "premiums {p} million UZS, contracts {n}; source NAPP, snapshot {date}"},
+    "an_np_br_small": {"ru": "малая база: договоров {n}, меньше {min} — убыточность и средняя премия по региону "
+                             "неустойчивы, вывод делать осторожно",
+                       "uz": "kichik baza: shartnomalar {n}, {min} dan kam — hudud boʻyicha zararlilik va oʻrtacha "
+                             "mukofot barqaror emas, xulosa ehtiyotkorlik bilan",
+                       "en": "small base: {n} contracts, fewer than {min} — the regional loss ratio and average "
+                             "premium are unstable, conclude with care"},
+    "an_np_rc_ref": {"ru": "в поправку ставки не входит: претензии учитываются по месту головных офисов "
+                           "страховщиков, {share} — город Ташкент",
+                     "uz": "tarif tuzatishiga kirmaydi: daʼvolar sugʻurtachilarning bosh ofislari joylashgan joy "
+                           "boʻyicha hisobga olinadi, {share} — Toshkent shahri",
+                     "en": "not part of the rate adjustment: claims are recorded where insurers' head offices are, "
+                           "{share} — Tashkent city"},
+    "an_np_rc_ref_na": {"ru": "в поправку ставки не входит: претензии учитываются по месту головных офисов "
+                              "страховщиков, почти все — город Ташкент",
+                        "uz": "tarif tuzatishiga kirmaydi: daʼvolar sugʻurtachilarning bosh ofislari joylashgan joy "
+                              "boʻyicha hisobga olinadi, deyarli barchasi — Toshkent shahri",
+                        "en": "not part of the rate adjustment: claims are recorded where insurers' head offices "
+                              "are, almost all — Tashkent city"},
+    "an_np_rc_in_fork": {"ru": "входит в поправку ставки с весом {w} (включено в настройках); претензии учитываются "
+                               "по месту головных офисов страховщиков — сравнение региона искажено",
+                         "uz": "tarif tuzatishiga {w} vazn bilan kiradi (sozlamalarda yoqilgan); daʼvolar "
+                               "sugʻurtachilarning bosh ofislari boʻyicha hisobga olinadi — hudud taqqoslashi buzilgan",
+                         "en": "part of the rate adjustment with weight {w} (enabled in the settings); claims are "
+                               "recorded where insurers' head offices are — the regional comparison is distorted"},
+    "an_np_caveats": {"ru": "Оговорки: {text}", "uz": "Izohlar: {text}", "en": "Caveats: {text}"},
+    "an_np_br_not_listed": {"ru": "в отчёте НАПП подразделения {company} не выделены",
+                            "uz": "SHNMA hisobotida {company} boʻlinmalari alohida koʻrsatilmagan",
+                            "en": "the NAPP report does not list {company}'s subdivisions"},
+    "an_np_br_not_listed_reg": {"ru": "в отчёте НАПП подразделения {company} в регионе «{region}» не выделены (премий "
+                                      "по региону нет)",
+                                "uz": "SHNMA hisobotida {company}ning «{region}» hududidagi boʻlinmalari alohida "
+                                      "koʻrsatilmagan (hudud boʻyicha mukofot yoʻq)",
+                                "en": "the NAPP report does not list {company}'s subdivisions in “{region}” (no "
+                                      "premiums in the region)"},
+    "an_np_no_sheet": {"ru": "в отчёте НАПП за срез {date} листа {sheet} нет — показатель пропущен",
+                       "uz": "SHNMA hisobotida {date} kesimi uchun {sheet} varagʻi yoʻq — koʻrsatkich oʻtkazib yuborildi",
+                       "en": "the NAPP report for the {date} snapshot has no sheet {sheet} — the indicator is skipped"},
+    "an_np_no_region_row": {"ru": "в листе 3.5 за срез {date} нет строки региона «{region}» — показатель пропущен",
+                            "uz": "{date} kesimidagi 3.5 varaqda «{region}» hududi qatori yoʻq — koʻrsatkich oʻtkazib "
+                                  "yuborildi",
+                            "en": "sheet 3.5 for {date} has no row for “{region}” — the indicator is skipped"},
+    "an_np_no_contracts": {"ru": "нет числа действующих договоров (лист 3.4) за срез {date} — частота не считается",
+                           "uz": "{date} kesimi uchun amaldagi shartnomalar soni (3.4 varaq) yoʻq — chastota "
+                                 "hisoblanmaydi",
+                           "en": "no number of active contracts (sheet 3.4) for {date} — the frequency is not computed"},
+    "an_np_no_company": {"ru": "в листе 2.10 за срез {date} нет строки INSON — показатель пропущен",
+                         "uz": "{date} kesimidagi 2.10 varaqda INSON qatori yoʻq — koʻrsatkich oʻtkazib yuborildi",
+                         "en": "sheet 2.10 for {date} has no INSON row — the indicator is skipped"},
+    "an_np_skip_line": {"ru": "{name}: {why}", "uz": "{name}: {why}", "en": "{name}: {why}"},
+    "an_np_src": {"ru": "Источник: НАПП — страховой отчёт, листы {sheets}{file}, срез на {date} — {url}",
+                  "uz": "Manba: SHNMA — sugʻurta hisoboti, {sheets} varaqlar, {date} holatiga kesim — {url}",
+                  "en": "Source: NAPP — insurance report, sheets {sheets}, snapshot as of {date} — {url}"},
+    "an_np_src_title": {"ru": "НАПП — страховой отчёт, листы {sheets}", "uz": "SHNMA — sugʻurta hisoboti, {sheets} varaqlar",
+                        "en": "NAPP — insurance report, sheets {sheets}"},
 })

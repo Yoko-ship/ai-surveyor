@@ -710,6 +710,13 @@ def main():
         branch = "общее"
         cur.execute("INSERT INTO classes VALUES (?,?,?,?,?)",
                     (code, c["name"], c["group"], branch, KIND.get(code, "имущество")))
+    # класс 18 общего страхования (медицинское, ПКМ № 80, прил. 6) — из файла шаблонов, до базовых ставок: иначе
+    # строка базовой ставки класса 18 пропускается («нет в справочнике классов»). Учётная группа — NULL (в Положении
+    # 1882, п. 10 класса 18 нет)
+    from app import class_templates as _ct          # noqa: E402  (путь уже добавлен выше)
+    extra = _ct.ensure_classes(con)
+    if extra:
+        print(f"  классов общего страхования без учётной группы добавлено: {', '.join(extra)}")
 
     cur.execute("INSERT INTO tariff_versions (level,name,document_ref,effective_from) VALUES (?,?,?,?)",
                 ("компания", "Тарифная политика INSON", "Приказ №54-П от 23.09.2025", "2025-09-23"))
@@ -797,6 +804,9 @@ def main():
         cur = con.cursor()
         if res.get("added"):
             print(f"  шаблонов классов добавлено: {len(res['added'])} (версия {res.get('version')})")
+        if res.get("pending"):
+            print(f"  доступна новая версия шаблона из поставки (действует правка администратора): "
+                  f"{', '.join(res['pending'])}")
     except Exception as e:
         print("  шаблоны классов не залиты:", e)
 

@@ -26,9 +26,11 @@
   GET  /act/{id}/scoring.pdf, /scoring.png — только страница скоринга / картинка шкалы (права как у акта)
   POST /act/{id}/send         — отправить акт файлом в чат с ботом (Telegram), только владельцу
   GET  /act/settings          — пороги лёгкого движка; PUT /act/settings — только администратор
-  GET  /act/templates         — шаблоны анализа 17 классов кратко (справочник class_templates, приложение А)
+  GET  /act/templates         — шаблоны анализа кратко (справочник class_templates, приложение А): все классы
+                                общего страхования 1–18 и варианты 13з и 16у (20 шаблонов); поле variant
   GET  /act/templates/{class} — шаблон класса на языке (?lang=, ?raw=1 — исходный JSON на трёх языках);
-                                /history — все версии; PUT — новая версия (администратор, проверка структуры)
+                                /history — все версии; PUT — новая версия (администратор, проверка структуры);
+                                pending_file_version — новая версия файла ждёт в истории (действует правка)
                                 Акт берёт из шаблона ракурсы, оговорки, мероприятия, риски (классы без perils),
                                 простое правило сценария (классы без правила в risk_analytics), виды объекта и
                                 поля класса (optional.class_fields); у классов 3, 8, 9 выбор прежний
@@ -68,6 +70,15 @@ GET /act/{id}/scoring.pdf — только страница скоринга, GE
 в /act/photos — блок credit_report, в /act/make — optional.credit_report (источник решает сервер, как у запроса) →
 блок borrower и проверки андеррайтеру для классов 14, 13з, 15 (в уровень риска и ставку не входит).
 
+Вилка ставки (01.10.2026): блок rate_fork в /act/make и GET /act/{id}, раздел 4 «Вилка ставки» (Word, PDF), строка
+«вилка ставки» в общем обзоре скоринга. Отметки: минимум тарифной политики → ставка акта (прежнее правило) → ставка с
+учётом региона (stat.uz / data.egov.uz, risk_stats: отношение региона к республике) и рынка (НАПП, market_picture:
+убыточность и рыночная ставка класса) → рыночная ставка; плюс ставки запроса филиала и договора и справочная техническая.
+Чистые функции — act_engine (раздел 12), данные из базы — act_analytics.fork_data. Настройка act settings rate_fork:
+mode reference (по умолчанию: премия по ставке акта, поправленная — рядом) или apply (поправленная ставка — ставка акта
+до франшизы, мероприятий и сверок). Обязательные виды — одна ставка по акту; «по программе» — только рынок; части —
+вилка у каждой части, у договора справочная. Все пороги экспертные (calibrated = 0).
+
 Хранение: фото — 24 часа (DATA_DIR/act/<сессия>/, таблица act_uploads), акт — 7 дней (таблица acts);
 очистка — фоновым потоком раз в час и при каждой загрузке. Открыть акт может только тот, кто его создал
 (гость — по cookie gid, пользователь — по id), администратор — любой.
@@ -102,6 +113,7 @@ from . import class_templates as ctpl
 from . import contract_read as cr
 from . import credit_report as crr
 from . import act_market as am
+from . import market_picture as mpic
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
 from .act_texts import money, pct, t
@@ -257,6 +269,15 @@ def load_settings(con) -> dict:
     s = ae.merge_settings(json.loads(r[3]))
     s["_source"] = {"id": r[0], "created_at": r[1], "created_by": r[2], "what": "правка администратора"}
     return s
+
+
+def current_custom(con) -> dict:
+    """Правки администратора действующей версии act_settings (без значений по умолчанию); нет версии — {}."""
+    try:
+        r = con.execute("SELECT settings_json FROM act_settings ORDER BY id DESC LIMIT 1").fetchone()
+        return json.loads(r[0]) if r else {}
+    except Exception:
+        return {}
 
 
 _clauses_cache = {"mtime": None, "data": {}}
@@ -2301,7 +2322,12 @@ def validate(con, body: dict) -> tuple:
             if not ccode:
                 errs["product_code"] = "у продукта нет класса страхования"
     elif ccode:
-        if not db.rows(con, "SELECT code FROM classes WHERE code=?", ccode):
+        try:
+            ctpl.ensure(con)              # класс 18 в справочнике classes (шаблоны 1.2.0)
+        except Exception as e:
+            print("акт: шаблоны классов не доведены:", type(e).__name__)
+        # классов страхования жизни в шаблонах нет: строка L*, если она вдруг есть в classes, не принимается
+        if ctpl.is_life_code(ccode) or not db.rows(con, "SELECT code FROM classes WHERE code=?", ccode):
             errs["class_code"] = "класс не найден в справочнике"
     else:
         errs["product_code"] = "нужен продукт или класс"
@@ -3282,7 +3308,20 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         term_from_contract = True
     term = o.get("term_days") or 365
     rate_res = ae.rate(ref, product, cls, risk["level"], m["sum_insured"], term, otype, o.get("payer_type"), st)
+    # класс без продуктов страховщика (16у, 18) — акт по шаблону, ставка не определена: тарифной политики по классу
+    # нет, экспертная базовая ставка справочника (если есть) ставкой акта не становится
+    if not product and ctpl.products_count(con, cls) == 0:
+        rate_res = _no_products_rate(rate_res, cls)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
+    # вилка ставки (01.10.2026): поправки региона (stat.uz) и рынка (НАПП) к ставке акта; в режиме apply ставка с
+    # поправками становится ставкой акта до франшизы, мероприятий и сверок — всё дальше считается от неё
+    multi = bool(clean.get("parts")) or len(m.get("product_classes") or []) > 1
+    fork_errors = []
+    fs = ae.fork_settings(st)
+    fork_in, fork_adj = _fork_prepare(con, fs, cls=cls, region=region_for_modules(m), group=group_ra,
+                                      product=product, rate_res=rate_res, errors=fork_errors)
+    if not multi:
+        ae.apply_fork(rate_res, fork_adj, m["sum_insured"])
     value = ae.value_check(m["sum_insured"], m["object_value"], st, o.get("price_new"), o.get("purchase_year"),
                            group, kind_type or obj_text)
     from .risk_analytics import load_thresholds            # пороги франшизы — только чтение
@@ -3300,7 +3339,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                                          else o.get("term_days")})
 
     # сценарии, франшиза и мероприятия — существующими модулями на тех же входных данных, что акт
-    block_errors = []
+    block_errors = list(fork_errors)
     # описание объекта в документе (запрос филиала, договор, распознанное): по нему — деятельность на объекте
     obj_doc = object_text_info(recognized, upload, req, ct)
     # регион для модулей аналитики — названием по-русски: код экрана (tashkent_region) они не знают
@@ -3344,13 +3383,13 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     if cls not in ax.RULE_CLASSES and not any(p["class_code"] == cls for p in ref.perils.values()):
         tpl_risks = ctpl.template_risks(tpl, cls) or None
     # комплексный продукт (несколько классов) или явные части: аналитика считается по каждой части (_apply_parts)
-    multi = bool(clean.get("parts")) or len(m.get("product_classes") or []) > 1
     if multi:
         analytics = {"available": False, "reason": "by_parts", "calibrated": ae.CALIBRATED}
     else:
         analytics = _analytics_block(con, ctx, cls, m.get("product_code"), region_ra, m["sum_insured"],
                                      m["object_value"], term, rate_res, scen, meas, risk["level"], statutory, th,
                                      group_ra, tpl_risks, block_errors)
+        _napp_settings(analytics, fs, st)
     analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
     analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
     # тип объекта, на котором посчитана аналитика, и откуда он (default — принят по умолчанию)
@@ -3388,6 +3427,12 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         dec["checks"] += [{"code": "c_" + ("tpl_credit_over" if c["code"] == "credit_over" else c["code"]),
                            "params": c["params"]} for c in cks]
         if cks and dec["code"] == "d_accept":
+            dec["code"] = "d_accept_with_clauses"
+    # урожай (16у): страховая сумма выше стоимости урожая (площадь × урожайность × цена) — ГК ст. 938
+    crop_over = [c for c in scen.get("checks") or [] if c.get("code") == "tpl_crop_over"]
+    if crop_over:
+        dec["checks"].append({"code": "c_tpl_crop_over", "params": dict(crop_over[0]["params"])})
+        if dec["code"] == "d_accept":
             dec["code"] = "d_accept_with_clauses"
     if fr.get("applied"):
         # франшиза сотрудника — условие договора: андеррайтер подтверждает, «принять без оговорок» уже нельзя
@@ -3447,12 +3492,20 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         # комплексный продукт по частям (30.09.2026): для продукта с одним классом — mode single
         "parts": {"mode": "single", "source": None, "confirmed": True, "items": [], "totals": None, "notes": []},
     }
+    if D.get("template") is not None:
+        # класс без продуктов страховщика (16у, 18): пометка в шаблоне акта
+        n_prod = ctpl.products_count(con, cls)
+        D["template"]["products_count"] = n_prod
+        D["template"]["no_products_note"] = dict(ctpl.NO_PRODUCTS_NOTE) if n_prod == 0 else None
+    if not multi:
+        D["rate_fork"] = _fork_finish(fork_in, fork_adj, fs, rate_res, m["sum_insured"], (req or {}).get("tariff_pct"),
+                                      (ct or {}).get("tariff_pct"), analytics, premium_final, bool(fr.get("applied")))
     if multi:
         C = {"ref": ref, "st": st, "th": th, "m": m, "o": o, "product": product, "recognized": recognized,
              "upload": upload, "kind": kind, "obj_text": " ".join(x for x in (obj_doc.get("original"),
                                                                               obj_doc.get("translated")) if x),
              "class_hint": upload.get("class_hint") or "", "y": y, "location": location,
-             "region_ra": region_ra, "term": term,
+             "region_ra": region_ra, "term": term, "fs": fs,
              "risk_in": {"inspected": ai_ok, "damages": damages,
                          "condition": o.get("condition") or (upload.get("condition") if ai_ok else None),
                          "year": y, "location": location, "guard": o.get("guard"),
@@ -3473,6 +3526,64 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
             if D["decision"]["code"] == "d_accept":
                 D["decision"]["code"] = "d_accept_with_clauses"
     return D
+
+
+def _no_products_rate(rate_res: dict, cls: str) -> dict:
+    """Класс без продуктов страховщика (16у, 18): ставка и премия не определены — тарифной политики по классу нет;
+    экспертная базовая ставка справочника (если есть) в «как посчитана ставка» не выдаётся за ставку акта."""
+    out = dict(rate_res, mode="undefined", base_pct=None, base_source=None, adj_pct=None, calc_pct=None,
+               applied_pct=None, min_pct=None, min_applied=False, premium=None, engine_chain=[])
+    out["how"] = [{"code": "how_no_products", "params": {"cls": cls}}]
+    return out
+
+
+def _fork_prepare(con, fs: dict, *, cls: str, region: str, group: Optional[str], product: Optional[dict],
+                  rate_res: dict, errors: list, min_source: Optional[str] = None) -> tuple:
+    """Данные региона и рынка (только чтение базы) и поправки вилки к ставке акта → (данные, поправки) или
+    (None, None) при сбое: акт формируется, вилка — с reason = error."""
+    try:
+        fin = aa.fork_data(con, cls=cls, region=region, group=group, fs=fs, product_code=(product or {}).get("code"),
+                           min_pct=rate_res.get("min_pct"), min_source=min_source,
+                           statutory_ref=(product or {}).get("rate_text"))
+    except Exception as e:
+        errors.append({"block": "rate_fork", "error": type(e).__name__})
+        return None, None
+    return fin, ae.fork_adjust(rate_res, fin["region"], fin["market"], fs)
+
+
+def _fork_finish(fin: Optional[dict], adj: Optional[dict], fs: dict, rate_res: dict, S: float, request_pct, contract_pct,
+                 analytics: Optional[dict], premium_final, fr_applied: bool) -> dict:
+    """Вилка ставки одного класса (act_engine.fork_build) с данными региона и рынка для показа."""
+    if fin is None:
+        return {"available": False, "reason": "error", "mode": fs["mode"], "unit": "% годовых", "marks": [],
+                "adjustments": None, "recommended": None, "position": {"request": "none", "contract": "none"},
+                "calibrated": ae.CALIBRATED}
+    tech = ((analytics or {}).get("engine") or {}).get("technical_pct") if (analytics or {}).get("available") else None
+    out = ae.fork_build(rate_res=rate_res, adj=adj, sum_insured=S, market=fin["market"], sources=fin["sources"],
+                        request_pct=request_pct, contract_pct=contract_pct, technical_pct=tech,
+                        premium_final=premium_final, franchise_applied=fr_applied, mode=fs["mode"])
+    mk = fin["market"]
+    out["market_data"] = {k: mk.get(k) for k in ("rate_pct", "rate_date", "loss_ratio_pct", "loss_ratio_full_year_pct",
+                                                 "rate_full_year_pct", "full_year_period", "row_key", "pack",
+                                                 "pack_choice", "class_rows", "source")}
+    out["region_data"] = fin["region"]
+    if out.get("adjustments"):
+        out["adjustments"]["market"] = dict(out["adjustments"]["market"], as_of=mk.get("rate_date"),
+                                            source=mk.get("source"), row_key=mk.get("row_key"), pack=mk.get("pack"),
+                                            pack_choice=mk.get("pack_choice"),
+                                            rate_full_year_pct=mk.get("rate_full_year_pct"),
+                                            class_rows=mk.get("class_rows") or [])
+    return out
+
+
+def _napp_settings(analytics: dict, fs: dict, st: Optional[dict]) -> None:
+    """Блок napp аналитики: вес claims_freq в поправке региона (строка «Претензии в регионе» — справочно или в
+    поправке) и порог малой базы подразделений (настройка napp.branch_min_contracts)."""
+    NP = analytics.get("napp") if isinstance(analytics, dict) else None
+    if not isinstance(NP, dict):
+        return
+    NP["claims_weight"] = float(((fs or {}).get("region") or {}).get("weights", {}).get("claims_freq", 1.0))
+    NP["branch_min_contracts"] = int((ae.merge_settings(st or {}).get("napp") or {}).get("branch_min_contracts", 200))
 
 
 def _analytics_block(con, ctx, cls, product_code, region_ra, S, V, term, rate_res, scen, meas, level, statutory, th,
@@ -3643,6 +3754,13 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     cm = ae.class_min(ref, product, cls)
     rate_res = ae.part_rate(ref, product, cls, risk["level"], S, term, otype, op.get("payer_type"), st, cm)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
+    # вилка ставки части (01.10.2026): поправки региона и рынка по классу и виду объекта части
+    fs = C.get("fs") or ae.fork_settings(st)
+    ferrs = []
+    fork_in, fork_adj = _fork_prepare(con, fs, cls=cls, region=C["region_ra"], group=group_ra, product=product,
+                                      rate_res=rate_res, errors=ferrs, min_source=cm.get("source"))
+    errs += [dict(e, block=f"part{idx}:" + e["block"]) for e in ferrs]
+    ae.apply_fork(rate_res, fork_adj, S)
     applicable = cls in ae.VALUE_CLASSES
     value = ae.value_check(S, V, st, op.get("price_new"), op.get("purchase_year"), group, kind_type or obj_text)
     value["applicable"] = applicable
@@ -3685,6 +3803,7 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     perrs = []
     analytics = _analytics_block(con, ctx, cls, pcode, C["region_ra"], S, V, term, rate_res, scen, meas,
                                  risk["level"], statutory, th, group_ra, tpl_risks, perrs)
+    _napp_settings(analytics, fs, st)
     errs += [dict(e, block=f"part{idx}:" + e["block"]) for e in perrs]
     analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
     analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
@@ -3725,6 +3844,8 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
                           "franchise_applied": bool(fr.get("applied"))},
         "scenarios": scen, "measures": meas, "analytics": analytics, "clauses": clauses, "checks": checks,
         "missing": _part_missing(tpl, op, kind, main, C["recognized"]),
+        "rate_fork": _fork_finish(fork_in, fork_adj, fs, rate_res, S, None, None, analytics, premium_final,
+                                  bool(fr.get("applied"))),
         "optional": {k: v for k, v in op.items() if v is not None},
         "template": _template_block(tpl_row, group, group_ra, views_req, clause_codes, tpl_risks, scen,
                                     op.get("class_fields")),
@@ -3888,6 +4009,9 @@ def _apply_parts(con, clean: dict, D: dict, C: dict) -> None:
         dec["code"] = "d_accept_with_clauses"
     D["decision"] = dec
     D["request_check"], D["contract_check"], D["cross_check"] = rc, cc, xc
+    # вилка ставки договора — справочно (сумма премий частей по каждой отметке); у частей — своя вилка
+    D["rate_fork"] = ae.fork_contract(items, S, C["term"], (C["docs"].get("req") or {}).get("tariff_pct"),
+                                      (C["docs"].get("ct") or {}).get("tariff_pct"), C["fs"]["mode"])
 
 
 def _template_block(row: Optional[dict], group: str, group_ra: str, views_req: list, clause_codes: Optional[list],
@@ -3899,6 +4023,8 @@ def _template_block(row: Optional[dict], group: str, group_ra: str, views_req: l
     sr = tpl.get("scenario_rule") or {}
     return {"class_code": row["class_code"], "requested_class": row.get("requested_class"),
             "alias_of": row.get("alias_of"), "version": row["version"], "source": row["source"],
+            "variant": bool(tpl.get("variant")), "variant_of": tpl.get("variant_of"),
+            "official_name": tpl.get("official_name"),
             "name": tpl.get("name"), "object": tpl.get("object"),
             "must": tpl.get("must") or [], "optional": tpl.get("optional") or [],
             "valuation_methods": tpl.get("valuation_methods") or [],
@@ -4118,6 +4244,8 @@ def _fmt_param(key: str, v, lang: str):
         return tx.label(tx.LOCATION_LABELS, v, lang)
     if key == "otype":
         return _otype_label(v, lang)
+    if key == "spct":                       # поправка со знаком: +15 % / −3,2 % (вилка ставки)
+        return _spct(v, lang, 2)
     return v
 
 
@@ -4155,6 +4283,8 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
     if c["code"] in ("c_tpl_credit_over", "c_part_credit_over", "c_credit_need_data", "c_part_credit_need_data"):
         return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), share=p.get("share_pct", 50),
                  **{k: money(p.get(k), lang) for k in ("sum", "insurable", "excess", "credit", "collateral")})
+    if c["code"] == "c_tpl_crop_over":
+        return t(c["code"], lang, **{k: money(p.get(k), lang) for k in ("sum", "value")})
     if c["code"] in ("c_credit_holder_not_bank", "c_part_credit_holder_not_bank"):
         who = p.get("holder") or t("credit_holder_individual" if p.get("individual") else "credit_holder_noname",
                                    lang)
@@ -4615,6 +4745,401 @@ def _parts_view(D: dict, lang: str) -> dict:
             "worst": worst["index"], "rate_extra": rate_extra, "json": js}
 
 
+# --------------------------------------------------------------------------- #
+#  Вилка ставки (01.10.2026): показ на языке акта
+# --------------------------------------------------------------------------- #
+
+def _sg(x, lang: str) -> str:
+    """«+ 15 %» / «− 3,2 %» — слагаемое поправки в формуле «(1 + 15 %)»."""
+    v = round(float(x or 0), 2)
+    return ("− " if v < 0 else "+ ") + pct(abs(v), lang, 2)
+
+
+def _fork_src(src: Optional[dict], lang: str) -> Optional[dict]:
+    """Источник отметки на языке акта: {title, url, as_of}."""
+    if not src:
+        return None
+    kind = src.get("kind")
+    title = src.get("title_ru")
+    if kind in ("policy", "regulator", "policy_act") and lang != "ru":
+        # название документа в справочнике — по-русски; на других языках — название словами акта и номер приказа
+        order = _order_ref_text(title, lang)
+        title = t("rf_doc_regulator" if kind == "regulator" else "rf_doc_policy", lang) + (f" — {order}" if order else "")
+    if kind in ("policy", "regulator"):
+        title = t("rf_src_policy_part", lang, title=title, code=src.get("product_code") or "") if src.get("part_text") \
+            else t("rf_src_policy", lang, title=title, date=_date(src.get("as_of")))
+    elif kind == "policy_act":
+        title = t("rf_src_policy_act", lang, title=title)
+    elif kind == "napp":
+        title = t("rf_src_napp", lang, date=_date(src.get("as_of")))
+    elif kind == "napp_claims":
+        title = t("rf_src_napp_claims", lang, date=_date(src.get("as_of")))
+    elif kind == "adjusted":
+        title = t("rf_src_adjusted", lang)
+    elif kind in ("request", "contract", "technical", "parts"):
+        title = t("rf_src_" + kind, lang)
+    elif kind == "statutory":
+        title = t("rf_src_statutory", lang, title=_act_ref_text(title, lang))
+    elif kind == "stat" and lang != "ru" and src.get("name"):
+        title = f"{str(title or '').split(' — ')[0]} — {src['name']}"     # набор — названием показателя на языке акта
+    return {"title": title, "url": src.get("url"), "as_of": src.get("as_of"), "kind": kind}
+
+
+_LAT = {"А": "A", "Б": "B", "В": "V", "Г": "G", "Д": "D", "Е": "E", "К": "K", "Л": "L", "М": "M", "Н": "N", "О": "O",
+        "П": "P", "Р": "R", "С": "S", "Т": "T", "У": "U", "Ф": "F", "Х": "X", "Ц": "TS", "Ч": "CH", "Ш": "SH"}
+
+
+def _order_ref_text(ref: Optional[str], lang: str) -> Optional[str]:
+    """Номер и дата приказа из названия версии тарифа («… — Приказ №54-П от 23.09.2025») на языке акта:
+    uz — «54-P-son buyruq, 23.09.2025», en — «Order No. 54-P of 23.09.2025»; не нашли — None."""
+    m = re.search(r"Приказ\s*№\s*([0-9A-Za-zА-Яа-яЁё\-/]+)\s*(?:от\s*(\d{2}\.\d{2}\.\d{4}))?", str(ref or ""))
+    if not m:
+        return None
+    no = "".join(_LAT.get(ch.upper(), ch) if re.match(r"[А-Яа-яЁё]", ch) else ch for ch in m.group(1))
+    dt = m.group(2)
+    if lang == "uz":
+        return f"{no}-son buyruq" + (f", {dt}" if dt else "")
+    if lang == "en":
+        return f"Order No. {no}" + (f" of {dt}" if dt else "")
+    return m.group(0)
+
+
+def _act_ref_text(ref: Optional[str], lang: str) -> str:
+    """«ПКМ №532» на языке акта: uz — «VMQ №532», en — «CM Resolution No. 532»; иначе — «нормативный акт»."""
+    if not ref:
+        return t("na", lang)
+    if lang == "ru":
+        return ref
+    s = re.sub(r"ПКМ", {"uz": "VMQ", "en": "CM Resolution"}[tx.lang_of(lang)], str(ref))
+    if lang == "en":
+        s = s.replace("№", "No. ")
+    return s if not re.search(r"[А-Яа-яЁё]", s) else t("rf_doc_regulation", lang)
+
+
+def _fork_note(m: dict, lang: str, F: dict) -> str:
+    code, p = m.get("note") or "", m.get("params") or {}
+    if code == "act":
+        return t("rf_n_act", lang, adj=_spct(p.get("level") or 0, lang, 2))
+    if code in ("adjusted", "adjusted_min"):
+        return t("rf_n_" + code, lang, reg=_sg(p.get("region"), lang), mkt=_sg(p.get("market"), lang))
+    if code in ("market", "market_below_min"):
+        return t("rf_n_" + code, lang, date=_date((m.get("source") or {}).get("as_of")))
+    return t("rf_n_" + code, lang) if code else ""
+
+
+def _fork_num(x, lang: str) -> str:
+    """Число процента без знака % (для строки «0,35 – 0,42 – 0,695 %»)."""
+    return pct(x, lang).replace("%", "").replace(tx.NBSP, "").strip() if x is not None else "—"
+
+
+def _stat_name(i: dict, lang: str) -> str:
+    return tx.label(tx.STAT_LABELS, i["id"], lang) if i["id"] in tx.STAT_LABELS else (i.get("name_ru") or i["id"])
+
+
+def _fork_region_lines(R: dict, lang: str, cls: Optional[str]) -> tuple:
+    """(строки поправки региона, источники) на языке акта."""
+    pct_txt = _spct(R.get("pct") or 0, lang, 2) if R.get("pct") else pct(0, lang)
+    lines, srcs = [], []
+    head = t("rf_reg_title", lang, pct=pct_txt)
+    if R.get("reason"):
+        why = {"no_rules": t("rf_reg_r_no_rules", lang, cls=cls or ""), "kind": t("rf_reg_r_kind", lang, cls=cls or ""),
+               "region_unknown": t("rf_reg_r_region_unknown", lang, region=R.get("region_requested") or ""),
+               "no_regional": t("rf_reg_r_no_regional", lang),
+               "zero_weight": t("rf_reg_r_zero_weight", lang)}.get(R["reason"], "")
+        lines.append(f"{head} — {t('rf_reg_none', lang)} ({why})")
+    else:
+        lo, hi = R["bounds"]
+        txt = f"{head} — " + t("rf_reg_how", lang, sens=_mult(R["sensitivity"], lang), lo=_spct(lo, lang, 2),
+                               hi=_spct(hi, lang, 2))
+        if R.get("clamped"):
+            txt += "; " + t("rf_reg_raw", lang, raw=_spct(R["raw_pct"], lang, 2), lim=_spct(hi if R["clamped"] == "max"
+                                                                                           else lo, lang, 2))
+        lines.append(txt)
+    per1000 = {"ru": "на 1 000 жителей", "uz": "1 000 aholiga", "en": "per 1,000 people"}[tx.lang_of(lang)]
+    for i in R.get("indicators") or []:
+        name = tx.label(tx.STAT_LABELS, i["id"], lang) if i["id"] in tx.STAT_LABELS else i.get("name_ru") or i["id"]
+        if i.get("used"):
+            unit = tx.label(tx.STAT_UNITS, i.get("value_unit_ru"), lang) if i.get("value_unit_ru") in tx.STAT_UNITS \
+                else (i.get("value_unit_ru") or "")
+            if i.get("kind") == "count_pc":
+                unit = f"{unit} {per1000}"
+            line = t("rf_reg_ind", lang, name=name, period=i.get("period") or "", reg=_num4(i["region_value"], lang),
+                     cty=_num4(i["country_value"], lang), unit=unit, ratio=_mult(i["ratio"], lang),
+                     effect=_spct(i["effect_pct"], lang, 2))
+            cav = _caveat(i["id"], lang)
+            lines.append(line + (f" ({t('rf_caveat', lang, text=cav)})" if cav else ""))
+            s = _fork_src(dict(i["source"], name=name) if i.get("source") else None, lang)
+            if s:
+                srcs.append(s)
+        else:
+            lines.append(t("rf_reg_ind_off", lang, name=name, why=tx.label(tx.FORK_WHY_LABELS, i.get("why"), lang)))
+    return lines, srcs
+
+
+def _caveat(iid: str, lang: str) -> Optional[str]:
+    """Оговорка показателя региона: что он измеряет на самом деле (все ДТП, все кражи, жилой фонд)."""
+    return tx.label(tx.STAT_CAVEATS, iid, lang) if iid in tx.STAT_CAVEATS else None
+
+
+def _pack_choice_text(pc: Optional[dict], lang: str, cls: Optional[str] = None, prefix: str = "rf_mkt_pack_") -> Optional[str]:
+    """Какая строка НАПП взята для комплексного продукта и почему (exact | nearest | class) — на языке акта."""
+    if not pc or not pc.get("how"):
+        return None
+    kw = {"pack": ",".join(pc.get("pack_classes") or []), "code": pc.get("product_code") or "",
+          "classes": ",".join(pc.get("classes") or []), "cls": pc.get("class_used") or cls or ""}
+    txt = t(prefix + pc["how"], lang, **kw)
+    if pc.get("subclass_note"):
+        txt += t(prefix + "sub", lang, sub=", ".join(x for x in pc.get("product_classes") or []
+                                                      if not str(x).isdigit()))
+    return txt
+
+
+def _fork_market_lines(M: dict, lang: str, cls: Optional[str] = None) -> list:
+    pct_txt = _spct(M.get("pct") or 0, lang, 2) if M.get("pct") else pct(0, lang)
+    head = t("rf_mkt_title", lang, pct=pct_txt)
+    r = M.get("reason")
+    kw = {"act": pct(M.get("act_pct"), lang), "market": pct(M.get("market_rate_pct"), lang),
+          "lr": tx.pct_fixed(M.get("loss_ratio_pct"), lang, 1) if M.get("loss_ratio_pct") is not None else t("na", lang),
+          # убыточность взята за полный год — дата его среза (01.01 следующего года), а не последнего среза
+          "date": (_date(f"{int(_fy_year(M.get('full_year_period'))) + 1}-01-01")
+                   if M.get("basis") == "full_year" and _fy_year(M.get("full_year_period"))
+                   else _date(M.get("as_of"))), "pct": pct_txt,
+          "thr": tx.pct_fixed(M.get("threshold") if M.get("threshold") is not None
+                              else ((M.get("steps") or [[0]])[0][0]), lang, 0)}
+    body = t("rf_mkt_" + (r or "no_data") if r in ("applied", "act_not_below", "lr_below", "no_data")
+             else "rf_mkt_no_data", lang, **kw)
+    lines = [f"{head} — {body}"]
+    if M.get("full_year_switch"):
+        # скачок убыточности за неполный год: ступень взята по полному году (rate_fork.market.basis)
+        lines.append(t("rf_mkt_fy_switch", lang, last=tx.pct_fixed(M.get("loss_ratio_last_pct"), lang, 1),
+                       fy=tx.pct_fixed(M.get("loss_ratio_full_year_pct"), lang, 1),
+                       year=_fy_year(M.get("full_year_period")) or "—"))
+    if M.get("capped"):
+        lines.append(t("rf_mkt_capped", lang, market=pct(M.get("market_rate_pct"), lang),
+                       pct=_spct(M.get("effective_pct") or 0, lang, 2) if M.get("effective_pct") else pct(0, lang)))
+    steps = "; ".join(t("rf_mkt_step", lang, thr=tx.pct_fixed(s[0], lang, 0), pct=_spct(s[1], lang, 2))
+                      for s in M.get("steps") or [])
+    if steps:
+        lines.append(t("rf_mkt_steps", lang, steps=steps, basis=t("rf_mkt_basis_" + (M.get("basis") or "last"), lang)))
+    if M.get("cap_at_market"):
+        lines.append(t("rf_mkt_cap_on", lang))
+    pcx = _pack_choice_text(M.get("pack_choice"), lang, cls)
+    if pcx:
+        lines.append(pcx)
+    elif M.get("pack"):
+        lines.append(t("rf_mkt_pack", lang))
+    if (M.get("pack_choice") or {}).get("how") in ("exact", "nearest"):
+        # полный год пакета и одиночные строки классов продукта (правило проекта № 5 — по каждому классу)
+        if M.get("loss_ratio_full_year_pct") is not None and M.get("rate_full_year_pct") is not None:
+            lines.append(t("rf_mkt_pack_fy", lang, year=_fy_year(M.get("full_year_period")) or "—",
+                           rate=pct(M.get("rate_full_year_pct"), lang),
+                           lr=tx.pct_fixed(M.get("loss_ratio_full_year_pct"), lang, 1)))
+        cr = _class_rows_text(M.get("class_rows"), lang)
+        if cr:
+            lines.append(cr)
+    return lines
+
+
+def _fy_year(period: Optional[str]) -> Optional[str]:
+    """«2025 год» → «2025» (год полного среза НАПП)."""
+    d = "".join(ch for ch in str(period or "") if ch.isdigit())[:4]
+    return d or None
+
+
+def _class_rows_text(rows: Optional[list], lang: str) -> Optional[str]:
+    """«по одиночным строкам классов: класс 3 — 14,6 %, класс 14 — 24,2 % (убыточность, срез …; ставка: …)»."""
+    rows = [r for r in rows or [] if r.get("class_code")]
+    if not rows:
+        return None
+    lrs, rates = [], []
+    for r in rows:
+        if r.get("available") and r.get("loss_ratio_pct") is not None:
+            lrs.append(t("rf_mkt_class_row", lang, cls=r["class_code"], v=tx.pct_fixed(r["loss_ratio_pct"], lang, 1)))
+        else:
+            lrs.append(t("rf_mkt_class_row_na", lang, cls=r["class_code"]))
+        if r.get("available") and r.get("rate_pct") is not None:
+            rates.append(t("rf_mkt_class_row", lang, cls=r["class_code"], v=pct(r["rate_pct"], lang)))
+    date = next((r.get("date") for r in rows if r.get("date")), None)
+    return t("rf_mkt_class_rows", lang, rows=", ".join(lrs), date=_date(date) or "—",
+             rates=", ".join(rates) or t("na", lang))
+
+
+def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
+    """
+    Вилка ставки одного класса (или справочная договора) на языке акта:
+    {"json": блок rate_fork ответа, "list": список раздела 4 с таблицей, "summary": одна фраза, "row": строка
+    раздела 4 рядом с премией или None, "overview": «0,35 – 0,42 – 0,695 %» для страницы скоринга}.
+    """
+    lang = tx.lang_of(lang)
+    NA = t("na", lang)
+    if not F:                                # акты до 01.10.2026 — без вилки
+        return {"json": {"available": False, "reason": "old_act", "marks": [], "calibrated": ae.CALIBRATED},
+                "list": None, "summary": None, "row": None, "overview": None}
+    marks = []
+    for m in F.get("marks") or []:
+        lab = t("rf_m_" + m["code"], lang)
+        marks.append({"code": m["code"], "label": lab, "rate_pct": m.get("rate_pct"), "premium": m.get("premium"),
+                      "is_recommended": bool(m.get("is_recommended")), "source": _fork_src(m.get("source"), lang),
+                      "note": _fork_note(m, lang, F)})
+    by = {m["code"]: m for m in marks}
+    adj = F.get("adjustments") or {}
+    R = adj.get("region") or F.get("region_data")
+    MK = adj.get("market")
+    how, srcs = [], []
+    reason = F.get("reason")
+    # одна фраза вывода
+    if reason in ("statutory", "statutory_undefined"):
+        ref_txt = ((F.get("marks") or [{}])[0].get("source") or {}).get("title_ru") if F.get("marks") else None
+        summary = t("rf_sum_statutory", lang, rate=pct(by["act"]["rate_pct"], lang), ref=_act_ref_text(ref_txt, lang)) \
+            if "act" in by else t("rf_sum_statutory_na", lang, ref=NA)
+    elif reason == "undefined":
+        summary = t("rf_sum_undefined", lang, market=pct(by["market"]["rate_pct"], lang)) if "market" in by \
+            else t("rf_sum_undefined_nomarket", lang)
+    elif reason == "error":
+        summary = t("rf_sum_error", lang)
+    elif reason == "parts_reference":
+        summary = t("rf_sum_parts", lang, min=pct((by.get("min") or {}).get("rate_pct"), lang),
+                    act=pct((by.get("act") or {}).get("rate_pct"), lang),
+                    adj=pct((by.get("adjusted") or {}).get("rate_pct"), lang))
+    else:
+        rec = by[F["recommended"]["code"]]
+        base_kw = {"min": pct((by.get("min") or {}).get("rate_pct"), lang), "rec": pct(rec["rate_pct"], lang)}
+        summary = t("rf_sum", lang, market=pct(by["market"]["rate_pct"], lang), **base_kw) if "market" in by \
+            else t("rf_sum_nomarket", lang, **base_kw)
+        if F["recommended"]["code"] == "act" and "adjusted" in by and by["adjusted"]["rate_pct"] != rec["rate_pct"]:
+            summary += t("rf_sum_adj", lang, adj=pct(by["adjusted"]["rate_pct"], lang))
+        if F["recommended"]["code"] == "adjusted" and by["act"]["rate_pct"] != rec["rate_pct"]:
+            summary += t("rf_sum_act", lang, act=pct(by["act"]["rate_pct"], lang))
+    for code in ("request", "contract"):
+        if code in by:
+            summary += t("rf_sum_doc", lang, what=by[code]["label"], rate=pct(by[code]["rate_pct"], lang),
+                         pos=tx.label(tx.FORK_POS_LABELS, (F.get("position") or {}).get(code) or "none", lang)) \
+                if reason not in ("parts_reference",) else ""
+    # поправки
+    reg_js = mkt_js = None
+    if R and F.get("available") and reason != "parts_reference":
+        rl, rs_ = _fork_region_lines(R, lang, cls)
+        how += rl
+        srcs += rs_
+        reg_js = {"pct": R.get("pct"), "raw_pct": R.get("raw_pct"),
+                  "clamped": R.get("clamped"), "bounds": R.get("bounds"), "sensitivity": R.get("sensitivity"),
+                  "reason": R.get("reason"), "region_key": R.get("region_key"),
+                  "indicators": [{"id": i["id"], "name": tx.label(tx.STAT_LABELS, i["id"], lang)
+                                  if i["id"] in tx.STAT_LABELS else i.get("name_ru"),
+                                  "region_value": i.get("region_value"), "country_value": i.get("country_value"),
+                                  "ratio": i.get("ratio"), "effect_pct": i.get("effect_pct"), "period": i.get("period"),
+                                  "unit": i.get("unit_ru"), "source": _fork_src(dict(i["source"], name=_stat_name(i, lang))
+                                                                  if i.get("source") else None, lang),
+                                  "used": bool(i.get("used")), "why": i.get("why"), "caveat": _caveat(i["id"], lang),
+                                  "why_text": tx.label(tx.FORK_WHY_LABELS, i["why"], lang) if i.get("why") else None}
+                                 for i in R.get("indicators") or []],
+                  "text": rl[0], "lines": rl, "calibrated": ae.CALIBRATED}
+    if MK:
+        ml = _fork_market_lines(MK, lang, cls)
+        how += ml
+        mds = _fork_src(MK.get("source"), lang)
+        mkt_js = {"pct": MK.get("pct"), "reason": MK.get("reason"), "loss_ratio_pct": MK.get("loss_ratio_pct"),
+                  "capped": bool(MK.get("capped")), "effective_pct": MK.get("effective_pct"),
+                  "cap_at_market": bool(MK.get("cap_at_market")),
+                  "loss_ratio_basis": MK.get("basis"), "market_rate_pct": MK.get("market_rate_pct"),
+                  "threshold": MK.get("threshold"), "steps": MK.get("steps"), "as_of": MK.get("as_of"),
+                  "row_key": MK.get("row_key"), "pack_choice": MK.get("pack_choice"),
+                  # 01.10.2026: скачок убыточности за неполный год — ступень по полному году (rate_fork.market.basis)
+                  "basis": MK.get("basis"), "full_year_switch": bool(MK.get("full_year_switch")),
+                  "loss_ratio_last_pct": MK.get("loss_ratio_last_pct"),
+                  "loss_ratio_full_year_pct": MK.get("loss_ratio_full_year_pct"),
+                  "rate_full_year_pct": MK.get("rate_full_year_pct"), "full_year_period": MK.get("full_year_period"),
+                  "class_rows": list(MK.get("class_rows") or []),
+                  "pack_note": _pack_choice_text(MK.get("pack_choice"), lang, cls),
+                  "source": mds, "text": ml[0], "lines": ml, "calibrated": ae.CALIBRATED}
+    if F.get("available") and reason != "parts_reference":
+        how.append(t("rf_mode_" + (F.get("mode") or "reference"), lang))
+        if F.get("franchise_applied") and F.get("premium_final") is not None:
+            how.append(t("rf_fr_note", lang, premium=money(F["premium_final"], lang)))
+        how.append(t("rf_calibrated", lang))
+    # источники: отметки и показатели (без повторов)
+    seen, src_lines = set(), []
+    for s in [m["source"] for m in marks if m.get("source")] + srcs:
+        if s.get("kind") in ("adjusted", "policy_act", "request", "contract", "technical", "parts"):
+            continue
+        key = (s["title"], s.get("url"))
+        if key in seen:
+            continue
+        seen.add(key)
+        src_lines.append(t("rf_src_line", lang, title=s["title"], url=s["url"]) if s.get("url")
+                         else t("rf_src_line", lang, title=s["title"], url="").rstrip(" —"))
+    rows = []
+    for m in marks:
+        lab = m["label"] + (f" — {t('rf_recommended', lang)}" if m["is_recommended"] else "")
+        rows.append([lab, pct(m["rate_pct"], lang) if m["rate_pct"] is not None else NA,
+                     money(m["premium"], lang) if m["premium"] is not None else NA, m["note"],
+                     (m["source"] or {}).get("title") or ""])
+    table = {"columns": [t("rf_col_mark", lang), t("rf_col_rate", lang), t("rf_col_premium", lang),
+                         t("rf_col_why", lang), t("rf_col_src", lang)], "rows": rows, "widths": [18, 10, 15, 32, 25]}
+    li = _li(t("rf_title", lang), [], table if rows else None, src_lines, [summary] + how)
+    rec = F.get("recommended")
+    js = {"available": bool(F.get("available")), "reason": reason, "mode": F.get("mode"), "title": t("rf_title", lang),
+          "unit": t("rf_unit", lang), "marks": marks,
+          "adjustments": {"region": reg_js, "market": mkt_js} if (reg_js or mkt_js) else None,
+          "recommended": dict(rec) if rec else None, "position": dict(F.get("position") or {}),
+          "summary": summary, "how": how, "sources": [s for s in [m["source"] for m in marks if m.get("source")] + srcs],
+          "reference_only": bool(F.get("reference_only")), "term_days": F.get("term_days"),
+          # премия акта с учётом применённой франшизы (та же, что premium.amount)
+          "premium_final": F.get("premium_final"), "franchise_applied": bool(F.get("franchise_applied")),
+          "table": table, "calibrated": ae.CALIBRATED}
+    row = None
+    if F.get("available") and reason != "parts_reference" and "adjusted" in by:
+        if F["recommended"]["code"] == "act":
+            row = _row(t("rf_row_adjusted", lang), pct(by["adjusted"]["rate_pct"], lang),
+                       t("rf_row_adjusted_note", lang, premium=money(by["adjusted"]["premium"], lang)))
+        else:
+            row = _row(t("rf_row_act", lang), pct(by["act"]["rate_pct"], lang),
+                       t("rf_row_act_note", lang, premium=money(by["act"]["premium"], lang)))
+    ov_rec = (rec or {}).get("rate_pct")
+    ov_min = (by.get("min") or {}).get("rate_pct")
+    ov_mkt = (by.get("market") or {}).get("rate_pct")
+    overview = None if ov_rec is None and ov_min is None and ov_mkt is None else \
+        f"{_fork_num(ov_min, lang)} – {_fork_num(ov_rec, lang)} – {_fork_num(ov_mkt, lang)}" + \
+        ("%" if lang == "en" else tx.NBSP + "%")
+    return {"json": js, "list": li, "summary": summary, "row": row, "overview": overview}
+
+
+def _fork_parts_view(D: dict, PV: dict, lang: str) -> dict:
+    """Договор из частей: вилка по каждой части (таблица) и справочная вилка договора."""
+    items = (D.get("parts") or {}).get("items") or []
+    cv = _fork_view(D.get("rate_fork"), lang)
+    NA = t("na", lang)
+    rows, notes, src_lines = [], [], []
+    for p, pj in zip(items, PV["json"]["items"]):
+        fv = _fork_view(p.get("rate_fork"), lang, p["class_code"])
+        pj["rate_fork"] = fv["json"]
+        by = {m["code"]: m for m in fv["json"]["marks"]}
+        adj = fv["json"].get("adjustments") or {}
+        cell = lambda c: (pct(by[c]["rate_pct"], lang) + (" (" + t("rf_rec_short", lang) + ")" if by[c]["is_recommended"] else "")) if c in by else "—"  # noqa
+        rows.append([pj["label"], cell("min"), cell("act"), cell("adjusted"), cell("market"),
+                     " / ".join(_spct(x, lang, 2) if x else pct(0, lang)
+                                for x in ((adj.get("region") or {}).get("pct"), (adj.get("market") or {}).get("pct")))
+                     if fv["json"]["available"] else "—"])
+        notes.append(t("rf_part_line", lang, part=pj["label"], text=fv["summary"]))
+        skip = (t("rf_calibrated", lang), t("rf_mode_reference", lang), t("rf_mode_apply", lang))
+        notes += [t("rf_part_line", lang, part=t("pt_part_short", lang, n=p["index"]), text=x)
+                  for x in fv["json"]["how"] if x not in skip]
+        for s in fv["list"]["sources"] if fv["list"] and fv["list"].get("sources") else []:
+            if s not in src_lines:
+                src_lines.append(s)
+    cby = {m["code"]: m for m in cv["json"]["marks"]}
+    rows.append([t("rf_contract_row", lang)] + [pct(cby[c]["rate_pct"], lang) if c in cby else "—"
+                                                 for c in ("min", "act", "adjusted")] + ["—", "—"])
+    notes += [t("rf_mode_" + (cv["json"].get("mode") or "reference"), lang), t("rf_calibrated", lang)]
+    table = {"columns": [t("rf_col_part", lang), t("rf_m_min", lang), t("rf_m_act", lang), t("rf_m_adjusted", lang),
+                         t("rf_m_market", lang), "±"], "rows": rows, "widths": [26, 13, 13, 16, 14, 18]}
+    js = dict(cv["json"], parts=[{"index": p["index"], "class_code": p["class_code"], "summary": pj["rate_fork"]["summary"],
+                                  "recommended": pj["rate_fork"].get("recommended")}
+                                 for p, pj in zip(items, PV["json"]["items"])])
+    return {"json": js, "list": _li(t("rf_parts_title", lang), [], table, src_lines, [cv["summary"]] + notes),
+            "summary": cv["summary"], "overview": cv["overview"] or NA}
+
+
 def render(D: dict, lang: str, meta: dict) -> dict:
     """Акт на языке lang из структурированных данных. Все цифры — из расчёта, слова — из act_texts."""
     lang = tx.lang_of(lang)
@@ -4763,6 +5288,11 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     else:
         rows4 += [_row(t("applied_rate", lang), t("rate_undefined", lang)),
                   _row(t("premium", lang), NA)]
+    # вилка ставки (01.10.2026): минимум → ставка акта → с учётом региона и рынка → рынок; у частей — по каждой части
+    FV = _fork_parts_view(D, PV, lang) if PV and D.get("rate_fork") else \
+        _fork_view(D.get("rate_fork"), lang, must["class_code"])
+    if not PV and FV.get("row") and mode == "tariff":
+        rows4.append(FV["row"])
     fr_text = PV["fr_text"] if PV else _fr_text(fr, lang)
     if not PV:
         rows4.append(_row(t("franchise", lang), fr_text))
@@ -4784,6 +5314,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
             print("акт: аналитика раздела 4 не показана:", type(e).__name__, e)
             anv = {"summary": None, "lists": [], "json": {"available": False, "reason": "render_error",
                                                           "calibrated": ae.CALIBRATED}}
+    if FV.get("list"):
+        lists4.append(FV["list"])            # «Вилка ставки» — сразу после «Как посчитан тариф»
     lists4 += anv["lists"]
     if fr.get("grounds"):
         lists4.append({"title": t("fr_grounds", lang), "items": [_text(g, lang) for g in fr["grounds"]]})
@@ -4877,6 +5409,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                  "tariff_version_id": D.get("tariff_version_id"), "final_pct": pf["rate_pct"],
                  "multi_class": bool(D.get("multi_class")),
                  "product_classes": (must.get("product_classes") or []),
+                 # вилка ставки, режим apply: ставка акта уже с поправками региона и рынка (01.10.2026)
+                 "fork_applied": bool(rate_res.get("fork_applied")), "fork_act_pct": rate_res.get("fork_act_pct"),
                  **(PV["rate_extra"] if PV else {})},
         "premium": {"amount": pf["amount"], "term_days": rate_res["term_days"], "currency": "UZS",
                     "text": money(pf["amount"], lang) if pf["amount"] is not None else NA,
@@ -4931,6 +5465,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                       "scoring_png": f"/act/{meta['id']}/scoring.png?lang={lang}"},
         # отчёт кредитного бюро по заёмщику (01.10.2026); нет отчёта — available = false
         "borrower": bv["json"],
+        # вилка ставки (01.10.2026): отметки, поправки региона и рынка с источниками, вывод одной фразой
+        "rate_fork": dict(FV["json"], overview=FV.get("overview")),
     }
     # страховой скоринг объекта (01.10.2026): представление посчитанного акта; сбой показа не роняет акт
     try:
@@ -5326,7 +5862,9 @@ def _scenarios_view(sc: Optional[dict], must: dict, lang: str) -> dict:
         if sc.get("rule_text"):
             how.append(t("sc_tpl_rule_text", lang, text=sc["rule_text"].get(lang) or sc["rule_text"].get("ru")))
         for c in sc.get("checks") or []:
-            how.append(t(c["code"], lang, **{k: money(v, lang) if isinstance(v, (int, float)) and k != "by" else v
+            # площадь, урожайность и процент (урожай, 16у) — числа, а не суммы
+            how.append(t(c["code"], lang, **{k: (_num4(v, lang) if k in ("area", "yield", "pct") else money(v, lang))
+                                             if isinstance(v, (int, float)) and k != "by" else v
                                              for k, v in (c.get("params") or {}).items()}))
         js.update(source="template", rule_text=(sc.get("rule_text") or {}).get(lang),
                   checks=[{"code": c["code"], "params": c.get("params")} for c in sc.get("checks") or []])
@@ -5419,6 +5957,152 @@ def _li(title: str, items: list, table: Optional[dict] = None, sources: Optional
 
 def _date(iso) -> str:
     return _ddmmyyyy(str(iso)[:10]) if iso else ""
+
+
+def _np_src(src: Optional[dict], lang: str) -> tuple:
+    """(строка «Источник: …», запись для плашки) для данных НАПП о претензиях и подразделениях."""
+    if not src:
+        return None, None
+    file = ""
+    if lang == "ru" and "(" in (src.get("title") or ""):
+        file = " (" + src["title"].split("(", 1)[1]
+        file = file if file.endswith(")") else file + ")"
+    line = t("an_np_src", lang, sheets=src.get("sheets") or "", file=file, date=_date(src.get("as_of")),
+             url=src.get("url") or "")
+    title = t("an_np_src_title", lang, sheets=src.get("sheets") or "")
+    return line, {"title": title, "url": src.get("url"), "source": src.get("domain") or "napp.uz",
+                  "period": _date(src.get("as_of")), "fetched_at": None}
+
+
+def _np_skip(B: dict, lang: str, sheet: str) -> str:
+    """Почему показатель НАПП пропущен — на языке акта."""
+    r = B.get("reason")
+    if r in ("no_sheet", "no_table"):
+        return t("an_np_no_sheet", lang, date=_date(B.get("date")) or t("na", lang), sheet=sheet)
+    if r == "no_region_row":
+        return t("an_np_no_region_row", lang, date=_date(B.get("date")), region=B.get("region_name") or "")
+    if r == "no_contracts":
+        return t("an_np_no_contracts", lang, date=_date(B.get("date")))
+    if r == "no_company":
+        return t("an_np_no_company", lang, date=_date(B.get("date")))
+    return t("na", lang)
+
+
+def _cap(x: str) -> str:
+    """Первая буква — заглавная (фраза после точки)."""
+    return x[:1].upper() + x[1:] if x else x
+
+
+def _napp_items(NP: dict, lang: str, must: dict) -> list:
+    """Строки раздела 4 по претензиям и подразделениям (НАПП) в форме analytics.stats.indicators."""
+    if not NP.get("available"):
+        return []
+    # таблиц ещё нет (база до первой загрузки новых листов) — строк нет вовсе, без ложного «листа нет»
+    NP = {k: (v if not (isinstance(v, dict) and v.get("reason") == "no_table") else {}) for k, v in NP.items()}
+    lang = tx.lang_of(lang)
+    out = []
+    reg_name = region_label(must, lang) or ""
+
+    def n2(x):
+        return tx._num(float(x), lang, 2) if x is not None else t("na", lang)
+
+    def p1(x):
+        return tx.pct_fixed(x, lang, 1) if x is not None else t("na", lang)
+
+    def m0(x):
+        return money(x, lang) if x is not None else t("na", lang)
+
+    cw = NP.get("claims_weight", 0.0)
+    min_n = NP.get("branch_min_contracts", 200)
+
+    def caveats(B):
+        """Оговорки к строкам претензий на языке акта (доля города Ташкента — по срезу)."""
+        return t("an_np_caveats", lang, text="; ".join(mpic.claims_caveats(lang, B.get("capital_share_pct"))))
+
+    def item(iid, name, status, value_text, text, scope, B, vs=None, row_note=""):
+        line, sx = _np_src(B.get("source"), lang)
+        return {"id": iid, "name": name, "scope": scope, "status": status,
+                "value": None, "value_text": value_text, "period": _date(B.get("date")) or None,
+                "vs_country": vs, "used_in_score": False, "excluded_for_kind": False, "points": None,
+                "text": text, "source_lines": [line] if line else [], "sources": [sx] if sx else [],
+                "row_note": row_note or (_date(B.get("date")) or "—"), "napp": True, "calibrated": ae.CALIBRATED}
+
+    # 1. претензии в регионе против республики (листы 3.5, 3.4, 3.2)
+    RC = NP.get("region_claims") or {}
+    reg, rep_ = RC.get("region") or {}, RC.get("republic") or {}
+    months = RC.get("months") or "—"
+    # строка справочная: в поправку ставки по умолчанию не входит (вес claims_freq = 0, замечание 01.10.2026)
+    share = RC.get("capital_share_pct")
+    if cw:
+        ref = t("an_np_rc_in_fork", lang, w=tx._num(float(cw), lang, 1 if float(cw) != int(cw) else 0))
+    else:
+        ref = t("an_np_rc_ref", lang, share=tx.pct_fixed(share, lang, 0)) if share is not None \
+            else t("an_np_rc_ref_na", lang)
+    if RC.get("available"):
+        text = t("an_np_rc_line", lang, f=n2(reg["per_1000"]), cf=n2(rep_["per_1000"]), r=p1(reg["refused_pct"]),
+                 cr=p1(rep_["refused_pct"]), a=m0(reg["avg_payout"]), ca=m0(rep_["avg_payout"]),
+                 n=tx._num(float(reg["received"]), lang, 0), date=_date(RC["date"]), m=months)
+        it = item("napp_region_claims", t("an_np_rc_name", lang), "ok",
+                  t("an_np_per1000", lang, f=n2(reg["per_1000"])), text + ". " + _cap(ref) + ". " + caveats(RC), "region",
+                  RC, {"ratio": RC["ratio"], "diff_pct": RC["diff_pct"]},
+                  f"{_date(RC['date'])}; {t('an_st_region', lang)}: {reg_name}; {ref}")
+        it.update(reference_only=not cw, in_fork_weight=cw, note=ref,
+                  caveats=mpic.claims_caveats(lang, RC.get("capital_share_pct")))
+        out.append(it)
+    elif rep_ and RC.get("reason") in ("no_region", "region_unknown"):
+        text = t("an_np_rc_rep_line", lang, cf=n2(rep_["per_1000"]), cr=p1(rep_["refused_pct"]),
+                 ca=m0(rep_["avg_payout"]), date=_date(RC["date"]), m=months)
+        it = item("napp_region_claims", t("an_np_rc_name_rep", lang), "ok",
+                  t("an_np_per1000", lang, f=n2(rep_["per_1000"])), text + ". " + caveats(RC), "republic", RC)
+        it.update(reference_only=True, caveats=mpic.claims_caveats(lang, RC.get("capital_share_pct")))
+        out.append(it)
+    elif RC.get("reason"):
+        why = _np_skip(RC, lang, "3.5")
+        out.append(item("napp_region_claims", t("an_np_rc_name", lang), "no_data", why,
+                        t("an_np_skip_line", lang, name=t("an_np_rc_name", lang), why=why), "region", RC))
+    # 2. претензии: рынок в целом / INSON (листы 2.10, 2.7, 2.5)
+    CC = NP.get("company_claims") or {}
+    mk_, co = CC.get("market") or {}, CC.get("company") or {}
+    if CC.get("available"):
+        text = t("an_np_cc_line", lang, mn=tx._num(float(mk_["received"]), lang, 0), mf=n2(mk_["per_1000"]),
+                 mr=p1(mk_["refused_pct"]), ma=m0(mk_["avg_payout"]), cn=tx._num(float(co["received"]), lang, 0),
+                 cf=n2(co["per_1000"]), cr=p1(co["refused_pct"]), ca=m0(co["avg_payout"]), date=_date(CC["date"]),
+                 m=CC.get("months") or "—")
+        it = item("napp_company_claims", t("an_np_cc_name", lang), "ok",
+                  t("an_np_cc_value", lang, cf=n2(co["per_1000"]), mf=n2(mk_["per_1000"])),
+                  text + ". " + caveats(CC), "republic", CC)
+        it.update(reference_only=True, caveats=mpic.claims_caveats(lang, CC.get("capital_share_pct")))
+        out.append(it)
+    elif CC.get("reason"):
+        why = _np_skip(CC, lang, "2.10")
+        out.append(item("napp_company_claims", t("an_np_cc_name", lang), "no_data", why,
+                        t("an_np_skip_line", lang, name=t("an_np_cc_name", lang), why=why), "republic", CC))
+    # 3. подразделения INSON в регионе (листы 2.12–2.14)
+    BR = NP.get("branches") or {}
+    if BR.get("available"):
+        r, c = BR["region"], BR["company"]
+        text = t("an_np_br_line", lang, lr=p1(r["loss_ratio_pct"]), clr=p1(c["loss_ratio_pct"]),
+                 ap=m0(r["avg_premium"]), cap=m0(c["avg_premium"]), p=tx._num(float(r["premiums_mln"]), lang, 1),
+                 n=tx._num(float(r["contracts"] or 0), lang, 0), date=_date(BR["date"]))
+        small = r.get("contracts") is not None and min_n and float(r["contracts"]) < float(min_n)
+        sm = t("an_np_br_small", lang, n=tx._num(float(r["contracts"] or 0), lang, 0),
+               min=tx._num(float(min_n), lang, 0)) if small else ""
+        it = item("napp_branches", t("an_np_br_name", lang), "ok",
+                  t("an_np_br_value", lang, lr=p1(r["loss_ratio_pct"]), clr=p1(c["loss_ratio_pct"])),
+                  text + (". " + _cap(sm) if sm else ""), "region", BR, None,
+                  f"{_date(BR['date'])}; {t('an_st_region', lang)}: {reg_name}" + (f"; {sm}" if sm else ""))
+        it.update(small_base=bool(small), min_contracts=min_n)
+        out.append(it)
+    elif BR.get("reason") == "not_listed":
+        why = t("an_np_br_not_listed_reg" if BR.get("company") else "an_np_br_not_listed", lang, region=reg_name,
+                company=BR.get("company_label") or "INSON")
+        out.append(item("napp_branches", t("an_np_br_name", lang), "no_data", why,
+                        t("an_np_skip_line", lang, name=t("an_np_br_name", lang), why=why), "region", BR))
+    elif BR.get("reason") == "no_sheet":
+        why = _np_skip(BR, lang, "2.12–2.14")
+        out.append(item("napp_branches", t("an_np_br_name", lang), "no_data", why,
+                        t("an_np_skip_line", lang, name=t("an_np_br_name", lang), why=why), "region", BR))
+    return out
 
 
 def _pack_text(mk: dict, lang: str) -> str:
@@ -5639,8 +6323,12 @@ def _analytics_view(D: dict, lang: str) -> dict:
                    pct(T["policy_rate_pct"], lang))
             else:
                 tr("act_base", t("an_t_base_act", lang), pct(T.get("act_base_pct"), lang))
+            act_note = t("an_t_act_min_class" if by_text else "an_t_act_min", lang, **cm_kw) \
+                if T.get("min_applied") else ""
+            if rate_res.get("fork_applied"):         # вилка ставки, режим apply: ставка акта уже с поправками
+                act_note = "; ".join(x for x in (act_note, t("rf_an_applied", lang)) if x)
             tr("act", t("an_t_act", lang, adj="+" + pct(T.get("adj_pct") or 0, lang)), pct(T["act_rate_pct"], lang),
-               t("an_t_act_min_class" if by_text else "an_t_act_min", lang, **cm_kw) if T.get("min_applied") else "")
+               act_note)
         else:
             tr("act", t("an_t_act_other", lang), pct(T["act_rate_pct"], lang) if T.get("act_rate_pct") is not None
                else t("rate_undefined", lang))
@@ -5878,7 +6566,27 @@ def _analytics_view(D: dict, lang: str) -> dict:
             if mk.get("loss_ratio_full_year_pct") is not None:
                 mrows.append([t("an_m_fy_lr_label", lang, year=mk["full_year"]),
                               tx.pct_fixed(mk["loss_ratio_full_year_pct"], lang, 1), str(mk["full_year"])])
-        if mk.get("pack"):
+        if mk.get("class_rows"):
+            # рядом с пакетом — одиночные строки классов продукта (правило проекта № 5: ставка по каждому классу)
+            for r in mk["class_rows"]:
+                if not r.get("available"):
+                    mrows.append([t("an_m_class_label", lang, cls=r["class_code"]), NA, "—"])
+                    continue
+                val = t("an_m_class_value", lang, rate=pct(r.get("rate_pct"), lang),
+                        lr=tx.pct_fixed(r["loss_ratio_pct"], lang, 1) if r.get("loss_ratio_pct") is not None else NA)
+                if r.get("rate_full_year_pct") is not None:
+                    val += t("an_m_class_fy", lang, year=_fy_year(r.get("full_year_period")) or "—",
+                             rate=pct(r["rate_full_year_pct"], lang),
+                             lr=tx.pct_fixed(r.get("loss_ratio_full_year_pct"), lang, 1)
+                             if r.get("loss_ratio_full_year_pct") is not None else NA)
+                mrows.append([t("an_m_class_label", lang, cls=r["class_code"]), val, _date(r.get("date"))])
+            cr_line = _class_rows_text(mk["class_rows"], lang)
+            if cr_line:
+                mitems.append(cr_line[:1].upper() + cr_line[1:] + ".")
+        if mk.get("pack_choice"):
+            # комплексный продукт: пакет НАПП с классами продукта (точный / ближайший) или строка класса
+            row_note = _pack_choice_text(mk["pack_choice"], lang, cls, "an_m_prod_")
+        elif mk.get("pack"):
             # какая строка отчёта взята и почему — по объёму премий строк в market_stats
             if mk.get("alt_premiums") is not None and mk.get("pack_premiums"):
                 row_note = t("an_m_row", lang, pack=_pack_text(mk, lang), rk=mk.get("row_key"), cls=cls,
@@ -5966,11 +6674,27 @@ def _analytics_view(D: dict, lang: str) -> dict:
         ((ST.get("not_found") or {}).get(cls) if lang == "ru" else None)
     if nf:
         mitems.append(t("an_st_nf", lang, what=nf))
+    # претензии региона, рынок / INSON, подразделения INSON в регионе (НАПП, 01.10.2026): тот же формат строки
+    # показателя, что у stat.uz (экран показывает их в analytics.stats.indicators со своей плашкой источника)
+    for it in _napp_items(A.get("napp") or {}, lang, must):
+        sitems2.append(it)
+        mitems.append(it["text"])
+        mrows.append([it["name"], it["value_text"], it["row_note"]])
+        for line_s in it["source_lines"]:
+            if line_s not in msrc:
+                msrc.append(line_s)
+        for x in it["sources"]:
+            src_add(x["title"], x["url"], x["source"], x["period"])
     js["market"] = {"available": bool(mk.get("available")), "rate_pct": mk.get("rate_pct"),
                     "rate_date": mk.get("rate_date"), "months": mk.get("months"),
                     "loss_ratio_pct": mk.get("loss_ratio_pct"), "rate_full_year_pct": mk.get("rate_full_year_pct"),
                     "loss_ratio_full_year_pct": mk.get("loss_ratio_full_year_pct"), "full_year": mk.get("full_year"),
                     "pack": bool(mk.get("pack")), "row_key": mk.get("row_key"), "row_note": row_note,
+                    "pack_choice": mk.get("pack_choice"), "pack_classes": list(mk.get("pack_classes") or []),
+                    "class_rows": list(mk.get("class_rows") or []),
+                    # подпись строки на экране: у комплексного продукта — какой пакет взят и почему
+                    "pack_label": (row_note if mk.get("pack_choice") else
+                                   (t("an_m_pack_label", lang, pack=_pack_text(mk, lang)) if mk.get("pack") else None)),
                     "pack_premiums": mk.get("pack_premiums"), "alt_row_key": mk.get("alt_row_key"),
                     "alt_premiums": mk.get("alt_premiums"), "alt_share_pct": mk.get("alt_share_pct"),
                     "act_rate_pct": mk.get("act_rate_pct"),
@@ -6379,17 +7103,20 @@ def act_settings_put(request: Request, body: dict = Body(...)):
     user = _user(request)
     if (user or {}).get("role") != ADMIN:
         return JSONResponse({"detail": "нужны права администратора"}, status_code=403)
-    new = body.get("settings") if isinstance(body.get("settings"), dict) else body
-    errs = ae.check_settings(new or {})
-    if errs:
-        return JSONResponse({"ok": False, "errors": errs}, status_code=422)
+    patch = body.get("settings") if isinstance(body.get("settings"), dict) else body
+    patch = {k: v for k, v in (patch or {}).items() if k != "_source"}
     with db.tx() as con:
         ensure_tables(con)
+        # частичная правка сливается с действующей версией (глубоко): прежние правки администратора не сбрасываются
+        new = ae.deep_merge(current_custom(con), patch)
+        errs = ae.check_settings(new)
+        if errs:
+            return JSONResponse({"ok": False, "errors": errs}, status_code=422)
         cur = con.execute("INSERT INTO act_settings (created_at, created_by, settings_json, calibrated, note) "
                           "VALUES (?,?,?,?,?)", (db.now(), user.get("login"), json.dumps(new, ensure_ascii=False),
                                                  0, str(body.get("note") or "")[:300]))
         db.audit(con, user.get("login") or "админ", "акт: настройки изменены", f"act_settings:{cur.lastrowid}",
-                 {"keys": sorted(new)})
+                 {"keys": sorted(patch)})
         return {"ok": True, "id": cur.lastrowid, "settings": load_settings(con)}
 
 
@@ -6400,7 +7127,8 @@ def act_settings_put(request: Request, body: dict = Body(...)):
 
 @router.get("/act/templates")
 def act_templates_list(request: Request, lang: str = ""):
-    """Все 17 шаблонов кратко: версия, название, риски с долями, правило сценария, обязательные поля."""
+    """Все шаблоны кратко (файл 1.3.0: классы общего страхования 1–18, варианты 13з и 16у): версия, признак варианта
+    (variant), название, риски с долями, правило сценария, поля; pending_file_version — новая версия файла ждёт."""
     lg = tx.lang_of(_lang(request, lang))
     with db.tx() as con:
         rows = ctpl.all_current(con)
@@ -6408,10 +7136,14 @@ def act_templates_list(request: Request, lang: str = ""):
             meta = ctpl.load_file()
         except (OSError, ValueError):
             meta = {}
+        items = [ctpl.view(r, lg, con, full=False) for r in rows]
         return {"ok": True, "lang": lg, "file_version": meta.get("version"), "file_date": meta.get("date"),
                 "aliases": meta.get("aliases") or {}, "calibrated": ctpl.CALIBRATED,
+                "classification": ctpl.localize(meta.get("classification") or {}, lg),
+                "counts": {"всего": len(items), "классов": sum(1 for x in items if not x["variant"]),
+                           "вариантов": sum(1 for x in items if x["variant"])},
                 "common_must": ctpl.localize(meta.get("common_must") or [], lg),
-                "templates": [ctpl.view(r, lg, full=False) for r in rows]}
+                "templates": items}
 
 
 @router.get("/act/templates/{class_code}/history")

@@ -5388,12 +5388,15 @@ def _admin_header(login: str) -> tuple:
 
 
 def check_templates_ref():
-    print("41а. Шаблоны 17 классов: файл, таблица class_templates, структура, доли, оговорки, мероприятия, ракурсы")
+    print("41а. Шаблоны всех классов: файл, таблица class_templates, структура, доли, оговорки, мероприятия, ракурсы")
     from app import class_templates as ctm
     data = ctm.load_file()
-    ok("файл шаблонов: версия 1.0.1 от 30.09.2026 (замечания контролёра), 17 классов 1–17, 13з → 14, 16у → 16",
-       data["version"] == "1.0.1" and data["date"] == "2026-09-30" and sorted(data["classes"], key=int) ==
-       [str(i) for i in range(1, 18)] and data["aliases"] == {"13з": "14", "16у": "16"}, list(data["classes"]))
+    ok("файл шаблонов: версия 1.3.0 от 01.10.2026, 20 шаблонов: 1–18, 13з, 16у (свои, без ссылок); классов жизни "
+       "и блока classification.life_classes_uz нет",
+       data["version"] == "1.3.0" and data["date"] == "2026-10-01" and list(data["classes"]) ==
+       [str(i) for i in range(1, 19)] + ["13з", "16у"] and data["aliases"] == {}
+       and "life_classes_uz" not in (data.get("classification") or {}),
+       list(data["classes"]))
     with db.tx() as con:
         ctm.ensure(con)
         rows = ctm.all_current(con)
@@ -5401,9 +5404,9 @@ def check_templates_ref():
         errs = {r["class_code"]: ctm.validate(r["template"], r["class_code"], con) for r in rows}
         mcodes = ctm.measure_codes(con)
         perils = {r[0] for r in con.execute("SELECT DISTINCT class_code FROM perils")}
-    ok("17 шаблонов загружены в таблицу class_templates (calibrated = 0)",
-       len(rows) == 17 and n_db == 17 and all(r["calibrated"] == 0 for r in rows), (len(rows), n_db))
-    ok("структура всех 17 шаблонов проходит проверку", not any(errs.values()), {k: v for k, v in errs.items() if v})
+    ok("20 шаблонов загружены в таблицу class_templates (calibrated = 0)",
+       len(rows) == 20 and n_db == 20 and all(r["calibrated"] == 0 for r in rows), (len(rows), n_db))
+    ok("структура всех 20 шаблонов проходит проверку", not any(errs.values()), {k: v for k, v in errs.items() if v})
     clauses_all = ctm.clause_codes()
     for r in rows:
         c, tp = r["class_code"], r["template"]
@@ -5458,9 +5461,13 @@ def check_templates_api():
     print("41б. API шаблонов: список, класс на трёх языках, история; PUT — проверка структуры и новая версия")
     fresh()
     st, lst = call("GET", "/act/templates", params={"lang": "ru"})
-    ok("GET /act/templates — 17 шаблонов кратко, версия файла 1.0.1",
-       st == 200 and len(lst["templates"]) == 17 and lst["file_version"] == "1.0.1"
-       and [x["class_code"] for x in lst["templates"]] == [str(i) for i in range(1, 18)], (st, str(lst)[:300]))
+    ok("GET /act/templates — 20 шаблонов кратко (18 классов + 13з, 16у), версия файла 1.3.0, признак variant",
+       st == 200 and len(lst["templates"]) == 20 and lst["file_version"] == "1.3.0"
+       and [x["class_code"] for x in lst["templates"]] == [str(i) for i in range(1, 19)] + ["13з", "16у"]
+       and lst["counts"] == {"всего": 20, "классов": 18, "вариантов": 2}
+       and [x["class_code"] for x in lst["templates"] if x["variant"]] == ["13з", "16у"]
+       and "life_classes_uz" not in (lst.get("classification") or {}),
+       (st, str(lst)[:300]))
     one = {x["class_code"]: x for x in lst["templates"]}
     ok("кратко: класс 3 — ДТП 45 %, угон 20 %; классы 8/9 — источник perils",
        one["3"]["risks"][:2] == [{"code": "mv_accident", "label": "ДТП", "share_pct": 45, "catastrophic": False},
@@ -5481,7 +5488,9 @@ def check_templates_api():
        and {p["code"]: p["share_pct"] for p in t8["perils"]}.get("earthquake") == 20.0
        and any(d["doc"] == "Сведения о пожарной сигнализации и охране" for d in t8["checklists"]), str(t8)[:300])
     st, t13z = call("GET", "/act/templates/13з", params={"lang": "ru"})
-    ok("13з — по шаблону класса 14", st == 200 and t13z["class_code"] == "14" and t13z["alias_of"] == "14", st)
+    ok("13з — свой шаблон (не ссылка на 14): вариант класса 13",
+       st == 200 and t13z["class_code"] == "13з" and t13z["alias_of"] is None and t13z["variant"] is True
+       and t13z["variant_of"] == "13", (st, t13z.get("class_code"), t13z.get("alias_of")))
     st, _x = call("GET", "/act/templates/99")
     ok("неизвестный класс — 404", st == 404, st)
     st, raw = call("GET", "/act/templates/1", params={"raw": 1})
@@ -5507,12 +5516,12 @@ def check_templates_api():
         new["risks"]["items"][0]["share_pct"] = 20.2          # 20,2 + 30 + 30 + 15 = 95,2 → поправим травму
         new["risks"]["items"][3]["share_pct"] = 19.6          # сумма 99,8 — в пределах ± 0,5
         st, r = call("PUT", "/act/templates/1", {"template": new, "note": "тест: доли НС"})
-        ok("PUT с хорошей структурой — новая версия 1.1 (правка администратора)",
-           st == 200 and r["version"] == "1.1" and r["source"] == "admin"
+        ok("PUT с хорошей структурой — новая версия 1.4 (правка администратора к файлу 1.3.0)",
+           st == 200 and r["version"] == "1.4" and r["source"] == "admin"
            and r["template"]["risks"]["items"][0]["share_pct"] == 20.2, (st, str(r)[:300]))
         st, h = call("GET", "/act/templates/1/history")
-        ok("история: версия файла 1.0.1 и правка 1.1 — обе сохранены",
-           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.0.1", "file"), ("1.1", "admin")],
+        ok("история: версия файла 1.3.0 и правка 1.4 — обе сохранены",
+           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.3.0", "file"), ("1.4", "admin")],
            h)
         # файл той же версии правку не затирает
         from app import class_templates as ctm
@@ -5520,16 +5529,16 @@ def check_templates_api():
         with db.tx() as con:
             ctm.ensure(con)
             cur = ctm.current(con, "1")
-        ok("ensure с файлом 1.0.1 не затирает правку 1.1", cur["version"] == "1.1" and cur["source"] == "admin",
+        ok("ensure с файлом 1.3.0 не затирает правку 1.4", cur["version"] == "1.4" and cur["source"] == "admin",
            cur["version"])
         st, a = call("POST", "/act/make", {"lang": "ru", "must": {"class_code": "1", "sum_insured": 1_000_000_000,
                                                                 "object_value": 1_000_000_000, "region": "Ташкент"}})
         shares = {i["code"]: i["share_of_net_pct"] for i in a["analytics"]["risks"]["items"]}
         ok("акт класса 1 берёт действующую версию шаблона (смерть 20,2 %)",
-           st == 200 and shares.get("pa_death") == 20.2 and a["template"]["version"] == "1.1", shares)
+           st == 200 and shares.get("pa_death") == 20.2 and a["template"]["version"] == "1.4", shares)
         # вернуть доли файла: ещё одна версия (история не удаляется)
         st, r = call("PUT", "/act/templates/1", {"template": good})
-        ok("возврат долей — версия 1.2, история из трёх строк", st == 200 and r["version"] == "1.2", r.get("version"))
+        ok("возврат долей — версия 1.5, история из трёх строк", st == 200 and r["version"] == "1.5", r.get("version"))
     finally:
         HEADERS.clear()
 
@@ -5641,6 +5650,241 @@ def check_templates_act():
                              [c3["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")])
     TPL_REPORT["класс 8"] = [c8["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]
     TPL_REPORT["класс 9"] = [c9["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")]
+
+
+CROP = {"crop": "wheat", "area_ha": 100, "avg_yield_5y": 30, "unit_price": 400_000}   # 100 га × 30 ц/га × 400 000
+
+
+def check_templates_new_classes():
+    print("41д. Шаблоны 13з и 16у — свои; строки L* (классы жизни) в базе игнорируются")
+    from app import class_templates as ctm
+    from app import act_extras as axm
+    fresh()
+    model_on(False)
+    data = ctm.load_file()
+    C = data["classes"]
+    ok("все 20 шаблонов: в notes — «оценка разработчика, не утверждено страховщиком»; у 8 и 9 — в описании perils",
+       len(C) == 20 and all(any(n["code"] == "expert_estimate" and "оценка разработчика, не утверждено страховщиком"
+                                in n["text"]["ru"] for n in t_["notes"]) for t_ in C.values())
+       and all("доли из таблицы perils — оценка разработчика, не утверждено страховщиком" in
+               C[c]["risks"]["note"]["ru"].lower() for c in ("8", "9")))
+    # ---------- 16у: чистые функции ----------
+    cv = axm.crop_value(100, 30, 400_000)
+    ok("стоимость урожая: 100 га × 30 ц/га × 400 000 сум/ц = 1 200 000 000 сум (3 000 ц)",
+       cv["value"] == 1_200_000_000 and cv["harvest_c"] == 3000 and axm.crop_value(100, None, 1) is None, cv)
+    r = axm.simple_scenarios("crop", 1_200_000_000, 1_200_000_000, CROP, C["16у"]["scenario_rule"]["params"])
+    # руками: B = 1,2 млрд; PML = 1,2 млрд × 0,3 × 0,5 = 180 млн; EML = 1,2 млрд × 0,6 × 1,0 = 720 млн; MFL = 1,2 млрд
+    ok("сценарии урожая руками: PML = 1,2 млрд × 0,3 × 0,5 = 180 млн; EML = × 0,6 × 1,0 = 720 млн; MFL = 1,2 млрд",
+       [r[k]["amount"] for k in ("PML", "EML", "MFL")] == [180_000_000, 720_000_000, 1_200_000_000]
+       and r["checks"][0]["code"] == "tpl_crop_ok", r)
+    r2 = axm.simple_scenarios("crop", 900_000_000, 900_000_000, CROP, C["16у"]["scenario_rule"]["params"])
+    ok("сумма 900 млн ниже стоимости 1,2 млрд (75 %): база 900 млн — PML 135 млн, EML 540 млн, MFL 900 млн, ст. 936",
+       [r2[k]["amount"] for k in ("PML", "EML", "MFL")] == [135_000_000, 540_000_000, 900_000_000]
+       and r2["checks"][0]["code"] == "tpl_crop_under" and r2["checks"][0]["params"]["pct"] == 75.0, r2)
+    r3 = axm.simple_scenarios("crop", 500_000_000, 500_000_000, {}, {})
+    ok("16у без площади и урожайности: стоимость урожая не считается — база = страховая сумма, пометка",
+       r3["MFL"]["amount"] == 500_000_000 and r3["PML"]["amount"] == 75_000_000
+       and [a_["code"] for a_ in r3["assumptions"]] == ["as_tpl_crop_value", "as_tpl_crop_shares"], r3)
+    # ---------- 16у в акте ----------
+    st, a = _cls_act("16у", CROP, S=1_200_000_000)
+    sc = a["scenarios"]
+    ok("акт 16у берёт шаблон 16у (не 16): риски засуха 30 % (катастрофа), град 15 %…; правило crop",
+       st == 200 and a["template"]["class_code"] == "16у" and a["template"]["alias_of"] is None
+       and a["template"]["variant"] is True and a["template"]["scenario_rule"]["code"] == "crop"
+       and {i["code"]: i["share_of_net_pct"] for i in a["analytics"]["risks"]["items"]}.get("cp_drought") == 30.0,
+       (st, a.get("template", {}).get("class_code")))
+    ok("акт 16у: PML/EML/MFL = 180 млн / 720 млн / 1,2 млрд, в «как посчитано» — 100 га × 30 ц/га × 400 000 = 1,2 млрд",
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [180_000_000, 720_000_000, 1_200_000_000]
+       and any("100 га × 30 ц/га × 400 000 сум за центнер = 1 200 000 000 сум" in flat(h) for h in sc["how"]),
+       ([sc[k]["amount"] for k in ("pml", "eml", "mfl")], sc.get("how")))
+    ok("акт 16у: у страховщика нет продуктов — ставка не определена, пометка в шаблоне и в «как посчитана ставка»",
+       a["rate"]["applied_pct"] is None and a["premium"]["amount"] is None and a["template"]["products_count"] == 0
+       and "нет продуктов этого класса" in a["template"]["no_products_note"]
+       and any("нет продуктов класса 16у" in h for h in a["rate"]["how"]), a["rate"].get("how"))
+    ok("акт 16у: оговорки и мероприятия — из шаблона (урожай), документы — сведения о посевах",
+       [c["code"] for c in a["clauses"]] == ["cp_yield_basis", "cp_area_declared", "cp_agrotech", "cp_notice_expert"]
+       and {m["code"] for m in a["measures"]} == {"cp_irrigation", "cp_plant_protection", "cp_frost_hail",
+                                                 "cp_field_monitoring"}
+       and "посевах" in a["template"]["documents"]["items"][0], [c["code"] for c in a["clauses"]])
+    st, a = _cls_act("16у", CROP, S=1_500_000_000)
+    chk = [flat(c) for c in a["decision"]["checks"]]
+    ok("16у: сумма 1,5 млрд выше стоимости урожая 1,2 млрд — проверка ГК ст. 938 «уменьшить до 1 200 000 000 сум»",
+       st == 200 and any(c.startswith("Урожай: страховая сумма 1 500 000 000 сум выше") and "уменьшить до "
+                         "1 200 000 000 сум" in c and "ст. 938" in c for c in chk)
+       and a["decision"]["code"] != "accept" and a["scenarios"]["mfl"]["amount"] == 1_200_000_000, chk)
+    st, u = call("GET", f"/act/{a['id']}", params={"lang": "uz"})
+    ok("16у по-узбекски: риск «Qurgʻoqchilik», проверка урожая на узбекском",
+       u["analytics"]["risks"]["items"][0]["name"] == "Qurgʻoqchilik"
+       and any("Hosil: sugʻurta summasi" in c for c in u["decision"]["checks"]), u["analytics"]["risks"]["items"][0])
+    # ---------- 13з ----------
+    st, a = _cls_act("13з", {"credit_amount": 100_000_000, "collateral_value": 60_000_000, "credit_term_months": 24,
+                             "borrower_kind": "legal"}, S=40_000_000)
+    ok("акт 13з берёт шаблон 13з (не 14): риски заёмщика, правило credit, документы с отчётом КАТМ",
+       st == 200 and a["template"]["class_code"] == "13з" and a["template"]["alias_of"] is None
+       and [i["code"] for i in a["analytics"]["risks"]["items"]] == ["bl_default", "bl_insolvency", "bl_closure"]
+       and a["template"]["scenario_rule"]["code"] == "credit"
+       and any("КАТМ" in d for d in a["template"]["documents"]["items"]), (st, a.get("template", {}).get("class_code")))
+    ok("13з: кредит 100 млн, залог 60 млн, сумма 40 млн — в пределах min(40; 50); PML = EML = MFL = 40 млн",
+       [a["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] == [40_000_000] * 3
+       and any("допустимая страховая сумма 40 000 000" in flat(h) and "в пределах" in h for h in a["scenarios"]["how"]),
+       a["scenarios"]["how"])
+    ok("13з: в notes — чем отличается от 14 (чья ответственность страхуется)",
+       any(n["code"] == "diff_14" and "ответственность самого заёмщика" in n["text"] for n in a["template"]["notes"]))
+    st, a = _cls_act("13з", {"credit_amount": 100_000_000, "collateral_value": 60_000_000}, S=50_000_000)
+    ok("13з: сумма 50 млн выше допустимой 40 млн — проверка андеррайтеру (правило проекта № 6)",
+       any("выше допустимой" in flat(c) and "уменьшить до 40 000 000 сум" in flat(c) for c in a["decision"]["checks"])
+       and a["decision"]["code"] != "accept", a["decision"]["checks"])
+    # ---------- строки L* в базе игнорируются ----------
+    check_life_rows_ignored()
+    TPL_REPORT["16у"] = [r[k]["amount"] for k in ("PML", "EML", "MFL")]
+
+
+def check_life_rows_ignored():
+    """Строки L* (классы жизни), если они почему-то есть в classes или class_templates, нигде не показываются:
+    справочник /reference/classes, выпадающий список аналитики, /act/templates, акт. ensure их не трогает."""
+    from app import class_templates as ctm
+    from app import risk_api
+    fresh()
+    life_tpl = _json.dumps({"name": {"ru": "Страхование жизни", "uz": "Hayot", "en": "Life"}}, ensure_ascii=False)
+    with db.tx() as con:
+        ctm.ensure(con)
+        con.execute("INSERT OR IGNORE INTO classes (code, name, group_code, branch, kind) "
+                    "VALUES ('L4', 'Страхование жизни (тест)', NULL, 'жизнь', 'личное')")
+        con.execute("INSERT INTO class_templates (class_code, version, json, source, file_version, updated_at, "
+                    "updated_by, calibrated, note) VALUES ('L4', '9.0', ?, 'file', '9.0', '2026-10-01T00:00:00', "
+                    "'тест', 0, 'тест: строка класса жизни')", (life_tpl,))
+        n_before = con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0]
+    db.invalidate_reference()
+    try:
+        ctm.reset_cache()
+        with db.tx() as con:
+            res = ctm.ensure(con)
+            n_after = con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0]
+            codes = [r["class_code"] for r in ctm.all_current(con)]
+            cur = ctm.current(con, "L4")
+            hist = ctm.history(con, "L4")
+            cat = [c["code"] for c in risk_api._catalog(con, [])["classes"]]
+        ok("ensure не трогает строки L*: ничего не добавлено, строк в class_templates столько же",
+           not res.get("added") and not res.get("classes_added") and n_after == n_before, (res, n_before, n_after))
+        ok("all_current — 20 шаблонов без L*; current('L4') и history('L4') пусты",
+           codes == [str(i) for i in range(1, 19)] + ["13з", "16у"] and cur is None and hist == [], (codes, cur))
+        ok("выпадающий список классов аналитики рисков — без L4", "L4" not in cat and "18" in cat, cat)
+        st, ref = call("GET", "/reference/classes")
+        ok("GET /reference/classes — без L4, класс 18 есть",
+           st == 200 and "L4" not in [r["code"] for r in ref] and "18" in [r["code"] for r in ref],
+           (st, [r.get("code") for r in ref] if isinstance(ref, list) else ref))
+        st, lst = call("GET", "/act/templates", params={"lang": "ru"})
+        ok("GET /act/templates — 20 шаблонов, L4 нет", st == 200 and len(lst["templates"]) == 20
+           and not any(x["class_code"].startswith("L") for x in lst["templates"]), (st, lst.get("counts")))
+        st, _x = call("GET", "/act/templates/L4")
+        st2, _x = call("GET", "/act/templates/L4/history")
+        ok("GET /act/templates/L4 и его история — 404", st == 404 and st2 == 404, (st, st2))
+        st, a = _cls_act("L4", {"insured_count": 10}, S=500_000_000)
+        ok("акт по классу L4 не формируется — 422 «класс не найден в справочнике»",
+           st == 422 and "класс не найден" in str(a), (st, str(a)[:300]))
+    finally:
+        with db.tx() as con:
+            con.execute("DELETE FROM class_templates WHERE class_code LIKE 'L%'")
+            con.execute("DELETE FROM classes WHERE code LIKE 'L%'")
+        ctm.reset_cache()
+        db.invalidate_reference()
+
+
+MED18 = {"insured_count": 50, "program": "амбулатория и стационар", "limit_per_person": 10_000_000,
+         "territory": "uzbekistan", "avg_visits": 4, "avg_bill": 300_000, "copay_pct": 10, "waiting_days": 30}
+
+
+def check_templates_class18():
+    print("41е. Шаблоны 1.3.0: класс 18 «Tibbiy sugʻurta» (медицинское страхование) — шаблон, справочник, акт без ставки")
+    from app import class_templates as ctm
+    fresh()
+    model_on(False)
+    data = ctm.load_file()
+    t = data["classes"]["18"]
+    lib = (ROOT_DIR / "library" / "01_Законодательство" / "02_Акты_регуляторов" /
+           "ПКМ № 80 от 21.02.2022 — единое положение о лицензировании (прил. 6 — классификатор страховой "
+           "деятельности) (uz).txt")
+    law = lib.read_text(encoding="utf-8") if lib.exists() else ""
+    on = t["official_name"]
+    ok("класс 18: узбекское название и содержание дословно из ПКМ № 80, прил. 6 (18-klass «Tibbiy sugʻurta»); "
+       "текст класса 2 для сравнения — тоже дословно",
+       t["name"]["uz"] == on["text_uz"] == "Tibbiy sugʻurta" and " 18-klass \n Tibbiy sugʻurta \n " + on["content_uz"] in law
+       and on["content_uz"].startswith("Sugʻurtalangan shaxsning sugʻurta shartnomasida koʻrsatilgan shartlarga "
+                                       "muvofiq tibbiy yordam olishini")
+       and on["content_uz"].endswith("2-klass va hayotni sugʻurta qilish sohasining IV klassi boʻyicha "
+                                     "shartnomalarni istisno qilgan holda")
+       and " Kasallikdan ehtiyot shart sugʻurta qilish \n " + on["class_2_uz"]["content"] in law, on.get("text_uz"))
+    ok("класс 18: не вариант; русское и английское названия — перевод (пометка в notes)",
+       not t.get("variant") and t["name"]["ru"] == "Медицинское страхование"
+       and t["name"]["en"] == "Medical insurance"
+       and any(n["code"] == "official" and "перевод разработчика" in n["text"]["ru"] for n in t["notes"]))
+    ok("класс 18: обязательные — число застрахованных, программа, лимит на человека, территория (4); метод оценки 6",
+       [f["code"] for f in t["must"]] == ["insured_count", "program", "limit_per_person", "territory"]
+       and [m["method"] for m in t["valuation_methods"]] == [6] and t["object"]["people"] is True)
+    ok("класс 18: дополнительные — возраст агрегатами, сеть клиник, франшиза, сооплата, период ожидания, обращения, "
+       "средний счёт, убытки за 3 года",
+       [f["code"] for f in t["optional"]] == ["age_structure", "clinics", "deductible", "copay_pct", "waiting_days",
+                                              "avg_visits", "avg_bill", "losses_3y"]
+       and "агрегаты" in t["optional"][0]["label"]["ru"])
+    shares = [(r["code"], r["share_pct"]) for r in t["risks"]["items"]]
+    ok("класс 18: риски — амбулатория 35, стационар 30, экстренная 12, лекарства 10, беременность и роды 7, "
+       "стоматология 6 = 100 (оценка разработчика, не утверждено страховщиком)",
+       shares == [("md_outpatient", 35), ("md_inpatient", 30), ("md_emergency", 12), ("md_drugs", 10),
+                  ("md_maternity", 7), ("md_dental", 6)]
+       and "не утверждено страховщиком" in t["risks"]["note"]["ru"] and t["risks"]["calibrated"] == 0, shares)
+    ok("класс 18: правило сценария frequency, как у класса 2 (эпидемия — MFL, 30 % экспертно)",
+       t["scenario_rule"]["code"] == data["classes"]["2"]["scenario_rule"]["code"] == "frequency"
+       and t["scenario_rule"]["params"] == {"epidemic_share": 0.3} and "эпидемия" in t["scenario_rule"]["what"]["MFL"]["ru"])
+    diff = next(n["text"]["ru"] for n in t["notes"] if n["code"] == "diff_2")
+    ok("класс 18: в notes — отличие от класса 2 по акту (деньги — класс 2, медицинская помощь — класс 18) и учётная "
+       "группа NULL (в Положении 1882, п. 10 класса 18 нет)",
+       "Kasallikdan ehtiyot shart sugʻurta qilish" in diff and "медицинской помощи" in diff
+       and t["accounting_group"] is None
+       and any(n["code"] == "accounting_group" and "Положение 1882, п. 10" in n["text"]["ru"] for n in t["notes"]))
+    ok("класс 18: персональные данные застрахованных в акт и модель не попадают; документы — программа, клиники, "
+       "список без ПД",
+       any(n["code"] == "personal" and "в акт и модель не попадают" in n["text"]["ru"] for n in t["notes"])
+       and len(t["documents"]["items"]) == 3 and "без персональных данных" in t["documents"]["items"][2]["ru"])
+    with db.tx() as con:
+        ctm.ensure(con)
+        row = con.execute("SELECT code, group_code, branch, kind FROM classes WHERE code='18'").fetchone()
+        nprod = ctm.products_count(con, "18")
+    ok("справочник classes: класс 18 — «общее», «личное», учётная группа NULL; продуктов класса 18 нет",
+       row is not None and tuple(row) == ROW_18 and nprod == 0, (tuple(row) if row else None, nprod))
+    st, a = _cls_act("18", MED18, S=500_000_000)
+    sc = a["scenarios"]
+    ok("акт по классу 18 формируется: ставка и премия не определены (продуктов нет), пометка в «как посчитана ставка»",
+       st == 200 and a["rate"]["applied_pct"] is None and a["premium"]["amount"] is None
+       and a["template"]["class_code"] == "18"
+       and a["template"]["products_count"] == 0 and a["template"]["no_products_note"]
+       and any("нет продуктов класса 18" in h for h in a["rate"]["how"]), (st, a.get("rate", {}).get("how")))
+    # руками: PML = EML = лимит 10 млн; MFL = max(10 млн; 0,3 × 500 млн) = 150 млн; ожидаемый убыток 4 × 300 000 × 50
+    ok("класс 18, 50 чел. × лимит 10 млн, сумма 500 млн: PML = EML = 10 млн, MFL (эпидемия) = 0,3 × 500 млн = 150 млн; "
+       "ожидаемый годовой убыток 4 × 300 000 × 50 = 60 млн — справочно",
+       [sc[k]["amount"] for k in ("pml", "eml", "mfl")] == [10_000_000, 10_000_000, 150_000_000]
+       and sc["source"] == "template" and sc["rule"] == "frequency" and "эпидемия" in sc["mfl"]["what"]
+       and any("60 000 000" in flat(h) and "справочно" in h for h in sc["how"]),
+       ([sc[k]["amount"] for k in ("pml", "eml", "mfl")], sc.get("how")))
+    ok("акт класса 18: риски шаблона, оговорки (5) и мероприятия (4) из шаблона",
+       a["analytics"]["risks"]["source"] == "template"
+       and [(i["code"], i["share_of_net_pct"]) for i in a["analytics"]["risks"]["items"]][:2]
+       == [("md_outpatient", 35.0), ("md_inpatient", 30.0)]
+       and [c["code"] for c in a["clauses"]] == ["hl_program", "hl_preexisting", "hl_waiting", "hl_copay", "ot_declared"]
+       and [m["code"] for m in a["measures"]] == ["hl_checkup", "hl_network", "hl_control", "hl_preauth"],
+       [c["code"] for c in a["clauses"]])
+    st, a0 = _cls_act("18", None, S=500_000_000)
+    ok("класс 18 без полей: сценарии по страховой сумме, в «принято по умолчанию» — лимит на человека",
+       st == 200 and [a0["scenarios"][k]["amount"] for k in ("pml", "eml", "mfl")] == [500_000_000] * 3
+       and {x["code"] for x in a0["scenarios"]["assumptions"]} >= {"as_tpl_limit_person", "as_tpl_epidemic"},
+       a0["scenarios"].get("assumptions"))
+    ok("класс 18: неверная территория — 422", _cls_act("18", {"territory": "moon"})[0] == 422)
+    st, e = call("GET", "/act/templates/18", params={"lang": "en"})
+    st2, z = call("GET", "/act/templates/18", params={"lang": "uz"})
+    ok("GET /act/templates/18: en «Medical insurance», uz «Tibbiy sugʻurta», риск uz «Ambulator yordam», нет продуктов",
+       st == 200 and st2 == 200 and e["template"]["name"] == "Medical insurance" and z["template"]["name"] == "Tibbiy sugʻurta"
+       and z["template"]["risks"]["items"][0]["label"] == "Ambulator yordam" and e["products_count"] == 0,
+       (st, e.get("template", {}).get("name")))
+    TPL_REPORT["класс 18"] = [sc[k]["amount"] for k in ("pml", "eml", "mfl")]
 
 
 PT_REPORT = {}
@@ -6041,7 +6285,7 @@ def check_review_0930():
        and "годовой лимит 1 000 000 000 сум выше страховой суммы" in asm, (sc, asm))
     # ---------- 4. проверка шаблона: размер, подписи, переводы ----------
     errs_file = {c: ctm.validate(t_, c) for c, t_ in data["classes"].items()}
-    ok("поставленный docs/act_class_templates.json проходит новую проверку (все 17 классов, переводы uz/en)",
+    ok("поставленный docs/act_class_templates.json проходит новую проверку (все 27 шаблонов, переводы uz/en)",
        not any(errs_file.values()), {k: v for k, v in errs_file.items() if v})
     b = _json.loads(_json.dumps(good14))
     b["must"][0]["label"].pop("uz")
@@ -6131,8 +6375,53 @@ def check_review_0930():
        not any(re.search(r"\{[a-z_]+\}", v[2]) for v in how.values()))
 
 
+def _old_classes(path) -> None:
+    """Справочник классов как до шаблонов 1.2.0: учётная группа NOT NULL, класса 18 нет."""
+    import sqlite3
+    con = sqlite3.connect(str(path), isolation_level=None)
+    con.execute("PRAGMA foreign_keys = OFF")
+    con.execute("BEGIN")
+    con.execute("DELETE FROM classes WHERE group_code IS NULL")
+    con.execute("CREATE TABLE classes_old (code TEXT PRIMARY KEY, name TEXT NOT NULL, "
+                "group_code TEXT NOT NULL REFERENCES groups(code), branch TEXT NOT NULL, kind TEXT NOT NULL)")
+    con.execute("INSERT INTO classes_old SELECT code, name, group_code, branch, kind FROM classes")
+    con.execute("DROP TABLE classes")
+    con.execute("ALTER TABLE classes_old RENAME TO classes")
+    con.execute("COMMIT")
+    con.close()
+
+
+def _life_rows(path) -> tuple:
+    """(строки L* [(code, group_code, branch, kind)] — должно быть пусто, group_code допускает NULL, нарушений ссылок)."""
+    import sqlite3
+    con = sqlite3.connect(str(path))
+    try:
+        rows = [tuple(r) for r in con.execute("SELECT code, group_code, branch, kind FROM classes "
+                                              "WHERE code LIKE 'L%' ORDER BY code")]
+        nullable = not [r for r in con.execute("PRAGMA table_info(classes)") if r[1] == "group_code"][0][3]
+        fk = len(con.execute("PRAGMA foreign_key_check").fetchall())
+    finally:
+        con.close()
+    return rows, nullable, fk
+
+
+LIFE_ROWS = []                                   # классов жизни refsync и db_build в classes не заводят
+ROW_18 = ("18", None, "общее", "личное")         # класс 18 — общее страхование, учётной группы в Положении 1882 нет
+
+
+def _row_18(path):
+    import sqlite3
+    con = sqlite3.connect(str(path))
+    try:
+        r = con.execute("SELECT code, group_code, branch, kind FROM classes WHERE code='18'").fetchone()
+    finally:
+        con.close()
+    return tuple(r) if r else None
+
+
 def check_templates_sync():
-    print("41г. Сервер: база без таблицы class_templates — refsync доводит; новая версия файла; db_build на копии")
+    print("41г. Сервер: refsync доводит шаблоны 1.3.0 и класс 18 (старая база), классов жизни не заводит; новая "
+          "версия файла; db_build на копии")
     import importlib
     from app import class_templates as ctm, refsync
     folder = Path(tempfile.mkdtemp(prefix="surveyor-tpl-"))
@@ -6144,15 +6433,27 @@ def check_templates_sync():
         con.execute("DROP TABLE IF EXISTS class_templates")
         con.commit()
         con.close()
+        _old_classes(disk)                     # база сервера до шаблонов 1.2.0
         ctm.reset_cache()
         res = refsync.sync_templates(disk)
         con = sqlite3.connect(str(disk))
         n = con.execute("SELECT COUNT(*), COUNT(DISTINCT class_code) FROM class_templates").fetchone()
-        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 17 шаблонов версии 1.0.1",
-           res["status"] == "обновлено" and n == (17, 17), (res.get("status"), n))
+        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 20 шаблонов версии 1.3.0 (с классом 18)",
+           res["status"] == "обновлено" and n == (20, 20) and res["version"] == "1.3.0"
+           and "18" in (res.get("added") or []), (res.get("status"), n))
+        life, nullable, fk = _life_rows(disk)
+        ok("старая база (учётная группа NOT NULL): refsync снял NOT NULL и добавил только класс 18 — branch «общее», "
+           "kind «личное», учётная группа NULL; строк L* нет, ссылки целы",
+           life == LIFE_ROWS and nullable and fk == 0 and _row_18(disk) == ROW_18
+           and res["classes_added"] == ["18"],
+           (life, nullable, fk, _row_18(disk), res.get("classes_added")))
+        ok("классы общего страхования не тронуты: 19 строк с учётной группой (1–17, 13з, 16у)",
+           con.execute("SELECT COUNT(*) FROM classes WHERE branch='общее' AND group_code IS NOT NULL").fetchone()[0] == 19)
         res2 = refsync.sync_templates(disk)
         ok("повторный запуск — «актуально», строк не прибавилось",
-           res2["status"] == "актуально" and con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0] == 17)
+           res2["status"] == "актуально" and con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0] == 20
+           and con.execute("SELECT COUNT(*) FROM classes WHERE code LIKE 'L%'").fetchone()[0] == 0
+           and con.execute("SELECT COUNT(*) FROM classes WHERE code='18'").fetchone()[0] == 1)
         # правка администратора 1.1 на «сервере», потом образ приносит файл 2.0
         con.execute("INSERT INTO class_templates (class_code, version, json, source, file_version, updated_at, updated_by,"
                     " calibrated) SELECT class_code, '1.1', json, 'admin', '1.0', '2026-09-30T12:00:00', 'админ', 0 "
@@ -6171,16 +6472,37 @@ def check_templates_sync():
             ctm.reset_cache()
             ctm._file_cache.update(mtime=None, data=None)
         hist = [tuple(r) for r in con.execute("SELECT version, source FROM class_templates WHERE class_code='13' ORDER BY id")]
-        ok("файл 2.0 новее — добавлен всем 17 классам; история класса 13: 1.0.1 файл, 1.1 админ, 2.0 файл",
-           len(res3["added"]) == 17 and hist == [("1.0.1", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
+        ok("файл 2.0 новее — добавлен всем 20 шаблонам; история класса 13: 1.3.0 файл, 1.1 админ, 2.0 файл",
+           len(res3["added"]) == 20 and hist == [("1.3.0", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
         con.close()
-        # tools/db_build.py — заполнение из JSON на копии (рабочая база не открывается)
+        # образ собран до 1.2.0 (в classes нет класса 18): обновление справочников из образа его не теряет
+        image = folder / "image.db"
+        db.snapshot(db.DB_PATH, image)
+        _old_classes(image)
+        con = sqlite3.connect(str(disk))
+        con.execute("DELETE FROM app_settings WHERE key=?", (refsync.HASH_KEY,))
+        con.commit()
+        con.close()
+        saved_path = db.DB_PATH
+        db.DB_PATH = disk
+        try:
+            res4 = refsync.sync_on_start(image)
+        finally:
+            db.DB_PATH = saved_path
+            ctm.reset_cache()
+        life, nullable, fk = _life_rows(disk)
+        ok("образ без класса 18: справочники обновлены из образа, класс 18 на диске остался (доведён заново), "
+           "строк L* нет",
+           res4["status"] == "обновлено" and life == LIFE_ROWS and _row_18(disk) == ROW_18 and nullable and fk == 0,
+           (res4.get("status"), life, _row_18(disk)))
+        # tools/db_build.py — заполнение из JSON на копии (рабочая база не открывается), база тоже «старая»
         build_copy = folder / "build.db"
         db.snapshot(db.DB_PATH, build_copy)
         con = sqlite3.connect(str(build_copy))
         con.execute("DROP TABLE IF EXISTS class_templates")
         con.commit()
         con.close()
+        _old_classes(build_copy)
         sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
         dbb = importlib.import_module("db_build")
         saved = dbb.DB
@@ -6192,11 +6514,17 @@ def check_templates_sync():
                 dbb.main()
         finally:
             dbb.DB = saved
+            ctm.reset_cache()
         con = sqlite3.connect(str(build_copy))
         nb = con.execute("SELECT COUNT(*) FROM class_templates").fetchone()[0]
         con.close()
-        ok("tools/db_build.py на копии: таблица class_templates заполнена из JSON (17 строк)",
-           nb == 17 and "шаблонов классов добавлено: 17" in buf.getvalue(), (nb, buf.getvalue()[-300:]))
+        life, nullable, fk = _life_rows(build_copy)
+        ok("tools/db_build.py на копии: class_templates — 20 строк из JSON, класс 18 (группа NULL), классов жизни нет",
+           nb == 20 and "шаблонов классов добавлено: 20" in buf.getvalue()
+           and "жизни" not in buf.getvalue()
+           and "классов общего страхования без учётной группы добавлено: 18" in buf.getvalue()
+           and life == LIFE_ROWS and _row_18(build_copy) == ROW_18 and nullable and fk == 0,
+           (nb, life, _row_18(build_copy), buf.getvalue()[-400:]))
     finally:
         ctm.reset_cache()
         shutil.rmtree(folder, ignore_errors=True)
@@ -7052,6 +7380,478 @@ def check_credit_scan_off():
     model_on(False)
 
 
+# ------------------------------------------------------------------ 45. вилка ставки (01.10.2026)
+
+RF_REPORT = {}
+
+
+def _rf(a):
+    return a.get("rate_fork") or {}
+
+
+def _rf_marks(a):
+    return {m["code"]: m for m in _rf(a).get("marks") or []}
+
+
+def _rf_hand_region(rf, sens=0.5, lo=-10.0, hi=15.0):
+    """Поправка региона руками по показателям ответа: среднее (отношение − 1) × чувствительность, в границах."""
+    used = [i for i in ((rf.get("adjustments") or {}).get("region") or {}).get("indicators") or [] if i["used"]]
+    if not used:
+        return 0.0, used
+    raw = round(sum(round((i["ratio"] - 1) * sens * 100, 4) for i in used) / len(used), 2)
+    return round(min(hi, max(lo, raw)), 2), used
+
+
+def _rf_hand_market(act_pct, mk, steps=((60, 10), (80, 20))):
+    if mk.get("market_rate_pct") is None or mk.get("loss_ratio_pct") is None or act_pct >= mk["market_rate_pct"]:
+        return 0.0
+    hit = [s for s in steps if mk["loss_ratio_pct"] >= s[0]]
+    return float(hit[-1][1]) if hit else 0.0
+
+
+def _rf_common(tag, a, S, term=365):
+    """Общие проверки вилки одного класса: поправки руками, ставка п. 3, премии отметок, источники со ссылками."""
+    rf, mk = _rf(a), _rf_marks(a)
+    adj = rf.get("adjustments") or {}
+    reg, used = _rf_hand_region(rf)
+    mkt = _rf_hand_market(mk["act"]["rate_pct"], adj.get("market") or {})
+    want = round(mk["act"]["rate_pct"] * (1 + reg / 100) * (1 + mkt / 100), 4)
+    want = max(want, mk["min"]["rate_pct"]) if "min" in mk else want
+    ok(f"{tag}: поправка региона пересчитана руками из показателей ({reg} %)",
+       abs(adj["region"]["pct"] - reg) < 1e-9 and -10 <= adj["region"]["pct"] <= 15, (adj["region"]["pct"], reg))
+    ok(f"{tag}: поправка рынка — по порогам убыточности НАПП ({mkt} %)", adj["market"]["pct"] == mkt,
+       (adj["market"], mkt))
+    ok(f"{tag}: ставка с учётом региона и рынка = ставка акта × (1 + рег.) × (1 + рын.), не ниже минимума",
+       abs(mk["adjusted"]["rate_pct"] - want) < 1e-9, (mk["adjusted"]["rate_pct"], want))
+    ok(f"{tag}: премия каждой отметки = ставка × сумма × срок / 365",
+       all(m["premium"] == round(m["rate_pct"] / 100 * S * term / 365) for c, m in mk.items() if c != "act"
+           and not (c == "adjusted" and rf.get("mode") == "apply")), {c: (m["rate_pct"], m["premium"]) for c, m in mk.items()})
+    ok(f"{tag}: у отметок подписи, объяснение и источник; калибровка 0",
+       all(m["label"] and m["note"] and m["source"] and m["source"]["title"] for m in mk.values())
+       and rf["calibrated"] == 0 and rf["unit"] == "% годовых", [(m["code"], m["source"]) for m in mk.values()])
+    ok(f"{tag}: у показателей региона — значение региона, республики, период и ссылка на источник",
+       all(i["region_value"] is not None and i["country_value"] is not None and i["period"]
+           and (i["source"] or {}).get("url", "").startswith("http") for i in used), used)
+    if "market" in mk:
+        ok(f"{tag}: рыночная отметка — НАПП со ссылкой и датой среза",
+           mk["market"]["source"]["url"].startswith("https://napp.uz") and mk["market"]["source"]["as_of"]
+           and adj["market"]["as_of"] == mk["market"]["source"]["as_of"], mk["market"]["source"])
+    s4 = a["sections"][3]
+    li = next((x for x in s4["lists"] if x["title"] == "Вилка ставки"), None)
+    ok(f"{tag}: в разделе 4 «Вилка ставки» — таблица отметок, объяснение поправок и источники",
+       li and li.get("table") and len(li["table"]["rows"]) == len(mk) and li["notes"][0] == rf["summary"]
+       and any(n.startswith("Поправка региона") for n in li["notes"])
+       and any(n.startswith("Поправка рынка") for n in li["notes"])
+       and any("napp.uz" in x for x in li["sources"]), li and li.get("notes"))
+    titles = [x["title"] for x in s4["lists"]]
+    ok(f"{tag}: «Вилка ставки» — сразу после «Как посчитан тариф»",
+       titles.index("Вилка ставки") == titles.index("Как посчитан тариф") + 1, titles[:4])
+    ov = {o["code"]: o for o in a["scoring"]["overview"]}
+    want_ov = f"{act._fork_num(mk['min']['rate_pct'], 'ru')} – {act._fork_num(rf['recommended']['rate_pct'], 'ru')} – " \
+              f"{act._fork_num((mk.get('market') or {}).get('rate_pct'), 'ru')} %"
+    ok(f"{tag}: в «Общем обзоре» скоринга — строка «вилка ставки: минимум – акт – рынок»",
+       flat(ov["fork"]["value"]) == want_ov and ov["fork"]["label"].startswith("вилка ставки"),
+       (ov.get("fork"), want_ov))
+    return rf, mk, reg, mkt
+
+
+def check_rate_fork_engine():
+    print("45а. Вилка ставки: чистые функции act_engine (поправки, границы, ступени рынка, настройки)")
+    fs = ae.fork_settings({})
+    r = ae.fork_region([{"id": "a", "ratio": 1.735}, {"id": "b", "ratio": 1.215}], fs, True, True)
+    ok("регион: ДТП 1,735 и кражи 1,215 × 0,5 → 23,75 % → граница +15 %",
+       r["raw_pct"] == 23.75 and r["pct"] == 15 and r["clamped"] == "max" and r["used"] == 2, r)
+    r = ae.fork_region([{"id": "a", "ratio": 0.6}], fs, True, True)
+    ok("регион: отношение 0,6 → −20 % → граница −10 %", r["raw_pct"] == -20 and r["pct"] == -10
+       and r["clamped"] == "min", r)
+    r = ae.fork_region([{"id": "a", "ratio": 0.936}], fs, True, True)
+    ok("регион: внутри границ без обрезки (0,936 → −3,2 %)", r["pct"] == -3.2 and r["clamped"] is None, r)
+    reasons = (ae.fork_region([], fs, True, False)["reason"], ae.fork_region([], fs, True, True)["reason"],
+               ae.fork_region([{"id": "a", "ratio": 1.5}], fs, False, True)["reason"],
+               ae.fork_region([{"id": "a", "ratio": None}], fs, True, True)["reason"])
+    ok("регион: причины без поправки — нет правила, не для вида, регион не распознан, нет разреза по регионам",
+       reasons == ("no_rules", "kind", "region_unknown", "no_regional"), reasons)
+    m = [ae.fork_market(0.4, 0.7, lr, fs) for lr in (59.9, 60, 79.99, 80, 250)]
+    ok("рынок: ставка ниже рыночной — убыточность 59,9 → 0; 60 → +10; 79,99 → +10; 80 → +20; 250 → +20",
+       [x["pct"] for x in m] == [0, 10, 10, 20, 20] and m[0]["reason"] == "lr_below" and m[1]["threshold"] == 60, m)
+    ok("рынок: ставка акта не ниже рыночной или нет данных НАПП — 0",
+       ae.fork_market(0.7, 0.7, 90, fs)["reason"] == "act_not_below" and ae.fork_market(0.8, 0.7, 90, fs)["pct"] == 0
+       and ae.fork_market(0.4, None, 90, fs)["reason"] == "no_data" and ae.fork_market(0.4, 0.7, None, fs)["pct"] == 0)
+    ok("ставка п. 3: 0,42 × 1,15 × 1,2 = 0,5796; ниже минимума — минимум",
+       ae.fork_rate(0.42, 15, 20, 0.35) == (0.5796, False) and ae.fork_rate(0.06, -10, 0, 0.06) == (0.06, True))
+    ok("положение ставки документа: ниже минимума, внутри, выше рынка",
+       [ae.fork_position(x, 0.08, 0.185) for x in (0.05, 0.1, 0.2, None)] == ["below_min", "inside", "above_market",
+                                                                              "none"])
+    ok("настройки по умолчанию: reference, 0,5, −10…+15 %, ступени 60/80, calibrated 0, check_settings без ошибок",
+       ae.DEFAULT_SETTINGS["rate_fork"]["mode"] == "reference" and fs["region"]["sensitivity"] == 0.5
+       and fs["region"]["min_pct"] == -10 and fs["region"]["max_pct"] == 15
+       and fs["market"]["steps"] == [[60, 10], [80, 20]] and ae.DEFAULT_SETTINGS["rate_fork"]["calibrated"] == 0
+       and ae.check_settings({}) == [] and ae.check_settings({"rate_fork": {"mode": "apply"}}) == [])
+    # замечание контролёра 01.10.2026: частота претензий НАПП искажена (88,8 % претензий страны — город Ташкент),
+    # поэтому по умолчанию вес 0, а у классов 4, 5, 6 показателя нет вовсе (не «единственный показатель»)
+    ind = fs["region"]["indicators"]
+    ok("claims_freq: вес по умолчанию 0; в списках классов 3, 7, 8, 9 остаётся, у 4, 5, 6 правила вилки нет",
+       fs["region"]["weights"] == {"claims_freq": 0.0} and all(c not in ind for c in ("4", "5", "6"))
+       and all("claims_freq" in ae.fork_indicator_ids(fs, c, None)[0] for c in ("3", "7", "8", "9")), ind)
+    r = ae.fork_region([{"id": "claims_freq", "ratio": 0.652, "used": False, "why": "weight_zero"}], fs, True, True)
+    ok("регион: сравнение есть только у показателя с весом 0 → поправка 0, причина zero_weight",
+       r["pct"] == 0 and r["reason"] == "zero_weight", r)
+    ok("рынок: база по умолчанию full_year_if_available; check_settings ловит неверную базу",
+       fs["market"]["basis"] == "full_year_if_available"
+       and any("rate_fork.market.basis" in e for e in ae.check_settings({"rate_fork": {"market": {"basis": "x"}}}))
+       and ae.check_settings({"rate_fork": {"market": {"basis": "last"}}}) == [])
+    pk = {"loss_ratio_pct": 81.9, "loss_ratio_full_year_pct": 2.5}
+    ok("рынок: скачок за полугодие (81,9 %) при полном годе 2,5 % — ступень по полному году; basis last — по срезу",
+       ae.fork_market_lr(pk, fs) == (2.5, "full_year", True)
+       and ae.fork_market_lr(pk, ae.fork_settings({"rate_fork": {"market": {"basis": "last"}}})) == (81.9, "last", False)
+       and ae.fork_market_lr({"loss_ratio_pct": 81.9, "loss_ratio_full_year_pct": None}, fs) == (81.9, "last", False)
+       and ae.fork_market_lr({"loss_ratio_pct": 14.6, "loss_ratio_full_year_pct": 14.3}, fs) == (14.6, "last", False)
+       and ae.fork_market_lr({"loss_ratio_pct": 14.6, "loss_ratio_full_year_pct": 90}, fs) == (14.6, "last", False))
+    adj = ae.fork_adjust({"mode": "tariff", "applied_pct": 0.3, "min_pct": 0.1},
+                         {"pct": 0.0}, {"rate_pct": 0.676, **pk}, fs)
+    ok("fork_adjust: пакет 3,14 — убыточность 2,5 % за полный год, надбавки нет, пометка full_year_switch",
+       adj["market"]["pct"] == 0 and adj["market"]["full_year_switch"] and adj["market"]["loss_ratio_pct"] == 2.5
+       and adj["market"]["loss_ratio_last_pct"] == 81.9 and adj["market"]["basis"] == "full_year", adj["market"])
+    bad = {"mode": "x", "region": {"sensitivity": 9, "max_pct": 500, "indicators": {"3": {"*": ["нет_такого"]},
+                                                                                    "8": {"дом": []}}},
+           "market": {"steps": [[80, 20], [60, 10]], "loss_ratio": "y"}, "calibrated": 1, "extra": 1}
+    errs = " | ".join(ae.check_settings({"rate_fork": bad}))
+    ok("check_settings ловит ошибки вилки: режим, чувствительность, граница, показатель, группа, ступени, база, "
+       "calibrated, лишний ключ",
+       all(x in errs for x in ("rate_fork.mode", "sensitivity", "max_pct", "нет_такого", "группа «дом»",
+                               "по возрастанию", "loss_ratio", "calibrated", "неизвестные ключи extra")), errs)
+    ok("частичная правка region не стирает остальные ключи (fork_settings)",
+       ae.fork_settings({"rate_fork": {"region": {"sensitivity": 1}}})["region"]["indicators"]
+       == ae.DEFAULT_SETTINGS["rate_fork"]["region"]["indicators"])
+
+
+def _ensure_napp() -> bool:
+    """Таблицы НАПП (napp_claims, napp_branches, пакеты классов) на копии базы теста: нет — собираем
+    tools/market_stats.build() в эту же копию (db.DB_PATH — копия, рабочая база не трогается). Нет разобранных
+    отчётов в data/parsed — False: проверки, которым нужны таблицы, честно пропускаются с пометкой."""
+    with db.tx() as con:
+        have = db.rows(con, "SELECT COUNT(*) n FROM sqlite_master WHERE type='table' AND name IN "
+                            "('napp_claims', 'napp_branches')")[0]["n"] == 2
+        filled = have and db.rows(con, "SELECT COUNT(*) n FROM napp_claims")[0]["n"] > 0
+    if filled:
+        return True
+    parsed = ROOT_DIR / "data" / "parsed"
+    if not any(parsed.glob("*/3.5.csv")):
+        print("  ПРОПУСК: нет таблиц НАПП (napp_claims / napp_branches) и нет разобранных отчётов в data/parsed")
+        return False
+    sys.path.insert(0, str(ROOT_DIR / "tools"))
+    import market_stats as ms
+    assert ms.db_path() == db.DB_PATH and "surveyor-act-test" in str(db.DB_PATH), "только копия базы"
+    n, dates = ms.build()
+    print(f"  таблицы НАПП собраны на копии базы: market_stats {n} строк, срезы {dates[0]}…{dates[-1]}")
+    return True
+
+
+def check_rate_fork():
+    print("45б. Вилка ставки в /act/make: автокран, склад кл. 8 и 9, оборудование 0832 с запросом, класс без "
+          "статистики региона, обязательный вид, продукт без ставки, договор по частям, режим apply, три языка")
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    napp = _ensure_napp()
+    cf_why = "weight_zero" if napp else "no_data"
+    S = CRANE_MUST["sum_insured"]
+    # --- автокран 0318: правила акта не меняются, вилка рядом
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ok("автокран: режим reference — ставка 0,42 % и премия 12 369 000 прежние",
+       a["rate"]["applied_pct"] == 0.42 and a["premium"]["amount"] == 12_369_000 and not a["rate"]["fork_applied"],
+       (a["rate"]["applied_pct"], a["premium"]["amount"]))
+    rf, mk, reg, mkt = _rf_common("автокран", a, S)
+    ok("автокран: отметки min 0,35 / act 0,42 (рекомендуем) / adjusted / market / technical",
+       list(mk) == ["min", "act", "adjusted", "market", "technical"] and mk["min"]["rate_pct"] == 0.35
+       and mk["act"]["is_recommended"] and rf["recommended"] == {"code": "act", "rate_pct": 0.42, "premium": 12_369_000}
+       and rf["mode"] == "reference", list(mk))
+    ids = {i["id"]: i for i in rf["adjustments"]["region"]["indicators"]}
+    # 01.10.2026: частота претензий НАПП (claims_freq) в списке, но с весом 0 — показана справочно, в поправку не входит
+    ok("автокран: регион — ДТП и кражи (угоны); претензии НАПП показаны, в поправку не входят (вес 0)",
+       set(ids) == {"road_accidents", "thefts", "claims_freq"} and ids["road_accidents"]["used"]
+       and ids["thefts"]["used"] and not ids["claims_freq"]["used"] and ids["claims_freq"]["why"] == cf_why
+       and (not napp or ids["claims_freq"]["source"]["url"].startswith("https://napp.uz")), ids)
+    R = rf["adjustments"]["region"]
+    ok("автокран: поправка региона прежняя — ДТП 1,735 и кражи 1,215 × 0,5 → +23,75 % → граница +15 %",
+       R["raw_pct"] == 23.75 and R["pct"] == 15 and R["clamped"] == "max", (R["raw_pct"], R["pct"]))
+    crane_ratio = ids["claims_freq"].get("ratio")
+    ok("автокран: техническая отметка = техническая ставка аналитики (справочно)",
+       mk["technical"]["rate_pct"] == round(a["analytics"]["tariff"]["technical_pct"], 4), mk["technical"])
+    ok("автокран: вывод одной фразой", flat(rf["summary"]).startswith("Допустимо от 0,35 % (минимум); рекомендуем 0,42 %; "
+                                                               "рынок ") and "С учётом региона и рынка" in rf["summary"]
+       and act.pct(mk["adjusted"]["rate_pct"], "ru") in rf["summary"], flat(rf["summary"]))
+    rows = {r["label"]: r for r in a["sections"][3]["rows"]}
+    ok("автокран: в разделе 4 рядом с премией — ставка с учётом региона и рынка и премия по ней (справочно)",
+       rows["Ставка с учётом региона и рынка"]["value"] == act.pct(mk["adjusted"]["rate_pct"], "ru")
+       and act.money(mk["adjusted"]["premium"], "ru") in rows["Ставка с учётом региона и рынка"]["note"],
+       rows.get("Ставка с учётом региона и рынка"))
+    RF_REPORT["автокран"] = (mk["min"]["rate_pct"], mk["act"]["rate_pct"], mk["adjusted"]["rate_pct"],
+                             mk["market"]["rate_pct"], reg, mkt, sorted(ids))
+    crane_aid = a["id"]
+    plain_docx, plain_pdf = docx_plain(crane_aid), pdf_plain(crane_aid)
+    ok("автокран: «Вилка ставки» и вывод — в Word и PDF",
+       "Вилка ставки" in plain_docx and "Вилка ставки" in plain_pdf and flat(rf["summary"])[:40] in plain_docx
+       and "napp.uz" in plain_pdf, plain_pdf[:200])
+    for lg, title, start in (("uz", "Tarif oraligʻi", "ruxsat etiladi (minimum)"), ("en", "Rate range", "Acceptable from")):
+        st, b = call("GET", f"/act/{crane_aid}", params={"lang": lg})
+        txt = all_text(b) + _json.dumps(b["rate_fork"], ensure_ascii=False)
+        ok(f"автокран {lg}: вилка на языке акта, без кодов текстов",
+           b["rate_fork"]["title"] == title and (start in b["rate_fork"]["summary"] or b["rate_fork"]["summary"]
+                                                  .startswith(start)) and "rf_" not in txt
+           and not re.search(r"\bhow_fork", txt) and title in [x["title"] for x in b["sections"][3]["lists"]],
+           b["rate_fork"]["summary"])
+        li = next(x for x in b["sections"][3]["lists"] if x["title"] == title)
+        cyr = [x for x in [str(c) for r in li["table"]["rows"] for c in r] + li["notes"] + li["sources"]
+               + [b["rate_fork"]["summary"]] if re.search(r"[А-Яа-яЁё]", x)]
+        ok(f"автокран {lg}: в таблице, пояснениях и источниках вилки нет кириллицы", not cyr, cyr[:3])
+    # --- склад 4,2 млрд, класс 8 (0807): здание — доля глинобитного жилья; ЧС без регионов
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST, "optional": WH8_OPT})
+    ok("склад кл. 8: правила акта не меняются (0,06 %, 2 520 000)",
+       a["rate"]["applied_pct"] == 0.06 and a["premium"]["amount"] == 2_520_000, (a["rate"]["applied_pct"],
+                                                                                  a["premium"]["amount"]))
+    rf, mk, reg, mkt = _rf_common("склад кл. 8", a, WH8_MUST["sum_insured"])
+    ids = {i["id"]: i for i in rf["adjustments"]["region"]["indicators"]}
+    ok("склад кл. 8: учтён жилой фонд по материалу стен (здание), ЧС — не учтены (нет разреза по регионам)",
+       ids["vulnerable_housing"]["used"] and not ids["emergencies"]["used"]
+       and ids["emergencies"]["why"] == "no_regional", ids)
+    ok("склад кл. 8: претензии НАПП не в поправке; поправка прежняя −3,2 % (жилой фонд 0,936)",
+       not ids["claims_freq"]["used"] and rf["adjustments"]["region"]["pct"] == -3.2
+       and [k for k, i in ids.items() if i["used"]] == ["vulnerable_housing"], rf["adjustments"]["region"]["pct"])
+    ok("склад кл. 8: рыночная ставка пакета «8, 9» — с пометкой", any("«8, 9»" in x for x in rf["how"]), rf["how"])
+    RF_REPORT["склад кл. 8"] = (mk["min"]["rate_pct"], mk["act"]["rate_pct"], mk["adjusted"]["rate_pct"],
+                                mk["market"]["rate_pct"], reg, mkt, [k for k, v in ids.items() if v["used"]])
+    # --- склад класс 9 (0808), город Ташкент: преступления и кражи
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH_MUST, "optional": WH_OPT})
+    rf, mk, reg, mkt = _rf_common("склад кл. 9", a, WH_MUST["sum_insured"])
+    ids = {i["id"]: i for i in rf["adjustments"]["region"]["indicators"]}
+    ok("склад кл. 9: регион — зарегистрированные преступления и кражи; претензии НАПП справочно; поправка +15 %",
+       set(ids) == {"crimes_total", "thefts", "claims_freq"} and ids["crimes_total"]["used"] and ids["thefts"]["used"]
+       and not ids["claims_freq"]["used"] and rf["adjustments"]["region"]["pct"] == 15,
+       (rf["adjustments"]["region"]["pct"], ids))
+    RF_REPORT["склад кл. 9"] = (mk["min"]["rate_pct"], mk["act"]["rate_pct"], mk["adjusted"]["rate_pct"],
+                                mk["market"]["rate_pct"], reg, mkt, sorted(ids))
+    # --- оборудование 0832 с запросом филиала 0,05 %
+    st, b = upload([("sorov2.docx", DOCX_MIME, docx_table(BR_SAMPLE2))], {"lang": "ru"})
+    st, a = br_make(b["session"], 2, br_request(b))
+    rf, mk, reg, mkt = _rf_common("оборудование 0832", a, BR_S2, a["premium"]["term_days"])
+    ok("0832: отметка запроса филиала 0,05 % — ниже минимума 0,08 %",
+       mk["request"]["rate_pct"] == 0.05 and rf["position"]["request"] == "below_min"
+       and "ниже минимума" in mk["request"]["note"], mk.get("request"))
+    ok("0832: вывод «… Запрос филиала 0,05 % — ниже минимума»",
+       flat(rf["summary"]).endswith("Запрос филиала 0,05 % — ниже минимума.") and "рекомендуем 0,096 %" in flat(rf["summary"]),
+       rf["summary"])
+    reg_b = rf["adjustments"]["region"]
+    ids = {i["id"]: i for i in reg_b["indicators"]}
+    # 01.10.2026: жилой фонд к оборудованию не относится, ЧС — без регионов, претензии НАПП — вес 0: поправки нет
+    cf = ids["claims_freq"]
+    ok("0832: оборудование — жилой фонд не подходит, ЧС без регионов, претензии НАПП справочно → поправка 0",
+       ids["vulnerable_housing"]["why"] == "kind" and ids["emergencies"]["why"] == "no_regional"
+       and not cf["used"] and cf["why"] == cf_why and not [k for k, i in ids.items() if i["used"]]
+       and reg_b["pct"] == 0 and reg_b["reason"] == ("zero_weight" if napp else "no_regional"), reg_b.get("text"))
+    ok("0832: премия акта прежняя (по ставке акта 0,096 %)", rf["recommended"]["premium"] == a["premium"]["amount"]
+       and a["rate"]["applied_pct"] == 0.096, (rf["recommended"], a["premium"]["amount"]))
+    RF_REPORT["оборудование 0832"] = (mk["min"]["rate_pct"], mk["act"]["rate_pct"], mk["adjusted"]["rate_pct"],
+                                      mk["market"]["rate_pct"], reg, mkt, mk["request"]["rate_pct"],
+                                      rf["position"]["request"])
+    eq_aid = a["id"]
+    # --- класс без статистики региона в правиле вилки (НС юрлиц, класс 1) и нераспознанный регион
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": {"product_code": "0101", "sum_insured": 100_000_000,
+                                                              "object_value": 100_000_000, "region": "Ташкент"},
+                                       "optional": {}})
+    rf = _rf(a)
+    ok("класс 1 без статистики региона: поправка 0, пометка «нет данных по региону для этого вида объекта»",
+       st == 200 and rf["available"] and rf["adjustments"]["region"]["pct"] == 0
+       and rf["adjustments"]["region"]["reason"] == "no_rules"
+       and "нет данных по региону для этого вида объекта" in rf["adjustments"]["region"]["text"],
+       (st, rf.get("adjustments")))
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(CRANE_MUST, region="Атлантида"),
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    reg_b = _rf(a)["adjustments"]["region"]
+    ok("регион не распознан: поправка 0 с честной пометкой", reg_b["pct"] == 0 and reg_b["reason"] == "region_unknown"
+       and "Атлантида" in reg_b["text"] and a["premium"]["amount"] == 12_369_000, reg_b["text"])
+    # --- обязательный вид (0820): одна ставка по нормативному акту
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": {"product_code": "0820", "sum_insured": 1_000_000_000,
+                                                              "object_value": 1_000_000_000, "region": "Ташкент"},
+                                       "optional": {}})
+    rf = _rf(a)
+    ok("обязательный вид: вилки нет, одна ставка по акту, «тариф установлен нормативным актом»",
+       not rf["available"] and rf["reason"] == "statutory" and [m["code"] for m in rf["marks"]] == ["act"]
+       and rf["marks"][0]["rate_pct"] == a["rate"]["applied_pct"] and rf["adjustments"] is None
+       and "установлен нормативным актом" in rf["summary"] and "ПКМ №532" in rf["summary"], rf.get("summary"))
+    # --- продукт «по программе» (0321): только рыночный ориентир
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(CRANE_MUST, product_code="0321"),
+                                       "optional": CRANE_OPT})
+    rf = _rf(a)
+    ok("продукт без ставки: только рыночный ориентир со ссылкой и пометка",
+       not rf["available"] and rf["reason"] == "undefined" and [m["code"] for m in rf["marks"]] == ["market"]
+       and rf["marks"][0]["source"]["url"].startswith("https://napp.uz") and "не определена" in rf["summary"]
+       and a["premium"]["amount"] is None, rf.get("summary"))
+    # --- договор по частям (0312: 60 млн класс 3 + 40 млн класс 14)
+    st, a = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, PT_CREDIT]))
+    parts = a["parts"]["items"]
+    pf = [p["rate_fork"] for p in parts]
+    ok("части: вилка у каждой части; класс 3 — с поправкой региона, класс 14 — без правила (поправка 0)",
+       all(f["available"] for f in pf) and pf[0]["adjustments"]["region"]["pct"] != 0
+       and pf[1]["adjustments"]["region"]["reason"] == "no_rules", [f["summary"] for f in pf])
+    rf = _rf(a)
+    cm = _rf_marks(a)
+    sums = {c: sum(next(m for m in f["marks"] if m["code"] == c)["premium"] for f in pf) for c in ("min", "act",
+                                                                                                  "adjusted")}
+    ok("части: вилка договора справочная — по каждой отметке сумма премий частей",
+       rf["reason"] == "parts_reference" and rf["reference_only"] and all(cm[c]["premium"] == sums[c] for c in sums)
+       and all(cm[c]["rate_pct"] == round(sums[c] / 100_000_000 * 100, 4) for c in sums), (cm, sums))
+    ok("части: премия договора прежняя (сумма премий частей по ставкам акта)",
+       a["premium"]["amount"] == sum(p["premium"] for p in parts) == sums["act"], (a["premium"]["amount"], sums))
+    ok("части: в разделе 4 «Вилка ставки по частям» — строки частей и договора",
+       any(x["title"] == "Вилка ставки по частям" and len(x["table"]["rows"]) == 3 for x in a["sections"][3]["lists"]))
+    mk3 = pf[0]["adjustments"]["market"]
+    ok("части 0312: рынок — пакет 3,14; при скачке убыточности за полугодие ступень по полному году с пометкой",
+       mk3["row_key"] == "cls3_14" and (not mk3.get("full_year_switch") or (
+           mk3["loss_ratio_pct"] == mk3["loss_ratio_full_year_pct"] and mk3["basis"] == "full_year"
+           and any("взята оценка за полный год" in x for x in mk3["lines"]))), mk3.get("lines"))
+    rows3 = {r["class_code"]: r for r in mk3.get("class_rows") or []} if "class_rows" in mk3 else None
+    lines3 = " | ".join(mk3.get("lines") or [])
+    ok("части 0312 (правило № 5): строка «по одиночным строкам классов: класс 3 — …, класс 14 — …»",
+       "по одиночным строкам классов: класс 3 — " in lines3 and ", класс 14 — " in lines3, lines3)
+    if mk3.get("full_year_switch"):
+        RF_REPORT["0312: пакет 3,14 — убыточность срез / полный год"] = (mk3["loss_ratio_last_pct"],
+                                                                           mk3["loss_ratio_full_year_pct"],
+                                                                           mk3["pct"])
+    RF_REPORT["0312 по частям"] = [(p["class_code"], f["recommended"]["rate_pct"],
+                                    next(m for m in f["marks"] if m["code"] == "adjusted")["rate_pct"]) for p, f in
+                                   zip(parts, pf)] + [("договор", cm["act"]["rate_pct"], cm["adjusted"]["rate_pct"])]
+    # --- claims_freq: вес 0 (по умолчанию) ничего не меняет, вес 1 (администратор включил) — меняет
+    if napp:
+        set_act_settings({"rate_fork": {"region": {"weights": {"claims_freq": 0}}}})
+        st, a0 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                            "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+        set_act_settings({"rate_fork": {"region": {"weights": {"claims_freq": 1}}}})
+        st, a1 = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                            "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+        R0, R1 = _rf(a0)["adjustments"]["region"], _rf(a1)["adjustments"]["region"]
+        i1 = {i["id"]: i for i in R1["indicators"]}
+        raw1 = round(sum(round((i["ratio"] - 1) * 0.5 * 100, 4) for i in i1.values() if i["used"]) / 3, 2)
+        ok("claims_freq с весом 0 — поправка та же (+15 % от +23,75 %), ставка п. 3 та же",
+           R0["raw_pct"] == 23.75 and R0["pct"] == 15
+           and _rf_marks(a0)["adjusted"]["rate_pct"] == RF_REPORT["автокран"][2], (R0["raw_pct"], R0["pct"]))
+        ok(f"claims_freq с весом 1 — входит в поправку: (36,75 + 10,75 + ({crane_ratio} − 1) × 50) / 3 = {raw1} %",
+           i1["claims_freq"]["used"] and sum(1 for i in i1.values() if i["used"]) == 3 and R1["raw_pct"] == raw1 and R1["pct"] != R0["pct"]
+           and _rf_marks(a1)["adjusted"]["rate_pct"] != _rf_marks(a0)["adjusted"]["rate_pct"], (R1["raw_pct"], raw1))
+        it1 = next(x for x in a1["analytics"]["stats"]["indicators"] if x["id"] == "napp_region_claims")
+        ok("вес 1: строка «Претензии в регионе» говорит, что входит в поправку (включено в настройках)",
+           "входит в поправку ставки с весом 1" in it1["text"].lower() and not it1["reference_only"], it1["text"])
+        RF_REPORT["автокран, claims_freq вес 1"] = (R1["raw_pct"], R1["pct"], _rf_marks(a1)["adjusted"]["rate_pct"])
+        set_act_settings(None)
+        # раздел 4: строка претензий справочная, с оговорками на трёх языках
+        st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                           "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+        it = next(x for x in a["analytics"]["stats"]["indicators"] if x["id"] == "napp_region_claims")
+        ok("раздел 4: «Претензии в регионе» — справочно: «в поправку ставки не входит: … 89 % — город Ташкент»",
+           it["reference_only"] and "в поправку ставки не входит: претензии учитываются по месту головных офисов "
+           "страховщиков, 89" in flat(it["text"]).lower() and "— город Ташкент" in it["text"], it["text"])
+        ok("раздел 4: оговорки к претензиям — не страховые случаи; с начала года / на дату; прошлые периоды; "
+           "Ташкент; срезы 3/6/9/12 мес. несопоставимы",
+           all(w in it["text"] for w in ("не страховые случаи", "с начала года", "действующие на дату",
+                                         "прошлых периодов", "сосредоточены в городе Ташкенте",
+                                         "3, 6, 9 и 12 месяцев", "регион с республикой на одном срезе")), it["text"])
+        cc = next(x for x in a["analytics"]["stats"]["indicators"] if x["id"] == "napp_company_claims")
+        ok("раздел 4: «Претензии: рынок / INSON» — с теми же оговорками",
+           "не страховые случаи" in cc["text"] and "несопоставимы" in cc["text"], cc["text"])
+        br_it = next((x for x in a["analytics"]["stats"]["indicators"] if x["id"] == "napp_branches"), None)
+        ok("раздел 4: подпись «Подразделения INSON в регионе (все вместе, по отчёту НАПП)»",
+           br_it and br_it["name"] == "Подразделения INSON в регионе (все вместе, по отчёту НАПП)", br_it)
+        for lg, words in (("uz", ("sugʻurta hodisalari emas", "Toshkent shahrida")),
+                          ("en", ("not insured events", "Tashkent city", "not comparable"))):
+            st, b = call("GET", f"/act/{a['id']}", params={"lang": lg})
+            itl = next(x for x in b["analytics"]["stats"]["indicators"] if x["id"] == "napp_region_claims")
+            ok(f"{lg}: оговорки к претензиям на языке акта",
+               all(w in itl["text"] for w in words) and (lg != "en" or not re.search(r"[А-Яа-яЁё]", itl["text"])),
+               itl["text"])
+        set_act_settings({"napp": {"branch_min_contracts": 10 ** 6}})
+        st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                           "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+        br_it = next((x for x in a["analytics"]["stats"]["indicators"] if x["id"] == "napp_branches"), None)
+        ok("подразделения: договоров меньше порога настройки napp.branch_min_contracts — пометка «малая база»",
+           br_it and br_it.get("small_base") and "малая база" in br_it["text"].lower(), br_it and br_it["text"])
+        set_act_settings(None)
+    else:
+        print("  ПРОПУСК: claims_freq с весом 1 и строки претензий раздела 4 — нет таблиц НАПП")
+    # --- поправка рынка через настройки ступеней (убыточность класса 3 по НАПП — около 15 %)
+    set_act_settings({"rate_fork": {"market": {"steps": [[10, 10], [14, 20]]}}})
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    rf, mk = _rf(a), _rf_marks(a)
+    lr = rf["adjustments"]["market"]["loss_ratio_pct"]
+    want = 20.0 if lr >= 14 else (10.0 if lr >= 10 else 0.0)
+    ok(f"рынок по ступеням настройки: убыточность {lr} % → +{want} %, ставка п. 3 пересчитана",
+       rf["adjustments"]["market"]["pct"] == want and mk["adjusted"]["rate_pct"] == round(
+           0.42 * (1 + rf["adjustments"]["region"]["pct"] / 100) * (1 + want / 100), 4)
+       and a["premium"]["amount"] == 12_369_000, rf["adjustments"]["market"])
+    # --- режим apply: ставка п. 3 — ставка акта, всё от неё
+    set_act_settings({"rate_fork": {"mode": "apply"}})
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    rf, mk = _rf(a), _rf_marks(a)
+    adj_rate = mk["adjusted"]["rate_pct"]
+    prem = round(adj_rate / 100 * S)
+    ok("apply: ставка акта = ставка с учётом региона и рынка, премия пересчитана",
+       a["rate"]["applied_pct"] == adj_rate and a["premium"]["amount"] == prem and a["rate"]["fork_applied"]
+       and a["rate"]["fork_act_pct"] == 0.42 and rf["recommended"] == {"code": "adjusted", "rate_pct": adj_rate,
+                                                                       "premium": prem}
+       and mk["adjusted"]["is_recommended"] and mk["act"]["premium"] == 12_369_000, (a["rate"]["applied_pct"], prem))
+    _rf_common("apply автокран", a, S)
+    ok("apply: в «как посчитан тариф» обе поправки и премия по новой ставке",
+       any(h.startswith("Поправка региона") for h in a["rate"]["how"]) and any(h.startswith("Поправка рынка")
+                                                                              for h in a["rate"]["how"])
+       and any(act.money(prem, "ru") in h for h in a["rate"]["how"]), a["rate"]["how"])
+    fr = a["franchise"]
+    ms = a["measures_summary"]
+    ov = {o["code"]: o for o in a["scoring"]["overview"]}
+    ok("apply: франшиза, мероприятия, скоринг — от той же премии",
+       fr["premium_before"] == prem and (ms.get("premium_before") in (None, prem)) and ov["premium"]["raw"] == prem
+       and ov["tariff"]["raw"] == adj_rate, (fr.get("premium_before"), ms, ov["premium"]))
+    plain_docx, plain_pdf = docx_plain(a["id"]), pdf_plain(a["id"])
+    ok("apply: премия одна и та же в Word и PDF", flat(act.money(prem, "ru")) in plain_docx
+       and flat(act.money(prem, "ru")) in plain_pdf and flat(act.money(12_369_000, "ru")) in plain_pdf)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane",
+                                                        deductible={"pct": 1, "type": "unconditional"})})
+    fr = a["franchise"]
+    hand_rate = max(_rf_marks(a)["adjusted"]["rate_pct"] * fr["multiplier"], 0.35)   # премия — от неокруглённой ставки
+    ok("apply + франшиза сотрудника: франшиза применяется к ставке с поправками",
+       fr["applied"] and fr["premium_before"] == prem and a["premium"]["amount"] == round(hand_rate / 100 * S)
+       and _rf(a)["premium_final"] == a["premium"]["amount"], (fr.get("premium_before"), a["premium"]["amount"]))
+    st, b = upload([("sorov2.docx", DOCX_MIME, docx_table(BR_SAMPLE2))], {"lang": "ru"})
+    st, a = br_make(b["session"], 2, br_request(b))
+    it = rq_items(a)
+    ok("apply 0832: сверка с запросом — со ставкой и премией акта",
+       it["tariff_act"]["calculated"] == a["rate"]["applied_pct"] and it["premium_act"]["calculated"]
+       == a["premium"]["amount"], (it["tariff_act"], it["premium_act"], a["premium"]["amount"]))
+    st, a = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, PT_CREDIT]))
+    parts = a["parts"]["items"]
+    ok("apply части: премия части = ставка с поправками; премия договора = сумма; вилка договора рекомендует adjusted",
+       all(p["rate"]["applied_pct"] == p["rate_fork"]["recommended"]["rate_pct"] for p in parts)
+       and a["premium"]["amount"] == sum(p["premium"] for p in parts) == _rf_marks(a)["adjusted"]["premium"]
+       and _rf(a)["recommended"]["code"] == "adjusted", [(p["rate"]["applied_pct"], p["premium"]) for p in parts])
+    # --- reference снова: прежние цифры
+    set_act_settings(None)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    ok("reference снова: 0,42 % и 12 369 000", a["rate"]["applied_pct"] == 0.42
+       and a["premium"]["amount"] == 12_369_000 and _rf(a)["mode"] == "reference")
+    # --- старый акт без вилки открывается
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", eq_aid)[0]
+        stored = _json.loads(row["act_json"])
+    stored["data"].pop("rate_fork", None)
+    old = act.render(stored["data"], "ru", stored["meta"])
+    ok("акт до вилки (без rate_fork) открывается: блок available = false, reason old_act",
+       old["rate_fork"]["available"] is False and old["rate_fork"]["reason"] == "old_act"
+       and "Вилка ставки" not in [x["title"] for x in old["sections"][3]["lists"]])
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -7127,6 +7927,8 @@ def main():
             check_templates_ref()
             check_templates_api()
             check_templates_act()
+            check_templates_new_classes()
+            check_templates_class18()
             check_templates_sync()
             check_parts_engine()
             pt_aid = check_parts_make()
@@ -7141,6 +7943,8 @@ def main():
             check_scoring_review(sc_aid)
             check_credit_parse_review()
             check_credit_scan_off()
+            check_rate_fork_engine()
+            check_rate_fork()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -7173,6 +7977,10 @@ def main():
     if SC_REPORT:
         print("\nстраховой скоринг (балл риска 0–100 → балл 0–500, класс):")
         for k, v in SC_REPORT.items():
+            print("  ", k, v)
+    if RF_REPORT:
+        print("\nвилка ставки (минимум, акт, с учётом региона и рынка, рынок, поправка региона %, рынка %, …):")
+        for k, v in RF_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

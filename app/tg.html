@@ -736,6 +736,104 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .act-line.warn{color:var(--warn)}
 .act-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--s3)}
 .act-btns .btn{flex:1 1 150px}
+/* шаг 3: вилка ставки (01.10.2026) — шкала в процентах ширины; ряды подписей заранее для телефона (--n*) и шире 600 px (--w*) */
+.rf-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.card.rf .rf-top h2{margin:0}
+.rf-unc{margin:0;text-transform:none;letter-spacing:0;font-weight:700}
+.rf-sum{margin:10px 0 0;font:700 16px/1.45 var(--sans);overflow-wrap:anywhere}
+.rf-sum.sm{font-size:13.5px;font-weight:600}
+.rf-scale{position:relative;margin:14px 0 4px}
+.rf-up{position:relative;height:calc(var(--un) * 60px + 6px)}
+.rf-lo{position:relative;height:calc(var(--ln) * 36px + 14px)}
+.rf-lab{position:absolute;z-index:2;left:var(--nl);width:var(--nw);text-align:var(--nta);white-space:nowrap;font-size:0;line-height:0}
+.rf-lab b,.rf-lab small{background:var(--card);padding:0 2px}
+.rf-up .rf-lab{bottom:calc(var(--nr) * 60px + 8px)}
+.rf-lo .rf-lab{top:calc(var(--nr) * 36px + 14px)}
+.rf-lab b{display:inline-block;font:700 13px/1.25 var(--mono)}
+.rf-lab small{display:inline-block;font-size:11.5px;line-height:1.3;color:var(--muted)}
+.rf-lab.best b{color:var(--accent)}
+.rf-lab.pos-below_min b,.rf-lab.pos-below_min small{color:var(--stop)}
+.rf-lab.over b,.rf-lab.over small{color:var(--muted);font-weight:600}
+.rf-chip{display:inline-block;margin-bottom:2px;padding:2px 7px;border-radius:999px;background:var(--accent);color:var(--on-accent);font:800 10.5px/1.3 var(--sans);font-style:normal}
+.rf-lead{position:absolute;z-index:1;left:var(--x);width:0;border-left:1px dashed var(--muted);opacity:.7}
+.rf-up .rf-lead{bottom:0;height:calc(var(--nr) * 60px + 8px)}
+.rf-lo .rf-lead{top:0;height:calc(var(--nr) * 36px + 14px)}
+.rf-lo .rf-lead.over{display:none}
+@media (min-width:600px){
+  .rf-up{height:calc(var(--uw) * 60px + 6px)}
+  .rf-lo{height:calc(var(--lw) * 36px + 14px)}
+  .rf-lab{left:var(--wl);width:var(--ww);text-align:var(--wta)}
+  .rf-up .rf-lab{bottom:calc(var(--wr) * 60px + 8px)}
+  .rf-lo .rf-lab{top:calc(var(--wr) * 36px + 14px)}
+  .rf-up .rf-lead{height:calc(var(--wr) * 60px + 8px)}
+  .rf-lo .rf-lead{height:calc(var(--wr) * 36px + 14px)}
+}
+@media (min-width:1000px){
+  .rf-up{height:calc(var(--ux) * 60px + 6px)}
+  .rf-lo{height:calc(var(--lx) * 36px + 14px)}
+  .rf-lab{left:var(--xl);width:var(--xw);text-align:var(--xta)}
+  .rf-up .rf-lab{bottom:calc(var(--xr) * 60px + 8px)}
+  .rf-lo .rf-lab{top:calc(var(--xr) * 36px + 14px)}
+  .rf-up .rf-lead{height:calc(var(--xr) * 60px + 8px)}
+  .rf-lo .rf-lead{height:calc(var(--xr) * 36px + 14px)}
+}
+.rf-track{position:relative;height:12px;border:1px solid var(--line);border-radius:6px;background:var(--soft)}
+.rf-zone{position:absolute;left:0;top:0;bottom:0;border-radius:5px 0 0 5px;
+  background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--warn) 55%,transparent) 0 2px,transparent 2px 6px)}
+.rf-corr{position:absolute;top:0;bottom:0;background:var(--accent-bg)}
+.rf-tk{position:absolute;z-index:3;top:-7px;bottom:-7px;width:2px;margin-left:-1px;border-radius:1px;background:var(--ink)}
+.rf-tk.best{top:-9px;bottom:-9px;width:4px;margin-left:-2px;background:var(--accent)}
+.rf-tech{position:absolute;z-index:2;top:-5px;bottom:-5px;width:0;border-left:1px dashed var(--muted)}
+.rf-doc{position:absolute;z-index:3;top:calc(100% + 3px);width:0;height:0;margin-left:-7px;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:10px solid var(--muted)}
+.rf-doc.pos-below_min{border-bottom-color:var(--stop)}
+.rf-over{position:absolute;right:-9px;top:50%;width:0;height:0;margin-top:-5px;border-top:5px solid transparent;border-bottom:5px solid transparent;border-left:8px solid var(--muted)}
+.rf-leg{display:flex;flex-wrap:wrap;gap:4px 14px;margin:6px 0 12px;padding:0;list-style:none;font-size:12px;line-height:1.35;color:var(--muted)}
+.rf-leg li{display:flex;align-items:center;gap:6px;min-width:0}
+.rf-leg i{flex:none;display:inline-block}
+.rf-leg .sw-zone{width:16px;height:10px;border:1px solid var(--line);border-radius:3px;background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--warn) 55%,transparent) 0 2px,transparent 2px 6px)}
+.rf-leg .sw-corr{width:16px;height:10px;border:1px solid var(--line);border-radius:3px;background:var(--accent-bg)}
+.rf-leg .sw-rec{width:4px;height:14px;border-radius:1px;background:var(--accent)}
+.rf-leg .sw-doc{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:9px solid var(--muted)}
+.rf-leg .sw-tech{width:0;height:14px;border-left:1px dashed var(--muted)}
+.rf-t{margin-top:4px}
+.rf-t tr.rf-rec>td{background:var(--accent-bg)}
+.rf-t tr.rf-rec>td.h{box-shadow:inset 3px 0 0 var(--accent)}
+.rf-t tr.rf-docrow.pos-below_min td b{color:var(--stop)}
+.rf-t tr.rf-techrow td{color:var(--muted)}
+.rf-t a{color:var(--link);-webkit-text-fill-color:var(--link);overflow-wrap:anywhere}
+.rf-tag{margin:0 0 0 4px;text-transform:none;letter-spacing:0;vertical-align:1px}
+@media (max-width:599px){
+  .an-t.fold.rf-t tr.rf-rec{border-color:var(--accent-line);background:var(--accent-bg)}
+  .an-t.fold.rf-t tr.rf-rec>td{background:none;box-shadow:none}
+}
+.rf-h{margin:18px 0 6px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.rf-steps{margin:0;padding:0;list-style:none}
+.rf-st{position:relative;margin-left:6px;padding:6px 0 12px 18px;border-left:2px solid var(--line);min-width:0}
+.rf-st:last-child{border-left-color:transparent}
+.rf-st::before{content:"";position:absolute;left:-7px;top:9px;width:8px;height:8px;border-radius:50%;background:var(--card);border:2px solid var(--muted)}
+.rf-st.tot::before{background:var(--accent);border-color:var(--accent)}
+.rf-sh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px}
+.rf-sh span{flex:1 1 180px;min-width:0;font-weight:700;font-size:14px}
+.rf-sh em{font:700 13px/1.3 var(--mono);font-style:normal;color:var(--muted)}
+.rf-sh b{font:700 14px/1.3 var(--mono)}
+.rf-st.tot .rf-sh b{color:var(--accent)}
+.rf-sn{margin:4px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted);overflow-wrap:anywhere}
+.rf-off{margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.45;color:var(--muted);opacity:.8}
+.rf-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:6px 0 0}
+.rf-facts div{min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--soft2)}
+.rf-facts dt{font-size:11px;line-height:1.3;color:var(--muted)}
+.rf-facts dd{margin:0;font:700 13px/1.3 var(--mono);overflow-wrap:anywhere}
+@media (max-width:420px){.rf-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rf-ind a{color:var(--link);-webkit-text-fill-color:var(--link)}
+.rf-ind{margin-top:6px}
+.rf-ind td.h small{display:inline;margin-left:4px;color:var(--muted)}
+.rf-mode{margin:12px 0 0;padding:8px 10px;border-left:3px solid var(--line);border-radius:8px;background:var(--soft2);font-size:13px;line-height:1.45}
+.rf-mode.ap{border-left-color:var(--accent)}
+.rf-parts{margin:0;padding-left:18px;font-size:13px;line-height:1.5}
+.rf-parts li{margin:3px 0;overflow-wrap:anywhere}
+.rf-ovl{font-size:12px;color:var(--muted)}
+.rf-c{margin:4px 0 6px}
+.rf .srcbar{margin-top:8px}
 /* шаг 3: страховой скоринг объекта (01.10.2026) — как отчёт бюро: полосы цвета бренда, шкала 0–500, плашка класса.
    --sco — scoring.brand_color из ответа; в тёмной теме текст цвета бренда светлее, полосы те же */
 .sco{padding:0;overflow:hidden;--sco:#0B4F8A;--sco-ink:var(--sco)}
@@ -4594,6 +4692,7 @@ function ptPartHtml(p){
       : anNa(T("tg.pt.no_factors", "Признаков, которые меняют уровень, нет — уровень по умолчанию.")))
     + '<h4 class="an-h4">' + esc(T("tg.pt.h_rate", "Как посчитан тариф")) + "</h4>"
     + (how.length ? '<ul class="pt-fx">' + how.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul>" : anNa())
+    + rfPartHtml(p)
     + '<h4 class="an-h4">' + esc(T("tg.act.franchise", "Франшиза")) + "</h4>"
     + "<p>" + esc(anStr(fr.text) || T("tg.act.fr_none", "не требуется")) + "</p>"
     + (grounds.length ? '<ul class="pt-fx">' + grounds.map(g => "<li>" + esc(g.text) + "</li>").join("") + "</ul>" : "")
@@ -6543,6 +6642,8 @@ function wzStep3Html(){
   const P = ptAct(a);
   // страховой скоринг объекта — первым; сводка ниже свёрнута под «Сводка акта» (карточка её не дублирует)
   const sco = scoCardHtml(a);
+  // строка вилки «минимум – акт – рынок» — как отдаёт сервер (rate_fork.overview)
+  const rfOv = anStr(anObj(a.rate_fork).overview);
   const btns = '<div class="act-btns">'
     + (IN_TG ? ["docx", "pdf"].map(actSendBtnHtml).join("")
       : '<a class="btn btn-secondary" data-dl="docx" href="' + esc(actFile("docx")) + '" download>' + esc(T("tg.act.dl_docx", "Скачать Word")) + "</a>"
@@ -6553,9 +6654,12 @@ function wzStep3Html(){
   return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
     + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
     + sco
+    // вилка ставки — сразу после скоринга (без скоринга — первой), развёрнута
+    + rfCardHtml(a)
     + (sco ? '<details class="card act-sum act-sumd ' + tone + '" id="actSumD"' + (CH.sumOpen ? " open" : "") + "><summary><span><b>"
-        + esc(T("tg.sc.sum_title", "Сводка акта")) + "</b><small>" + esc(P ? T("tg.sc.sum_sub_dec", "Рекомендация: {d}", {d: decName(dec)})
-          : T("tg.sc.sum_sub", "Рекомендация: {d} · тариф {r} · премия {p}", {d: decName(dec), r: actRate(a), p: actPremium(a)})) + "</small></span></summary>"
+        + esc(T("tg.sc.sum_title", "Сводка акта")) + "</b><small>" + esc((P ? T("tg.sc.sum_sub_dec", "Рекомендация: {d}", {d: decName(dec)})
+          : T("tg.sc.sum_sub", "Рекомендация: {d} · тариф {r} · премия {p}", {d: decName(dec), r: actRate(a), p: actPremium(a)}))
+          + (rfOv ? " · " + T("tg.rf.sum_sub", "вилка {v}", {v: rfOv}) : "")) + "</small></span></summary>"
       : '<div class="card act-sum ' + tone + '">')
     + '<p class="eyebrow">' + esc(T("tg.act.dec_title", "Рекомендация")) + "</p>"
     + '<div class="act-dec">' + esc(decName(dec)) + "</div>"
@@ -6573,6 +6677,8 @@ function wzStep3Html(){
       + (fv === "refine" && isNum(val.refined_ratio_pct) ? T("tg.act.v.refine_ratio", ": к уточнённой {p}", {p: pct(val.refined_ratio_pct, dp(val.refined_ratio_pct))}) : "")) + "</em>" : "") + "</div>"
     + "</div>"
     + actFrHtml(a))
+    + (rfOv ? '<p class="act-line"><b>' + esc(T("tg.rf.title", "Вилка ставки")) + ":</b> " + esc(rfOv)
+      + ' <span class="rf-ovl">' + esc(T("tg.rf.ov_label", "минимум – рекомендуемая – рынок")) + "</span></p>" : "")
     + actMvHtml(a)
     + actCheckHtml(a.request_check, "rq")
     + actCheckHtml(a.contract_check, "ct")
@@ -6729,6 +6835,290 @@ function actAltHtml(a){
   return '<div class="card act-card"><h2>' + esc(T("tg.act.alt_title", "Вместо франшизы можно")) + "</h2>"
     + '<ul class="alt">' + alts.map(x => "<li>" + esc(x.text) + "</li>").join("") + "</ul></div>";
 }
+/* ---------- шаг 3: вилка ставки (01.10.2026) ----------
+   Заказчик: «система выдаёт вилку ставки с объяснением, из чего она сложилась». Блок rate_fork ответа /act/make и
+   GET /act/{id} (app/act.py → _fork_view, числа — act_engine, раздел 12): отметки min / act / adjusted / market,
+   ставки документов request / contract, справочная technical. Здесь ничего не пересчитывается, кроме промежуточной
+   ставки «после поправки региона» — той же формулой, что act_engine.apply_fork: round(акт × (1 + регион / 100), 4).
+   Шкала — HTML с положением в процентах: 0 … max(отметки без технической) × 1,1; техническая за краем — стрелкой.
+   Подписи раскладываются по рядам заранее для двух ширин (телефон ~266 px, шире 600 px ~476 px), чтобы не наезжали. */
+const RF_CODES = ["min", "act", "adjusted", "market", "request", "contract", "technical"];
+const RF_MAIN = ["min", "act", "adjusted", "market"];
+const RF_W = {n: 266, w: 476, x: 620};    // ширина шкалы, по которой раскладываются подписи: телефон, от 600 и от 1000 px
+const rfR4 = x => Math.round(Number(x) * 10000) / 10000;
+const rfFmt = v => isNum(v) ? pct(v, Math.max(2, dp(rfR4(v)))) : "—";
+const rfHttps = u => /^https:\/\/[^\s"<>]+$/i.test(anStr(u)) ? anStr(u) : "";
+function rfShort(code){
+  switch (code) {
+    case "min": return T("tg.rf.s_min", "минимум");
+    case "act": return T("tg.rf.s_act", "акт");
+    case "adjusted": return T("tg.rf.s_adjusted", "регион и рынок");
+    case "market": return T("tg.rf.s_market", "рынок");
+    case "request": return T("tg.rf.s_request", "запрос филиала");
+    case "contract": return T("tg.rf.s_contract", "договор");
+    default: return T("tg.rf.s_technical", "техническая");
+  }
+}
+/* отметки ответа: известный код и число ставки; остальное на экран не идёт */
+function rfMarks(F){
+  return anArr(anObj(F).marks).filter(m => m && RF_CODES.indexOf(m.code) >= 0 && isNum(m.rate_pct) && Number(m.rate_pct) >= 0);
+}
+/* отметки с одной ставкой — одна подпись («минимум = акт») */
+function rfGroups(list, x){
+  const out = [];
+  list.slice().sort((a, b) => Number(a.rate_pct) - Number(b.rate_pct)).forEach(m => {
+    const g = out.find(o => Math.abs(o.rate - Number(m.rate_pct)) < 1e-9);
+    if (g) g.marks.push(m); else out.push({rate: Number(m.rate_pct), x: x(Number(m.rate_pct)), marks: [m]});
+  });
+  return out;
+}
+/* ширина подписи в px (оценка с запасом): число моноширинным 13 px, название 11,5 px, «рекомендуем» плашкой */
+function rfLabelPx(g){
+  return Math.max(g.val.length * 8, g.name.length * 6.3, g.rec ? 80 : 0) + 8;
+}
+/* ряды подписей: слева направо, в первый ряд без наложения (зазор 2 %); край шкалы — подпись прижата к краю */
+function rfRows(groups, width){
+  const rows = [];
+  return groups.map(g => {
+    const w = Math.min(100, rfLabelPx(g) / width * 100);
+    // варианты: по центру отметки, кончается на отметке, начинается от отметки (у края — прижата к краю)
+    const fit = (l, ta) => l < 0 ? [0, "left"] : l + w > 100 ? [100 - w, "right"] : [l, ta];
+    const cand = [fit(g.x - w / 2, "center"), fit(g.x - w, "right"), fit(g.x, "left")];
+    const free = (row, l) => !row.some(s => l < s[1] + 2 && s[0] < l + w + 2);
+    let r = 0, pick = null;
+    for (; !pick; r++) {
+      const row = rows[r] || [];
+      pick = cand.find(c => free(row, c[0])) || null;
+      if (pick) { (rows[r] = row).push([pick[0], pick[0] + w]); break; }
+    }
+    return {l: rfR4(pick[0]), w: rfR4(w), r: r, ta: pick[1]};
+  }).concat([{rows: rows.length}]);
+}
+/* раскладка шкалы: положение каждой отметки в % и ряды подписей для двух ширин */
+function rfLayout(F){
+  const ms = rfMarks(F);
+  const onScale = ms.filter(m => m.code !== "technical");
+  const top = Math.max.apply(null, onScale.map(m => Number(m.rate_pct)).concat([0]));
+  const max = top > 0 ? top * 1.1 : 0;
+  if (!(max > 0)) return null;
+  const x = v => rfR4(Math.max(0, Math.min(100, v / max * 100)));
+  const tech = ms.filter(m => m.code === "technical")[0] || null;
+  const techOver = !!tech && Number(tech.rate_pct) > max;
+  const upper = rfGroups(ms.filter(m => RF_MAIN.indexOf(m.code) >= 0), x);
+  const lower = rfGroups(ms.filter(m => m.code === "request" || m.code === "contract" || (m.code === "technical" && !techOver)), x);
+  if (techOver) lower.push({rate: Number(tech.rate_pct), x: 100, marks: [tech], over: true});
+  [upper, lower].forEach(gs => gs.forEach(g => {
+    g.rec = g.marks.some(m => m.is_recommended === true);
+    const doc = g.marks.filter(m => m.code === "request" || m.code === "contract")[0];
+    g.pos = doc ? rfDocPos(F, doc.code) : "";
+    g.val = (g.over ? "→ " : "") + rfFmt(g.rate);
+    g.name = g.marks.map(m => rfShort(m.code)).join(" = ") + (g.marks.some(m => m.code === "technical") ? ", " + T("tg.rf.ref", "справочно") : "");
+  }));
+  const lay = (gs, k) => { const r = rfRows(gs, RF_W[k]); const n = r.pop().rows; gs.forEach((g, i) => { g[k === "x" ? "x2" : k] = r[i]; }); return n; };
+  const rows = {un: lay(upper, "n"), uw: lay(upper, "w"), ux: lay(upper, "x"), ln: lay(lower, "n"), lw: lay(lower, "w"), lx: lay(lower, "x")};
+  const by = {};
+  ms.forEach(m => { by[m.code] = m; });
+  return {max: max, x: x, upper: upper, lower: lower, rows: rows, by: by, tech: tech, techOver: techOver, marks: ms};
+}
+function rfDocPos(F, code){
+  const p = anStr(anObj(anObj(F).position)[code]);
+  return ["below_min", "inside", "above_market"].indexOf(p) >= 0 ? p : "inside";
+}
+function rfLabHtml(g, side){
+  const st = "--x:" + g.x + "%;--nl:" + g.n.l + "%;--nw:" + g.n.w + "%;--nr:" + g.n.r + ";--nta:" + g.n.ta
+    + ";--wl:" + g.w.l + "%;--ww:" + g.w.w + "%;--wr:" + g.w.r + ";--wta:" + g.w.ta
+    + ";--xl:" + g.x2.l + "%;--xw:" + g.x2.w + "%;--xr:" + g.x2.r + ";--xta:" + g.x2.ta;
+  const codes = g.marks.map(m => m.code).join(" ");
+  return '<i class="rf-lead' + (g.over ? " over" : "") + '" style="' + st + '" aria-hidden="true"></i>'
+    + '<span class="rf-lab' + (g.rec ? " best" : "") + (g.pos ? " pos-" + g.pos : "") + (g.over ? " over" : "") + '" data-codes="' + esc(codes) + '" data-x="' + g.x + '" data-nr="' + g.n.r + '" data-wr="' + g.w.r
+    + '" data-nl="' + g.n.l + '" data-nw="' + g.n.w + '" data-wl="' + g.w.l + '" data-ww="' + g.w.w + '" style="' + st + '">'
+    + (side === "u" && g.rec ? '<em class="rf-chip">' + esc(T("tg.rf.rec", "рекомендуем")) + "</em><br>" : "")
+    + "<b>" + esc(g.val) + "</b><br><small>" + esc(g.name) + "</small></span>";
+}
+/* шкала: штриховка ниже минимума, коридор «минимум — рынок», отметки сверху, документы и техническая — снизу */
+function rfScaleHtml(F, L){
+  if (!L) return "";
+  const by = L.by, xm = by.min ? L.x(Number(by.min.rate_pct)) : 0;
+  const xk = by.market ? L.x(Number(by.market.rate_pct)) : null;
+  let tr = (xm > 0 ? '<i class="rf-zone" style="width:' + xm + '%"></i>' : "")
+    + (xk != null && xk > xm ? '<i class="rf-corr" style="left:' + xm + "%;width:" + rfR4(xk - xm) + '%"></i>' : "");
+  L.upper.forEach(g => { tr += '<i class="rf-tk' + (g.rec ? " best" : "") + '" data-codes="' + esc(g.marks.map(m => m.code).join(" ")) + '" style="left:' + g.x + '%"></i>'; });
+  L.lower.forEach(g => {
+    const doc = g.marks.filter(m => m.code === "request" || m.code === "contract")[0];
+    if (g.over) tr += '<i class="rf-over" aria-hidden="true"></i>';
+    else if (doc) tr += '<i class="rf-doc pos-' + g.pos + '" data-codes="' + esc(g.marks.map(m => m.code).join(" ")) + '" style="left:' + g.x + '%"></i>';
+    if (!g.over && g.marks.some(m => m.code === "technical")) tr += '<i class="rf-tech" style="left:' + g.x + '%"></i>';
+  });
+  const aria = T("tg.rf.aria", "Шкала ставок от 0 до {max}: {list}", {max: rfFmt(L.max),
+    list: L.marks.map(m => (anStr(m.label) || rfShort(m.code)) + " " + rfFmt(m.rate_pct)).join("; ")});
+  return '<div class="rf-scale" role="img" aria-label="' + esc(aria) + '" data-max="' + rfR4(L.max) + '" style="--un:' + L.rows.un + ";--uw:" + L.rows.uw + ";--ux:" + L.rows.ux
+    + ";--ln:" + L.rows.ln + ";--lw:" + L.rows.lw + ";--lx:" + L.rows.lx + '">'
+    + '<div class="rf-up">' + L.upper.map(g => rfLabHtml(g, "u")).join("") + "</div>"
+    + '<div class="rf-track">' + tr + "</div>"
+    + '<div class="rf-lo">' + L.lower.map(g => rfLabHtml(g, "l")).join("") + "</div>"
+    + "</div>"
+    + '<ul class="rf-leg">'
+    + (xm > 0 ? '<li><i class="sw-zone"></i>' + esc(T("tg.rf.lg_zone", "ниже минимума — только с отступлением")) + "</li>" : "")
+    + (xk != null && xk > xm ? '<li><i class="sw-corr"></i>' + esc(T("tg.rf.lg_corr", "от минимума до рынка")) + "</li>" : "")
+    + (L.upper.some(g => g.rec) ? '<li><i class="sw-rec"></i>' + esc(T("tg.rf.lg_rec", "рекомендуемая ставка")) + "</li>" : "")
+    + (L.lower.some(g => g.marks.some(m => m.code === "request" || m.code === "contract")) ? '<li><i class="sw-doc"></i>' + esc(T("tg.rf.lg_doc", "ставка из документа")) + "</li>" : "")
+    + (L.tech ? '<li><i class="sw-tech"></i>' + esc(T("tg.rf.lg_tech", "техническая ставка — справочно, в премию не идёт")) + "</li>" : "")
+    + "</ul>";
+}
+/* источник: название и ссылка (только https) */
+function rfSrcCell(s){
+  const o = anObj(s), t = anStr(o.title), u = rfHttps(o.url);
+  if (!t && !u) return "—";
+  return (u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(t || anDomain(u)) + "</a>" : esc(t));
+}
+/* плашка источника под внешними данными (правило проекта: .srcbar) */
+function rfSrcbar(list){
+  const seen = {}, L = anArr(list).map(anObj).filter(s => anStr(s.title) || rfHttps(s.url)).filter(s => {
+    const k = anStr(s.title) + "|" + anStr(s.url); if (seen[k]) return false; seen[k] = 1; return true; });
+  if (!L.length) return "";
+  return '<div class="srcbar act-src rf-src">' + L.map(s => {
+    const as = anStr(s.as_of), d = /^\d{4}-\d{2}-\d{2}/.test(as) ? dateOnly(as) : as;
+    return "<span>" + esc([anStr(s.title), d && anStr(s.title).indexOf(d) < 0 ? d : ""].filter(Boolean).join(", "))
+      + (rfHttps(s.url) ? " " + anLink(rfHttps(s.url)) : "") + "</span>";
+  }).join("") + "</div>";
+}
+function rfTableHtml(F, ms){
+  const unit = anStr(F.unit) || T("tg.rf.unit", "% годовых");
+  const cols = [T("tg.rf.col_mark", "Отметка"), T("tg.rf.col_rate", "Ставка, {u}", {u: unit}), T("tg.rf.col_prem", "Премия на весь срок"),
+    T("tg.rf.col_src", "Источник"), T("tg.rf.col_note", "Примечание")];
+  return '<table class="an-t fold rf-t"><thead><tr>' + cols.map((c, i) => "<th" + (i === 1 || i === 2 ? ' class="n"' : "") + ">" + esc(c) + "</th>").join("")
+    + "</tr></thead><tbody>"
+    + ms.map(m => {
+      const doc = m.code === "request" || m.code === "contract";
+      const cls = [m.is_recommended === true ? "rf-rec" : "", doc ? "rf-docrow pos-" + rfDocPos(F, m.code) : "", m.code === "technical" ? "rf-techrow" : ""].filter(Boolean).join(" ");
+      return '<tr data-code="' + esc(m.code) + '"' + (cls ? ' class="' + cls + '"' : "") + ">"
+        + '<td class="h" data-l="' + esc(cols[0]) + '">' + esc(anStr(m.label) || rfShort(m.code))
+        + (m.is_recommended === true ? ' <span class="tag rf-tag">' + esc(T("tg.rf.rec", "рекомендуем")) + "</span>" : "") + "</td>"
+        + '<td class="n" data-l="' + esc(cols[1]) + '"><b>' + esc(rfFmt(m.rate_pct)) + "</b></td>"
+        + '<td class="n" data-l="' + esc(cols[2]) + '">' + esc(isNum(m.premium) ? money(m.premium) : T("tg.act.na", "данные недоступны")) + "</td>"
+        + '<td data-l="' + esc(cols[3]) + '">' + rfSrcCell(m.source) + "</td>"
+        + '<td data-l="' + esc(cols[4]) + '">' + esc(anStr(m.note) || "—") + "</td></tr>";
+    }).join("") + "</tbody></table>";
+}
+/* «Из чего сложилась»: ставка тарифной политики → уровень риска → регион → рынок → итог */
+function rfStepsHtml(F, rate, by){
+  const adj = anObj(F.adjustments), R = anObj(adj.region), M = anObj(adj.market), r = anObj(rate);
+  const act = by.act, ad = by.adjusted;
+  if (!act) return "";
+  const step = (cls, name, chg, res, body) => '<li class="rf-st ' + cls + '"><div class="rf-sh"><span>' + esc(name) + "</span>"
+    + (chg ? "<em>" + esc(chg) + "</em>" : "") + (res ? "<b>" + esc(res) + "</b>" : "") + "</div>" + (body || "") + "</li>";
+  let h = "";
+  if (r.mode === "tariff" && isNum(r.base_pct)) {
+    h += step("pol", T("tg.rf.st_policy", "Ставка тарифной политики"), "", rfFmt(r.base_pct), "");
+    h += step("lvl", T("tg.rf.st_level", "Поправка по уровню риска"), isNum(r.adj_pct) ? sgnPct(r.adj_pct, Math.min(2, dp(r.adj_pct))) || "0" : "",
+      "= " + rfFmt(act.rate_pct),
+      '<p class="rf-sn">' + esc(T("tg.rf.st_act", "Ставка акта")
+        + (r.min_applied ? " — " + T("tg.rf.st_min", "поднята до минимума {m}", {m: rfFmt(r.min_pct)}) : "")) + "</p>");
+  } else {
+    h += step("lvl", T("tg.rf.st_act", "Ставка акта"), "", rfFmt(act.rate_pct), "");
+  }
+  // регион: показатели региона против республики; неучтённые — приглушённо с причиной
+  if (isNum(R.pct)) {
+    const after = rfR4(Number(act.rate_pct) * (1 + Number(R.pct) / 100));
+    const inds = anArr(R.indicators).filter(i => i && anStr(i.name));
+    const used = inds.filter(i => i.used === true), off = inds.filter(i => i.used !== true);
+    const num = v => isNum(v) ? nf(v, Math.min(4, dp(v))) : "—";
+    const unit = i => CH.act && CH.act.lang === "ru" && anStr(i.unit) ? " " + anStr(i.unit) : "";
+    const tb = used.length ? '<table class="an-t fold rf-ind"><thead><tr><th>' + esc(T("tg.rf.ind_name", "Показатель")) + '</th><th class="n">'
+      + esc(T("tg.rf.ind_reg", "Регион")) + '</th><th class="n">' + esc(T("tg.rf.ind_cty", "Республика")) + '</th><th class="n">'
+      + esc(T("tg.rf.ind_ratio", "Отношение")) + '</th><th class="n">' + esc(T("tg.rf.ind_eff", "Вклад")) + "</th></tr></thead><tbody>"
+      + used.map(i => '<tr><td class="h" data-l="">' + esc(i.name) + (anStr(i.period) ? " <small>" + esc(i.period) + "</small>" : "")
+        + (rfHttps(anObj(i.source).url) ? " <small>" + anLink(rfHttps(i.source.url)) + "</small>" : "") + "</td>"
+        + '<td class="n" data-l="' + esc(T("tg.rf.ind_reg", "Регион")) + '">' + esc(num(i.region_value) + unit(i)) + "</td>"
+        + '<td class="n" data-l="' + esc(T("tg.rf.ind_cty", "Республика")) + '">' + esc(num(i.country_value) + unit(i)) + "</td>"
+        + '<td class="n" data-l="' + esc(T("tg.rf.ind_ratio", "Отношение")) + '">' + esc(isNum(i.ratio) ? "×" + nf(i.ratio, Math.min(3, dp(i.ratio))) : "—") + "</td>"
+        + '<td class="n" data-l="' + esc(T("tg.rf.ind_eff", "Вклад")) + '">' + esc(isNum(i.effect_pct) ? sgnPct(i.effect_pct, Math.min(2, dp(i.effect_pct))) : "—") + "</td></tr>").join("")
+      + "</tbody></table>" : "";
+    const offH = off.length ? '<ul class="rf-off">' + off.map(i => "<li>" + esc(T("tg.rf.ind_off", "{name}: не учтён — {why}", {name: i.name,
+      why: anStr(i.why_text) || T("tg.act.na", "данные недоступны")})) + "</li>").join("") + "</ul>" : "";
+    h += step("reg", T("tg.rf.st_region", "Поправка региона"), sgnPct(R.pct, Math.min(2, dp(R.pct))) || "0", "→ " + rfFmt(after),
+      (anStr(R.text) ? '<p class="rf-sn">' + esc(R.text) + "</p>" : "") + tb + offH + rfSrcbar(used.map(i => i.source)));
+  }
+  if (isNum(M.pct)) {
+    const facts = [[T("tg.rf.mk_lr", "Убыточность класса"), isNum(M.loss_ratio_pct) ? pct(M.loss_ratio_pct, 1) : "—"],
+      [T("tg.rf.mk_rate", "Рыночная ставка"), rfFmt(M.market_rate_pct)],
+      [T("tg.rf.mk_asof", "Срез НАПП"), anStr(M.as_of) ? dateOnly(M.as_of) : "—"]];
+    h += step("mkt", T("tg.rf.st_market", "Поправка рынка"), sgnPct(M.pct, Math.min(2, dp(M.pct))) || "0", ad ? "→ " + rfFmt(ad.rate_pct) : "",
+      '<dl class="rf-facts">' + facts.map(f => "<div><dt>" + esc(f[0]) + "</dt><dd>" + esc(f[1]) + "</dd></div>").join("") + "</dl>"
+      + (anStr(M.text) ? '<p class="rf-sn">' + esc(M.text) + "</p>" : "") + rfSrcbar([M.source]));
+  }
+  if (ad) {
+    h += step("tot", T("tg.rf.st_total", "Итог: с учётом региона и рынка"), "", rfFmt(ad.rate_pct),
+      '<p class="rf-sn">' + esc([isNum(ad.premium) ? T("tg.rf.st_prem", "премия {p}", {p: money(ad.premium)}) : "", anStr(ad.note)].filter(Boolean).join(" · ")) + "</p>");
+  }
+  return '<h3 class="rf-h">' + esc(T("tg.rf.h_how", "Из чего сложилась")) + '</h3><ol class="rf-steps">' + h + "</ol>";
+}
+function rfModeHtml(F){
+  const ap = F.mode === "apply";
+  return '<p class="rf-mode' + (ap ? " ap" : "") + '">' + esc(ap ? T("tg.rf.mode_apply", "Премия акта посчитана по ставке с учётом региона и рынка.")
+    : T("tg.rf.mode_reference", "Премия акта посчитана по ставке акта. Ставка с учётом региона и рынка показана справочно.")) + "</p>";
+}
+function rfHowHtml(F, key){
+  // служебное имя настройки в скобках («(настройка rate_fork)») на экран не выводится
+  const how = anArr(F.how).map(anStr).map(x => x.replace(/\s*\([^()]*\brate_fork\b[^()]*\)/g, "")).filter(Boolean);
+  if (!how.length) return "";
+  const open = !!(CH.rfOpen && CH.rfOpen[key]);
+  return '<details class="mini rf-howd" data-rfhow="' + esc(key) + '"' + (open ? " open" : "") + "><summary>" + esc(T("tg.rf.how", "Как посчитано")) + "</summary><ul>"
+    + how.map(x => "<li>" + esc(x) + "</li>").join("") + "</ul></details>";
+}
+const rfUncal = () => '<span class="tag off rf-unc">' + esc(T("tg.rf.uncal", "поправки экспертные, не калиброваны")) + "</span>";
+/* карточка «Вилка ставки» шага «Акт»: развёрнута, сразу после скоринга */
+function rfCardHtml(a){
+  if (!a) return "";
+  const F = anObj(a.rate_fork), P = ptAct(a);
+  // пометка о некалиброванных поправках — только там, где поправки есть (у обязательного вида их нет)
+  const head = '<div class="rf-top"><h2>' + esc(anStr(F.title) || T("tg.rf.title", "Вилка ставки")) + "</h2>" + (F.available === true ? rfUncal() : "") + "</div>";
+  if (!a.rate_fork || F.reason === "old_act") {
+    return '<section class="card act-card rf" id="rfCard">' + head + '<p class="note">' + esc(T("tg.rf.old", "Для этого акта вилка ставки не посчитана — сформируйте акт заново.")) + "</p></section>";
+  }
+  const ms = rfMarks(F);
+  if (F.available !== true) {
+    // обязательный вид или ставка не определена: текст сервера и рыночный ориентир, если он есть
+    const mk = ms.filter(m => m.code === "market")[0], one = ms.filter(m => m.code === "act")[0];
+    return '<section class="card act-card rf rf-na" id="rfCard">' + head
+      + '<p class="rf-sum">' + esc(anStr(F.summary) || T("tg.act.na", "данные недоступны")) + "</p>"
+      + (one ? '<p class="act-line"><b>' + esc(anStr(one.label) || rfShort("act")) + ":</b> " + esc(rfFmt(one.rate_pct))
+        + (isNum(one.premium) ? " · " + esc(T("tg.rf.st_prem", "премия {p}", {p: money(one.premium)})) : "")
+        + (anStr(anObj(one.source).title) ? " · " + esc(one.source.title) : "") + "</p>" : "")
+      + (mk ? '<p class="act-line"><b>' + esc(T("tg.rf.na_market", "Рыночный ориентир")) + ":</b> " + esc(rfFmt(mk.rate_pct))
+        + (anStr(mk.note) ? " — " + esc(mk.note) : "") + "</p>" + rfSrcbar([mk.source]) : "")
+      + "</section>";
+  }
+  const L = rfLayout(F);
+  const by = L ? L.by : {};
+  const parts = P ? anArr(F.parts).filter(p => p && anStr(p.summary)) : [];
+  return '<section class="card act-card rf" id="rfCard" aria-label="' + esc(anStr(F.title) || T("tg.rf.title", "Вилка ставки")) + '">' + head
+    + '<p class="rf-sum">' + esc(anStr(F.summary)) + "</p>"
+    + rfScaleHtml(F, L)
+    + (ms.length ? rfTableHtml(F, ms) : "")
+    + (P ? (parts.length ? '<h3 class="rf-h">' + esc(T("tg.rf.parts_h", "Вилки частей")) + '</h3><ul class="rf-parts">'
+        + parts.map(p => "<li><b>" + esc(T("tg.rf.part_n", "Часть {n}, класс {c}", {n: anStr(p.index), c: anStr(p.class_code)})) + ":</b> " + esc(p.summary) + "</li>").join("") + "</ul>" : "")
+        + '<p class="rf-sn">' + esc(T("tg.rf.parts_note", "Вилка договора справочная: минимум и поправки проверены по каждой части отдельно — шкалы частей в карточках частей ниже.")) + "</p>"
+      : rfStepsHtml(F, a.rate, by))
+    + rfModeHtml(F)
+    + rfHowHtml(F, "act")
+    + "</section>";
+}
+/* компактная вилка части договора: шкала и итог */
+function rfPartHtml(p){
+  const F = anObj(p && p.rate_fork);
+  if (!p || !p.rate_fork) return "";
+  const L = F.available === true ? rfLayout(F) : null;
+  return '<h4 class="an-h4">' + esc(anStr(F.title) || T("tg.rf.title", "Вилка ставки")) + "</h4>"
+    + '<div class="rf rf-c" data-rfpart="' + esc(anStr(p.index)) + '">'
+    + '<p class="rf-sum sm">' + esc(anStr(F.summary) || T("tg.act.na", "данные недоступны")) + "</p>"
+    + (L ? rfScaleHtml(F, L) : "")
+    + (F.available === true ? rfSrcbar(anArr(anObj(anObj(F.adjustments).region).indicators).filter(i => i && i.used === true).map(i => i.source)
+      .concat([anObj(anObj(F.adjustments).market).source])) : rfSrcbar(rfMarks(F).filter(m => m.code === "market").map(m => m.source)))
+    + rfHowHtml(F, "p" + anStr(p.index))
+    + "</div>";
+}
+/* ---------- /вилка ставки ---------- */
 /* ---------- шаг 3: «Аналитика риска» (заказчик 30.09.2026: «нужно дать более детализированную аналитику») ----------
    Всё — из ответа сервера a.analytics (app/act.py → _analytics_view): числа и подписи на языке акта. Коды (уровень,
    источник, вердикт, что ввести) выбирают только оформление и подпись словаря; неизвестный код на экран не выводится.
@@ -7061,12 +7451,19 @@ function anMarketHtml(M, ST){
     const cmp = isNum(M.act_vs_market_pct) ? (Number(M.act_vs_market_pct) < 0
       ? T("tg.an.mk_below", "ниже рынка на {p}", {p: pct(Math.abs(M.act_vs_market_pct), dp(M.act_vs_market_pct))})
       : T("tg.an.mk_above", "выше рынка на {p}", {p: pct(M.act_vs_market_pct, dp(M.act_vs_market_pct))})) : "";
-    const rows = [[T("tg.an.mk_rate", "Рыночная ставка класса (НАПП)"), anPct(M.rate_pct),
+    /* взят пакет классов (комплексный продукт или строка «8, 9») — подписи «пакета классов», а не «класса» */
+    const isPack = !!(M.pack || anStr(M.pack_label));
+    const rows = [[isPack ? T("tg.an.mk_rate_pack", "Рыночная ставка пакета классов (НАПП)") : T("tg.an.mk_rate", "Рыночная ставка класса (НАПП)"), anPct(M.rate_pct),
       [M.rate_date ? T("tg.an.mk_on", "на {d}", {d: dateOnly(M.rate_date)}) : "", isNum(M.months) ? T("tg.an.mk_months", "{n} мес.", {n: M.months}) : "",
-        M.pack ? T("tg.an.mk_pack", "строка классов 8 и 9") : ""].filter(Boolean).join(", ")]];
-    if (isNum(M.loss_ratio_pct)) rows.push([T("tg.an.mk_lr", "Убыточность класса"), pct(M.loss_ratio_pct, 1), M.rate_date ? T("tg.an.mk_on", "на {d}", {d: dateOnly(M.rate_date)}) : ""]);
+        anStr(M.pack_label) || (M.pack ? T("tg.an.mk_pack", "строка классов 8 и 9") : "")].filter(Boolean).join(", ")]];
+    if (isNum(M.loss_ratio_pct)) rows.push([isPack ? T("tg.an.mk_lr_pack", "Убыточность пакета классов") : T("tg.an.mk_lr", "Убыточность класса"), pct(M.loss_ratio_pct, 1), M.rate_date ? T("tg.an.mk_on", "на {d}", {d: dateOnly(M.rate_date)}) : ""]);
     if (isNum(M.rate_full_year_pct) && isNum(M.full_year)) rows.push([T("tg.an.mk_fy", "За {y} год", {y: M.full_year}), anPct(M.rate_full_year_pct),
       isNum(M.loss_ratio_full_year_pct) ? T("tg.an.mk_fy_lr", "убыточность {p}", {p: pct(M.loss_ratio_full_year_pct, 1)}) : ""]);
+    /* комплексный продукт: рядом с пакетом — одиночные строки классов продукта (ставка, убыточность), правило № 5 */
+    anArr(M.class_rows).filter(c => c && c.available && isNum(c.rate_pct)).forEach(c => rows.push([
+      T("tg.an.mk_cls", "Класс {c} отдельно (НАПП)", {c: c.class_code}), anPct(c.rate_pct),
+      [isNum(c.loss_ratio_pct) ? T("tg.an.mk_fy_lr", "убыточность {p}", {p: pct(c.loss_ratio_pct, 1)}) : "",
+        c.date ? T("tg.an.mk_on", "на {d}", {d: dateOnly(c.date)}) : ""].filter(Boolean).join(", ")]));
     if (isNum(M.act_rate_pct)) rows.push([T("tg.an.t_act", "Тариф акта"), anPct(M.act_rate_pct), cmp]);
     if (isNum(M.technical_pct)) rows.push([T("tg.an.t_tech", "Техническая ставка"), anPct(M.technical_pct),
       isNum(M.tech_vs_market_pct) ? T("tg.an.mk_to_market", "{p} к рынку", {p: sgnPct(M.tech_vs_market_pct)}) : ""]);
@@ -7440,6 +7837,7 @@ function wzToggle(e){
     if (b) b.textContent = anAllLabel();
   }
   if (el && el.tagName === "DETAILS" && el.id === "actSumD") CH.sumOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.rfhow) { CH.rfOpen = CH.rfOpen || {}; CH.rfOpen[el.dataset.rfhow] = el.open; }
   if (el && el.tagName === "DETAILS" && el.id === "cbAct") CH.cbActOpen = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.ptn) CH.ptOpen[el.dataset.ptn] = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.ptmore) CH.ptMore[el.dataset.ptmore] = el.open;

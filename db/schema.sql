@@ -15,9 +15,11 @@ CREATE TABLE IF NOT EXISTS groups (
 
 -- Классы страхования (Закон о страховой деятельности)
 CREATE TABLE IF NOT EXISTS classes (
-    code        TEXT PRIMARY KEY,           -- '1'..'17', '13з', '16у'
+    code        TEXT PRIMARY KEY,           -- '1'..'18', '13з', '16у'
     name        TEXT NOT NULL,
-    group_code  TEXT NOT NULL REFERENCES groups(code),
+    -- учётная группа РНП (Положение 1882, п. 10); у класса 18 (медицинское, ПКМ № 80, прил. 6) её в Положении нет
+    -- — NULL. Старые базы доводит app/db.py (_classes_group_nullable)
+    group_code  TEXT REFERENCES groups(code),
     branch      TEXT NOT NULL,              -- 'общее' | 'жизнь'
     kind        TEXT NOT NULL               -- 'имущество' | 'ответственность' | 'финансы' | 'личное'
 );
@@ -170,6 +172,54 @@ CREATE TABLE IF NOT EXISTS market_stats (
 );
 -- индексы частых запросов (задача 123, подобраны по EXPLAIN QUERY PLAN)
 CREATE INDEX IF NOT EXISTS ix_market_stats_row ON market_stats(row_key, report_date); -- ряд и последний срез
+-- Пометки к строкам market_stats (01.10.2026, tools/market_stats.py): например, итог комплексного страхования
+-- (multi_general) не равен сумме пакетов в отчёте — в market_stats взята сумма пакетов, здесь — почему.
+-- Пересобирается целиком при каждой загрузке; показывается в /market/series (/stats) и в CSV-выгрузках.
+CREATE TABLE IF NOT EXISTS market_stats_notes (
+    report_date TEXT NOT NULL,
+    row_key     TEXT NOT NULL,
+    note        TEXT NOT NULL,
+    source_file TEXT,
+    loaded_at   TEXT NOT NULL,
+    PRIMARY KEY (report_date, row_key)
+);
+
+-- Претензии (страховые требования) и договоры из отчётов НАПП (01.10.2026, tools/market_stats.py):
+-- регионы — листы 3.5 (претензии, общее страхование) + 3.4 (договоры, общее страхование) + 3.2 (выплаты, общее);
+-- страховщики — листы 2.10 (претензии) + 2.7 (договоры) + 2.5 (выплаты), всё по общему страхованию.
+-- Претензии — числа с начала года на дату среза; договоры действующие — на дату, новые — с начала года.
+CREATE TABLE IF NOT EXISTS napp_claims (
+    report_date       TEXT NOT NULL,        -- дата среза, ГГГГ-ММ-ДД
+    scope             TEXT NOT NULL,        -- 'region' | 'company'
+    key               TEXT NOT NULL,        -- 'total' | 'region:TOSHKENT' | 'company:INSON AJ' (как в market_stats)
+    name              TEXT NOT NULL,
+    claims_received   REAL,                 -- Kelib tushgan sug'urta da'volarning umumiy soni (заявлено)
+    claims_paid       REAL,                 -- To'langan (оплачено)
+    claims_refused    REAL,                 -- Rad etilgan (отказано)
+    claims_unsettled  REAL,                 -- Qoniqtirilmagan sug'urta da'volari soni (не урегулировано)
+    contracts_active  REAL,                 -- Amalda bo'lgan shartnomalar soni (действующие на дату)
+    contracts_new     REAL,                 -- Yangi tuzilgan shartnomalar soni (заключены с начала года)
+    payouts_mln       REAL,                 -- Sug'urta to'lovlari, общее страхование, млн сум
+    source_file       TEXT,
+    loaded_at         TEXT NOT NULL,
+    PRIMARY KEY (report_date, scope, key)
+);
+-- Обособленные подразделения (alohida bo'linmalar): листы 2.12 (премии), 2.13 (выплаты), 2.14 (договоры) —
+-- компания × регион, только текущий срез отчёта. region_key 'total' — итог компании, company_key 'total' — рынок.
+CREATE TABLE IF NOT EXISTS napp_branches (
+    report_date   TEXT NOT NULL,
+    company_key   TEXT NOT NULL,            -- 'company:INSON AJ' | 'total'
+    company_name  TEXT NOT NULL,
+    sphere        TEXT,                     -- 'general' (Umumiy sug'urta sohasi) | 'life' (Hayotni sug'urta qilish)
+    region_key    TEXT NOT NULL,            -- 'region:TOSHKENT' | 'total'
+    region_name   TEXT NOT NULL,
+    premiums_mln  REAL,
+    payouts_mln   REAL,
+    contracts     REAL,                     -- договоров (действующих на дату — итог совпадает с листом 3.4)
+    source_file   TEXT,
+    loaded_at     TEXT NOT NULL,
+    PRIMARY KEY (report_date, company_key, region_key)
+);
 
 -- Отчётность по резервам (Положение 1882): на отчётную дату, по учётной группе или виду
 CREATE TABLE IF NOT EXISTS reserve_reports (

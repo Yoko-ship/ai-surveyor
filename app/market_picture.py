@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Optional
 from urllib.parse import urlsplit
 
+from . import act_texts as tx
 from . import db
 from . import stat_sources as ss
 
@@ -116,6 +117,92 @@ def resolve_region(value: Optional[str]):
         if v in (_norm(name), _norm(key), soato) or v in aliases or v == _norm(key.replace("region:", "")):
             return key, name
     return None, None
+
+
+# --------------------------------------------------------------------------- #
+# Комплексный продукт → пакет классов НАПП (01.10.2026)
+# --------------------------------------------------------------------------- #
+# Для продукта из нескольких классов (product_classes) рыночная ставка и убыточность берутся по строке
+# пакета листа 1.4 «Ikki va undan ortiq klasslar bo'yicha sug'urta» с тем же набором классов (0312 = 3 + 14 →
+# «3,14 klasslar» = cls3_14). Нет точного пакета — ближайший: пакет, в котором есть все классы продукта
+# (меньше лишних классов; при равенстве — больший объём премий на последний срез). Нет и такого — строка
+# класса (CLASS_ROWS), с пометкой. Продукт из одного класса — как раньше: строка класса (для 8 и 9 — пакет
+# «8, 9», одиночная строка класса на порядки меньше и показывается в alternatives).
+# Подклассы проекта 13з и 16у в отчёте НАПП входят в свои классы (13 и 16) — для сравнения с пакетами
+# берётся номер класса, это пометка в note.
+
+def _cls_num(code: str) -> str:
+    return "".join(ch for ch in str(code) if ch.isdigit())
+
+
+def _pack_ok(con, row_key: str) -> Optional[dict]:
+    """Последняя точка строки, если по ней считается ставка (есть премии и обязательства)."""
+    r = _rows(con, "SELECT report_date, premiums_ytd, liabilities FROM market_stats WHERE row_key=? "
+                   "ORDER BY report_date DESC LIMIT 1", row_key)
+    if not r or not r[0]["premiums_ytd"] or not r[0]["liabilities"]:
+        return None
+    return r[0]
+
+
+def product_row(con, product_code: Optional[str], class_code: Optional[str] = None) -> Optional[dict]:
+    """
+    Строка НАПП для продукта из нескольких классов. None — продукт не задан, не найден или из одного класса
+    (тогда работает CLASS_ROWS). Иначе {"row_key", "how": exact | nearest | class, "product_code",
+    "product_classes", "pack_classes", "missing_pack", "subclass_note", "alternatives": [...]}.
+    """
+    if not product_code:
+        return None
+    pcs = [r["class_code"] for r in _rows(
+        con, "SELECT class_code FROM product_classes WHERE product_code=? ORDER BY part_no", product_code)]
+    nums = sorted({_cls_num(c) for c in pcs if _cls_num(c)}, key=int)
+    if len(nums) < 2:
+        return None
+    sub = [c for c in pcs if c != _cls_num(c)]
+    out = {"product_code": product_code, "product_classes": list(dict.fromkeys(pcs)), "classes": nums,
+           "subclass_note": ("подклассы %s в отчёте НАПП входят в классы %s" % (
+               ", ".join(sub), ", ".join(_cls_num(c) for c in sub))) if sub else None,
+           "row_key": None, "how": None, "pack_classes": [], "candidates": []}
+    exact = "cls" + "_".join(nums)
+    if _pack_ok(con, exact):
+        out.update(row_key=exact, how="exact", pack_classes=list(nums))
+        return out
+    want = set(nums)
+    cands = []
+    for r in _rows(con, "SELECT DISTINCT row_key FROM market_stats WHERE row_key GLOB 'cls*_*'"):
+        k = r["row_key"]
+        ks = k[3:].split("_")
+        if not want.issubset(ks):
+            continue
+        last = _pack_ok(con, k)
+        if last:
+            cands.append((len(ks) - len(want), -(last["premiums_ytd"] or 0), k, ks))
+    cands.sort()
+    out["candidates"] = [c[2] for c in cands]
+    if cands:
+        out.update(row_key=cands[0][2], how="nearest", pack_classes=cands[0][3])
+        return out
+    first = class_code if class_code and _cls_num(class_code) in want else (pcs[0] if pcs else None)
+    out.update(row_key=CLASS_ROWS.get(str(first)) if first else None, how="class", class_used=first)
+    return out
+
+
+def pack_note(pc: Optional[dict]) -> Optional[str]:
+    """Пометка о выборе строки НАПП для продукта (русский, для notes и mapping_note)."""
+    if not pc:
+        return None
+    cl = ",".join(pc["classes"])
+    pk = ",".join(pc.get("pack_classes") or [])
+    if pc["how"] == "exact":
+        t = "пакет НАПП %s — тот же набор классов, что у продукта %s" % (pk, pc["product_code"])
+    elif pc["how"] == "nearest":
+        t = "пакет НАПП %s — ближайший к составу продукта %s (%s): пакета ровно с этими классами в отчёте нет" % (
+            pk, pc["product_code"], cl)
+    else:
+        t = ("пакета НАПП с классами %s (продукт %s) в отчёте нет — взята строка класса %s"
+             % (cl, pc["product_code"], pc.get("class_used") or "—"))
+    if pc.get("subclass_note"):
+        t += "; " + pc["subclass_note"]
+    return t
 
 
 # --------------------------------------------------------------------------- #
@@ -267,6 +354,18 @@ def _market(con, class_code: str, product_code, our_rate_pct, src: _Sources, not
         notes.append("в отчётах НАПП нет разреза по продуктам — рынок показан по классу %s" % class_code)
 
     row_key = CLASS_ROWS.get(class_code)
+    pc = product_row(con, product_code, class_code) if product_code else None
+    out["pack_choice"] = None
+    if pc and pc.get("row_key"):
+        out["pack_choice"] = {k: pc.get(k) for k in ("how", "product_code", "product_classes", "classes",
+                                                     "pack_classes", "class_used", "candidates", "subclass_note")}
+        out["pack_choice"]["note"] = pack_note(pc)
+        notes.append(pack_note(pc))
+        if pc["how"] in ("exact", "nearest"):
+            notes[:] = ["в отчётах НАПП нет разреза по продуктам — рынок показан по пакету классов продукта "
+                        "(лист 1.4, «Ikki va undan ortiq klasslar bo'yicha sug'urta»)"
+                        if n.startswith("в отчётах НАПП нет разреза по продуктам") else n for n in notes]
+        row_key = pc["row_key"]
     if not row_key:
         notes.append("рыночных данных по классу %s нет: %s" % (
             class_code, NO_ROW_REASON.get(class_code, "класс не сопоставлен со строкой отчёта НАПП")))
@@ -280,7 +379,9 @@ def _market(con, class_code: str, product_code, our_rate_pct, src: _Sources, not
     out.update({"row_key": row_key, "row_name": blk["row_name"],
                 "row_kind": "пакет классов" if "_" in row_key else "класс",
                 "rate_series": blk["rate_series"], "loss_ratio_series": blk["loss_ratio_series"]})
-    if "_" in row_key:
+    if out.get("pack_choice"):
+        out["mapping_note"] = out["pack_choice"]["note"]
+    elif "_" in row_key:
         out["mapping_note"] = ("для класса %s взят пакет %s — тот же ряд, что у рыночного ориентира "
                                "экрана расчёта; одиночная строка класса — в alternatives"
                                % (class_code, row_key))
@@ -332,8 +433,31 @@ def _market(con, class_code: str, product_code, our_rate_pct, src: _Sources, not
                                 "src": out["full_year_src"]}
         out["deviation"] = dev
 
+    # одиночные строки классов продукта рядом с пакетом (правило проекта № 5 — ставка проверяется по каждому
+    # классу): ставка и убыточность последнего среза и полного года строки «N-klass» каждого класса продукта
+    out["class_rows"] = []
+    if (out.get("pack_choice") or {}).get("how") in ("exact", "nearest"):
+        for n in out["pack_choice"].get("classes") or []:
+            c = _row_block(con, "cls" + n, src)
+            if not c:
+                out["class_rows"].append({"class_code": n, "row_key": "cls" + n, "available": False})
+                continue
+            cl, cfy = c["last"], c["full_year"]
+            out["class_rows"].append({
+                "class_code": n, "row_key": "cls" + n, "available": True, "row_name": c["row_name"],
+                "date": cl["report_date"], "period": _label(cl["report_date"]),
+                "rate_pct": _r(_annual_rate(cl)), "loss_ratio_pct": _r(_loss_ratio(cl)),
+                "premiums": _r(cl["premiums_ytd"]),
+                "full_year_period": _label(cfy["report_date"]) if cfy else None,
+                "rate_full_year_pct": _r(_annual_rate(cfy)) if cfy else None,
+                "loss_ratio_full_year_pct": _r(_loss_ratio(cfy)) if cfy else None,
+                "src": _napp_src(src, cl["report_date"], cl["source_file"])})
+
     # одиночные строки класса и родственные строки
-    for alt in ALTERNATIVES.get(class_code, []):
+    alts = list(ALTERNATIVES.get(class_code, []))
+    if out.get("pack_choice") and CLASS_ROWS.get(class_code) and CLASS_ROWS[class_code] != row_key:
+        alts = [CLASS_ROWS[class_code]] + [a for a in alts if a != CLASS_ROWS[class_code]]
+    for alt in alts:
         a = _row_block(con, alt, src)
         if not a:
             continue
@@ -478,6 +602,267 @@ def _region(con, region: Optional[str], src: _Sources, notes: list) -> dict:
     if key != "total":
         notes.append("индекс цен на строительство публикуется только по республике (level='республика')")
     return out
+
+
+# --------------------------------------------------------------------------- #
+# Претензии и подразделения (НАПП, таблицы napp_claims / napp_branches), 01.10.2026
+# --------------------------------------------------------------------------- #
+# Формулы:
+#   частота претензий на 1 000 договоров = поступило претензий с начала года / действующих договоров на дату × 1 000
+#     (лист 3.5 / лист 3.4 по регионам, 2.10 / 2.7 по страховщикам; только общее страхование);
+#   доля отказов, % = отказано / поступило × 100 (как «umumiyga nisbatan % da» в отчёте);
+#   средняя выплата, сум = выплаты общего страхования (лист 3.2 или 2.5, млн сум) × 1 000 000 / оплачено претензий;
+#   убыточность подразделения, % = выплаты / премии × 100 (листы 2.13 / 2.12); средняя премия = премии / договоры.
+# Срез — последний срез рынка (market_stats, строка total). Нет листа за этот срез — показатель пропускается
+# с пометкой (последний доступный ранее срез не подставляется: периоды разные).
+# Оговорки к претензиям — на трёх языках в act_texts.CLAIMS_CAVEATS (замечание контролёра 01.10.2026); здесь —
+# русский список для API (/market/claims, risk_stats). Доля города Ташкента в претензиях страны считается по срезу.
+CAPITAL_KEY = "region:TOSHKENT SHAHRI"
+
+
+def claims_caveats(lang: str = "ru", capital_share_pct: Optional[float] = None) -> list:
+    """Оговорки к строкам претензий НАПП на языке lang; capital_share_pct — доля города Ташкента в претензиях
+    страны на срез (None — без числа)."""
+    out = []
+    for code, tr in tx.CLAIMS_CAVEATS.items():
+        if code == "capital":
+            tr = tx.CLAIMS_CAVEATS["capital"] if capital_share_pct is not None else tx.CLAIMS_CAVEAT_CAPITAL_NA
+        text = tr.get(lang) or tr["ru"]
+        if "{share}" in text:
+            text = text.replace("{share}", tx.pct_fixed(capital_share_pct, lang, 0))
+        out.append(text)
+    return out
+
+
+CLAIMS_CAVEATS = claims_caveats("ru")
+
+
+def capital_share(con, d: Optional[str]) -> Optional[float]:
+    """Доля города Ташкента в претензиях общего страхования страны на срез d, % (лист 3.5)."""
+    if not d or not _has_table(con, "napp_claims"):
+        return None
+    tot = _claims_row(con, d, "region", "total")
+    cap = _claims_row(con, d, "region", CAPITAL_KEY)
+    if not tot or not cap or not tot.get("claims_received") or cap.get("claims_received") is None:
+        return None
+    return _r(cap["claims_received"] / tot["claims_received"] * 100, 1)
+CLAIM_SHEET = {"region": ("3.5", "3.4", "3.2"), "company": ("2.10", "2.7", "2.5")}
+
+
+def latest_slice(con) -> Optional[str]:
+    """Последний срез рынка (строка total листа 1.4)."""
+    r = _rows(con, "SELECT MAX(report_date) d FROM market_stats WHERE row_key='total'")
+    return r[0]["d"] if r and r[0]["d"] else None
+
+
+def _has_table(con, name: str) -> bool:
+    return bool(_rows(con, "SELECT name FROM sqlite_master WHERE type='table' AND name=?", name))
+
+
+def claims_metrics(rec: Optional[dict]) -> Optional[dict]:
+    """Показатели одной строки napp_claims."""
+    if not rec:
+        return None
+    rcv, paid, ref = rec.get("claims_received"), rec.get("claims_paid"), rec.get("claims_refused")
+    act, pay = rec.get("contracts_active"), rec.get("payouts_mln")
+    return {"received": rcv, "paid": paid, "refused": ref, "unsettled": rec.get("claims_unsettled"),
+            "contracts_active": act, "contracts_new": rec.get("contracts_new"), "payouts_mln": pay,
+            "per_1000": _r(rcv / act * 1000, 4) if rcv is not None and act else None,
+            "refused_pct": _r(ref / rcv * 100, 3) if ref is not None and rcv else None,
+            "avg_payout": round(pay * 1e6 / paid) if pay is not None and paid else None,
+            "source_file": rec.get("source_file"), "loaded_at": rec.get("loaded_at")}
+
+
+def _claims_row(con, d: str, scope: str, key: str) -> Optional[dict]:
+    r = _rows(con, "SELECT * FROM napp_claims WHERE report_date=? AND scope=? AND key=?", d, scope, key)
+    return r[0] if r else None
+
+
+def napp_source(sheets: str, d: Optional[str], source_file: Optional[str] = None) -> dict:
+    """Источник для плашки .srcbar: страница НАПП, листы отчёта, срез."""
+    title = "%s, листы %s%s" % (NAPP_TITLE, sheets, (" (%s)" % source_file.replace("_", " ").strip())
+                                if source_file else "")
+    return {"title": title, "url": NAPP_PAGE, "domain": urlsplit(NAPP_PAGE).netloc, "as_of": d, "sheets": sheets}
+
+
+def region_claims(con, region: Optional[str]) -> dict:
+    """Претензии в регионе против республики на последний срез рынка (листы 3.5, 3.4, 3.2)."""
+    key, name = resolve_region(region) if region else (None, None)
+    d = latest_slice(con)
+    out = {"available": False, "reason": None, "region_key": key, "region_name": name, "date": d,
+           "period": _label(d) if d else None, "months": MONTHS.get((d or "")[5:]), "region": None,
+           "republic": None, "ratio": None, "diff_pct": None, "source": None, "caveats": list(CLAIMS_CAVEATS),
+           "capital_share_pct": None,
+           "formula": "претензии с начала года / действующие договоры на дату × 1 000 (общее страхование)"}
+    if not _has_table(con, "napp_claims") or not d:
+        out["reason"] = "no_table"
+        return out
+    out["capital_share_pct"] = capital_share(con, d)
+    out["caveats"] = claims_caveats("ru", out["capital_share_pct"])
+    rep = claims_metrics(_claims_row(con, d, "region", "total"))
+    reg = claims_metrics(_claims_row(con, d, "region", key)) if key and key != "total" else None
+    if rep is None:
+        out["reason"] = "no_sheet"             # листа 3.5 за этот срез нет — показатель пропускается
+        out["note"] = "в отчёте НАПП за срез %s листа 3.5 (претензии по регионам) нет — показатель пропущен" % d
+        return out
+    out["republic"] = rep
+    out["source"] = napp_source("3.5, 3.4, 3.2", d, rep.get("source_file"))
+    if not key or key == "total":
+        out["reason"] = "region_unknown" if region else "no_region"
+        return out
+    if reg is None:
+        out["reason"] = "no_region_row"
+        out["note"] = "в листе 3.5 за срез %s нет строки региона «%s» — показатель пропущен" % (d, name)
+        return out
+    out["region"] = reg
+    if reg["per_1000"] is None or not rep["per_1000"]:
+        out["reason"] = "no_contracts"
+        out["note"] = "нет числа действующих договоров (лист 3.4) за срез %s — частота не считается" % d
+        return out
+    out["ratio"] = _r(reg["per_1000"] / rep["per_1000"], 4)
+    out["diff_pct"] = _r((out["ratio"] - 1) * 100, 1)
+    out["available"] = True
+    return out
+
+
+def company_claims(con, company_key: str = INSON_ROW) -> dict:
+    """Претензии по рынку в целом и по страховщику (листы 2.10, 2.7, 2.5) на последний срез рынка."""
+    d = latest_slice(con)
+    out = {"available": False, "reason": None, "date": d, "period": _label(d) if d else None,
+           "months": MONTHS.get((d or "")[5:]), "market": None, "company": None, "company_key": company_key,
+           "company_name": None, "source": None, "caveats": list(CLAIMS_CAVEATS), "capital_share_pct": None}
+    if not _has_table(con, "napp_claims") or not d:
+        out["reason"] = "no_table"
+        return out
+    out["capital_share_pct"] = capital_share(con, d)
+    out["caveats"] = claims_caveats("ru", out["capital_share_pct"])
+    mrec = _claims_row(con, d, "company", "total")
+    if mrec is None:
+        out["reason"] = "no_sheet"
+        out["note"] = "в отчёте НАПП за срез %s листа 2.10 (претензии по страховщикам) нет — показатель пропущен" % d
+        return out
+    out["market"] = claims_metrics(mrec)
+    out["source"] = napp_source("2.10, 2.7, 2.5", d, mrec.get("source_file"))
+    crec = _claims_row(con, d, "company", company_key)
+    if crec is None:
+        out["reason"] = "no_company"
+        out["note"] = "в листе 2.10 за срез %s нет строки страховщика %s" % (d, company_key)
+        return out
+    out["company"] = claims_metrics(crec)
+    out["company_name"] = crec.get("name")
+    out["available"] = True
+    return out
+
+
+def branch_metrics(rec: Optional[dict]) -> Optional[dict]:
+    if not rec:
+        return None
+    p, y, n = rec.get("premiums_mln"), rec.get("payouts_mln"), rec.get("contracts")
+    return {"premiums_mln": p, "payouts_mln": y, "contracts": n,
+            "loss_ratio_pct": _r(y / p * 100, 3) if y is not None and p else None,
+            "avg_premium": round(p * 1e6 / n) if p is not None and n else None}
+
+
+def company_label(con, company_key: str) -> str:
+    """Название страховщика для пометок: из отчёта (napp_branches / napp_claims / market_stats) по company_key;
+    нет строк — ключ без «company:» и формы собственности («INSON AJ» → «INSON»)."""
+    for sql in ("SELECT company_name n FROM napp_branches WHERE company_key=? ORDER BY report_date DESC LIMIT 1",
+                "SELECT name n FROM napp_claims WHERE key=? ORDER BY report_date DESC LIMIT 1",
+                "SELECT row_name n FROM market_stats WHERE row_key=? ORDER BY report_date DESC LIMIT 1"):
+        try:
+            r = _rows(con, sql, company_key)
+        except Exception:                       # таблицы ещё нет (база до первой загрузки)
+            r = []
+        if r and r[0]["n"]:
+            n = str(r[0]["n"]).replace('"', "").replace("«", "").replace("»", "").strip()
+            return " ".join(w for w in n.split() if w.upper() not in ("AJ", "QK", "AJ.", "MCHJ")) or n
+    k = company_key.split(":", 1)[-1]
+    return " ".join(w for w in k.split() if w.upper() not in ("AJ", "QK", "MCHJ")) or k
+
+
+def branches(con, region: Optional[str], company_key: str = INSON_ROW) -> dict:
+    """Подразделения страховщика в регионе против среднего по компании (листы 2.12–2.14, последний срез)."""
+    key, name = resolve_region(region) if region else (None, None)
+    d = latest_slice(con)
+    out = {"available": False, "reason": None, "date": d, "period": _label(d) if d else None,
+           "region_key": key, "region_name": name, "company_key": company_key, "company_name": None,
+           "region": None, "company": None, "market_region": None, "source": None,
+           "formula": "убыточность = выплаты / премии × 100 (листы 2.13 / 2.12); средняя премия = премии / договоры "
+                      "(лист 2.14)",
+           "caveats": ["в отчёте НАПП подразделения даны по регионам (все подразделения страховщика в регионе "
+                       "вместе), отдельных филиалов нет",
+                       "договоры — действующие на дату, премии и выплаты — с начала года: средняя премия — "
+                       "ориентир, а не премия по договору"]}
+    if not _has_table(con, "napp_branches") or not d:
+        out["reason"] = "no_table"
+        return out
+    tot = _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND company_key=? AND region_key='total'",
+                d, company_key)
+    if not _rows(con, "SELECT 1 FROM napp_branches WHERE report_date=? LIMIT 1", d):
+        out["reason"] = "no_sheet"
+        out["note"] = "в отчёте НАПП за срез %s листов 2.12–2.14 (подразделения) нет — показатель пропущен" % d
+        return out
+    if not tot:
+        out["reason"] = "not_listed"
+        out["company_label"] = company_label(con, company_key)
+        out["note"] = "в отчёте НАПП подразделения %s не выделены" % out["company_label"]
+        return out
+    out["company"] = branch_metrics(tot[0])
+    out["company_name"] = tot[0]["company_name"]
+    out["company_label"] = company_label(con, company_key)
+    out["source"] = napp_source("2.12, 2.13, 2.14", d, tot[0].get("source_file"))
+    if not key or key == "total":
+        out["reason"] = "region_unknown" if region else "no_region"
+        return out
+    rr = _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND company_key=? AND region_key=?",
+               d, company_key, key)
+    reg = branch_metrics(rr[0]) if rr else None
+    mr = _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND company_key='total' AND region_key=?", d, key)
+    out["market_region"] = branch_metrics(mr[0]) if mr else None
+    if not reg or not reg["premiums_mln"]:
+        out["reason"] = "not_listed"
+        out["note"] = "в отчёте НАПП подразделения %s в регионе «%s» не выделены (премий по региону нет)" % (
+            out["company_label"], name)
+        out["region"] = reg
+        return out
+    out["region"] = reg
+    out["available"] = True
+    return out
+
+
+def branches_table(con, date: Optional[str] = None, company_key: str = INSON_ROW) -> dict:
+    """Таблица подразделений страховщика по регионам на срез (для /stats)."""
+    if not _has_table(con, "napp_branches"):
+        return {"dates": [], "date": None, "companies": [], "company_key": company_key, "rows": [], "total": None,
+                "market": None, "source": None}
+    dates = [r["report_date"] for r in _rows(con, "SELECT DISTINCT report_date FROM napp_branches ORDER BY 1")]
+    # срез без листов 2.12–2.14 — ближайший более ранний (на странице это подписано), без даты — последний
+    earlier = [x for x in dates if date and x <= date]
+    d = date if date in dates else (earlier[-1] if earlier else (dates[-1] if dates else None))
+    comps = _rows(con, "SELECT company_key AS key, company_name AS name, sphere, premiums_mln FROM napp_branches "
+                       "WHERE report_date=? AND region_key='total' AND company_key<>'total' "
+                       "ORDER BY premiums_mln DESC", d) if d else []
+    rows = _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND company_key=? AND region_key<>'total' "
+                      "ORDER BY premiums_mln DESC", d, company_key) if d else []
+    tot = _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND company_key=? AND region_key='total'",
+                d, company_key) if d else []
+    mkt = {r["region_key"]: r for r in _rows(con, "SELECT * FROM napp_branches WHERE report_date=? AND "
+                                                    "company_key='total'", d)} if d else {}
+    out_rows = []
+    for r in rows:
+        m = branch_metrics(r)
+        mr = branch_metrics(mkt.get(r["region_key"]))
+        m.update(region_key=r["region_key"], region_name=r["region_name"],
+                 share_of_region_pct=_r(r["premiums_mln"] / mr["premiums_mln"] * 100, 3)
+                 if mr and mr["premiums_mln"] and r["premiums_mln"] is not None else None,
+                 market_loss_ratio_pct=mr["loss_ratio_pct"] if mr else None)
+        out_rows.append(m)
+    src = tot[0]["source_file"] if tot else None
+    return {"dates": dates, "date": d, "period": _label(d) if d else None, "companies": comps,
+            "company_key": company_key, "company_name": tot[0]["company_name"] if tot else None,
+            "rows": out_rows, "total": branch_metrics(tot[0]) if tot else None,
+            "market": branch_metrics(mkt.get("total")), "source": napp_source("2.12, 2.13, 2.14", d, src) if d else None,
+            "note": None if tot else "в отчёте НАПП подразделения этого страховщика на срез не выделены"}
 
 
 # --------------------------------------------------------------------------- #

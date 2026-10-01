@@ -1106,7 +1106,12 @@ def simple_scenarios(rule: str, S: float, V: float, fields: Optional[dict] = Non
       full_sum   — гарантии: всё = S;
       credit     — кредиты: всё = S; проверка S ≤ min(кредит − обеспечение; 50 % кредита);
       bi         — финансовые риски: PML = EML = потери в месяц × срок восстановления (≤ S; нет — S); MFL = S;
-      dispute    — правовая защита: PML = EML = лимит на спор (нет — S); MFL = S.
+      dispute    — правовая защита: PML = EML = лимит на спор (нет — S); MFL = S;
+      crop       — урожай (16у): стоимость урожая W = площадь, га × средняя урожайность за 5 лет, ц/га × цена, сум/ц
+                   (нет полей — W = стоимость V); база B = min(S, W) (ниже стоимости — пропорциональная выплата,
+                   ГК ст. 936); PML = B × pml_area_share × pml_loss_ratio (частичная потеря урожая на части площади),
+                   EML = B × eml_area_share × eml_loss_ratio (гибель на значительной площади), MFL = B (полная
+                   гибель на всей площади). Проверка: S ≤ W (ГК ст. 938). Доли — экспертные параметры шаблона.
     """
     from .class_templates import credit_insurable
     f = fields or {}
@@ -1234,7 +1239,47 @@ def simple_scenarios(rule: str, S: float, V: float, fields: Optional[dict] = Non
         per = min(per, S)
         return out(per, per, S, f"лимит на спор {money(per)}", f"лимит на спор {money(per)}",
                    f"лимит расходов {money(S)}")
+    if rule == "crop":
+        cv = crop_value(f.get("area_ha"), f.get("avg_yield_5y"), f.get("unit_price"))
+        if cv is not None:
+            W = cv["value"]
+            over = S > W + 0.5
+            checks.append({"code": "tpl_crop_over" if over else ("tpl_crop_under" if S < W - 0.5 else "tpl_crop_ok"),
+                           "params": {"area": cv["area_ha"], "yield": cv["avg_yield_5y"], "price": round(cv["unit_price"]),
+                                      "value": round(W), "sum": round(S), "excess": round(S - W) if over else 0,
+                                      "pct": round(S / W * 100, 1) if W else None}})
+            wtxt = (f"стоимость урожая {cv['area_ha']:g} га × {cv['avg_yield_5y']:g} ц/га × {money(cv['unit_price'])}"
+                    f" = {money(W)}")
+        else:
+            W = V
+            asm.append({"code": "as_tpl_crop_value", "params": {}})
+            wtxt = f"стоимость объекта {money(W)}"
+        base = min(S, W)
+        btxt = f"min(страховая сумма {money(S)}; {wtxt})" if abs(S - W) > 0.5 else f"страховая сумма {money(S)}"
+        pa, pl = float(p.get("pml_area_share", 0.3)), float(p.get("pml_loss_ratio", 0.5))
+        ea, el = float(p.get("eml_area_share", 0.6)), float(p.get("eml_loss_ratio", 1.0))
+        whole = lambda x: int(round(x * 100)) if abs(x * 100 - round(x * 100)) < 1e-9 else round(x * 100, 1)
+        asm.append({"code": "as_tpl_crop_shares", "params": {"pa": whole(pa), "pl": whole(pl),
+                                                             "ea": whole(ea), "el": whole(el)}})
+        pml, eml = base * pa * pl, base * ea * el
+        return out(pml, eml, base,
+                   f"{btxt} × {pa:g} площади × {pl:g} потери = {money(pml)}",
+                   f"{btxt} × {ea:g} площади × {el:g} гибели = {money(eml)}",
+                   f"полная гибель на всей площади: {btxt} = {money(base)}")
     raise ValueError("неизвестное правило сценария: " + str(rule))
+
+
+def crop_value(area_ha, avg_yield_5y, unit_price) -> Optional[dict]:
+    """
+    Страховая стоимость урожая (вариант 16у, шаблон класса): площадь, га × средняя урожайность за 5 лет, ц/га ×
+    цена единицы продукции, сум за центнер. Чистая функция; не хватает числа (или оно не больше нуля) — None.
+    Пример: 100 га × 30 ц/га × 400 000 сум/ц = 1 200 000 000 сум.
+    """
+    a, y, c = _num(area_ha), _num(avg_yield_5y), _num(unit_price)
+    if a is None or y is None or c is None:
+        return None
+    return {"area_ha": a, "avg_yield_5y": y, "unit_price": c, "harvest_c": a * y, "value": a * y * c,
+            "formula": "площадь × средняя урожайность за 5 лет × цена", "calibrated": CALIBRATED}
 
 
 def template_scenarios(ctx: dict, cls: str, S: float, V: float, template: dict, fields: Optional[dict]) -> dict:

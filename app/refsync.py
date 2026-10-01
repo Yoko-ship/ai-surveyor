@@ -60,6 +60,11 @@ TABLES = [
     ("osgor_activities", ("no",), "upsert", ()),
     ("depreciation_norms", ("code",), "add", ()),
     ("market_stats", ("report_date", "row_key"), "add", ()),
+    # претензии и подразделения НАПП (01.10.2026): как market_stats — сервер дописывает их сам раз в сутки
+    ("napp_claims", ("report_date", "scope", "key"), "add", ()),
+    ("napp_branches", ("report_date", "company_key", "region_key"), "add", ()),
+    # пометки к строкам market_stats (итог комплексного заменён суммой пакетов), 01.10.2026
+    ("market_stats_notes", ("report_date", "row_key"), "add", ()),
 ]
 
 RETRY_SEC = 30
@@ -359,6 +364,9 @@ def sync_templates(target_path=None, busy_ms: int = 2000) -> dict:
     Шаблоны анализа по классам (app/class_templates.py): у них свой источник — docs/act_class_templates.json в
     образе, а не база образа. Таблицы на диске нет — создаётся; класса нет или версия файла новее последней версии
     в базе — добавляется строка; правки администратора (новые версии) и история не трогаются.
+    Здесь же доводится справочник classes: колонка учётной группы допускает NULL и добавляется класс 18 общего
+    страхования (ct.ensure_classes, учётная группа NULL — в Положении 1882, п. 10 его нет); имеющиеся строки не
+    меняются. Новая версия файла при действующей правке администратора её не заменяет (строка file_pending).
     """
     from . import class_templates as ct
     target_path = Path(target_path or db.DB_PATH)
@@ -367,6 +375,12 @@ def sync_templates(target_path=None, busy_ms: int = 2000) -> dict:
     con = sqlite3.connect(str(target_path), isolation_level=None)
     try:
         con.execute(f"PRAGMA busy_timeout = {int(busy_ms)}")
+        try:
+            # учётная группа класса допускает NULL (класс 18) — старая база доводится здесь же
+            if db._classes_group_nullable(con):
+                print("справочник классов: учётная группа допускает NULL (класс 18)")
+        except sqlite3.OperationalError as e:
+            return {"status": "занято", "error": str(e)}
         try:
             con.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as e:
@@ -383,7 +397,12 @@ def sync_templates(target_path=None, busy_ms: int = 2000) -> dict:
     added = res.get("added") or []
     if added:
         print(f"шаблоны классов: доведены из файла {res.get('version')}: {', '.join(added)}")
-    return {"status": "обновлено" if added else "актуально", **res}
+    if res.get("pending"):
+        print(f"шаблоны классов: доступна новая версия шаблона из поставки {res.get('version')} — действует правка "
+              f"администратора: {', '.join(res['pending'])}")
+    if res.get("classes_added"):
+        print(f"справочник классов: добавлены классы из файла шаблонов {', '.join(res['classes_added'])}")
+    return {"status": "обновлено" if added or res.get("classes_added") else "актуально", **res}
 
 
 def sync_on_start(image=None) -> dict:
@@ -406,8 +425,22 @@ def sync_on_start(image=None) -> dict:
         return {"status": "ошибка", "error": str(e)}
     if res["status"] == "занято":
         threading.Thread(target=_retry, args=(image,), name="refsync-retry", daemon=True).start()
+    _after_sync(res)
     _print(res)
     return res
+
+
+def _after_sync(res) -> None:
+    """Образ собран до шаблонов 1.2.0 (в его classes нет класса 18) — upsert мог убрать его с диска: после
+    обновления справочников класс 18 доводится из файла шаблонов ещё раз (ничего не исключаем)."""
+    if (res or {}).get("status") != "обновлено":
+        return
+    from . import class_templates as ct
+    ct.reset_cache()
+    try:
+        sync_templates()
+    except Exception:
+        log.exception("класс 18 после обновления справочников не доведён")
 
 
 def _retry(image):
@@ -419,6 +452,7 @@ def _retry(image):
             log.exception("справочники не обновлены (повтор)")
             return
         if res["status"] != "занято":
+            _after_sync(res)
             _print(res)
             return
     log.error("справочники не обновлены: база занята %d попыток", RETRY_TIMES)

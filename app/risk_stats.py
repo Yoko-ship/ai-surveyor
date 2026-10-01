@@ -167,6 +167,17 @@ INDICATORS = [
 ]
 BY_ID = {i["id"]: i for i in INDICATORS}
 
+# Показатели из отчётов НАПП (01.10.2026): в балл риска и в список показателей класса (risk_indicators) не входят —
+# только в поправку региона вилки ставки (act_engine.fork_region, настройка rate_fork.region.indicators) и в
+# раздел 4 акта отдельной строкой. Читаются из napp_claims (tools/market_stats.py), а не из stat_series.
+NAPP_CLAIMS = "napp_claims"
+NAPP_INDICATORS = [
+    _ind("claims_freq", "Частота страховых претензий (НАПП)", ("3", "4", "5", "6", "7", "8", "9"), [], NAPP_CLAIMS,
+         "претензий на 1 000 договоров", "частота",
+         note="все претензии по общему страхованию региона (листы 3.5 и 3.4 отчёта НАПП), без разреза по классам"),
+]
+BY_ID.update({i["id"]: i for i in NAPP_INDICATORS})
+
 # Чего по классу в открытых данных нет (проверено по каталогу stat.uz и поиску data.egov.uz 22.09.2026)
 NOT_FOUND = {
     "1": "бытового травматизма населения по регионам нет; производственный травматизм — только 2020 год "
@@ -293,8 +304,43 @@ def _volatility(ser: dict, years: int):
 # Один показатель
 # --------------------------------------------------------------------------- #
 
+def _napp_claims_one(con, ind: dict, cls: str, region: Optional[str]) -> dict:
+    """Частота претензий региона к республике (market_picture.region_claims) в форме показателя _one."""
+    from . import market_picture as mp
+    out = {"id": ind["id"], "name": ind["name"], "class_code": cls, "measures": ind["measures"], "kind": ind["kind"],
+           "value": None, "unit": ind["unit"], "period": None, "trend_pct": None, "trend_basis": None,
+           "per_1000": None, "per_1000_unit": None, "level_vs_country": None, "used_in_score": False,
+           "points": None, "src": [], "notes": [ind["note"]], "calibrated": CALIBRATED}
+    rc = mp.region_claims(con, region if region and region != "total" else None)
+    out["scope"] = "регион" if rc.get("region") else "республика"
+    out["region"] = rc.get("region_name") or "Республика Узбекистан"
+    if rc.get("note"):
+        out["notes"].append(rc["note"])
+    out["notes"] += rc.get("caveats") or []
+    s = rc.get("source")
+    if s:
+        out["src"] = [{"name": "Страховой отчёт, листы %s" % s["sheets"], "id": "napp_claims", "source": "НАПП",
+                       "source_id": None, "url": s["url"], "data_url": None, "period": rc.get("date"),
+                       "fetched_at": (rc.get("republic") or {}).get("loaded_at"), "regions": True, "limits": []}]
+    cur = rc.get("region") or rc.get("republic")
+    if not cur or cur.get("per_1000") is None:
+        out["status"] = "нет данных"
+        out["reason"] = rc.get("note") or "нет данных НАПП о претензиях"
+        return out
+    d = rc.get("date") or ""
+    out.update({"value": cur["per_1000"], "period": "%s.%s.%s" % (d[8:10], d[5:7], d[:4]) if d else None,
+                "status": "ок", "per_1000": cur["per_1000"],
+                "per_1000_unit": ind["unit"], "date": rc.get("date"),
+                "claims": {"region": rc.get("region"), "republic": rc.get("republic")}})
+    if rc.get("available"):
+        out["level_vs_country"] = _cmp(rc["region"]["per_1000"], rc["republic"]["per_1000"])
+    return out
+
+
 def _one(con, ind: dict, cls: str, region: Optional[str], th: dict) -> dict:
     kind = ind["kind"]
+    if kind == NAPP_CLAIMS:
+        return _napp_claims_one(con, ind, cls, region)
     ds0 = ind["datasets"][0]
     regional = kind != REPUBLIC and bool((ss.DATASETS.get(ds0) or {}).get("regions"))
     want = region if (region and region != "total" and regional) else "total"

@@ -48,11 +48,16 @@ POST /act/make: первый расчёт без частей → предлож
 0312 с отчётом кредитного бюро — текстовый PDF на выдуманных данных sandbox/katm_demo.pdf, настоящий POST /act/photos
 без модели: подсказка на шаге «Фото», пометка файла, карточка «Отчёт кредитного бюро» с правкой класса (chat_cb_*),
 блок заёмщика на карточке скоринга и «Заёмщик: данные кредитного бюро» в акте.
+Вилка ставки (01.10.2026, shoot_fork; только она — ключ --fork): карточка «Вилка ставки» на шаге «Акт» — автокран
+(поправка региона +15 %), оборудование 0832 с запросом филиала (отметка 0,05 % ниже минимума; и на узбекском), склад
+класса 8 (поправка −3,2 %), продукт 0312 по частям (вилка договора и компактная вилка части), обязательный вид 0820;
+390 и 1440 px (chat_rf_*). Печатает положение отметок на шкале и ряды подписей.
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --analytics     (только аналитика риска)
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --parts         (только части, шаблоны классов, админка)
+    sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py --fork          (только вилка ставки, chat_rf_*)
 """
 import base64
 import json
@@ -636,6 +641,112 @@ def shoot_scoring(ws, bad):
     js(ws, "actReset()", 1)
 
 
+# ------------------------------------------------------------------ вилка ставки (01.10.2026)
+
+RF_INFO = """(() => { const F = CH.act && CH.act.rate_fork; if (!F) return 'вилки нет';
+  const L = F.available ? rfLayout(F) : null;
+  const pos = L ? L.upper.concat(L.lower).map(g => g.marks.map(m => m.code).join('=') + ' ' + g.rate + ' → ' + g.x + '%'
+    + ' ряд ' + g.n.r + '/' + g.w.r + '/' + g.x2.r).join('; ') : '';
+  return [CH.act.number, 'available=' + F.available + (F.reason ? ' (' + F.reason + ')' : ''), 'режим ' + F.mode,
+    'поправка региона ' + ((F.adjustments || {}).region || {}).pct, 'рынка ' + ((F.adjustments || {}).market || {}).pct,
+    'язык ' + CH.act.lang, pos].join(' | '); })()"""
+# склад класса 8 (0807): как WH8 в tests/test_act.py — здание, сигнализация, сейсмичность 8, железобетон
+FILL_WH8 = """(async () => {
+  for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250));
+  wzPickProduct("0807");
+  Object.assign(CH.must, {sum_insured: 4200000000, object_value: 4200000000, region: "tashkent_region"});
+  Object.assign(CH.opt, {object_kind: "warehouse", protection: "alarm", seismic_zone: "8", construction: "reinforced",
+    losses_count: "0", losses_small: "0"});
+  wzSave(); wzPaint(true);
+})()"""
+# обязательный вид (0820): одна ставка по нормативному акту, вилки нет
+FILL_STAT = """(async () => {
+  for (let i = 0; i < 40 && !CH.refs; i++) await new Promise(r => setTimeout(r, 250));
+  wzPickProduct("0820");
+  Object.assign(CH.must, {sum_insured: 1000000000, object_value: 1000000000, region: "tashkent_city"});
+  wzSave(); wzPaint(true);
+})()"""
+
+
+def _make_act(ws, fill, file=None):
+    """«Новый акт» → (файл запроса филиала) → шаг 2 → заполнить → «Сформировать акт» → дождаться шага 3."""
+    js(ws, "actReset()", 1)
+    if file:
+        set_files(ws, "#chatFile", [file])
+        time.sleep(1)
+        js(ws, 'document.querySelector("#chatMain").click()', 5)
+    else:
+        js(ws, 'document.querySelector("#chatMain").click()', 1)          # «Без фото» → шаг 2
+    js(ws, fill, 2)
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)            # «Сформировать акт»
+    wait_js(ws, "!CH.busy && (CH.wz === 3 && !!CH.act || !!CH.err)", 40)
+    time.sleep(1)
+
+
+def shoot_fork(ws, bad):
+    """
+    Карточка «Вилка ставки» на шаге «Акт» (01.10.2026) — настоящий POST /act/make временного сервера:
+    автокран 0318 (поправка региона +15 %), оборудование 0832 по запросу филиала (отметка 0,05 % ниже минимума; ещё
+    и на узбекском), склад класса 8 (поправка −3,2 %), продукт 0312 по частям (справочная вилка договора и вилка части),
+    обязательный вид 0820 — на 390 и 1440 px (chat_rf_*).
+    """
+    ensure_equip_request()
+    try:
+        ws.call("Fetch.disable")
+    except RuntimeError:
+        pass
+    for key, fill, file in (("crane", FILL_STEP2, None), ("equip", FILL_EQUIP, BR_EQUIP), ("wh8", FILL_WH8, None),
+                            ("statutory", FILL_STAT, None)):
+        _make_act(ws, fill, file)
+        print(f"  вилка ({key}):", js(ws, RF_INFO), "| ошибка:", js(ws, "CH.err") or "нет")
+        js(ws, "window.scrollTo(0, 0)", 0.3)
+        bad.append(shot_el(ws, f"chat_rf_{key}_390.png", 390, "#rfCard"))
+        bad.append(shot_el(ws, f"chat_rf_{key}_1440.png", 1440, "#rfCard", scale=1))
+        if key == "crane":
+            bad.append(shot(ws, "chat_rf_step3_390.png", 390, cap=3200))
+            js(ws, "document.querySelector('#actSumD').open = true", 0.4)
+            bad.append(shot_el(ws, "chat_rf_sum_390.png", 390, "#actSumD"))
+            js(ws, "document.querySelector('#actSumD').open = false", 0.2)
+        if key == "equip":
+            js(ws, LANG_UZ, 1)
+            wait_js(ws, "!!CH.act && CH.act.lang === 'uz' && !!document.querySelector('#rfCard')", 20)
+            time.sleep(1)
+            print("  вилка на узбекском:", js(ws, RF_INFO))
+            bad.append(shot_el(ws, "chat_rf_equip_uz_390.png", 390, "#rfCard"))
+            bad.append(shot_el(ws, "chat_rf_equip_uz_1440.png", 1440, "#rfCard", scale=1))
+            js(ws, LANG_RU, 1)
+            wait_js(ws, "!!CH.act && CH.act.lang === 'ru'", 20)
+            time.sleep(0.5)
+    # продукт 0312 по частям: 60 млн класс 3 + 40 млн класс 14 (как shoot_parts)
+    js(ws, "actReset()", 1)
+    js(ws, 'document.querySelector("#chatMain").click()', 1)
+    js(ws, WAIT_REFS)
+    js(ws, """(() => { wzPickProduct("0312"); Object.assign(CH.must, {sum_insured: 100000000, object_value: 60000000,
+      region: "tashkent_city"}); wzSave(); wzPaint(true); })()""", 1.5)
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, MAKE_WAIT, 40)
+    time.sleep(1.5)
+    type_in(ws, "#pts-0", "60 000 000")
+    type_in(ws, "#pts-1", "40 000 000")
+    wait_js(ws, "!!tplOf('3') && !!tplOf('14')", 15)
+    js(ws, "wzPart('parts')", 0.5)
+    type_in(ws, "#tf-1-credit_amount", "100 000 000")
+    type_in(ws, "#tf-1-collateral_value", "60 000 000")
+    type_in(ws, "#tf-1-credit_term_months", "24")
+    js(ws, 'document.querySelector("[data-go=ptconfirm]").click()', 0.8)
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, "!CH.busy && CH.wz === 3 && !!CH.act && CH.act.parts && CH.act.parts.confirmed", 40)
+    time.sleep(1)
+    print("  вилка (0312 по частям):", js(ws, RF_INFO), "| ошибка:", js(ws, "CH.err") or "нет")
+    js(ws, "window.scrollTo(0, 0)", 0.3)
+    bad.append(shot_el(ws, "chat_rf_parts_390.png", 390, "#rfCard"))
+    bad.append(shot_el(ws, "chat_rf_parts_1440.png", 1440, "#rfCard", scale=1))
+    js(ws, "CH.ptOpen = {1: true}; wzPaint(true)", 1)
+    bad.append(shot_el(ws, "chat_rf_part1_390.png", 390, '[data-rfpart="1"]'))
+    bad.append(shot_el(ws, "chat_rf_part1_1440.png", 1440, '[data-rfpart="1"]', scale=1))
+    js(ws, "actReset()", 1)
+
+
 def wait_js(ws, expr, timeout=20.0, step=0.25):
     """Ждёт, пока выражение страницы станет истинным (ответ сервера, шаблон класса)."""
     end = time.time() + timeout
@@ -792,7 +903,7 @@ def shoot_parts(ws, bad, port=PORT, token=None):
     return errs + console_errors(ws)
 
 
-def main(only_analytics=False, only_parts=False, only_scoring=False):
+def main(only_analytics=False, only_parts=False, only_scoring=False, only_fork=False):
     OUT.mkdir(exist_ok=True)
     with ShootInstance(PORT, "dev", keep=False) as inst:
         profile = tempfile.mkdtemp(prefix="edge-shoot-")
@@ -825,6 +936,13 @@ def main(only_analytics=False, only_parts=False, only_scoring=False):
                 print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
                       else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
                 print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:\n  " + "\n  ".join(errs))
+                return
+            if only_fork:
+                shoot_fork(ws, bad)
+                errs = console_errors(ws)
+                print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
+                      else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
+                print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:" + chr(10) + "  " + (chr(10) + "  ").join(errs))
                 return
             if only_scoring:
                 shoot_scoring(ws, bad)
@@ -1079,6 +1197,8 @@ def main(only_analytics=False, only_parts=False, only_scoring=False):
             shoot_analytics(ws, bad)
             # страховой скоринг объекта и отчёт кредитного бюро (01.10.2026)
             shoot_scoring(ws, bad)
+            # вилка ставки (01.10.2026)
+            shoot_fork(ws, bad)
 
             # остальные разделы в той же палитре
             js(ws, 'openTab("calc")', 3)
@@ -1110,4 +1230,4 @@ if __name__ == "__main__":
         serve_fake_model(int(sys.argv[2]), Path(sys.argv[3]))
     else:
         main(only_analytics="--analytics" in sys.argv[1:], only_parts="--parts" in sys.argv[1:],
-             only_scoring="--scoring" in sys.argv[1:])
+             only_scoring="--scoring" in sys.argv[1:], only_fork="--fork" in sys.argv[1:])

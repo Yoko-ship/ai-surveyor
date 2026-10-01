@@ -376,11 +376,71 @@ def _carry_decision_outcomes(con):
     return moved
 
 
+# справочник классов на экранах и в /reference/classes: классов страхования жизни в справочнике нет — строки L*,
+# если они вдруг завелись, не показываются; порядок 1…13, 13з, 14…16, 16у, 17, 18 (CAST берёт число в начале кода)
+CLASSES_SHOWN = "code NOT LIKE 'L%'"
+CLASSES_ORDER = "CAST(code AS INTEGER), code"
+
+
+CLASSES_SQL = """CREATE TABLE {name} (
+    code        TEXT PRIMARY KEY,
+    name        TEXT NOT NULL,
+    group_code  TEXT REFERENCES groups(code),
+    branch      TEXT NOT NULL,
+    kind        TEXT NOT NULL
+)"""
+
+
+def _classes_group_nullable(con) -> bool:
+    """
+    Учётная группа класса (classes.group_code) была NOT NULL. У класса 18 общего страхования («Tibbiy sugʻurta»,
+    ПКМ № 80, прил. 6) учётной группы РНП нет: Положение 1882, п. 10 перечисляет классы 1–17 — поэтому колонка
+    допускает NULL (отнести класс 18 к группе — решение страховщика). ALTER TABLE в SQLite
+    NOT NULL не снимает — таблица пересоздаётся штатным порядком SQLite (проверка ссылок выключена на время
+    пересоздания, всё в одной транзакции; строки и ссылки других таблиц на classes сохраняются).
+    Идемпотентно: колонка уже допускает NULL или таблицы нет — ничего не делает. Открыта транзакция — пропуск
+    (проверку ссылок внутри транзакции не выключить), доведёт следующий запуск.
+    """
+    try:
+        info = con.execute("PRAGMA table_info(classes)").fetchall()
+    except Exception:
+        return False
+    col = [r for r in info if r[1] == "group_code"]
+    if not col or not col[0][3]:
+        return False
+    if con.in_transaction:
+        log.warning("classes.group_code: открыта транзакция — пересоздание отложено")
+        return False
+    fk = con.execute("PRAGMA foreign_keys").fetchone()[0]
+    con.execute("PRAGMA foreign_keys = OFF")
+    try:
+        con.execute("BEGIN")
+        try:
+            con.execute("DROP TABLE IF EXISTS classes_new")
+            con.execute(CLASSES_SQL.format(name="classes_new"))
+            con.execute("INSERT INTO classes_new (code, name, group_code, branch, kind) "
+                        "SELECT code, name, group_code, branch, kind FROM classes")
+            con.execute("DROP TABLE classes")
+            con.execute("ALTER TABLE classes_new RENAME TO classes")
+            bad = con.execute("PRAGMA foreign_key_check(classes)").fetchall()
+            if bad:
+                raise sqlite3.IntegrityError(f"classes: нарушены ссылки на учётные группы ({len(bad)})")
+            con.execute("COMMIT")
+        except Exception:
+            con.execute("ROLLBACK")
+            raise
+    finally:
+        con.execute(f"PRAGMA foreign_keys = {'ON' if fk else 'OFF'}")
+    return True
+
+
 def migrate(con):
     """Добавляет недостающие колонки. Идемпотентно: повторный запуск ничего не делает."""
     added = []
     if _old_decision_outcomes(con):
         added.append("decision_outcomes: старая таблица переименована, строки переносятся")
+    if _classes_group_nullable(con):
+        added.append("classes.group_code: допускает NULL (класс 18 без учётной группы)")
     for table, cols in ADDED_COLUMNS.items():
         try:
             have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}

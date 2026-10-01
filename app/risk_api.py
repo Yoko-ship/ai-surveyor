@@ -33,7 +33,7 @@ def _group_of(code: str) -> str:
 
 def _catalog(con, classes: list) -> dict:
     """Классы, продукты и типы объектов для выпадающих списков."""
-    all_classes = db.rows(con, "SELECT code, name FROM classes ORDER BY CAST(code AS INTEGER), code")
+    all_classes = db.rows(con, f"SELECT code, name FROM classes WHERE {db.CLASSES_SHOWN} ORDER BY {db.CLASSES_ORDER}")
     prods = db.rows(con, "SELECT p.code, p.name, pc.class_code FROM products p "
                          "JOIN product_classes pc ON pc.product_code = p.code "
                          "WHERE p.status <> 'тест' ORDER BY p.code, pc.part_no")

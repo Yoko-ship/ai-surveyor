@@ -1,254 +1,1310 @@
 {
-  "version": "2026-09-30",
+  "version": "2026-10-01",
   "calibrated": 0,
   "note": "Рекомендации страхователю (предупредительные мероприятия) для сюрвейерского акта. Раздел translations — переводы мероприятий таблицы preventive_measures (русский текст берётся из базы). Раздел catalog — экспертные мероприятия для групп, которых в таблице нет (спецтехника, транспорт, оборудование, грузы) и дополнения для зданий и складов. effect — какой коэффициент справочника меняет мероприятие; эффект на премию считает движок (engine.rate_for), все эффекты экспертные (calibrated = 0). Условия when: location — места эксплуатации, где мероприятие нужно; not_guarded — только если охрана не подтверждена; kinds — виды объекта; classes — классы; protection_not — код защиты, при котором мероприятие не нужно; protection_unknown — только если защита не указана; losses_min — убытков за 3 года не меньше; any_of — хватает одного из условий. Читает app/act_extras.py; код не меняется при правке файла. Мероприятия с пустым groups (30.09.2026) — экспертные мероприятия шаблонов классов 1, 2, 4–6, 10–17 (docs/act_class_templates.json): их выбирает только шаблон класса по коду, без шаблона они не показываются.",
   "translations": {
-    "alarm_install": {"uz": {"text": "Pultga ulanadigan yongʻin signalizatsiyasini oʻrnatish", "why": "Signalizatsiyasiz yongʻin kech aniqlanadi va zarar bir necha barobar oshadi."},
-                      "en": {"text": "Install a fire alarm connected to a monitoring station", "why": "Without an alarm a fire is detected late and the loss grows several times."}},
-    "guard_contract": {"uz": {"text": "Qoʻriqlash tashkiloti bilan shartnoma tuzish", "why": "Kecha-kunduz qoʻriqlash yongʻin va jinoiy zararlarni kamaytiradi."},
-                       "en": {"text": "Sign a contract with a security company", "why": "Round-the-clock security reduces both fire and crime losses."}},
-    "sprinklers": {"uz": {"text": "Avtomatik yongʻin oʻchirish tizimini (sprinkler) oʻrnatish", "why": "Yirik obyektlarda faqat avtomatika olovni oʻt oʻchiruvchilar kelguncha toʻxtatadi."},
-                   "en": {"text": "Install automatic fire suppression (sprinklers)", "why": "For large sites only automatic suppression stops a fire before the fire brigade arrives."}},
-    "fire_treatment": {"uz": {"text": "Yogʻoch va panel konstruksiyalarni olovdan himoyalovchi ishlov berish", "why": "Yonuvchan konstruksiyalar yongʻinni tezlashtiradi; ishlov oʻchirishga vaqt beradi."},
-                       "en": {"text": "Apply fire-retardant treatment to timber and panel structures", "why": "Combustible structures accelerate a fire; treatment gives time to extinguish it."}},
-    "flammable_storage": {"uz": {"text": "Yonuvchan materiallarni yongʻinga qarshi eshikli alohida boʻlimga chiqarish, meʼyor boʻyicha oʻt oʻchirgichlar bilan taʼminlash", "why": "Yonuvchan moddalarni ajratish butun obyekt boʻyicha eng katta zararni kamaytiradi."},
-                          "en": {"text": "Move flammable materials to a separate compartment with fire doors and provide extinguishers as required", "why": "Isolating flammables reduces the maximum possible loss for the whole site."}},
-    "wiring_check": {"uz": {"text": "Elektr simlarini dalolatnoma bilan tekshirish va kamchiliklarni bartaraf etish", "why": "30 yildan eski binolarda simlar yongʻinning eng koʻp uchraydigan sababi."},
-                     "en": {"text": "Inspect the electrical wiring with a written report and fix the findings", "why": "In buildings older than 30 years wiring is the most common cause of fire."}},
-    "seismic_survey": {"uz": {"text": "Binoning seysmik chidamliligini tekshirtirish, uskunalar va stellajlarni mahkamlash", "why": "9 ballik hududda mahkamlanmagan uskuna va stellajlar silkinishda asosiy zararni beradi."},
-                       "en": {"text": "Commission a seismic resilience survey and anchor equipment and racks", "why": "In a 9-point zone unanchored equipment and racks cause most of the damage in a quake."}},
-    "loss_review": {"uz": {"text": "Oʻtgan zararlar sabablarini tahlil qilish va ularni bartaraf etish rejasini taqdim etish", "why": "Takrorlanuvchi zararlar bartaraf etilmagan sababni bildiradi, omadsizlikni emas."},
-                    "en": {"text": "Analyse the causes of past losses and submit a plan to eliminate them", "why": "Repeated losses mean an unresolved cause, not bad luck."}},
-    "burglary_protection": {"uz": {"text": "Qoʻriqlash signalizatsiyasi, birinchi qavat derazalariga panjara, kirishlarda videokuzatuv oʻrnatish", "why": "Buzib oʻgʻirlash — 9-klassning asosiy xavfi; perimetrni himoyalash uni eng koʻp kamaytiradi."},
-                            "en": {"text": "Install an intruder alarm, bars on ground-floor windows and CCTV at entrances", "why": "Burglary is the main class 9 risk; perimeter protection reduces it most."}},
-    "inventory_control": {"uz": {"text": "Tovarni har oy qoldiqlarini qayd etgan holda inventarizatsiya qilish", "why": "Qoldiqlar hisobisiz oʻgʻirlik yoki yongʻinda zarar miqdorini isbotlab boʻlmaydi."},
-                          "en": {"text": "Take a monthly stock count recording the balances", "why": "Without stock records the size of a theft or fire loss cannot be proven."}}
+    "alarm_install": {
+      "uz": {
+        "text": "Pultga ulanadigan yongʻin signalizatsiyasini oʻrnatish",
+        "why": "Signalizatsiyasiz yongʻin kech aniqlanadi va zarar bir necha barobar oshadi."
+      },
+      "en": {
+        "text": "Install a fire alarm connected to a monitoring station",
+        "why": "Without an alarm a fire is detected late and the loss grows several times."
+      }
+    },
+    "guard_contract": {
+      "uz": {
+        "text": "Qoʻriqlash tashkiloti bilan shartnoma tuzish",
+        "why": "Kecha-kunduz qoʻriqlash yongʻin va jinoiy zararlarni kamaytiradi."
+      },
+      "en": {
+        "text": "Sign a contract with a security company",
+        "why": "Round-the-clock security reduces both fire and crime losses."
+      }
+    },
+    "sprinklers": {
+      "uz": {
+        "text": "Avtomatik yongʻin oʻchirish tizimini (sprinkler) oʻrnatish",
+        "why": "Yirik obyektlarda faqat avtomatika olovni oʻt oʻchiruvchilar kelguncha toʻxtatadi."
+      },
+      "en": {
+        "text": "Install automatic fire suppression (sprinklers)",
+        "why": "For large sites only automatic suppression stops a fire before the fire brigade arrives."
+      }
+    },
+    "fire_treatment": {
+      "uz": {
+        "text": "Yogʻoch va panel konstruksiyalarni olovdan himoyalovchi ishlov berish",
+        "why": "Yonuvchan konstruksiyalar yongʻinni tezlashtiradi; ishlov oʻchirishga vaqt beradi."
+      },
+      "en": {
+        "text": "Apply fire-retardant treatment to timber and panel structures",
+        "why": "Combustible structures accelerate a fire; treatment gives time to extinguish it."
+      }
+    },
+    "flammable_storage": {
+      "uz": {
+        "text": "Yonuvchan materiallarni yongʻinga qarshi eshikli alohida boʻlimga chiqarish, meʼyor boʻyicha oʻt oʻchirgichlar bilan taʼminlash",
+        "why": "Yonuvchan moddalarni ajratish butun obyekt boʻyicha eng katta zararni kamaytiradi."
+      },
+      "en": {
+        "text": "Move flammable materials to a separate compartment with fire doors and provide extinguishers as required",
+        "why": "Isolating flammables reduces the maximum possible loss for the whole site."
+      }
+    },
+    "wiring_check": {
+      "uz": {
+        "text": "Elektr simlarini dalolatnoma bilan tekshirish va kamchiliklarni bartaraf etish",
+        "why": "30 yildan eski binolarda simlar yongʻinning eng koʻp uchraydigan sababi."
+      },
+      "en": {
+        "text": "Inspect the electrical wiring with a written report and fix the findings",
+        "why": "In buildings older than 30 years wiring is the most common cause of fire."
+      }
+    },
+    "seismic_survey": {
+      "uz": {
+        "text": "Binoning seysmik chidamliligini tekshirtirish, uskunalar va stellajlarni mahkamlash",
+        "why": "9 ballik hududda mahkamlanmagan uskuna va stellajlar silkinishda asosiy zararni beradi."
+      },
+      "en": {
+        "text": "Commission a seismic resilience survey and anchor equipment and racks",
+        "why": "In a 9-point zone unanchored equipment and racks cause most of the damage in a quake."
+      }
+    },
+    "loss_review": {
+      "uz": {
+        "text": "Oʻtgan zararlar sabablarini tahlil qilish va ularni bartaraf etish rejasini taqdim etish",
+        "why": "Takrorlanuvchi zararlar bartaraf etilmagan sababni bildiradi, omadsizlikni emas."
+      },
+      "en": {
+        "text": "Analyse the causes of past losses and submit a plan to eliminate them",
+        "why": "Repeated losses mean an unresolved cause, not bad luck."
+      }
+    },
+    "burglary_protection": {
+      "uz": {
+        "text": "Qoʻriqlash signalizatsiyasi, birinchi qavat derazalariga panjara, kirishlarda videokuzatuv oʻrnatish",
+        "why": "Buzib oʻgʻirlash — 9-klassning asosiy xavfi; perimetrni himoyalash uni eng koʻp kamaytiradi."
+      },
+      "en": {
+        "text": "Install an intruder alarm, bars on ground-floor windows and CCTV at entrances",
+        "why": "Burglary is the main class 9 risk; perimeter protection reduces it most."
+      }
+    },
+    "inventory_control": {
+      "uz": {
+        "text": "Tovarni har oy qoldiqlarini qayd etgan holda inventarizatsiya qilish",
+        "why": "Qoldiqlar hisobisiz oʻgʻirlik yoki yongʻinda zarar miqdorini isbotlab boʻlmaydi."
+      },
+      "en": {
+        "text": "Take a monthly stock count recording the balances",
+        "why": "Without stock records the size of a theft or fire loss cannot be proven."
+      }
+    }
   },
   "catalog": [
-    {"code": "sp_parking_guarded", "groups": ["special"],
-     "when": {"location": ["open_area", "construction", "port"], "not_guarded": true},
-     "effect": {"class": "3", "factor": "spec_guard", "option": "guard_full"}, "deadline_days": 30,
-     "ru": {"text": "В нерабочее время ставить технику на огороженную охраняемую площадку с видеонаблюдением", "why": "Хищение и повреждение на открытой площадке без охраны — основной источник крупных убытков по спецтехнике."},
-     "uz": {"text": "Ishdan tashqari vaqtda texnikani videokuzatuvli, oʻralgan va qoʻriqlanadigan maydonchada saqlash", "why": "Qoʻriqsiz ochiq maydonchada oʻgʻirlik va shikastlanish maxsus texnika boʻyicha yirik zararlarning asosiy manbai."},
-     "en": {"text": "Outside working hours keep the machine in a fenced, guarded yard with CCTV", "why": "Theft and damage in an unguarded open yard are the main source of large special machinery losses."}},
-    {"code": "sp_gps", "groups": ["special"], "when": {"protection_not": ["tracker"]},
-     "effect": {"class": "3", "factor": "antitheft", "option": "tracker"}, "deadline_days": 30,
-     "ru": {"text": "Установить спутниковый мониторинг с блокировкой двигателя", "why": "Помогает найти угнанную технику и сокращает убыток от угона."},
-     "uz": {"text": "Dvigatelni bloklaydigan sunʼiy yoʻldosh monitoringini oʻrnatish", "why": "Oʻgʻirlangan texnikani topishga yordam beradi va oʻgʻirlik zararini kamaytiradi."},
-     "en": {"text": "Install satellite tracking with engine immobilisation", "why": "Helps recover a stolen machine and reduces the theft loss."}},
-    {"code": "sp_crane_setup", "groups": ["special"], "when": {"kinds": ["truck_crane", "crawler_crane", "aerial_platform"]},
-     "deadline_days": 30,
-     "ru": {"text": "Перед работой выставлять кран на выносные опоры на подготовленном основании, соблюдать грузовые характеристики и не работать в охранной зоне ЛЭП без наряда-допуска", "why": "Опрокидывание и касание стрелой проводов ЛЭП — самые дорогие убытки по кранам."},
-     "uz": {"text": "Ishdan oldin kranni tayyorlangan asosda tayanchlarga oʻrnatish, yuk tavsiflariga rioya qilish va ruxsatnomasiz elektr uzatish liniyasi muhofaza zonasida ishlamaslik", "why": "Agʻdarilish va strela bilan elektr simlariga tegish kranlar boʻyicha eng qimmat zararlar."},
-     "en": {"text": "Before work set the crane on outriggers on prepared ground, observe the load charts and do not work in a power-line protection zone without a permit", "why": "Overturning and boom contact with power lines are the costliest crane losses."}},
-    {"code": "sp_operator", "groups": ["special"], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Допускать к управлению только машиниста с действующим удостоверением на этот вид техники и вести журнал допуска", "why": "Ошибка неподготовленного оператора — частая причина опрокидывания и поломки."},
-     "uz": {"text": "Boshqaruvga faqat ushbu turdagi texnika uchun amaldagi guvohnomasi bor mashinistni qoʻyish va ruxsat jurnalini yuritish", "why": "Tayyorlanmagan operator xatosi agʻdarilish va buzilishning koʻp uchraydigan sababi."},
-     "en": {"text": "Allow only an operator with a valid certificate for this type of machine and keep an access log", "why": "An untrained operator's error is a frequent cause of overturning and breakdown."}},
-    {"code": "sp_maintenance", "groups": ["special", "vehicle"], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проводить техническое обслуживание по регламенту изготовителя и хранить акты ТО", "why": "Отказ узлов из-за пропущенного ТО приводит к пожарам и авариям; без актов ТО трудно подтвердить причину убытка."},
-     "uz": {"text": "Texnik xizmatni ishlab chiqaruvchi reglamenti boʻyicha oʻtkazish va xizmat dalolatnomalarini saqlash", "why": "Oʻtkazib yuborilgan xizmat tufayli qismlarning ishdan chiqishi yongʻin va avariyalarga olib keladi; dalolatnomalarsiz zarar sababini tasdiqlash qiyin."},
-     "en": {"text": "Service the machine per the manufacturer's schedule and keep the service records", "why": "Component failure from missed servicing leads to fires and accidents; without records the cause of a loss is hard to prove."}},
-    {"code": "sp_extinguisher", "groups": ["special", "vehicle"], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Держать в кабине исправный огнетушитель и проверять его раз в год", "why": "Возгорание в моторном отсеке тушится только в первые минуты."},
-     "uz": {"text": "Kabinada soz oʻt oʻchirgich saqlash va uni yiliga bir marta tekshirish", "why": "Dvigatel boʻlimidagi yongʻinni faqat birinchi daqiqalarda oʻchirish mumkin."},
-     "en": {"text": "Keep a working fire extinguisher in the cab and check it once a year", "why": "An engine-bay fire can only be put out in the first minutes."}},
-    {"code": "vh_antitheft", "groups": ["vehicle"], "when": {"protection_not": ["immo", "tracker"]},
-     "effect": {"class": "3", "factor": "antitheft", "option": "tracker"}, "deadline_days": 30,
-     "ru": {"text": "Установить иммобилайзер или систему спутникового поиска", "why": "Угон — наибольший убыток по транспорту; поиск позволяет вернуть машину."},
-     "uz": {"text": "Immobilayzer yoki sunʼiy yoʻldosh qidiruv tizimini oʻrnatish", "why": "Oʻgʻirlash transport boʻyicha eng katta zarar; qidiruv avtomobilni qaytarishga imkon beradi."},
-     "en": {"text": "Install an immobiliser or a satellite tracking system", "why": "Theft is the largest vehicle loss; tracking makes recovery possible."}},
-    {"code": "vh_parking", "groups": ["vehicle"], "when": {"location": ["open_area", "construction", "port"], "not_guarded": true},
-     "deadline_days": 30,
-     "ru": {"text": "На ночь ставить машину на охраняемую стоянку", "why": "Ночная стоянка без охраны — основное условие угона и повреждений."},
-     "uz": {"text": "Tunda avtomobilni qoʻriqlanadigan turargohga qoʻyish", "why": "Qoʻriqsiz tungi turargoh oʻgʻirlash va shikastlanishning asosiy sharti."},
-     "en": {"text": "Park the vehicle overnight in a guarded car park", "why": "Unguarded overnight parking is the main condition for theft and damage."}},
-    {"code": "vh_drivers", "groups": ["vehicle"], "when": {},
-     "effect": {"class": "3", "factor": "drivers", "option": "limited"}, "deadline_days": 30,
-     "ru": {"text": "Ограничить список водителей: стаж не меньше трёх лет", "why": "Молодые и неопытные водители чаще попадают в ДТП."},
-     "uz": {"text": "Haydovchilar roʻyxatini cheklash: staj kamida uch yil", "why": "Yosh va tajribasiz haydovchilar koʻproq YTHga tushadi."},
-     "en": {"text": "Limit the list of drivers to those with at least three years' experience", "why": "Young and inexperienced drivers have more accidents."}},
-    {"code": "pr_fire_alarm", "groups": ["property"], "when": {"classes": ["8"], "protection_unknown": true}, "deadline_days": 60,
-     "effect": {"class": "8", "factor": "protection", "option": "alarm_guard"},
-     "ru": {"text": "Подтвердить пожарную сигнализацию с выводом на пульт и охрану объекта; при отсутствии — установить и заключить договор охраны", "why": "Раннее обнаружение пожара и охрана сокращают и пожарные, и криминальные убытки."},
-     "uz": {"text": "Pultga ulangan yongʻin signalizatsiyasi va obyekt qoʻriqlanishini tasdiqlash; boʻlmasa — oʻrnatish va qoʻriqlash shartnomasini tuzish", "why": "Yongʻinni erta aniqlash va qoʻriqlash yongʻin va jinoiy zararlarni kamaytiradi."},
-     "en": {"text": "Confirm a monitored fire alarm and site security; if absent, install one and sign a security contract", "why": "Early fire detection and security reduce both fire and crime losses."}},
-    {"code": "pr_extinguishers", "groups": ["property", "equipment"], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Огнетушители по нормам с ежегодной проверкой, свободные проходы и эвакуационные выходы", "why": "Первичные средства тушат большинство возгораний до прибытия пожарных."},
-     "uz": {"text": "Meʼyor boʻyicha yillik tekshiruvli oʻt oʻchirgichlar, boʻsh yoʻlaklar va evakuatsiya chiqishlari", "why": "Birlamchi vositalar koʻpchilik yongʻinlarni oʻt oʻchiruvchilar kelguncha oʻchiradi."},
-     "en": {"text": "Fire extinguishers as required with annual checks, clear aisles and emergency exits", "why": "First-aid equipment puts out most fires before the fire brigade arrives."}},
-    {"code": "wh_storage", "groups": ["property"], "when": {"any_of": [{"kinds": ["warehouse"]}, {"classes": ["9"]}]}, "deadline_days": 30,
-     "ru": {"text": "Хранить товар на стеллажах или поддонах не ниже 10 см от пола, проходы держать свободными", "why": "Товар на полу первым страдает от залива, а загромождённые проходы мешают тушению."},
-     "uz": {"text": "Tovarni poldan kamida 10 sm balandlikda stellaj yoki poddonlarda saqlash, yoʻlaklarni boʻsh tutish", "why": "Poldagi tovar birinchi boʻlib suv bosishdan zarar koʻradi, band yoʻlaklar oʻchirishga xalaqit beradi."},
-     "en": {"text": "Store goods on racks or pallets at least 10 cm above the floor and keep aisles clear", "why": "Goods on the floor are the first to suffer from flooding, and blocked aisles hinder fire-fighting."}},
-    {"code": "eq_power", "groups": ["equipment"], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Подключить оборудование через стабилизатор или источник бесперебойного питания, проверить заземление", "why": "Скачки напряжения — основная причина поломки электрооборудования."},
-     "uz": {"text": "Uskunani stabilizator yoki uzluksiz quvvat manbai orqali ulash, yerga ulashni tekshirish", "why": "Kuchlanish sakrashlari elektr uskunalari buzilishining asosiy sababi."},
-     "en": {"text": "Connect equipment through a voltage stabiliser or UPS and check the earthing", "why": "Voltage surges are the main cause of electrical equipment breakdown."}},
-    {"code": "eq_maintenance", "groups": ["equipment"], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Обслуживать оборудование по регламенту изготовителя и вести журнал обслуживания", "why": "Без журнала обслуживания поломку трудно отличить от износа."},
-     "uz": {"text": "Uskunaga ishlab chiqaruvchi reglamenti boʻyicha xizmat koʻrsatish va xizmat jurnalini yuritish", "why": "Xizmat jurnalisiz buzilishni eskirishdan ajratish qiyin."},
-     "en": {"text": "Maintain equipment per the manufacturer's schedule and keep a maintenance log", "why": "Without a maintenance log a breakdown is hard to distinguish from wear."}},
-    {"code": "cg_packing", "groups": ["cargo"], "when": {},
-     "effect": {"class": "7", "factor": "cargo_pack", "option": "factory"}, "deadline_days": 1,
-     "ru": {"text": "Упаковка по правилам перевозки, крепление груза в кузове и фотофиксация при загрузке", "why": "Незакреплённый и плохо упакованный груз повреждается даже без аварии."},
-     "uz": {"text": "Tashish qoidalari boʻyicha qadoqlash, yukni kuzovda mahkamlash va yuklashda suratga olish", "why": "Mahkamlanmagan va yomon qadoqlangan yuk avariyasiz ham shikastlanadi."},
-     "en": {"text": "Pack to carriage standards, secure the load in the vehicle and photograph it at loading", "why": "Unsecured and poorly packed cargo gets damaged even without an accident."}},
-    {"code": "cg_route", "groups": ["cargo"], "when": {}, "deadline_days": 1,
-     "ru": {"text": "Стоянки в пути — только на охраняемых площадках, маршрут согласован заранее", "why": "Кража груза чаще всего происходит на неохраняемой стоянке."},
-     "uz": {"text": "Yoʻldagi toʻxtashlar — faqat qoʻriqlanadigan maydonchalarda, yoʻnalish oldindan kelishilgan", "why": "Yuk oʻgʻirligi koʻpincha qoʻriqlanmaydigan toʻxtash joyida sodir boʻladi."},
-     "en": {"text": "Stop en route only at guarded parking areas; agree the route in advance", "why": "Cargo theft most often happens at unguarded stops."}},
-    {"code": "cg_docs", "groups": ["cargo"], "when": {}, "deadline_days": 1,
-     "ru": {"text": "Составлять опись груза и акт приёма-передачи с отметкой о состоянии", "why": "Без описи размер убытка и момент повреждения не доказать."},
-     "uz": {"text": "Yuk roʻyxati va holati koʻrsatilgan qabul-topshirish dalolatnomasini tuzish", "why": "Roʻyxatsiz zarar miqdori va shikastlanish vaqtini isbotlab boʻlmaydi."},
-     "en": {"text": "Draw up a cargo inventory and a handover certificate noting its condition", "why": "Without an inventory the size and timing of damage cannot be proven."}},
-    {"code": "all_loss_review", "groups": ["special", "vehicle", "equipment", "cargo"], "when": {"losses_min": 1}, "deadline_days": 30,
-     "ru": {"text": "Разобрать причины прошлых убытков и представить план их устранения", "why": "Повторяющиеся убытки означают неустранённую причину, а не невезение."},
-     "uz": {"text": "Oʻtgan zararlar sabablarini tahlil qilish va ularni bartaraf etish rejasini taqdim etish", "why": "Takrorlanuvchi zararlar bartaraf etilmagan sababni bildiradi, omadsizlikni emas."},
-     "en": {"text": "Analyse the causes of past losses and submit a plan to eliminate them", "why": "Repeated losses mean an unresolved cause, not bad luck."}},
-    {"code": "pa_briefing", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Проводить инструктажи по охране труда и технике безопасности с записью в журнале", "why": "Несчастные случаи на работе чаще всего связаны с нарушением правил безопасности."},
-     "uz": {"text": "Mehnat muhofazasi va xavfsizlik texnikasi boʻyicha yoʻriqnomalarni jurnalga yozgan holda oʻtkazish", "why": "Ishdagi baxtsiz hodisalar koʻpincha xavfsizlik qoidalarining buzilishi bilan bogʻliq."},
-     "en": {"text": "Hold safety briefings and record them in a log", "why": "Work accidents are mostly linked to breaches of safety rules."}},
-    {"code": "pa_ppe", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Обеспечить работников средствами индивидуальной защиты и контролировать их применение", "why": "Средства защиты снижают тяжесть травм."},
-     "uz": {"text": "Xodimlarni shaxsiy himoya vositalari bilan taʼminlash va ulardan foydalanishni nazorat qilish", "why": "Himoya vositalari jarohatlar ogʻirligini kamaytiradi."},
-     "en": {"text": "Provide personal protective equipment and check its use", "why": "Protective equipment reduces the severity of injuries."}},
-    {"code": "pa_medical", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проводить предварительные и периодические медицинские осмотры работников опасных профессий", "why": "Осмотр выявляет противопоказания до того, как они приведут к несчастному случаю."},
-     "uz": {"text": "Xavfli kasb xodimlarini dastlabki va davriy tibbiy koʻrikdan oʻtkazish", "why": "Koʻrik baxtsiz hodisaga olib kelmasdan oldin qarshi koʻrsatmalarni aniqlaydi."},
-     "en": {"text": "Arrange pre-employment and periodic medical checks for hazardous jobs", "why": "Checks find contraindications before they lead to an accident."}},
-    {"code": "hl_checkup", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Организовать ежегодный профилактический осмотр и вакцинацию сотрудников", "why": "Раннее выявление заболеваний снижает стоимость лечения."},
-     "uz": {"text": "Xodimlarning yillik profilaktik koʻrigi va emlanishini tashkil etish", "why": "Kasalliklarni erta aniqlash davolanish narxini kamaytiradi."},
-     "en": {"text": "Arrange annual check-ups and vaccination for employees", "why": "Early detection lowers the cost of treatment."}},
-    {"code": "hl_network", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Направлять застрахованных в клиники из согласованного списка по согласованным ценам", "why": "Цены вне сети клиник выше и хуже контролируются."},
-     "uz": {"text": "Sugʻurtalanganlarni kelishilgan roʻyxatdagi klinikalarga kelishilgan narxlarda yoʻnaltirish", "why": "Tarmoqdan tashqaridagi narxlar yuqori va yomon nazorat qilinadi."},
-     "en": {"text": "Send insured persons to network clinics at agreed prices", "why": "Out-of-network prices are higher and harder to control."}},
-    {"code": "hl_control", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Назначить ответственного за учёт обращений и сверку счетов клиник", "why": "Сверка счетов исключает оплату лишних услуг."},
-     "uz": {"text": "Murojaatlar hisobi va klinikalar hisoblarini solishtirish uchun masʼul tayinlash", "why": "Hisoblarni solishtirish ortiqcha xizmatlar uchun toʻlovni istisno qiladi."},
-     "en": {"text": "Appoint someone to track visits and reconcile clinic bills", "why": "Reconciliation prevents paying for unnecessary services."}},
-    {"code": "rl_depot", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проводить плановые ремонты в депо по графику и хранить акты ремонта", "why": "Пропуск ремонта — частая причина схода с рельсов и отказов узлов."},
-     "uz": {"text": "Rejali taʼmirlarni depoda jadval boʻyicha oʻtkazish va taʼmir dalolatnomalarini saqlash", "why": "Taʼmirni oʻtkazib yuborish relsdan chiqish va qismlar ishdan chiqishining koʻp uchraydigan sababi."},
-     "en": {"text": "Carry out scheduled depot repairs and keep the repair records", "why": "A missed repair is a frequent cause of derailment and component failure."}},
-    {"code": "rl_dangerous_goods", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Опасные грузы — только в исправных цистернах и вагонах с маркировкой и допуском", "why": "Утечка или пожар опасного груза даёт самые крупные убытки."},
-     "uz": {"text": "Xavfli yuklar — faqat markirovka va ruxsatnomaga ega soz sisterna va vagonlarda", "why": "Xavfli yukning oqishi yoki yongʻini eng yirik zararlarni beradi."},
-     "en": {"text": "Carry dangerous goods only in sound, marked and approved tank cars and wagons", "why": "Leaks or fires of dangerous goods cause the largest losses."}},
-    {"code": "rl_shunting_rules", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Соблюдать скорость и порядок манёвров, вести журнал манёвровых работ", "why": "Повреждения при манёврах — самые частые убытки подвижного состава."},
-     "uz": {"text": "Manyovr tezligi va tartibiga rioya qilish, manyovr ishlari jurnalini yuritish", "why": "Manyovrdagi shikastlanishlar — harakat tarkibining eng koʻp uchraydigan zararlari."},
-     "en": {"text": "Keep shunting speeds and procedures and log shunting work", "why": "Shunting damage is the most frequent rolling stock loss."}},
-    {"code": "av_maintenance", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Техническое обслуживание — только в сертифицированной организации, с записями в формуляре", "why": "Отказ техники из-за пропущенного обслуживания — одна из главных причин авиационных происшествий."},
-     "uz": {"text": "Texnik xizmat — faqat sertifikatlangan tashkilotda, formulyarga yozuv bilan", "why": "Oʻtkazib yuborilgan xizmat tufayli texnika ishdan chiqishi — aviatsiya hodisalarining asosiy sabablaridan biri."},
-     "en": {"text": "Maintain the aircraft only at a certified organisation and record it in the logbook", "why": "Technical failure from missed maintenance is a leading cause of aviation accidents."}},
-    {"code": "av_crew_training", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проходить тренажёрную подготовку экипажа по графику", "why": "Ошибка экипажа — основная причина авиационных происшествий."},
-     "uz": {"text": "Ekipajni jadval boʻyicha trenajyorda tayyorlash", "why": "Ekipaj xatosi — aviatsiya hodisalarining asosiy sababi."},
-     "en": {"text": "Keep crew simulator training on schedule", "why": "Crew error is the main cause of aviation accidents."}},
-    {"code": "av_hangar", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Хранить воздушное судно в ангаре или на охраняемой стоянке, аэродром базы — с орнитологическим обеспечением", "why": "Повреждения на земле и столкновения с птицами — частые убытки."},
-     "uz": {"text": "Havo kemasini angarda yoki qoʻriqlanadigan turargohda saqlash, baza aerodromi — ornitologik taʼminot bilan", "why": "Yerdagi shikastlanishlar va qushlar bilan toʻqnashuv — koʻp uchraydigan zararlar."},
-     "en": {"text": "Keep the aircraft in a hangar or a guarded stand; the home airfield should have bird control", "why": "Ground damage and bird strikes are frequent losses."}},
-    {"code": "mr_survey", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проходить освидетельствование судна классификационным обществом в срок", "why": "Судно без действующего класса — повод для отказа в выплате и признак износа."},
-     "uz": {"text": "Kemani klassifikatsiya jamiyatida oʻz vaqtida koʻrikdan oʻtkazish", "why": "Amaldagi klassiz kema — toʻlovni rad etish uchun asos va eskirish belgisi."},
-     "en": {"text": "Have the vessel surveyed by its classification society on time", "why": "A vessel without valid class is a ground to decline claims and a sign of wear."}},
-    {"code": "mr_crew_cert", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Укомплектовать экипаж по нормам, с действующими дипломами и свидетельствами", "why": "Неподготовленный экипаж — частая причина посадки на мель и столкновений."},
-     "uz": {"text": "Ekipajni meʼyor boʻyicha, amaldagi diplom va guvohnomalar bilan toʻldirish", "why": "Tayyorlanmagan ekipaj — sayozlikka oʻtirish va toʻqnashuvlarning koʻp uchraydigan sababi."},
-     "en": {"text": "Man the vessel as required with properly certified crew", "why": "An untrained crew is a frequent cause of groundings and collisions."}},
-    {"code": "mr_weather", "groups": [], "when": {}, "deadline_days": 1,
-     "ru": {"text": "Выходить в плавание только при допустимом прогнозе погоды для района и класса судна", "why": "Шторм — один из катастрофических рисков морского каско."},
-     "uz": {"text": "Faqat hudud va kema klassi uchun ruxsat etilgan ob-havo prognozida suzishga chiqish", "why": "Boʻron — dengiz kaskosining falokat xavflaridan biri."},
-     "en": {"text": "Sail only with a weather forecast acceptable for the area and the vessel's class", "why": "Heavy weather is one of the catastrophe risks of marine hull."}},
-    {"code": "mt_training", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Проводить обучение водителей безопасному вождению и разбирать нарушения ПДД", "why": "Нарушения ПДД — главный признак будущих ДТП."},
-     "uz": {"text": "Haydovchilarni xavfsiz haydashga oʻrgatish va YHQ buzilishlarini tahlil qilish", "why": "YHQ buzilishlari — kelgusi YTHlarning asosiy belgisi."},
-     "en": {"text": "Train drivers in safe driving and review traffic violations", "why": "Traffic violations are the main predictor of accidents."}},
-    {"code": "mt_telematics", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Установить телематику (контроль скорости и маршрута) на транспорт организации", "why": "Контроль скорости снижает частоту и тяжесть ДТП."},
-     "uz": {"text": "Tashkilot transportiga telematika (tezlik va yoʻnalish nazorati) oʻrnatish", "why": "Tezlik nazorati YTH chastotasi va ogʻirligini kamaytiradi."},
-     "en": {"text": "Fit telematics (speed and route control) to the fleet", "why": "Speed control reduces accident frequency and severity."}},
-    {"code": "mt_inspection", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Проходить технический осмотр в срок и ежедневный предрейсовый контроль", "why": "Неисправные тормоза и шины — частая причина ДТП."},
-     "uz": {"text": "Texnik koʻrikdan oʻz vaqtida va har kuni reys oldi nazoratidan oʻtish", "why": "Nosoz tormoz va shinalar — YTHning koʻp uchraydigan sababi."},
-     "en": {"text": "Keep technical inspections on time and do daily pre-trip checks", "why": "Faulty brakes and tyres are a frequent cause of accidents."}},
-    {"code": "al_ground_handling", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Заключить договоры наземного обслуживания и безопасности с аэропортами базирования", "why": "Большинство претензий третьих лиц на земле возникает при наземном обслуживании."},
-     "uz": {"text": "Bazalanish aeroportlari bilan yerusti xizmati va xavfsizlik shartnomalarini tuzish", "why": "Yerdagi uchinchi shaxslar daʼvolarining aksariyati yerusti xizmati paytida yuzaga keladi."},
-     "en": {"text": "Sign ground handling and safety agreements with base airports", "why": "Most third-party ground claims arise during ground handling."}},
-    {"code": "ml_spill_plan", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Иметь план ликвидации разливов и средства сбора нефтепродуктов на борту", "why": "Быстрая локализация разлива кратно снижает ответственность за загрязнение."},
-     "uz": {"text": "Toʻkilmalarni bartaraf etish rejasi va bortda neft mahsulotlarini yigʻish vositalariga ega boʻlish", "why": "Toʻkilmani tez cheklash ifloslanish uchun javobgarlikni bir necha barobar kamaytiradi."},
-     "en": {"text": "Keep a spill response plan and oil recovery equipment on board", "why": "Quick containment of a spill cuts pollution liability many times."}},
-    {"code": "gl_safety", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Назначить ответственного за охрану труда, провести аттестацию рабочих мест", "why": "Вред работнику — одна из основных выплат по ответственности работодателя."},
-     "uz": {"text": "Mehnat muhofazasi uchun masʼul tayinlash, ish joylarini attestatsiyadan oʻtkazish", "why": "Xodimga zarar — ish beruvchi javobgarligi boʻyicha asosiy toʻlovlardan biri."},
-     "en": {"text": "Appoint an occupational safety officer and assess workplaces", "why": "Employee injury is one of the main employer's liability payments."}},
-    {"code": "gl_visitors", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Обеспечить безопасность посетителей: освещение, нескользкие покрытия, свободные эвакуационные пути", "why": "Падения посетителей — самые частые претензии третьих лиц."},
-     "uz": {"text": "Tashrif buyuruvchilar xavfsizligini taʼminlash: yoritish, sirpanmaydigan qoplamalar, boʻsh evakuatsiya yoʻllari", "why": "Tashrif buyuruvchilarning yiqilishi — uchinchi shaxslarning eng koʻp uchraydigan daʼvolari."},
-     "en": {"text": "Keep visitors safe: lighting, non-slip floors, clear escape routes", "why": "Visitor falls are the most frequent third-party claims."}},
-    {"code": "gl_claims_log", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Вести журнал претензий и происшествий, сообщать страховщику о каждом", "why": "Своевременное уведомление снижает размер урегулирования."},
-     "uz": {"text": "Daʼvolar va hodisalar jurnalini yuritish, har biri haqida sugʻurtalovchiga xabar berish", "why": "Oʻz vaqtida xabar berish hal qilish summasini kamaytiradi."},
-     "en": {"text": "Keep a log of claims and incidents and report each to the insurer", "why": "Prompt notice reduces settlement amounts."}},
-    {"code": "gl_contractors", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "В договорах с подрядчиками предусматривать их ответственность и страхование", "why": "Ответственность переходит на виновника и не ложится на страхователя."},
-     "uz": {"text": "Pudratchilar bilan shartnomalarda ularning javobgarligi va sugʻurtasini nazarda tutish", "why": "Javobgarlik aybdorga oʻtadi va sugʻurtalanuvchiga tushmaydi."},
-     "en": {"text": "Require contractors to carry liability and insurance under their contracts", "why": "Liability passes to the party at fault instead of the policyholder."}},
-    {"code": "cr_collateral_monitor", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Проверять наличие и стоимость залога не реже раза в полгода", "why": "Обесценение залога увеличивает необеспеченную часть кредита."},
-     "uz": {"text": "Garov mavjudligi va qiymatini kamida yarim yilda bir marta tekshirish", "why": "Garov qadrsizlanishi kreditning taʼminlanmagan qismini oshiradi."},
-     "en": {"text": "Check the existence and value of collateral at least every six months", "why": "A fall in collateral value increases the unsecured part of the loan."}},
-    {"code": "cr_reporting", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Получать от заёмщика квартальную финансовую отчётность", "why": "Ухудшение показателей видно до просрочки."},
-     "uz": {"text": "Qarz oluvchidan choraklik moliyaviy hisobot olish", "why": "Koʻrsatkichlar yomonlashuvi muddat oʻtishidan oldin koʻrinadi."},
-     "en": {"text": "Obtain quarterly financial statements from the borrower", "why": "Deterioration shows before payments fall overdue."}},
-    {"code": "cr_early_warning", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Сообщать страховщику о просрочке свыше 30 дней и о реструктуризации", "why": "Раннее уведомление даёт время на взыскание и снижает убыток."},
-     "uz": {"text": "30 kundan ortiq muddat oʻtishi va restrukturizatsiya haqida sugʻurtalovchiga xabar berish", "why": "Erta xabar undirish uchun vaqt beradi va zararni kamaytiradi."},
-     "en": {"text": "Report overdue payments beyond 30 days and any restructuring to the insurer", "why": "Early notice gives time for recovery and reduces the loss."}},
-    {"code": "gt_counter_security", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Оформить встречное обеспечение принципала (залог, поручительство) до выдачи гарантии", "why": "Встречное обеспечение возвращает выплату по гарантии."},
-     "uz": {"text": "Kafolat berilishidan oldin prinsipalning qarshi taʼminotini (garov, kafillik) rasmiylashtirish", "why": "Qarshi taʼminot kafolat boʻyicha toʻlovni qaytaradi."},
-     "en": {"text": "Arrange the principal's counter-security (pledge, surety) before issue", "why": "Counter-security recovers the guarantee payment."}},
-    {"code": "gt_milestones", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Контролировать исполнение договора по этапам и актам приёмки", "why": "Отставание от графика видно до требования бенефициара."},
-     "uz": {"text": "Shartnoma bajarilishini bosqichlar va qabul dalolatnomalari boʻyicha nazorat qilish", "why": "Jadvaldan orqada qolish benefitsiar talabidan oldin koʻrinadi."},
-     "en": {"text": "Track contract performance by milestones and acceptance certificates", "why": "Delays become visible before the beneficiary's demand."}},
-    {"code": "gt_reporting", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Получать от принципала отчётность не реже раза в квартал", "why": "Финансовые трудности принципала — главный признак неисполнения."},
-     "uz": {"text": "Prinsipaldan kamida chorakda bir marta hisobot olish", "why": "Prinsipalning moliyaviy qiyinchiliklari — bajarmaslikning asosiy belgisi."},
-     "en": {"text": "Obtain the principal's financial statements at least quarterly", "why": "The principal's financial difficulty is the main sign of non-performance."}},
-    {"code": "fn_bcp", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Разработать план непрерывности деятельности с резервными площадками и оборудованием", "why": "План сокращает срок восстановления — главный множитель убытка."},
-     "uz": {"text": "Zaxira maydonlar va uskunalar bilan faoliyat uzluksizligi rejasini ishlab chiqish", "why": "Reja tiklanish muddatini qisqartiradi — zararning asosiy koʻpaytiruvchisi."},
-     "en": {"text": "Draw up a business continuity plan with backup sites and equipment", "why": "A plan shortens the recovery time — the main multiplier of the loss."}},
-    {"code": "fn_suppliers", "groups": [], "when": {}, "deadline_days": 90,
-     "ru": {"text": "Иметь резервных поставщиков критичного сырья и комплектующих", "why": "Зависимость от одного поставщика растягивает остановку."},
-     "uz": {"text": "Muhim xomashyo va butlovchi qismlarning zaxira yetkazib beruvchilariga ega boʻlish", "why": "Bitta yetkazib beruvchiga bogʻliqlik toʻxtashni choʻzadi."},
-     "en": {"text": "Keep alternative suppliers of critical materials and parts", "why": "Dependence on one supplier prolongs a stoppage."}},
-    {"code": "fn_accounting", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Вести помесячный учёт выручки и постоянных расходов", "why": "Без учёта размер потери прибыли не доказать."},
-     "uz": {"text": "Tushum va doimiy xarajatlarni oylik hisobini yuritish", "why": "Hisobsiz foyda yoʻqotilishi miqdorini isbotlab boʻlmaydi."},
-     "en": {"text": "Keep monthly records of revenue and fixed costs", "why": "Without records the loss of profit cannot be proven."}},
-    {"code": "lg_contract_review", "groups": [], "when": {}, "deadline_days": 60,
-     "ru": {"text": "Проводить юридическую экспертизу договоров до подписания", "why": "Большинство споров возникает из неточных условий договора."},
-     "uz": {"text": "Shartnomalarni imzolashdan oldin yuridik ekspertizadan oʻtkazish", "why": "Nizolarning aksariyati shartnomaning noaniq shartlaridan kelib chiqadi."},
-     "en": {"text": "Have contracts legally reviewed before signing", "why": "Most disputes arise from unclear contract terms."}},
-    {"code": "lg_pretrial", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Использовать досудебное урегулирование и претензионный порядок", "why": "Досудебное урегулирование дешевле суда."},
-     "uz": {"text": "Suddan tashqari hal qilish va daʼvo tartibidan foydalanish", "why": "Suddan tashqari hal qilish suddan arzonroq."},
-     "en": {"text": "Use pre-trial settlement and the claims procedure", "why": "Pre-trial settlement is cheaper than court."}},
-    {"code": "lg_records", "groups": [], "when": {}, "deadline_days": 30,
-     "ru": {"text": "Хранить договоры, переписку и первичные документы в упорядоченном архиве", "why": "Документы решают исход спора и сокращают расходы на экспертизу."},
-     "uz": {"text": "Shartnomalar, yozishmalar va birlamchi hujjatlarni tartibli arxivda saqlash", "why": "Hujjatlar nizo natijasini hal qiladi va ekspertiza xarajatlarini kamaytiradi."},
-     "en": {"text": "Keep contracts, correspondence and source documents in an orderly archive", "why": "Documents decide disputes and cut the cost of expert examination."}}
+    {
+      "code": "sp_parking_guarded",
+      "groups": [
+        "special"
+      ],
+      "when": {
+        "location": [
+          "open_area",
+          "construction",
+          "port"
+        ],
+        "not_guarded": true
+      },
+      "effect": {
+        "class": "3",
+        "factor": "spec_guard",
+        "option": "guard_full"
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "В нерабочее время ставить технику на огороженную охраняемую площадку с видеонаблюдением",
+        "why": "Хищение и повреждение на открытой площадке без охраны — основной источник крупных убытков по спецтехнике."
+      },
+      "uz": {
+        "text": "Ishdan tashqari vaqtda texnikani videokuzatuvli, oʻralgan va qoʻriqlanadigan maydonchada saqlash",
+        "why": "Qoʻriqsiz ochiq maydonchada oʻgʻirlik va shikastlanish maxsus texnika boʻyicha yirik zararlarning asosiy manbai."
+      },
+      "en": {
+        "text": "Outside working hours keep the machine in a fenced, guarded yard with CCTV",
+        "why": "Theft and damage in an unguarded open yard are the main source of large special machinery losses."
+      }
+    },
+    {
+      "code": "sp_gps",
+      "groups": [
+        "special"
+      ],
+      "when": {
+        "protection_not": [
+          "tracker"
+        ]
+      },
+      "effect": {
+        "class": "3",
+        "factor": "antitheft",
+        "option": "tracker"
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Установить спутниковый мониторинг с блокировкой двигателя",
+        "why": "Помогает найти угнанную технику и сокращает убыток от угона."
+      },
+      "uz": {
+        "text": "Dvigatelni bloklaydigan sunʼiy yoʻldosh monitoringini oʻrnatish",
+        "why": "Oʻgʻirlangan texnikani topishga yordam beradi va oʻgʻirlik zararini kamaytiradi."
+      },
+      "en": {
+        "text": "Install satellite tracking with engine immobilisation",
+        "why": "Helps recover a stolen machine and reduces the theft loss."
+      }
+    },
+    {
+      "code": "sp_crane_setup",
+      "groups": [
+        "special"
+      ],
+      "when": {
+        "kinds": [
+          "truck_crane",
+          "crawler_crane",
+          "aerial_platform"
+        ]
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Перед работой выставлять кран на выносные опоры на подготовленном основании, соблюдать грузовые характеристики и не работать в охранной зоне ЛЭП без наряда-допуска",
+        "why": "Опрокидывание и касание стрелой проводов ЛЭП — самые дорогие убытки по кранам."
+      },
+      "uz": {
+        "text": "Ishdan oldin kranni tayyorlangan asosda tayanchlarga oʻrnatish, yuk tavsiflariga rioya qilish va ruxsatnomasiz elektr uzatish liniyasi muhofaza zonasida ishlamaslik",
+        "why": "Agʻdarilish va strela bilan elektr simlariga tegish kranlar boʻyicha eng qimmat zararlar."
+      },
+      "en": {
+        "text": "Before work set the crane on outriggers on prepared ground, observe the load charts and do not work in a power-line protection zone without a permit",
+        "why": "Overturning and boom contact with power lines are the costliest crane losses."
+      }
+    },
+    {
+      "code": "sp_operator",
+      "groups": [
+        "special"
+      ],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Допускать к управлению только машиниста с действующим удостоверением на этот вид техники и вести журнал допуска",
+        "why": "Ошибка неподготовленного оператора — частая причина опрокидывания и поломки."
+      },
+      "uz": {
+        "text": "Boshqaruvga faqat ushbu turdagi texnika uchun amaldagi guvohnomasi bor mashinistni qoʻyish va ruxsat jurnalini yuritish",
+        "why": "Tayyorlanmagan operator xatosi agʻdarilish va buzilishning koʻp uchraydigan sababi."
+      },
+      "en": {
+        "text": "Allow only an operator with a valid certificate for this type of machine and keep an access log",
+        "why": "An untrained operator's error is a frequent cause of overturning and breakdown."
+      }
+    },
+    {
+      "code": "sp_maintenance",
+      "groups": [
+        "special",
+        "vehicle"
+      ],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проводить техническое обслуживание по регламенту изготовителя и хранить акты ТО",
+        "why": "Отказ узлов из-за пропущенного ТО приводит к пожарам и авариям; без актов ТО трудно подтвердить причину убытка."
+      },
+      "uz": {
+        "text": "Texnik xizmatni ishlab chiqaruvchi reglamenti boʻyicha oʻtkazish va xizmat dalolatnomalarini saqlash",
+        "why": "Oʻtkazib yuborilgan xizmat tufayli qismlarning ishdan chiqishi yongʻin va avariyalarga olib keladi; dalolatnomalarsiz zarar sababini tasdiqlash qiyin."
+      },
+      "en": {
+        "text": "Service the machine per the manufacturer's schedule and keep the service records",
+        "why": "Component failure from missed servicing leads to fires and accidents; without records the cause of a loss is hard to prove."
+      }
+    },
+    {
+      "code": "sp_extinguisher",
+      "groups": [
+        "special",
+        "vehicle"
+      ],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Держать в кабине исправный огнетушитель и проверять его раз в год",
+        "why": "Возгорание в моторном отсеке тушится только в первые минуты."
+      },
+      "uz": {
+        "text": "Kabinada soz oʻt oʻchirgich saqlash va uni yiliga bir marta tekshirish",
+        "why": "Dvigatel boʻlimidagi yongʻinni faqat birinchi daqiqalarda oʻchirish mumkin."
+      },
+      "en": {
+        "text": "Keep a working fire extinguisher in the cab and check it once a year",
+        "why": "An engine-bay fire can only be put out in the first minutes."
+      }
+    },
+    {
+      "code": "vh_antitheft",
+      "groups": [
+        "vehicle"
+      ],
+      "when": {
+        "protection_not": [
+          "immo",
+          "tracker"
+        ]
+      },
+      "effect": {
+        "class": "3",
+        "factor": "antitheft",
+        "option": "tracker"
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Установить иммобилайзер или систему спутникового поиска",
+        "why": "Угон — наибольший убыток по транспорту; поиск позволяет вернуть машину."
+      },
+      "uz": {
+        "text": "Immobilayzer yoki sunʼiy yoʻldosh qidiruv tizimini oʻrnatish",
+        "why": "Oʻgʻirlash transport boʻyicha eng katta zarar; qidiruv avtomobilni qaytarishga imkon beradi."
+      },
+      "en": {
+        "text": "Install an immobiliser or a satellite tracking system",
+        "why": "Theft is the largest vehicle loss; tracking makes recovery possible."
+      }
+    },
+    {
+      "code": "vh_parking",
+      "groups": [
+        "vehicle"
+      ],
+      "when": {
+        "location": [
+          "open_area",
+          "construction",
+          "port"
+        ],
+        "not_guarded": true
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "На ночь ставить машину на охраняемую стоянку",
+        "why": "Ночная стоянка без охраны — основное условие угона и повреждений."
+      },
+      "uz": {
+        "text": "Tunda avtomobilni qoʻriqlanadigan turargohga qoʻyish",
+        "why": "Qoʻriqsiz tungi turargoh oʻgʻirlash va shikastlanishning asosiy sharti."
+      },
+      "en": {
+        "text": "Park the vehicle overnight in a guarded car park",
+        "why": "Unguarded overnight parking is the main condition for theft and damage."
+      }
+    },
+    {
+      "code": "vh_drivers",
+      "groups": [
+        "vehicle"
+      ],
+      "when": {},
+      "effect": {
+        "class": "3",
+        "factor": "drivers",
+        "option": "limited"
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Ограничить список водителей: стаж не меньше трёх лет",
+        "why": "Молодые и неопытные водители чаще попадают в ДТП."
+      },
+      "uz": {
+        "text": "Haydovchilar roʻyxatini cheklash: staj kamida uch yil",
+        "why": "Yosh va tajribasiz haydovchilar koʻproq YTHga tushadi."
+      },
+      "en": {
+        "text": "Limit the list of drivers to those with at least three years' experience",
+        "why": "Young and inexperienced drivers have more accidents."
+      }
+    },
+    {
+      "code": "pr_fire_alarm",
+      "groups": [
+        "property"
+      ],
+      "when": {
+        "classes": [
+          "8"
+        ],
+        "protection_unknown": true
+      },
+      "deadline_days": 60,
+      "effect": {
+        "class": "8",
+        "factor": "protection",
+        "option": "alarm_guard"
+      },
+      "ru": {
+        "text": "Подтвердить пожарную сигнализацию с выводом на пульт и охрану объекта; при отсутствии — установить и заключить договор охраны",
+        "why": "Раннее обнаружение пожара и охрана сокращают и пожарные, и криминальные убытки."
+      },
+      "uz": {
+        "text": "Pultga ulangan yongʻin signalizatsiyasi va obyekt qoʻriqlanishini tasdiqlash; boʻlmasa — oʻrnatish va qoʻriqlash shartnomasini tuzish",
+        "why": "Yongʻinni erta aniqlash va qoʻriqlash yongʻin va jinoiy zararlarni kamaytiradi."
+      },
+      "en": {
+        "text": "Confirm a monitored fire alarm and site security; if absent, install one and sign a security contract",
+        "why": "Early fire detection and security reduce both fire and crime losses."
+      }
+    },
+    {
+      "code": "pr_extinguishers",
+      "groups": [
+        "property",
+        "equipment"
+      ],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Огнетушители по нормам с ежегодной проверкой, свободные проходы и эвакуационные выходы",
+        "why": "Первичные средства тушат большинство возгораний до прибытия пожарных."
+      },
+      "uz": {
+        "text": "Meʼyor boʻyicha yillik tekshiruvli oʻt oʻchirgichlar, boʻsh yoʻlaklar va evakuatsiya chiqishlari",
+        "why": "Birlamchi vositalar koʻpchilik yongʻinlarni oʻt oʻchiruvchilar kelguncha oʻchiradi."
+      },
+      "en": {
+        "text": "Fire extinguishers as required with annual checks, clear aisles and emergency exits",
+        "why": "First-aid equipment puts out most fires before the fire brigade arrives."
+      }
+    },
+    {
+      "code": "wh_storage",
+      "groups": [
+        "property"
+      ],
+      "when": {
+        "any_of": [
+          {
+            "kinds": [
+              "warehouse"
+            ]
+          },
+          {
+            "classes": [
+              "9"
+            ]
+          }
+        ]
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Хранить товар на стеллажах или поддонах не ниже 10 см от пола, проходы держать свободными",
+        "why": "Товар на полу первым страдает от залива, а загромождённые проходы мешают тушению."
+      },
+      "uz": {
+        "text": "Tovarni poldan kamida 10 sm balandlikda stellaj yoki poddonlarda saqlash, yoʻlaklarni boʻsh tutish",
+        "why": "Poldagi tovar birinchi boʻlib suv bosishdan zarar koʻradi, band yoʻlaklar oʻchirishga xalaqit beradi."
+      },
+      "en": {
+        "text": "Store goods on racks or pallets at least 10 cm above the floor and keep aisles clear",
+        "why": "Goods on the floor are the first to suffer from flooding, and blocked aisles hinder fire-fighting."
+      }
+    },
+    {
+      "code": "eq_power",
+      "groups": [
+        "equipment"
+      ],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Подключить оборудование через стабилизатор или источник бесперебойного питания, проверить заземление",
+        "why": "Скачки напряжения — основная причина поломки электрооборудования."
+      },
+      "uz": {
+        "text": "Uskunani stabilizator yoki uzluksiz quvvat manbai orqali ulash, yerga ulashni tekshirish",
+        "why": "Kuchlanish sakrashlari elektr uskunalari buzilishining asosiy sababi."
+      },
+      "en": {
+        "text": "Connect equipment through a voltage stabiliser or UPS and check the earthing",
+        "why": "Voltage surges are the main cause of electrical equipment breakdown."
+      }
+    },
+    {
+      "code": "eq_maintenance",
+      "groups": [
+        "equipment"
+      ],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Обслуживать оборудование по регламенту изготовителя и вести журнал обслуживания",
+        "why": "Без журнала обслуживания поломку трудно отличить от износа."
+      },
+      "uz": {
+        "text": "Uskunaga ishlab chiqaruvchi reglamenti boʻyicha xizmat koʻrsatish va xizmat jurnalini yuritish",
+        "why": "Xizmat jurnalisiz buzilishni eskirishdan ajratish qiyin."
+      },
+      "en": {
+        "text": "Maintain equipment per the manufacturer's schedule and keep a maintenance log",
+        "why": "Without a maintenance log a breakdown is hard to distinguish from wear."
+      }
+    },
+    {
+      "code": "cg_packing",
+      "groups": [
+        "cargo"
+      ],
+      "when": {},
+      "effect": {
+        "class": "7",
+        "factor": "cargo_pack",
+        "option": "factory"
+      },
+      "deadline_days": 1,
+      "ru": {
+        "text": "Упаковка по правилам перевозки, крепление груза в кузове и фотофиксация при загрузке",
+        "why": "Незакреплённый и плохо упакованный груз повреждается даже без аварии."
+      },
+      "uz": {
+        "text": "Tashish qoidalari boʻyicha qadoqlash, yukni kuzovda mahkamlash va yuklashda suratga olish",
+        "why": "Mahkamlanmagan va yomon qadoqlangan yuk avariyasiz ham shikastlanadi."
+      },
+      "en": {
+        "text": "Pack to carriage standards, secure the load in the vehicle and photograph it at loading",
+        "why": "Unsecured and poorly packed cargo gets damaged even without an accident."
+      }
+    },
+    {
+      "code": "cg_route",
+      "groups": [
+        "cargo"
+      ],
+      "when": {},
+      "deadline_days": 1,
+      "ru": {
+        "text": "Стоянки в пути — только на охраняемых площадках, маршрут согласован заранее",
+        "why": "Кража груза чаще всего происходит на неохраняемой стоянке."
+      },
+      "uz": {
+        "text": "Yoʻldagi toʻxtashlar — faqat qoʻriqlanadigan maydonchalarda, yoʻnalish oldindan kelishilgan",
+        "why": "Yuk oʻgʻirligi koʻpincha qoʻriqlanmaydigan toʻxtash joyida sodir boʻladi."
+      },
+      "en": {
+        "text": "Stop en route only at guarded parking areas; agree the route in advance",
+        "why": "Cargo theft most often happens at unguarded stops."
+      }
+    },
+    {
+      "code": "cg_docs",
+      "groups": [
+        "cargo"
+      ],
+      "when": {},
+      "deadline_days": 1,
+      "ru": {
+        "text": "Составлять опись груза и акт приёма-передачи с отметкой о состоянии",
+        "why": "Без описи размер убытка и момент повреждения не доказать."
+      },
+      "uz": {
+        "text": "Yuk roʻyxati va holati koʻrsatilgan qabul-topshirish dalolatnomasini tuzish",
+        "why": "Roʻyxatsiz zarar miqdori va shikastlanish vaqtini isbotlab boʻlmaydi."
+      },
+      "en": {
+        "text": "Draw up a cargo inventory and a handover certificate noting its condition",
+        "why": "Without an inventory the size and timing of damage cannot be proven."
+      }
+    },
+    {
+      "code": "all_loss_review",
+      "groups": [
+        "special",
+        "vehicle",
+        "equipment",
+        "cargo"
+      ],
+      "when": {
+        "losses_min": 1
+      },
+      "deadline_days": 30,
+      "ru": {
+        "text": "Разобрать причины прошлых убытков и представить план их устранения",
+        "why": "Повторяющиеся убытки означают неустранённую причину, а не невезение."
+      },
+      "uz": {
+        "text": "Oʻtgan zararlar sabablarini tahlil qilish va ularni bartaraf etish rejasini taqdim etish",
+        "why": "Takrorlanuvchi zararlar bartaraf etilmagan sababni bildiradi, omadsizlikni emas."
+      },
+      "en": {
+        "text": "Analyse the causes of past losses and submit a plan to eliminate them",
+        "why": "Repeated losses mean an unresolved cause, not bad luck."
+      }
+    },
+    {
+      "code": "pa_briefing",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Проводить инструктажи по охране труда и технике безопасности с записью в журнале",
+        "why": "Несчастные случаи на работе чаще всего связаны с нарушением правил безопасности."
+      },
+      "uz": {
+        "text": "Mehnat muhofazasi va xavfsizlik texnikasi boʻyicha yoʻriqnomalarni jurnalga yozgan holda oʻtkazish",
+        "why": "Ishdagi baxtsiz hodisalar koʻpincha xavfsizlik qoidalarining buzilishi bilan bogʻliq."
+      },
+      "en": {
+        "text": "Hold safety briefings and record them in a log",
+        "why": "Work accidents are mostly linked to breaches of safety rules."
+      }
+    },
+    {
+      "code": "pa_ppe",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Обеспечить работников средствами индивидуальной защиты и контролировать их применение",
+        "why": "Средства защиты снижают тяжесть травм."
+      },
+      "uz": {
+        "text": "Xodimlarni shaxsiy himoya vositalari bilan taʼminlash va ulardan foydalanishni nazorat qilish",
+        "why": "Himoya vositalari jarohatlar ogʻirligini kamaytiradi."
+      },
+      "en": {
+        "text": "Provide personal protective equipment and check its use",
+        "why": "Protective equipment reduces the severity of injuries."
+      }
+    },
+    {
+      "code": "pa_medical",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проводить предварительные и периодические медицинские осмотры работников опасных профессий",
+        "why": "Осмотр выявляет противопоказания до того, как они приведут к несчастному случаю."
+      },
+      "uz": {
+        "text": "Xavfli kasb xodimlarini dastlabki va davriy tibbiy koʻrikdan oʻtkazish",
+        "why": "Koʻrik baxtsiz hodisaga olib kelmasdan oldin qarshi koʻrsatmalarni aniqlaydi."
+      },
+      "en": {
+        "text": "Arrange pre-employment and periodic medical checks for hazardous jobs",
+        "why": "Checks find contraindications before they lead to an accident."
+      }
+    },
+    {
+      "code": "hl_checkup",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Организовать ежегодный профилактический осмотр и вакцинацию сотрудников",
+        "why": "Раннее выявление заболеваний снижает стоимость лечения."
+      },
+      "uz": {
+        "text": "Xodimlarning yillik profilaktik koʻrigi va emlanishini tashkil etish",
+        "why": "Kasalliklarni erta aniqlash davolanish narxini kamaytiradi."
+      },
+      "en": {
+        "text": "Arrange annual check-ups and vaccination for employees",
+        "why": "Early detection lowers the cost of treatment."
+      }
+    },
+    {
+      "code": "hl_network",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Направлять застрахованных в клиники из согласованного списка по согласованным ценам",
+        "why": "Цены вне сети клиник выше и хуже контролируются."
+      },
+      "uz": {
+        "text": "Sugʻurtalanganlarni kelishilgan roʻyxatdagi klinikalarga kelishilgan narxlarda yoʻnaltirish",
+        "why": "Tarmoqdan tashqaridagi narxlar yuqori va yomon nazorat qilinadi."
+      },
+      "en": {
+        "text": "Send insured persons to network clinics at agreed prices",
+        "why": "Out-of-network prices are higher and harder to control."
+      }
+    },
+    {
+      "code": "hl_control",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Назначить ответственного за учёт обращений и сверку счетов клиник",
+        "why": "Сверка счетов исключает оплату лишних услуг."
+      },
+      "uz": {
+        "text": "Murojaatlar hisobi va klinikalar hisoblarini solishtirish uchun masʼul tayinlash",
+        "why": "Hisoblarni solishtirish ortiqcha xizmatlar uchun toʻlovni istisno qiladi."
+      },
+      "en": {
+        "text": "Appoint someone to track visits and reconcile clinic bills",
+        "why": "Reconciliation prevents paying for unnecessary services."
+      }
+    },
+    {
+      "code": "hl_preauth",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Согласовывать плановую госпитализацию и дорогие исследования со страховщиком до их начала",
+        "why": "Предварительное согласование отсекает лишние и завышенные услуги до оплаты."
+      },
+      "uz": {
+        "text": "Rejali gospitalizatsiya va qimmat tekshiruvlarni boshlanishidan oldin sugʻurtalovchi bilan kelishish",
+        "why": "Oldindan kelishish ortiqcha va oshirilgan xizmatlarni toʻlovdan oldin kesadi."
+      },
+      "en": {
+        "text": "Agree planned hospital stays and costly tests with the insurer before they start",
+        "why": "Prior approval screens out unnecessary and overpriced services before payment."
+      }
+    },
+    {
+      "code": "rl_depot",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проводить плановые ремонты в депо по графику и хранить акты ремонта",
+        "why": "Пропуск ремонта — частая причина схода с рельсов и отказов узлов."
+      },
+      "uz": {
+        "text": "Rejali taʼmirlarni depoda jadval boʻyicha oʻtkazish va taʼmir dalolatnomalarini saqlash",
+        "why": "Taʼmirni oʻtkazib yuborish relsdan chiqish va qismlar ishdan chiqishining koʻp uchraydigan sababi."
+      },
+      "en": {
+        "text": "Carry out scheduled depot repairs and keep the repair records",
+        "why": "A missed repair is a frequent cause of derailment and component failure."
+      }
+    },
+    {
+      "code": "rl_dangerous_goods",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Опасные грузы — только в исправных цистернах и вагонах с маркировкой и допуском",
+        "why": "Утечка или пожар опасного груза даёт самые крупные убытки."
+      },
+      "uz": {
+        "text": "Xavfli yuklar — faqat markirovka va ruxsatnomaga ega soz sisterna va vagonlarda",
+        "why": "Xavfli yukning oqishi yoki yongʻini eng yirik zararlarni beradi."
+      },
+      "en": {
+        "text": "Carry dangerous goods only in sound, marked and approved tank cars and wagons",
+        "why": "Leaks or fires of dangerous goods cause the largest losses."
+      }
+    },
+    {
+      "code": "rl_shunting_rules",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Соблюдать скорость и порядок манёвров, вести журнал манёвровых работ",
+        "why": "Повреждения при манёврах — самые частые убытки подвижного состава."
+      },
+      "uz": {
+        "text": "Manyovr tezligi va tartibiga rioya qilish, manyovr ishlari jurnalini yuritish",
+        "why": "Manyovrdagi shikastlanishlar — harakat tarkibining eng koʻp uchraydigan zararlari."
+      },
+      "en": {
+        "text": "Keep shunting speeds and procedures and log shunting work",
+        "why": "Shunting damage is the most frequent rolling stock loss."
+      }
+    },
+    {
+      "code": "av_maintenance",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Техническое обслуживание — только в сертифицированной организации, с записями в формуляре",
+        "why": "Отказ техники из-за пропущенного обслуживания — одна из главных причин авиационных происшествий."
+      },
+      "uz": {
+        "text": "Texnik xizmat — faqat sertifikatlangan tashkilotda, formulyarga yozuv bilan",
+        "why": "Oʻtkazib yuborilgan xizmat tufayli texnika ishdan chiqishi — aviatsiya hodisalarining asosiy sabablaridan biri."
+      },
+      "en": {
+        "text": "Maintain the aircraft only at a certified organisation and record it in the logbook",
+        "why": "Technical failure from missed maintenance is a leading cause of aviation accidents."
+      }
+    },
+    {
+      "code": "av_crew_training",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проходить тренажёрную подготовку экипажа по графику",
+        "why": "Ошибка экипажа — основная причина авиационных происшествий."
+      },
+      "uz": {
+        "text": "Ekipajni jadval boʻyicha trenajyorda tayyorlash",
+        "why": "Ekipaj xatosi — aviatsiya hodisalarining asosiy sababi."
+      },
+      "en": {
+        "text": "Keep crew simulator training on schedule",
+        "why": "Crew error is the main cause of aviation accidents."
+      }
+    },
+    {
+      "code": "av_hangar",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Хранить воздушное судно в ангаре или на охраняемой стоянке, аэродром базы — с орнитологическим обеспечением",
+        "why": "Повреждения на земле и столкновения с птицами — частые убытки."
+      },
+      "uz": {
+        "text": "Havo kemasini angarda yoki qoʻriqlanadigan turargohda saqlash, baza aerodromi — ornitologik taʼminot bilan",
+        "why": "Yerdagi shikastlanishlar va qushlar bilan toʻqnashuv — koʻp uchraydigan zararlar."
+      },
+      "en": {
+        "text": "Keep the aircraft in a hangar or a guarded stand; the home airfield should have bird control",
+        "why": "Ground damage and bird strikes are frequent losses."
+      }
+    },
+    {
+      "code": "mr_survey",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проходить освидетельствование судна классификационным обществом в срок",
+        "why": "Судно без действующего класса — повод для отказа в выплате и признак износа."
+      },
+      "uz": {
+        "text": "Kemani klassifikatsiya jamiyatida oʻz vaqtida koʻrikdan oʻtkazish",
+        "why": "Amaldagi klassiz kema — toʻlovni rad etish uchun asos va eskirish belgisi."
+      },
+      "en": {
+        "text": "Have the vessel surveyed by its classification society on time",
+        "why": "A vessel without valid class is a ground to decline claims and a sign of wear."
+      }
+    },
+    {
+      "code": "mr_crew_cert",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Укомплектовать экипаж по нормам, с действующими дипломами и свидетельствами",
+        "why": "Неподготовленный экипаж — частая причина посадки на мель и столкновений."
+      },
+      "uz": {
+        "text": "Ekipajni meʼyor boʻyicha, amaldagi diplom va guvohnomalar bilan toʻldirish",
+        "why": "Tayyorlanmagan ekipaj — sayozlikka oʻtirish va toʻqnashuvlarning koʻp uchraydigan sababi."
+      },
+      "en": {
+        "text": "Man the vessel as required with properly certified crew",
+        "why": "An untrained crew is a frequent cause of groundings and collisions."
+      }
+    },
+    {
+      "code": "mr_weather",
+      "groups": [],
+      "when": {},
+      "deadline_days": 1,
+      "ru": {
+        "text": "Выходить в плавание только при допустимом прогнозе погоды для района и класса судна",
+        "why": "Шторм — один из катастрофических рисков морского каско."
+      },
+      "uz": {
+        "text": "Faqat hudud va kema klassi uchun ruxsat etilgan ob-havo prognozida suzishga chiqish",
+        "why": "Boʻron — dengiz kaskosining falokat xavflaridan biri."
+      },
+      "en": {
+        "text": "Sail only with a weather forecast acceptable for the area and the vessel's class",
+        "why": "Heavy weather is one of the catastrophe risks of marine hull."
+      }
+    },
+    {
+      "code": "mt_training",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Проводить обучение водителей безопасному вождению и разбирать нарушения ПДД",
+        "why": "Нарушения ПДД — главный признак будущих ДТП."
+      },
+      "uz": {
+        "text": "Haydovchilarni xavfsiz haydashga oʻrgatish va YHQ buzilishlarini tahlil qilish",
+        "why": "YHQ buzilishlari — kelgusi YTHlarning asosiy belgisi."
+      },
+      "en": {
+        "text": "Train drivers in safe driving and review traffic violations",
+        "why": "Traffic violations are the main predictor of accidents."
+      }
+    },
+    {
+      "code": "mt_telematics",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Установить телематику (контроль скорости и маршрута) на транспорт организации",
+        "why": "Контроль скорости снижает частоту и тяжесть ДТП."
+      },
+      "uz": {
+        "text": "Tashkilot transportiga telematika (tezlik va yoʻnalish nazorati) oʻrnatish",
+        "why": "Tezlik nazorati YTH chastotasi va ogʻirligini kamaytiradi."
+      },
+      "en": {
+        "text": "Fit telematics (speed and route control) to the fleet",
+        "why": "Speed control reduces accident frequency and severity."
+      }
+    },
+    {
+      "code": "mt_inspection",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Проходить технический осмотр в срок и ежедневный предрейсовый контроль",
+        "why": "Неисправные тормоза и шины — частая причина ДТП."
+      },
+      "uz": {
+        "text": "Texnik koʻrikdan oʻz vaqtida va har kuni reys oldi nazoratidan oʻtish",
+        "why": "Nosoz tormoz va shinalar — YTHning koʻp uchraydigan sababi."
+      },
+      "en": {
+        "text": "Keep technical inspections on time and do daily pre-trip checks",
+        "why": "Faulty brakes and tyres are a frequent cause of accidents."
+      }
+    },
+    {
+      "code": "al_ground_handling",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Заключить договоры наземного обслуживания и безопасности с аэропортами базирования",
+        "why": "Большинство претензий третьих лиц на земле возникает при наземном обслуживании."
+      },
+      "uz": {
+        "text": "Bazalanish aeroportlari bilan yerusti xizmati va xavfsizlik shartnomalarini tuzish",
+        "why": "Yerdagi uchinchi shaxslar daʼvolarining aksariyati yerusti xizmati paytida yuzaga keladi."
+      },
+      "en": {
+        "text": "Sign ground handling and safety agreements with base airports",
+        "why": "Most third-party ground claims arise during ground handling."
+      }
+    },
+    {
+      "code": "ml_spill_plan",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Иметь план ликвидации разливов и средства сбора нефтепродуктов на борту",
+        "why": "Быстрая локализация разлива кратно снижает ответственность за загрязнение."
+      },
+      "uz": {
+        "text": "Toʻkilmalarni bartaraf etish rejasi va bortda neft mahsulotlarini yigʻish vositalariga ega boʻlish",
+        "why": "Toʻkilmani tez cheklash ifloslanish uchun javobgarlikni bir necha barobar kamaytiradi."
+      },
+      "en": {
+        "text": "Keep a spill response plan and oil recovery equipment on board",
+        "why": "Quick containment of a spill cuts pollution liability many times."
+      }
+    },
+    {
+      "code": "gl_safety",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Назначить ответственного за охрану труда, провести аттестацию рабочих мест",
+        "why": "Вред работнику — одна из основных выплат по ответственности работодателя."
+      },
+      "uz": {
+        "text": "Mehnat muhofazasi uchun masʼul tayinlash, ish joylarini attestatsiyadan oʻtkazish",
+        "why": "Xodimga zarar — ish beruvchi javobgarligi boʻyicha asosiy toʻlovlardan biri."
+      },
+      "en": {
+        "text": "Appoint an occupational safety officer and assess workplaces",
+        "why": "Employee injury is one of the main employer's liability payments."
+      }
+    },
+    {
+      "code": "gl_visitors",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Обеспечить безопасность посетителей: освещение, нескользкие покрытия, свободные эвакуационные пути",
+        "why": "Падения посетителей — самые частые претензии третьих лиц."
+      },
+      "uz": {
+        "text": "Tashrif buyuruvchilar xavfsizligini taʼminlash: yoritish, sirpanmaydigan qoplamalar, boʻsh evakuatsiya yoʻllari",
+        "why": "Tashrif buyuruvchilarning yiqilishi — uchinchi shaxslarning eng koʻp uchraydigan daʼvolari."
+      },
+      "en": {
+        "text": "Keep visitors safe: lighting, non-slip floors, clear escape routes",
+        "why": "Visitor falls are the most frequent third-party claims."
+      }
+    },
+    {
+      "code": "gl_claims_log",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Вести журнал претензий и происшествий, сообщать страховщику о каждом",
+        "why": "Своевременное уведомление снижает размер урегулирования."
+      },
+      "uz": {
+        "text": "Daʼvolar va hodisalar jurnalini yuritish, har biri haqida sugʻurtalovchiga xabar berish",
+        "why": "Oʻz vaqtida xabar berish hal qilish summasini kamaytiradi."
+      },
+      "en": {
+        "text": "Keep a log of claims and incidents and report each to the insurer",
+        "why": "Prompt notice reduces settlement amounts."
+      }
+    },
+    {
+      "code": "gl_contractors",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "В договорах с подрядчиками предусматривать их ответственность и страхование",
+        "why": "Ответственность переходит на виновника и не ложится на страхователя."
+      },
+      "uz": {
+        "text": "Pudratchilar bilan shartnomalarda ularning javobgarligi va sugʻurtasini nazarda tutish",
+        "why": "Javobgarlik aybdorga oʻtadi va sugʻurtalanuvchiga tushmaydi."
+      },
+      "en": {
+        "text": "Require contractors to carry liability and insurance under their contracts",
+        "why": "Liability passes to the party at fault instead of the policyholder."
+      }
+    },
+    {
+      "code": "cr_collateral_monitor",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Проверять наличие и стоимость залога не реже раза в полгода",
+        "why": "Обесценение залога увеличивает необеспеченную часть кредита."
+      },
+      "uz": {
+        "text": "Garov mavjudligi va qiymatini kamida yarim yilda bir marta tekshirish",
+        "why": "Garov qadrsizlanishi kreditning taʼminlanmagan qismini oshiradi."
+      },
+      "en": {
+        "text": "Check the existence and value of collateral at least every six months",
+        "why": "A fall in collateral value increases the unsecured part of the loan."
+      }
+    },
+    {
+      "code": "cr_reporting",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Получать от заёмщика квартальную финансовую отчётность",
+        "why": "Ухудшение показателей видно до просрочки."
+      },
+      "uz": {
+        "text": "Qarz oluvchidan choraklik moliyaviy hisobot olish",
+        "why": "Koʻrsatkichlar yomonlashuvi muddat oʻtishidan oldin koʻrinadi."
+      },
+      "en": {
+        "text": "Obtain quarterly financial statements from the borrower",
+        "why": "Deterioration shows before payments fall overdue."
+      }
+    },
+    {
+      "code": "cr_early_warning",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Сообщать страховщику о просрочке свыше 30 дней и о реструктуризации",
+        "why": "Раннее уведомление даёт время на взыскание и снижает убыток."
+      },
+      "uz": {
+        "text": "30 kundan ortiq muddat oʻtishi va restrukturizatsiya haqida sugʻurtalovchiga xabar berish",
+        "why": "Erta xabar undirish uchun vaqt beradi va zararni kamaytiradi."
+      },
+      "en": {
+        "text": "Report overdue payments beyond 30 days and any restructuring to the insurer",
+        "why": "Early notice gives time for recovery and reduces the loss."
+      }
+    },
+    {
+      "code": "gt_counter_security",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Оформить встречное обеспечение принципала (залог, поручительство) до выдачи гарантии",
+        "why": "Встречное обеспечение возвращает выплату по гарантии."
+      },
+      "uz": {
+        "text": "Kafolat berilishidan oldin prinsipalning qarshi taʼminotini (garov, kafillik) rasmiylashtirish",
+        "why": "Qarshi taʼminot kafolat boʻyicha toʻlovni qaytaradi."
+      },
+      "en": {
+        "text": "Arrange the principal's counter-security (pledge, surety) before issue",
+        "why": "Counter-security recovers the guarantee payment."
+      }
+    },
+    {
+      "code": "gt_milestones",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Контролировать исполнение договора по этапам и актам приёмки",
+        "why": "Отставание от графика видно до требования бенефициара."
+      },
+      "uz": {
+        "text": "Shartnoma bajarilishini bosqichlar va qabul dalolatnomalari boʻyicha nazorat qilish",
+        "why": "Jadvaldan orqada qolish benefitsiar talabidan oldin koʻrinadi."
+      },
+      "en": {
+        "text": "Track contract performance by milestones and acceptance certificates",
+        "why": "Delays become visible before the beneficiary's demand."
+      }
+    },
+    {
+      "code": "gt_reporting",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Получать от принципала отчётность не реже раза в квартал",
+        "why": "Финансовые трудности принципала — главный признак неисполнения."
+      },
+      "uz": {
+        "text": "Prinsipaldan kamida chorakda bir marta hisobot olish",
+        "why": "Prinsipalning moliyaviy qiyinchiliklari — bajarmaslikning asosiy belgisi."
+      },
+      "en": {
+        "text": "Obtain the principal's financial statements at least quarterly",
+        "why": "The principal's financial difficulty is the main sign of non-performance."
+      }
+    },
+    {
+      "code": "fn_bcp",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Разработать план непрерывности деятельности с резервными площадками и оборудованием",
+        "why": "План сокращает срок восстановления — главный множитель убытка."
+      },
+      "uz": {
+        "text": "Zaxira maydonlar va uskunalar bilan faoliyat uzluksizligi rejasini ishlab chiqish",
+        "why": "Reja tiklanish muddatini qisqartiradi — zararning asosiy koʻpaytiruvchisi."
+      },
+      "en": {
+        "text": "Draw up a business continuity plan with backup sites and equipment",
+        "why": "A plan shortens the recovery time — the main multiplier of the loss."
+      }
+    },
+    {
+      "code": "fn_suppliers",
+      "groups": [],
+      "when": {},
+      "deadline_days": 90,
+      "ru": {
+        "text": "Иметь резервных поставщиков критичного сырья и комплектующих",
+        "why": "Зависимость от одного поставщика растягивает остановку."
+      },
+      "uz": {
+        "text": "Muhim xomashyo va butlovchi qismlarning zaxira yetkazib beruvchilariga ega boʻlish",
+        "why": "Bitta yetkazib beruvchiga bogʻliqlik toʻxtashni choʻzadi."
+      },
+      "en": {
+        "text": "Keep alternative suppliers of critical materials and parts",
+        "why": "Dependence on one supplier prolongs a stoppage."
+      }
+    },
+    {
+      "code": "fn_accounting",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Вести помесячный учёт выручки и постоянных расходов",
+        "why": "Без учёта размер потери прибыли не доказать."
+      },
+      "uz": {
+        "text": "Tushum va doimiy xarajatlarni oylik hisobini yuritish",
+        "why": "Hisobsiz foyda yoʻqotilishi miqdorini isbotlab boʻlmaydi."
+      },
+      "en": {
+        "text": "Keep monthly records of revenue and fixed costs",
+        "why": "Without records the loss of profit cannot be proven."
+      }
+    },
+    {
+      "code": "lg_contract_review",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Проводить юридическую экспертизу договоров до подписания",
+        "why": "Большинство споров возникает из неточных условий договора."
+      },
+      "uz": {
+        "text": "Shartnomalarni imzolashdan oldin yuridik ekspertizadan oʻtkazish",
+        "why": "Nizolarning aksariyati shartnomaning noaniq shartlaridan kelib chiqadi."
+      },
+      "en": {
+        "text": "Have contracts legally reviewed before signing",
+        "why": "Most disputes arise from unclear contract terms."
+      }
+    },
+    {
+      "code": "lg_pretrial",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Использовать досудебное урегулирование и претензионный порядок",
+        "why": "Досудебное урегулирование дешевле суда."
+      },
+      "uz": {
+        "text": "Suddan tashqari hal qilish va daʼvo tartibidan foydalanish",
+        "why": "Suddan tashqari hal qilish suddan arzonroq."
+      },
+      "en": {
+        "text": "Use pre-trial settlement and the claims procedure",
+        "why": "Pre-trial settlement is cheaper than court."
+      }
+    },
+    {
+      "code": "lg_records",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Хранить договоры, переписку и первичные документы в упорядоченном архиве",
+        "why": "Документы решают исход спора и сокращают расходы на экспертизу."
+      },
+      "uz": {
+        "text": "Shartnomalar, yozishmalar va birlamchi hujjatlarni tartibli arxivda saqlash",
+        "why": "Hujjatlar nizo natijasini hal qiladi va ekspertiza xarajatlarini kamaytiradi."
+      },
+      "en": {
+        "text": "Keep contracts, correspondence and source documents in an orderly archive",
+        "why": "Documents decide disputes and cut the cost of expert examination."
+      }
+    },
+    {
+      "code": "bl_katm_refresh",
+      "groups": [],
+      "when": {},
+      "deadline_days": 180,
+      "ru": {
+        "text": "Обновлять отчёт кредитного бюро (КАТМ) по заёмщику не реже раза в полгода",
+        "why": "Новые просрочки заёмщика в других банках — ранний признак невозврата."
+      },
+      "uz": {
+        "text": "Qarz oluvchi boʻyicha kredit byurosi (KATM) hisobotini kamida yarim yilda bir marta yangilash",
+        "why": "Qarz oluvchining boshqa banklardagi yangi kechikishlari — qaytarmaslikning erta belgisi."
+      },
+      "en": {
+        "text": "Refresh the credit bureau (KATM) report on the borrower at least every six months",
+        "why": "New arrears at other banks are an early sign of default."
+      }
+    },
+    {
+      "code": "cp_irrigation",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Обеспечить полив по графику и резерв воды на период засухи",
+        "why": "Засуха — главный риск урожая; орошаемые поля теряют меньше."
+      },
+      "uz": {
+        "text": "Jadval boʻyicha sugʻorish va qurgʻoqchilik davri uchun suv zaxirasini taʼminlash",
+        "why": "Qurgʻoqchilik — hosilning asosiy xavfi; sugʻoriladigan dalalar kamroq yoʻqotadi."
+      },
+      "en": {
+        "text": "Irrigate on schedule and keep a water reserve for droughts",
+        "why": "Drought is the main crop risk; irrigated fields lose less."
+      }
+    },
+    {
+      "code": "cp_plant_protection",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Проводить обработку против вредителей и болезней по рекомендации агронома и вести журнал обработок",
+        "why": "Болезни и вредители дают заметную долю убытков; журнал подтверждает агротехнику при урегулировании."
+      },
+      "uz": {
+        "text": "Agronom tavsiyasiga koʻra zararkunanda va kasalliklarga qarshi ishlov berish va ishlov berish jurnalini yuritish",
+        "why": "Kasallik va zararkunandalar zararlarning sezilarli qismini beradi; jurnal tartibga solishda agrotexnikani tasdiqlaydi."
+      },
+      "en": {
+        "text": "Treat against pests and diseases as advised by an agronomist and keep a treatment log",
+        "why": "Pests and diseases cause a notable share of losses; the log proves good practice when settling claims."
+      }
+    },
+    {
+      "code": "cp_frost_hail",
+      "groups": [],
+      "when": {},
+      "deadline_days": 60,
+      "ru": {
+        "text": "Предусмотреть защиту от заморозков и града (дымление, укрытия, противоградовые сетки) для садов и виноградников",
+        "why": "Заморозки и град уничтожают урожай за несколько часов."
+      },
+      "uz": {
+        "text": "Bogʻ va uzumzorlar uchun sovuq va doʻldan himoyani (tutatish, yopqichlar, doʻlga qarshi toʻrlar) koʻzda tutish",
+        "why": "Sovuq va doʻl hosilni bir necha soatda yoʻq qiladi."
+      },
+      "en": {
+        "text": "Provide frost and hail protection (smudging, covers, anti-hail nets) for orchards and vineyards",
+        "why": "Frost and hail destroy a crop within hours."
+      }
+    },
+    {
+      "code": "cp_field_monitoring",
+      "groups": [],
+      "when": {},
+      "deadline_days": 30,
+      "ru": {
+        "text": "Фотографировать поле в ключевые фазы роста (всходы, цветение, перед уборкой)",
+        "why": "Снимки по фазам подтверждают состояние посевов до страхового случая."
+      },
+      "uz": {
+        "text": "Dalani oʻsishning asosiy bosqichlarida (unib chiqish, gullash, yigʻim oldidan) suratga olish",
+        "why": "Bosqichlar boʻyicha suratlar sugʻurta hodisasigacha ekinlar holatini tasdiqlaydi."
+      },
+      "en": {
+        "text": "Photograph the field at key growth stages (emergence, flowering, before harvest)",
+        "why": "Stage photos prove the crop condition before the insured event."
+      }
+    }
   ]
 }

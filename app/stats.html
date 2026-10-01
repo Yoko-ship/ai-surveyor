@@ -257,6 +257,11 @@ tfoot td{font-weight:700;border-top:1px solid var(--line);border-bottom:0;paddin
         <h2>Регионы: премии и проникновение</h2><p id="regSub">премии с начала года; проникновение — премии к ВРП</p>
         <div id="regBox"></div><div class="srcslot"></div>
       </div>
+      <div class="card wide" id="chBr">
+        <div class="dhead"><div><h2>Подразделения</h2><p id="brSub">обособленные подразделения страховщика по регионам (листы 2.12–2.14 отчёта НАПП)</p></div>
+          <label class="note" style="margin:0">Страховщик <select id="fBrCo"></select></label></div>
+        <div id="brBox"></div><div class="srcslot"></div>
+      </div>
     </div>
     <p class="note">Цифры — из квартальных отчётов НАПП (таблица рынка этой страницы), премии и выплаты нарастающим итогом с начала года.
       По регионам НАПП даёт только итог по всем видам страхования, по страховщикам — общее страхование: суммы разных разрезов между собой не совпадают.
@@ -550,19 +555,20 @@ function summary(dates,labels){
 
 function longRows(){
   const out=[];
-  nappSel().forEach(k=>(SERIES[k]||[]).forEach(p=>out.push([p.label,p.date,shortName(k),p.premiums_ytd,p.payouts_ytd,p.q_premiums,p.loss_ratio,p.annual_rate,p.liabilities])));
+  nappSel().forEach(k=>(SERIES[k]||[]).forEach(p=>out.push([p.label,p.date,shortName(k),p.premiums_ytd,p.payouts_ytd,p.q_premiums,p.loss_ratio,p.annual_rate,p.liabilities,p.note||""])));
   out.sort((a,b)=>a[1]===b[1]?a[2].localeCompare(b[2],"ru"):(a[1]<b[1]?1:-1));
   return out;
 }
 function table(){
   const rows=longRows();
   $("#tblSub").textContent=rows.length+" строк: по одной на срез и ряд, новые сверху";
-  $("#tbl").innerHTML='<thead><tr><th>Срез</th><th>Ряд</th><th>Премии YTD</th><th>Выплаты YTD</th><th>Премии за квартал</th><th>Убыточность</th><th>Ставка, годовая</th><th>Обязательства</th></tr></thead><tbody>'+
-    rows.map(r=>"<tr><td>"+esc(r[0])+"</td><td>"+esc(r[2])+'</td><td class="n">'+fmt(r[3])+'</td><td class="n">'+fmt(r[4])+
-      '</td><td class="n">'+fmt(r[5])+'</td><td class="n">'+f1(r[6])+'%</td><td class="n">'+f3(r[7])+'%</td><td class="n">'+fmt(r[8])+"</td></tr>").join("")+"</tbody>";
+  /* пометка у точки (итог комплексного заменён суммой пакетов) — звёздочка у ряда и текст в последней колонке */
+  $("#tbl").innerHTML='<thead><tr><th>Срез</th><th>Ряд</th><th>Премии YTD</th><th>Выплаты YTD</th><th>Премии за квартал</th><th>Убыточность</th><th>Ставка, годовая</th><th>Обязательства</th><th>Примечание</th></tr></thead><tbody>'+
+    rows.map(r=>"<tr><td>"+esc(r[0])+'</td><td'+(r[9]?' title="'+esc(r[9])+'"':"")+">"+esc(r[2])+(r[9]?" *":"")+'</td><td class="n">'+fmt(r[3])+'</td><td class="n">'+fmt(r[4])+
+      '</td><td class="n">'+fmt(r[5])+'</td><td class="n">'+f1(r[6])+'%</td><td class="n">'+f3(r[7])+'%</td><td class="n">'+fmt(r[8])+'</td><td class="note" style="margin:0">'+esc(r[9])+"</td></tr>").join("")+"</tbody>";
 }
 function exportCsv(){
-  const head=["Срез","Дата","Ряд","Премии YTD, млн","Выплаты YTD, млн","Премии за квартал, млн","Убыточность, %","Годовая ставка, %","Обязательства, млн"];
+  const head=["Срез","Дата","Ряд","Премии YTD, млн","Выплаты YTD, млн","Премии за квартал, млн","Убыточность, %","Годовая ставка, %","Обязательства, млн","Примечание"];
   const cell=v=>v==null?"":(typeof v==="number")?String(v).replace(".",","):'"'+String(v).replace(/"/g,'""')+'"';
   const csv="﻿"+[head.map(cell).join(";")].concat(longRows().map(r=>r.map(cell).join(";"))).join("\r\n");
   const a=document.createElement("a"), url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
@@ -592,7 +598,8 @@ async function draw(){
 const TOT_KEYS=["total","mandatory","voluntary_general","voluntary_life","osago","cmr_mandatory","osgor","osgor_annuity"];
 const GROUPS=[
   {id:"cls",  name:"Классы",         test:k=>k.indexOf("cls")===0 && k.indexOf("_")<0},
-  {id:"pack", name:"Пакеты классов", test:k=>k.indexOf("cls")===0 && k.indexOf("_")>=0},
+  /* комплексное страхование: пакеты и итог блока «Ikki va undan ortiq…» (multi_general, multi_life, multi_other) */
+  {id:"pack", name:"Пакеты классов", test:k=>(k.indexOf("cls")===0 && k.indexOf("_")>=0) || k.indexOf("multi_")===0},
   {id:"tot",  name:"Итоги рынка",    test:k=>TOT_KEYS.indexOf(k)>=0},
   {id:"reg",  name:"Регионы",        test:k=>k.indexOf("region:")===0},
   {id:"co",   name:"Страховщики",    test:k=>k.indexOf("company:")===0},
@@ -1025,6 +1032,7 @@ async function dashDraw(){
   mix(d,cls);
   topInsurers(d,y0);
   regions(d,reg);
+  branchesCard(d,reg);
   document.querySelectorAll("#tabDash .srcslot").forEach(el=>{ if(!el.dataset.custom) el.innerHTML=srcNapp(d); });
 }
 
@@ -1159,6 +1167,46 @@ async function regions(d,reg){
   if(!has(pen)){ const prev=await penetration(effYear(d)-1); if(has(prev)) pen=Object.assign({},prev,{fallback:effYear(d)-1}); }
   paint(pen);
 }
+
+/* подразделения (01.10.2026): /market/branches — премии, выплаты, договоры страховщика по регионам на срез.
+   Листы 2.12–2.14 есть только за текущий срез каждого отчёта: на срез без листов — ближайший более ранний, с пометкой. */
+const BR={co:"company:INSON AJ", cache:{}};
+async function branchesCard(d,reg){
+  const key=d+"|"+BR.co;
+  let j=BR.cache[key];
+  if(!j){
+    try { j=await getJson("/market/branches?date="+encodeURIComponent(d)+"&company="+encodeURIComponent(BR.co)); }
+    catch(e){ $("#brBox").innerHTML=noData("Подразделения не загрузились", e.message); return; }
+    BR.cache[key]=j;
+  }
+  const sel=$("#fBrCo");
+  if(!sel.options.length||sel.dataset.d!==j.date){
+    sel.innerHTML=(j.companies||[]).map(c=>'<option value="'+esc(c.key)+'"'+(c.key===BR.co?" selected":"")+">"+esc(c.name.replace(/"/g,""))+"</option>").join("");
+    sel.dataset.d=j.date||"";
+  }
+  if(!j.date){ $("#brBox").innerHTML=noData("Нет данных о подразделениях","листы 2.12–2.14 ещё не загружены — нажмите «Проверить НАПП сейчас»"); return; }
+  const other=j.date!==d?" · листов 2.12–2.14 на срез "+d+" нет — показан срез "+j.date:"";
+  $("#brSub").textContent="обособленные подразделения по регионам · срез "+j.date+other+(j.company_name?" · "+j.company_name.replace(/"/g,""):"");
+  if(j.note||!(j.rows||[]).length){ $("#brBox").innerHTML=noData("Подразделения не выделены", j.note||"в отчёте НАПП строк этого страховщика нет"); }
+  else {
+    const mn=v=>v==null?"—":v.toLocaleString("ru-RU",{maximumFractionDigits:1});
+    const sm=v=>v==null?"—":Math.round(v).toLocaleString("ru-RU");
+    const body=j.rows.map(r=>'<tr class="'+(r.region_key===reg?"me":"")+(r.premiums_mln?"":" nil")+'"><td>'+esc(r.region_name)+'</td><td class="n">'+mn(r.premiums_mln)+
+      '</td><td class="n">'+mn(r.payouts_mln)+'</td><td class="n">'+pct1(r.loss_ratio_pct)+'</td><td class="n">'+pct1(r.market_loss_ratio_pct)+
+      '</td><td class="n">'+sm(r.contracts)+'</td><td class="n">'+sm(r.avg_premium)+'</td><td class="n">'+pct1(r.share_of_region_pct)+"</td></tr>").join("");
+    const T=j.total||{}, M=j.market||{};
+    $("#brBox").innerHTML='<div style="overflow-x:auto"><table><thead><tr><th>Регион</th><th>Премии, млн сум</th><th>Выплаты, млн сум</th><th>Убыточность</th>'+
+      "<th>Убыточность рынка в регионе</th><th>Договоров</th><th>Средняя премия, сум</th><th>Доля в регионе</th></tr></thead><tbody>"+body+
+      '</tbody><tfoot><tr><td>Итого по компании</td><td class="n">'+mn(T.premiums_mln)+'</td><td class="n">'+mn(T.payouts_mln)+'</td><td class="n">'+pct1(T.loss_ratio_pct)+
+      '</td><td class="n">'+pct1(M.loss_ratio_pct)+'</td><td class="n">'+sm(T.contracts)+'</td><td class="n">'+sm(T.avg_premium)+"</td><td></td></tr></tfoot></table></div>"+
+      '<p class="note">Убыточность = выплаты / премии с начала года; средняя премия = премии / договоры (договоры — действующие на дату, поэтому это ориентир); '+
+      "доля в регионе — премии страховщика к премиям всех страховщиков региона по листу 2.12. В отчёте НАПП подразделения даны по регионам, отдельных филиалов нет.</p>";
+  }
+  const slot=$("#chBr .srcslot"); slot.dataset.custom="1";
+  slot.innerHTML=srcBar("квартальный отчёт НАПП"+(j.source&&j.source.title&&j.source.title.indexOf("(")>0?" «"+j.source.title.split("(").slice(1).join("(").replace(/\)$/,"")+"»":"")+
+    ", листы 2.12–2.14, срез "+(j.date||"—"), [{url:NAPP_URL,label:"Отчёты НАПП"}], "Источник:");
+}
+$("#fBrCo").onchange=e=>{ BR.co=e.target.value; dashDraw(); };
 
 /* ---------- вкладки ---------- */
 let BUILT=false;

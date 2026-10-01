@@ -1,9 +1,9 @@
 {
- "version": "1.0.1",
- "date": "2026-09-30",
+ "version": "1.3.0",
+ "date": "2026-10-01",
  "calibrated": 0,
- "source": "ТЗ — Приложение А. Шаблоны анализа по классам, версия 1.0 от 27.09.2026",
- "note": "Шаблоны анализа 17 классов общего страхования (А.3). Источник истины в репозитории; при старте сервер доводит таблицу class_templates (app/class_templates.py.ensure), правки администратора — новая версия строки (PUT /act/templates/{class}), история сохраняется. Доли рисков, веса и параметры сценариев — экспертные (calibrated = 0), пока нет статистики убытков компании. Классы 8 и 9 берут риски из таблицы perils базы. Варианты 13з и 16у — по шаблонам 14 и 16. Отрасль жизни из справочников не исключается, шаблона для неё нет (решение заказчика 27.09.2026).",
+ "source": "ТЗ — Приложение А. Шаблоны анализа по классам, версия 1.3 от 01.10.2026; класс 18 общего страхования — ПКМ № 80 от 21.02.2022, прил. 6, п. 12 (ред. ПКМ № 458 от 23.07.2025)",
+ "note": "Шаблоны анализа по всем классам общего страхования (А.3): 18 классов (1–18; класс 18 «Tibbiy sugʻurta» — медицинское страхование, добавлен в 1.2.0 по решению заказчика) и варианты 13з и 16у — свои шаблоны, всего 20. Классы страхования жизни в шаблоны не входят (в 1.3.0 убраны по указанию заказчика: нужны все классы общего страхования). Источник истины в репозитории; при старте сервер доводит таблицу class_templates и класс 18 в справочнике classes (app/class_templates.py.ensure), правки администратора — новая версия строки (PUT /act/templates/{class}), история сохраняется; новая версия файла при действующей правке администратора её не заменяет — добавляется в историю как «доступна новая версия шаблона из поставки». Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0). Классы 8 и 9 берут риски из таблицы perils базы (доли там тоже оценка разработчика). Учётная группа класса 18 не задана: в Положении 1882, п. 10 его нет.",
  "common_must": [
   {
    "code": "product_or_class",
@@ -53,10 +53,7 @@
   "uz": "Tizim qiymatni oʻzi baholaydi, usullar natija berguncha tartib bilan qoʻllanadi; eʼlon qilingandan chegaradan (standart 15 %) katta farq — izoh bilan aniqlashtirilgan qiymat; sugʻurta summasi qiymatdan yuqori boʻlishi mumkin emas (FK, 938-modda), past — mutanosib toʻlov (FK, 936-modda); har bir narxda manba havolasi",
   "en": "The system values the object itself, applying methods in order until one gives a result; a gap above the threshold (15 % by default) gives a refined value with an explanation; the sum insured may not exceed the value (Civil Code, art. 938), below it the payment is proportional (art. 936); every price links to its source"
  },
- "aliases": {
-  "13з": "14",
-  "16у": "16"
- },
+ "aliases": {},
  "classes": {
   "1": {
    "class_code": "1",
@@ -206,9 +203,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: частые мелкие выплаты (временная утрата трудоспособности, травмы по таблице) дают около половины убытка, смерть и инвалидность — остальное",
-     "uz": "Ekspert baho: tez-tez uchraydigan kichik toʻlovlar (vaqtincha mehnatga layoqatsizlik, jadval boʻyicha jarohatlar) zararning yarmiga yaqin, oʻlim va nogironlik — qolgani",
-     "en": "Expert view: frequent small payments (temporary disability, injury table) make about half of the loss; death and permanent disability make the rest"
+     "ru": "Экспертно: частые мелкие выплаты (временная утрата трудоспособности, травмы по таблице) дают около половины убытка, смерть и инвалидность — остальное (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: tez-tez uchraydigan kichik toʻlovlar (vaqtincha mehnatga layoqatsizlik, jadval boʻyicha jarohatlar) zararning yarmiga yaqin, oʻlim va nogironlik — qolgani (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: frequent small payments (temporary disability, injury table) make about half of the loss; death and permanent disability make the rest (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -403,6 +400,14 @@
       "uz": "Shaxsiy sugʻurta: sugʻurtalanganlarning shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi",
       "en": "Personal lines: personal data of the insured does not go into the report or the model"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -574,9 +579,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: в медицинских программах большую часть выплат дают амбулатория и стационар",
-     "uz": "Ekspert baho: tibbiy dasturlarda toʻlovlarning katta qismi ambulatoriya va statsionarga toʻgʻri keladi",
-     "en": "Expert view: outpatient and inpatient care make most of the payments in medical programmes"
+     "ru": "Экспертно: в медицинских программах большую часть выплат дают амбулатория и стационар (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: tibbiy dasturlarda toʻlovlarning katta qismi ambulatoriya va statsionarga toʻgʻri keladi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: outpatient and inpatient care make most of the payments in medical programmes (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -768,6 +773,14 @@
       "ru": "Личное страхование: персональные данные застрахованных в акт и модель не попадают",
       "uz": "Shaxsiy sugʻurta: sugʻurtalanganlarning shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi",
       "en": "Personal lines: personal data of the insured does not go into the report or the model"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
      }
     }
    ],
@@ -1148,9 +1161,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно, для справки: ДТП — основной источник частоты и суммы убытков по КАСКО, угон — самые дорогие единичные убытки, остальное — пожар, стихия, противоправные действия и бой стёкол. В расчёте акта класс 3 остаётся одной строкой (правило класса в модуле аналитики)",
-     "uz": "Ekspert baho, maʼlumot uchun: YTH — KASKO zararlarining asosiy manbai, oʻgʻirlash — eng qimmat yakka zararlar, qolgani — yongʻin, tabiiy ofat, gʻayriqonuniy harakatlar va oyna sinishi. Dalolatnoma hisobida 3-klass bitta qator boʻlib qoladi",
-     "en": "Expert, for reference: road accidents drive most motor hull frequency and cost, theft gives the costliest single losses, the rest is fire, natural perils, malicious acts and glass. In the report class 3 stays one line (the analytics module has its own class rule)"
+     "ru": "Экспертно, для справки: ДТП — основной источник частоты и суммы убытков по КАСКО, угон — самые дорогие единичные убытки, остальное — пожар, стихия, противоправные действия и бой стёкол. В расчёте акта класс 3 остаётся одной строкой (правило класса в модуле аналитики) (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho, maʼlumot uchun: YTH — KASKO zararlarining asosiy manbai, oʻgʻirlash — eng qimmat yakka zararlar, qolgani — yongʻin, tabiiy ofat, gʻayriqonuniy harakatlar va oyna sinishi. Dalolatnoma hisobida 3-klass bitta qator boʻlib qoladi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert, for reference: road accidents drive most motor hull frequency and cost, theft gives the costliest single losses, the rest is fire, natural perils, malicious acts and glass. In the report class 3 stays one line (the analytics module has its own class rule) (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -1400,6 +1413,14 @@
       "uz": "Transport va maxsus texnika chegarasi mashina turi boʻyicha emas, roʻyxatdan oʻtkazish hujjati boʻyicha (YHXX yoki Oʻzagroinspeksiya texpasporti) belgilanadi",
       "en": "The boundary between vehicles and special machinery follows the registration document (traffic police or Uzagroinspection certificate), not the kind of machine"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -1574,9 +1595,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: сход с рельсов и столкновение дают основные суммы, повреждения при манёврах — частые мелкие убытки",
-     "uz": "Ekspert baho: relsdan chiqish va toʻqnashuv asosiy summalarni, manyovrdagi shikastlanishlar — tez-tez kichik zararlarni beradi",
-     "en": "Expert view: derailment and collision give the main amounts, shunting damage gives frequent small losses"
+     "ru": "Экспертно: сход с рельсов и столкновение дают основные суммы, повреждения при манёврах — частые мелкие убытки (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: relsdan chiqish va toʻqnashuv asosiy summalarni, manyovrdagi shikastlanishlar — tez-tez kichik zararlarni beradi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: derailment and collision give the main amounts, shunting damage gives frequent small losses (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -1771,7 +1792,16 @@
      "sp_extinguisher"
     ]
    },
-   "notes": [],
+   "notes": [
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
    "aliases": [],
    "reinsurance_usually": false,
    "calibrated": 0
@@ -1957,9 +1987,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: полная гибель и повреждения на взлёте и посадке — основная часть убытка по каско воздушных судов",
-     "uz": "Ekspert baho: toʻliq nobud boʻlish va uchish-qoʻnishdagi shikastlanishlar — havo kemalari kaskosi zararining asosiy qismi",
-     "en": "Expert view: total loss and take-off/landing damage make most of aircraft hull losses"
+     "ru": "Экспертно: полная гибель и повреждения на взлёте и посадке — основная часть убытка по каско воздушных судов (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: toʻliq nobud boʻlish va uchish-qoʻnishdagi shikastlanishlar — havo kemalari kaskosi zararining asosiy qismi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: total loss and take-off/landing damage make most of aircraft hull losses (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -2161,6 +2191,14 @@
       "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
       "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -2328,9 +2366,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера",
-     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi",
-     "en": "Expert view: little open data, the shares are the underwriter's estimate"
+     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: little open data, the shares are the underwriter's estimate (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -2526,6 +2564,14 @@
       "uz": "Dengiz va daryo transporti boʻyicha ochiq statistika yoʻq — anderrayter bahosi qoʻllanadi",
       "en": "There are no open statistics on sea and river transport — the underwriter's estimate applies"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -2712,9 +2758,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: повреждение и кража — основные убытки по грузам, авария транспорта — самые крупные",
-     "uz": "Ekspert baho: shikastlanish va oʻgʻirlik — yuklar boʻyicha asosiy zararlar, transport avariyasi — eng yiriklari",
-     "en": "Expert view: damage and theft are the main cargo losses, a transport accident the largest"
+     "ru": "Экспертно: повреждение и кража — основные убытки по грузам, авария транспорта — самые крупные (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: shikastlanish va oʻgʻirlik — yuklar boʻyicha asosiy zararlar, transport avariyasi — eng yiriklari (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: damage and theft are the main cargo losses, a transport accident the largest (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -2936,7 +2982,16 @@
      "all_loss_review"
     ]
    },
-   "notes": [],
+   "notes": [
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
    "aliases": [],
    "reinsurance_usually": false,
    "calibrated": 0
@@ -3302,9 +3357,9 @@
     "source": "perils",
     "calibrated": 0,
     "note": {
-     "ru": "Доли — из справочника perils базы (нетто-ставка класса), в шаблоне не дублируются",
-     "uz": "Ulushlar — bazadagi perils maʼlumotnomasidan (klass netto-stavkasi), shablonda takrorlanmaydi",
-     "en": "Shares come from the perils reference in the database (class net rate), not duplicated here"
+     "ru": "Доли из таблицы perils — оценка разработчика, не утверждено страховщиком; в шаблоне не дублируются (нетто-ставка класса)",
+     "uz": "Ulushlar perils jadvalidan — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan; shablonda takrorlanmaydi (klass netto-stavkasi)",
+     "en": "Shares from the perils table are the developer's estimate, not approved by the insurer; not duplicated here (class net rate)"
     },
     "items": []
    },
@@ -3488,6 +3543,14 @@
       "ru": "PML по пожару — по противопожарным отсекам; по землетрясению — по всей площадке, с накоплением по сейсмозоне",
       "uz": "Yongʻin boʻyicha PML — yongʻinga qarshi boʻlimlar boʻyicha; zilzila boʻyicha — butun maydon boʻyicha, seysmik zona boʻyicha jamlanma bilan",
       "en": "Fire PML is per fire compartment; earthquake PML is for the whole site, accumulated by seismic zone"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
      }
     }
    ],
@@ -3802,9 +3865,9 @@
     "source": "perils",
     "calibrated": 0,
     "note": {
-     "ru": "Доли — из справочника perils базы (нетто-ставка класса), в шаблоне не дублируются",
-     "uz": "Ulushlar — bazadagi perils maʼlumotnomasidan (klass netto-stavkasi), shablonda takrorlanmaydi",
-     "en": "Shares come from the perils reference in the database (class net rate), not duplicated here"
+     "ru": "Доли из таблицы perils — оценка разработчика, не утверждено страховщиком; в шаблоне не дублируются (нетто-ставка класса)",
+     "uz": "Ulushlar perils jadvalidan — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan; shablonda takrorlanmaydi (klass netto-stavkasi)",
+     "en": "Shares from the perils table are the developer's estimate, not approved by the insurer; not duplicated here (class net rate)"
     },
     "items": []
    },
@@ -3952,7 +4015,16 @@
      "all_loss_review"
     ]
    },
-   "notes": [],
+   "notes": [
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
    "aliases": [],
    "reinsurance_usually": false,
    "calibrated": 0
@@ -4130,9 +4202,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: вред жизни и здоровью — большая часть выплат по ОСАГО с учётом лимитов",
-     "uz": "Ekspert baho: hayot va sogʻliqqa zarar — limitlarni hisobga olgan holda OSAGO toʻlovlarining katta qismi",
-     "en": "Expert view: bodily injury makes most motor liability payments given the limits"
+     "ru": "Экспертно: вред жизни и здоровью — большая часть выплат по ОСАГО с учётом лимитов (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: hayot va sogʻliqqa zarar — limitlarni hisobga olgan holda OSAGO toʻlovlarining katta qismi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: bodily injury makes most motor liability payments given the limits (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -4314,6 +4386,14 @@
       "uz": "Majburiy tur: stavka — qatʼiy meʼyoriy tarif boʻyicha, tuzatmalar va franshiza qoʻllanmaydi",
       "en": "Compulsory line: the rate is strictly the statutory tariff, no adjustments or deductible"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -4446,9 +4526,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: вред пассажирам и третьим лицам на земле — основные суммы",
-     "uz": "Ekspert baho: yoʻlovchilarga va yerdagi uchinchi shaxslarga zarar — asosiy summalar",
-     "en": "Expert view: passenger and third-party ground damage make the main amounts"
+     "ru": "Экспертно: вред пассажирам и третьим лицам на земле — основные суммы (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: yoʻlovchilarga va yerdagi uchinchi shaxslarga zarar — asosiy summalar (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: passenger and third-party ground damage make the main amounts (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -4625,6 +4705,14 @@
       "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
       "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -4757,9 +4845,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера; загрязнение воды — катастрофический риск",
-     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi; suvning ifloslanishi — falokat xavfi",
-     "en": "Expert view: little open data, the underwriter's estimate; water pollution is a catastrophe risk"
+     "ru": "Экспертно: открытых данных мало, доли — оценка андеррайтера; загрязнение воды — катастрофический риск (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: ochiq maʼlumotlar kam, ulushlar — anderrayter bahosi; suvning ifloslanishi — falokat xavfi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: little open data, the underwriter's estimate; water pollution is a catastrophe risk (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -4938,6 +5026,14 @@
       "uz": "Qayta sugʻurtalash deyarli har doim kerak: bitta halokat yoki bitta hodisa kompaniya ushlab qolishidan oshishi mumkin (qayta sugʻurtalash boʻyicha qaror kechiktirilgan, alohida hisoblanadi)",
       "en": "Reinsurance is almost always needed: one total loss or one occurrence may exceed the company's retention (reinsurance is deferred and handled separately)"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
@@ -5104,9 +5200,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: вред жизни и здоровью третьих лиц и работников — основная часть выплат",
-     "uz": "Ekspert baho: uchinchi shaxslar va xodimlarning hayoti va sogʻligʻiga zarar — toʻlovlarning asosiy qismi",
-     "en": "Expert view: bodily injury to third parties and employees makes most payments"
+     "ru": "Экспертно: вред жизни и здоровью третьих лиц и работников — основная часть выплат (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: uchinchi shaxslar va xodimlarning hayoti va sogʻligʻiga zarar — toʻlovlarning asosiy qismi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: bodily injury to third parties and employees makes most payments (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -5303,11 +5399,11 @@
    },
    "notes": [
     {
-     "code": "13z",
+     "code": "expert_estimate",
      "text": {
-      "ru": "Вариант 13з (ответственность заёмщика за непогашение кредита) анализируется по шаблону класса 14",
-      "uz": "13z varianti (qarz oluvchining kreditni qaytarmaslik javobgarligi) 14-klass shabloni boʻyicha tahlil qilinadi",
-      "en": "Variant 13z (borrower's liability for loan default) is analysed with the class 14 template"
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
      }
     }
    ],
@@ -5322,9 +5418,7 @@
     "uz": "Kreditlar",
     "en": "Credit"
    },
-   "aliases": [
-    "13з"
-   ],
+   "aliases": [],
    "object": {
     "description": {
      "ru": "Риск невозврата кредита",
@@ -5445,9 +5539,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: основная часть убытка — неплатёжеспособность заёмщика; банкротство — реже, но полной суммой",
-     "uz": "Ekspert baho: zararning asosiy qismi — qarz oluvchining toʻlovga qobiliyatsizligi; bankrotlik — kamroq, lekin toʻliq summada",
-     "en": "Expert view: borrower insolvency drives most of the loss; bankruptcy is rarer but for the full amount"
+     "ru": "Экспертно: основная часть убытка — неплатёжеспособность заёмщика; банкротство — реже, но полной суммой (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: zararning asosiy qismi — qarz oluvchining toʻlovga qobiliyatsizligi; bankrotlik — kamroq, lekin toʻliq summada (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: borrower insolvency drives most of the loss; bankruptcy is rarer but for the full amount (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -5613,9 +5707,17 @@
     {
      "code": "13z",
      "text": {
-      "ru": "Вариант 13з анализируется по этому шаблону",
-      "uz": "13z varianti shu shablon boʻyicha tahlil qilinadi",
-      "en": "Variant 13z is analysed with this template"
+      "ru": "Вариант 13з (ответственность заёмщика за непогашение кредита) — свой шаблон с версии 1.1.0: там страхуется ответственность заёмщика, здесь — риск кредитора",
+      "uz": "13z varianti (qarz oluvchining kreditni qaytarmaganlik uchun javobgarligi) — 1.1.0 versiyadan oʻz shabloni: unda qarz oluvchining javobgarligi, bu yerda — kreditor xavfi sugʻurtalanadi",
+      "en": "Variant 13z (borrower's liability for non-repayment) has its own template since 1.1.0: it insures the borrower's liability, this class insures the lender's risk"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
      }
     }
    ],
@@ -5745,9 +5847,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: неисполнение договора — основной риск гарантий исполнения",
-     "uz": "Ekspert baho: shartnomani bajarmaslik — ijro kafolatlarining asosiy xavfi",
-     "en": "Expert view: non-performance is the main risk of performance bonds"
+     "ru": "Экспертно: неисполнение договора — основной риск гарантий исполнения (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: shartnomani bajarmaslik — ijro kafolatlarining asosiy xavfi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: non-performance is the main risk of performance bonds (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -5908,7 +6010,16 @@
      "gt_reporting"
     ]
    },
-   "notes": [],
+   "notes": [
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
    "aliases": [],
    "reinsurance_usually": false,
    "calibrated": 0
@@ -5920,9 +6031,7 @@
     "uz": "Boshqa moliyaviy xavflar",
     "en": "Other financial risks"
    },
-   "aliases": [
-    "16у"
-   ],
+   "aliases": [],
    "object": {
     "description": {
      "ru": "Имущественный интерес, связанный с убытками от деятельности",
@@ -6048,9 +6157,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: перерыв в производстве и потеря прибыли — основная часть убытка",
-     "uz": "Ekspert baho: ishlab chiqarishdagi tanaffus va foydani yoʻqotish — zararning asosiy qismi",
-     "en": "Expert view: business interruption and loss of profit make most of the loss"
+     "ru": "Экспертно: перерыв в производстве и потеря прибыли — основная часть убытка (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: ishlab chiqarishdagi tanaffus va foydani yoʻqotish — zararning asosiy qismi (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: business interruption and loss of profit make most of the loss (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -6216,9 +6325,17 @@
     {
      "code": "16u",
      "text": {
-      "ru": "Вариант 16у (урожай) анализируется по этому шаблону",
-      "uz": "16u varianti (hosil) shu shablon boʻyicha tahlil qilinadi",
-      "en": "Variant 16u (crops) is analysed with this template"
+      "ru": "Вариант 16у (урожай сельхозкультур) — свой шаблон с версии 1.1.0",
+      "uz": "16u varianti (qishloq xoʻjaligi ekinlari hosili) — 1.1.0 versiyadan oʻz shabloni",
+      "en": "Variant 16u (crop yield) has its own template since 1.1.0"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
      }
     }
    ],
@@ -6346,9 +6463,9 @@
     "source": "template",
     "calibrated": 0,
     "note": {
-     "ru": "Экспертно: судебные расходы и оплата представителя — основная часть; открытых данных нет",
-     "uz": "Ekspert baho: sud xarajatlari va vakil haqi — asosiy qism; ochiq maʼlumotlar yoʻq",
-     "en": "Expert view: court costs and counsel fees make most of it; no open data"
+     "ru": "Экспертно: судебные расходы и оплата представителя — основная часть; открытых данных нет (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: sud xarajatlari va vakil haqi — asosiy qism; ochiq maʼlumotlar yoʻq (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: court costs and counsel fees make most of it; no open data (developer's estimate, not approved by the insurer)"
     },
     "items": [
      {
@@ -6497,11 +6614,1604 @@
       "uz": "Sud ishlari boʻyicha ochiq maʼlumotlar yoʻq — anderrayter bahosi qoʻllanadi",
       "en": "There are no open data on court cases — the underwriter's estimate applies"
      }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "18": {
+   "class_code": "18",
+   "official_name": {
+    "text_uz": "Tibbiy sugʻurta",
+    "source": "ПКМ № 80 от 21.02.2022, приложение 6, п. 12 «Sugʻurta faoliyati klassifikatori» (ред. ПКМ № 458 от 23.07.2025), отрасль «Umumiy sugʻurta sohasi», 18-klass",
+    "url": "https://lex.uz/uz/docs/-5870213",
+    "content_uz": "Sugʻurtalangan shaxsning sugʻurta shartnomasida koʻrsatilgan shartlarga muvofiq tibbiy yordam olishini taʼminlaydigan sugʻurta turlarining majmui, biroq 2-klass va hayotni sugʻurta qilish sohasining IV klassi boʻyicha shartnomalarni istisno qilgan holda",
+    "class_2_uz": {
+     "name": "Kasallikdan ehtiyot shart sugʻurta qilish",
+     "content": "Sugʻurta taʼminotining belgilab qoʻyilgan pul summasi toʻlanishini yoki kasallik yoki sogʻliqning izdan chiqishi munosabati bilan sugʻurta qildiruvchining pul kompensatsiyasi (yoki uning ham, buning ham kombinatsiyasi)ni taʼminlovchi sugʻurta turlari majmui, biroq hayotni sugʻurta qilish sohasining IV klassi boʻyicha shartnomalarni istisno qilgan holda"
+    },
+    "translation_note": "Официальный текст — только на узбекском; русское и английское названия и пересказ — перевод разработчика"
+   },
+   "accounting_group": null,
+   "name": {
+    "ru": "Медицинское страхование",
+    "uz": "Tibbiy sugʻurta",
+    "en": "Medical insurance"
+   },
+   "object": {
+    "description": {
+     "ru": "Человек или группа людей: получение медицинской помощи на условиях договора",
+     "uz": "Shaxs yoki odamlar guruhi: shartnoma shartlariga muvofiq tibbiy yordam olish",
+     "en": "A person or a group of people: receiving medical care on the contract terms"
+    },
+    "people": true,
+    "kinds": [
+     {
+      "code": "person",
+      "label": {
+       "ru": "человек",
+       "uz": "shaxs",
+       "en": "person"
+      }
+     },
+     {
+      "code": "group",
+      "label": {
+       "ru": "группа людей",
+       "uz": "odamlar guruhi",
+       "en": "group of people"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "insured_count",
+     "type": "int",
+     "label": {
+      "ru": "Число застрахованных",
+      "uz": "Sugʻurtalanganlar soni",
+      "en": "Number of insured persons"
+     },
+     "input": "optional.class_fields.insured_count"
+    },
+    {
+     "code": "program",
+     "type": "text",
+     "label": {
+      "ru": "Программа (пакет) медицинских услуг",
+      "uz": "Tibbiy xizmatlar dasturi (paketi)",
+      "en": "Medical services programme (package)"
+     },
+     "input": "optional.class_fields.program"
+    },
+    {
+     "code": "limit_per_person",
+     "type": "money",
+     "label": {
+      "ru": "Лимит на человека",
+      "uz": "Bir kishiga limit",
+      "en": "Limit per person"
+     },
+     "input": "optional.class_fields.limit_per_person",
+     "unit": "UZS"
+    },
+    {
+     "code": "territory",
+     "type": "choice",
+     "label": {
+      "ru": "Территория действия",
+      "uz": "Amal qilish hududi",
+      "en": "Territory of cover"
+     },
+     "input": "optional.class_fields.territory",
+     "options": [
+      "region",
+      "uzbekistan",
+      "cis",
+      "worldwide"
+     ],
+     "option_labels": {
+      "region": {
+       "ru": "один регион Узбекистана",
+       "uz": "Oʻzbekistonning bitta hududi",
+       "en": "one region of Uzbekistan"
+      },
+      "uzbekistan": {
+       "ru": "весь Узбекистан",
+       "uz": "butun Oʻzbekiston",
+       "en": "all of Uzbekistan"
+      },
+      "cis": {
+       "ru": "Узбекистан и страны СНГ",
+       "uz": "Oʻzbekiston va MDH davlatlari",
+       "en": "Uzbekistan and CIS countries"
+      },
+      "worldwide": {
+       "ru": "весь мир",
+       "uz": "butun dunyo",
+       "en": "worldwide"
+      }
+     }
+    }
+   ],
+   "optional": [
+    {
+     "code": "age_structure",
+     "type": "text",
+     "label": {
+      "ru": "Возрастной состав (только агрегаты: число людей по возрастным группам)",
+      "uz": "Yosh tarkibi (faqat agregatlar: yosh guruhlari boʻyicha odamlar soni)",
+      "en": "Age structure (aggregates only: number of people by age group)"
+     },
+     "input": "optional.class_fields.age_structure"
+    },
+    {
+     "code": "clinics",
+     "type": "text",
+     "label": {
+      "ru": "Сеть клиник",
+      "uz": "Klinikalar tarmogʻi",
+      "en": "Clinic network"
+     },
+     "input": "optional.class_fields.clinics"
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    },
+    {
+     "code": "copay_pct",
+     "type": "number",
+     "label": {
+      "ru": "Сооплата застрахованного, % от счёта",
+      "uz": "Sugʻurtalanganning birgalikda toʻlovi, hisobning % i",
+      "en": "Co-payment by the insured, % of the bill"
+     },
+     "input": "optional.class_fields.copay_pct",
+     "unit": "%"
+    },
+    {
+     "code": "waiting_days",
+     "type": "int",
+     "label": {
+      "ru": "Период ожидания для плановой помощи, дней",
+      "uz": "Rejali yordam uchun kutish davri, kun",
+      "en": "Waiting period for planned care, days"
+     },
+     "input": "optional.class_fields.waiting_days"
+    },
+    {
+     "code": "avg_visits",
+     "type": "number",
+     "label": {
+      "ru": "Среднее число обращений на человека в год",
+      "uz": "Bir kishiga yiliga oʻrtacha murojaatlar",
+      "en": "Average visits per person a year"
+     },
+     "input": "optional.class_fields.avg_visits",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "avg_bill",
+     "type": "money",
+     "label": {
+      "ru": "Средний счёт за обращение",
+      "uz": "Bir murojaat uchun oʻrtacha hisob",
+      "en": "Average bill per visit"
+     },
+     "input": "optional.class_fields.avg_bill",
+     "unit": "UZS",
+     "expert": true,
+     "note": {
+      "ru": "сверх приложения А, экспертно",
+      "uz": "A ilovadan tashqari, ekspert baho",
+      "en": "beyond Annex A, expert"
+     }
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "личное страхование: лимит по программе медицинских услуг",
+      "uz": "shaxsiy sugʻurta: tibbiy xizmatlar dasturi boʻyicha limit",
+      "en": "personal lines: limit under the medical services programme"
+     },
+     "note": {
+      "ru": "лимит на человека, умноженный на число людей",
+      "uz": "bir kishiga limit × odamlar soni",
+      "en": "limit per person times the number of people"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: доли видов медицинской помощи в выплатах — оценка разработчика, не утверждено страховщиком",
+     "uz": "Ekspert baho: tibbiy yordam turlarining toʻlovlardagi ulushlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan",
+     "en": "Expert view: shares of the kinds of medical care in payments are the developer's estimate, not approved by the insurer"
+    },
+    "items": [
+     {
+      "code": "md_outpatient",
+      "label": {
+       "ru": "Амбулаторная помощь",
+       "uz": "Ambulator yordam",
+       "en": "Outpatient care"
+      },
+      "share_pct": 35,
+      "catastrophic": false
+     },
+     {
+      "code": "md_inpatient",
+      "label": {
+       "ru": "Стационар",
+       "uz": "Statsionar",
+       "en": "Inpatient care"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "md_emergency",
+      "label": {
+       "ru": "Экстренная помощь",
+       "uz": "Shoshilinch yordam",
+       "en": "Emergency care"
+      },
+      "share_pct": 12,
+      "catastrophic": false
+     },
+     {
+      "code": "md_drugs",
+      "label": {
+       "ru": "Лекарства",
+       "uz": "Dori vositalari",
+       "en": "Medicines"
+      },
+      "share_pct": 10,
+      "catastrophic": false
+     },
+     {
+      "code": "md_maternity",
+      "label": {
+       "ru": "Ведение беременности и роды",
+       "uz": "Homiladorlikni kuzatish va tugʻruq",
+       "en": "Pregnancy care and childbirth"
+      },
+      "share_pct": 7,
+      "catastrophic": false
+     },
+     {
+      "code": "md_dental",
+      "label": {
+       "ru": "Стоматология",
+       "uz": "Stomatologiya",
+       "en": "Dental care"
+      },
+      "share_pct": 6,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "age",
+     "label": {
+      "ru": "Возраст (агрегатами по группе)",
+      "uz": "Yosh (guruh boʻyicha agregat)",
+      "en": "Age (group aggregates)"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "program_scope",
+     "label": {
+      "ru": "Состав программы",
+      "uz": "Dastur tarkibi",
+      "en": "Programme scope"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "visit_frequency",
+     "label": {
+      "ru": "Частота обращений",
+      "uz": "Murojaatlar chastotasi",
+      "en": "Visit frequency"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "clinic_prices",
+     "label": {
+      "ru": "Уровень цен клиник сети",
+      "uz": "Tarmoq klinikalari narx darajasi",
+      "en": "Network clinic price level"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "territory",
+     "label": {
+      "ru": "Территория действия",
+      "uz": "Amal qilish hududi",
+      "en": "Territory of cover"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "copay",
+     "label": {
+      "ru": "Сооплата застрахованного",
+      "uz": "Sugʻurtalanganning birgalikda toʻlovi",
+      "en": "Co-payment by the insured"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "waiting_period",
+     "label": {
+      "ru": "Период ожидания",
+      "uz": "Kutish davri",
+      "en": "Waiting period"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "frequency",
+    "engine": "template",
+    "text": {
+     "ru": "Частотный: среднее число обращений, умноженное на средний счёт. Катастрофа: эпидемия",
+     "uz": "Chastotali: oʻrtacha murojaatlar soni × oʻrtacha hisob. Falokat: epidemiya",
+     "en": "Frequency: average number of visits times the average bill. Catastrophe: epidemic"
+    },
+    "simple_rule": {
+     "ru": "PML и EML — лимит на одного человека; MFL — эпидемия: доля страховой суммы (параметр epidemic_share, по умолчанию 30 %, экспертно), не меньше лимита на человека; ожидаемый годовой убыток (обращения × счёт × люди) — справочно",
+     "uz": "PML va EML — bir kishiga limit; MFL — epidemiya: sugʻurta summasining ulushi (epidemic_share parametri, standart 30 %, ekspert), bir kishiga limitdan kam emas; kutilayotgan yillik zarar — maʼlumot uchun",
+     "en": "PML and EML — the limit per person; MFL — epidemic: a share of the sum insured (parameter epidemic_share, 30 % by default, expert), not below the limit per person; expected annual loss is for reference"
+    },
+    "what": {
+     "PML": {
+      "ru": "один человек исчерпал лимит",
+      "uz": "bir kishi limitni tugatdi",
+      "en": "one person exhausts the limit"
+     },
+     "EML": {
+      "ru": "один человек исчерпал лимит",
+      "uz": "bir kishi limitni tugatdi",
+      "en": "one person exhausts the limit"
+     },
+     "MFL": {
+      "ru": "эпидемия: массовые обращения",
+      "uz": "epidemiya: ommaviy murojaatlar",
+      "en": "epidemic: mass claims"
+     }
+    },
+    "params": {
+     "epidemic_share": 0.3
+    },
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 18 + продукты класса 18",
+    "items": [
+     {
+      "ru": "Программа страхования: перечень медицинских услуг и лимиты",
+      "uz": "Sugʻurta dasturi: tibbiy xizmatlar roʻyxati va limitlar",
+      "en": "Insurance programme: list of medical services and limits"
+     },
+     {
+      "ru": "Список клиник (сеть)",
+      "uz": "Klinikalar roʻyxati (tarmoq)",
+      "en": "List of clinics (network)"
+     },
+     {
+      "ru": "Список застрахованных без персональных данных: число и возрастные группы",
+      "uz": "Shaxsiy maʼlumotlarsiz sugʻurtalanganlar roʻyxati: soni va yosh guruhlari",
+      "en": "List of insured persons without personal data: number and age groups"
+     }
+    ]
+   },
+   "stats": [
+    "respiratory_morbidity",
+    "doctors_per_10k",
+    "hospital_beds_per_10k",
+    "mortality_rate"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "hl_program",
+     "hl_preexisting",
+     "hl_waiting",
+     "hl_copay",
+     "ot_declared"
+    ]
+   },
+   "measures": {
+    "default": [
+     "hl_checkup",
+     "hl_network",
+     "hl_control",
+     "hl_preauth"
+    ]
+   },
+   "notes": [
+    {
+     "code": "official",
+     "text": {
+      "ru": "Класс 18 общего страхования по классификатору: ПКМ № 80 от 21.02.2022, прил. 6, п. 12 (ред. ПКМ № 458 от 23.07.2025): «Tibbiy sugʻurta» — виды страхования, обеспечивающие получение застрахованным медицинской помощи на условиях договора, кроме договоров класса 2 и класса IV отрасли жизни. Официальный текст — только на узбекском; русское и английское названия — перевод разработчика",
+      "uz": "Umumiy sugʻurta sohasining 18-klassi: VMQ № 80 (21.02.2022), 6-ilova, 12-band (VMQ № 458 (23.07.2025) tahririda): «Tibbiy sugʻurta» — sugʻurtalangan shaxsning shartnoma shartlariga muvofiq tibbiy yordam olishini taʼminlaydigan sugʻurta turlari, 2-klass va hayot sohasining IV klassi boʻyicha shartnomalar bundan mustasno. Rus va ingliz tilidagi nomlar — ishlab chiquvchi tarjimasi",
+      "en": "Class 18 of general insurance under the classifier: CM Resolution No. 80 of 21.02.2022, Annex 6, para. 12 (as amended by No. 458 of 23.07.2025): «Tibbiy sugʻurta» — insurance ensuring that the insured person receives medical care on the contract terms, except contracts of class 2 and life class IV. The official text is in Uzbek only; the Russian and English names are the developer's translation"
+     }
+    },
+    {
+     "code": "diff_2",
+     "text": {
+      "ru": "Чем отличается от класса 2 по акту: класс 2 («Kasallikdan ehtiyot shart sugʻurta qilish») — выплата установленной денежной суммы или денежной компенсации в связи с болезнью или расстройством здоровья; класс 18 («Tibbiy sugʻurta») — обеспечение получения застрахованным медицинской помощи на условиях договора, и договоры класса 2 в него не входят. Деньги — класс 2, медицинская помощь — класс 18; отнесение конкретного продукта — решение страховщика",
+      "uz": "Akt boʻyicha 2-klassdan farqi: 2-klass («Kasallikdan ehtiyot shart sugʻurta qilish») — kasallik yoki sogʻliqning izdan chiqishi munosabati bilan belgilangan pul summasi yoki pul kompensatsiyasi toʻlanishi; 18-klass («Tibbiy sugʻurta») — sugʻurtalanganning shartnoma shartlariga muvofiq tibbiy yordam olishini taʼminlash, 2-klass shartnomalari bundan mustasno. Pul — 2-klass, tibbiy yordam — 18-klass; aniq mahsulotni qaysi klassga kiritish — sugʻurtalovchi qarori",
+      "en": "How it differs from class 2 under the act: class 2 («Kasallikdan ehtiyot shart sugʻurta qilish») pays a fixed sum or monetary compensation in connection with illness or a health disorder; class 18 («Tibbiy sugʻurta») ensures the insured receives medical care on the contract terms, class 2 contracts excluded. Money — class 2, medical care — class 18; assigning a specific product is the insurer's decision"
+     }
+    },
+    {
+     "code": "accounting_group",
+     "text": {
+      "ru": "Учётная группа РНП не задана (NULL): Положение 1882, п. 10 перечисляет классы 1–17, класса 18 в нём нет. Класс 2 там — 1-я учётная группа; относить ли класс 18 к ней же — решение страховщика",
+      "uz": "TQZ hisob guruhi belgilanmagan (NULL): 1882-son Nizomning 10-bandi 1–17-klasslarni sanaydi, 18-klass unda yoʻq. 2-klass u yerda 1-hisob guruhida; 18-klassni ham unga kiritish — sugʻurtalovchi qarori",
+      "en": "No UPR accounting group is set (NULL): Regulation 1882, para. 10 lists classes 1–17, class 18 is not there. Class 2 is in accounting group 1; whether class 18 goes there too is the insurer's decision"
+     }
+    },
+    {
+     "code": "personal",
+     "text": {
+      "ru": "Личное страхование: персональные данные застрахованных в акт и модель не попадают; возраст — только агрегатами по группе, диагнозы и обращения конкретных людей не вводятся",
+      "uz": "Shaxsiy sugʻurta: sugʻurtalanganlarning shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi; yosh — faqat guruh boʻyicha agregat, aniq odamlarning tashxislari va murojaatlari kiritilmaydi",
+      "en": "Personal lines: personal data of the insured does not go into the report or the model; age — group aggregates only, diagnoses and visits of specific people are not entered"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "13з": {
+   "class_code": "13з",
+   "variant": true,
+   "variant_of": "13",
+   "name": {
+    "ru": "Ответственность заёмщиков за непогашение кредитов",
+    "uz": "Qarz oluvchilarning kreditlarni qaytarmaganlik uchun javobgarligi",
+    "en": "Borrowers' liability for loan non-repayment"
+   },
+   "object": {
+    "description": {
+     "ru": "Гражданская ответственность заёмщика перед банком-кредитором за непогашение кредита",
+     "uz": "Qarz oluvchining kreditni qaytarmaganligi uchun kreditor bank oldidagi fuqarolik javobgarligi",
+     "en": "The borrower's civil liability to the lending bank for non-repayment of a loan"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "borrower_liability",
+      "label": {
+       "ru": "ответственность заёмщика",
+       "uz": "qarz oluvchi javobgarligi",
+       "en": "borrower's liability"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "credit_amount",
+     "type": "money",
+     "label": {
+      "ru": "Сумма кредита",
+      "uz": "Kredit summasi",
+      "en": "Loan amount"
+     },
+     "input": "optional.class_fields.credit_amount",
+     "unit": "UZS"
+    },
+    {
+     "code": "collateral_value",
+     "type": "money",
+     "label": {
+      "ru": "Стоимость обеспечения",
+      "uz": "Taʼminot qiymati",
+      "en": "Collateral value"
+     },
+     "input": "optional.class_fields.collateral_value",
+     "unit": "UZS"
+    },
+    {
+     "code": "credit_term_months",
+     "type": "int",
+     "label": {
+      "ru": "Срок кредита, месяцев",
+      "uz": "Kredit muddati, oy",
+      "en": "Loan term, months"
+     },
+     "input": "optional.class_fields.credit_term_months"
+    },
+    {
+     "code": "borrower_kind",
+     "type": "choice",
+     "label": {
+      "ru": "Вид заёмщика",
+      "uz": "Qarz oluvchi turi",
+      "en": "Kind of borrower"
+     },
+     "input": "optional.class_fields.borrower_kind",
+     "options": [
+      "legal",
+      "entrepreneur",
+      "farm",
+      "individual"
+     ],
+     "option_labels": {
+      "legal": {
+       "ru": "юридическое лицо",
+       "uz": "yuridik shaxs",
+       "en": "legal entity"
+      },
+      "entrepreneur": {
+       "ru": "индивидуальный предприниматель",
+       "uz": "yakka tartibdagi tadbirkor",
+       "en": "sole trader"
+      },
+      "farm": {
+       "ru": "фермерское или дехканское хозяйство",
+       "uz": "fermer yoki dehqon xoʻjaligi",
+       "en": "farm"
+      },
+      "individual": {
+       "ru": "физическое лицо",
+       "uz": "jismoniy shaxs",
+       "en": "individual"
+      }
+     }
+    }
+   ],
+   "optional": [
+    {
+     "code": "borrower_industry",
+     "type": "choice",
+     "label": {
+      "ru": "Отрасль заёмщика",
+      "uz": "Qarz oluvchi tarmogʻi",
+      "en": "Borrower's industry"
+     },
+     "input": "optional.class_fields.borrower_industry",
+     "options": [
+      "manufacturing",
+      "services",
+      "trade",
+      "build",
+      "agro"
+     ],
+     "option_labels": {
+      "manufacturing": {
+       "ru": "производство",
+       "uz": "ishlab chiqarish",
+       "en": "manufacturing"
+      },
+      "services": {
+       "ru": "услуги",
+       "uz": "xizmatlar",
+       "en": "services"
+      },
+      "trade": {
+       "ru": "торговля",
+       "uz": "savdo",
+       "en": "trade"
+      },
+      "build": {
+       "ru": "строительство",
+       "uz": "qurilish",
+       "en": "construction"
+      },
+      "agro": {
+       "ru": "сельское хозяйство",
+       "uz": "qishloq xoʻjaligi",
+       "en": "agriculture"
+      }
+     }
+    },
+    {
+     "code": "credit_history",
+     "type": "choice",
+     "label": {
+      "ru": "Кредитная история (по отчёту кредитного бюро КАТМ)",
+      "uz": "Kredit tarixi (KATM kredit byurosi hisoboti boʻyicha)",
+      "en": "Credit history (per the KATM credit bureau report)"
+     },
+     "input": "optional.class_fields.credit_history",
+     "options": [
+      "clean",
+      "minor",
+      "bad"
+     ],
+     "option_labels": {
+      "clean": {
+       "ru": "без просрочек",
+       "uz": "kechikishlarsiz",
+       "en": "no arrears"
+      },
+      "minor": {
+       "ru": "были небольшие просрочки",
+       "uz": "kichik kechikishlar boʻlgan",
+       "en": "minor arrears"
+      },
+      "bad": {
+       "ru": "серьёзные просрочки",
+       "uz": "jiddiy kechikishlar",
+       "en": "serious arrears"
+      }
+     }
+    },
+    {
+     "code": "purpose",
+     "type": "text",
+     "label": {
+      "ru": "Назначение кредита",
+      "uz": "Kredit maqsadi",
+      "en": "Loan purpose"
+     },
+     "input": "optional.class_fields.purpose"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": 6,
+     "name": {
+      "ru": "Лимит по договору или закону",
+      "uz": "Shartnoma yoki qonun boʻyicha limit",
+      "en": "Limit under the contract or law"
+     },
+     "when": {
+      "ru": "классы ответственности и финансовых рисков",
+      "uz": "javobgarlik va moliyaviy xavflar klasslari",
+      "en": "liability and financial risk classes"
+     },
+     "note": {
+      "ru": "страхуется только необеспеченная часть и не более 50 % кредита: сумма = min(кредит − обеспечение; 50 % кредита)",
+      "uz": "faqat taʼminlanmagan qism va kreditning 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi: summa = min(kredit − taʼminot; kreditning 50 %)",
+      "en": "only the unsecured part and not more than 50 % of the loan: sum = min(loan − collateral; 50 % of the loan)"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: основная часть убытка — длительная просрочка и отказ заёмщика платить; банкротство и прекращение деятельности — реже, но полной суммой (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: zararning asosiy qismi — uzoq kechikish va qarz oluvchining toʻlashdan bosh tortishi; bankrotlik va faoliyatni toʻxtatish — kamroq, lekin toʻliq summada (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: most of the loss is protracted arrears and the borrower's refusal to pay; bankruptcy and closure are rarer but for the full amount (developer's estimate, not approved by the insurer)"
+    },
+    "items": [
+     {
+      "code": "bl_default",
+      "label": {
+       "ru": "Непогашение кредита в срок (длительная просрочка)",
+       "uz": "Kreditni muddatida qaytarmaslik (uzoq kechikish)",
+       "en": "Non-repayment on time (protracted arrears)"
+      },
+      "share_pct": 55,
+      "catastrophic": false
+     },
+     {
+      "code": "bl_insolvency",
+      "label": {
+       "ru": "Неплатёжеспособность, банкротство заёмщика",
+       "uz": "Qarz oluvchining toʻlovga qobiliyatsizligi, bankrotligi",
+       "en": "Borrower insolvency, bankruptcy"
+      },
+      "share_pct": 30,
+      "catastrophic": false
+     },
+     {
+      "code": "bl_closure",
+      "label": {
+       "ru": "Прекращение деятельности заёмщика (ликвидация, утрата бизнеса)",
+       "uz": "Qarz oluvchi faoliyatining toʻxtashi (tugatish, biznesni yoʻqotish)",
+       "en": "Borrower's closure (liquidation, loss of business)"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "credit_history",
+     "label": {
+      "ru": "Кредитная история — данные кредитного бюро (КАТМ)",
+      "uz": "Kredit tarixi — kredit byurosi (KATM) maʼlumotlari",
+      "en": "Credit history — credit bureau (KATM) data"
+     },
+     "direction": "both",
+     "ref": "credit_report:katm"
+    },
+    {
+     "code": "credit_collateral",
+     "label": {
+      "ru": "Обеспечение",
+      "uz": "Taʼminot",
+      "en": "Collateral"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "credit_term",
+     "label": {
+      "ru": "Срок кредита",
+      "uz": "Kredit muddati",
+      "en": "Loan term"
+     },
+     "direction": "up",
+     "ref": null
+    },
+    {
+     "code": "credit_industry",
+     "label": {
+      "ru": "Отрасль заёмщика",
+      "uz": "Qarz oluvchi tarmogʻi",
+      "en": "Borrower's industry"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "borrower_kind",
+     "label": {
+      "ru": "Вид заёмщика",
+      "uz": "Qarz oluvchi turi",
+      "en": "Kind of borrower"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "credit",
+    "engine": "template",
+    "text": {
+     "ru": "Полная страховая сумма (необеспеченная часть кредита, не более 50 %). Накопление по одному банку и отрасли заёмщиков",
+     "uz": "Toʻliq sugʻurta summasi (kreditning taʼminlanmagan qismi, 50 % dan koʻp emas). Bitta bank va qarz oluvchilar tarmogʻi boʻyicha jamlanma",
+     "en": "The full sum insured (the unsecured part of the loan, not above 50 %). Accumulation by one bank and borrowers' industry"
+    },
+    "simple_rule": {
+     "ru": "PML, EML и MFL — полная страховая сумма; проверка: сумма не больше min(кредит − обеспечение; 50 % кредита)",
+     "uz": "PML, EML va MFL — toʻliq sugʻurta summasi; tekshiruv: summa min(kredit − taʼminot; kreditning 50 %) dan oshmaydi",
+     "en": "PML, EML and MFL — the full sum insured; check: the sum is not above min(loan − collateral; 50 % of the loan)"
+    },
+    "what": {
+     "PML": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     },
+     "EML": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     },
+     "MFL": {
+      "ru": "невозврат: полная страховая сумма",
+      "uz": "qaytarmaslik: toʻliq sugʻurta summasi",
+      "en": "default: the full sum insured"
+     }
+    },
+    "params": {
+     "max_share_of_loan": 0.5
+    },
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 13з + продукты класса 13з",
+    "items": [
+     {
+      "ru": "Кредитный договор и график погашения",
+      "uz": "Kredit shartnomasi va toʻlov jadvali",
+      "en": "Loan agreement and repayment schedule"
+     },
+     {
+      "ru": "Договор залога (обеспечения)",
+      "uz": "Garov (taʼminot) shartnomasi",
+      "en": "Pledge (security) agreement"
+     },
+     {
+      "ru": "Отчёт кредитного бюро (КАТМ) о кредитной истории заёмщика",
+      "uz": "Qarz oluvchining kredit tarixi haqida kredit byurosi (KATM) hisoboti",
+      "en": "Credit bureau (KATM) report on the borrower's credit history"
+     },
+     {
+      "ru": "Финансовая отчётность заёмщика — юридического лица",
+      "uz": "Qarz oluvchi — yuridik shaxsning moliyaviy hisoboti",
+      "en": "Financial statements of a corporate borrower"
+     }
+    ]
+   },
+   "stats": [
+    "enterprises_liquidated",
+    "frauds",
+    "bank_loans_total"
+   ],
+   "required_views": {
+    "default": [
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "bl_liability_object",
+     "cr_unsecured",
+     "cr_bank",
+     "bl_bureau",
+     "cr_overdue_notice"
+    ]
+   },
+   "measures": {
+    "default": [
+     "bl_katm_refresh",
+     "cr_collateral_monitor",
+     "cr_reporting",
+     "cr_early_warning"
+    ]
+   },
+   "notes": [
+    {
+     "code": "credit_rule",
+     "text": {
+      "ru": "Страхуется только необеспеченная часть и не более 50 % суммы кредита; страхователь и плательщик премии — банк-кредитор (требования НАПП)",
+      "uz": "Faqat taʼminlanmagan qism va kredit summasining 50 % idan koʻp boʻlmagan qismi sugʻurtalanadi; sugʻurtalanuvchi va mukofot toʻlovchi — kreditor bank (SNAP talablari)",
+      "en": "Only the unsecured part and not more than 50 % of the loan is insured; the policyholder and premium payer is the lending bank (regulator's requirements)"
+     }
+    },
+    {
+     "code": "diff_14",
+     "text": {
+      "ru": "Чем отличается от класса 14: в классе 14 страхуется риск кредитора — убыток банка от неплатежа должника; в варианте 13з страхуется гражданская ответственность самого заёмщика перед банком за непогашение кредита. По Положению 1882, п. 10, это класс 13 и 2-я учётная группа (РНП — 100 % базовой премии до окончания договора)",
+      "uz": "14-klassdan farqi: 14-klassda kreditor xavfi — qarzdor toʻlamaganidan bankning zarari sugʻurtalanadi; 13z variantida qarz oluvchining oʻzining kreditni qaytarmaganlik uchun bank oldidagi fuqarolik javobgarligi sugʻurtalanadi. 1882-son Nizom 10-bandiga koʻra bu 13-klass va 2-hisob guruhi (TQZ — shartnoma tugaguncha bazaviy mukofotning 100 %)",
+      "en": "Difference from class 14: class 14 insures the lender's risk — the bank's loss when the debtor does not pay; variant 13z insures the borrower's own civil liability to the bank for non-repayment. Under Regulation 1882, para. 10, it is class 13 and accounting group 2 (UPR — 100 % of the base premium until the contract ends)"
+     }
+    },
+    {
+     "code": "bureau",
+     "text": {
+      "ru": "Кредитная история — по отчёту кредитного бюро (КАТМ), загруженному в акт; персональные данные заёмщика-физлица в акт и модель не попадают",
+      "uz": "Kredit tarixi — dalolatnomaga yuklangan kredit byurosi (KATM) hisoboti boʻyicha; jismoniy shaxs qarz oluvchining shaxsiy maʼlumotlari dalolatnoma va modelga tushmaydi",
+      "en": "Credit history comes from the credit bureau (KATM) report uploaded to the report; an individual borrower's personal data does not go into the report or the model"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
+    }
+   ],
+   "aliases": [],
+   "reinsurance_usually": false,
+   "calibrated": 0
+  },
+  "16у": {
+   "class_code": "16у",
+   "variant": true,
+   "variant_of": "16",
+   "name": {
+    "ru": "Урожай сельскохозяйственных культур",
+    "uz": "Qishloq xoʻjaligi ekinlari hosili",
+    "en": "Crop yield"
+   },
+   "object": {
+    "description": {
+     "ru": "Посевы сельхозкультуры (будущий урожай) на поле: культура, площадь, регион, поле",
+     "uz": "Dalada qishloq xoʻjaligi ekini (boʻlgʻusi hosil): ekin, maydon, hudud, dala",
+     "en": "A field crop (the future harvest): crop, area, region, field"
+    },
+    "people": false,
+    "kinds": [
+     {
+      "code": "crop",
+      "label": {
+       "ru": "посевы (будущий урожай)",
+       "uz": "ekinlar (boʻlgʻusi hosil)",
+       "en": "crops (future harvest)"
+      }
+     }
+    ]
+   },
+   "must": [
+    {
+     "code": "crop",
+     "type": "choice",
+     "label": {
+      "ru": "Культура",
+      "uz": "Ekin",
+      "en": "Crop"
+     },
+     "input": "optional.class_fields.crop",
+     "options": [
+      "wheat",
+      "cotton",
+      "rice",
+      "vegetables",
+      "potato",
+      "fruit",
+      "grapes",
+      "other"
+     ],
+     "option_labels": {
+      "wheat": {
+       "ru": "пшеница",
+       "uz": "bugʻdoy",
+       "en": "wheat"
+      },
+      "cotton": {
+       "ru": "хлопчатник",
+       "uz": "gʻoʻza",
+       "en": "cotton"
+      },
+      "rice": {
+       "ru": "рис",
+       "uz": "sholi",
+       "en": "rice"
+      },
+      "vegetables": {
+       "ru": "овощи",
+       "uz": "sabzavotlar",
+       "en": "vegetables"
+      },
+      "potato": {
+       "ru": "картофель",
+       "uz": "kartoshka",
+       "en": "potatoes"
+      },
+      "fruit": {
+       "ru": "плодовые (сады)",
+       "uz": "mevali bogʻlar",
+       "en": "orchards"
+      },
+      "grapes": {
+       "ru": "виноград",
+       "uz": "uzum",
+       "en": "grapes"
+      },
+      "other": {
+       "ru": "другая культура",
+       "uz": "boshqa ekin",
+       "en": "other crop"
+      }
+     }
+    },
+    {
+     "code": "area_ha",
+     "type": "number",
+     "label": {
+      "ru": "Площадь посевов, га",
+      "uz": "Ekin maydoni, ga",
+      "en": "Sown area, ha"
+     },
+     "input": "optional.class_fields.area_ha"
+    },
+    {
+     "code": "avg_yield_5y",
+     "type": "number",
+     "label": {
+      "ru": "Средняя урожайность за 5 лет, ц/га",
+      "uz": "5 yillik oʻrtacha hosildorlik, s/ga",
+      "en": "5-year average yield, c/ha"
+     },
+     "input": "optional.class_fields.avg_yield_5y"
+    },
+    {
+     "code": "unit_price",
+     "type": "money",
+     "label": {
+      "ru": "Цена единицы продукции, сум за центнер",
+      "uz": "Mahsulot birligi narxi, sentner uchun soʻm",
+      "en": "Price per unit of produce, UZS per centner"
+     },
+     "input": "optional.class_fields.unit_price",
+     "unit": "UZS"
+    }
+   ],
+   "optional": [
+    {
+     "code": "field_id",
+     "type": "text",
+     "label": {
+      "ru": "Поле: номер или кадастровый номер участка",
+      "uz": "Dala: raqami yoki yer uchastkasining kadastr raqami",
+      "en": "Field: number or cadastral number of the plot"
+     },
+     "input": "optional.class_fields.field_id"
+    },
+    {
+     "code": "irrigation",
+     "type": "choice",
+     "label": {
+      "ru": "Орошение",
+      "uz": "Sugʻorish",
+      "en": "Irrigation"
+     },
+     "input": "optional.class_fields.irrigation",
+     "options": [
+      "irrigated",
+      "drip",
+      "rainfed"
+     ],
+     "option_labels": {
+      "irrigated": {
+       "ru": "орошаемое поле",
+       "uz": "sugʻoriladigan dala",
+       "en": "irrigated"
+      },
+      "drip": {
+       "ru": "капельное орошение",
+       "uz": "tomchilatib sugʻorish",
+       "en": "drip irrigation"
+      },
+      "rainfed": {
+       "ru": "богара (без орошения)",
+       "uz": "lalmi (sugʻorilmaydigan)",
+       "en": "rain-fed"
+      }
+     }
+    },
+    {
+     "code": "agrotech",
+     "type": "choice",
+     "label": {
+      "ru": "Агротехника",
+      "uz": "Agrotexnika",
+      "en": "Agronomic practice"
+     },
+     "input": "optional.class_fields.agrotech",
+     "options": [
+      "high",
+      "standard",
+      "low"
+     ],
+     "option_labels": {
+      "high": {
+       "ru": "интенсивная (по технологической карте)",
+       "uz": "intensiv (texnologik xarita boʻyicha)",
+       "en": "intensive"
+      },
+      "standard": {
+       "ru": "обычная",
+       "uz": "oddiy",
+       "en": "standard"
+      },
+      "low": {
+       "ru": "упрощённая",
+       "uz": "soddalashtirilgan",
+       "en": "basic"
+      }
+     }
+    },
+    {
+     "code": "variety",
+     "type": "text",
+     "label": {
+      "ru": "Сорт",
+      "uz": "Nav",
+      "en": "Variety"
+     },
+     "input": "optional.class_fields.variety"
+    },
+    {
+     "code": "yield_history",
+     "type": "text",
+     "label": {
+      "ru": "Урожайность по годам за 5 лет, ц/га",
+      "uz": "5 yil davomida yillar boʻyicha hosildorlik, s/ga",
+      "en": "Yield by year over 5 years, c/ha"
+     },
+     "input": "optional.class_fields.yield_history"
+    },
+    {
+     "code": "losses_3y",
+     "type": "losses",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "input": "optional.losses_3y"
+    },
+    {
+     "code": "deductible",
+     "type": "deductible",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "input": "optional.deductible"
+    }
+   ],
+   "valuation_methods": [
+    {
+     "method": "crop",
+     "name": {
+      "ru": "Стоимость урожая",
+      "uz": "Hosil qiymati",
+      "en": "Crop value"
+     },
+     "when": {
+      "ru": "урожай сельхозкультур (вариант 16у)",
+      "uz": "qishloq xoʻjaligi ekinlari hosili (16u varianti)",
+      "en": "crop yield (variant 16u)"
+     },
+     "note": {
+      "ru": "страховая стоимость = площадь, га × средняя урожайность за 5 лет, ц/га × цена единицы продукции, сум за центнер",
+      "uz": "sugʻurta qiymati = maydon, ga × 5 yillik oʻrtacha hosildorlik, s/ga × mahsulot birligi narxi, sentner uchun soʻm",
+      "en": "insured value = area, ha × 5-year average yield, c/ha × price per unit, UZS per centner"
+     }
+    }
+   ],
+   "risks": {
+    "source": "template",
+    "calibrated": 0,
+    "note": {
+     "ru": "Экспертно: засуха и заморозки — главные катастрофические риски урожая (накрывают весь регион), град и болезни — частые локальные; перечень по ЗРУ-1056, ст. 5 (оценка разработчика, не утверждено страховщиком)",
+     "uz": "Ekspert baho: qurgʻoqchilik va sovuq — hosilning asosiy falokatli xavflari (butun hududni qamraydi), doʻl va kasalliklar — tez-tez uchraydigan mahalliy xavflar; roʻyxat OʻRQ-1056, 5-modda boʻyicha (ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan)",
+     "en": "Expert view: drought and frost are the main catastrophic crop risks (they hit the whole region), hail and disease are frequent local ones; the list follows Law ZRU-1056, art. 5 (developer's estimate, not approved by the insurer)"
+    },
+    "items": [
+     {
+      "code": "cp_drought",
+      "label": {
+       "ru": "Засуха",
+       "uz": "Qurgʻoqchilik",
+       "en": "Drought"
+      },
+      "share_pct": 30,
+      "catastrophic": true
+     },
+     {
+      "code": "cp_hail",
+      "label": {
+       "ru": "Град",
+       "uz": "Doʻl",
+       "en": "Hail"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "cp_frost",
+      "label": {
+       "ru": "Заморозки",
+       "uz": "Sovuq urishi",
+       "en": "Frost"
+      },
+      "share_pct": 15,
+      "catastrophic": true
+     },
+     {
+      "code": "cp_flood",
+      "label": {
+       "ru": "Сель, наводнение",
+       "uz": "Sel, suv toshqini",
+       "en": "Mudflow, flood"
+      },
+      "share_pct": 10,
+      "catastrophic": true
+     },
+     {
+      "code": "cp_storm",
+      "label": {
+       "ru": "Ураган, сильный ветер",
+       "uz": "Dovul, kuchli shamol",
+       "en": "Storm, strong wind"
+      },
+      "share_pct": 5,
+      "catastrophic": false
+     },
+     {
+      "code": "cp_pests",
+      "label": {
+       "ru": "Болезни и вредители растений",
+       "uz": "Oʻsimlik kasalliklari va zararkunandalar",
+       "en": "Plant diseases and pests"
+      },
+      "share_pct": 15,
+      "catastrophic": false
+     },
+     {
+      "code": "cp_fire",
+      "label": {
+       "ru": "Пожар",
+       "uz": "Yongʻin",
+       "en": "Fire"
+      },
+      "share_pct": 5,
+      "catastrophic": false
+     },
+     {
+      "code": "cp_wild_animals",
+      "label": {
+       "ru": "Повреждение посевов дикими животными",
+       "uz": "Yovvoyi hayvonlar tomonidan ekinlarning payhon qilinishi",
+       "en": "Crop damage by wild animals"
+      },
+      "share_pct": 2,
+      "catastrophic": false
+     },
+     {
+      "code": "cp_third_party",
+      "label": {
+       "ru": "Действия третьих лиц",
+       "uz": "Uchinchi shaxslarning xatti-harakatlari",
+       "en": "Acts of third parties"
+      },
+      "share_pct": 3,
+      "catastrophic": false
+     }
+    ]
+   },
+   "factors": [
+    {
+     "code": "irrigation",
+     "label": {
+      "ru": "Орошение",
+      "uz": "Sugʻorish",
+      "en": "Irrigation"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "agrotech",
+     "label": {
+      "ru": "Агротехника",
+      "uz": "Agrotexnika",
+      "en": "Agronomic practice"
+     },
+     "direction": "down",
+     "ref": null
+    },
+    {
+     "code": "variety",
+     "label": {
+      "ru": "Сорт (устойчивость к засухе, болезням)",
+      "uz": "Nav (qurgʻoqchilik va kasalliklarga chidamlilik)",
+      "en": "Variety (drought and disease resistance)"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "yield_history",
+     "label": {
+      "ru": "История урожайности (колебания за 5 лет)",
+      "uz": "Hosildorlik tarixi (5 yillik tebranishlar)",
+      "en": "Yield history (5-year volatility)"
+     },
+     "direction": "both",
+     "ref": "risk_stats:grain_volatility"
+    },
+    {
+     "code": "region",
+     "label": {
+      "ru": "Регион (климат, сель, заморозки)",
+      "uz": "Hudud (iqlim, sel, sovuq)",
+      "en": "Region (climate, mudflows, frost)"
+     },
+     "direction": "both",
+     "ref": null
+    },
+    {
+     "code": "loss_history",
+     "label": {
+      "ru": "Убытки за 3 года",
+      "uz": "3 yillik zararlar",
+      "en": "Losses over 3 years"
+     },
+     "direction": "up",
+     "ref": "coefficients:loss_history"
+    },
+    {
+     "code": "franchise",
+     "label": {
+      "ru": "Франшиза",
+      "uz": "Franshiza",
+      "en": "Deductible"
+     },
+     "direction": "down",
+     "ref": "coefficients:franchise"
+    }
+   ],
+   "scenario_rule": {
+    "code": "crop",
+    "engine": "template",
+    "text": {
+     "ru": "PML — частичная потеря урожая на части площади; EML — гибель урожая на значительной площади; MFL — полная гибель на всей площади",
+     "uz": "PML — maydonning bir qismida hosilning qisman yoʻqotilishi; EML — katta maydonda hosilning nobud boʻlishi; MFL — butun maydonda toʻliq nobud boʻlish",
+     "en": "PML — partial crop loss on part of the area; EML — crop loss on a large part of the area; MFL — total loss on the whole area"
+    },
+    "simple_rule": {
+     "ru": "База — меньшее из страховой суммы и стоимости урожая (площадь × средняя урожайность за 5 лет × цена). PML = база × 30 % площади × 50 % потери; EML = база × 60 % площади × 100 %; MFL = база. Проверка: страховая сумма не выше стоимости урожая (ГК ст. 938)",
+     "uz": "Baza — sugʻurta summasi va hosil qiymatining kichigi (maydon × 5 yillik oʻrtacha hosildorlik × narx). PML = baza × maydonning 30 % × 50 % yoʻqotish; EML = baza × maydonning 60 % × 100 %; MFL = baza. Tekshiruv: sugʻurta summasi hosil qiymatidan oshmaydi (FK, 938-modda)",
+     "en": "Base — the lower of the sum insured and the crop value (area × 5-year average yield × price). PML = base × 30 % of the area × 50 % loss; EML = base × 60 % of the area × 100 %; MFL = base. Check: the sum insured is not above the crop value (Civil Code, art. 938)"
+    },
+    "what": {
+     "PML": {
+      "ru": "частичная потеря урожая на части площади",
+      "uz": "maydonning bir qismida hosilning qisman yoʻqotilishi",
+      "en": "partial crop loss on part of the area"
+     },
+     "EML": {
+      "ru": "гибель урожая на значительной площади",
+      "uz": "katta maydonda hosilning nobud boʻlishi",
+      "en": "crop loss on a large part of the area"
+     },
+     "MFL": {
+      "ru": "полная гибель на всей площади",
+      "uz": "butun maydonda toʻliq nobud boʻlish",
+      "en": "total loss on the whole area"
+     }
+    },
+    "params": {
+     "pml_area_share": 0.3,
+     "pml_loss_ratio": 0.5,
+     "eml_area_share": 0.6,
+     "eml_loss_ratio": 1.0
+    },
+    "expert": true,
+    "calibrated": 0
+   },
+   "documents": {
+    "checklists": "checklists: всегда + класс 16у + продукты класса 16у",
+    "items": [
+     {
+      "ru": "Сведения о посевах: культура, площадь, поле, кадастровый номер участка",
+      "uz": "Ekinlar haqida maʼlumot: ekin, maydon, dala, yer uchastkasining kadastr raqami",
+      "en": "Crop details: crop, area, field, cadastral number of the plot"
+     },
+     {
+      "ru": "Справка об урожайности за 5 лет (по хозяйству или району)",
+      "uz": "5 yillik hosildorlik haqida maʼlumotnoma (xoʻjalik yoki tuman boʻyicha)",
+      "en": "Certificate of yields over 5 years (farm or district)"
+     },
+     {
+      "ru": "Документ о праве пользования землёй (аренда)",
+      "uz": "Yerdan foydalanish huquqi haqida hujjat (ijara)",
+      "en": "Land use right document (lease)"
+     },
+     {
+      "ru": "Технологическая карта и сведения об орошении",
+      "uz": "Texnologik xarita va sugʻorish haqida maʼlumot",
+      "en": "Crop technology chart and irrigation details"
+     }
+    ]
+   },
+   "stats": [
+    "grain_volatility",
+    "wheat_volatility",
+    "grain_production",
+    "crop_output",
+    "emergencies"
+   ],
+   "required_views": {
+    "default": [
+     "general",
+     "document"
+    ]
+   },
+   "clauses": {
+    "default": [
+     "cp_yield_basis",
+     "cp_area_declared",
+     "cp_agrotech",
+     "cp_notice_expert"
+    ]
+   },
+   "measures": {
+    "default": [
+     "cp_irrigation",
+     "cp_plant_protection",
+     "cp_frost_hail",
+     "cp_field_monitoring"
+    ]
+   },
+   "notes": [
+    {
+     "code": "law_objects",
+     "text": {
+      "ru": "ЗРУ-1056 от 14.04.2025, ст. 16: «Объектами сельскохозяйственного страхования являются имущественные интересы производителей сельскохозяйственной продукции, связанные с риском утраты (гибели) будущего урожая и производимой сельскохозяйственной продукции, причинением ущерба посевам и сельскохозяйственным животным, а также теплицам и выращиваемой в них сельскохозяйственной продукции.»",
+      "uz": "OʻRQ-1056, 16-modda: «Qishloq xoʻjaligi mahsulotini ishlab chiqaruvchilarning boʻlgʻusi hosilning va yetishtiriladigan qishloq xoʻjaligi mahsulotining yoʻqotilishi (nobud boʻlishi) xavfi, ekinlarga va qishloq xoʻjaligi hayvonlariga, shuningdek issiqxonalarga va ularda yetishtiriladigan qishloq xoʻjaligi mahsulotiga zarar yetkazilishi bilan bogʻliq boʻlgan mulkiy manfaatlari qishloq xoʻjaligi sugʻurtasining obyektlaridir.»",
+      "en": "Law ZRU-1056 of 14.04.2025, art. 16: the objects of agricultural insurance are the property interests of agricultural producers related to the risk of loss of the future harvest and produce, damage to crops and farm animals, and to greenhouses and the produce grown in them"
+     }
+    },
+    {
+     "code": "law_risks",
+     "text": {
+      "ru": "ЗРУ-1056, ст. 5 — риски: стихийные и техногенные бедствия; пожар; повреждение растений вредителями и болезнями; распространение инфекционных заболеваний и отравление сельскохозяйственных животных; повреждение посевов или нанесение вреда сельскохозяйственным животным дикими животными; действия третьих лиц",
+      "uz": "OʻRQ-1056, 5-modda — xavflar: tabiiy va texnogen ofatlar; yongʻin; oʻsimliklarning zararkunandalar va kasalliklardan zararlanishi; qishloq xoʻjaligi hayvonlarining yuqumli kasalliklari tarqalishi va zaharlanishi; yovvoyi hayvonlar tomonidan ekinlarning payhon qilinishi yoki qishloq xoʻjaligi hayvonlariga zarar yetkazilishi; uchinchi shaxslarning xatti-harakatlari",
+      "en": "Law ZRU-1056, art. 5 — risks: natural and man-made disasters; fire; damage to plants by pests and diseases; spread of infectious diseases and poisoning of farm animals; damage to crops or farm animals by wild animals; acts of third parties"
+     }
+    },
+    {
+     "code": "law_scope",
+     "text": {
+      "ru": "Закон описывает страхование через Фонд сельскохозяйственного страхования (договор от имени Фонда заключает посредник, ст. 3); шаблон — для страхования урожая страховщиком: объект и перечень рисков взяты из закона, доли — экспертные",
+      "uz": "Qonun Qishloq xoʻjaligi sugʻurtasi jamgʻarmasi orqali sugʻurtani tavsiflaydi (Jamgʻarma nomidan shartnomani vositachi tuzadi, 3-modda); shablon — sugʻurtalovchi tomonidan hosilni sugʻurtalash uchun: obyekt va xavflar roʻyxati qonundan olingan, ulushlar — ekspert bahosi",
+      "en": "The law describes insurance through the Agricultural Insurance Fund (an intermediary concludes the contract on the Fund's behalf, art. 3); the template is for crop insurance by an insurer: the object and risk list come from the law, the shares are expert"
+     }
+    },
+    {
+     "code": "rnp_group",
+     "text": {
+      "ru": "Положение 1882, п. 10: страхование урожая сельскохозяйственных культур (класс 16) — 4-я учётная группа (РНП — 75 % базовой премии до окончания договора)",
+      "uz": "1882-son Nizom, 10-band: qishloq xoʻjaligi ekinlari hosilini sugʻurtalash (16-klass) — 4-hisob guruhi (TQZ — shartnoma tugaguncha bazaviy mukofotning 75 %)",
+      "en": "Regulation 1882, para. 10: crop insurance (class 16) is accounting group 4 (UPR — 75 % of the base premium until the contract ends)"
+     }
+    },
+    {
+     "code": "pml_rule",
+     "text": {
+      "ru": "PML — по части площади (локальный град, болезнь), EML — по значительной площади, MFL — по всей площади; засуха, заморозки и сель накапливаются по региону — смотреть все поля страхователя в регионе",
+      "uz": "PML — maydonning bir qismi boʻyicha (mahalliy doʻl, kasallik), EML — katta maydon boʻyicha, MFL — butun maydon boʻyicha; qurgʻoqchilik, sovuq va sel hudud boʻyicha jamlanadi — sugʻurta qildiruvchining hududdagi barcha dalalarini koʻrish kerak",
+      "en": "PML is per part of the area (local hail, disease), EML per a large part, MFL per the whole area; drought, frost and mudflows accumulate by region — look at all the policyholder's fields in the region"
+     }
+    },
+    {
+     "code": "expert_estimate",
+     "text": {
+      "ru": "Доли рисков, веса и параметры сценариев — оценка разработчика, не утверждено страховщиком (calibrated = 0)",
+      "uz": "Xavf ulushlari, vaznlar va ssenariy parametrlari — ishlab chiquvchi bahosi, sugʻurtalovchi tasdiqlamagan (calibrated = 0)",
+      "en": "Risk shares, weights and scenario parameters are the developer's estimate, not approved by the insurer (calibrated = 0)"
+     }
     }
    ],
    "aliases": [],
    "reinsurance_usually": false,
    "calibrated": 0
   }
+ },
+ "legacy_aliases": {
+  "13з": "14",
+  "16у": "16"
+ },
+ "classification": {
+  "act": "Постановление Кабинета Министров № 80 от 21.02.2022 «Об утверждении единого положения о порядке лицензирования отдельных видов деятельности посредством специальной электронной системы», приложение 6 (паспорт лицензии на страховую деятельность), п. 12 «Sugʻurta faoliyati klassifikatori»; приложение 6 в редакции ПКМ № 458 от 23.07.2025",
+  "url_uz": "https://lex.uz/uz/docs/-5870213",
+  "url_ru": "https://lex.uz/ru/docs/5870217",
+  "library": "library/01_Законодательство/02_Акты_регуляторов/ПКМ № 80 от 21.02.2022 — единое положение о лицензировании (прил. 6 — классификатор страховой деятельности) (uz).txt",
+  "language_note": {
+   "ru": "Приложения 2–40 к Единому положению приводятся только на узбекском языке (lex.uz): узбекское название класса 18 — дословно, русское и английское — перевод разработчика",
+   "uz": "Yagona nizomning 2–40-ilovalari faqat oʻzbek tilida (lex.uz): 18-klassning oʻzbekcha nomi — aynan, ruscha va inglizcha — ishlab chiquvchi tarjimasi",
+   "en": "Annexes 2–40 to the Unified Regulation exist only in Uzbek (lex.uz): the Uzbek name of class 18 is verbatim, the Russian and English ones are the developer's translation"
+  },
+  "general_class_18_uz": "Tibbiy sugʻurta"
  }
 }

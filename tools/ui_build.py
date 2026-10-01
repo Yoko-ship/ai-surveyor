@@ -40,7 +40,9 @@ def export() -> dict:
     con.row_factory = sqlite3.Row
     today = __import__("datetime").date.today().isoformat()
 
-    classes = rows(con, "SELECT code, name, kind, branch, group_code FROM classes ORDER BY CAST(code AS INTEGER), code")
+    # строки классов страхования жизни (L*), если они вдруг есть, не показываются; 13з после 13, 16у после 16, 18 последним
+    classes = rows(con, "SELECT code, name, kind, branch, group_code FROM classes WHERE code NOT LIKE 'L%' "
+                        "ORDER BY CAST(code AS INTEGER), code")
     products = rows(con, "SELECT code, name, rate_text, commission_text, commission_pct, pricing_mode, is_general,"
                          " status, note FROM products WHERE status='действует' ORDER BY code")
     pcs = {}
