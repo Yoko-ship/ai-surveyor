@@ -22,7 +22,8 @@
                                 со сроком на файл и на запрос; одновременно не больше двух на сервер
   POST /act/make              — акт по четырём полям + необязательным + распознанному (в сеть не ходит)
   GET  /act/{id}              — акт (JSON), ?lang=ru|uz|en — тот же акт на другом языке
-  GET  /act/{id}.docx, .pdf   — выгрузка
+  GET  /act/{id}.docx, .pdf   — выгрузка (первая страница / секция — страховой скоринг объекта)
+  GET  /act/{id}/scoring.pdf, /scoring.png — только страница скоринга / картинка шкалы (права как у акта)
   POST /act/{id}/send         — отправить акт файлом в чат с ботом (Telegram), только владельцу
   GET  /act/settings          — пороги лёгкого движка; PUT /act/settings — только администратор
   GET  /act/templates         — шаблоны анализа 17 классов кратко (справочник class_templates, приложение А)
@@ -59,6 +60,14 @@ object_kind?, object_description?, same_object?, fields{…}, deductible?} — �
 Договор: премия — сумма, уровень — самый высокий, сценарии — большее (один объект) или сумма (разные объекты),
 удержание — против EML договора, средняя ставка — только справочно. Блок parts в ответе, разделы 1, 3, 4, 5 акта.
 
+Страховой скоринг объекта (01.10.2026, app/act_scoring.py): первая страница акта в PDF и первая секция Word —
+балл 0–500 (act_engine.insurance_score: 500 − 5 × балл риска 0–100 аналитики; без аналитики — по уровню риска),
+класс A–E с подклассом, шкала, общий обзор, риски, сценарии, проверки. Блок scoring в ответе /act/make и GET /act/{id};
+GET /act/{id}/scoring.pdf — только страница скоринга, GET /act/{id}/scoring.png — картинка шкалы (права как у акта).
+Отчёт кредитного бюро КАТМ (app/credit_report.py): документ credit_report — файл с текстом правилами, скан моделью;
+в /act/photos — блок credit_report, в /act/make — optional.credit_report (источник решает сервер, как у запроса) →
+блок borrower и проверки андеррайтеру для классов 14, 13з, 15 (в уровень риска и ставку не входит).
+
 Хранение: фото — 24 часа (DATA_DIR/act/<сессия>/, таблица act_uploads), акт — 7 дней (таблица acts);
 очистка — фоновым потоком раз в час и при каждой загрузке. Открыть акт может только тот, кто его создал
 (гость — по cookie gid, пользователь — по id), администратор — любой.
@@ -87,9 +96,11 @@ from fastapi.routing import APIRoute
 from . import act_analytics as aa
 from . import act_engine as ae
 from . import act_extras as ax
+from . import act_scoring as asc
 from . import branch_request as br
 from . import class_templates as ctpl
 from . import contract_read as cr
+from . import credit_report as crr
 from . import act_market as am
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
@@ -569,7 +580,10 @@ SCHEMA_HINT = (
     '"term_from": "ГГГГ-ММ-ДД или null", "term_to": "ГГГГ-ММ-ДД или null", '
     '"object_description_translated": "описание объекта в переводе или null", '
     '"class_hint": "building|equipment|vehicle|special_machinery|cargo|other или null"}, '
-    '"contract": null или ' + CONTRACT_SCHEMA + '}')
+    '"contract": null или ' + CONTRACT_SCHEMA + ', "credit_report": null или ' + crr.MODEL_SCHEMA + '}')
+# сканы отчёта бюро модели не читаются (credit_report.allow_scan = false): в схеме блока credit_report нет,
+# вид credit_report модель только называет — чтобы сервер отбросил всё, что пришло с такого снимка
+SCHEMA_HINT_NO_CR = SCHEMA_HINT.replace(', "credit_report": null или ' + crr.MODEL_SCHEMA, "")
 
 FIELD_HINTS = (
     "ключи fields: object_type (что за объект, словами), brand (марка), model (модель), "
@@ -595,7 +609,8 @@ FIELD_HINTS = (
 LANG_NAME = {"ru": "русском", "uz": "узбекском (латиница)", "en": "английском"}
 
 
-def model_prompt(n: int, lang: str) -> str:
+def model_prompt(n: int, lang: str, credit_scan: bool = False) -> str:
+    """credit_scan — модель читает сканы отчёта бюро (настройка credit_report.allow_scan); иначе только называет вид."""
     return (f"приложено файлов: {n}, они пронумерованы по порядку от 1 до {n}. "
             f"для каждого файла укажи ракурс (view). {FIELD_HINTS} "
             f"описания (object_type, location, damages, note, document_kind) пиши на {LANG_NAME[lang]} языке "
@@ -603,7 +618,8 @@ def model_prompt(n: int, lang: str) -> str:
             f"видимые повреждения перечисли в damages; если повреждений не видно — пустой список. "
             f"перевод описания объекта из запроса филиала (object_description_translated) — на {LANG_NAME[lang]} "
             f"языке; если запроса филиала нет — branch_request = null. {CONTRACT_HINT} "
-            f"схема ответа: {SCHEMA_HINT}")
+            f"{crr.MODEL_HINT if credit_scan else crr.MODEL_HINT_OFF} "
+            f"схема ответа: {SCHEMA_HINT if credit_scan else SCHEMA_HINT_NO_CR}")
 
 
 def _placeholders(s: str) -> set:
@@ -725,6 +741,8 @@ def parse_model(text: str, n: int, inclusive: bool = True) -> Optional[dict]:
             dk = "branch_request"
         elif dk and dk.lower() in ("contract", "insurance contract", "insurance policy", "договор страхования"):
             dk = cr.KIND
+        elif dk and dk.lower() in ("credit_report", "credit report", "отчёт кредитного бюро", "кредитный отчёт"):
+            dk = crr.KIND
         if dk and not pd_like("document_kind", dk):
             kinds[i] = dk
     dropped = 0
@@ -792,8 +810,16 @@ def parse_model(text: str, n: int, inclusive: bool = True) -> Optional[dict]:
         except (TypeError, ValueError, AttributeError):
             cf = None
         ctr["file"] = cf or next((i for i, k in sorted(kinds.items()) if k == cr.KIND), None)
+    cbr = crr.from_model(data.get("credit_report"))
+    if cbr:
+        try:
+            kf = int((data.get("credit_report") or {}).get("file"))
+            kf = kf if 1 <= kf <= n else None
+        except (TypeError, ValueError, AttributeError):
+            kf = None
+        cbr = {"fields": cbr, "file": kf or next((i for i, k in sorted(kinds.items()) if k == crr.KIND), None)}
     return {"views": views, "document_kinds": kinds, "fields": fields, "damages": damages, "branch_request": brq,
-            "contract": ctr,
+            "contract": ctr, "credit_report": cbr,
             "object_kind": kind if kind in tx.OBJECT_KINDS else None,
             "class_hint": hint if hint in CLASS_HINTS else None,
             "condition": cond if cond in CONDITIONS else None, "dropped": dropped}
@@ -842,8 +868,9 @@ def recognize(saved: list, lang: str, limits: Optional[dict] = None, inclusive: 
     ok=False с честной причиной (фото остаются, акт формируется).
     Возвращает {"ok", "reason", "sent": [индексы saved], "not_sent": [...], ...поля parse_model}.
     """
+    scan = bool((limits or {}).get("_credit_scan"))
     return ask_model(saved, lang, limits, "акт: распознавание фото", SYSTEM_PROMPT,
-                     lambda n: model_prompt(n, lang), lambda text, n: parse_model(text, n, inclusive))
+                     lambda n: model_prompt(n, lang, scan), lambda text, n: parse_model(text, n, inclusive))
 
 
 def ask_model(saved: list, lang: str, limits: Optional[dict], purpose: str, system: str, prompt_of, parse) -> dict:
@@ -1013,10 +1040,12 @@ def _limit_reply(request: Request, message: str, res: dict) -> JSONResponse:
 
 
 def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str = Form(""),
-               class_code: str = Form(""), product_code: str = Form("")):
+               class_code: str = Form(""), product_code: str = Form(""), kinds: str = Form("")):
     """
     Фото объекта и снимки документов (до 10 файлов, до 15 МБ; JPG, PNG, PDF). Файлы хранятся 24 часа.
     Одним запросом уходят в языковую модель; ответ проверяется по схеме.
+    kinds (необязательно) — JSON {номер файла с 1: "credit_report" | "object" | "document"}: вид, который выбрал
+    сотрудник. Файл «отчёт бюро» (картинка или скан без текста) при credit_report.allow_scan = false в модель не уходит.
     Обычный def: FastAPI выполняет его в пуле потоков — распознавание (сеть до 25 с) и пережатие
     не останавливают сервер с одним процессом uvicorn.
     """
@@ -1027,12 +1056,16 @@ def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str 
         return _fail(request, "Не удалось опознать сессию — откройте приложение заново", 400)
     if len(files) > MAX_FILES:
         return _fail(request, t("ph_too_many", lang, n=MAX_FILES), 413)
+    kind_map, kind_err = parse_kinds(kinds, len(files))
+    if kind_err:
+        return _fail(request, t("ph_kinds_bad", lang), 422, errors={"kinds": kind_err})
     with db.tx() as con:
         ensure_tables(con)
         st = load_settings(con)
     limits = st["limits"]
     inclusive = bool(st["request_check"]["term_inclusive"])
-    limits = dict(limits, _contract=st["contract"], _tolerance=float(st["request_check"]["premium_tolerance"]))
+    limits = dict(limits, _contract=st["contract"], _tolerance=float(st["request_check"]["premium_tolerance"]),
+                  _credit_scan=bool((st.get("credit_report") or {}).get("allow_scan")), _kinds=kind_map)
     if owner.startswith("g:"):
         n_max = int(limits["guest_photos_per_hour"])
         res = GUEST_PHOTOS.take(owner, len(files), n_max)
@@ -1052,6 +1085,35 @@ def act_photos(request: Request, files: List[UploadFile] = File(...), lang: str 
 
 
 router.add_api_route("/act/photos", act_photos, methods=["POST"], route_class_override=_BodyLimitRoute)
+
+FILE_KINDS = ("credit_report", "object", "document")
+
+
+def parse_kinds(raw, n: int) -> tuple:
+    """Поле формы kinds (недоверенный ввод) → ({номер файла: вид}, ошибка | None). Пусто — {}."""
+    raw = str(raw or "").strip()
+    if not raw:
+        return {}, None
+    if len(raw) > 2000:
+        return {}, "слишком длинно"
+    try:
+        data = json.loads(raw)
+    except ValueError:
+        return {}, "не JSON"
+    if not isinstance(data, dict):
+        return {}, "объект {номер файла: вид}"
+    out = {}
+    for k, v in data.items():
+        try:
+            i = int(str(k).strip())
+        except ValueError:
+            return {}, f"номер файла «{str(k)[:10]}» — целое"
+        if not 1 <= i <= n:
+            return {}, f"номер файла {i} — от 1 до {n}"
+        if v not in FILE_KINDS:
+            return {}, f"вид файла {i} — " + ", ".join(FILE_KINDS)
+        out[i] = v
+    return out, None
 
 
 def _photos(request, user, owner, lang, files, class_code, product_code, limits, sid, folder, inclusive=True):
@@ -1137,6 +1199,12 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
             res["notes"].append("doc_macros")
         parsed[f["id"]] = res
     model_files = [f for f in saved if f["id"] not in parsed]
+    # сканы и фото, которые сотрудник пометил «отчёт бюро»: в отчёте кредитная история — модели не отдаём,
+    # пока администратор не разрешил (credit_report.allow_scan)
+    credit_scan = bool(limits.get("_credit_scan"))
+    marked = limits.get("_kinds") or {}
+    withheld = [] if credit_scan else [f for f in model_files if marked.get(f["index"]) == crr.KIND]
+    model_files = [f for f in model_files if f not in withheld]
     if model_files:
         rec = recognize(model_files, lang, limits, inclusive)
     else:
@@ -1144,6 +1212,18 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     sent = rec.get("sent") or []
     # номер файла в запросе к модели → id загруженного файла
     model_to_id = {k + 1: model_files[i]["id"] for k, i in enumerate(sent)}
+    # модель узнала отчёт бюро на снимке, а сканы не разрешены: значения отчёта и всё, что пришло с этого снимка,
+    # отбрасываются (картинка уже ушла вместе с остальными — поэтому экран просит пометить такой файл заранее)
+    scan_dropped = bool(withheld)
+    if not credit_scan:
+        cr_files = {k for k, v in (rec.get("document_kinds") or {}).items() if v == crr.KIND}
+        if rec.get("credit_report") and (rec["credit_report"].get("file") or 0) > 0:
+            cr_files.add(rec["credit_report"]["file"])
+        if cr_files or rec.get("credit_report"):
+            scan_dropped = True
+            rec = dict(rec, credit_report=None,
+                       fields=[x for x in rec.get("fields") or [] if x.get("file") not in cr_files],
+                       damages=[x for x in rec.get("damages") or [] if x.get("file") not in cr_files])
     views = {model_to_id[k]: v for k, v in (rec.get("views") or {}).items() if k in model_to_id}
     doc_kinds = {model_to_id[k]: v for k, v in (rec.get("document_kinds") or {}).items() if k in model_to_id}
     fields = []
@@ -1152,8 +1232,10 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     damages = [{"what": d["what"], "where": d.get("where"), "file": model_to_id.get(d.get("file"))}
                for d in rec.get("damages") or []]
     not_sent = [model_files[i]["index"] for i in rec.get("not_sent") or []]
-    doc_kinds = {k: (tx.label(tx.DOC_KIND_LABELS, v, lang) if v in (br.KIND, cr.KIND) else v)
+    doc_kinds = {k: (tx.label(tx.DOC_KIND_LABELS, v, lang) if v in (br.KIND, cr.KIND, crr.KIND) else v)
                  for k, v in doc_kinds.items()}
+    for f in withheld:
+        doc_kinds[f["id"]] = tx.label(tx.DOC_KIND_LABELS, crr.KIND, lang)
 
     # значения из разобранных документов: источник «документ», пометка «проверьте», ПД отбрасываются
     doc_fields, prefill, doc_notes, dropped_doc, doc_list = [], {}, [], 0, []
@@ -1267,6 +1349,21 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     elif ctr:
         ctr["fields"], n = ct_clean(ctr["fields"])
         dropped_br += n
+    # отчёт кредитного бюро (КАТМ): файл с текстом (разобран правилами) или скан (ответ модели); первый найденный
+    cbr = None
+    for f in saved:
+        got = (parsed.get(f["id"]) or {}).get("credit_report")
+        if got:
+            cbr = {"source": "document", "file": f["id"], "fields": got["fields"], "notes": list(got["notes"])}
+            break
+    if not cbr and rec.get("credit_report"):
+        mk_ = rec["credit_report"]
+        fid = model_to_id.get(mk_.get("file")) or (model_to_id.get(1) if len(model_to_id) == 1 else None)
+        cbr = {"source": "photo", "file": fid, "fields": mk_["fields"],
+               "notes": ["cr_individual"] if mk_["fields"].get("subject_type") == "individual" else []}
+    if cbr:
+        cbr["fields"], n = cr_clean(cbr["fields"])
+        dropped_br += n
     if ctr:
         ctr["found"], ctr["missing"] = cr.found_missing(ctr["fields"])
         ctr["essentials"] = cr.essentials(ctr["fields"])
@@ -1306,7 +1403,7 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                   "object_kind": kind, "class_hint": hint, "condition": rec.get("condition"),
                   "files": len(saved), "photo_files": len(model_files), "parsed_docs": parsed_ok,
                   "prefill": prefill, "doc_notes": doc_notes, "not_sent": not_sent, "lang": lang,
-                  "branch_request": brq, "contract": ctr}
+                  "branch_request": brq, "contract": ctr, "credit_report": cbr}
         now = _now()
         # в базе о файле — только порядковый номер, формат, размер и путь: имени файла нет
         keep = ("id", "index", "fmt", "mime", "size", "path")
@@ -1331,7 +1428,10 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                   "contract": bool(ctr), "contract_source": (ctr or {}).get("source"),
                   "contract_found": len((ctr or {}).get("found") or []),
                   "contract_ai": len((ctr or {}).get("field_sources") or {}),
-                  "cross_differs": (cross or {}).get("differs", 0)})
+                  "cross_differs": (cross or {}).get("differs", 0),
+                  # отчёт бюро — только признак и источник: ни названия, ни ИНН, ни сумм
+                  "credit_report": bool(cbr), "credit_report_source": (cbr or {}).get("source"),
+                  "credit_scan_withheld": len(withheld), "credit_scan_dropped": scan_dropped})
         for e in parse_errors:
             db.audit(con, _who(user, owner), "акт: документ не разобран", f"act_upload:{sid}", e)
     notes = []
@@ -1347,6 +1447,12 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     if rec.get("ok") and not_sent:
         notes.append(t("ph_not_sent", lang, files=", ".join(str(n) for n in not_sent), mb=limits["ai_max_mb"]))
     notes += [t(c, lang) for c in doc_notes]
+    if cbr:
+        notes.append(t("cr_found", lang))
+        if "cr_individual" in cbr["notes"] and t("cr_individual", lang) not in notes:
+            notes.append(t("cr_individual", lang))
+    if scan_dropped:
+        notes.append(t("cr_scan_off", lang))
     if ct_ai["asked"] and not ct_ai["ok"]:
         notes.append(t("ct_ai_failed", lang, reason=ct_ai["reason"] or t("ai_error", lang)))
     model_ids = {f["id"] for f in model_files}
@@ -1357,7 +1463,8 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                    "document_kind": doc_kinds.get(f["id"]),
                    "read_by_ai": bool(rec.get("ok")) and f["id"] in model_ids and f["index"] not in not_sent,
                    "parsed": bool((parsed.get(f["id"]) or {}).get("text_layer")),
-                   "format": f["fmt"]} for f in saved],
+                   "format": f["fmt"], "kind_marked": marked.get(f["index"]),
+                   "credit_scan_withheld": f in withheld} for f in saved],
         "rejected": rejected,
         "recognized": recognized_view(all_fields, lang, group=group),
         "damages": damages,
@@ -1378,9 +1485,136 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "branch_request": branch_view(brq, lang),
         "contract": contract_view(ctr, lang),
         "cross_check": cross_view(cross, lang),
+        "credit_report": credit_report_view(cbr, lang),
         "warning": t("warn_pd", lang),
         "expires_in_hours": PHOTO_TTL_SEC // 3600,
     })
+
+
+# --------------------------------------------------------------------------- #
+#  Отчёт кредитного бюро (КАТМ, 01.10.2026): очистка, вид для экрана, ввод, источник
+# --------------------------------------------------------------------------- #
+
+def cr_clean(f: Optional[dict]) -> tuple:
+    """Поля отчёта бюро без значений, похожих на ПД: наименование и кредиторы — только юрлица (pd_like как у
+    стороны договора); у физлица наименования и ИНН нет вовсе. (поля, сколько убрано)."""
+    if not f:
+        return f, 0
+    f = {**f, "overview": dict(f.get("overview") or {}), "active": dict(f.get("active") or {})}
+    n = 0
+    if f.get("subject_type") != "legal":
+        n += int(bool(f.get("name"))) + int(bool(f.get("inn")))
+        f["name"], f["inn"] = None, None
+    if f.get("name") and pd_like("policyholder", f["name"]):
+        f["name"] = None
+        n += 1
+    keep = []
+    for c in f["active"].get("creditors") or []:
+        if pd_like("policyholder", c):
+            n += 1
+            continue
+        keep.append(c)
+    f["active"]["creditors"] = keep
+    return f, n
+
+
+def _cr_value(code: str, v, lang: str) -> str:
+    """Значение поля отчёта бюро словами: суммы — сумами, даты — ДД.ММ.ГГГГ, тип субъекта — словом."""
+    if v in (None, "", []):
+        return t("na", lang)
+    if code == "report_date":
+        return _ddmmyyyy(v)
+    if code == "subject_type":
+        return tx.label(tx.CR_SUBJECT_LABELS, v, lang)
+    if code.split(".")[-1] in crr.MONEY_KEYS + crr.ACTIVE_MONEY:
+        return money(v, lang)
+    if isinstance(v, list):
+        return "; ".join(str(x) for x in v)
+    if isinstance(v, float) and v == int(v):
+        return str(int(v))
+    return str(v)
+
+
+def credit_report_view(cbr: Optional[dict], lang: str) -> dict:
+    """Блок credit_report ответа /act/photos: detected, source, fields{…}, rows (подпись — значение), notes."""
+    if not cbr:
+        return {"detected": False, "source": None, "source_label": None, "file": None, "fields": {}, "rows": [],
+                "notes": [], "calibrated": ae.CALIBRATED}
+    rows = [{"code": k, "label": tx.label(tx.CR_FIELD_LABELS, k, lang), "value": _cr_value(k, v, lang), "raw": v}
+            for k, v in crr.flat(cbr["fields"]).items() if v not in (None, "", [])]
+    notes = [t(c, lang) for c in cbr.get("notes") or []] + [t("cb_no_direct", lang), t("cb_not_in_rate", lang)]
+    return {"detected": True, "source": cbr["source"], "source_label": tx.label(tx.CR_SOURCE_LABELS, cbr["source"], lang),
+            "file": cbr.get("file"), "kind_label": tx.label(tx.DOC_KIND_LABELS, crr.KIND, lang),
+            "fields": cbr["fields"], "rows": rows, "notes": notes, "calibrated": ae.CALIBRATED}
+
+
+CR_SOURCES = ("document", "photo", "input", "session")
+
+
+def validate_credit_report(raw) -> tuple:
+    """
+    optional.credit_report (недоверенный ввод экрана; поля как в блоке credit_report.fields ответа /act/photos) →
+    (чистый отчёт | None, ошибка | None). Поле source не доверяется: источник решает сервер по своей загрузке.
+    """
+    if raw in (None, "", {}):
+        return None, None
+    if not isinstance(raw, dict):
+        return None, "объект {report_date, subject_type, score, score_class, overview{…}, active{…}}"
+    body = raw.get("fields") if isinstance(raw.get("fields"), dict) else raw
+    got, err = crr.normalize(body, strict=True)
+    if err:
+        return None, err
+    got, _n = cr_clean(got)
+    src = str(raw.get("source") or "input").strip()
+    return {"fields": got, "claimed_source": src if src in CR_SOURCES else "input"}, None
+
+
+def _trust_credit(sent: Optional[dict], block: Optional[dict], upload_missing: bool) -> tuple:
+    """
+    Отчёт бюро для акта и источник (как _trust_doc у запроса и договора): своя живая загрузка с отчётом есть —
+    присланное сравнивается с сохранённым по полям: совпало — источник загрузки (document / photo), отличается —
+    input и правка «было → стало». Загрузки нет — всё input, пометка «отчёт недоступен».
+    Возвращает (поля | None, {source, source_kind, edits, field_sources, doc_missing}).
+    """
+    if sent is None:
+        if not block or not block.get("fields"):
+            return None, None
+        fs = {k: block["source"] for k, v in crr.flat(block["fields"]).items() if v not in (None, "", [])}
+        return dict(block["fields"]), {"source": block["source"], "source_kind": "document", "edits": [],
+                                       "field_sources": fs, "doc_missing": False}
+    fields = sent["fields"]
+    now = crr.flat(fields)
+    if not block or not block.get("fields"):
+        fs = {k: "input" for k, v in now.items() if v not in (None, "", [])}
+        return fields, {"source": "input", "source_kind": "input", "edits": [], "field_sources": fs,
+                        "doc_missing": bool(upload_missing or sent.get("claimed_source") in ("document", "photo",
+                                                                                              "session"))}
+    was = crr.flat(block["fields"])
+    edits, fs = [], {}
+    for k in sorted(set(was) | set(now)):
+        a, b = was.get(k), now.get(k)
+        if _empty_v(a) and _empty_v(b):
+            continue
+        same = a == b or (isinstance(a, (int, float)) and isinstance(b, (int, float)) and abs(a - b) <= 0.005)
+        if same:
+            fs[k] = block["source"]
+            continue
+        fs[k] = "input"
+        edits.append({"code": k, "was": a, "now": b})
+    return fields, {"source": block["source"], "source_kind": "document_edited" if edits else "document",
+                    "edits": edits, "field_sources": fs, "doc_missing": False}
+
+
+def _borrower_block(con_settings: dict, fields: dict, trust: dict, classes: set) -> dict:
+    """Блок borrower акта: поля отчёта бюро, источник, возраст отчёта и проверки андеррайтеру (только кредитные
+    классы 14, 13з, 15). В уровень риска и ставку не входит — пока заказчик не утвердит правило."""
+    credit = any(c in ae.CREDIT_REPORT_CLASSES for c in classes)
+    checks = ae.borrower_checks(fields, credit, con_settings.get("credit_report"))
+    return {"available": True, "fields": fields, "source": trust["source"], "source_kind": trust["source_kind"],
+            "edits": trust["edits"], "field_sources": trust["field_sources"], "doc_missing": trust["doc_missing"],
+            "credit_product": credit, "age_days": crr.age_days(fields), "checks": checks,
+            "in_risk_level": False, "in_rate": False, "settings": dict(con_settings.get("credit_report") or {}),
+            "calibrated": ae.CALIBRATED}
 
 
 # текстовые поля бланка → ключ, по правилам которого они проверяются на ПД (pd_like)
@@ -2217,6 +2451,11 @@ def validate(con, body: dict) -> tuple:
     if ct_err:
         errs["contract"] = ct_err
     clean["contract"] = ct
+    # отчёт кредитного бюро (01.10.2026): поля отчёта для проверок андеррайтеру по кредитным классам
+    cbr, cbr_err = validate_credit_report(opt.get("credit_report"))
+    if cbr_err:
+        errs["credit_report"] = cbr_err
+    clean["credit_report"] = cbr
 
     # объявления со снимков экрана с правками сотрудника (30.09.2026); в расчёт — act_engine.market_estimate
     mk, mk_err = am.validate_market(opt.get("market"))
@@ -3221,6 +3460,18 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
              "docs": docs, "mchecks": mchecks, "disc": disc, "inspection": inspection, "missing_key": missing_key,
              "block_errors": block_errors}
         _apply_parts(con, clean, D, C)
+    # страховой скоринг (01.10.2026): цвет полос страницы скоринга — из настроек
+    D["scoring_style"] = {"brand_color": (st.get("scoring") or {}).get("brand_color") or asc.DEFAULT_BRAND}
+    # отчёт кредитного бюро (КАТМ): проверки андеррайтеру для кредитных классов; уровень и ставку не меняет
+    cbf, cb_trust = _trust_credit(clean.get("credit_report"), upload.get("credit_report"), session_missing)
+    if cbf:
+        classes = {cls} | set(m.get("product_classes") or []) | {p["class_code"] for p in D["parts"]["items"]}
+        D["borrower"] = _borrower_block(st, cbf, cb_trust, classes)
+        cks = [{"code": "c_" + c["code"], "params": c["params"]} for c in D["borrower"]["checks"]]
+        if cks:
+            D["decision"]["checks"] += cks
+            if D["decision"]["code"] == "d_accept":
+                D["decision"]["code"] = "d_accept_with_clauses"
     return D
 
 
@@ -3909,8 +4160,16 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
                                    lang)
         return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), holder=who,
                  where=t("credit_src_" + str(p.get("source") or "contract"), lang))
+    if c["code"] == "c_borrower_overdue":
+        return t(c["code"], lang, amount=money(p.get("amount"), lang))
+    if c["code"] == "c_borrower_stale":
+        if p.get("days") is None:
+            return t("c_borrower_stale_nodate", lang)
+        return t(c["code"], lang, days=p["days"], max=p.get("max"))
+    if c["code"] == "c_borrower_low_class":
+        return t(c["code"], lang, cls=p.get("cls"), low=p.get("low"))
     if c["code"] == "c_part_missing":
-        what = ", ".join((x.get(lang) or x.get("ru") or "") for x in p.get("labels") or []) \
+        what = ", ".join(_lower_first(x.get(lang) or x.get("ru") or "") for x in p.get("labels") or []) \
             or ", ".join(p.get("codes") or [])
         return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"), what=what)
     if c["code"] == "c_parts_confirm":
@@ -4557,6 +4816,10 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     xv = cross_view(D.get("cross_check"), lang)
     if xv:
         lists4.append({"title": t("x_title", lang), "items": xv["lines"]})
+    bv = _borrower_view(D.get("borrower"), lang)
+    if bv["available"]:
+        # «Заёмщик: данные кредитного бюро» (01.10.2026): в уровень риска и ставку не входит
+        lists4.append({"title": t("cb_title", lang), "items": bv["lines"]})
     s4 = {"n": 4, "title": t("s4", lang), "paragraphs": p4, "rows": rows4, "lists": lists4}
 
     # ---------- раздел 5 ----------
@@ -4592,7 +4855,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         s.setdefault("lists", [])
         s.setdefault("source_lines", [])      # строки источника сразу под строками раздела
     created = meta["created_at"]
-    return {
+    out = {
         "ok": True, "id": meta["id"], "number": meta["number"], "lang": lang,
         "title": t("title", lang), "insurer": D.get("insurer") or NA, "insurer_known": bool(D.get("insurer")),
         "date": datetime.fromisoformat(created).strftime("%d.%m.%Y"),
@@ -4663,8 +4926,94 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                                         "totals": None, "notes": []},
         **({"suggested_parts": PV["json"]["suggested_parts"]} if PV and not PV["json"]["confirmed"] else {}),
         "footer": t("footer", lang),
-        "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}"},
+        "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}",
+                      "scoring_pdf": f"/act/{meta['id']}/scoring.pdf?lang={lang}",
+                      "scoring_png": f"/act/{meta['id']}/scoring.png?lang={lang}"},
+        # отчёт кредитного бюро по заёмщику (01.10.2026); нет отчёта — available = false
+        "borrower": bv["json"],
     }
+    # страховой скоринг объекта (01.10.2026): представление посчитанного акта; сбой показа не роняет акт
+    try:
+        out["scoring"] = asc.view(D, out, lang, meta, borrower=bv["scoring"])
+    except Exception as e:
+        print("акт: скоринг не показан:", type(e).__name__, e)
+        out["scoring"] = {"available": False, "reason": "render_error", "calibrated": ae.CALIBRATED}
+    return out
+
+
+def _borrower_view(b: Optional[dict], lang: str) -> dict:
+    """Заёмщик по отчёту кредитного бюро: строки раздела 4, блок borrower ответа и строки для страницы скоринга."""
+    if not b or not b.get("available"):
+        return {"available": False, "lines": [], "json": {"available": False}, "scoring": None}
+    f = b["fields"]
+    ov, ac = f.get("overview") or {}, f.get("active") or {}
+    NA = t("na", lang)
+    num = lambda v: NA if v is None else str(int(v)) if float(v) == int(v) else str(v)   # noqa: E731
+    mon = lambda v: NA if v is None else money(v, lang)                                     # noqa: E731
+    src = tx.label(tx.CR_SOURCE_LABELS, "input" if b["source_kind"] == "input" else b["source"], lang)
+    lines = [t("cb_date", lang, date=_ddmmyyyy(f["report_date"]), days=b["age_days"], src=src)
+             if f.get("report_date") and b.get("age_days") is not None else t("cb_date_unknown", lang, src=src)]
+    if f.get("subject_type") == "legal":
+        rest = "".join(x for x in ((f" «{f['name']}»" if f.get("name") else ""),
+                                   (", " + t("cb_inn", lang, v=f["inn"]) if f.get("inn") else ""),
+                                   (", " + t("cb_oked", lang, v=f["oked"]) if f.get("oked") else "")))
+        lines.append(t("cb_subject_legal", lang, rest=rest))
+    elif f.get("subject_type") == "individual":
+        lines.append(t("cb_subject_individual", lang))
+    else:
+        lines.append(t("cb_subject_unknown", lang))
+    lines.append(t("cb_score", lang, score=num(f.get("score")), cls=f.get("score_class") or NA,
+                   ver=f.get("score_version") or NA))
+    lines.append(t("cb_overview", lang, a=num(ov.get("applications")), c=num(ov.get("contracts")),
+                   u=num(ov.get("contingent")), q=num(ov.get("inquiries")), p=mon(ov.get("avg_monthly_payment"))))
+    lines.append(t("cb_overdue", lang, n=num(ov.get("overdue_principal_count")),
+                   days=num(ov.get("max_overdue_principal_days")), amount=mon(ov.get("max_overdue_principal_amount")),
+                   idays=num(ov.get("max_overdue_interest_days")), itotal=mon(ov.get("overdue_interest_total"))))
+    lines.append(t("cb_active", lang, n=num(ac.get("count")), debt=mon(ac.get("total_debt")), od=mon(ac.get("overdue")),
+                   pay=mon(ac.get("monthly_payment"))))
+    if ac.get("creditors"):
+        lines.append(t("cb_creditors", lang, v="; ".join(ac["creditors"])))
+    if b.get("edits"):
+        lines.append(t("cb_edits", lang, what="; ".join(
+            f"{tx.label(tx.CR_FIELD_LABELS, e['code'], lang)}: {_cr_value(e['code'], e['was'], lang)} → "
+            f"{_cr_value(e['code'], e['now'], lang)}" for e in b["edits"])))
+    if b.get("doc_missing"):
+        lines.append(t("cb_doc_missing", lang))
+    checks = [_check_text({"code": "c_" + c["code"], "params": c["params"]}, lang) for c in b.get("checks") or []]
+    if not b.get("credit_product"):
+        lines.append(t("cb_not_credit", lang))
+    lines += checks
+    lines += [t("cb_not_in_rate", lang), t("cb_keep", lang), t("cb_no_direct", lang)]
+    rows = [{"code": "score", "label": t("cb_s_score", lang),
+             "value": f"{num(f.get('score'))} / {f.get('score_class') or NA}"},
+            {"code": "overdue", "label": t("cb_s_overdue", lang), "value": mon(ac.get("overdue"))},
+            {"code": "max_overdue_days", "label": t("cb_s_max_overdue", lang),
+             "value": num(ov.get("max_overdue_principal_days"))},
+            {"code": "total_debt", "label": t("cb_s_debt", lang), "value": mon(ac.get("total_debt"))},
+            {"code": "monthly_payment", "label": t("cb_s_payment", lang),
+             "value": mon(ac.get("monthly_payment") if ac.get("monthly_payment") is not None
+                          else ov.get("avg_monthly_payment"))},
+            {"code": "report_date", "label": t("cb_s_date", lang), "value": _ddmmyyyy(f["report_date"])
+             if f.get("report_date") else NA}]
+    js = {"available": True, "fields": f, "source": b["source"], "source_kind": b["source_kind"],
+          "source_label": src, "field_sources": b.get("field_sources") or {}, "edits": b.get("edits") or [],
+          "doc_missing": bool(b.get("doc_missing")), "age_days": b.get("age_days"),
+          "credit_product": bool(b.get("credit_product")), "checks": checks,
+          "check_codes": [c["code"] for c in b.get("checks") or []], "lines": lines, "rows": rows,
+          "in_risk_level": False, "in_rate": False,
+          "note": t("cb_not_in_rate", lang) + " " + t("cb_keep", lang), "direct_note": t("cb_no_direct", lang),
+          "keep_note": t("cb_keep", lang), "calibrated": ae.CALIBRATED}
+    sc = {"available": True, "score": f.get("score"), "score_class": f.get("score_class"),
+          "overdue": ac.get("overdue"), "max_overdue_principal_days": ov.get("max_overdue_principal_days"),
+          "total_debt": ac.get("total_debt"), "rows": rows, "note": js["note"]} if b.get("credit_product") else None
+    return {"available": True, "lines": lines, "json": js, "scoring": sc}
+
+
+def _lower_first(s: str) -> str:
+    """Подпись поля внутри фразы — со строчной: «Срок кредита, месяцев» → «срок кредита, месяцев»;
+    сокращения (ИНН, PML) не трогаются."""
+    s = str(s or "")
+    return s[:1].lower() + s[1:] if len(s) > 1 and s[0].isupper() and s[1].islower() else s
 
 
 def _ddmmyyyy(iso) -> str:
@@ -5987,7 +6336,11 @@ def act_make(request: Request, body: dict = Body(...)):
                   "market": (D.get("market") or {}).get("verdict"),
                   "market_used": (D.get("market") or {}).get("used"),
                   "contract_check": ((D.get("contract_check") or {}).get("summary") or {}).get("verdict"),
-                  "cross_differs": (D.get("cross_check") or {}).get("differs", 0)})
+                  "cross_differs": (D.get("cross_check") or {}).get("differs", 0),
+                  # скоринг и отчёт бюро — только класс и коды проверок: ни названий, ни ИНН, ни сумм
+                  "scoring": (out.get("scoring") or {}).get("class_code"),
+                  "borrower": bool(D.get("borrower")),
+                  "borrower_checks": [c["code"] for c in (D.get("borrower") or {}).get("checks") or []]})
         for e in D.get("block_errors") or []:
             db.audit(con, _who(user, owner), "акт: блок не посчитан", f"act:{aid}", e)
     return _reply(request, out)
@@ -6132,6 +6485,34 @@ def act_pdf(request: Request, aid: str, lang: str = ""):
                     headers={"Content-Disposition": f'inline; filename="act_{meta["number"]}.pdf"'})
 
 
+@router.get("/act/{aid}/scoring.pdf")
+def act_scoring_pdf(request: Request, aid: str, lang: str = ""):
+    """Только страница «Страховой скоринг объекта» (права как у акта: владелец или администратор)."""
+    got = _load_act(request, aid)
+    if not got:
+        return _fail(request, t("not_found", _lang(request, lang)), 404)
+    D, meta, row = got
+    out = render(D, _lang(request, lang or row["lang"]), meta)
+    if not (out.get("scoring") or {}).get("available"):
+        return _fail(request, t("not_found", out["lang"]), 404)
+    return Response(content=build_pdf(out, scoring_only=True), media_type="application/pdf",
+                    headers={"Content-Disposition": f'inline; filename="scoring_{meta["number"]}.pdf"'})
+
+
+@router.get("/act/{aid}/scoring.png")
+def act_scoring_png(request: Request, aid: str, lang: str = ""):
+    """Картинка шкалы скоринга с плашкой класса (PNG; права как у акта)."""
+    got = _load_act(request, aid)
+    if not got:
+        return _fail(request, t("not_found", _lang(request, lang)), 404)
+    D, meta, row = got
+    out = render(D, _lang(request, lang or row["lang"]), meta)
+    if not (out.get("scoring") or {}).get("available"):
+        return _fail(request, t("not_found", out["lang"]), 404)
+    return Response(content=scoring_png(out), media_type="image/png",
+                    headers={"Content-Disposition": f'inline; filename="scoring_{meta["number"]}.png"'})
+
+
 def _telegram_id(request: Request, user: Optional[dict], init_data: str) -> tuple:
     """
     Подтверждённый telegram id: подписанный initData мини-приложения (проверка app/telegram.py)
@@ -6221,10 +6602,21 @@ def act_get(request: Request, aid: str, lang: str = ""):
 #  Word и PDF
 # --------------------------------------------------------------------------- #
 
+def scoring_png(act: dict) -> bytes:
+    """Картинка шкалы скоринга с плашкой класса (тот же код рисования, что у страницы PDF)."""
+    regular, bold = _fonts()
+    fit = lambda s, font: "".join(ch if ord(ch) < 128 or font.has_glyph(ord(ch)) else GLYPH_FALLBACK.get(ch, "?")  # noqa
+                                  for ch in str(s))
+    return asc.gauge_png(act["scoring"], regular, bold, fit)
+
+
 def build_docx(act: dict) -> bytes:
     from .docx_lite import TEXT_WIDTH, Docx
     lang = act["lang"]
     doc = Docx(lang={"ru": "ru-RU", "uz": "uz-Latn-UZ", "en": "en-GB"}[lang])
+    if (act.get("scoring") or {}).get("available"):
+        # первая секция — страховой скоринг объекта (01.10.2026), шкала — картинкой PNG; затем прежний акт
+        asc.docx_section(doc, act["scoring"], scoring_png(act))
     if act.get("insurer_known"):
         doc.para(act["insurer"], bold=True, color="555555", size=20, align="center", after=60)
     doc.title(act["title"])
@@ -6279,7 +6671,9 @@ def _fonts():
     return pymupdf.Font("helv"), pymupdf.Font("hebo")
 
 
-def build_pdf(act: dict) -> bytes:
+def build_pdf(act: dict, scoring_only: bool = False) -> bytes:
+    """Акт в PDF: первая страница — страховой скоринг объекта (01.10.2026), затем прежний акт из пяти разделов.
+    scoring_only — только страница скоринга (GET /act/{id}/scoring.pdf)."""
     from .proposal import A4_H, A4_W, BLACK, CONTENT_W, GRAY, MARGIN, _Pdf
 
     class ActPdf(_Pdf):
@@ -6322,6 +6716,11 @@ def build_pdf(act: dict) -> bytes:
             return self.doc.tobytes(garbage=3, deflate=True)
 
     pdf = ActPdf()
+    if (act.get("scoring") or {}).get("available"):
+        asc.draw_page(pdf.page, act["scoring"], pdf.regular, pdf.bold, pdf._fit, MARGIN, A4_H - MARGIN - 4)
+        if scoring_only:
+            return pdf.finish()
+        pdf.new_page()
     if act.get("insurer_known"):
         pdf.para(act["insurer"], size=10, bold=True, color=GRAY, gap=2)
     pdf.para(act["title"], size=15, bold=True, gap=4)

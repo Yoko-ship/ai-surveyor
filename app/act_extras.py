@@ -33,6 +33,7 @@ from xml.etree import ElementTree as ET
 
 from . import branch_request
 from . import contract_read
+from . import credit_report
 from . import db
 from . import engine
 from . import franchise as frm
@@ -762,6 +763,13 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
     text, tables = read["text"][:ingest.MAX_TEXT_CHARS], read["tables"]
     out["text_layer"] = True
     D.tick()
+    # отчёт кредитного бюро (КАТМ, 01.10.2026): узнаётся первым — у него нет полей объекта, только заёмщик;
+    # у физлица ФИО, ПИНФЛ, адрес и телефон не извлекаются (app/credit_report.py)
+    crp = credit_report.parse_text(text)
+    if crp:
+        out.update(kind=credit_report.KIND, credit_report=crp)
+        out["notes"] += [c for c in crp["notes"] if c not in out["notes"]]
+        return out
     # заголовок сильнее строк: «ДОГОВОР СТРАХОВАНИЯ», «ПОЛИС» — договор, даже если строки как в бланке запроса;
     # «ЗАЯВЛЕНИЕ НА СТРАХОВАНИЕ», «АРИЗА» — заявление (данные подставляются, сверки договора нет)
     title = contract_read.title_kind(text, tables)

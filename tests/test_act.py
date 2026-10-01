@@ -20,6 +20,10 @@ llm.chat_raw отдаёт заготовленный ответ, llm._post бр�
 пределы (10 000 ячеек, 3 000 абзацев, 4 000 знаков в строке таблицы DOCX); бланк договора личного страхования на
 выдуманных данных (заголовок в две строки, подчёркивания, таблица приложения 1, пп. 2.6 и 5.4) — is_template, «не
 заполнено», без ст. 929 и сверки, модель не вызывается; тот же шаблон заполненный — полноценный договор со сверкой.
+Проверки 43а–43д (01.10.2026): страховой скоринг объекта (балл 0–500 = 500 − 5 × балл риска, классы и подклассы,
+договор из частей, класс без аналитики), первая страница PDF и секция Word с картинкой, scoring.pdf/png и права,
+отчёт кредитного бюро КАТМ (PDF с текстом на выдуманных данных, физлицо без ФИО, скан с подменённой моделью,
+проверки заёмщика, правки сотрудника, классы 14/15 и не кредитный), три языка.
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
 import asyncio
@@ -6097,7 +6101,7 @@ def check_review_0930():
     st, p = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, cr_no_term]))
     chk = [flat(c) for c in p["decision"]["checks"]]
     ok("часть 2 (класс 14) без срока кредита: «Часть 2 (класс 14): уточнить срок кредита, месяцев» в решении",
-       st == 200 and "Часть 2 (класс 14): уточнить Срок кредита, месяцев" in chk, chk)
+       st == 200 and "Часть 2 (класс 14): уточнить срок кредита, месяцев" in chk, chk)
     ok("у части 2 класса 14 — вид объекта по умолчанию «loan» (единственный), в расчёт не идёт",
        p["parts"]["items"][1]["object_kind_default"] == "loan" and p["parts"]["items"][1]["object_kind"] is None)
     ok("часть 2 кредита: страхователь не найден — проверка по части, сумма 40 млн в пределах — превышения нет",
@@ -6107,7 +6111,7 @@ def check_review_0930():
     chk = [flat(c) for c in p["decision"]["checks"]]
     ok("часть 2 кредита без полей: «Часть 2 (класс 14). Кредит: … введите сумму кредита и обеспечение» и перечень полей",
        any(c.startswith("Часть 2 (класс 14). Кредит: проверить, что страховая сумма не превышает") for c in chk)
-       and any(c.startswith("Часть 2 (класс 14): уточнить Сумма кредита, Стоимость обеспечения") for c in chk), chk)
+       and any(c.startswith("Часть 2 (класс 14): уточнить сумма кредита, стоимость обеспечения") for c in chk), chk)
     how = {}
     for lg in ("ru", "uz", "en"):
         st, x = _pt_make(PT_MUST, dict(PT_OPT, parts=[PT_CAR, PT_CREDIT]), lang=lg)
@@ -6198,6 +6202,856 @@ def check_templates_sync():
         shutil.rmtree(folder, ignore_errors=True)
 
 
+# ------------------------------------------------------------------ 43. страховой скоринг объекта (01.10.2026)
+
+SC_REPORT = {}
+CYR = re.compile(r"[А-Яа-яЁё]")
+
+
+def _sc_an(score, comps):
+    """Аналитика акта с баллом риска (форма act_analytics.score) — для чистой функции."""
+    return {"available": True, "score": {"available": True, "score": score, "components": comps}}
+
+
+def _sc_comp(code, points, weight, applicable=True):
+    return {"code": code, "name_ru": code, "points": points, "weight": weight, "applicable": applicable,
+            "contribution": round(points * weight, 1)}
+
+
+def check_scoring_engine():
+    print("43а. Страховой скоринг: чистая функция act_engine.insurance_score, границы секторов и подклассы")
+    edges = {0: "E3", 33: "E3", 34: "E2", 66: "E2", 67: "E1", 99: "E1", 100: "D3", 133: "D3", 134: "D2",
+             167: "D1", 199: "D1", 200: "C3", 299: "C1", 300: "B3", 333: "B3", 334: "B2", 366: "B2", 367: "B1",
+             399: "B1", 400: "A3", 433: "A3", 434: "A2", 467: "A2", 468: "A1", 500: "A1", -5: "E3", 640: "A1"}
+    got = {k: ae.score_band(k)["class_code"] for k in edges}
+    ok("границы секторов: E 0–99, D 100–199, C 200–299, B 300–399, A 400–500; подкласс 1 — верхняя треть",
+       got == edges, {k: (got[k], v) for k, v in edges.items() if got[k] != v})
+    labels = {c: ae.score_band(v)["class_label"] for c, v in (("E", 10), ("D", 150), ("C", 250), ("B", 350), ("A", 450))}
+    ok("подписи классов: плохой, слабый, средний, хороший, отличный",
+       labels == {"E": "плохой", "D": "слабый", "C": "средний", "B": "хороший", "A": "отличный"}, labels)
+    # автокран из проверки 40а: балл риска 32,7 = 20,5 + 0 + 0 + 1,1 + 11,1 → 500 − 5 × 32,7 = 336,5 → 337
+    comps = [_sc_comp("rate", 73.7, 0.278), _sc_comp("mfl_retention", 0.0, 0.278), _sc_comp("losses", 0, 0.222),
+             _sc_comp("insurance_to_value", 10.0, 0.111), _sc_comp("seismic", 0, 0.0, False),
+             _sc_comp("external_stats", 100.0, 0.111)]
+    S = ae.insurance_score({"analytics": _sc_an(32.7, comps), "risk": {"level": "moderate"}})
+    ok("балл риска 32,7 → 500 − 5 × 32,7 = 336,5 → 337 (половина — вверх), класс B2 «хороший», версия 1.0",
+       S["score"] == 337 and S["class"] == "B" and S["sub"] == 2 and S["class_label"] == "хороший"
+       and S["version"] == "1.0" and S["basis"] == "risk_score" and S["risk_score_100"] == 32.7, S)
+    on = [c for c in S["components"] if c["applicable"]]
+    ok("составляющие в шкале 0–500: сумма баллов = балл, сумма «из» = 500, неучтённая — 0 из 0",
+       sum(c["points"] for c in S["components"]) == 337 and sum(c["max"] for c in S["components"]) == 500
+       and next(c for c in S["components"] if c["code"] == "seismic")["max"] == 0
+       and all(0 <= c["points"] <= c["max"] for c in on), [(c["code"], c["points"], c["max"]) for c in S["components"]])
+    rate_c = next(c for c in S["components"] if c["code"] == "rate")
+    ok("составляющая «ставка»: вес 0,278 × (100 − 73,7) × 5 ≈ 37 из 0,278 × 500 ≈ 139",
+       rate_c["points"] in (36, 37) and rate_c["max"] in (139, 140) and "73,7" in rate_c["why"], rate_c)
+    ok("всё помечено экспертным: calibrated = 0, «не кредитный скоринг и не оценка КАТМ»",
+       S["calibrated"] == 0 and all(c["calibrated"] == 0 for c in S["components"])
+       and "не кредитный скоринг" in S["note"] and "КАТМ" in S["note"])
+    ok("шкала: min 0, max 500, пять секторов E…A",
+       S["scale"]["min"] == 0 and S["scale"]["max"] == 500
+       and [b["code"] for b in S["scale"]["bands"]] == ["E", "D", "C", "B", "A"]
+       and [(b["from"], b["to"]) for b in S["scale"]["bands"]] == [(0, 99), (100, 199), (200, 299), (300, 399),
+                                                                   (400, 500)])
+    # нет балла риска: по уровню риска акта
+    lv = {lvl: ae.insurance_score({"risk": {"level": lvl}, "analytics": {"available": False, "reason": "no_engine"}})
+          for lvl in ("low", "moderate", "high")}
+    ok("класс без аналитики: низкий 430 (A3), умеренный 300 (B3), высокий 130 (D3), basis = level",
+       [(lv[k]["score"], lv[k]["class_code"], lv[k]["basis"]) for k in ("low", "moderate", "high")]
+       == [(430, "A3", "level"), (300, "B3", "level"), (130, "D3", "level")]
+       and lv["high"]["components"][0]["code"] == "act_level" and lv["high"]["components"][0]["points"] == 130
+       and "уровню риска" in lv["high"]["method_text"], [(v["score"], v["class_code"]) for v in lv.values()])
+    old = ae.insurance_score({"risk": {"level": "low"}})
+    ok("старый акт без блока analytics — тоже по уровню риска", old["score"] == 430 and old["basis"] == "level")
+    # договор из частей: балл договора — по самой опасной части (наименьший балл)
+    parts = {"mode": "multi", "items": [
+        {"index": 1, "class_code": "3", "level": "low", "analytics": _sc_an(42.6, [_sc_comp("rate", 42.6, 1.0)])},
+        {"index": 2, "class_code": "14", "level": "low", "analytics": _sc_an(35.8, [_sc_comp("rate", 35.8, 1.0)])},
+        {"index": 3, "class_code": "13", "level": "high", "analytics": {"available": False}}]}
+    M = ae.insurance_score({"parts": parts, "risk": {"level": "high"}})
+    ok("договор из частей: части 287 (C1), 321 (B3), 130 (по уровню) — балл договора 130 по части 3",
+       [p["score"] for p in M["parts"]] == [287, 321, 130] and M["score"] == 130 and M["worst_part"] == 3
+       and M["contract"] and M["parts"][2]["basis"] == "level" and [p["score_class"] for p in M["parts"]]
+       == ["C1", "B3", "D3"], M["parts"])
+    # проверки по отчёту кредитного бюро — чистая функция
+    today = date(2026, 10, 1)
+    f_bad = {"score": 150, "score_class": "D2", "report_date": "2026-08-01", "active": {"overdue": 5_000_000}}
+    ck = ae.borrower_checks(f_bad, True, None, today)
+    ok("заёмщик: класс D2, просрочка 5 млн, отчёт 61 день → три проверки (класс, просрочка, устарел)",
+       [c["code"] for c in ck] == ["borrower_low_class", "borrower_overdue", "borrower_stale"]
+       and ck[2]["params"] == {"days": 61, "max": 30}, ck)
+    f_ok = {"score": 420, "score_class": "A1", "report_date": "2026-09-25", "active": {"overdue": 0}}
+    ok("заёмщик: класс A1, без просрочки, отчёт 6 дней — проверок нет",
+       ae.borrower_checks(f_ok, True, None, today) == [])
+    ok("класс C — проверка (порог «C и ниже»); класс B — нет; порог D — у C проверки нет",
+       [c["code"] for c in ae.borrower_checks(dict(f_ok, score_class="C1"), True, None, today)] == ["borrower_low_class"]
+       and ae.borrower_checks(dict(f_ok, score_class="B3"), True, None, today) == []
+       and ae.borrower_checks(dict(f_ok, score_class="C1"), True, {"low_class": "D"}, today) == [])
+    ok("класс кириллицей «С2» узнаётся; нет ни балла, ни класса — borrower_no_score; нет даты — устарел",
+       ae.bureau_letter("С2") == "C" and [c["code"] for c in ae.borrower_checks(
+           {"active": {}, "report_date": None}, True, None, today)] == ["borrower_no_score", "borrower_stale"])
+    ok("не кредитный класс — проверок нет", ae.borrower_checks(f_bad, False, None, today) == [])
+    errs = ae.check_settings({"credit_report": {"low_class": "X", "max_age_days": 0}, "scoring": {"brand_color": "blue"}})
+    ok("настройки скоринга и отчёта бюро проверяются (цвет #RRGGBB, класс A–E, дни 1–365)",
+       any("low_class" in e for e in errs) and any("max_age_days" in e for e in errs)
+       and any("brand_color" in e for e in errs) and not ae.check_settings(
+           {"credit_report": {"low_class": "D", "max_age_days": 45}, "scoring": {"brand_color": "#1D2C8F"}}), errs)
+
+
+def _sc_expect(a):
+    """Балл скоринга из балла риска аналитики акта: round(500 − 5 × балл), половина — вверх."""
+    r = a["analytics"]["score"]["score"]
+    return ae.round_half_up(round(500 - 5 * r, 6)), r
+
+
+def _sc_common(tag, a):
+    sc = a.get("scoring") or {}
+    ok(f"{tag}: блок scoring есть, calibrated = 0, версия 1.0", sc.get("available") and sc["calibrated"] == 0
+       and sc["version"] == "1.0", sc.get("reason"))
+    bnd = ae.score_band(sc["score"], (a.get("analytics") or {}).get("score", {}).get("bounds"), sc["risk_score_100"])
+    ok(f"{tag}: класс и подкласс — по сектору балла риска (порогам аналитики)", (sc["class"], sc["sub"]) ==
+       (bnd["class"], bnd["sub"]) and sc["class_code"] == f"{sc['class']}{sc['sub']}", (sc["score"], sc["class_code"]))
+    ok(f"{tag}: составляющие объясняют балл (сумма = балл, «из» — 500)",
+       sum(c["points"] for c in sc["components"]) == sc["score"]
+       and sum(c["max"] for c in sc["components"]) == 500 and all(c["why"] for c in sc["components"]),
+       [(c["code"], c["points"], c["max"]) for c in sc["components"]])
+    rq = sc["request"]
+    ok(f"{tag}: шапка — тип отчёта, номер акта, дата и время, страховщик, продукт и класс",
+       rq["type"] == "Страховой скоринг объекта" and rq["number"] == a["number"] and rq["date"] == a["date"]
+       and re.fullmatch(r"\d{2}:\d{2}", rq["time"]) and [r["code"] for r in rq["rows"]] ==
+       ["type", "number", "datetime"] + (["by"] if rq["insurer_known"] else []) + ["product", "class"], rq)
+    codes = [o["code"] for o in sc["overview"]]
+    ok(f"{tag}: общий обзор — 17 пар «значение — подпись»", codes == list(asc_codes()) and all(
+        o["value"] not in (None, "") and o["label"] for o in sc["overview"]), sc["overview"])
+    ov = {o["code"]: o for o in sc["overview"]}
+    ok(f"{tag}: обзор совпадает с актом (сумма, премия, срок, проверок)",
+       ov["sum"]["value"] == a["sections"][2]["rows"][0]["value"] and ov["premium"]["raw"] == a["premium"]["amount"]
+       and ov["checks"]["raw"] == len(a["decision"]["checks"]) and ov["franchise"]["value"] == a["franchise"]["text"],
+       ov)
+    sub = {r["code"]: r for r in sc["subject"]["rows"]}
+    same_kind = str(sc["subject"]["kind"] or "").lower() == str(sc["subject"]["name"] or "").lower()
+    ok(f"{tag}: объект — наименование, вид (если не совпадает с наименованием), страхователь, регион, "
+       f"идентификаторы, источник данных",
+       [k for k in sub if k != "note"] == ["name"] + ([] if same_kind else ["kind"]) +
+       ["policyholder", "region", "identifiers", "source"] and all(r["value"] for r in sub.values()), sub)
+    ok(f"{tag}: первые 5 проверок андеррайтеру, тексты и пометки", sc["checks"] == a["decision"]["checks"][:5]
+       and "не кредитный скоринг" in sc["note"] and "не является кредитным скорингом" in sc["footer_line"]
+       and sc["downloads"]["png"].startswith(f"/act/{a['id']}/scoring.png"), sc["note"])
+    return sc
+
+
+def asc_codes():
+    from app import act_scoring
+    return act_scoring.OVERVIEW_CODES
+
+
+def check_scoring_make():
+    print("43б. Скоринг в /act/make: автокран, склад 4,2 млрд, оборудование, договор из частей, класс без аналитики")
+    fresh()
+    model_on(False)
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST,
+                                       "optional": dict(CRANE_OPT, object_kind="truck_crane")})
+    sc = _sc_common("автокран", a)
+    exp, r = _sc_expect(a)
+    ok("автокран: балл = 500 − 5 × балл риска (сверка с analytics.score)", sc["score"] == exp
+       and sc["risk_score_100"] == r and sc["basis"] == "risk_score", (sc["score"], exp, r))
+    ok("автокран: правила акта не изменились — ставка 0,42 %, премия 12 369 000",
+       a["rate"]["applied_pct"] == 0.42 and a["premium"]["amount"] == 12_369_000, (a["rate"]["applied_pct"],
+                                                                                    a["premium"]["amount"]))
+    ok("автокран: риски — одна строка класса 100 %, сценарии PML/EML/MFL",
+       len(sc["risks"]) == 1 and sc["risks"][0]["share_pct"] == 100.0
+       and [s_["name"] for s_ in sc["scenarios"]] == ["PML", "EML", "MFL"]
+       and sc["scenarios"][0]["amount"] == 1_472_500_000, (sc["risks"], sc["scenarios"]))
+    SC_REPORT["автокран"] = (r, sc["score"], sc["class_code"])
+    crane_id = a["id"]
+
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST, "optional": WH8_OPT})
+    sc = _sc_common("склад 4,2 млрд", a)
+    exp, r = _sc_expect(a)
+    ok("склад: балл = 500 − 5 × балл риска; сейсмозона — составляющая с баллами",
+       sc["score"] == exp and next(c for c in sc["components"] if c["code"] == "seismic")["max"] > 0,
+       (sc["score"], exp))
+    ov = {o["code"]: o for o in sc["overview"]}
+    ok("склад: в обзоре PML/EML/MFL 2 100 000 000 / 3 360 000 000 / 4 200 000 000 и лимит удержания (оценка)",
+       [ov[k]["raw"] for k in ("pml", "eml", "mfl")] == [2_100_000_000, 3_360_000_000, 4_200_000_000]
+       and ov["retention"]["raw"] and "временно" in ov["retention"]["label"], [ov[k]["raw"] for k in ("pml", "eml", "mfl")])
+    ok("склад: риски с долей и уровнем (пожар первым, землетрясение есть)",
+       sc["risks"][0]["code"] == "fire" and any(x["code"] == "earthquake" for x in sc["risks"])
+       and all(x["share_text"] and x["level_label"] for x in sc["risks"]), sc["risks"][:3])
+    SC_REPORT["склад 4,2 млрд"] = (r, sc["score"], sc["class_code"])
+
+    st, b = upload([("sorov2.docx", DOCX_MIME, docx_table(BR_SAMPLE2))], {"lang": "ru"})
+    st, a = br_make(b["session"], 2, br_request(b))
+    sc = _sc_common("оборудование", a)
+    exp, r = _sc_expect(a)
+    ok("оборудование: балл = 500 − 5 × балл риска; источник данных — запрос филиала",
+       sc["score"] == exp and "запрос филиала" in sc["subject"]["source"], (sc["score"], exp, sc["subject"]["source"]))
+    SC_REPORT["оборудование 0832"] = (r, sc["score"], sc["class_code"])
+    eq_id = a["id"]
+
+    # договор из частей (0312: автомобиль + кредит)
+    st, a = _pt_make(PT_MUST, PT_OPT)
+    sc = a["scoring"]
+    parts = {p["index"]: p for p in a["parts"]["items"]}
+    exp = {i: ae.round_half_up(round(500 - 5 * p["analytics"]["score"]["score"], 6)) for i, p in parts.items()}
+    ok("договор из частей: баллы частей = 500 − 5 × балл риска части, балл договора — наименьший",
+       {p["index"]: p["score"] for p in sc["parts"]} == exp and sc["score"] == min(exp.values())
+       and sc["worst_part"] == min(exp, key=exp.get) and sc["parts_note"] and "по самой опасной части" in sc["text"],
+       (sc["parts"], exp))
+    SC_REPORT["договор 0312"] = {p["index"]: (p["class_code"], p["score"], p["score_class"]) for p in sc["parts"]}
+
+    # класс без аналитики (старый акт или сбой модуля): по уровню риска
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", crane_id)[0]
+    stored = _json.loads(row["act_json"])
+    D = stored["data"]
+    D.pop("analytics", None)
+    old = act.render(D, "ru", stored["meta"])
+    lvl = D["risk"]["level"]
+    ok("акт без аналитики: балл по уровню риска (низкий 430 / умеренный 300 / высокий 130), пометка",
+       old["scoring"]["basis"] == "level" and old["scoring"]["score"] == ae.SCORE_BY_LEVEL[lvl]
+       and "Балла риска нет" in old["scoring"]["text"] and old["scoring"]["components"][0]["code"] == "act_level",
+       (old["scoring"]["score"], lvl, old["scoring"]["text"]))
+    return crane_id, eq_id
+
+
+def check_scoring_files(aid):
+    print("43в. Скоринг в PDF и Word, отдельные адреса scoring.pdf и scoring.png")
+    st, a = call("GET", f"/act/{aid}")
+    sc = a["scoring"]
+    st, blob, h = call("GET", f"/act/{aid}.pdf", raw=True)
+    doc = pymupdf.open(stream=blob, filetype="pdf")
+    p1 = re.sub(r"\s+", " ", doc[0].get_text().replace("\u00a0", " ").replace("\u00ad", "-"))
+    ok("PDF: первая страница — «Страховой скоринг объекта», балл и класс",
+       "Страховой скоринг объекта" in p1 and "СТРАХОВОЙ СКОРИНГ ОБЪЕКТА" in p1 and str(sc["score"]) in p1
+       and sc["class_code"] in p1 and sc["class_label"].upper() in p1, p1[:300])
+    ok("PDF: на первой странице блоки 1–6 и строка о скоринге",
+       all(x in p1 for x in ("1. ОБЪЕКТ", "2. СКОРИНГ", "3. ОБЩИЙ ОБЗОР", "4. РИСКИ", "5. СЦЕНАРИИ УБЫТКА",
+                             "6. ЧТО ПРОВЕРИТЬ АНДЕРРАЙТЕРУ"))
+       and "Скоринг сформирован ИИ-сюрвейером по данным акта" in p1, p1[-400:])
+    p2 = re.sub(r"\s+", " ", doc[1].get_text().replace("\u00a0", " "))
+    ok("PDF: со второй страницы — прежний акт", "СЮРВЕЙЕРСКИЙ АКТ ПРЕДСТРАХОВОГО ОСМОТРА" in p2, p2[:200])
+    plain = act.build_pdf(dict(a, scoring={"available": False}))
+    ok("PDF: страниц ровно на одну больше прежнего",
+       doc.page_count == pymupdf.open(stream=plain, filetype="pdf").page_count + 1,
+       (doc.page_count, pymupdf.open(stream=plain, filetype="pdf").page_count))
+    draw = doc[0].get_drawings()
+    fills = {tuple(round(c, 2) for c in d["fill"]) for d in draw if d.get("fill")}
+    from app import act_scoring
+    ok("PDF: на странице скоринга нарисованы пять цветных секторов и полосы цвета бренда",
+       all(tuple(round(c, 2) for c in rgbv) in fills for rgbv in act_scoring.BAND_RGB.values())
+       and tuple(round(c, 2) for c in act_scoring.rgb("#0B4F8A")) in fills, sorted(fills)[:10])
+    st, blob, h = call("GET", f"/act/{aid}.docx", raw=True)
+    try:
+        z = zipfile.ZipFile(io.BytesIO(blob))
+        names = z.namelist()
+        for n in names:
+            if n.endswith(".xml") or n.endswith(".rels"):
+                minidom.parseString(z.read(n))
+        xml = z.read("word/document.xml").decode("utf-8")
+        rels = z.read("word/_rels/document.xml.rels").decode("utf-8")
+        types = z.read("[Content_Types].xml").decode("utf-8")
+        media = [n for n in names if re.fullmatch(r"word/media/[^/]+\.png", n)]
+        png = z.read(media[0]) if media else b""
+        good = True
+    except Exception as e:
+        good, xml, rels, types, media, png = False, str(e), "", "", [], b""
+    ok("DOCX: корректный zip и XML, картинка word/media/*.png", good and len(media) == 1
+       and png[:8] == b"\x89PNG\r\n\x1a\n", (good, media))
+    emb = re.findall(r'r:embed="([^"]+)"', xml)
+    ok("DOCX: картинка связана — r:embed → отношение image → media, тип png объявлен",
+       emb and all(f'Id="{e}"' in rels for e in emb) and 'Target="media/' in rels
+       and 'Extension="png" ContentType="image/png"' in types and "<wp:inline" in xml, (emb, rels[-200:]))
+    plain = re.sub(r"<[^>]+>", "", xml)
+    ok("DOCX: первая секция — скоринг (блоки на полосах), затем прежний акт с разрывом страницы",
+       plain.index("СТРАХОВОЙ СКОРИНГ ОБЪЕКТА") < plain.index("СЮРВЕЙЕРСКИЙ АКТ ПРЕДСТРАХОВОГО ОСМОТРА")
+       and "1. ОБЪЕКТ" in plain and "6. ЧТО ПРОВЕРИТЬ АНДЕРРАЙТЕРУ" in plain and 'w:type="page"' in xml
+       and 'w:fill="0B4F8A"' in xml, plain[:200])
+    # отдельные адреса: владелец получает, чужой — 404
+    st, blob, h = call("GET", f"/act/{aid}/scoring.pdf", raw=True)
+    sdoc = pymupdf.open(stream=blob, filetype="pdf") if st == 200 else None
+    ok("scoring.pdf — одна страница скоринга владельцу", st == 200 and h.get("content-type") == "application/pdf"
+       and sdoc.page_count == 1 and "СТРАХОВОЙ СКОРИНГ ОБЪЕКТА" in pdf_text(sdoc), (st, h))
+    st, blob, h = call("GET", f"/act/{aid}/scoring.png", raw=True)
+    w_, h_ = act._png_size(blob) if st == 200 else (0, 0)
+    ok("scoring.png — картинка PNG владельцу (шкала с плашкой класса)", st == 200 and h.get("content-type") ==
+       "image/png" and blob[:8] == b"\x89PNG\r\n\x1a\n" and w_ > 800 and h_ > 300, (st, w_, h_))
+    saved = dict(COOKIES)
+    COOKIES.clear()
+    st1, _b, _h = call("GET", f"/act/{aid}/scoring.pdf", raw=True)
+    st2, _b, _h = call("GET", f"/act/{aid}/scoring.png", raw=True)
+    COOKIES.clear()
+    COOKIES.update(saved)
+    ok("scoring.pdf и scoring.png чужому — 404", st1 == 404 and st2 == 404, (st1, st2))
+    st, _b, _h = call("GET", "/act/zzzz/scoring.png", raw=True)
+    ok("кривой номер акта — 404", st == 404, st)
+    # крайние значения шкалы рисуются (стрелка на 0 и на 500)
+    from app import act_scoring as asc_
+    regular, bold = act._fonts()
+    fit = lambda s, font: str(s)                                   # noqa: E731
+    for v in (0, 500):
+        sc2 = dict(sc, score=v, **{k: ae.score_band(v)[k] for k in ("class", "sub", "class_code")})
+        pngv = asc_.gauge_png(sc2, regular, bold, fit, zoom=1)
+        ok(f"шкала рисуется и при балле {v}", pngv[:8] == b"\x89PNG\r\n\x1a\n")
+
+
+KATM_LEGAL = [
+    "Кредитное бюро «Кредитно-информационный аналитический центр»",
+    "Тип кредитного отчёта: InfoScore",
+    "Номер запроса: 1234567890   Время запроса: {date} 10:15:00",
+    "1. СУБЪЕКТ КРЕДИТНОЙ ИНФОРМАЦИИ",
+    'Наименование: ООО "SINOV SAVDO"',
+    "Юридический статус: Юридическое лицо",
+    "ИНН: 301234567",
+    "ОКЭД: 47190",
+    "Адрес регистрации: г. Тестовый, ул. Примерная, 1",
+    "Номер телефона: 998901234567",
+    "Электронная почта: test@example.uz",
+    "2. SCORING",
+    "СКОРИНГОВЫЙ БАЛЛ: {score}",
+    "КЛАСС ОЦЕНКИ: {cls}, ХОРОШИЙ уровень",
+    "ВЕРСИЯ СКОРИНГА: 3.0",
+    "3. ОБЩИЙ ОБЗОР (ОТКРЫТЫЕ + ЗАКРЫТЫЕ)",
+    "5 - заявки",
+    "4 - договора",
+    "1 - условные обязательства",
+    "8 - запросы и подписки по субъекту КИ",
+    "12 500 000 - среднемесячный платёж (сумма)",
+    "2 - количество просрочек основного долга (ОД)",
+    "15 - максимальная просрочка ОД (дни)",
+    "3 000 000 - максимальная просрочка ОД (сумма)",
+    "4 - максимальная непрерывная просрочка % (дни)",
+    "250 000 - всего просроченных % (сумма)",
+    "4. ДЕЙСТВУЮЩИЕ ДОГОВОРА",
+    '1 АКБ "NAMUNA BANK" 100200300400 UZS 150 000 000.00 {od} 8 000 000.00',
+    '2 "SINOV BANK" АТБ 100200300401 UZS 50 000 000.00 0 4 500 000.00',
+    "Итого 200 000 000.00 {od} 12 500 000.00",
+    "5. ЗАЯВКИ БЕЗ ДОГОВОРОВ",
+]
+
+
+def katm_pdf(date_iso, score=312, cls="B2", od="0", individual=False) -> bytes:
+    """Отчёт бюро PDF с текстом на выдуманных данных (название, ИНН, банки — не из образца заказчика)."""
+    lines = [x.format(date=date_iso, score=score, cls=cls, od=od) for x in KATM_LEGAL]
+    if individual:
+        lines = [("ФИО: ТЕСТОВ ТЕСТ ТЕСТОВИЧ" if x.startswith("Наименование") else
+                  "Юридический статус: Физическое лицо" if x.startswith("Юридический статус") else
+                  "ПИНФЛ: 12345678901234" if x.startswith("ИНН") else x) for x in lines]
+    doc = pymupdf.open()
+    page = doc.new_page()
+    font = act._fonts()[0]
+    tw = pymupdf.TextWriter(page.rect)
+    for i, ln in enumerate(lines):
+        tw.append((40, 50 + i * 15), ln, font=font, fontsize=9)
+    tw.write_text(page)
+    return doc.tobytes()
+
+
+def katm_scan_reply(date_iso):
+    return "```json\n" + _json.dumps({
+        "files": [{"n": 1, "view": "document", "document_kind": "credit_report"}], "fields": [], "damages": [],
+        "branch_request": None, "contract": None,
+        "credit_report": {"file": 1, "report_date": date_iso, "subject_type": "individual",
+                          "name": "Тестов Тест Тестович", "inn": "123456789", "oked": None, "score": 180,
+                          "score_class": "D1", "score_version": "3.0",
+                          "overview": {"applications": 3, "contracts": 2, "contingent": 0, "inquiries": 4,
+                                       "avg_monthly_payment": 1_500_000, "overdue_principal_count": 6,
+                                       "max_overdue_principal_days": 75, "max_overdue_principal_amount": 4_000_000,
+                                       "max_overdue_interest_days": 30, "overdue_interest_total": 600_000},
+                          "active": {"count": 1, "total_debt": 20_000_000, "overdue": 1_200_000,
+                                     "monthly_payment": 1_500_000, "creditors": ['"NAMUNA BANK" АТБ',
+                                                                                 "Тестов Тест"]}}},
+        ensure_ascii=False) + "\n```"
+
+
+CR14_MUST = {"class_code": "14", "sum_insured": 40_000_000, "object_value": 40_000_000, "region": "Ташкент"}
+CR14_OPT = {"class_fields": {"credit_amount": 100_000_000, "collateral_value": 60_000_000}}
+
+
+def check_credit_report():
+    print("43г. Отчёт кредитного бюро (КАТМ): текстовый PDF, физлицо, скан, проверки заёмщика, правки, классы")
+    fresh()
+    model_on(False)
+    d_fresh = (date.today() - timedelta(days=5)).isoformat()
+    d_old = (date.today() - timedelta(days=45)).isoformat()
+    CALLS.clear()
+    st, b = upload([("katm.pdf", "application/pdf", katm_pdf(d_fresh))], {"lang": "ru", "class_code": "14"})
+    cb = (b or {}).get("credit_report") or {}
+    f = cb.get("fields") or {}
+    ok("PDF с текстом: отчёт бюро узнан правилами (без модели), источник — файл с текстом",
+       st == 200 and cb.get("detected") and cb["source"] == "document" and not CALLS
+       and any(d["kind"] == "credit_report" for d in b["documents"]), (st, cb.get("source")))
+    ok("поля: дата, юрлицо, наименование и ИНН юрлица, ОКЭД, балл 312, класс B2, версия 3.0",
+       f.get("report_date") == d_fresh and f["subject_type"] == "legal" and f["name"] == 'ООО "SINOV SAVDO"'
+       and f["inn"] == "301234567" and f["oked"] == "47190" and f["score"] == 312 and f["score_class"] == "B2"
+       and f["score_version"] == "3.0", f)
+    ok("общий обзор: заявки 5, договоры 4, условные 1, запросы 8, платёж 12,5 млн, просрочки 2 / 15 дн. / 3 млн / "
+       "4 дн. / 250 тыс.", f["overview"] == {"applications": 5, "contracts": 4, "contingent": 1, "inquiries": 8,
+                                            "avg_monthly_payment": 12_500_000, "overdue_principal_count": 2,
+                                            "max_overdue_principal_days": 15, "max_overdue_principal_amount": 3_000_000,
+                                            "max_overdue_interest_days": 4, "overdue_interest_total": 250_000},
+       f.get("overview"))
+    ok("действующие договоры: 2, остаток 200 млн, просрочка 0, платёж 12,5 млн, банки-кредиторы",
+       f["active"] == {"count": 2, "total_debt": 200_000_000, "overdue": 0, "monthly_payment": 12_500_000,
+                       "creditors": ['АКБ "NAMUNA BANK"', '"SINOV BANK" АТБ']}, f.get("active"))
+    dump = _json.dumps(b, ensure_ascii=False)
+    ok("телефон, e-mail и адрес не извлекаются", "998901234567" not in dump and "test@example.uz" not in dump
+       and "Примерная" not in dump, [x for x in ("998901234567", "test@example.uz", "Примерная") if x in dump])
+    ok("в ответе /act/photos — строки «подпись — значение» и пометки (нет прямого запроса в КАТМ)",
+       any(r["code"] == "score" and r["value"] == "312" for r in cb["rows"])
+       and any("Прямого запроса в КАТМ нет" in n for n in cb["notes"]), cb.get("notes"))
+    sid_legal = b["session"]
+
+    # физическое лицо: только признак и скоринг
+    st, bi = upload([("katm_fiz.pdf", "application/pdf", katm_pdf(d_fresh, individual=True))], {"lang": "ru"})
+    fi = bi["credit_report"]["fields"]
+    dump = _json.dumps(bi, ensure_ascii=False)
+    ok("физлицо: subject_type = individual, без ФИО, ПИНФЛ и ИНН; балл и класс есть",
+       fi["subject_type"] == "individual" and fi["name"] is None and fi["inn"] is None and fi["score"] == 312
+       and "ТЕСТОВ" not in dump and "12345678901234" not in dump
+       and any("физическому лицу" in n for n in bi["credit_report"]["notes"]), fi)
+
+    # скан: ответ модели подменён; ФИО и ИНН физлица модель «вернула» — сервер их отбрасывает.
+    # Сканы отчёта бюро модель читает только с разрешения администратора (credit_report.allow_scan = true)
+    set_act_settings({"credit_report": {"allow_scan": True}})
+    model_on(True)
+    REPLY["text"] = katm_scan_reply(d_old)
+    CALLS.clear()
+    st, bs = upload([("katm_scan.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    set_act_settings(None)
+    cs = bs["credit_report"]
+    prompt = " ".join(m["content"] for m in CALLS[0]["messages"]) if CALLS else ""
+    ok("скан: модель читает по схеме credit_report (в инструкции — без ФИО, ПИНФЛ, телефона), источник photo",
+       cs["detected"] and cs["source"] == "photo" and '"credit_report": null или' in prompt
+       and "ФИО, ПИНФЛ" in prompt, (cs.get("source"), prompt[-300:]))
+    ok("скан: физлицо — имя и ИНН отброшены, кредитор-гражданин отброшен, банк остался",
+       cs["fields"]["name"] is None and cs["fields"]["inn"] is None
+       and cs["fields"]["active"]["creditors"] == ['"NAMUNA BANK" АТБ']
+       and "Тестов" not in _json.dumps(bs, ensure_ascii=False), cs["fields"])
+    model_on(False)
+
+    # /act/make: кредит, класс 14 — проверки заёмщика; ставка и уровень не меняются
+    st, base = call("POST", "/act/make", {"lang": "ru", "must": CR14_MUST, "optional": CR14_OPT})
+    st, a = call("POST", "/act/make", {"session": bs["session"], "lang": "ru", "must": CR14_MUST,
+                                       "optional": dict(CR14_OPT, credit_report=cs["fields"])})
+    bw = a.get("borrower") or {}
+    ok("класс 14 + отчёт со скана: блок borrower, источник «со скана», возраст 45 дней",
+       st == 200 and bw.get("available") and bw["source"] == "photo" and bw["source_kind"] == "document"
+       and bw["age_days"] == 45 and bw["credit_product"], (st, bw.get("source"), bw.get("age_days")))
+    ok("проверки заёмщика: низкий класс D1, действующая просрочка, отчёт устарел (45 > 30 дней)",
+       bw["check_codes"] == ["borrower_low_class", "borrower_overdue", "borrower_stale"]
+       and any("класс оценки кредитного бюро D1" in c for c in a["decision"]["checks"])
+       and any("действующая просрочка по кредитам 1 200 000" in c.replace("\u00a0", " ") for c in a["decision"]["checks"])
+       and any("Отчёт кредитного бюро устарел: 45 дн." in c for c in a["decision"]["checks"]), bw.get("checks"))
+    ok("в уровень риска и ставку не входит: уровень, ставка, премия — как без отчёта",
+       a["risk"]["level"] == base["risk"]["level"] and a["rate"]["applied_pct"] == base["rate"]["applied_pct"]
+       and a["premium"]["amount"] == base["premium"]["amount"] and bw["in_rate"] is False
+       and bw["in_risk_level"] is False and a["scoring"]["score"] == base["scoring"]["score"],
+       (a["rate"]["applied_pct"], base["rate"]["applied_pct"]))
+    s4 = next((li for li in a["sections"][3]["lists"] if li["title"] == "Заёмщик: данные кредитного бюро"), None)
+    ok("раздел 4 акта: «Заёмщик: данные кредитного бюро» — физлицо без ФИО, просрочки, нагрузка, пометки",
+       s4 and any("физическое лицо" in x for x in s4["items"]) and any(x.startswith("Просрочки:") for x in s4["items"])
+       and any("не входят" in x for x in s4["items"]) and any("Прямого запроса в КАТМ нет" in x for x in s4["items"])
+       and "Тестов" not in _json.dumps(a, ensure_ascii=False), s4)
+    sb = a["scoring"]["borrower"]
+    ok("страница скоринга: блок «Заёмщик (кредитное бюро)» — балл, класс, просрочки",
+       sb and sb["score"] == 180 and sb["score_class"] == "D1" and sb["overdue"] == 1_200_000
+       and [r["code"] for r in sb["rows"]][:3] == ["score", "overdue", "max_overdue_days"], sb)
+    st, blob, h = call("GET", f"/act/{a['id']}.pdf", raw=True)
+    p1 = re.sub(r"\s+", " ", pymupdf.open(stream=blob, filetype="pdf")[0].get_text().replace("\u00a0", " "))
+    ok("PDF: на странице скоринга блок «ЗАЁМЩИК (КРЕДИТНОЕ БЮРО)», без «КАТМ» в заголовке",
+       "ЗАЁМЩИК (КРЕДИТНОЕ БЮРО)" in p1 and "180 / D1" in p1 and "ЗАЁМЩИК (КАТМ)" not in p1, p1[-600:])
+    ok("п. 2: borrower.note — «7 дней» и согласие субъекта; п. 8: проверки заёмщика добавляют оговорки к "
+       "рекомендации («принять» → «принять с оговорками»), в уровень риска и ставку не входят",
+       "хранятся в акте 7 дней" in bw["note"] and "согласие субъекта" in bw["note"]
+       and "добавляют оговорки к рекомендации" in bw["note"] and "в уровень риска и ставку не входят" in bw["note"]
+       and any("добавляют оговорки к рекомендации" in x for x in s4["items"])
+       and any("хранятся в акте 7 дней" in x for x in s4["items"]) and a["decision"]["code"] != "accept", bw["note"])
+
+    # отчёт из файла с текстом, правка сотрудника → «было → стало»
+    edited = _json.loads(_json.dumps(f))
+    edited["score_class"] = "C1"
+    st, a2 = call("POST", "/act/make", {"session": sid_legal, "lang": "ru", "must": CR14_MUST,
+                                        "optional": dict(CR14_OPT, credit_report=edited)})
+    bw2 = a2["borrower"]
+    ok("правка класса сотрудником: источник поля — input, правка «B2 → C1», проверка «C и ниже»",
+       bw2["source_kind"] == "document_edited" and bw2["edits"] == [{"code": "score_class", "was": "B2", "now": "C1"}]
+       and bw2["field_sources"]["score_class"] == "input" and bw2["field_sources"]["score"] == "document"
+       and bw2["check_codes"] == ["borrower_low_class"]
+       and any("Класс оценки: B2 → C1" in x for x in a2["sections"][3]["lists"][-1]["items"]), bw2.get("edits"))
+    st, a3 = call("POST", "/act/make", {"session": sid_legal, "lang": "ru", "must": CR14_MUST,
+                                        "optional": CR14_OPT})
+    ok("отчёт только в загрузке (без ввода): берётся из своей загрузки, юрлицо с названием, проверок нет",
+       a3["borrower"]["source"] == "document" and a3["borrower"]["check_codes"] == []
+       and any("«ООО \"SINOV SAVDO\"», ИНН 301234567" in x for x in a3["borrower"]["lines"]), a3["borrower"]["lines"][:3])
+    # чужая/истёкшая сессия — значения введены сотрудником
+    st, a4 = call("POST", "/act/make", {"session": "deadbeef" * 3, "lang": "ru", "must": CR14_MUST,
+                                        "optional": dict(CR14_OPT, credit_report=dict(f, source="document"))})
+    ok("загрузки нет — источник input и пометка «отчёт недоступен»",
+       a4["borrower"]["source_kind"] == "input" and a4["borrower"]["doc_missing"], a4["borrower"].get("source_kind"))
+    # не кредитный класс: блок есть, проверок нет
+    st, a5 = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST,
+                                        "optional": dict(WH8_OPT, credit_report=cs["fields"])})
+    ok("класс 8 с отчётом бюро: блок есть, проверок заёмщика нет, на странице скоринга блока заёмщика нет",
+       a5["borrower"]["available"] and a5["borrower"]["check_codes"] == [] and not a5["borrower"]["credit_product"]
+       and a5["scoring"]["borrower"] is None and not any("Заёмщик" in c for c in a5["decision"]["checks"]),
+       a5["borrower"].get("check_codes"))
+    # класс 15 (поручительство) — тоже кредитный
+    st, a6 = call("POST", "/act/make", {"lang": "ru", "must": dict(CR14_MUST, class_code="15"),
+                                        "optional": {"credit_report": cs["fields"]}})
+    ok("класс 15: проверки заёмщика применяются", st == 200 and a6["borrower"]["credit_product"]
+       and "borrower_low_class" in a6["borrower"]["check_codes"], (st, a6.get("borrower", {}).get("check_codes")))
+    # кривой ввод — 422
+    st, e = call("POST", "/act/make", {"lang": "ru", "must": CR14_MUST,
+                                       "optional": dict(CR14_OPT, credit_report={"score_class": "Z9"})})
+    st2, e2 = call("POST", "/act/make", {"lang": "ru", "must": CR14_MUST,
+                                         "optional": dict(CR14_OPT, credit_report={"score": -1})})
+    ok("неверный класс или балл в отчёте — 422 с полем credit_report", st == 422 and st2 == 422
+       and "credit_report" in e["errors"] and "credit_report" in e2["errors"], (st, e, st2))
+    SC_REPORT["отчёт бюро, класс 14"] = {"проверки": bw["check_codes"], "балл бюро": 180, "класс": "D1"}
+    return a["id"]
+
+
+def check_scoring_langs(aid, cr_aid):
+    print("43д. Скоринг и отчёт бюро на трёх языках")
+    for lang, word in (("uz", "yaxshi"), ("en", "good")):
+        st, a = call("GET", f"/act/{aid}", params={"lang": lang})
+        sc = a["scoring"]
+        texts = [sc["title"], sc["text"], sc["method_text"], sc["note"], sc["footer_line"], sc["class_label"],
+                 sc["request"]["type"]] + list(sc["titles"].values()) + [o["label"] for o in sc["overview"]] + \
+            [r["label"] for r in sc["request"]["rows"]] + [r["label"] for r in sc["subject"]["rows"]] + \
+            [c["label"] + " " + c["why"] for c in sc["components"]] + [b["label"] for b in sc["scale"]["bands"]]
+        cyr = [x for x in texts if CYR.search(x or "")]
+        ok(f"{lang}: страница скоринга без кириллицы (заголовки, обзор, составляющие, шкала)", not cyr, cyr[:4])
+        ok(f"{lang}: подпись класса на языке акта", sc["class_label"] == word or sc["scale"]["bands"][3]["label"] == word,
+           (sc["class_label"], sc["scale"]["bands"][3]["label"]))
+        st, blob, h = call("GET", f"/act/{aid}.pdf", params={"lang": lang}, raw=True)
+        p1 = pymupdf.open(stream=blob, filetype="pdf")[0].get_text()
+        ok(f"{lang}: PDF — первая страница скоринга на языке акта", sc["title"] in p1.replace("\u00a0", " "), p1[:120])
+        st, c = call("GET", f"/act/{cr_aid}", params={"lang": lang})
+        lines = [x for x in c["borrower"]["lines"] if "NAMUNA" not in x]     # названия банков — как в отчёте
+        cyr = [x for x in lines if CYR.search(re.sub(r"«[^»]*»|\"[^\"]*\"", "", x))]
+        ok(f"{lang}: строки «Заёмщик» и проверки заёмщика без кириллицы", not cyr and c["borrower"]["checks"]
+           and not [x for x in c["borrower"]["checks"] if CYR.search(x)], cyr[:3])
+
+
+# ------------------------------------------------------------------ 44. замечания контролёра по скорингу (01.10.2026)
+
+def set_act_settings(custom):
+    """Настройки акта для теста: custom поверх умолчаний (None — только умолчания)."""
+    with db.tx() as con:
+        act.ensure_tables(con)
+        con.execute("DELETE FROM act_settings")
+        if custom:
+            con.execute("INSERT INTO act_settings (created_at, created_by, settings_json, calibrated, note) "
+                        "VALUES (?,?,?,?,?)", (db.now(), "test", _json.dumps(custom), 0, "тест"))
+
+
+def _norm(s):
+    return re.sub(r"\s+", " ", str(s).replace(" ", " ").replace("­", "-"))
+
+
+def _decline_act(aid, lang="ru"):
+    """Тот же акт с рекомендацией «отказать» (решение подменено в сохранённом акте; правила акта не трогаются)."""
+    with db.tx() as con:
+        row = db.rows(con, "SELECT act_json FROM acts WHERE id=?", aid)[0]
+        stored = _json.loads(row["act_json"])
+        stored["data"]["decision"]["code"] = "d_decline"
+    return act.render(stored["data"], lang, stored["meta"]), stored
+
+
+def _page_of(a):
+    return pymupdf.open(stream=act.build_pdf(a), filetype="pdf")
+
+
+def check_scoring_bands_engine():
+    print("44а. Сектора шкалы — по порогам аналитики; класс всегда равен уровню аналитики; «≈» при округлении")
+    from app import act_analytics as aa
+    from app import risk_analytics as ra
+    custom = [20, 40, 50.9, 80]
+    ok("сектора по умолчанию: E 0–99, D 100–199, C 200–299, B 300–399, A 400–500",
+       [(c, lo, hi) for c, lo, hi, _l in ae.score_bands()] ==
+       [("E", 0, 99), ("D", 100, 199), ("C", 200, 299), ("B", 300, 399), ("A", 400, 500)])
+    ok("порог 50,9: граница = 500 − 5 × 50,9 = 245,5 → 246; сектора E 0–99, D 100–245, C 246–299, B, A",
+       [(c, lo, hi) for c, lo, hi, _l in ae.score_bands(custom)] ==
+       [("E", 0, 99), ("D", 100, 245), ("C", 246, 299), ("B", 300, 399), ("A", 400, 500)])
+    bad = []
+    for bounds in (None, custom, [15, 35, 55, 75], [10.3, 33.3, 66.6, 90.1]):
+        b = ae.score_bounds(bounds)
+        for i in range(0, 1001):
+            r = i / 10
+            s = ae.round_half_up(round(500 - 5 * r, 6))
+            band = ae.score_band(s, bounds, r)
+            if ae.BAND_LEVEL5[band["class"]] != aa.LEVEL5[ra._level_of(r, list(b))]:
+                bad.append((bounds, r, s, band["class_code"]))
+    ok("балл риска 0–100 с шагом 0,1 при четырёх наборах порогов: класс скоринга = уровень аналитики (A низкий … "
+       "E критический), и на границах после округления тоже", not bad, bad[:5])
+    S20 = ae.insurance_score({"analytics": _sc_an(20.0, []), "risk": {"level": "moderate"}})
+    S1999 = ae.insurance_score({"analytics": _sc_an(19.99, []), "risk": {"level": "low"}})
+    ok("балл риска ровно 20 — «умеренный» → B (балл 400), 19,99 — «низкий» → A (балл 400)",
+       (S20["score"], S20["class"], S1999["score"], S1999["class"]) == (400, "B", 400, "A"), (S20, S1999))
+    an = _sc_an(50.9, [])
+    an["score"].update(bounds=custom, level="high")
+    S = ae.insurance_score({"analytics": an, "risk": {"level": "high"}})
+    ok("порог 50,9 и балл риска 50,9: 500 − 5 × 50,9 ≈ 246, класс D (высокий, как у аналитики), шкала с bounds",
+       S["score"] == 246 and S["class"] == "D" and S["analytics_level"] == "high" and S["exact"] is False
+       and S["components"][0]["why"] == "500 − 5 × 50,9 ≈ 246" and S["scale"]["bounds"] == custom
+       and "D 100–245" in S["method_text"], (S["score"], S["class_code"], S["components"][0]["why"]))
+    ok("текст на трёх языках с «≈»: «500 − 5 × 50,9 ≈ 246»",
+       all("500 − 5 × 50,9 ≈ 246" in tx.t("sc_text_risk", lg, score=246, code="D1", label="x", risk="50,9", eq="≈")
+           for lg in ("ru", "uz", "en")))
+    ok("настройка credit_report.allow_scan: по умолчанию false, проверяется как true/false",
+       ae.DEFAULT_SETTINGS["credit_report"]["allow_scan"] is False
+       and any("allow_scan" in e for e in ae.check_settings({"credit_report": {"allow_scan": "да"}}))
+       and not ae.check_settings({"credit_report": {"allow_scan": True}}))
+
+
+def check_scoring_review(aid):
+    print("44б. Картинка шкалы, рекомендация и уровень акта, термины, переносы, «и ещё N», пометки")
+    from app import act_scoring as asc_
+    regular, bold = act._fonts()
+    fit = lambda s, font: str(s)                                   # noqa: E731
+    st, a = call("GET", f"/act/{aid}")
+    sc = a["scoring"]
+    # п. 3 — рекомендация и уровень риска акта
+    ok("п. 3: scoring.decision{code,text} и scoring.act_level{code,label} — как в акте",
+       sc["decision"]["code"] == a["decision"]["code"] and sc["decision"]["text"] in (
+           "принять", "принять с оговорками", "отказать")
+       and sc["act_level"] == {**sc["act_level"], "code": a["risk"]["level"], "label": a["risk"]["level_label"]},
+       (sc["decision"], sc["act_level"]))
+    # п. 5 — термины и уровень по аналитике
+    ok("п. 5: термины «Страховой балл», «Страховой класс», «Версия шкалы»",
+       (sc["titles"]["sc_score"], sc["titles"]["sc_class"], sc["titles"]["sc_version"]) ==
+       ("Страховой балл", "Страховой класс", "Версия шкалы"), sc["titles"])
+    lvl = a["analytics"]["score"]["level_label"]
+    ok("п. 5: рядом с классом — уровень по аналитике словом раздела 4 («B — умеренный риск по аналитике»)",
+       sc["analytics_level"]["label"] == lvl and sc["analytics_level"]["text"] == f"{sc['class']} — {lvl} риск по аналитике"
+       and sc["scale"]["bands"] == [dict(b, label=b["label"]) for b in sc["scale"]["bands"]], sc["analytics_level"])
+    # п. 1 — картинка: заголовок, номер и дата, подпись под шкалой, рекомендация и уровень; три языка
+    for lg in ("ru", "uz", "en"):
+        st, al = call("GET", f"/act/{aid}", params={"lang": lg})
+        s2 = al["scoring"]
+        doc = asc_.gauge_doc(s2, regular, bold, fit)
+        txt = _norm(doc[0].get_text())
+        need = [s2["titles"]["sc_type"], s2["request"]["number"], s2["request"]["date"], s2["gauge_caption"],
+                s2["decision"]["text"], s2["act_level"]["label"], s2["class_code"]]
+        ok(f"п. 1 ({lg}): на картинке — заголовок, номер и дата акта, «экспертная шкала, не калибровано; не кредитный "
+           f"скоринг», рекомендация и уровень риска акта", all(_norm(x) in txt for x in need),
+           [x for x in need if _norm(x) not in txt])
+    ok("п. 1: подпись под шкалой — «Экспертная шкала, не калибровано. Не является кредитным скорингом и оценкой "
+       "кредитного бюро»", sc["gauge_caption"] == "Экспертная шкала, не калибровано. Не является кредитным скорингом "
+                                              "и оценкой кредитного бюро")
+    txt = _norm(asc_.gauge_doc(sc, regular, bold, fit)[0].get_text())
+    ok("п. 1 / мелочи: страховщик не задан — на картинке нет «данные недоступны»", "данные недоступны" not in txt)
+    named = dict(sc, request=dict(sc["request"], insurer="ООО «Тест Сугурта»", insurer_known=True))
+    ok("п. 1: страховщик задан — его название на картинке",
+       "ООО «Тест Сугурта»" in _norm(asc_.gauge_doc(named, regular, bold, fit)[0].get_text()))
+    # мелочи: «Сформировал» без страховщика не выводится вовсе
+    p1 = _norm(_page_of(a)[0].get_text())
+    ok("мелочи: страховщик не задан — строки «Сформировал» нет ни в JSON, ни на странице",
+       not any(r["code"] == "by" for r in sc["request"]["rows"]) and "Сформировал" not in p1
+       and "данные недоступны" not in p1.split("1. ОБЪЕКТ")[0], p1[:300])
+    with db.tx() as con:
+        stored = _json.loads(db.rows(con, "SELECT act_json FROM acts WHERE id=?", aid)[0]["act_json"])
+    D = stored["data"]
+    D2 = dict(D, insurer="ООО «Тест Сугурта»")
+    a_ins = act.render(D2, "ru", stored["meta"])
+    ok("страховщик задан — строка «Сформировал» есть", any(r["code"] == "by" and r["value"] == "ООО «Тест Сугурта»"
+                                                         for r in a_ins["scoring"]["request"]["rows"]))
+    # п. 3 — страница: рядом с плашкой рекомендация и уровень; «отказать» — перечёркнуто красным
+    ok("п. 3: на странице — «Рекомендация акта», решение и «Уровень риска акта»",
+       "Рекомендация акта" in p1 and sc["decision"]["text"] in p1 and "Уровень риска акта" in p1
+       and sc["act_level"]["label"] in p1, p1[:600])
+    eq = "=" if float(500 - 5 * sc["risk_score_100"]) == sc["score"] else "≈"
+    ok("п. 9: на странице и в JSON — как получен балл: «500 − 5 × балл риска = / ≈ балл»",
+       sc["formula"] == f"500 − 5 × {asc_._n(sc['risk_score_100'], 'ru')} {eq} {sc['score']}" and sc["formula"] in p1,
+       sc.get("formula"))
+    dec, _st = _decline_act(aid)
+    sd = dec["scoring"]
+    pg = _page_of(dec)[0]
+    pt = _norm(pg.get_text())
+    reds = [d for d in pg.get_drawings() if d.get("color") and tuple(round(c, 2) for c in d["color"]) ==
+            tuple(round(c, 2) for c in asc_.RED)]
+    ok("п. 3: «отказать» — decision.code = decline, на странице «см. рекомендацию акта: отказать» и красная рамка "
+       "с чертой поверх плашки", sd["decision"]["code"] == "decline" and sd["decision"]["text"] == "отказать"
+       and "см. рекомендацию акта: отказать" in pt and len(reds) >= 2, (sd["decision"], len(reds)))
+    gt = _norm(asc_.gauge_doc(sd, regular, bold, fit)[0].get_text())
+    ok("п. 1 + 3: и на картинке «отказать» с пометкой", "см. рекомендацию акта: отказать" in gt and "отказать" in gt)
+    # п. 4 — нижние строки переносом, «не является кредитным скорингом» целиком при широком шрифте (×1,15)
+    orig = asc_._Ink.width
+    asc_._Ink.width = lambda self, s, size, b=False: orig(self, s, size, b) * 1.15
+    try:
+        for lg, phrase in (("ru", "не является кредитным скорингом"), ("uz", "kredit skoringi hisoblanmaydi"),
+                           ("en", "not a credit score")):
+            st, al = call("GET", f"/act/{aid}", params={"lang": lg})
+            pg = _page_of(al)[0]
+            words = pg.get_text("words")
+            low = [w for w in words if w[1] > pg.rect.height - 140]
+            bottom = _norm(" ".join(w[4] for w in sorted(low, key=lambda w: (round(w[1]), w[0]))))
+            ok(f"п. 4 ({lg}): шрифт шире на 15 % — строка о скоринге и метод переносятся, «{phrase}» целиком, "
+               f"без многоточия", phrase in bottom and "…" not in bottom, bottom[-300:])
+    finally:
+        asc_._Ink.width = orig
+    # п. 9 — «и ещё N — в акте» обязательно; отступ перед методом; подписи кольца не задевают буквы
+    long_checks = [f"Проверка номер {i}: очень длинный текст проверки андеррайтеру, который занимает почти всю строку "
+                   f"страницы и даже переносится на вторую строку, чтобы места точно не хватило" for i in range(1, 6)]
+    many = dict(sc, checks=long_checks, checks_total=14, checks_more="и ещё 9 — в разделе 5 акта",
+                parts_note="Договор из 9 частей: балл — по самой опасной части 1",
+                parts=[{"index": i, "class": "C", "text": f"часть {i} (класс 8): 250 — C2"} for i in range(1, 10)],
+                borrower={"rows": [{"code": "x", "label": "строка", "value": "1"}] * 6})
+    doc = pymupdf.open()
+    page = doc.new_page(width=595.28, height=841.89)
+    asc_.draw_page(page, many, regular, bold, fit, 42, 841.89 - 46)
+    pt = _norm(page.get_text())
+    drawn = pt.count("•")
+    m = re.search(r"и ещё (\d+) — в разделе 5 акта", pt)
+    ok("п. 9: проверки не помещаются — «и ещё N — в разделе 5 акта», N = всего − показано",
+       m and int(m.group(1)) == 14 - drawn, (drawn, m and m.group(0)))
+    m2 = re.search(r"и ещё (\d+) — в акте", pt)
+    ok("п. 9: части договора не помещаются — «и ещё N — в акте»", bool(m2), pt[:900])
+    more_y = max(r.y1 for r in page.search_for("в разделе 5 акта"))
+    meth_y = min(r.y0 for r in page.search_for("Балл = 500"))
+    ok("п. 9: отступ между последней строкой проверок и строкой о методе — не меньше 6 pt", meth_y - more_y >= 6,
+       (more_y, meth_y))
+    # подписи уровней на кольце и буквы секторов не пересекаются (картинка шкалы)
+    # повёрнутые подписи — по буквам (рамка всего повёрнутого слова шире самого слова)
+    names = [b["label"] for b in sc["scale"]["bands"]]
+    for lg in ("ru", "uz", "en"):
+        st, al = call("GET", f"/act/{aid}", params={"lang": lg})
+        s3 = al["scoring"]
+        names = [b["label"] for b in s3["scale"]["bands"]]
+        g = asc_.gauge_doc(s3, regular, bold, fit)[0]
+        letters, labels = [], []
+        for b in g.get_text("rawdict")["blocks"]:
+            for ln in b.get("lines", []):
+                for sp in ln["spans"]:
+                    word = "".join(ch["c"] for ch in sp["chars"]).strip()
+                    if word in ("A", "B", "C", "D", "E"):
+                        letters.append(pymupdf.Rect(sp["bbox"]))
+                    elif word in names:
+                        labels += [pymupdf.Rect(ch["bbox"]) for ch in sp["chars"] if ch["c"].strip()]
+        hit = [(a_, b_) for a_ in letters for b_ in labels if (a_ & b_).get_area() > 0.5]
+        ok(f"п. 9 ({lg}): подписи уровней на кольце («хороший», «слабый» …) не задевают буквы секторов",
+           len(letters) == 5 and len(labels) >= 20 and not hit, (len(letters), len(labels), hit[:2]))
+    # мелочи: «принят по умолчанию: …» — не в наименовании, а в примечании; вид не дублирует наименование
+    D3 = _json.loads(_json.dumps(D))
+    D3.setdefault("analytics", {}).update(object_type_source="default", object_type="Тестовый тип")
+    out = act.render(D3, "ru", stored["meta"])
+    obj_label = act._s1_label("object_type", "ru", D3.get("group"))
+    for r in out["sections"][0]["rows"]:
+        if r and r.get("label") == obj_label:
+            r["value"] = tx.t("s1_kind_default", "ru", v="Тестовый тип")
+    subj = asc_._subject(D3, out, "ru")
+    rows = {r["code"]: r for r in subj["rows"]}
+    ok("мелочи: «принят по умолчанию: …» не в наименовании — наименование «Тестовый тип», пометка в примечании",
+       subj["name"] == "Тестовый тип" and "по умолчанию" not in rows["name"]["value"]
+       and rows.get("note", {}).get("value") == tx.t("s1_kind_default_note", "ru"), subj["rows"])
+    ok("мелочи: вид объекта, равный наименованию, не выводится второй раз",
+       not any(r["code"] == "kind" and str(r["value"]).lower() == str(subj["name"]).lower() for r in subj["rows"]),
+       subj["rows"])
+
+
+def check_credit_parse_review():
+    print("44в. Отчёт бюро: «Итого» по строкам, название банка в две строки, дата только по подписи")
+    from app import credit_report as crr_
+    head = ["Кредитное бюро «Кредитно-информационный аналитический центр»", "Тип кредитного отчёта: InfoScore",
+            "Время запроса: 2026-09-28 10:15:00", "1. СУБЪЕКТ КРЕДИТНОЙ ИНФОРМАЦИИ", 'Наименование: ООО "SINOV SAVDO"',
+            "Юридический статус: Юридическое лицо", "ИНН: 301234567", "2. SCORING", "СКОРИНГОВЫЙ БАЛЛ: 312",
+            "КЛАСС ОЦЕНКИ: B2", "3. ОБЩИЙ ОБЗОР", "5 - заявки", "4 - договора"]
+    cells = ["4. ДЕЙСТВУЮЩИЕ ДОГОВОРА", "№", "Кредитор", "Номер договора", "Валюта", "Остаток", "Просрочка", "Платёж",
+             "1", 'АКБ "NAMUNA', 'BANK"', "100200300400", "UZS", "788 963 272.68", "0", "8 000 000.00",
+             "2", '"SINOV BANK"', "АТБ", "100200300401", "UZS", "50 000 000.00", "0", "4 500 000.00",
+             "Итого", "838 963 272.68", "0", "12 500 000.00", "5. ЗАЯВКИ БЕЗ ДОГОВОРОВ"]
+    got = crr_.parse_text("\n".join(head + cells))
+    ac = (got or {}).get("fields", {}).get("active") or {}
+    ok("п. 6: «каждое значение на своей строке» — остаток 838 963 272,68, просрочка 0, платёж 12 500 000; 2 договора",
+       (ac.get("total_debt"), ac.get("overdue"), ac.get("monthly_payment"), ac.get("count")) ==
+       (838963272.68, 0, 12500000, 2), ac)
+    ok("п. 6: название банка, перенесённое на вторую строку, склеено: «АКБ \"NAMUNA BANK\"», «\"SINOV BANK\" АТБ»",
+       ac.get("creditors") == ['АКБ "NAMUNA BANK"', '"SINOV BANK" АТБ'], ac.get("creditors"))
+    ok("п. 6: «0» перед «788 963 272.68» — отдельное число (и в одной строке)",
+       crr_._total_numbers(" 838 963 272.68 0 788 963 272.68") == ["838 963 272.68", "0", "788 963 272.68"]
+       and crr_._total_numbers("\n838 963 272.68\n0\n788 963 272.68\n") == ["838 963 272.68", "0", "788 963 272.68"])
+    # PDF с текстом, раскладка «каждое значение на своей строке» — через настоящий разбор документа
+    doc = pymupdf.open()
+    page = doc.new_page(height=1200)
+    tw = pymupdf.TextWriter(page.rect)
+    for i, ln in enumerate(head + cells):
+        tw.append((40, 30 + i * 13), ln, font=act._fonts()[0], fontsize=9)
+    tw.write_text(page)
+    g2 = crr_.parse_text(page.get_text())
+    ok("п. 6: то же из PDF с текстом (каждое значение на своей строке)",
+       g2 and g2["fields"]["active"]["total_debt"] == 838963272.68 and g2["fields"]["active"]["overdue"] == 0
+       and g2["fields"]["active"]["creditors"] == ['АКБ "NAMUNA BANK"', '"SINOV BANK" АТБ'], (g2 or {}).get("fields"))
+    # п. 7 — дата отчёта только по подписи
+    base = [x for x in head if not x.startswith("Время запроса")]
+    t1 = "\n".join(base[:3] + ["Дата рождения: 01.01.1980", "Дата договора: 2026-09-01"] + base[3:] + cells)
+    g = crr_.parse_text(t1)
+    ok("п. 7: без подписи даты — report_date = null и пометка «дата отчёта не найдена» (первая дата текста не берётся)",
+       g["fields"]["report_date"] is None and "cr_no_date" in g["notes"], g["fields"]["report_date"])
+    t2 = "\n".join(base[:3] + ["Дата согласия: 15.09.2026", "Дата заявки: 2026-09-10"] + base[3:] + cells)
+    t3 = "\n".join(base[:3] + ["Дата согласия: 15.09.2026", "Дата заявки: 2026-09-10", "Дата запроса: 20.09.2026",
+                               "Время запроса: 2026-09-21 09:00"] + base[3:] + cells)
+    ok("п. 7: порядок подписей — «Время запроса», «Дата запроса», «Дата заявки», «Дата согласия»",
+       crr_.parse_text(t2)["fields"]["report_date"] == "2026-09-10"
+       and crr_.parse_text(t3)["fields"]["report_date"] == "2026-09-21")
+    ck = ae.borrower_checks({"score_class": "B1", "report_date": None, "active": {}}, True, None)
+    ok("п. 7: проверка «дата отчёта не найдена»", [c["code"] for c in ck] == ["borrower_stale"]
+       and act._check_text({"code": "c_borrower_stale", "params": ck[0]["params"]}, "ru").startswith(
+           "Дата отчёта кредитного бюро не найдена"), ck)
+
+
+def check_credit_scan_off():
+    print("44г. Сканы отчёта бюро в модель не уходят по умолчанию (credit_report.allow_scan = false), поле kinds")
+    fresh()
+    set_act_settings(None)
+    d_old = (date.today() - timedelta(days=45)).isoformat()
+    model_on(True)
+    REPLY["text"] = katm_scan_reply(d_old)
+    CALLS.clear()
+    st, b = upload([("katm_scan.png", "image/png", image((250, 250, 250)))], {"lang": "ru"})
+    prompt = " ".join(m["content"] for m in CALLS[0]["messages"]) if CALLS else ""
+    ok("п. 2б: по умолчанию в инструкции модели нет схемы credit_report — вид называется только для отбрасывания",
+       st == 200 and '"credit_report": null или' not in prompt and "только document_kind = credit_report" in prompt,
+       prompt[-400:])
+    cb = b.get("credit_report") or {}
+    ok("п. 2б: модель узнала отчёт бюро на снимке — значения отброшены, note «скан … не читается — загрузите PDF»",
+       not cb.get("detected") and any("Скан отчёта кредитного бюро не читается — загрузите PDF с текстом" in n
+                                      for n in b["notes"]) and "D1" not in _json.dumps(b, ensure_ascii=False),
+       (cb.get("detected"), b["notes"]))
+    ok("п. 2: в предупреждении warn_pd — про отчёты бюро", "Отчёт кредитного бюро — только PDF с текстом" in b["warning"])
+    # пометка сотрудника: картинка «отчёт бюро» в модель не уходит
+    REPLY["text"] = CRANE_REPLY
+    CALLS.clear()
+    st, b = upload([("katm.png", "image/png", image((250, 250, 250))), ("crane.png", "image/png", image())],
+                   {"lang": "ru", "class_code": "14", "kinds": _json.dumps({"1": "credit_report", "2": "object"})})
+    sent = len((CALLS[0].get("files") or [])) if CALLS else 0
+    f1 = (b.get("files") or [{}])[0]
+    ok("п. 2: класс 14, файл помечен «отчёт бюро» — в модель ушёл только второй файл, у первого пометка",
+       st == 200 and len(CALLS) == 1 and sent == 1 and f1.get("credit_scan_withheld") is True
+       and f1.get("kind_marked") == "credit_report" and f1.get("read_by_ai") is False
+       and any("не читается" in n for n in b["notes"]), (st, len(CALLS), sent, f1))
+    CALLS.clear()
+    st, b = upload([("katm.png", "image/png", image((250, 250, 250)))],
+                   {"lang": "ru", "class_code": "14", "kinds": _json.dumps({"1": "credit_report"})})
+    ok("п. 2: единственный файл — помеченный скан отчёта: модель не вызывается вовсе", st == 200 and not CALLS
+       and b["files"][0]["credit_scan_withheld"], (st, len(CALLS)))
+    for bad in ('{"1": "bureau"}', "[1]", '{"9": "object"}', "не json"):
+        st, e = upload([("x.png", "image/png", image())], {"lang": "ru", "kinds": bad})
+        ok(f"п. 2: kinds {bad} — 422 с полем kinds", st == 422 and "kinds" in (e.get("errors") or {}), (st, e))
+    # разрешено администратором — как раньше: помеченный файл уходит модели, значения отчёта принимаются
+    set_act_settings({"credit_report": {"allow_scan": True}})
+    REPLY["text"] = katm_scan_reply(d_old)
+    CALLS.clear()
+    st, b = upload([("katm.png", "image/png", image((250, 250, 250)))],
+                   {"lang": "ru", "class_code": "14", "kinds": _json.dumps({"1": "credit_report"})})
+    ok("п. 2: allow_scan = true — скан уходит модели, отчёт со скана принят (как прежде)",
+       st == 200 and len(CALLS) == 1 and b["credit_report"]["detected"] and b["credit_report"]["source"] == "photo",
+       (st, len(CALLS), b.get("credit_report", {}).get("detected")))
+    set_act_settings(None)
+    model_on(False)
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -6278,6 +7132,15 @@ def main():
             pt_aid = check_parts_make()
             check_parts_langs_files(pt_aid)
             check_review_0930()
+            check_scoring_engine()
+            sc_aid, _sc_eq = check_scoring_make()
+            check_scoring_files(sc_aid)
+            cr_aid = check_credit_report()
+            check_scoring_langs(sc_aid, cr_aid)
+            check_scoring_bands_engine()
+            check_scoring_review(sc_aid)
+            check_credit_parse_review()
+            check_credit_scan_off()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -6306,6 +7169,10 @@ def main():
     if PT_REPORT:
         print("\nкомплексные продукты по частям:")
         for k, v in PT_REPORT.items():
+            print("  ", k, v)
+    if SC_REPORT:
+        print("\nстраховой скоринг (балл риска 0–100 → балл 0–500, класс):")
+        for k, v in SC_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

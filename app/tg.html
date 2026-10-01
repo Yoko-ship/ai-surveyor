@@ -736,6 +736,152 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .act-line.warn{color:var(--warn)}
 .act-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:var(--s3)}
 .act-btns .btn{flex:1 1 150px}
+/* шаг 3: страховой скоринг объекта (01.10.2026) — как отчёт бюро: полосы цвета бренда, шкала 0–500, плашка класса.
+   --sco — scoring.brand_color из ответа; в тёмной теме текст цвета бренда светлее, полосы те же */
+.sco{padding:0;overflow:hidden;--sco:#0B4F8A;--sco-ink:var(--sco)}
+html[data-theme="dark"] .sco{--sco-ink:color-mix(in srgb,var(--sco) 40%,#fff)}
+.sco-top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 12px;padding:14px 16px 8px;border-bottom:2px solid var(--sco)}
+.card.sco .sco-top h2{margin:0;font:800 16px/1.3 var(--sans);letter-spacing:.03em;text-transform:uppercase;color:var(--sco-ink)}
+.sco-unc{font-size:12px;font-weight:700;color:var(--warn)}
+.sco-rq{display:grid;grid-template-columns:minmax(0,1fr);gap:1px 20px;margin:0;padding:8px 16px 10px;font-size:12.5px;line-height:1.45}
+@media (min-width:600px){.sco-rq{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sco-rq div{display:flex;gap:6px;min-width:0}
+.sco-rq dt{flex:none;color:var(--muted)}
+.sco-rq dt::after{content:":"}
+.sco-rq dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.sco-band{margin:0;padding:6px 16px;background:var(--sco);color:#fff;font:800 12px/1.35 var(--sans);letter-spacing:.06em;text-transform:uppercase}
+.sco-sec{padding:12px 16px 14px;min-width:0}
+.sco-main{display:grid;grid-template-columns:minmax(0,1fr) 104px;grid-template-areas:"kv plq" "gauge gauge" "dec dec";gap:12px 14px;align-items:center}
+@media (min-width:640px){.sco-main{grid-template-columns:minmax(170px,205px) minmax(0,1fr) 150px;grid-template-areas:"kv gauge plq" "kv gauge dec"}}
+.sco-kvw{grid-area:kv;min-width:0}
+.sco-kv{margin:0;min-width:0}
+.sco-anl{margin:6px 0 0;font-size:12px;line-height:1.35;color:var(--muted);overflow-wrap:anywhere}
+.sco-cap{display:block;margin:4px auto 0;max-width:420px;font-size:11.5px;font-weight:700;line-height:1.35;color:var(--muted);text-align:center;overflow-wrap:anywhere}
+.sco-dec{grid-area:dec;min-width:0;align-self:start;font-size:12.5px;line-height:1.4}
+.sco-dec p{margin:0 0 3px;overflow-wrap:anywhere}
+.sco-dec span{color:var(--muted)}
+.sco-dec b.d-accept{color:var(--good)}.sco-dec b.d-accept_with_clauses{color:var(--warn)}.sco-dec b.d-decline{color:var(--stop)}
+.sco-dec .sco-x{font-weight:800;color:var(--stop)}
+/* рекомендация «отказать»: плашка в красной рамке и перечёркнута — класс по шкале не читается как «принять» */
+.sco-plq.x{position:relative;outline:3px solid var(--stop);outline-offset:2px}
+.sco-plq.x::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;
+  background:linear-gradient(to top right,transparent calc(50% - 2px),var(--stop) calc(50% - 2px),var(--stop) calc(50% + 2px),transparent calc(50% + 2px))}
+.sco-kv div{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px dotted var(--line)}
+/* подпись не уже своего самого длинного слова («СТРАХОВОЙ»), значение переносится — не наезжают друг на друга */
+.sco-kv dt{flex:1 1 0;min-width:min-content;font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--sco-ink)}
+.sco-kv dd{margin:0;flex:0 1 auto;min-width:0;max-width:62%;font:700 13px/1.3 var(--mono);text-align:right;overflow-wrap:break-word}
+.sco-gauge{grid-area:gauge;min-width:0}
+.sco-gauge svg{display:block;width:100%;max-width:420px;height:auto;margin:0 auto;overflow:visible}
+.sco-ring{fill:var(--soft);stroke:var(--line);stroke-width:1}
+.sco-seg{stroke:var(--card);stroke-width:1.5}
+.sco-core{fill:var(--card);stroke:var(--line);stroke-width:1}
+.sco-let{font:800 15px var(--sans);fill:#fff;text-anchor:middle;dominant-baseline:central}
+.sco-let.dk{fill:#1B2430}
+.sco-lvl{font-family:var(--sans);font-weight:700;fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.sco-tick{font:700 11px var(--mono);fill:var(--muted);text-anchor:middle;dominant-baseline:central}
+.sco-tl{stroke:var(--muted);stroke-width:1}
+.sco-base{stroke:var(--line);stroke-width:1}
+.sco-needle path,.sco-needle circle{fill:#1F2430;stroke:var(--card);stroke-width:1.2}
+html[data-theme="dark"] .sco-needle path,html[data-theme="dark"] .sco-needle circle{fill:#ECEAF7;stroke:#17152A}
+.sco-num{font:800 30px var(--sans);fill:var(--sco-ink);text-anchor:middle}
+.sco-plq{grid-area:plq;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:88px;padding:8px 6px;
+  border:2px solid var(--sco);border-radius:14px;background:var(--soft);color:#fff;text-align:center}
+.sco-plq.dk{color:#1B2430}
+.sco-plq b{font:800 34px/1 var(--sans);letter-spacing:-.01em}
+.sco-plq span{margin-top:5px;font:800 11.5px/1.2 var(--sans);letter-spacing:.05em;text-transform:uppercase;overflow-wrap:anywhere}
+.sco-text{margin:12px 0 0;font-size:13.5px;line-height:1.5;overflow-wrap:anywhere}
+.sco-parts{margin-top:10px;font-size:13px}
+.sco-parts p{margin:0 0 4px}
+.sco-parts ul{margin:0;padding:0;list-style:none}
+.sco-parts li{display:flex;align-items:center;gap:8px;padding:3px 0;overflow-wrap:anywhere}
+.sco-dot{flex:none;width:10px;height:10px;border-radius:3px}
+.sco-comp{margin-top:14px}
+.sco-h{margin:0 0 4px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+details.sco-c{border-bottom:1px solid var(--line)}
+details.sco-c>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:8px 0;cursor:pointer;list-style:none}
+details.sco-c>summary::-webkit-details-marker{display:none}
+details.sco-c>summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+details.sco-c>summary span{min-width:0;font-size:13.5px;overflow-wrap:anywhere}
+details.sco-c>summary b{font:700 13px var(--mono);white-space:nowrap}
+details.sco-c.off>summary span,details.sco-c.off>summary b{color:var(--muted)}
+.sco-bar{grid-column:1/-1;display:block;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.sco-bar u{display:block;height:100%;background:var(--sco-ink)}
+details.sco-c>p{margin:0 0 8px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.sco-obj{margin:0;display:grid;grid-template-columns:minmax(0,1fr);column-gap:24px;font-size:13px}
+@media (min-width:600px){.sco-obj{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sco-obj div{display:grid;grid-template-columns:minmax(0,40%) minmax(0,1fr);gap:8px;padding:5px 0;border-bottom:1px solid var(--line)}
+.sco-obj dt{color:var(--muted);min-width:0;overflow-wrap:anywhere}
+.sco-obj dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.sco-obj dd.b{font-weight:700}
+.sco-ov{display:grid;grid-template-columns:minmax(0,1fr);column-gap:24px;font-size:13px}
+@media (min-width:600px){.sco-ov{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.sco-ov div{display:grid;grid-template-columns:minmax(0,48%) minmax(0,1fr);gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line)}
+.sco-ov b{font:700 13.5px/1.35 var(--sans);font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
+.sco-ov b.nw{white-space:nowrap}
+.sco-ov span{position:relative;padding-left:14px;color:var(--muted);overflow-wrap:anywhere}
+.sco-ov span::before{content:"–";position:absolute;left:0}
+.sco-t{width:100%;table-layout:fixed;border-collapse:collapse;font-size:13px}
+.sco-t th.w-a{width:58%}.sco-t th.w-p{width:17%}.sco-t th.w-s{width:22%}.sco-t th.w-l{width:30%}
+.sco-t th{padding:0 0 5px;vertical-align:bottom;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--sco-ink);text-align:left}
+.sco-t td{padding:6px 0;border-top:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.sco-t .n{text-align:right;padding-left:10px}
+.sco-t td.num{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sco-t tr.sub td{border-top:0;padding:0 0 7px;font-size:12px;color:var(--muted)}
+.sco-t td.lv-high,.sco-t td.lv-very_high{color:var(--stop);font-weight:700}
+.sco-t td.lv-moderate,.sco-t td.lv-medium{color:var(--warn)}
+@media (max-width:420px){.sco-t{font-size:12.5px}}
+.sco-chk{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.sco-chk li{margin:3px 0;overflow-wrap:anywhere}
+.sco-end{border-top:1px solid var(--line)}
+.sco-foot{margin:0 0 4px;font-size:12.5px;font-weight:700;font-style:italic;color:var(--sco-ink)}
+.sco-meth{margin:0;font-size:12px;line-height:1.5;color:var(--muted)}
+.sco-btns{margin-top:12px}
+.sco-img{margin:12px 0 0}
+.sco-img img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.sco-img figcaption{margin-top:6px;font-size:12px;color:var(--muted)}
+/* сводка акта под карточкой скоринга — свёрнута; кнопки акта — под ней */
+details.act-sumd>summary{display:flex;align-items:center;gap:12px;min-height:48px;margin:calc(-1 * var(--s3));padding:var(--s3);cursor:pointer;list-style:none;border-radius:14px}
+details.act-sumd>summary::-webkit-details-marker{display:none}
+details.act-sumd>summary>span{flex:1 1 auto;min-width:0}
+details.act-sumd>summary b{display:block;font:700 15px/1.3 var(--sans)}
+details.act-sumd>summary small{display:block;margin-top:2px;font-size:12.5px;line-height:1.4;color:var(--muted);overflow-wrap:anywhere}
+details.act-sumd>summary::after{content:"";flex:none;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg)}
+details.act-sumd[open]>summary::after{transform:rotate(-135deg);margin:4px 4px 0 0}
+details.act-sumd[open]>summary{margin-bottom:var(--s2)}
+details.act-sumd>summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.act-btns-row{margin:0 0 var(--s2)}
+.act-btns-row .act-btns{margin-top:0}
+/* заёмщик: отчёт кредитного бюро — шаг 2 и шаг 3 */
+.cb-hint{color:var(--ink)}
+.cb-card .dq-kv span,.cb-act .dq-kv span{overflow-wrap:break-word;hyphens:auto}
+.cb-card .dq-kv>div,.cb-act .dq-kv>div{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+/* подписи полей отчёта бюро на 390 px переносятся (не обрезаются); поле ввода — по низу ячейки, ряды ровные */
+.cb-card .dq-edit label.f{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;hyphens:auto;line-height:1.25}
+.cb-card .dq-edit .half{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+.wz-file .cbk{grid-column:2/-1;justify-self:start;min-height:36px;margin:0;padding:4px 10px;border:1px solid var(--line);border-radius:10px;
+  background:var(--card);color:var(--ink);-webkit-text-fill-color:var(--ink);font:600 12.5px var(--sans);cursor:pointer}
+.wz-file .cbk::before{content:"";display:inline-block;width:12px;height:12px;margin:0 6px -1px 0;border:1.5px solid var(--muted);border-radius:3px}
+.wz-file .cbk[aria-pressed="true"]{border-color:var(--accent)}
+.wz-file .cbk[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent)}
+.wz-file .cbk:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.note.cb-ind{margin:6px 0 0;color:var(--ink)}
+details.cb-act>summary{display:flex;align-items:center;gap:12px;min-height:48px;margin:calc(-1 * var(--s3));padding:var(--s3);cursor:pointer;list-style:none;border-radius:14px}
+details.cb-act>summary::-webkit-details-marker{display:none}
+details.cb-act>summary>span{flex:1 1 auto;min-width:0}
+details.cb-act>summary b{display:block;font:700 15px/1.3 var(--sans)}
+details.cb-act>summary small{display:block;margin-top:2px;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+details.cb-act>summary::after{content:"";flex:none;width:8px;height:8px;margin:0 4px 4px 0;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg)}
+details.cb-act[open]>summary::after{transform:rotate(-135deg);margin:4px 4px 0 0}
+details.cb-act[open]>summary{margin-bottom:var(--s1)}
+details.cb-act>summary:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+.cb-act .h3{margin:12px 0 4px;font-size:13px;font-weight:700}
+.cb-act ul{margin:0;padding-left:18px;font-size:13.5px;line-height:1.5}
+.cb-act li{margin:3px 0;overflow-wrap:anywhere}
+.cb-checks li{color:var(--warn)}
+.cb-edits s{color:var(--muted)}
+.cb-act .note{margin:10px 0 0}
+.cb-act .note.warn{color:var(--warn)}
+.cb-act .note.ok{color:var(--good)}
 /* акт как документ: шапка, пять разделов, таблицы «название — значение — примечание» */
 .act-doc{padding:var(--s4) var(--s3)}
 @media (min-width:600px){.act-doc{padding:28px}}
@@ -2567,6 +2713,8 @@ const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue
   must: {}, opt: {}, errs: {}, act: null, actId: "", actBusy: false, actErr: "", sending: "",
   refs: null, refsErr: "", prodQ: "", prodOpen: false, optOpen: false, later: false, kind: "",
   br: null, ct: null, xc: null,              // запрос филиала, договор, их сверка (30.09.2026)
+  cb: null,                                  // отчёт кредитного бюро по заёмщику (01.10.2026)
+  sumOpen: false, cbActOpen: null, scoImg: null, scoImgBusy: false, scoImgErr: "", msgAt: "",  // шаг «Акт»: скоринг
   pt: null, ptAdd: false, ptOpen: {}, ptMore: {}, cfCls: ""};  // части договора; класс, чьи поля в opt.cf
 /* оценка по объявлениям (шаг 2): состояние; функции — ниже, перед «Сформировать акт» */
 const MK_KEY = "surveyor_act_market";
@@ -2768,7 +2916,7 @@ function wzSave(){
       pre: CH.pre, preDoc: CH.preDoc, seeded: CH.seeded, fr: CH.fr,
       must: CH.must, opt: CH.opt, act: CH.actId, kind: CH.kind,
       // запрос филиала и договор: прочитанные поля с правками сотрудника — до закрытия вкладки
-      br: CH.br, ct: CH.ct, xc: CH.xc,
+      br: CH.br, ct: CH.ct, xc: CH.xc, cb: CH.cb,
       // части договора и поля класса (opt.cf) — до закрытия вкладки
       pt: CH.pt, ptAdd: CH.ptAdd, cfCls: CH.cfCls}));
   } catch (e) { /* без sessionStorage мастер живёт до перезагрузки */ }
@@ -2806,6 +2954,7 @@ function wzLoad(){
   CH.br = dqBrFrom(s.br);
   CH.ct = dqCtFrom(s.ct);
   CH.xc = s.xc ? dqXcFrom(Object.assign({available: true}, obj(s.xc))) : null;
+  CH.cb = cbLoad(s.cb);
   CH.pt = ptLoad(s.pt);
   CH.ptAdd = !!s.ptAdd;
   CH.cfCls = typeof s.cfCls === "string" ? s.cfCls.slice(0, 10) : "";
@@ -2944,7 +3093,7 @@ function wzPart(name){
     prod: ["wzProd", wzProdHtml], list: ["wzProdList", wzProdListHtml], region: ["wzRegion", wzRegionHtml],
     more: ["wzMoreBox", wzMoreHtml], fr: ["wzFr", wzFrHtml], term: ["wzTerm", wzTermHtml],
     tpl: ["wzTpl", tplCardHtml], parts: ["wzParts", ptCardHtml],
-    br: ["wzBr", brCardHtml], ct: ["wzCt", ctCardHtml], xc: ["wzXc", xcCardHtml]};
+    br: ["wzBr", brCardHtml], ct: ["wzCt", ctCardHtml], xc: ["wzXc", xcCardHtml], cb: ["wzCb", cbCardHtml]};
   const m = map[name];
   const el = m && document.getElementById(m[0]);
   if (!el) return;
@@ -2964,10 +3113,11 @@ function wzStep1Html(){
     + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
     + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
     + '<p class="hint">' + esc(T("tg.act.formats_more", "Кроме фото можно загрузить запрос филиала, договор страхования, техпаспорт или лист технических параметров — скан, фото, PDF, Word или Excel. Запрос и договор приложение прочитает и сверит с расчётом акта; Word, Excel и PDF с текстом разберёт без модели.")) + "</p>"
+    + (cbCredit() ? '<p class="hint cb-hint">' + esc(T("tg.cb.s1_hint", "Кредитный продукт: можно загрузить отчёт кредитного бюро по заёмщику — только PDF с текстом (скан не читается: отчёт содержит кредитную историю). Данные бюро в ставку не входят, это проверки андеррайтеру.")) + "</p>" : "")
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
     + '<div id="wzViews">' + wzViewsHtml() + "</div>"
     + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
-      : T("tg.act.warn_pd", "Не загружайте документы с данными людей (паспорт, ФИО, адрес): снимки уходят в языковую модель как картинки. Сервер тестовый.")) + "</p>"
+      : T("tg.act.warn_pd", "Не загружайте документы с данными людей (паспорт, ФИО, адрес): снимки уходят в языковую модель как картинки. Отчёт кредитного бюро — только PDF с текстом: скан или фото отчёта не читается и в модель не отправляется (отчёт содержит кредитную историю). Сервер тестовый.")) + "</p>"
     + msgHtml();
 }
 function extOf(name){ const m = /\.([a-z0-9]{1,5})$/i.exec(String(name || "")); return m ? m[1] : "?"; }
@@ -2989,6 +3139,14 @@ function wzFilesHtml(){
     let state, cls = "";
     if (CH.busy && !q.error) state = CH.phase === "read" ? T("tg.act.st_reading", "читаю…") : T("tg.wz.sending", "отправляю…");
     else if (q.error) { state = q.error; cls = "err"; }
+    else if (q.sent && q.cbOff) { state = T("tg.cb.scan_off", "отчёт бюро: скан не читается — загрузите PDF с текстом"); cls = "warn"; }
+    else if (q.sent && q.dk === "cb") {
+      // отчёт кредитного бюро: вид документа, балл и класс бюро
+      const f = CH.cb && CH.cb.fields;
+      state = T("tg.cb.kind", "отчёт кредитного бюро") + (f && (f.score != null || f.score_class)
+        ? " · " + T("tg.cb.kind_score", "балл {s}, класс {c}", {s: f.score != null ? f.score : "—", c: f.score_class || "—"}) : "");
+      cls = "ok";
+    }
     else if (q.sent && (q.dk === "br" || q.dk === "ct")) {
       // запрос филиала или договор: вид документа и сколько строк / полей прочитано
       state = q.dk === "br"
@@ -3012,7 +3170,9 @@ function wzFilesHtml(){
       + "<span><b>" + esc(q.name) + '</b><small class="' + cls + '">' + esc(sizeName(q.size) + " · " + state) + "</small></span>"
       + (CH.busy ? (CH.phase === "upload" ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>" : '<span class="st"></span>')
         : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
-      + (CH.busy && CH.phase === "upload" ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "") + "</div>";
+      + (CH.busy && CH.phase === "upload" ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "")
+      + (cbKindable(q) ? '<button type="button" class="cbk" data-cbk="' + q.id + '" aria-pressed="' + (q.isCb ? "true" : "false") + '">'
+        + esc(T("tg.cb.mark", "это отчёт бюро")) + "</button>" : "") + "</div>";
   }).join("");
   return reading + '<div class="wz-files"><p class="eyebrow">' + esc(T("tg.wz.files_title", "Файлы · {n}", {n: CH.queue.length})) + "</p>"
     + rows + "</div>";
@@ -3123,6 +3283,18 @@ async function wzAddFiles(files){
   if (CH.wz !== 1) { CH.wz = 1; wzSave(); }
   wzPaint(true);
 }
+/* кредитный продукт: сотрудник помечает файл «это отчёт бюро» — картинка или скан с такой пометкой в модель не уходит
+   (сервер: поле kinds у POST /act/photos, настройка credit_report.allow_scan); DOCX и XLSX — не отчёт бюро */
+function cbKindable(q){ return !CH.busy && cbCredit() && !q.error && !/\.(docx|xlsx)$/i.test(String(q.name || "")); }
+function cbToggle(id){
+  const q = CH.queue.filter(x => x.id === id)[0];
+  if (!q || CH.busy) return;
+  q.isCb = !q.isCb;
+  CH.filesDirty = true;                       // вид файла поменялся — список уйдёт заново
+  haptic("select");
+  wzPart("files");
+  wzBarPaint();
+}
 function wzRemove(id){
   const q = CH.queue.filter(x => x.id === id)[0];
   if (!q || CH.busy) return;
@@ -3152,6 +3324,10 @@ async function actUpload(){
   const fd = new FormData();
   list.forEach(q => fd.append("files", q.file, q.name));
   fd.append("lang", I18N_LANG);
+  // вид файла, который выбрал сотрудник: номер файла в запросе (с 1) → credit_report
+  const kinds = {};
+  list.forEach((q, i) => { if (q.isCb && cbKindable(q)) kinds[i + 1] = "credit_report"; });
+  if (Object.keys(kinds).length) fd.append("kinds", JSON.stringify(kinds));
   if (CH.must.product_code) fd.append("product_code", CH.must.product_code);
   else if (CH.must.class_code) fd.append("class_code", CH.must.class_code);
   CH.busy = true;
@@ -3228,7 +3404,8 @@ function actApplyPhotos(d, list){
     q.values = doc ? Number(doc.values) || 0 : 0;
     // запрос филиала / договор: по номеру файла у блока или по виду документа (у договора из нескольких страниц)
     const same = (b, kind) => !!b && b.detected && (b.file === f.id || (!!f.document_kind && f.document_kind === b.kind_label)) ? kind : "";
-    q.dk = same(d.branch_request, "br") || same(d.contract, "ct");
+    q.dk = same(d.branch_request, "br") || same(d.contract, "ct") || same(d.credit_report, "cb");
+    q.cbOff = f.credit_scan_withheld === true;   // скан с пометкой «отчёт бюро» в модель не отправлен
     // модель работала, но этот снимок в запрос к ней не поместился (разобранный документ в модель и не уходит)
     q.notRead = !!d.ai && f.read_by_ai === false && !q.parsed && !q.isDoc;
   });
@@ -3265,6 +3442,9 @@ function actApplyPhotos(d, list){
   CH.br = keep(CH.br, dqBrFrom(d.branch_request));
   CH.ct = keep(CH.ct, dqCtFrom(d.contract));
   CH.xc = dqXcFrom(d.cross_check);
+  // отчёт кредитного бюро: правки сотрудника остаются, если отчёт прочитан так же
+  const cb = cbFrom(d.credit_report);
+  CH.cb = cb && CH.cb && JSON.stringify(CH.cb.orig) === JSON.stringify(cb.orig) ? Object.assign(cb, {fields: CH.cb.fields}) : cb;
   CH.preDoc = {};
   wzApplyPrefill(d.prefill && typeof d.prefill === "object" ? d.prefill : {});
 }
@@ -3334,6 +3514,7 @@ function wzStep2Html(){
     + '<div id="wzBr">' + brCardHtml() + "</div>"
     + '<div id="wzCt">' + ctCardHtml() + "</div>"
     + '<div id="wzXc">' + xcCardHtml() + "</div>"
+    + '<div id="wzCb">' + cbCardHtml() + "</div>"
     + '<div class="card"><h2>' + esc(T("tg.wz.must_title", "Обязательные данные")) + "</h2>"
     + '<p class="sub">' + esc(T("tg.wz.must_sub", "Продукт или класс, страховая сумма, стоимость объекта и регион.")) + "</p>"
     + '<div id="wzProd">' + wzProdHtml() + "</div>"
@@ -3768,7 +3949,7 @@ function wzFocusField(key){
   setTimeout(() => {
     const el = key === "prod" ? ($("#wzProdQ") || $("#wzErr-prod"))
       : key === "market" ? $("#mkCard")
-      : key === "br" || key === "ct" ? ($("#wzErr-" + key) || $("#" + key + "Card"))
+      : key === "br" || key === "ct" || key === "cb" ? ($("#wzErr-" + key) || $("#" + key + "Card"))
       : key === "fr" ? ($("#wzo-frval") || document.querySelector("[data-fr]"))
       : key === "parts" ? $("#ptCard")
       : key === "cf" ? ($("#tplCard") || $("#ptCard"))
@@ -4807,6 +4988,202 @@ function dqBody(k){
   return terms || ["sum_insured", "contract_no", "object_description", "covered_risks", "payments"].some(x => r[x] != null) ? r : null;
 }
 
+/* =====================================================================================
+   Отчёт кредитного бюро по заёмщику (01.10.2026). POST /act/photos отдаёт credit_report (app/act.py,
+   credit_report_view): detected, source, file, fields{report_date, subject_type, name, inn, oked, score, score_class,
+   score_version, overview{…}, active{…}}. Шаг «Проверить»: карточка с прочитанным; балл, класс, дату и просрочки
+   можно исправить — в POST /act/make поля уходят как optional.credit_report, источник и «было → стало» сервер
+   определяет сам (_trust_credit). У физического лица наименования и ИНН нет вовсе. Подписи — T() по коду поля
+   (при смене языка перерисовываются); значения из документа — только через esc(). Шаг «Акт» — блок borrower.
+   ===================================================================================== */
+const CB_CLASSES = ["14", "15", "13\u0437"];       // кредитные классы (13з — «з» буквой кириллицы)
+const CB_OV = ["applications", "contracts", "contingent", "inquiries", "avg_monthly_payment", "overdue_principal_count",
+  "max_overdue_principal_days", "max_overdue_principal_amount", "max_overdue_interest_days", "overdue_interest_total"];
+const CB_MONEY = ["overview.avg_monthly_payment", "overview.max_overdue_principal_amount", "overview.overdue_interest_total",
+  "active.total_debt", "active.overdue", "active.monthly_payment"];
+const CB_EDIT = ["score", "score_class", "report_date", "active.overdue", "overview.overdue_principal_count", "overview.max_overdue_principal_days"];
+const cbCredit = () => ptProdClasses().some(c => CB_CLASSES.indexOf(String(c)) >= 0);
+const cbInt = (v, hi) => { const x = sNum(v); return x != null && x === Math.floor(x) && x >= 0 && x <= hi ? x : null; };
+const cbMon = v => { const x = sNum(v); return x != null && x >= 0 ? x : null; };
+/* поля отчёта из ответа сервера (или из sessionStorage) — только известные, в своих границах */
+function cbFields(f){
+  f = sObj(f);
+  const legal = f.subject_type === "legal", ov = sObj(f.overview), ac = sObj(f.active), o = {};
+  CB_OV.forEach(k => { o[k] = CB_MONEY.indexOf("overview." + k) >= 0 ? cbMon(ov[k]) : cbInt(ov[k], 100000); });
+  return {report_date: sIso(f.report_date), subject_type: f.subject_type === "legal" || f.subject_type === "individual" ? f.subject_type : null,
+    name: legal ? sStr(f.name, 200) : null, inn: legal && /^\d{9}$/.test(String(f.inn || "")) ? String(f.inn) : null,
+    oked: /^\d{4,5}$/.test(String(f.oked || "")) ? String(f.oked) : null,
+    score: cbInt(f.score, 1000), score_class: /^[A-E][1-9]?$/.test(String(f.score_class || "")) ? String(f.score_class) : null,
+    score_version: /^\d{1,2}(\.\d{1,2})?$/.test(String(f.score_version || "")) ? String(f.score_version) : null,
+    overview: o, active: {count: cbInt(ac.count, 100000), total_debt: cbMon(ac.total_debt), overdue: cbMon(ac.overdue),
+      monthly_payment: cbMon(ac.monthly_payment), creditors: sArr(ac.creditors).map(x => sStr(x, 160)).filter(Boolean).slice(0, 10)}};
+}
+function cbFrom(c){
+  c = sObj(c);
+  if (!c.detected) return null;
+  const f = cbFields(c.fields);
+  return {source: c.source === "photo" ? "photo" : "document", file: sStr(c.file, 40), kind_label: sStr(c.kind_label, 80),
+    fields: f, orig: JSON.parse(JSON.stringify(f))};
+}
+function cbLoad(s){
+  s = sObj(s);
+  if (!s.fields) return null;
+  const f = cbFields(s.fields);
+  return {source: s.source === "photo" ? "photo" : "document", file: sStr(s.file, 40), kind_label: sStr(s.kind_label, 80),
+    fields: f, orig: cbFields(s.orig || s.fields)};
+}
+const cbGet = (f, code) => { const p = code.split("."); return p.length > 1 ? sObj(f[p[0]])[p[1]] : f[code]; };
+function cbSet(f, code, v){ const p = code.split("."); if (p.length > 1) f[p[0]][p[1]] = v; else f[code] = v; }
+/* подпись поля отчёта по коду — те же слова, что app/act_texts.py (CR_FIELD_LABELS); код не из списка — пусто */
+function cbLbl(code){
+  switch (code) {
+    case "report_date": return T("tg.cb.f.report_date", "Дата отчёта");
+    case "subject_type": return T("tg.cb.f.subject_type", "Тип субъекта");
+    case "name": return T("tg.cb.f.name", "Наименование");
+    case "inn": return T("tg.cb.f.inn", "ИНН");
+    case "oked": return T("tg.cb.f.oked", "ОКЭД");
+    case "score": return T("tg.cb.f.score", "Скоринговый балл");
+    case "score_class": return T("tg.cb.f.score_class", "Класс оценки");
+    case "score_version": return T("tg.cb.f.score_version", "Версия скоринга");
+    case "overview.applications": return T("tg.cb.f.applications", "Заявки");
+    case "overview.contracts": return T("tg.cb.f.contracts", "Договоры");
+    case "overview.contingent": return T("tg.cb.f.contingent", "Условные обязательства");
+    case "overview.inquiries": return T("tg.cb.f.inquiries", "Запросы и подписки");
+    case "overview.avg_monthly_payment": return T("tg.cb.f.avg_monthly_payment", "Среднемесячный платёж");
+    case "overview.overdue_principal_count": return T("tg.cb.f.overdue_principal_count", "Просрочек основного долга");
+    case "overview.max_overdue_principal_days": return T("tg.cb.f.max_overdue_principal_days", "Максимальная просрочка основного долга, дней");
+    case "overview.max_overdue_principal_amount": return T("tg.cb.f.max_overdue_principal_amount", "Максимальная просрочка основного долга, сумма");
+    case "overview.max_overdue_interest_days": return T("tg.cb.f.max_overdue_interest_days", "Максимальная непрерывная просрочка процентов, дней");
+    case "overview.overdue_interest_total": return T("tg.cb.f.overdue_interest_total", "Всего просроченных процентов");
+    case "active.count": return T("tg.cb.f.active_count", "Действующих договоров");
+    case "active.total_debt": return T("tg.cb.f.total_debt", "Остаток задолженности");
+    case "active.overdue": return T("tg.cb.f.overdue", "Просроченная часть");
+    case "active.monthly_payment": return T("tg.cb.f.monthly_payment", "Среднемесячный платёж по действующим");
+    case "active.creditors": return T("tg.cb.f.creditors", "Кредиторы");
+    default: return "";
+  }
+}
+/* значение поля словами: суммы — сумами, даты — ДД.ММ.ГГГГ, тип субъекта — словом; пусто — "" */
+function cbVal(code, v){
+  if (v == null || v === "" || (Array.isArray(v) && !v.length) || typeof v === "object" && !Array.isArray(v)) return "";
+  if (code === "report_date") return sIso(v) ? dateOnly(v) : "";
+  if (code === "subject_type") return v === "legal" ? T("tg.cb.legal", "юридическое лицо")
+    : v === "individual" ? T("tg.cb.individual", "физическое лицо — данные не извлекаются, показан только скоринг") : "";
+  if (CB_MONEY.indexOf(code) >= 0) return isNum(v) ? money(v) : "";
+  if (Array.isArray(v)) return v.map(x => sStr(x, 160)).filter(Boolean).join("; ");
+  return isNum(v) && typeof v === "number" ? nf(v, v % 1 ? 2 : 0) : String(v);
+}
+const cbEdited = () => !!CH.cb && JSON.stringify(CB_EDIT.map(k => cbGet(CH.cb.fields, k))) !== JSON.stringify(CB_EDIT.map(k => cbGet(CH.cb.orig, k)));
+function cbSrcHtml(){
+  const ed = cbEdited();
+  return '<span class="' + (ed ? "ed" : "") + '">' + esc(ed ? T("tg.cb.src_edited", "Исправлено вами — в акт уйдёт как введённое сотрудником.")
+      : T("tg.cb.src_doc", "Из отчёта — проверьте. Исправленное уйдёт в акт как введённое сотрудником.")) + "</span>"
+    + (ed ? '<button type="button" class="btn-link" data-cbreset="1">' + esc(T("tg.cb.reset", "Вернуть как в отчёте")) + "</button>" : "");
+}
+function cbCardHtml(){
+  const c = CH.cb;
+  if (!c) return "";
+  const f = c.fields, ind = f.subject_type === "individual";
+  const order = ["subject_type", "name", "inn", "oked", "score_version"].concat(CB_OV.map(k => "overview." + k),
+    ["active.count", "active.total_debt", "active.monthly_payment", "active.creditors"]).filter(k => CB_EDIT.indexOf(k) < 0);
+  const rows = order.map(k => [k, cbVal(k, cbGet(f, k))]).filter(x => x[1]);
+  const inp = (code, label, mode, ph) => {
+    const v = cbGet(f, code), id = "cbf-" + code.replace(".", "-");
+    const shown = v == null ? "" : mode === "money" ? Math.round(v).toLocaleString(LOC()) : String(v);
+    return '<div class="half"><label class="f" for="' + id + '">' + esc(label) + (mode === "money" ? ", " + esc(SUM()) : "") + "</label>"
+      + '<input id="' + id + '" type="' + (mode === "date" ? "date" : "text") + '"' + (mode === "date" ? "" : ' inputmode="' + (mode === "text" ? "text" : "numeric") + '" autocomplete="off" enterkeyhint="done"')
+      + (mode === "text" ? ' maxlength="2" autocapitalize="characters"' : mode === "int" ? ' maxlength="6"' : "")
+      + ' data-cbf="' + code + '" value="' + esc(shown) + '" placeholder="' + esc(ph || "—") + '"></div>';
+  };
+  return '<div class="card dq-card cb-card" id="cbCard"><div class="dq-top"><h2>' + esc(T("tg.cb.title", "Отчёт кредитного бюро")) + "</h2>"
+    + '<span class="tag">' + esc(c.source === "photo" ? T("tg.dq.src_scan", "со скана, прочитано моделью") : T("tg.cb.src_file", "из файла с текстом")) + "</span></div>"
+    + '<p class="sub">' + esc(T("tg.cb.sub", "Данные бюро по заёмщику. В уровень риска и ставку не входят — по ним андеррайтер получит проверки.")) + "</p>"
+    + (ind ? '<p class="note cb-ind">' + esc(T("tg.cb.individual", "физическое лицо — данные не извлекаются, показан только скоринг")) + "</p>" : "")
+    + (rows.length ? '<div class="dq-kv">' + rows.map(x => dqKv(cbLbl(x[0]), esc(x[1]))).join("") + "</div>" : "")
+    + '<div class="h3">' + esc(T("tg.cb.edit_title", "Балл, класс, дата и просрочки — можно исправить")) + "</div>"
+    + '<div class="fgrid dq-edit">'
+    + inp("score", cbLbl("score"), "int", "0–1000") + inp("score_class", cbLbl("score_class"), "text", "B2")
+    + inp("report_date", cbLbl("report_date"), "date") + inp("active.overdue", T("tg.cb.e.overdue", "Просрочка сейчас"), "money", "0")
+    + inp("overview.overdue_principal_count", T("tg.cb.e.count", "Просрочек долга"), "int", "0")
+    + inp("overview.max_overdue_principal_days", T("tg.cb.e.days", "Макс. просрочка, дней"), "int", "0")
+    + "</div>"
+    + '<span class="ferr" id="wzErr-cb">' + esc(CH.errs.cb || "") + "</span>"
+    + '<div class="dq-src" id="cb-src">' + cbSrcHtml() + "</div>"
+    + '<p class="note">' + esc(T("tg.cb.no_direct", "Прямого запроса в кредитное бюро нет — отчёт загружает сотрудник; для прямого подключения нужен договор страховщика с бюро и согласие субъекта.")) + "</p>"
+    + (cbCredit() ? "" : '<p class="note">' + esc(T("tg.cb.not_credit", "Класс договора не кредитный — проверки по отчёту бюро не применяются.")) + "</p>")
+    + "</div>";
+}
+/* ввод: значение запоминаем, карточку не перерисовываем — курсор остаётся на месте */
+function cbInput(el){
+  const c = CH.cb;
+  if (!c) return;
+  const code = el.dataset.cbf;
+  if (CB_EDIT.indexOf(code) < 0) return;
+  let v;
+  if (code === "report_date") v = sIso(el.value);
+  else if (code === "score_class") {
+    const up = el.value.toUpperCase().replace(/[\u0410\u0412\u0421\u0415]/g, x => ({"\u0410": "A", "\u0412": "B", "\u0421": "C", "\u0415": "E"}[x])).replace(/[^A-Z0-9]/g, "").slice(0, 2);
+    if (up !== el.value) el.value = up;
+    v = up || null;
+  } else if (code === "active.overdue") { groupDigitsLive(el); v = String(el.value).replace(/\D/g, "") === "" ? null : num(el.value); }
+  else { if (/\D/.test(el.value)) el.value = el.value.replace(/\D/g, ""); v = el.value === "" ? null : Number(el.value); }
+  cbSet(c.fields, code, v);
+  wzClearErr("cb");
+  const s = $("#cb-src");
+  if (s) s.innerHTML = cbSrcHtml();
+  wzSave();
+}
+function cbReset(){
+  if (!CH.cb) return;
+  CH.cb.fields = JSON.parse(JSON.stringify(CH.cb.orig));
+  wzClearErr("cb");
+  haptic("select");
+  wzSave();
+  wzPart("cb");
+}
+/* те же границы, что app/credit_report.normalize (strict): неверное — сообщение до отправки */
+function cbCheck(){
+  const c = CH.cb;
+  if (!c) return false;
+  const f = c.fields, cnt = v => v == null || (Number.isInteger(v) && v >= 0 && v <= 100000);
+  return (f.score != null && !(Number.isInteger(f.score) && f.score >= 0 && f.score <= 1000))
+    || (f.score_class != null && !/^[A-E][1-9]?$/.test(f.score_class))
+    || (f.report_date != null && !(f.report_date >= "2000-01-01" && f.report_date <= "2100-12-31"))
+    || (f.active.overdue != null && !(f.active.overdue >= 0))
+    || !cnt(f.overview.overdue_principal_count) || !cnt(f.overview.max_overdue_principal_days)
+    || (f.score == null && f.score_class == null && f.report_date == null
+      && Object.keys(f.overview).every(k => f.overview[k] == null) && ["count", "total_debt", "overdue", "monthly_payment"].every(k => f.active[k] == null));
+}
+/* в POST /act/make: поля как прочитаны сервером, с правками; source — как заявлено, сервер его не доверяет */
+function cbBody(){
+  const c = CH.cb;
+  if (!c) return null;
+  return Object.assign(JSON.parse(JSON.stringify(c.fields)), {source: c.source});
+}
+/* ---------- шаг «Акт»: «Заёмщик: данные кредитного бюро» (блок borrower ответа) ---------- */
+function actCbHtml(a){
+  const b = a && a.borrower;
+  if (!b || b.available !== true) return "";
+  const rows = scoArr(b.rows).filter(r => r && scoS(r.label));
+  const checks = scoArr(b.checks).map(scoS).filter(Boolean);
+  const edits = scoArr(b.edits).filter(e => e && cbLbl(scoS(e.code)));
+  const na = T("tg.act.na", "данные недоступны");
+  // на карточке скоринга заёмщик уже показан — тогда блок свёрнут, иначе раскрыт
+  const open = CH.cbActOpen != null ? CH.cbActOpen : !(a.scoring && a.scoring.borrower);
+  return '<details class="card cb-act" id="cbAct"' + (open ? " open" : "") + '><summary><span><b>' + esc(T("tg.cb.act_title", "Заёмщик: данные кредитного бюро")) + "</b>"
+    + "<small>" + esc([scoS(b.source_label), checks.length ? T("tg.cb.checks_n", "проверок андеррайтеру: {n}", {n: checks.length}) : T("tg.cb.checks_0", "проверок нет")].filter(Boolean).join(" · ")) + "</small></span></summary>"
+    + (rows.length ? '<div class="dq-kv">' + rows.map(r => dqKv(scoS(r.label), esc(scoS(r.value) || na))).join("") + "</div>" : "")
+    + (edits.length ? '<div class="cb-edits"><p class="h3">' + esc(T("tg.cb.edits_title", "Исправлено сотрудником")) + "</p><ul>"
+      + edits.map(e => "<li>" + esc(cbLbl(e.code)) + ": <s>" + esc(cbVal(e.code, e.was) || "—") + "</s> → <b>" + esc(cbVal(e.code, e.now) || "—") + "</b></li>").join("") + "</ul></div>" : "")
+    + (b.doc_missing ? '<p class="note warn">' + esc(T("tg.cb.doc_missing", "Загрузка отчёта недоступна — значения введены сотрудником.")) + "</p>" : "")
+    + (checks.length ? '<div class="cb-checks"><p class="h3">' + esc(T("tg.cb.checks_title", "Проверки андеррайтеру")) + "</p><ul>" + checks.map(c => "<li>" + esc(c) + "</li>").join("") + "</ul></div>"
+      : b.credit_product ? '<p class="note ok">' + esc(T("tg.cb.checks_none", "По отчёту бюро проверок нет.")) + "</p>"
+        : '<p class="note">' + esc(T("tg.cb.not_credit", "Класс договора не кредитный — проверки по отчёту бюро не применяются.")) + "</p>")
+    + (scoS(b.note) ? '<p class="note">' + esc(b.note) + "</p>" : "")
+    + (scoS(b.direct_note) ? '<p class="note">' + esc(b.direct_note) + "</p>" : "")
+    + "</details>";
+}
+
 /* ---------- карточка «Запрос филиала» ---------- */
 function brCardHtml(){
   const b = CH.br;
@@ -5723,12 +6100,13 @@ const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_i
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
   want_lower_premium: "want_lower", losses_3y: "losses_count", price_new: "price_new", term_days: "term_days",
   protection: "protection", seismic_zone: "seismic_zone", construction: "construction", activity: "activity", deductible: "fr",
-  market: "market", request: "br", contract: "ct",
+  market: "market", request: "br", contract: "ct", credit_report: "cb",
   class_fields: "cf", object_kind: "cf", parts: "parts", same_object: "parts", parts_confirmed: "parts"};
 function errText(field){
   switch (field) {
     case "br": return T("tg.dq.err_br", "Проверьте условия запроса филиала: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
     case "ct": return T("tg.dq.err_ct", "Проверьте условия договора: тариф — больше 0 и не больше 100 %, премия — больше нуля, срок — обе даты («по» не раньше «с») или число дней от 1 до 3660, франшиза — больше нуля.");
+    case "cb": return T("tg.cb.err", "Проверьте отчёт бюро: балл — целое от 0 до 1000, класс — буква A–E и цифра (например, B2), дата — не раньше 2000 года, просрочки — числа не меньше нуля.");
     case "prod": return T("tg.wz.err_prod", "Выберите продукт из списка или хотя бы весь класс.");
     case "sum_insured": case "object_value": case "losses_amount": case "price_new":
       return T("tg.act.err_money", "Введите сумму больше нуля, в сумах.");
@@ -5779,6 +6157,9 @@ function actBody(){
   const rq = dqBody("br"), cq = dqBody("ct");
   if (rq) opt.request = rq;
   if (cq) opt.contract = cq;
+  // отчёт кредитного бюро: как прочитано, с правками; источник и «было → стало» сервер определяет сам
+  const cbb = cbBody();
+  if (cbb) opt.credit_report = cbb;
   // оценка по объявлениям: правки сотрудника, номер загрузки снимков, курс
   const mk = mkBody();
   if (mk) opt.market = mk;
@@ -5817,6 +6198,7 @@ async function actMake(){
     else { const p = dec(f.pct); if (!(p > 0 && p <= 50)) e.fr = errText("fr"); }
   }
   ["br", "ct"].forEach(k => { const x = dqCheck(k); if (x) e[k] = x; });
+  if (cbCheck()) e.cb = errText("cb");
   if (ptOn() && (!ptOk() || ptFrBad())) e.parts = errText("parts");
   if (Object.keys(e).length) { actShowErrors(e); return; }
   CH.errs = {};
@@ -5869,7 +6251,7 @@ function actShowErrors(e){
   if (OPT_KEYS.some(k => e[k]) || e.fr) CH.optOpen = true;
   haptic("error");
   wzPaint(true);
-  const first = ["br", "ct", "prod", "sum_insured", "object_value", "region", "term_days", "parts", "cf"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
+  const first = ["br", "ct", "cb", "prod", "sum_insured", "object_value", "region", "term_days", "parts", "cf"].concat(OPT_KEYS, ["fr", "market"]).filter(k => e[k])[0];
   if (first) wzFocusField(first);
 }
 
@@ -5922,6 +6304,224 @@ function actPremium(a){
   return p.amount == null || isNaN(Number(p.amount)) ? T("tg.act.na", "данные недоступны") : money(p.amount);
 }
 function actFile(kind){ return "/act/" + encodeURIComponent(CH.act.id) + "." + kind + "?lang=" + encodeURIComponent(I18N_LANG); }
+/* ---------- шаг 3: страховой скоринг объекта (01.10.2026) ----------
+   Блок scoring ответа /act/make и GET /act/{id} (app/act_scoring.py, view): балл 0–500, класс, шкала, из чего
+   сложился балл, объект, общий обзор, риски, сценарии, проверки, заёмщик. Тексты — из ответа (на языке акта: при смене
+   языка акт приходит заново), подписи экрана — T(). Шкала — inline SVG по scale.bands и score тем же углом, что в PDF
+   (act_scoring._angle: 0 — слева, 500 — справа, 250 — вверх). Шкала экспертная, не калибрована — это на карточке. */
+const SCO_COLORS = {E: "#CC241F", D: "#ED6E1A", C: "#F7BD14", B: "#9EC730", A: "#459E33"};
+const SCO_DARK = {C: true, B: true};                 // на жёлтом и светло-зелёном — тёмные буквы
+const SCO_G = {w: 340, h: 184, cx: 170, cy: 160, rOut: 134, rRing: 114, rCol: 111, rIn: 62, rCore: 57,
+  rLetter: 99, rTip: 88, rBase: 62, rTick: 151};
+const scoS = v => v == null || typeof v === "object" ? "" : String(v);
+const scoArr = v => Array.isArray(v) ? v : [];
+const scoR = x => Math.round(x * 100) / 100;
+/* значение шкалы 0–500 → угол (радианы): 0 слева (π), 500 справа (0); вне шкалы — к краю */
+function scoAngle(v){ const x = Math.max(0, Math.min(500, Number(v) || 0)); return Math.PI * (1 - x / 500); }
+function scoPt(r, a){ return [SCO_G.cx + r * Math.cos(a), SCO_G.cy - r * Math.sin(a)]; }
+/* остриё стрелки: угол в градусах и точка — для проверки положения */
+function scoNeedle(v){ const a = scoAngle(v), t = scoPt(SCO_G.rTip, a); return {deg: scoR(a * 180 / Math.PI), x: scoR(t[0]), y: scoR(t[1])}; }
+/* сектор шкалы по баллу: from и to включительно (E 0–99, D 100–199 …) */
+function scoBand(v, bands){ const x = Number(v); return scoArr(bands).filter(b => b && x >= Number(b.from) && x <= Number(b.to))[0] || null; }
+/* кольцевой сектор между радиусами r0 < r1 от значения v0 до v1 */
+function scoArc(r0, r1, v0, v1){
+  const a0 = scoAngle(v0), a1 = scoAngle(v1), p = (r, a) => scoPt(r, a).map(scoR).join(" ");
+  return "M" + p(r1, a0) + " A" + r1 + " " + r1 + " 0 0 1 " + p(r1, a1) + " L" + p(r0, a1) + " A" + r0 + " " + r0 + " 0 0 0 " + p(r0, a0) + " Z";
+}
+const scoTo = b => Number(b.to) < 500 ? Number(b.to) + 1 : 500;     // сектор рисуется до начала следующего
+function scoGaugeSvg(sc){
+  const G = SCO_G, bands = scoArr(sc.scale && sc.scale.bands).filter(b => b && SCO_COLORS[b.code] && isNum(b.from) && isNum(b.to));
+  const score = Number(sc.score), has = sc.score != null && isFinite(score);
+  let s = '<svg viewBox="0 0 ' + G.w + " " + G.h + '" role="img" aria-label="'
+    + esc(T("tg.sc.gauge_aria", "Шкала от 0 до 500: балл {s}, класс {c}", {s: has ? score : "—", c: scoS(sc.class_code) || "—"})) + '">'
+    + '<path class="sco-ring" d="' + scoArc(G.rRing, G.rOut, 0, 500) + '"/>';
+  bands.forEach(b => { s += '<path class="sco-seg" fill="' + SCO_COLORS[b.code] + '" d="' + scoArc(G.rIn, G.rCol, b.from, scoTo(b)) + '"/>'; });
+  s += '<path class="sco-core" d="M' + (G.cx - G.rCore) + " " + G.cy + " A" + G.rCore + " " + G.rCore + " 0 0 1 " + (G.cx + G.rCore) + " " + G.cy + ' Z"/>';
+  bands.forEach(b => {
+    const am = (scoAngle(b.from) + scoAngle(scoTo(b))) / 2;
+    const l = scoPt(G.rLetter, am).map(scoR), w = scoPt((G.rRing + G.rOut) / 2, am).map(scoR);
+    const lab = scoS(b.label);
+    s += '<text class="sco-let' + (SCO_DARK[b.code] ? " dk" : "") + '" x="' + l[0] + '" y="' + l[1] + '">' + esc(b.code) + "</text>"
+      + '<text class="sco-lvl" font-size="' + (lab.length > 9 ? 8 : 9.5) + '" transform="translate(' + w[0] + " " + w[1] + ") rotate("
+      + scoR(90 - am * 180 / Math.PI) + ')">' + esc(lab) + "</text>";
+  });
+  for (let v = 0; v <= 500; v += 100) {
+    if (v === 0 || v === 500) {
+      s += '<text class="sco-tick" x="' + (G.cx + (v ? 1 : -1) * (G.rRing + G.rOut) / 2) + '" y="' + (G.cy + 15) + '">' + v + "</text>";
+      continue;
+    }
+    const a = scoAngle(v), p0 = scoPt(G.rOut + 1, a).map(scoR), p1 = scoPt(G.rOut + 6, a).map(scoR), t = scoPt(G.rTick, a).map(scoR);
+    s += '<line class="sco-tl" x1="' + p0[0] + '" y1="' + p0[1] + '" x2="' + p1[0] + '" y2="' + p1[1] + '"/>'
+      + '<text class="sco-tick" x="' + t[0] + '" y="' + t[1] + '">' + v + "</text>";
+  }
+  s += '<line class="sco-base" x1="' + (G.cx - G.rOut) + '" y1="' + G.cy + '" x2="' + (G.cx + G.rOut) + '" y2="' + G.cy + '"/>';
+  if (has) {
+    const a = scoAngle(score), ux = Math.cos(a), uy = -Math.sin(a), h = 6.5;
+    const bx = G.cx + ux * G.rBase, by = G.cy + uy * G.rBase, n = scoNeedle(score);
+    const pts = [[bx - uy * h, by + ux * h], [n.x, n.y], [bx + uy * h, by - ux * h]].map(p => p.map(scoR).join(" "));
+    s += '<g class="sco-needle" data-deg="' + n.deg + '"><path d="M' + pts[0] + " L" + pts[1] + " L" + pts[2] + ' Z"/>'
+      + '<circle cx="' + scoR(bx) + '" cy="' + scoR(by) + '" r="' + h + '"/></g>'
+      + '<text class="sco-num" x="' + G.cx + '" y="' + (G.cy - 13) + '">' + esc(String(Math.round(score))) + "</text>";
+  }
+  return s + "</svg>";
+}
+const scoBand_ = t => '<h3 class="sco-band">' + esc(t) + "</h3>";
+/* «значение — подпись» (общий обзор, заёмщик): в две колонки, на телефоне — в одну */
+function scoPairs(rows){
+  return '<div class="sco-ov">' + scoArr(rows).filter(r => r && (scoS(r.value) || scoS(r.label)))
+    .map(r => { const v = scoS(r.value) || T("tg.act.na", "данные недоступны");
+      // число с единицей («2 945 000 000 сум», «95 %») не рвётся; текст («Франшиза не требуется») переносится
+      return "<div><b" + (/^[\d\s  .,%\/+−-]+(\s\S{1,6})?$/.test(v) ? ' class="nw"' : "") + ">" + esc(v) + "</b><span>" + esc(scoS(r.label)) + "</span></div>"; }).join("") + "</div>";
+}
+function scoUrl(a, kind){
+  const d = (a && a.downloads) || {}, s = (a && a.scoring && a.scoring.downloads) || {};
+  const u = String((kind === "pdf" ? d.scoring_pdf || s.pdf : d.scoring_png || s.png) || "");
+  return /^\/act\/[0-9a-f]{16}\/scoring\.(pdf|png)(\?lang=[a-z]{2})?$/.test(u) ? u : "";
+}
+function scoCardHtml(a){
+  const sc = a && a.scoring;
+  if (!sc || sc.available !== true) return "";
+  const brand = /^#[0-9a-fA-F]{6}$/.test(scoS(sc.brand_color)) ? sc.brand_color : "#0B4F8A";
+  const rq = sc.request || {}, sub = sc.subject || {};
+  const code = scoS(sc.class_code), lab = scoS(sc.class_label), cls = SCO_COLORS[sc.class] ? sc.class : "";
+  const r100 = isNum(sc.risk_score_100) ? nf(sc.risk_score_100, Number(sc.risk_score_100) % 1 ? 1 : 0) : "—";
+  const kv = [[T("tg.sc.score", "Страховой балл"), scoS(sc.score) || "—"],
+    [T("tg.sc.class", "Страховой класс"), code ? code + (lab ? ", " + lab : "") : "—"],
+    [T("tg.sc.version", "Версия шкалы"), scoS(sc.version) || "—"],
+    [sc.basis === "risk_score" ? T("tg.sc.risk100", "Балл риска 0–100") : T("tg.sc.by_level", "Оценка по уровню риска"), r100]];
+  const comps = scoArr(sc.components).filter(c => c && scoS(c.label));
+  const parts = scoArr(sc.parts).filter(p => p && scoS(p.text));
+  const risks = scoArr(sc.risks).filter(r => r && (scoS(r.name) || scoS(r.share_text)));
+  const scen = scoArr(sc.scenarios).filter(x => x && scoS(x.amount_text));
+  const checks = scoArr(sc.checks).map(scoS).filter(Boolean);
+  const bw = sc.borrower && scoArr(sc.borrower.rows).length ? sc.borrower : null;
+  const rqRows = scoArr(rq.rows).filter(r => r && r.code !== "type" && scoS(r.value));
+  const pdf = scoUrl(a, "pdf"), png = scoUrl(a, "png");
+  // рекомендация и уровень риска акта рядом с плашкой; «отказать» — плашка перечёркнута красным
+  const dec = sc.decision && typeof sc.decision === "object" ? sc.decision : {}, alv = sc.act_level && typeof sc.act_level === "object" ? sc.act_level : {};
+  const dcode = ["accept", "accept_with_clauses", "decline"].indexOf(scoS(dec.code)) >= 0 ? dec.code : "";
+  const no = dcode === "decline";
+  const anl = sc.analytics_level && typeof sc.analytics_level === "object" ? scoS(sc.analytics_level.text) : "";
+  const decHtml = scoS(dec.text) || scoS(alv.label) ? '<div class="sco-dec">'
+    + (no ? '<p class="sco-x">' + esc(scoS(dec.warning) || T("tg.sc.dec_see", "см. рекомендацию акта: отказать")) + "</p>" : "")
+    + (scoS(dec.text) ? "<p><span>" + esc(scoS(dec.title) || T("tg.sc.dec_title", "Рекомендация акта")) + ':</span> <b class="d-' + esc(dcode || "none") + '">' + esc(dec.text) + "</b></p>" : "")
+    + (scoS(alv.label) ? "<p><span>" + esc(scoS(alv.title) || T("tg.sc.act_level", "Уровень риска акта")) + ":</span> <b>" + esc(alv.label) + "</b></p>" : "")
+    + "</div>" : "";
+  return '<section class="card sco" id="scoCard" style="--sco:' + esc(brand) + '">'
+    + '<div class="sco-top"><h2>' + esc(T("tg.sc.title", "Страховой скоринг объекта")) + "</h2>"
+    + '<span class="sco-unc">' + esc(T("tg.sc.uncal", "экспертная шкала, не калибрована")) + "</span></div>"
+    + (rqRows.length ? '<dl class="sco-rq">' + rqRows.map(r => "<div><dt>" + esc(scoS(r.label)) + "</dt><dd>" + esc(scoS(r.value)) + "</dd></div>").join("") + "</dl>" : "")
+    // скоринг: балл, класс, версия, балл риска; шкала; плашка класса цветом сектора
+    + scoBand_(T("tg.sc.b_score", "Скоринг"))
+    + '<div class="sco-sec"><div class="sco-main">'
+    + '<div class="sco-kvw"><dl class="sco-kv">' + kv.map(x => "<div><dt>" + esc(x[0]) + "</dt><dd>" + esc(x[1]) + "</dd></div>").join("") + "</dl>"
+    + (anl ? '<p class="sco-anl">' + esc(anl) + "</p>" : "")
+    + (scoS(sc.formula) ? '<p class="sco-anl sco-fx">' + esc(sc.formula) + "</p>" : "") + "</div>"
+    + '<div class="sco-gauge">' + scoGaugeSvg(sc)
+    + (scoS(sc.gauge_caption) ? '<p class="sco-cap">' + esc(sc.gauge_caption) + "</p>" : "") + "</div>"
+    + '<div class="sco-plq' + (SCO_DARK[cls] ? " dk" : "") + (no ? " x" : "") + '"' + (cls ? ' style="background:' + SCO_COLORS[cls] + '"' : "") + "><b>" + esc(code || "—") + "</b>"
+    + (lab ? "<span>" + esc(lab) + "</span>" : "") + "</div>"
+    + decHtml
+    + "</div>"
+    + (scoS(sc.text) ? '<p class="sco-text">' + esc(sc.text) + "</p>" : "")
+    + (parts.length ? '<div class="sco-parts">' + (scoS(sc.parts_note) && scoS(sc.text).indexOf(scoS(sc.parts_note)) < 0 ? "<p><b>" + esc(sc.parts_note) + "</b></p>" : "")
+      + "<ul>" + parts.map(p => '<li><i class="sco-dot" style="background:' + (SCO_COLORS[p.class] || "var(--line)") + '"></i>' + esc(p.text) + "</li>").join("") + "</ul></div>" : "")
+    // из чего сложился балл: очки из максимума; как посчитано — по раскрытию
+    + (comps.length ? '<div class="sco-comp"><p class="sco-h">' + esc(T("tg.sc.comp_title", "Из чего сложился балл")) + "</p>"
+      + comps.map(c => {
+        const on = c.applicable !== false && isNum(c.points) && isNum(c.max);
+        const w = on && Number(c.max) > 0 ? Math.max(0, Math.min(100, Number(c.points) / Number(c.max) * 100)) : 0;
+        return '<details class="sco-c' + (on ? "" : " off") + '"><summary><span>' + esc(c.label) + "</span><b>"
+          + esc(on ? T("tg.sc.of", "{p} из {m}", {p: c.points, m: c.max}) : "—") + "</b>"
+          + '<i class="sco-bar" aria-hidden="true"><u style="width:' + scoR(w) + '%"></u></i></summary>'
+          + (scoS(c.why) ? "<p>" + esc(c.why) + "</p>" : "") + "</details>";
+      }).join("") + "</div>" : "")
+    + "</div>"
+    // объект и общий обзор
+    + (scoArr(sub.rows).length ? scoBand_(T("tg.sc.b_object", "Объект")) + '<div class="sco-sec"><dl class="sco-obj">'
+      + scoArr(sub.rows).filter(r => r && scoS(r.label)).map(r => "<div><dt>" + esc(r.label) + "</dt><dd" + (r.code === "name" ? ' class="b"' : "") + ">"
+        + esc(scoS(r.value) || T("tg.act.na", "данные недоступны")) + "</dd></div>").join("") + "</dl></div>" : "")
+    + (scoArr(sc.overview).length ? scoBand_(T("tg.sc.b_overview", "Общий обзор")) + '<div class="sco-sec">' + scoPairs(sc.overview) + "</div>" : "")
+    // риски и сценарии
+    + scoBand_(T("tg.sc.b_risks", "Риски")) + '<div class="sco-sec">'
+    + (risks.length ? '<table class="sco-t"><thead><tr><th>' + esc(T("tg.sc.col_risk", "Риск")) + '</th><th class="n w-s">' + esc(T("tg.sc.col_share", "Доля"))
+      + '</th><th class="n w-l">' + esc(T("tg.sc.col_level", "Уровень")) + "</th></tr></thead><tbody>"
+      + risks.map(r => "<tr><td>" + esc(scoS(r.name) || T("tg.act.na", "данные недоступны")) + '</td><td class="n num">' + esc(scoS(r.share_text)) + '</td><td class="n lv-'
+        + esc(/^[a-z_]{1,20}$/.test(scoS(r.level)) ? r.level : "none") + '">' + esc(scoS(r.level_label)) + "</td></tr>").join("") + "</tbody></table>"
+      : '<p class="note">' + esc(T("tg.sc.r_none", "Риски не разбиты — смотрите раздел 4 акта.")) + "</p>")
+    + "</div>"
+    + scoBand_(T("tg.sc.b_scen", "Сценарии убытка")) + '<div class="sco-sec">'
+    + (scen.length ? '<table class="sco-t"><thead><tr><th>' + esc(T("tg.sc.col_scen", "Сценарий")) + '</th><th class="n w-a">' + esc(T("tg.sc.col_amount", "Сумма"))
+      + '</th><th class="n w-p">' + esc(T("tg.sc.col_pct", "% суммы")) + "</th></tr></thead><tbody>"
+      + scen.map(x => "<tr><td><b>" + esc(scoS(x.name)) + '</b></td><td class="n num">' + esc(x.amount_text) + '</td><td class="n num">' + esc(scoS(x.pct_text)) + "</td></tr>"
+        + (scoS(x.what) || scoS(x.label) ? '<tr class="sub"><td colspan="3">' + esc(scoS(x.what) || scoS(x.label)) + "</td></tr>" : "")).join("") + "</tbody></table>"
+      : '<p class="note">' + esc(T("tg.sc.sc_none", "Сценарии не посчитаны — смотрите раздел 4 акта.")) + "</p>")
+    + "</div>"
+    // заёмщик (кредитные продукты): отчёт кредитного бюро, в балл не входит
+    + (bw ? scoBand_(T("tg.sc.b_borrower", "Заёмщик (кредитное бюро)")) + '<div class="sco-sec">' + scoPairs(bw.rows)
+      + '<p class="note">' + esc(scoS(bw.note) || T("tg.sc.borrower_note", "Проверки заёмщика добавляют оговорки к рекомендации; в балл, уровень риска и ставку не входят. Данные кредитного отчёта хранятся в акте 7 дней; требуется согласие субъекта на получение кредитного отчёта (обязанность страховщика).")) + "</p></div>" : "")
+    // что проверить андеррайтеру
+    + scoBand_(T("tg.sc.b_checks", "Что проверить андеррайтеру")) + '<div class="sco-sec">'
+    + (checks.length ? '<ul class="sco-chk">' + checks.map(c => "<li>" + esc(c) + "</li>").join("") + "</ul>"
+      : '<p class="note">' + esc(T("tg.sc.checks_none", "Проверок нет.")) + "</p>")
+    + (scoS(sc.checks_more) ? '<p class="note">' + esc(sc.checks_more) + "</p>" : "")
+    + "</div>"
+    + '<div class="sco-sec sco-end">'
+    + (scoS(sc.footer_line) ? '<p class="sco-foot">' + esc(sc.footer_line) + "</p>" : "")
+    + (scoS(sc.method_text) || scoS(sc.note) ? '<p class="sco-meth">' + esc([scoS(sc.method_text), scoS(sc.note)].filter(Boolean).join(" ")) + "</p>" : "")
+    + (pdf || png ? '<div class="act-btns sco-btns">'
+      + (IN_TG ? actSendBtnHtml("pdf") + (png ? '<button type="button" class="btn btn-secondary" data-go="scoimg">' + esc(scoImgLabel()) + "</button>" : "")
+        : (pdf ? '<a class="btn btn-secondary" data-dl="scoring_pdf" href="' + esc(pdf) + '" download>' + esc(T("tg.sc.dl_pdf", "Скачать скоринг PDF")) + "</a>" : "")
+          + (png ? '<a class="btn btn-secondary" data-dl="scoring_png" href="' + esc(png) + '" download>' + esc(T("tg.sc.dl_png", "Картинка шкалы")) + "</a>" : ""))
+      + "</div>"
+      + (IN_TG ? '<p class="hint">' + esc(T("tg.sc.tg_hint", "Скоринг — первая страница PDF акта: бот пришлёт его в чат. Картинку шкалы можно открыть здесь и сохранить долгим нажатием.")) + "</p>" : "")
+      + '<div id="scoImg">' + scoImgHtml() + "</div>" : "")
+    + '<div class="msg" id="scoMsg" role="status"></div>'
+    + "</div></section>";
+}
+/* ---------- картинка шкалы в Telegram: скачивание из WebView не работает — открываем её здесь ----------
+   GET /act/{id}/scoring.png с тем же входом, что у остальных запросов (заголовок Authorization), → blob → <img>. */
+function scoImgOn(){ const a = CH.act, s = CH.scoImg; return !!(a && s && s.id === a.id && s.lang === a.lang && s.url); }
+function scoImgLabel(){
+  if (CH.scoImgBusy) return T("tg.sc.img_loading", "Открываю картинку…");
+  return scoImgOn() && CH.scoImg.open ? T("tg.sc.img_hide", "Скрыть картинку шкалы") : T("tg.sc.img_open", "Открыть картинку шкалы");
+}
+function scoImgHtml(){
+  if (CH.scoImgErr) return '<p class="note err">' + esc(CH.scoImgErr) + "</p>";
+  if (!scoImgOn() || !CH.scoImg.open) return "";
+  const cap = scoS(CH.act && CH.act.scoring && CH.act.scoring.gauge_caption);
+  return '<figure class="sco-img"><img src="' + esc(CH.scoImg.url) + '" alt="' + esc(T("tg.sc.img_alt", "Шкала страхового скоринга с классом объекта")) + '">'
+    + "<figcaption>" + (cap ? '<b class="sco-cap">' + esc(cap) + "</b> " : "") + esc(T("tg.sc.img_save", "Чтобы сохранить картинку, нажмите на неё и удерживайте.")) + "</figcaption></figure>";
+}
+function scoImgPaint(){
+  const box = $("#scoImg");
+  if (box) box.innerHTML = scoImgHtml();
+  const b = document.querySelector('#wzBody [data-go="scoimg"]');
+  if (b) { b.textContent = scoImgLabel(); b.disabled = !!CH.scoImgBusy; }
+}
+async function scoImg(){
+  const a = CH.act, url = scoUrl(a, "png");
+  if (!url || CH.scoImgBusy) return;
+  CH.scoImgErr = "";
+  if (scoImgOn()) { CH.scoImg.open = !CH.scoImg.open; haptic("select"); scoImgPaint(); return; }
+  CH.scoImgBusy = true;
+  scoImgPaint();
+  try {
+    const r = await fetch(url, {headers: TOKEN ? {Authorization: "Bearer " + TOKEN} : {}});
+    if (!r.ok) throw new Error(why(r.status, null));
+    const blob = await r.blob();
+    if (CH.scoImg && CH.scoImg.url) URL.revokeObjectURL(CH.scoImg.url);
+    CH.scoImg = {id: a.id, lang: a.lang, url: URL.createObjectURL(blob), open: true};
+    haptic("success");
+  } catch (e) {
+    CH.scoImgErr = T("tg.sc.img_failed", "Картинка не открылась: {reason}. Попросите бота прислать PDF акта — скоринг на первой странице.",
+      {reason: e && e.message && !/fetch/i.test(e.message) ? e.message : T("tg.err.offline", "сервер не отвечает")});
+    haptic("error");
+  }
+  CH.scoImgBusy = false;
+  scoImgPaint();
+}
+/* ---------- /скоринг ---------- */
 function wzStep3Html(){
   const a = CH.act;
   if (!a) {
@@ -5941,9 +6541,22 @@ function wzStep3Html(){
   const multi = Number(prem.term_days) > 366;
   // комплексный продукт по частям: плитки договора, таблица и карточки частей (parts.mode = multi)
   const P = ptAct(a);
+  // страховой скоринг объекта — первым; сводка ниже свёрнута под «Сводка акта» (карточка её не дублирует)
+  const sco = scoCardHtml(a);
+  const btns = '<div class="act-btns">'
+    + (IN_TG ? ["docx", "pdf"].map(actSendBtnHtml).join("")
+      : '<a class="btn btn-secondary" data-dl="docx" href="' + esc(actFile("docx")) + '" download>' + esc(T("tg.act.dl_docx", "Скачать Word")) + "</a>"
+        + '<a class="btn btn-secondary" data-dl="pdf" href="' + esc(actFile("pdf")) + '" download>' + esc(T("tg.act.dl_pdf", "Скачать PDF")) + "</a>")
+    + '<button type="button" class="btn btn-secondary" data-go="copy">' + esc(T("tg.act.copy", "Скопировать текст акта")) + "</button>"
+    + "</div>"
+    + '<div class="msg" id="actMsg" role="status"></div>';
   return '<h2 class="wz-h">' + esc(T("tg.act.s3_title", "Сюрвейерский акт")) + "</h2>"
     + '<p class="wz-lead">' + esc(T("tg.act.lead", "№ {n} от {d}. Акт — совет ИИ-сюрвейера, решение принимает андеррайтер.", {n: a.number || "", d: a.date || ""})) + "</p>"
-    + '<div class="card act-sum ' + tone + '">'
+    + sco
+    + (sco ? '<details class="card act-sum act-sumd ' + tone + '" id="actSumD"' + (CH.sumOpen ? " open" : "") + "><summary><span><b>"
+        + esc(T("tg.sc.sum_title", "Сводка акта")) + "</b><small>" + esc(P ? T("tg.sc.sum_sub_dec", "Рекомендация: {d}", {d: decName(dec)})
+          : T("tg.sc.sum_sub", "Рекомендация: {d} · тариф {r} · премия {p}", {d: decName(dec), r: actRate(a), p: actPremium(a)})) + "</small></span></summary>"
+      : '<div class="card act-sum ' + tone + '">')
     + '<p class="eyebrow">' + esc(T("tg.act.dec_title", "Рекомендация")) + "</p>"
     + '<div class="act-dec">' + esc(decName(dec)) + "</div>"
     + (P ? ptSumHtml(a, P) : '<div class="act-kpis">'
@@ -5966,14 +6579,10 @@ function wzStep3Html(){
     + actXcHtml(a)
     + (disc ? '<p class="act-line warn"><b>' + esc(T("tg.act.disc_n", "Расхождения в данных: {n}", {n: disc})) + "</b> "
       + esc(T("tg.act.disc_where", "— выделены в акте, проверьте до выдачи полиса.")) + "</p>" : "")
-    + '<div class="act-btns">'
-    + (IN_TG ? ["docx", "pdf"].map(actSendBtnHtml).join("")
-      : '<a class="btn btn-secondary" data-dl="docx" href="' + esc(actFile("docx")) + '" download>' + esc(T("tg.act.dl_docx", "Скачать Word")) + "</a>"
-        + '<a class="btn btn-secondary" data-dl="pdf" href="' + esc(actFile("pdf")) + '" download>' + esc(T("tg.act.dl_pdf", "Скачать PDF")) + "</a>")
-    + '<button type="button" class="btn btn-secondary" data-go="copy">' + esc(T("tg.act.copy", "Скопировать текст акта")) + "</button>"
-    + "</div>"
-    + '<div class="msg" id="actMsg" role="status"></div>'
-    + "</div>"
+    // со скорингом кнопки акта — под свёрнутой сводкой, чтобы были видны и без её раскрытия
+    + (sco ? '</details><div class="act-btns-row">' + btns + "</div>" : btns + "</div>")
+    // заёмщик по отчёту кредитного бюро (01.10.2026)
+    + actCbHtml(a)
     // аналитика риска — после сводки, перед документом; сценарии с формулами и удержание — в ней,
     // поэтому отдельная карточка сценариев показывается только у актов без аналитики
     + (P ? ptActHtml(a) : actAnHtml(a) + (anScenOk(a) ? "" : actScenHtml(a)))
@@ -6589,7 +7198,11 @@ function actText(a){
   L.push("", a.footer);
   return L.join("\n");
 }
-function actMsg(html){ const m = $("#actMsg"); if (m) m.innerHTML = html; }
+/* сообщение — под той кнопкой, которую нажали: в карточке скоринга (#scoMsg) или под кнопками акта (#actMsg) */
+function actMsg(html){
+  const here = CH.msgAt === "sco" && $("#scoMsg") ? "#scoMsg" : "#actMsg";
+  ["#actMsg", "#scoMsg"].forEach(id => { const m = $(id); if (m) m.innerHTML = id === here ? html : ""; });
+}
 /* скачать в обычном браузере: ссылка на файл */
 function actDownload(kind){
   if (!CH.act) return;
@@ -6712,7 +7325,10 @@ function actReset(){
     missingViews: [], requiredViews: [], suggest: [], msg: "", notes: [], warning: "", upLang: "", stale: false,
     modelN: 0, docs: [], pre: {}, preDoc: {}, seeded: false, fr: FR_OFF(), docOpen: {}, anOpen: {},
     must: {}, opt: {}, errs: {}, act: null, actId: "", actErr: "", err: "", prodQ: "", prodOpen: false, optOpen: false, kind: "",
-    br: null, ct: null, xc: null, pt: null, ptAdd: false, ptOpen: {}, ptMore: {}, cfCls: ""});
+    br: null, ct: null, xc: null, pt: null, ptAdd: false, ptOpen: {}, ptMore: {}, cfCls: "",
+    cb: null, sumOpen: false, cbActOpen: null, scoImgErr: "", msgAt: ""});
+  if (CH.scoImg && CH.scoImg.url) URL.revokeObjectURL(CH.scoImg.url);
+  CH.scoImg = null;
   mkReset();
   wzSeedRegion();
   wzSave();
@@ -6750,7 +7366,9 @@ function wzClick(e){
   if (!t || !box.contains(t)) return;
   const d = t.dataset;
   if (d.dl) return;                                  // обычная ссылка на файл — в браузере
-  if (d.send) { actSend(d.send); return; }
+  if (d.send) { CH.msgAt = t.closest("#scoCard") ? "sco" : "act"; actSend(d.send); return; }
+  if (d.go === "scoimg") { scoImg(); return; }
+  if (d.cbreset) { cbReset(); return; }
   if (d.mk) { mkAction(d.mk); return; }
   if (d.mkopen != null) { const l = MK.links && MK.links.links[Number(d.mkopen)]; if (l) mkOpen(l.url, l.site); return; }
   if (d.mvopen != null) { const l = ((CH.act && CH.act.market_value && CH.act.market_value.links) || [])[Number(d.mvopen)]; if (l) mkOpen(l.url); return; }
@@ -6759,6 +7377,7 @@ function wzClick(e){
   if (d.pick === "cam") { $("#chatCam").click(); return; }
   if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
   if (d.rm) { wzRemove(Number(d.rm)); return; }
+  if (d.cbk) { cbToggle(Number(d.cbk)); return; }
   if (d.prodopen) { CH.prodOpen = true; wzPart("prod"); const q = $("#wzProdQ"); if (q) q.focus(); return; }
   if (d.prodclose) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); return; }
   if (d.prod) { wzPickProduct(d.prod); return; }
@@ -6793,6 +7412,7 @@ function wzInput(e){
   if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
   if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
   if (el.dataset && el.dataset.dq) { dqInput(el); return; }
+  if (el.dataset && el.dataset.cbf) { cbInput(el); return; }
   if (el.dataset && el.dataset.mkq) { MK.q = String(el.value || "").slice(0, 60); mkSave(); return; }
   if (el.dataset && el.dataset.mkprice != null) { mkPriceInput(el); return; }
   if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }
@@ -6819,6 +7439,8 @@ function wzToggle(e){
     const b = document.querySelector('#wzBody [data-go="anall"]');
     if (b) b.textContent = anAllLabel();
   }
+  if (el && el.tagName === "DETAILS" && el.id === "actSumD") CH.sumOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.id === "cbAct") CH.cbActOpen = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.ptn) CH.ptOpen[el.dataset.ptn] = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.ptmore) CH.ptMore[el.dataset.ptmore] = el.open;
   if (el && el.tagName === "DETAILS" && el.dataset.sn) {

@@ -465,11 +465,16 @@ TX = {
 
     # ---------- /act/photos ----------
     "warn_pd": {"ru": "Не загружайте документы с данными людей (паспорт, ФИО, адрес): снимки уходят в языковую "
-                      "модель как картинки. Сервер тестовый.",
+                      "модель как картинки. Отчёт кредитного бюро — только PDF с текстом: скан или фото отчёта не "
+                      "читается и в модель не отправляется (отчёт содержит кредитную историю). Сервер тестовый.",
                 "uz": "Odamlar maʼlumotlari bor hujjatlarni (pasport, F.I.Sh., manzil) yuklamang: suratlar til "
-                      "modeliga rasm sifatida yuboriladi. Server test rejimida.",
+                      "modeliga rasm sifatida yuboriladi. Kredit byurosi hisoboti — faqat matnli PDF: hisobot skani "
+                      "yoki surati oʻqilmaydi va modelga yuborilmaydi (hisobotda kredit tarixi bor). Server test "
+                      "rejimida.",
                 "en": "Do not upload documents containing personal data (passport, names, addresses): images are "
-                      "sent to the language model as pictures. This is a test server."},
+                      "sent to the language model as pictures. A credit bureau report — only as a PDF with text: a "
+                      "scan or photo of the report is not read and not sent to the model (the report contains a credit "
+                      "history). This is a test server."},
     "ph_ok": {"ru": "Распознано по фото: {n} значений. Проверьте каждое — модель может ошибаться.",
               "uz": "Suratlardan aniqlandi: {n} ta qiymat. Har birini tekshiring — model xato qilishi mumkin.",
               "en": "Recognised from photos: {n} values. Check each one — the model can make mistakes."},
@@ -3663,4 +3668,336 @@ TX.update({
                                           "olindi",
                                     "en": "the aggregate limit {limit} is above the sum insured {sum} — the sum insured "
                                           "is used"},
+})
+
+
+# ================================================================================================
+#  Страховой скоринг объекта (01.10.2026): первая страница акта, шкала 0–500
+# ================================================================================================
+SCORE_BAND_LABELS = {
+    "poor": {"ru": "плохой", "uz": "yomon", "en": "poor"},
+    "weak": {"ru": "слабый", "uz": "zaif", "en": "weak"},
+    "fair": {"ru": "средний", "uz": "oʻrtacha", "en": "fair"},
+    "good": {"ru": "хороший", "uz": "yaxshi", "en": "good"},
+    "excellent": {"ru": "отличный", "uz": "aʼlo", "en": "excellent"},
+}
+DOC_KIND_LABELS["credit_report"] = {"ru": "отчёт кредитного бюро", "uz": "kredit byurosi hisoboti",
+                                    "en": "credit bureau report"}
+# откуда значения отчёта бюро
+CR_SOURCE_LABELS = {
+    "document": {"ru": "из отчёта (файл с текстом)", "uz": "hisobotdan (matnli fayl)", "en": "from the report (text file)"},
+    "photo": {"ru": "со скана, прочитано моделью", "uz": "skandan, model oʻqigan", "en": "from the scan, read by the model"},
+    "input": {"ru": "введено сотрудником", "uz": "xodim kiritgan", "en": "entered by staff"},
+}
+CR_SUBJECT_LABELS = {
+    "legal": {"ru": "юридическое лицо", "uz": "yuridik shaxs", "en": "legal entity"},
+    "individual": {"ru": "физическое лицо", "uz": "jismoniy shaxs", "en": "individual"},
+}
+# подписи полей отчёта бюро (для экрана и правок «было → стало»)
+CR_FIELD_LABELS = {
+    "report_date": {"ru": "Дата отчёта", "uz": "Hisobot sanasi", "en": "Report date"},
+    "subject_type": {"ru": "Тип субъекта", "uz": "Subyekt turi", "en": "Subject type"},
+    "name": {"ru": "Наименование", "uz": "Nomi", "en": "Name"},
+    "inn": {"ru": "ИНН", "uz": "STIR", "en": "TIN"},
+    "oked": {"ru": "ОКЭД", "uz": "IFUT", "en": "Activity code (OKED)"},
+    "score": {"ru": "Скоринговый балл", "uz": "Skoring bali", "en": "Credit score"},
+    "score_class": {"ru": "Класс оценки", "uz": "Baholash sinfi", "en": "Score class"},
+    "score_version": {"ru": "Версия скоринга", "uz": "Skoring versiyasi", "en": "Scoring version"},
+    "overview.applications": {"ru": "Заявки", "uz": "Arizalar", "en": "Applications"},
+    "overview.contracts": {"ru": "Договоры", "uz": "Shartnomalar", "en": "Contracts"},
+    "overview.contingent": {"ru": "Условные обязательства", "uz": "Shartli majburiyatlar",
+                            "en": "Contingent liabilities"},
+    "overview.inquiries": {"ru": "Запросы и подписки", "uz": "Soʻrovlar va obunalar", "en": "Inquiries and subscriptions"},
+    "overview.avg_monthly_payment": {"ru": "Среднемесячный платёж", "uz": "Oʻrtacha oylik toʻlov",
+                                     "en": "Average monthly payment"},
+    "overview.overdue_principal_count": {"ru": "Просрочек основного долга", "uz": "Asosiy qarz boʻyicha kechikishlar",
+                                         "en": "Principal overdue cases"},
+    "overview.max_overdue_principal_days": {"ru": "Максимальная просрочка основного долга, дней",
+                                            "uz": "Asosiy qarz boʻyicha eng uzoq kechikish, kun",
+                                            "en": "Longest principal overdue, days"},
+    "overview.max_overdue_principal_amount": {"ru": "Максимальная просрочка основного долга, сумма",
+                                              "uz": "Asosiy qarz boʻyicha eng katta kechikish, summa",
+                                              "en": "Largest principal overdue, amount"},
+    "overview.max_overdue_interest_days": {"ru": "Максимальная непрерывная просрочка процентов, дней",
+                                           "uz": "Foizlar boʻyicha eng uzoq uzluksiz kechikish, kun",
+                                           "en": "Longest continuous interest overdue, days"},
+    "overview.overdue_interest_total": {"ru": "Всего просроченных процентов", "uz": "Jami kechiktirilgan foizlar",
+                                        "en": "Total overdue interest"},
+    "active.count": {"ru": "Действующих договоров", "uz": "Amaldagi shartnomalar", "en": "Active contracts"},
+    "active.total_debt": {"ru": "Остаток задолженности", "uz": "Qarz qoldigʻi", "en": "Outstanding debt"},
+    "active.overdue": {"ru": "Просроченная часть", "uz": "Kechiktirilgan qism", "en": "Overdue part"},
+    "active.monthly_payment": {"ru": "Среднемесячный платёж по действующим", "uz": "Amaldagilar boʻyicha oylik toʻlov",
+                               "en": "Monthly payment on active contracts"},
+    "active.creditors": {"ru": "Кредиторы", "uz": "Kreditorlar", "en": "Creditors"},
+}
+
+TX.update({
+    # ---------- страница скоринга ----------
+    "sc_title": {"ru": "СТРАХОВОЙ СКОРИНГ ОБЪЕКТА", "uz": "OBYEKTNING SUGʻURTA SKORINGI",
+                 "en": "INSURANCE SCORING OF THE OBJECT"},
+    "sc_type": {"ru": "Страховой скоринг объекта", "uz": "Obyektning sugʻurta skoringi",
+                "en": "Insurance scoring of the object"},
+    "sc_rq_type": {"ru": "Тип отчёта", "uz": "Hisobot turi", "en": "Report type"},
+    "sc_rq_number": {"ru": "Номер акта", "uz": "Dalolatnoma raqami", "en": "Report number"},
+    "sc_rq_datetime": {"ru": "Дата и время", "uz": "Sana va vaqt", "en": "Date and time"},
+    "sc_rq_by": {"ru": "Сформировал", "uz": "Tuzgan", "en": "Prepared by"},
+    "sc_rq_product": {"ru": "Продукт", "uz": "Mahsulot", "en": "Product"},
+    "sc_rq_class": {"ru": "Класс страхования", "uz": "Sugʻurta klassi", "en": "Insurance class"},
+    "sc_b1": {"ru": "1. ОБЪЕКТ", "uz": "1. OBYEKT", "en": "1. OBJECT"},
+    "sc_b2": {"ru": "2. СКОРИНГ", "uz": "2. SKORING", "en": "2. SCORING"},
+    "sc_b3": {"ru": "3. ОБЩИЙ ОБЗОР", "uz": "3. UMUMIY KOʻRINISH", "en": "3. OVERVIEW"},
+    "sc_b4": {"ru": "4. РИСКИ", "uz": "4. XAVFLAR", "en": "4. RISKS"},
+    "sc_b5": {"ru": "5. СЦЕНАРИИ УБЫТКА", "uz": "5. ZARAR STSENARIYLARI", "en": "5. LOSS SCENARIOS"},
+    "sc_b6": {"ru": "6. ЧТО ПРОВЕРИТЬ АНДЕРРАЙТЕРУ", "uz": "6. ANDERRAYTER NIMANI TEKSHIRISHI KERAK",
+              "en": "6. WHAT THE UNDERWRITER SHOULD CHECK"},
+    "sc_b_borrower": {"ru": "ЗАЁМЩИК (КРЕДИТНОЕ БЮРО)", "uz": "QARZ OLUVCHI (KREDIT BYUROSI)",
+                      "en": "BORROWER (CREDIT BUREAU)"},
+    "sc_s_name": {"ru": "Наименование", "uz": "Nomi", "en": "Name"},
+    "sc_s_kind": {"ru": "Вид объекта", "uz": "Obyekt turi", "en": "Object type"},
+    "sc_s_holder": {"ru": "Страхователь", "uz": "Sugʻurtalanuvchi", "en": "Policyholder"},
+    "sc_s_region": {"ru": "Регион / адрес", "uz": "Hudud / manzil", "en": "Region / address"},
+    "sc_s_ids": {"ru": "Идентификаторы", "uz": "Identifikatorlar", "en": "Identifiers"},
+    "sc_s_source": {"ru": "Источник данных", "uz": "Maʼlumot manbai", "en": "Data source"},
+    "sc_holder_unknown": {"ru": "не указан", "uz": "koʻrsatilmagan", "en": "not stated"},
+    "sc_holder_individual": {"ru": "физическое лицо (данные не показываются)",
+                             "uz": "jismoniy shaxs (maʼlumotlar koʻrsatilmaydi)",
+                             "en": "individual (details not shown)"},
+    "sc_id_cadastre": {"ru": "кадастровый номер {v}", "uz": "kadastr raqami {v}", "en": "cadastral number {v}"},
+    "sc_id_serial": {"ru": "заводской номер {v}", "uz": "zavod raqami {v}", "en": "serial number {v}"},
+    "sc_ids_none": {"ru": "нет", "uz": "yoʻq", "en": "none"},
+    "sc_src_photos": {"ru": "фото: {n} (распознаны ИИ)", "uz": "suratlar: {n} (SI aniqlagan)",
+                      "en": "photos: {n} (recognised by AI)"},
+    "sc_src_photos_noai": {"ru": "фото: {n} (без распознавания)", "uz": "suratlar: {n} (aniqlanmagan)",
+                           "en": "photos: {n} (not recognised)"},
+    "sc_src_docs": {"ru": "документы: {what}", "uz": "hujjatlar: {what}", "en": "documents: {what}"},
+    "sc_src_input": {"ru": "ввод сотрудника", "uz": "xodim kiritgan", "en": "staff input"},
+    "sc_score": {"ru": "Страховой балл", "uz": "Sugʻurta bali", "en": "Insurance score"},
+    "sc_class": {"ru": "Страховой класс", "uz": "Sugʻurta sinfi", "en": "Insurance grade"},
+    "sc_class_value": {"ru": "{code}, {label} уровень", "uz": "{code}, {label} daraja", "en": "{code}, {label}"},
+    "sc_version": {"ru": "Версия шкалы", "uz": "Shkala versiyasi", "en": "Scale version"},
+    "sc_risk100": {"ru": "Балл риска 0–100", "uz": "Xavf bali 0–100", "en": "Risk score 0–100"},
+    "sc_by_level": {"ru": "по уровню риска", "uz": "xavf darajasi boʻyicha", "en": "by risk level"},
+    "sc_comp_title": {"ru": "Из чего сложился балл", "uz": "Ball nimalardan tashkil topdi",
+                      "en": "What the score is made of"},
+    "sc_comp_why": {"ru": "балл риска {p} из 100, вес {w}: {points} из {max}",
+                    "uz": "xavf bali 100 dan {p}, vazn {w}: {max} dan {points}",
+                    "en": "risk score {p} of 100, weight {w}: {points} of {max}"},
+    "sc_comp_off": {"ru": "не учтено: нет данных или к объекту не относится",
+                    "uz": "hisobga olinmadi: maʼlumot yoʻq yoki obyektga taalluqli emas",
+                    "en": "not counted: no data or not relevant to the object"},
+    "sc_comp_level": {"ru": "Уровень риска акта", "uz": "Dalolatnomadagi xavf darajasi", "en": "Report risk level"},
+    "sc_comp_level_why": {"ru": "оценка по уровню риска: {level} — {score}",
+                          "uz": "xavf darajasi boʻyicha baho: {level} — {score}",
+                          "en": "estimate by risk level: {level} — {score}"},
+    "sc_comp_risk": {"ru": "Балл риска 0–100", "uz": "Xavf bali 0–100", "en": "Risk score 0–100"},
+    "sc_of": {"ru": "{points} из {max}", "uz": "{max} dan {points}", "en": "{points} of {max}"},
+    # общий обзор
+    "sc_o_sum": {"ru": "страховая сумма", "uz": "sugʻurta summasi", "en": "sum insured"},
+    "sc_o_value": {"ru": "стоимость объекта", "uz": "obyekt qiymati", "en": "object value"},
+    "sc_o_ratio": {"ru": "сумма к стоимости", "uz": "summaning qiymatga nisbati", "en": "sum to value"},
+    "sc_o_tariff": {"ru": "тариф", "uz": "tarif", "en": "rate"},
+    "sc_o_premium": {"ru": "премия", "uz": "sugʻurta mukofoti", "en": "premium"},
+    "sc_o_term": {"ru": "срок, дней", "uz": "muddat, kun", "en": "term, days"},
+    "sc_o_losses": {"ru": "убытков за 3 года", "uz": "3 yillik zararlar", "en": "losses over 3 years"},
+    "sc_o_docs": {"ru": "документов представлено / не хватает", "uz": "hujjatlar taqdim etilgan / yetishmaydi",
+                  "en": "documents provided / missing"},
+    "sc_o_disc": {"ru": "расхождений в данных", "uz": "maʼlumotlardagi tafovutlar", "en": "data discrepancies"},
+    "sc_o_views": {"ru": "ракурсов осмотра", "uz": "koʻrik rakurslari", "en": "inspection views"},
+    "sc_o_pml": {"ru": "PML — вероятный максимальный убыток", "uz": "PML — ehtimoliy maksimal zarar",
+                 "en": "PML — probable maximum loss"},
+    "sc_o_eml": {"ru": "EML — оценочный максимальный убыток", "uz": "EML — taxminiy maksimal zarar",
+                 "en": "EML — estimated maximum loss"},
+    "sc_o_mfl": {"ru": "MFL — максимально возможный убыток", "uz": "MFL — mumkin boʻlgan maksimal zarar",
+                 "en": "MFL — maximum foreseeable loss"},
+    "sc_o_retention": {"ru": "лимит удержания", "uz": "ushlab qolish limiti", "en": "retention limit"},
+    "sc_o_retention_est": {"ru": "лимит удержания (оценка, временно)", "uz": "ushlab qolish limiti (taxminiy, vaqtincha)",
+                           "en": "retention limit (estimate, temporary)"},
+    "sc_o_market": {"ru": "рыночная ставка", "uz": "bozor tarifi", "en": "market rate"},
+    "sc_o_franchise": {"ru": "франшиза", "uz": "franshiza", "en": "deductible"},
+    "sc_o_checks": {"ru": "проверок андеррайтеру", "uz": "anderrayter tekshiruvlari", "en": "underwriter checks"},
+    "sc_v_no_data": {"ru": "нет данных", "uz": "maʼlumot yoʻq", "en": "no data"},
+    "sc_v_not_set": {"ru": "не задан", "uz": "belgilanmagan", "en": "not set"},
+    "sc_v_of": {"ru": "{n} из {m}", "uz": "{m} dan {n}", "en": "{n} of {m}"},
+    "sc_v_ref": {"ru": "{v} справочно", "uz": "{v} maʼlumot uchun", "en": "{v} for reference"},
+    "sc_v_temp": {"ru": "{v} (оценка, временно)", "uz": "{v} (taxminiy, vaqtincha)", "en": "{v} (estimate, temporary)"},
+    "sc_r_risk": {"ru": "Риск", "uz": "Xavf", "en": "Risk"},
+    "sc_r_share": {"ru": "Доля", "uz": "Ulush", "en": "Share"},
+    "sc_r_level": {"ru": "Уровень", "uz": "Daraja", "en": "Level"},
+    "sc_r_none": {"ru": "Риски не разбиты — см. раздел 4 акта", "uz": "Xavflar ajratilmagan — dalolatnomaning 4-boʻlimiga qarang",
+                  "en": "Risks are not broken down — see section 4 of the report"},
+    "sc_sc_name": {"ru": "Сценарий", "uz": "Stsenariy", "en": "Scenario"},
+    "sc_sc_amount": {"ru": "Сумма", "uz": "Summa", "en": "Amount"},
+    "sc_sc_pct": {"ru": "% суммы", "uz": "summadan %", "en": "% of sum"},
+    "sc_sc_none": {"ru": "Сценарии не посчитаны — см. раздел 4 акта", "uz": "Stsenariylar hisoblanmagan — 4-boʻlimga qarang",
+                   "en": "Scenarios not calculated — see section 4"},
+    "sc_checks_none": {"ru": "Проверок нет", "uz": "Tekshiruvlar yoʻq", "en": "No checks"},
+    "sc_checks_more": {"ru": "и ещё {n} — в разделе 5 акта", "uz": "yana {n} ta — dalolatnomaning 5-boʻlimida",
+                       "en": "and {n} more — in section 5 of the report"},
+    "sc_parts_note": {"ru": "Договор из {n} частей: балл — по самой опасной части {k}",
+                      "uz": "{n} qismdan iborat shartnoma: ball eng xavfli {k}-qism boʻyicha",
+                      "en": "Contract of {n} parts: the score is that of the most hazardous part {k}"},
+    "sc_parts_line": {"ru": "часть {n} (класс {cls}): {score} — {code}", "uz": "{n}-qism ({cls}-klass): {score} — {code}",
+                      "en": "part {n} (class {cls}): {score} — {code}"},
+    "sc_text_risk": {"ru": "Балл {score} из 500 — класс {code} ({label}). Основа — балл риска {risk} из 100 аналитики "
+                           "акта: 500 − 5 × {risk} {eq} {score}.",
+                     "uz": "500 dan {score} ball — {code} sinf ({label}). Asos — dalolatnoma tahlilidagi 100 dan {risk} "
+                           "xavf bali: 500 − 5 × {risk} {eq} {score}.",
+                     "en": "Score {score} of 500 — class {code} ({label}). Based on the report's risk score {risk} of "
+                           "100: 500 − 5 × {risk} {eq} {score}."},
+    "sc_text_level": {"ru": "Балл {score} из 500 — класс {code} ({label}). Балла риска нет — оценка по уровню риска "
+                            "акта ({level}): низкий 430, умеренный 300, высокий 130.",
+                      "uz": "500 dan {score} ball — {code} sinf ({label}). Xavf bali yoʻq — dalolatnomadagi xavf "
+                            "darajasi boʻyicha baho ({level}): past 430, oʻrtacha 300, yuqori 130.",
+                      "en": "Score {score} of 500 — class {code} ({label}). No risk score — estimate by the report's "
+                            "risk level ({level}): low 430, moderate 300, high 130."},
+    "sc_method_risk": {"ru": "Балл = 500 − 5 × балл риска 0–100 аналитики акта (чем выше балл риска, тем хуже). Сектора "
+                             "по порогам уровня аналитики: {bands}; подкласс 1 — верхняя треть сектора, 3 — нижняя.",
+                       "uz": "Ball = 500 − 5 × dalolatnoma tahlilidagi 0–100 xavf bali (xavf bali qancha yuqori boʻlsa, "
+                             "shuncha yomon). Sektorlar tahlil darajasi chegaralari boʻyicha: {bands}; 1-kichik "
+                             "sinf — sektorning yuqori uchdan biri, 3 — pastki.",
+                       "en": "Score = 500 − 5 × the report's risk score 0–100 (the higher the risk score, the worse). "
+                             "Bands follow the analytics level thresholds: {bands}; sub-class 1 is the top third "
+                             "of the band, 3 the bottom."},
+    "sc_method_level": {"ru": "Балла риска нет (класс без аналитики) — оценка по уровню риска акта: низкий 430, "
+                              "умеренный 300, высокий 130.",
+                        "uz": "Xavf bali yoʻq (tahlilsiz klass) — dalolatnomadagi xavf darajasi boʻyicha baho: past 430, "
+                              "oʻrtacha 300, yuqori 130.",
+                        "en": "No risk score (class without analytics) — estimate by the report's risk level: low 430, "
+                              "moderate 300, high 130."},
+    "sc_note": {"ru": "Экспертно, не калибровано; это не кредитный скоринг и не оценка КАТМ.",
+                "uz": "Ekspert baho, kalibrlanmagan; bu kredit skoringi emas va KATM bahosi emas.",
+                "en": "Expert estimate, not calibrated; this is not a credit score and not a KATM assessment."},
+    "sc_caption": {"ru": "Экспертная шкала, не калибровано. Не является кредитным скорингом и оценкой кредитного бюро",
+                   "uz": "Ekspert shkala, kalibrlanmagan. Kredit skoringi va kredit byurosi bahosi hisoblanmaydi",
+                   "en": "Expert scale, not calibrated. Not a credit score and not a credit bureau assessment"},
+    "sc_png_act": {"ru": "Акт № {n} от {d}", "uz": "Dalolatnoma № {n}, {d}", "en": "Report No. {n} of {d}"},
+    "sc_dec_title": {"ru": "Рекомендация акта", "uz": "Dalolatnoma tavsiyasi", "en": "Report recommendation"},
+    "sc_dec_accept": {"ru": "принять", "uz": "qabul qilish", "en": "accept"},
+    "sc_dec_accept_with_clauses": {"ru": "принять с оговорками", "uz": "izohlar bilan qabul qilish",
+                                   "en": "accept with clauses"},
+    "sc_dec_decline": {"ru": "отказать", "uz": "rad etish", "en": "decline"},
+    "sc_act_level_title": {"ru": "Уровень риска акта", "uz": "Dalolatnomadagi xavf darajasi", "en": "Report risk level"},
+    "sc_line": {"ru": "{title}: {v}", "uz": "{title}: {v}", "en": "{title}: {v}"},
+    "sc_dec_see": {"ru": "см. рекомендацию акта: отказать", "uz": "dalolatnoma tavsiyasiga qarang: rad etish",
+                   "en": "see the report recommendation: decline"},
+    "sc_an_level": {"ru": "{cls} — {level} риск по аналитике", "uz": "{cls} — tahlil boʻyicha {level} xavf",
+                    "en": "{cls} — {level} risk per analytics"},
+    "sc_parts_more": {"ru": "и ещё {n} — в акте", "uz": "yana {n} ta — dalolatnomada", "en": "and {n} more — in the report"},
+    "sc_s_note": {"ru": "Примечание", "uz": "Izoh", "en": "Note"},
+    "sc_footer_line": {"ru": "Скоринг сформирован ИИ-сюрвейером по данным акта; экспертная шкала, не калибровано; "
+                             "не является кредитным скорингом",
+                       "uz": "Skoring SI-syurveyer tomonidan dalolatnoma maʼlumotlari asosida tuzilgan; ekspert shkala, "
+                             "kalibrlanmagan; kredit skoringi hisoblanmaydi",
+                       "en": "Scoring prepared by the AI surveyor from the report data; expert scale, not calibrated; "
+                             "not a credit score"},
+    # ---------- заёмщик: отчёт кредитного бюро ----------
+    "cb_title": {"ru": "Заёмщик: данные кредитного бюро", "uz": "Qarz oluvchi: kredit byurosi maʼlumotlari",
+                 "en": "Borrower: credit bureau data"},
+    "cb_date": {"ru": "Отчёт кредитного бюро от {date} ({days} дн. назад); источник: {src}",
+                "uz": "Kredit byurosi hisoboti {date} ({days} kun oldin); manba: {src}",
+                "en": "Credit bureau report of {date} ({days} days ago); source: {src}"},
+    "cb_date_unknown": {"ru": "Отчёт кредитного бюро без даты; источник: {src}",
+                        "uz": "Sanasiz kredit byurosi hisoboti; manba: {src}",
+                        "en": "Credit bureau report without a date; source: {src}"},
+    "cb_subject_legal": {"ru": "Субъект: юридическое лицо{rest}", "uz": "Subyekt: yuridik shaxs{rest}",
+                         "en": "Subject: legal entity{rest}"},
+    "cb_subject_individual": {"ru": "Субъект: физическое лицо — ФИО, ПИНФЛ, адрес и телефон не извлекаются",
+                              "uz": "Subyekt: jismoniy shaxs — F.I.Sh., JShShIR, manzil va telefon olinmaydi",
+                              "en": "Subject: individual — name, personal ID, address and phone are not extracted"},
+    "cb_subject_unknown": {"ru": "Субъект: тип не указан в отчёте", "uz": "Subyekt: turi hisobotda koʻrsatilmagan",
+                           "en": "Subject: type not stated in the report"},
+    "cb_inn": {"ru": "ИНН {v}", "uz": "STIR {v}", "en": "TIN {v}"},
+    "cb_oked": {"ru": "ОКЭД {v}", "uz": "IFUT {v}", "en": "OKED {v}"},
+    "cb_score": {"ru": "Скоринговый балл бюро: {score}, класс оценки {cls}, версия {ver}",
+                 "uz": "Byuro skoring bali: {score}, baholash sinfi {cls}, versiya {ver}",
+                 "en": "Bureau credit score: {score}, score class {cls}, version {ver}"},
+    "cb_overview": {"ru": "Общий обзор: заявок {a}, договоров {c}, условных обязательств {u}, запросов {q}, "
+                          "среднемесячный платёж {p}",
+                    "uz": "Umumiy koʻrinish: arizalar {a}, shartnomalar {c}, shartli majburiyatlar {u}, soʻrovlar {q}, "
+                          "oʻrtacha oylik toʻlov {p}",
+                    "en": "Overview: applications {a}, contracts {c}, contingent liabilities {u}, inquiries {q}, "
+                          "average monthly payment {p}"},
+    "cb_overdue": {"ru": "Просрочки: основного долга — {n} раз, максимальная {days} дн. на {amount}; процентов — "
+                         "максимальная непрерывная {idays} дн., всего {itotal}",
+                   "uz": "Kechikishlar: asosiy qarz — {n} marta, eng uzoq {days} kun, {amount}; foizlar — eng uzoq "
+                         "uzluksiz {idays} kun, jami {itotal}",
+                   "en": "Overdues: principal — {n} times, longest {days} days for {amount}; interest — longest "
+                         "continuous {idays} days, total {itotal}"},
+    "cb_active": {"ru": "Действующие договоры: {n}, остаток задолженности {debt}, просроченная часть {od}, "
+                        "среднемесячный платёж {pay}",
+                  "uz": "Amaldagi shartnomalar: {n}, qarz qoldigʻi {debt}, kechiktirilgan qism {od}, oylik toʻlov {pay}",
+                  "en": "Active contracts: {n}, outstanding debt {debt}, overdue part {od}, monthly payment {pay}"},
+    "cb_creditors": {"ru": "Кредиторы: {v}", "uz": "Kreditorlar: {v}", "en": "Creditors: {v}"},
+    "cb_not_in_rate": {"ru": "Проверки заёмщика добавляют оговорки к рекомендации («принять» становится «принять с "
+                             "оговорками»); в уровень риска и ставку не входят — пока заказчик не утвердит правило.",
+                       "uz": "Qarz oluvchi tekshiruvlari tavsiyaga izohlar qoʻshadi («qabul qilish» «izohlar bilan "
+                             "qabul qilish»ga aylanadi); xavf darajasi va tarifga kirmaydi — buyurtmachi qoidani "
+                             "tasdiqlamaguncha.",
+                       "en": "Borrower checks add clauses to the recommendation (“accept” becomes “accept with "
+                             "clauses”); they do not enter the risk level or the rate — until the client approves a rule."},
+    "cb_keep": {"ru": "Данные кредитного отчёта хранятся в акте 7 дней; требуется согласие субъекта на получение "
+                      "кредитного отчёта (обязанность страховщика).",
+                "uz": "Kredit hisoboti maʼlumotlari dalolatnomada 7 kun saqlanadi; kredit hisobotini olish uchun "
+                      "subyektning roziligi kerak (sugʻurtalovchining majburiyati).",
+                "en": "Credit report data are kept in the report for 7 days; the subject's consent to obtain the credit "
+                      "report is required (the insurer's obligation)."},
+    "ph_kinds_bad": {"ru": "Вид файла передан неверно: нужен JSON {номер файла: credit_report, object или document}",
+                     "uz": "Fayl turi notoʻgʻri berilgan: JSON {fayl raqami: credit_report, object yoki document} kerak",
+                     "en": "File kinds are malformed: expected JSON {file number: credit_report, object or document}"},
+    "cr_scan_off": {"ru": "Скан отчёта кредитного бюро не читается — загрузите PDF с текстом",
+                    "uz": "Kredit byurosi hisobotining skani oʻqilmaydi — matnli PDF yuklang",
+                    "en": "A scan of a credit bureau report is not read — upload a PDF with text"},
+    "cb_no_direct": {"ru": "Прямого запроса в КАТМ нет — отчёт загружает сотрудник; для прямого подключения нужен "
+                           "договор страховщика с бюро и согласие субъекта.",
+                     "uz": "KATMga toʻgʻridan-toʻgʻri soʻrov yoʻq — hisobotni xodim yuklaydi; toʻgʻridan-toʻgʻri ulanish "
+                           "uchun sugʻurtalovchining byuro bilan shartnomasi va subyekt roziligi kerak.",
+                     "en": "There is no direct KATM query — staff upload the report; a direct connection requires the "
+                           "insurer's contract with the bureau and the subject's consent."},
+    "cb_not_credit": {"ru": "Класс договора не кредитный — проверки по отчёту бюро не применяются.",
+                      "uz": "Shartnoma klassi kredit emas — byuro hisoboti boʻyicha tekshiruvlar qoʻllanilmaydi.",
+                      "en": "The contract class is not a credit class — bureau report checks do not apply."},
+    "cb_edits": {"ru": "Сотрудник исправил: {what}", "uz": "Xodim tuzatdi: {what}", "en": "Edited by staff: {what}"},
+    "cb_doc_missing": {"ru": "Загрузка отчёта недоступна — значения введены сотрудником",
+                       "uz": "Hisobot yuklamasi mavjud emas — qiymatlarni xodim kiritgan",
+                       "en": "The report upload is unavailable — values entered by staff"},
+    "cb_s_score": {"ru": "балл / класс бюро", "uz": "byuro bali / sinfi", "en": "bureau score / class"},
+    "cb_s_overdue": {"ru": "действующая просрочка", "uz": "amaldagi kechikish", "en": "current overdue"},
+    "cb_s_max_overdue": {"ru": "макс. просрочка ОД, дней", "uz": "asosiy qarz eng uzoq kechikish, kun",
+                         "en": "longest principal overdue, days"},
+    "cb_s_debt": {"ru": "остаток задолженности", "uz": "qarz qoldigʻi", "en": "outstanding debt"},
+    "cb_s_payment": {"ru": "среднемесячный платёж", "uz": "oʻrtacha oylik toʻlov", "en": "average monthly payment"},
+    "cb_s_date": {"ru": "дата отчёта", "uz": "hisobot sanasi", "en": "report date"},
+    "cr_individual": {"ru": "Отчёт бюро по физическому лицу: ФИО, ПИНФЛ, адрес и телефон не извлекаются",
+                      "uz": "Jismoniy shaxs boʻyicha byuro hisoboti: F.I.Sh., JShShIR, manzil va telefon olinmaydi",
+                      "en": "Bureau report on an individual: name, personal ID, address and phone are not extracted"},
+    "cr_found": {"ru": "Распознан отчёт кредитного бюро — проверьте значения",
+                 "uz": "Kredit byurosi hisoboti aniqlandi — qiymatlarni tekshiring",
+                 "en": "Credit bureau report recognised — please check the values"},
+    "c_borrower_low_class": {"ru": "Заёмщик: класс оценки кредитного бюро {cls} — порог «{low} и ниже»: оценить "
+                                   "кредитоспособность (экспертно, в ставку не входит)",
+                             "uz": "Qarz oluvchi: kredit byurosi baholash sinfi {cls} — chegara «{low} va past»: "
+                                   "kreditga layoqatni baholang (ekspert baho, tarifga kirmaydi)",
+                             "en": "Borrower: credit bureau score class {cls} — threshold “{low} and below”: assess "
+                                   "creditworthiness (expert rule, not in the rate)"},
+    "c_borrower_no_score": {"ru": "Заёмщик: в отчёте кредитного бюро нет балла и класса — проверить вручную",
+                            "uz": "Qarz oluvchi: kredit byurosi hisobotida ball va sinf yoʻq — qoʻlda tekshiring",
+                            "en": "Borrower: the credit bureau report has no score or class — check manually"},
+    "c_borrower_overdue": {"ru": "Заёмщик: действующая просрочка по кредитам {amount} — выяснить причину",
+                           "uz": "Qarz oluvchi: kreditlar boʻyicha amaldagi kechikish {amount} — sababini aniqlang",
+                           "en": "Borrower: current overdue on loans {amount} — find out why"},
+    "c_borrower_stale": {"ru": "Отчёт кредитного бюро устарел: {days} дн. (допустимо {max}) — запросить свежий отчёт",
+                         "uz": "Kredit byurosi hisoboti eskirgan: {days} kun (ruxsat {max}) — yangi hisobot soʻrang",
+                         "en": "The credit bureau report is outdated: {days} days (allowed {max}) — request a fresh one"},
+    "c_borrower_stale_nodate": {"ru": "Дата отчёта кредитного бюро не найдена — считать отчёт устаревшим, запросить "
+                                      "свежий отчёт",
+                                "uz": "Kredit byurosi hisobotining sanasi topilmadi — eskirgan deb hisoblang, yangisini "
+                                      "soʻrang",
+                                "en": "The credit bureau report date was not found — treat the report as outdated, "
+                                      "request a fresh one"},
+    "cr_no_date": {"ru": "Дата отчёта не найдена (ищется по подписям «Время запроса», «Дата запроса», «Дата заявки», "
+                         "«Дата согласия») — введите её вручную",
+                   "uz": "Hisobot sanasi topilmadi (soʻrov vaqti, soʻrov sanasi, ariza sanasi yoki rozilik sanasi "
+                         "yozuvlari boʻyicha qidiriladi) — qoʻlda kiriting",
+                   "en": "Report date not found (looked up by the request time, request date, application date or "
+                         "consent date labels) — enter it manually"},
 })

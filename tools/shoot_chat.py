@@ -43,6 +43,11 @@ POST /act/make: первый расчёт без частей → предлож
 шаг 3: плитки договора, таблица частей, раскрытая часть (chat_pt_step3_*), 390 и 1440 px, узбекский; правка сумм без
 подтверждения → жёлтая плашка. Поля класса 13 из GET /act/templates/13 на шаге 2 (chat_tpl13_*), ракурсы шага «Фото» из
 шаблона класса 3 (chat_tpl_views_390.png), админка /admin/hub#tariffs/templates с ответом 422 (admin_tpl_*).
+Страховой скоринг объекта (01.10.2026, shoot_scoring; только он — ключ --scoring): карточка скоринга на шаге «Акт»
+у автокрана и оборудования (настоящий POST /act/make) на 390 и 1440 px и на узбекском (chat_sco_*); кредитный продукт
+0312 с отчётом кредитного бюро — текстовый PDF на выдуманных данных sandbox/katm_demo.pdf, настоящий POST /act/photos
+без модели: подсказка на шаге «Фото», пометка файла, карточка «Отчёт кредитного бюро» с правкой класса (chat_cb_*),
+блок заёмщика на карточке скоринга и «Заёмщик: данные кредитного бюро» в акте.
 
 Запуск из корня проекта:
     sandbox\\.venv\\Scripts\\python.exe tools\\shoot_chat.py
@@ -459,6 +464,178 @@ def shoot_analytics(ws, bad):
     js(ws, "actReset()", 1)
 
 
+# ------------------------------------------------------------------ страховой скоринг объекта (01.10.2026)
+
+# отчёт кредитного бюро на выдуманных данных (как tests/test_act.py, проверки 43г): юрлицо, класс D1, просрочка —
+# PDF с текстом, сервер разбирает его правилами без модели; телефон и адрес в отчёте есть, но не извлекаются
+KATM_DEMO = ROOT / "sandbox" / "katm_demo.pdf"
+KATM_LINES = [
+    "Кредитное бюро «Кредитно-информационный аналитический центр»",
+    "Тип кредитного отчёта: InfoScore",
+    "Номер запроса: 1234567890   Время запроса: {date} 10:15:00",
+    "1. СУБЪЕКТ КРЕДИТНОЙ ИНФОРМАЦИИ",
+    'Наименование: ООО "SINOV SAVDO"',
+    "Юридический статус: Юридическое лицо",
+    "ИНН: 301234567",
+    "ОКЭД: 47190",
+    "Адрес регистрации: г. Тестовый, ул. Примерная, 1",
+    "Номер телефона: 998901234567",
+    "2. SCORING",
+    "СКОРИНГОВЫЙ БАЛЛ: 180",
+    "КЛАСС ОЦЕНКИ: D1, СЛАБЫЙ уровень",
+    "ВЕРСИЯ СКОРИНГА: 3.0",
+    "3. ОБЩИЙ ОБЗОР (ОТКРЫТЫЕ + ЗАКРЫТЫЕ)",
+    "5 - заявки",
+    "4 - договора",
+    "1 - условные обязательства",
+    "8 - запросы и подписки по субъекту КИ",
+    "12 500 000 - среднемесячный платёж (сумма)",
+    "2 - количество просрочек основного долга (ОД)",
+    "15 - максимальная просрочка ОД (дни)",
+    "3 000 000 - максимальная просрочка ОД (сумма)",
+    "4 - максимальная непрерывная просрочка % (дни)",
+    "250 000 - всего просроченных % (сумма)",
+    "4. ДЕЙСТВУЮЩИЕ ДОГОВОРА",
+    '1 АКБ "NAMUNA BANK" 100200300400 UZS 150 000 000.00 1 200 000.00 8 000 000.00',
+    '2 "SINOV BANK" АТБ 100200300401 UZS 50 000 000.00 0 4 500 000.00',
+    "Итого 200 000 000.00 1 200 000.00 12 500 000.00",
+    "5. ЗАЯВКИ БЕЗ ДОГОВОРОВ",
+]
+
+
+def make_katm_pdf():
+    """Текстовый PDF отчёта бюро (выдуманные данные; дата — 5 дней назад, чтобы отчёт был свежим)."""
+    import pymupdf
+    from datetime import date, timedelta
+    d = (date.today() - timedelta(days=5)).isoformat()
+    doc = pymupdf.open()
+    page = doc.new_page()
+    font = pymupdf.Font(fontfile=r"C:\Windows\Fonts\arial.ttf")
+    tw = pymupdf.TextWriter(page.rect)
+    for i, ln in enumerate(KATM_LINES):
+        tw.append((40, 50 + i * 15), ln.format(date=d), font=font, fontsize=9)
+    tw.write_text(page)
+    KATM_DEMO.write_bytes(doc.tobytes())
+
+
+SCO_INFO = """(() => { const s = CH.act && CH.act.scoring; if (!s) return 'скоринга нет';
+  const n = document.querySelector('#scoCard .sco-needle');
+  return [CH.act.number, 'available=' + s.available, 'балл ' + s.score, s.class_code + ' ' + s.class_label,
+    'стрелка ' + (n && n.dataset.deg) + '°', 'составляющих ' + (s.components || []).length,
+    'частей ' + (s.parts || []).length, 'заёмщик ' + !!s.borrower, 'сводка свёрнута ' + !(document.querySelector('#actSumD') || {}).open,
+    'язык ' + CH.act.lang].join(' | '); })()"""
+
+
+def shoot_scoring(ws, bad):
+    """
+    Карточка «Страховой скоринг объекта» на шаге «Акт» (01.10.2026): автокран (0318) и оборудование класса 8 (0832) —
+    настоящий POST /act/make временного сервера, 390 и 1440 px, узбекский; кредитный продукт 0312 с отчётом бюро
+    (текстовый PDF на выдуманных данных, настоящий POST /act/photos без модели) — подсказка на шаге «Фото», карточка
+    «Отчёт кредитного бюро» на шаге 2 с правкой класса, блок заёмщика на карточке скоринга и «Заёмщик: данные
+    кредитного бюро» в акте.
+    """
+    ensure_equip_request()
+    try:
+        ws.call("Fetch.disable")
+    except RuntimeError:
+        pass
+    for key, fill in (("crane", FILL_STEP2), ("equip", FILL_EQUIP)):
+        js(ws, "actReset()", 1)
+        if key == "equip":
+            set_files(ws, "#chatFile", [BR_EQUIP])
+            time.sleep(1)
+            js(ws, 'document.querySelector("#chatMain").click()', 5)
+        else:
+            js(ws, 'document.querySelector("#chatMain").click()', 1)      # «Без фото» → шаг 2
+        js(ws, fill, 2)
+        if key == "crane":
+            js(ws, 'Object.assign(CH.opt, {location: "open_area", losses_count: "0"}); wzSave()', 0.2)
+        js(ws, 'document.querySelector("#chatMain").click()', 0.5)        # «Сформировать акт»
+        wait_js(ws, "!CH.busy && (CH.wz === 3 && !!CH.act || !!CH.err)", 40)
+        time.sleep(1)
+        print(f"  скоринг ({key}):", js(ws, SCO_INFO), "| ошибка:", js(ws, "CH.err") or "нет")
+        js(ws, "window.scrollTo(0, 0)", 0.3)
+        bad.append(shot_el(ws, f"chat_sco_{key}_390.png", 390, "#scoCard"))
+        bad.append(shot_el(ws, f"chat_sco_{key}_1440.png", 1440, "#scoCard", scale=1))
+        if key == "crane":
+            bad.append(shot(ws, "chat_sco_step3_390.png", 390, cap=6000))
+            # пример «отказать»: решение подменено на экране (правила акта не трогаются) — плашка перечёркнута
+            js(ws, "(() => { const s = CH.act.scoring; CH.scoKeep = s.decision; s.decision = {code: 'decline', "
+                   "text: 'отказать', title: 'Рекомендация акта', warning: 'см. рекомендацию акта: отказать'}; "
+                   "wzPaint(true); })()", 0.6)
+            bad.append(shot_el(ws, "chat_sco_decline_390.png", 390, "#scoCard"))
+            js(ws, "CH.act.scoring.decision = CH.scoKeep; wzPaint(true)", 0.4)
+            # открыть подсказку «как посчитано» у первой составляющей и сводку — сводка раскрывается, кнопки на месте
+            js(ws, "document.querySelector('#scoCard details.sco-c').open = true; document.querySelector('#actSumD').open = true", 0.4)
+            bad.append(shot_el(ws, "chat_sco_sum_open_390.png", 390, "#actSumD"))
+            js(ws, "document.querySelector('#actSumD').open = false", 0.2)
+    # узбекский: GET /act/{id}?lang=uz — карточка на новом языке (оборудование)
+    js(ws, LANG_UZ, 1)
+    wait_js(ws, "!!CH.act && CH.act.lang === 'uz' && !!document.querySelector('#scoCard')", 20)
+    time.sleep(1)
+    print("  скоринг на узбекском:", js(ws, SCO_INFO))
+    bad.append(shot_el(ws, "chat_sco_equip_uz_390.png", 390, "#scoCard"))
+    bad.append(shot_el(ws, "chat_sco_equip_uz_1440.png", 1440, "#scoCard", scale=1))
+    js(ws, LANG_RU, 1)
+    wait_js(ws, "!!CH.act && CH.act.lang === 'ru'", 20)
+
+    # кредитный продукт 0312 с отчётом бюро
+    make_katm_pdf()
+    js(ws, "actReset()", 1)
+    js(ws, WAIT_REFS)
+    js(ws, 'CH.must.product_code = "0312"; CH.must.class_code = wzClassesOf(wzProd("0312"))[0] || ""; wzSave(); wzPaint(true)', 1)
+    print("  шаг «Фото», подсказка про отчёт бюро:", js(ws, "!!document.querySelector('.cb-hint')"))
+    bad.append(shot_el(ws, "chat_cb_step1_390.png", 390, ".cb-hint", pad=24))
+    set_files(ws, "#chatFile", [KATM_DEMO])
+    time.sleep(1)
+    # пометка «это отчёт бюро» у файла (уходит полем kinds; PDF с текстом читается правилами и с пометкой)
+    js(ws, 'document.querySelector("[data-cbk]").click()', 0.5)
+    print("  пометка «отчёт бюро»:", js(ws, "JSON.stringify(CH.queue.map(q => !!q.isCb))"))
+    bad.append(shot_el(ws, "chat_cb_mark_390.png", 390, ".wz-files"))
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)            # настоящий POST /act/photos
+    wait_js(ws, "!CH.busy && CH.wz === 2", 30)
+    time.sleep(1)
+    print("  отчёт бюро на шаге 2:", js(ws, "JSON.stringify(CH.cb && {src: CH.cb.source, score: CH.cb.fields.score, "
+                                         "cls: CH.cb.fields.score_class, type: CH.cb.fields.subject_type, od: CH.cb.fields.active.overdue})"),
+          "| файл:", js(ws, "(document.querySelector('.wz-file small') || {}).innerText"), "| ошибка:", js(ws, "CH.err") or "нет")
+    js(ws, "wzGo(1)", 0.8)
+    bad.append(shot_el(ws, "chat_cb_file_390.png", 390, ".wz-files"))
+    js(ws, "wzGo(2)", 1)
+    type_in(ws, "#cbf-score_class", "c1")                                # правка сотрудника: D1 → C1 (кириллица → латиница)
+    print("  правка класса:", js(ws, "CH.cb.fields.score_class"), "| в /act/make:",
+          js(ws, "JSON.stringify(actBody().optional.credit_report && {cls: actBody().optional.credit_report.score_class,"
+                 " src: actBody().optional.credit_report.source})"))
+    js(ws, "document.querySelector('#cbCard').scrollIntoView({block: 'start'})", 0.3)
+    bad.append(shot_el(ws, "chat_cb_step2_390.png", 390, "#cbCard"))
+    bad.append(shot_el(ws, "chat_cb_step2_1440.png", 1440, "#cbCard", scale=1))
+    # суммы и регион; первый расчёт — предложение частей, затем части 60 млн (класс 3) и 40 млн (класс 14)
+    js(ws, """(() => { Object.assign(CH.must, {sum_insured: 100000000, object_value: 60000000, region: "tashkent_city"});
+      wzSave(); wzPaint(true); })()""", 1)
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, MAKE_WAIT, 40)
+    time.sleep(1.5)
+    type_in(ws, "#pts-0", "60 000 000")
+    type_in(ws, "#pts-1", "40 000 000")
+    wait_js(ws, "!!tplOf('3') && !!tplOf('14')", 15)
+    js(ws, "wzPart('parts')", 0.5)
+    type_in(ws, "#tf-1-credit_amount", "100 000 000")
+    type_in(ws, "#tf-1-collateral_value", "60 000 000")
+    js(ws, 'document.querySelector("[data-go=ptconfirm]").click()', 0.8)
+    js(ws, 'document.querySelector("#chatMain").click()', 0.5)
+    wait_js(ws, "!CH.busy && CH.wz === 3 && !!CH.act && CH.act.parts && CH.act.parts.confirmed", 40)
+    time.sleep(1)
+    print("  0312 с отчётом бюро:", js(ws, SCO_INFO), "| ошибка:", js(ws, "CH.err") or "нет")
+    print("   заёмщик:", js(ws, "JSON.stringify(CH.act.borrower && {src: CH.act.borrower.source_kind, edits: CH.act.borrower.edits,"
+                           " checks: CH.act.borrower.check_codes})"))
+    js(ws, "window.scrollTo(0, 0)", 0.3)
+    bad.append(shot_el(ws, "chat_sco_credit_390.png", 390, "#scoCard"))
+    bad.append(shot_el(ws, "chat_sco_credit_1440.png", 1440, "#scoCard", scale=1))
+    js(ws, "CH.cbActOpen = true; wzPaint(true)", 1)
+    bad.append(shot_el(ws, "chat_cb_act_390.png", 390, "#cbAct"))
+    bad.append(shot_el(ws, "chat_cb_act_1440.png", 1440, "#cbAct", scale=1))
+    js(ws, "actReset()", 1)
+
+
 def wait_js(ws, expr, timeout=20.0, step=0.25):
     """Ждёт, пока выражение страницы станет истинным (ответ сервера, шаблон класса)."""
     end = time.time() + timeout
@@ -615,7 +792,7 @@ def shoot_parts(ws, bad, port=PORT, token=None):
     return errs + console_errors(ws)
 
 
-def main(only_analytics=False, only_parts=False):
+def main(only_analytics=False, only_parts=False, only_scoring=False):
     OUT.mkdir(exist_ok=True)
     with ShootInstance(PORT, "dev", keep=False) as inst:
         profile = tempfile.mkdtemp(prefix="edge-shoot-")
@@ -648,6 +825,13 @@ def main(only_analytics=False, only_parts=False):
                 print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
                       else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
                 print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:\n  " + "\n  ".join(errs))
+                return
+            if only_scoring:
+                shoot_scoring(ws, bad)
+                errs = console_errors(ws)
+                print("итог: горизонтальной прокрутки нет" if not any(x > 0 for x in bad)
+                      else "ВНИМАНИЕ: где-то есть горизонтальная прокрутка: " + str(bad))
+                print("ошибок в консоли нет" if not errs else "ОШИБКИ В КОНСОЛИ:" + chr(10) + "  " + (chr(10) + "  ").join(errs))
                 return
             if only_analytics:
                 shoot_analytics(ws, bad)
@@ -893,6 +1077,8 @@ def main(only_analytics=False, only_parts=False):
 
             # аналитика риска на шаге «Акт»: автокран и оборудование класса 8, 390 / 1440 px, узбекский
             shoot_analytics(ws, bad)
+            # страховой скоринг объекта и отчёт кредитного бюро (01.10.2026)
+            shoot_scoring(ws, bad)
 
             # остальные разделы в той же палитре
             js(ws, 'openTab("calc")', 3)
@@ -923,4 +1109,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--serve":
         serve_fake_model(int(sys.argv[2]), Path(sys.argv[3]))
     else:
-        main(only_analytics="--analytics" in sys.argv[1:], only_parts="--parts" in sys.argv[1:])
+        main(only_analytics="--analytics" in sys.argv[1:], only_parts="--parts" in sys.argv[1:],
+             only_scoring="--scoring" in sys.argv[1:])

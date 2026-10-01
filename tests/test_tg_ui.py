@@ -916,6 +916,142 @@ def _run_act_analytics(html):
             "старый акт: нет спокойной строки о недоступной аналитике"
 
 
+def check_scoring(html):
+    """Шаг «Акт»: карточка «Страховой скоринг объекта», отчёт кредитного бюро на шаге 2 и заёмщик в акте (01.10.2026)."""
+    must = {
+        "+ sco\n": "карточка скоринга не первая на шаге «Акт»",
+        'id="actSumD"': "сводка не сворачивается под карточкой скоринга",
+        'T("tg.sc.sum_title", "Сводка акта")': "нет заголовка «Сводка акта»",
+        "CH.sumOpen = el.open": "раскрытие сводки не запоминается",
+        "sc.available !== true": "без scoring.available карточка всё равно рисуется",
+        'T("tg.sc.uncal", "экспертная шкала, не калибрована")': "шкала не помечена как некалиброванная",
+        "actSendBtnHtml(\"pdf\") + (png ?": "в Telegram нет отправки акта ботом рядом со скорингом",
+        'data-go="scoimg"': "в Telegram картинку шкалы не открыть",
+        'data-dl="scoring_pdf"': "в браузере нет «Скачать скоринг PDF»",
+        "function cbCardHtml(": "нет карточки «Отчёт кредитного бюро» на шаге 2",
+        "opt.credit_report = cbb": "правки отчёта бюро не уходят в optional.credit_report",
+        'same(d.credit_report, "cb")': "у файла нет пометки «отчёт кредитного бюро»",
+        'T("tg.cb.s1_hint"': "нет подсказки про отчёт бюро на шаге «Фото»",
+        "function actCbHtml(": "нет блока «Заёмщик: данные кредитного бюро» в акте",
+        'credit_report: "cb"': "ошибка сервера по credit_report не привязана к карточке",
+        # замечания контролёра 01.10.2026
+        'data-cbk="': "на шаге «Фото» у файла нет выбора «это отчёт бюро»",
+        'fd.append("kinds", JSON.stringify(kinds))': "вид файла не уходит в /act/photos полем kinds",
+        "f.credit_scan_withheld === true": "у файла не видно, что скан отчёта бюро в модель не отправлен",
+        'T("tg.cb.mark", "это отчёт бюро")': "нет подписи «это отчёт бюро»",
+        'T("tg.sc.score", "Страховой балл")': "термин «Страховой балл» не применён",
+        'T("tg.sc.class", "Страховой класс")': "термин «Страховой класс» не применён",
+        'T("tg.sc.version", "Версия шкалы")': "термин «Версия шкалы» не применён",
+        "sc.gauge_caption": "под шкалой нет подписи «экспертная шкала, не калибровано»",
+        ".cb-card .dq-edit label.f{white-space:normal": "подписи полей отчёта бюро на 390 px обрезаются, а не переносятся",
+    }
+    miss = [why for key, why in must.items() if key not in html]
+    assert not miss, "скоринг: " + "; ".join(miss)
+    rule = re.search(r"\.cb-card \.dq-edit label\.f\{[^}]*\}", html).group(0)
+    assert "ellipsis" not in rule and "nowrap" not in rule, "подписи полей отчёта бюро обрезаются многоточием: " + rule
+    root = Path(__file__).resolve().parent.parent
+    for lg, scan in (("ru", "или скан"), ("uz", "yoki skan"), ("en", "or a scan")):
+        d = _json.loads((root / "app" / "i18n" / f"{lg}.json").read_text(encoding="utf-8"))
+        hint = d["tg.cb.s1_hint"]
+        assert scan not in hint and "PDF" in hint, f"{lg}: в подсказке про отчёт бюро всё ещё «{scan}»: {hint}"
+        assert all(k in d for k in ("tg.cb.mark", "tg.cb.scan_off", "tg.sc.dec_title", "tg.sc.act_level", "tg.sc.dec_see")), lg
+    _run_scoring(html)
+    print("22е. страховой скоринг: шкала, стрелка 0/99/100/250/500, карточка без служебных слов, отчёт бюро — ок")
+
+
+def _run_scoring(html):
+    """Карточка скоринга из tg.html в node на настоящих ответах сервера (sandbox/act_demo*.json)."""
+    import shutil
+    import subprocess
+    import tempfile
+    node = shutil.which("node")
+    if not node:
+        print("   (node не найден — отрисовка скоринга не проверена)")
+        return
+    root = Path(__file__).resolve().parent.parent
+
+    def line(prefix):
+        return re.search(r"(?m)^" + re.escape(prefix) + r".*$", html).group(0)
+
+    block = html[html.index("/* ---------- шаг 3: страховой скоринг объекта"):html.index("/* ---------- /скоринг")]
+    js = "\n".join([
+        'const T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };',
+        "const LOC = () => 'ru-RU';", line("const esc = "), line("const nf = "), line("const isNum = "),
+        "let IN_TG = false; const CH = {}; const actSendBtnHtml = k => '<button data-send=\"' + k + '\">PDF</button>';",
+        block,
+        "const acts = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
+        "const bands = acts[0].scoring.scale.bands;",
+        "const pos = [0, 99, 100, 250, 500, -20, 640].map(v => scoNeedle(v));",
+        "const band = [0, 99, 100, 199, 200, 399, 400, 500].map(v => (scoBand(v, bands) || {}).code);",
+        "const cards = acts.map(a => scoCardHtml(a)); IN_TG = true; cards.push(scoCardHtml(acts[0]));",
+        "CH.act = acts[0]; CH.scoImg = {id: acts[0].id, lang: acts[0].lang, url: 'blob:x', open: true};",
+        "const img = scoImgHtml();",
+        "console.log(JSON.stringify({pos, band, cards, img, G: SCO_G}));"])
+    acts = [_json.loads((root / "sandbox" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
+    # договор из частей: баллы частей и пометка — в форме ответа app/act_scoring.view (act_demo_multi.json старше скоринга)
+    sc_m = dict(acts[1]["scoring"], parts_note="Договор из 2 частей: балл — по самой опасной части 1", worst_part=1,
+                parts=[{"index": 1, "class_code": "3", "score": 246, "class": "C", "score_class": "C2",
+                        "text": "часть 1 (класс 3): 246 — C2"},
+                       {"index": 2, "class_code": "14", "score": 266, "class": "C", "score_class": "C2",
+                        "text": "часть 2 (класс 14): 266 — C2"}])
+    acts.append(dict(acts[1], scoring=sc_m))
+    off = dict(acts[0], scoring={"available": False, "reason": "render_error", "calibrated": 0})
+    old = {k: v for k, v in acts[0].items() if k != "scoring"}
+    sc0 = acts[0]["scoring"]
+    # рекомендация «отказать» — в форме ответа app/act_scoring.view
+    no = dict(acts[0], scoring=dict(sc0, decision={"code": "decline", "text": "отказать", "title": "Рекомендация акта",
+                                                   "warning": "см. рекомендацию акта: отказать"}))
+    with tempfile.TemporaryDirectory(prefix="tg-sc-") as tmp:
+        f = Path(tmp) / "sc.js"
+        f.write_text(js, encoding="utf-8")
+        res = subprocess.run([node, str(f)], input=_json.dumps(acts + [off, old, no], ensure_ascii=False), capture_output=True,
+                             text=True, encoding="utf-8", timeout=60)
+    assert res.returncode == 0, "node: " + res.stderr[-800:]
+    out = _json.loads(res.stdout)
+    G, p = out["G"], out["pos"]
+    near = lambda a, b: abs(a - b) < 0.02            # noqa: E731
+    # 0 — слева на основании, 500 — справа, 250 — строго вверх; вне шкалы — к краю
+    assert p[0]["deg"] == 180 and near(p[0]["x"], G["cx"] - G["rTip"]) and near(p[0]["y"], G["cy"]), p[0]
+    assert p[4]["deg"] == 0 and near(p[4]["x"], G["cx"] + G["rTip"]) and near(p[4]["y"], G["cy"]), p[4]
+    assert p[3]["deg"] == 90 and near(p[3]["x"], G["cx"]) and near(p[3]["y"], G["cy"] - G["rTip"]), p[3]
+    assert p[5] == p[0] and p[6] == p[4], "балл вне 0–500 не прижат к краю шкалы"
+    # граница E/D: 99 — ещё в секторе E (180°…144°), 100 — уже D
+    assert 144 < p[1]["deg"] < 180 and p[2]["deg"] == 144, (p[1], p[2])
+    assert out["band"] == ["E", "E", "D", "D", "C", "B", "A", "A"], out["band"]
+    cards = out["cards"]
+    for i, c in enumerate(cards):
+        text = re.sub(r"<[^>]+>", " ", c)
+        bad = [w for w in ("undefined", "null", "NaN", "[object Object]", "calibrated", "risk_score", "label_code") if w in text]
+        assert not bad, f"карточка {i}: на экране служебное: {bad}"
+    for i in (0, 1, 2):
+        sc, c = acts[i]["scoring"], cards[i]
+        assert c.count("<path class=\"sco-seg\"") == 5 and c.count('class="sco-needle"') == 1, f"акт {i}: шкала неполная"
+        exp = round((1 - sc["score"] / 500) * 180, 2)
+        assert f'data-deg="{exp:g}"' in c, f"акт {i}: стрелка не на балле {sc['score']} ({exp}°)"
+        assert f'<b>{sc["class_code"]}</b>' in c and _html_esc(sc["class_label"]) in c, f"акт {i}: нет плашки класса"
+        assert c.count('<details class="sco-c') == len(sc["components"]), f"акт {i}: не все составляющие балла"
+        assert c.count("<li>") >= len(sc["checks"]), f"акт {i}: не все проверки"
+        for t in ("Скоринг", "Объект", "Общий обзор", "Риски", "Сценарии убытка", "Что проверить андеррайтеру"):
+            assert f'<h3 class="sco-band">{t}</h3>' in c, f"акт {i}: нет полосы «{t}»"
+        assert _html_esc(sc["footer_line"]) in c and _html_esc(sc["method_text"]) in c, f"акт {i}: нет строки о скоринге"
+        assert 'data-dl="scoring_pdf"' in c and 'data-dl="scoring_png"' in c, f"акт {i}: нет кнопок скачивания"
+    assert all(_html_esc(x["text"]) in cards[2] for x in acts[2]["scoring"]["parts"]), "договор из частей: нет баллов частей"
+    assert 'data-send="pdf"' in cards[6] and 'data-go="scoimg"' in cards[6] and 'data-dl="scoring_pdf"' not in cards[6], \
+        "в Telegram: вместо скачивания — отправка ботом и картинка в приложении"
+    assert cards[3] == "" and cards[4] == "", "scoring.available = false или нет блока — карточки быть не должно"
+    # замечания контролёра 01.10.2026: рекомендация и уровень акта, подпись под шкалой, термины, «отказать»
+    for i in (0, 1):
+        sc, c = acts[i]["scoring"], cards[i]
+        assert _html_esc(sc["decision"]["text"]) in c and _html_esc(sc["act_level"]["label"]) in c             and "Рекомендация акта" in c and "Уровень риска акта" in c, f"акт {i}: нет рекомендации и уровня риска акта"
+        assert '<p class="sco-cap">' + _html_esc(sc["gauge_caption"]) + "</p>" in c, f"акт {i}: нет подписи под шкалой"
+        assert _html_esc(sc["analytics_level"]["text"]) in c and _html_esc(sc["formula"]) in c, f"акт {i}: нет уровня по аналитике"
+        assert "Страховой балл" in c and "Страховой класс" in c and "Версия шкалы" in c, f"акт {i}: старые термины"
+        assert "sco-plq x" not in c and "sco-plq dk x" not in c, f"акт {i}: плашка перечёркнута без «отказать»"
+    cno = cards[5]
+    assert re.search(r'class="sco-plq[^"]* x"', cno) and '<p class="sco-x">см. рекомендацию акта: отказать</p>' in cno         and 'class="d-decline"' in cno, "«отказать»: плашка не перечёркнута или нет пометки"
+    assert _html_esc(sc0["gauge_caption"]) in out["img"], "в окне просмотра картинки нет подписи под шкалой"
+
+
 def check_parts_templates(html):
     """
     Шаблоны классов и комплексный продукт по частям (30.09.2026): поля класса из GET /act/templates/{класс} на шаге 2,
@@ -1225,6 +1361,7 @@ if __name__ == "__main__":
             check_market_card(html)
             check_branch_contract(html)
             check_act_analytics(html)
+            check_scoring(html)
             check_parts_templates(html)
             check_calc_tab(html)
             check_compact_and_view(html)

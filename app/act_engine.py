@@ -72,6 +72,13 @@ DEFAULT_SETTINGS = {
     # только ставки частей), поэтому по умолчанию пусто и сумма делится поровну с пометкой «подтвердите»;
     # sum_tolerance — допуск «сумма частей = страховая сумма договора», сумов
     "parts": {"shares": {}, "sum_tolerance": 1},
+    # страховой скоринг объекта (01.10.2026, первая страница акта): цвет полос-заголовков — цвет бренда
+    "scoring": {"brand_color": "#0B4F8A"},
+    # отчёт кредитного бюро (КАТМ) для кредитных классов 14, 13з, 15 (01.10.2026): только проверки андеррайтеру,
+    # в уровень риска и ставку не входит; low_class — класс оценки бюро, с которого (и хуже) нужна проверка;
+    # max_age_days — отчёт старше стольких дней считается устаревшим. Экспертно, calibrated = 0
+    # allow_scan — сканы и фото отчёта бюро отдавать языковой модели (по умолчанию нет: в отчёте кредитная история)
+    "credit_report": {"low_class": "C", "max_age_days": 30, "allow_scan": False},
     # пределы загрузки и распознавания (app/act.py): защита сервера, а не тариф
     "limits": {
         "max_image_mp": 50,             # картинка больше стольких мегапикселей отклоняется до раскрытия
@@ -839,6 +846,29 @@ def check_settings(s: dict) -> list:
     if not errs and lim.get("pdf_text_max_pages", 0) < lim.get("pdf_max_pages", 0):
         errs.append("limits: pdf_text_max_pages не меньше pdf_max_pages")
     errs += check_parts_settings(m.get("parts"))
+    sc = m["scoring"] if isinstance(m["scoring"], dict) else None
+    if sc is None:
+        errs.append("scoring: словарь {brand_color}")
+    else:
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", str(sc.get("brand_color") or "")):
+            errs.append("scoring.brand_color: цвет вида #0B4F8A")
+        extra = [k for k in sc if k != "brand_color"]
+        if extra:
+            errs.append("scoring: неизвестные ключи " + ", ".join(extra))
+    crs = m["credit_report"] if isinstance(m["credit_report"], dict) else None
+    if crs is None:
+        errs.append("credit_report: словарь {low_class, max_age_days, allow_scan}")
+    else:
+        if crs.get("low_class") not in BUREAU_CLASSES:
+            errs.append("credit_report.low_class: одна из букв " + ", ".join(BUREAU_CLASSES))
+        d = crs.get("max_age_days")
+        if isinstance(d, bool) or not isinstance(d, int) or not 1 <= d <= 365:
+            errs.append("credit_report.max_age_days: целое от 1 до 365")
+        if not isinstance(crs.get("allow_scan"), bool):
+            errs.append("credit_report.allow_scan: true или false")
+        extra = [k for k in crs if k not in ("low_class", "max_age_days", "allow_scan")]
+        if extra:
+            errs.append("credit_report: неизвестные ключи " + ", ".join(extra))
     return errs
 
 
@@ -1778,4 +1808,273 @@ def credit_check(S: float, fields: Optional[dict], max_share: float = 0.5,
                                "individual": kind == "individual", "source": ph.get("source")}})
     elif bank is None:
         out.append({"code": "credit_holder_unknown", "params": {}})
+    return out
+
+
+# ================================================================================================
+#  11. Страховой скоринг объекта (01.10.2026): представление уже посчитанного акта шкалой 0–500
+# ================================================================================================
+# Это не новый расчёт: балл берётся из балла риска 0–100 аналитики акта (act_analytics.score, чем выше — тем
+# хуже) и переворачивается в шкалу «чем выше — тем лучше»: балл = round(500 − 5 × балл риска). Нет балла риска
+# (класс без аналитики, старый акт) — оценка по уровню риска акта. Шкала экспертная, calibrated = 0; это не
+# кредитный скоринг и не оценка КАТМ.
+
+SCORE_VERSION = "1.0"
+SCORE_MIN, SCORE_MAX = 0, 500
+# (класс, от, до, код подписи): E плохой … A отличный
+SCORE_BANDS = (("E", 0, 99, "poor"), ("D", 100, 199, "weak"), ("C", 200, 299, "fair"),
+               ("B", 300, 399, "good"), ("A", 400, 500, "excellent"))
+SCORE_LABELS_RU = {"poor": "плохой", "weak": "слабый", "fair": "средний", "good": "хороший", "excellent": "отличный"}
+SCORE_BY_LEVEL = {"low": 430, "moderate": 300, "high": 130}
+SCORE_NOTE = "экспертно, не калибровано; это не кредитный скоринг и не оценка КАТМ"
+
+
+# сектора привязаны к порогам балла риска аналитики (risk_thresholds.level_bounds, по умолчанию 20/40/60/80):
+# граница сектора = 500 − 5 × порог; класс — тот же уровень, что у аналитики (A низкий … E критический)
+SCORE_BOUNDS = (20.0, 40.0, 60.0, 80.0)
+BAND_LEVEL5 = {"A": "low", "B": "moderate", "C": "elevated", "D": "high", "E": "critical"}
+
+
+def score_bounds(bounds=None) -> tuple:
+    """Пороги балла риска 0–100 (четыре возрастающих числа между 0 и 100); кривые — пороги по умолчанию."""
+    try:
+        b = tuple(float(x) for x in bounds)
+    except (TypeError, ValueError):
+        return SCORE_BOUNDS
+    if len(b) != 4 or list(b) != sorted(b) or len(set(b)) != 4 or b[0] <= 0 or b[-1] >= 100:
+        return SCORE_BOUNDS
+    return b
+
+
+def score_bands(bounds=None) -> list:
+    """Сектора [(класс, от, до, подпись)] E…A по порогам аналитики: E 0 … (500 − 5 × порог4) − 1, …, A — до 500.
+    По умолчанию E 0–99, D 100–199, C 200–299, B 300–399, A 400–500."""
+    b = score_bounds(bounds)
+    edges = [SCORE_MIN]
+    for x in reversed(b):
+        edges.append(max(edges[-1] + 1, round_half_up(round(SCORE_MAX - 5 * x, 6))))
+    edges.append(SCORE_MAX + 1)
+    return [(code, edges[i], min(edges[i + 1] - 1, SCORE_MAX), lab)
+            for i, (code, _lo, _hi, lab) in enumerate(SCORE_BANDS)]
+
+
+def score_band(score, bounds=None, risk=None) -> dict:
+    """Класс и подкласс балла 0–500. Сектор — по неокруглённому баллу риска risk (если он есть) и порогам аналитики:
+    так класс всегда совпадает с уровнем аналитики (балл риска ровно 20 — «умеренный» → B, хотя 500 − 5 × 20 = 400);
+    без балла риска — по баллу. Подкласс 1 — верхняя треть сектора, 2 — средняя, 3 — нижняя (A1 = 468–500,
+    A2 = 434–467, A3 = 400–433; у секторов по 100 баллов: B1 = 367–399, B2 = 334–366, B3 = 300–333)."""
+    s = max(SCORE_MIN, min(SCORE_MAX, round_half_up(round(float(score), 6))))
+    bands = score_bands(bounds)
+    band = None
+    if risk is not None:
+        try:
+            r = float(risk)
+            idx = sum(1 for x in score_bounds(bounds) if r >= x)        # 0 — низкий (A) … 4 — критический (E)
+            band = next(x for x in bands if x[0] == "ABCDE"[idx])
+        except (TypeError, ValueError):
+            band = None
+    if band is None:
+        band = next(x for x in bands if x[1] <= s <= x[2])
+    code, lo, hi, lab = band
+    k = (min(max(s, lo), hi) - lo) / (hi - lo + 1)      # балл на границе после округления — к краю своего сектора
+    sub = 1 if k >= 2 / 3 else (2 if k >= 1 / 3 else 3)
+    return {"class": code, "sub": sub, "class_code": f"{code}{sub}", "label_code": lab,
+            "class_label": SCORE_LABELS_RU[lab], "from": lo, "to": hi, "level5": BAND_LEVEL5[code]}
+
+
+def score_scale(bounds=None) -> dict:
+    b = score_bounds(bounds)
+    return {"min": SCORE_MIN, "max": SCORE_MAX, "bounds": list(b),
+            "bands": [{"code": c, "from": lo, "to": hi, "label_code": lab, "label": SCORE_LABELS_RU[lab]}
+                      for c, lo, hi, lab in score_bands(b)]}
+
+
+def bands_text(bounds=None) -> str:
+    """«E 0–99, D 100–199, C 200–299, B 300–399, A 400–500» — для объяснения метода."""
+    return ", ".join(f"{c} {lo}–{hi}" for c, lo, hi, _l in score_bands(bounds))
+
+
+def _apportion(raw: list, target: int) -> list:
+    """Целые части с суммой ровно target (наибольшие остатки); raw — неотрицательные доли."""
+    if not raw:
+        return []
+    base = [math.floor(x) for x in raw]
+    rest = int(target) - sum(base)
+    order = sorted(range(len(raw)), key=lambda i: raw[i] - base[i], reverse=True)
+    i = 0
+    while rest > 0:
+        base[order[i % len(raw)]] += 1
+        rest -= 1
+        i += 1
+    order = sorted(range(len(raw)), key=lambda i: raw[i] - base[i])
+    i = 0
+    while rest < 0 and any(base):
+        j = order[i % len(raw)]
+        if base[j] > 0:
+            base[j] -= 1
+            rest += 1
+        i += 1
+    return base
+
+
+def _score_of(analytics: Optional[dict]) -> Optional[tuple]:
+    """(балл риска 0–100, составляющие, пороги уровней) из аналитики акта или None."""
+    an = analytics or {}
+    sc = an.get("score") or {}
+    if not an.get("available") or not sc.get("available") or sc.get("score") is None:
+        return None
+    try:
+        return float(sc["score"]), list(sc.get("components") or []), score_bounds(sc.get("bounds"))
+    except (TypeError, ValueError):
+        return None
+
+
+def _num_ru(x, digits: int = 3) -> str:
+    s = f"{float(x):.{digits}f}".rstrip("0").rstrip(".")
+    return s.replace(".", ",")
+
+
+def score_one(analytics: Optional[dict], level: Optional[str]) -> dict:
+    """
+    Балл одного объекта (части): из балла риска аналитики или по уровню риска акта. Составляющие — те же, что у
+    балла риска, в шкале 0–500: составляющая = вес × (100 − её балл риска) × 5, «из» = вес × 500; сумма составляющих
+    равна баллу (округление до целого распределено по наибольшим остаткам).
+    """
+    got = _score_of(analytics)
+    if got is None:
+        lvl = level if level in SCORE_BY_LEVEL else "moderate"
+        s = SCORE_BY_LEVEL[lvl]
+        return {"score": s, **score_band(s), "basis": "level", "level": lvl, "risk_score_100": None,
+                "bounds": list(SCORE_BOUNDS), "exact": True, "analytics_level": None,
+                "components": [{"code": "act_level", "label": "Уровень риска акта", "points": s, "max": SCORE_MAX,
+                                "risk_points": None, "weight": None, "applicable": True,
+                                "why": f"оценка по уровню риска: {RA_LEVEL.get(lvl, lvl).lower()} — {s}",
+                                "calibrated": CALIBRATED}]}
+    risk, comps, bounds = got
+    # половина — вверх, как у Math.round на экране; 6 знаков — чтобы 500 − 5 × 32,7 дало ровно 336,5
+    s = max(SCORE_MIN, min(SCORE_MAX, round_half_up(round(SCORE_MAX - 5 * risk, 6))))
+    exact = abs(round(SCORE_MAX - 5 * risk, 6) - s) < 1e-9          # «=» или «≈» в объяснении
+    on = [i for i, c in enumerate(comps) if c.get("applicable") and float(c.get("weight") or 0) > 0]
+    raw_pts = [float(comps[i]["weight"]) * (100 - float(comps[i].get("points") or 0)) * 5 for i in on]
+    raw_max = [float(comps[i]["weight"]) * SCORE_MAX for i in on]
+    mx = _apportion(raw_max, SCORE_MAX)
+    pts = _apportion(raw_pts, s)
+    # составляющая не больше своего «из»: лишнее — соседям с запасом (бывает только от округления)
+    for i in range(len(pts)):
+        while pts[i] > mx[i]:
+            room = [k for k in range(len(pts)) if pts[k] < mx[k]]
+            if not room:
+                break
+            j = max(room, key=lambda k: mx[k] - pts[k])
+            pts[i] -= 1
+            pts[j] += 1
+    pos = {ci: k for k, ci in enumerate(on)}
+    out = []
+    for ci, c in enumerate(comps):
+        p_risk = c.get("points")
+        if ci in pos:
+            k = pos[ci]
+            row = {"points": pts[k], "max": mx[k], "applicable": True,
+                   "why": (f"балл риска {_num_ru(p_risk or 0, 1)} из 100, вес {_num_ru(c['weight'])}: "
+                           f"{pts[k]} из {mx[k]}")}
+        else:
+            row = {"points": 0, "max": 0, "applicable": False,
+                   "why": "не учтено: нет данных или к объекту не относится"}
+        out.append({"code": c.get("code"), "label": c.get("name_ru") or c.get("name") or c.get("code"), **row,
+                    "risk_points": p_risk, "weight": c.get("weight"), "calibrated": CALIBRATED})
+    if not on:                                   # составляющих нет — балл объясняется одной строкой
+        out.append({"code": "risk_score", "label": "Балл риска 0–100", "points": s, "max": SCORE_MAX,
+                    "applicable": True, "risk_points": risk, "weight": 1.0,
+                    "why": f"500 − 5 × {_num_ru(risk, 1)} {'=' if exact else '≈'} {s}", "calibrated": CALIBRATED})
+    an_level = ((analytics or {}).get("score") or {}).get("level")
+    return {"score": s, **score_band(s, bounds, risk), "basis": "risk_score", "level": level, "risk_score_100": risk,
+            "bounds": list(bounds), "exact": exact, "analytics_level": an_level, "components": out}
+
+
+def insurance_score(act_data: dict) -> dict:
+    """
+    Страховой скоринг объекта по данным акта (структура build_data, язык не важен). Чистая функция.
+    {score 0–500 (чем выше, тем лучше), class A–E, class_label, sub 1–3, version, scale, components[{code, label,
+    points, max, why}], risk_score_100, basis (risk_score | level), parts[], worst_part, calibrated 0, method_text}.
+    Договор из нескольких частей: балл договора — по самой опасной части (наименьший балл), баллы частей — в parts.
+    Пример: балл риска 32,7 → 500 − 5 × 32,7 = 336,5 → 337 (половина — вверх), класс B2 (хороший).
+    """
+    D = act_data or {}
+    pblock = D.get("parts") or {}
+    parts = [p for p in (pblock.get("items") or []) if isinstance(p, dict)]
+    multi = pblock.get("mode") == "multi" and bool(parts)
+    rows = []
+    if multi:
+        for p in parts:
+            rows.append(dict(score_one(p.get("analytics"), p.get("level")), index=p.get("index"),
+                             part_class=p.get("class_code")))
+        main = min(rows, key=lambda r: r["score"])     # самая опасная часть — с наименьшим баллом
+    else:
+        main = score_one(D.get("analytics"), (D.get("risk") or {}).get("level"))
+    bounds = main.get("bounds") or list(SCORE_BOUNDS)
+    method = ("балл = 500 − 5 × балл риска 0–100 аналитики акта (чем выше балл риска, тем хуже); "
+              f"сектора по порогам аналитики: {bands_text(bounds)}; подкласс 1 — верхняя треть сектора"
+              if main["basis"] == "risk_score" else
+              "оценка по уровню риска: балла риска нет (класс без аналитики) — низкий 430, умеренный 300, высокий 130")
+    return {"score": main["score"], "class": main["class"], "class_label": main["class_label"],
+            "label_code": main["label_code"], "sub": main["sub"], "class_code": main["class_code"],
+            "version": SCORE_VERSION, "scale": score_scale(bounds), "components": main["components"],
+            "risk_score_100": main["risk_score_100"], "basis": main["basis"], "level": main.get("level"),
+            "exact": main.get("exact", True), "analytics_level": main.get("analytics_level"),
+            "contract": multi, "worst_part": main.get("index") if multi else None,
+            "parts": [{"index": r["index"], "class_code": r["part_class"], "score": r["score"], "class": r["class"],
+                       "sub": r["sub"], "score_class": r["class_code"], "class_label": r["class_label"],
+                       "label_code": r["label_code"], "risk_score_100": r["risk_score_100"], "basis": r["basis"],
+                       "level": r.get("level")} for r in rows],
+            "method_text": method, "note": SCORE_NOTE, "calibrated": CALIBRATED}
+
+
+# ================================================================================================
+#  12. Отчёт кредитного бюро (КАТМ) по заёмщику (01.10.2026): только проверки андеррайтеру
+# ================================================================================================
+
+BUREAU_CLASSES = ("A", "B", "C", "D", "E")
+CREDIT_REPORT_CLASSES = ("14", "13з", "15")
+
+
+def bureau_letter(score_class) -> Optional[str]:
+    """«A1», «a2», кириллица «А1», «C» → буква класса оценки бюро; иначе None."""
+    s = str(score_class or "").strip().upper().translate(str.maketrans("АВСЕ", "ABCE"))
+    return s[0] if s[:1] in BUREAU_CLASSES else None
+
+
+def borrower_checks(fields: Optional[dict], credit_product: bool, settings: Optional[dict] = None,
+                    today: Optional[date] = None) -> list:
+    """
+    Проверки андеррайтеру по отчёту кредитного бюро (классы 14, 13з, 15). Чистая функция; в уровень риска и в
+    ставку не входят (пока заказчик не утвердит правило). Коды без префикса c_:
+      borrower_low_class — класс оценки бюро не лучше порога (по умолчанию C и ниже);
+      borrower_no_score — в отчёте нет ни балла, ни класса;
+      borrower_overdue — есть действующая просрочка (просроченная часть действующих договоров больше нуля);
+      borrower_stale — отчёт старше max_age_days (по умолчанию 30 дней) или без даты.
+    Пример: класс D2, просрочка 5 000 000, отчёт от 01.08.2026 при сегодня 01.10.2026 → все три проверки.
+    """
+    if not credit_product or not fields:
+        return []
+    st = {**DEFAULT_SETTINGS["credit_report"], **(settings or {})}
+    today = today or date.today()
+    out = []
+    letter = bureau_letter(fields.get("score_class"))
+    low = st.get("low_class") if st.get("low_class") in BUREAU_CLASSES else "C"
+    if letter and BUREAU_CLASSES.index(letter) >= BUREAU_CLASSES.index(low):
+        out.append({"code": "borrower_low_class", "params": {"cls": fields.get("score_class"), "low": low,
+                                                             "score": fields.get("score")}})
+    elif not letter and fields.get("score") is None:
+        out.append({"code": "borrower_no_score", "params": {}})
+    od = (fields.get("active") or {}).get("overdue")
+    if isinstance(od, (int, float)) and not isinstance(od, bool) and od > 0:
+        out.append({"code": "borrower_overdue", "params": {"amount": od}})
+    days = None
+    try:
+        days = (today - date.fromisoformat(str(fields.get("report_date")))).days
+    except (TypeError, ValueError):
+        pass
+    mx = int(st.get("max_age_days") or 30)
+    if days is None or days > mx:
+        out.append({"code": "borrower_stale", "params": {"days": days, "max": mx}})
     return out
