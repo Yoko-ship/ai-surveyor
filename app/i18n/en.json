@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 2265,
+    "keys": 2270,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -2267,6 +2267,11 @@
   "tg.act.fa_prem": "Premium",
   "tg.act.fa_rate": "Rate",
   "tg.act.fa_ref_note": "For reference: the act's rate did not change. This is how the rate would change if the coefficients were applied.",
+  "tg.act.fa_stat_bg": "regional background, does not change the coefficient",
+  "tg.act.fa_stat_gas": "stat.uz: {r}, {p} — {n} % of apartments with gas",
+  "tg.act.fa_stat_nodata": "no stat.uz data for this region yet",
+  "tg.act.fa_stat_src": "Read at the source: stat.uz",
+  "tg.act.fa_stat_walls": "stat.uz: {r}, {p} — {n} % of the housing stock",
   "tg.act.fa_statutory": "Compulsory type: the rate is set by law, factors do not change it.",
   "tg.act.fa_title": "Object factors",
   "tg.act.fa_uncal": "Expert coefficients, not calibrated.",

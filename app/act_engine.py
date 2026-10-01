@@ -2901,13 +2901,98 @@ def factor_adjust(class_fields: Optional[dict], template: Optional[dict], settin
             continue
         coef = float(opt["coef"])
         raw *= coef
-        applied.append({"group": g["code"], "group_label": g.get("label"), "option": opt["code"],
-                        "label": opt.get("label"), "coef": coef, "note": opt.get("note")})
+        item = {"group": g["code"], "group_label": g.get("label"), "option": opt["code"],
+                "label": opt.get("label"), "coef": coef, "note": opt.get("note")}
+        refs = option_stat_refs(g, opt["code"])
+        if refs:
+            item["stat_ref"] = refs              # фон региона (stat.uz) — act_analytics.factor_stats, коэффициент не меняет
+        applied.append(item)
     lo, hi = float(fs["min_product"]), float(fs["max_product"])
     prod = min(hi, max(lo, raw))
     return {"mode": fs["mode"], "product": _round4(prod), "raw_product": _round4(raw),
             "clamped": "max" if raw > hi + 1e-12 else ("min" if raw < lo - 1e-12 else None), "bounds": [lo, hi],
             "applied": applied, "unfilled": unfilled, "groups": len(groups), "calibrated": CALIBRATED}
+
+
+# --------------------------------------------------------------------------------------------------------------
+# Фон региона к фактору объекта (stat_ref группы, шаблоны 1.4.1 от 02.10.2026): открытые наборы stat.uz
+# --------------------------------------------------------------------------------------------------------------
+# Пять наборов «Распределение жилищного фонда по материалу стен» (тыс. кв. м на конец года) вместе дают весь фонд
+# региона (проверено 02.10.2026: сумма пяти по Ташкентской области за 2025 год = 72 439,5 тыс. кв. м = набор 1244).
+# Доля материала = сумма наборов варианта / сумма пяти за тот же год. Набор вне этого списка (обеспеченность газом,
+# 1243) — уже процент, показывается как есть.
+WALL_FUND = ("housing_fund_by_walls_brick", "housing_walls_raw_brick", "housing_walls_panel_rc",
+             "housing_walls_other", "housing_walls_adobe")
+STAT_NOTE = "фон региона, коэффициент не меняет"
+
+
+def option_stat_refs(group: dict, option: str) -> list:
+    """Ссылки группы на наборы stat.uz (stat_ref), к которым относится вариант option: [{dataset_id, label}]."""
+    out = []
+    for r in group.get("stat_ref") or [] if isinstance(group.get("stat_ref"), list) else []:
+        if isinstance(r, dict) and r.get("dataset_id") and option in (r.get("option_codes") or []):
+            out.append({"dataset_id": r["dataset_id"], "label": r.get("label")})
+    return out
+
+
+def factor_stat(refs: list, series: dict, region: Optional[str], region_name: Optional[str] = None,
+                datasets: Optional[dict] = None) -> dict:
+    """
+    Блок stat применённого фактора — фон региона по открытым данным stat.uz. Чистая функция: ряды уже прочитаны
+    (act_analytics.factor_stats читает таблицу stat_series базы, в сеть не ходит).
+      refs     — ссылки варианта [{dataset_id, label}] (option_stat_refs);
+      series   — {dataset_id: {год: {value, unit, url, fetched_at}}} по региону;
+      region   — ключ region:* (или total); datasets — реестр stat_sources.DATASETS (имя, страница, адрес данных).
+    Стены: доля = сумма наборов варианта / сумма пяти наборов WALL_FUND за последний год, где есть все пять.
+    Иной набор (газ): последний год, share_pct = сам показатель (%).
+    Нет данных — {"available": False, "reason": код, "reason_text": по-русски}. Коэффициент фактора не меняется.
+    """
+    ds_reg = datasets or {}
+    ids = [r["dataset_id"] for r in refs or [] if r.get("dataset_id")]
+    base = {"available": False, "reason": None, "reason_text": None, "dataset": ids, "region": region,
+            "region_name": region_name, "note": STAT_NOTE, "calibrated": CALIBRATED}
+    if not ids:
+        return dict(base, reason="no_ref", reason_text="у варианта нет ссылки на наборы stat.uz")
+    names = [(ds_reg.get(i) or {}).get("name") or i for i in ids]
+    meta = {"name": "; ".join(names), "source": "stat.uz",
+            "source_ids": [(ds_reg.get(i) or {}).get("src_id") for i in ids],
+            "data_url": [(ds_reg.get(i) or {}).get("data_url") for i in ids],
+            "labels": [r.get("label") for r in refs if r.get("dataset_id")],
+            "limits": sorted({x for i in ids for x in (ds_reg.get(i) or {}).get("limits") or []})}
+    base.update(meta)
+    base["url"] = (ds_reg.get(ids[0]) or {}).get("page")
+    if not region:
+        return dict(base, reason="region_unknown", reason_text="регион акта не опознан — фон региона не показан")
+    walls = all(i in WALL_FUND for i in ids)
+    if walls:
+        need = list(WALL_FUND)
+        years = set.intersection(*[set((series.get(d) or {})) for d in need])
+        if not years:
+            miss = [d for d in need if not series.get(d)]
+            return dict(base, reason="no_data", reason_text="в базе (stat_series) нет общего года по пяти наборам "
+                        "материала стен для региона" + (": нет " + ", ".join(miss) if miss else ""))
+        per = max(years)
+        total = sum(float(series[d][per]["value"]) for d in need)
+        value = sum(float(series[d][per]["value"]) for d in dict.fromkeys(ids))
+        if total <= 0:
+            return dict(base, reason="no_data", reason_text="сумма жилищного фонда региона равна нулю")
+        rec = series[ids[0]][per]
+        return dict(base, available=True, kind="walls_share", period=per, value=round(value, 1),
+                    total=round(total, 1), share_pct=round(value / total * 100, 3), unit=rec.get("unit"),
+                    url=rec.get("url") or base["url"], fetched_at=max(str(series[d][per].get("fetched_at") or "")
+                                                                    for d in need) or None,
+                    formula="доля = сумма наборов варианта / сумма пяти наборов материала стен × 100")
+    if len(ids) != 1:
+        return dict(base, reason="mixed", reason_text="в варианте смешаны наборы стен и иные — доля не считается")
+    ser = series.get(ids[0]) or {}
+    if not ser:
+        return dict(base, reason="no_data", reason_text="в базе (stat_series) нет набора для региона — "
+                                                        "ежедневное обновление stat.uz ещё не загружало его")
+    per = max(ser)
+    rec = ser[per]
+    return dict(base, available=True, kind="value", period=per, value=float(rec["value"]), total=None,
+                share_pct=round(float(rec["value"]), 3), unit=rec.get("unit"), url=rec.get("url") or base["url"],
+                fetched_at=rec.get("fetched_at"), formula="показатель источника как есть")
 
 
 def factor_mark(act_pct: Optional[float], fa: Optional[dict], min_pct: Optional[float]) -> Optional[tuple]:

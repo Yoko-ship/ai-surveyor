@@ -863,6 +863,9 @@ details.sec>.in{padding:12px 16px 16px;border-top:1px solid var(--line);min-widt
 .fa-how ul{margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.5;color:var(--muted)}
 .fa-part+.fa-part{margin-top:14px;padding-top:4px;border-top:1px solid var(--line)}
 .fa-uncal{margin:12px 0 0;font-size:11.5px;line-height:1.4;color:var(--muted)}
+.fa-t td small.fa-stat{display:block;margin-top:4px;font-size:11.5px;line-height:1.35;color:var(--muted);overflow-wrap:anywhere}
+.fa-stat-bg{display:block;font-style:italic}
+.fa-t td .srcbar.fa-stat-src{display:flex;margin-top:4px;padding-top:3px;font-size:11.5px}
 /* шаг 3: ставка ниже минимальной — можно ли застраховать (01.10.2026). Цвет ответа: да — --good, при условиях —
    --warn, нет — --stop; доводы «за» и «против» — две колонки от 600 px, на телефоне друг под другом */
 .bm{--bm:var(--warn)}
@@ -7380,6 +7383,25 @@ const faMult = c => "×" + Number(c).toLocaleString(LOC(), {minimumFractionDigit
 const faDelta = v => !isNum(v) ? "—" : Number(v) > 0 ? "+" + money(Number(v)) : Number(v) < 0 ? "−" + money(-Number(v)) : money(0);
 const faModeTag = ap => '<span class="tag fa-mode' + (ap ? " ap" : " off") + '">'
   + esc(ap ? T("tg.act.fa_mode_apply", "применено к ставке") : T("tg.act.fa_mode_ref", "справочно")) + "</span>";
+/* фон региона по stat.uz под фактором (applied[i].stat): справочно, коэффициент не меняет.
+   available:false — молчим, кроме no_data. Ссылка — только http/https. */
+const faStatUrl = u => /^https?:\/\/[^\s"<>]+$/i.test(anStr(u)) ? anStr(u) : "";
+function faStatHtml(st){
+  const S = anObj(st);
+  if (S.available !== true) {
+    return S.available === false && S.reason === "no_data"
+      ? '<small class="fa-stat none">' + esc(T("tg.act.fa_stat_nodata", "данных stat.uz по региону пока нет")) + "</small>" : "";
+  }
+  if (!isNum(S.share_pct)) return "";
+  const n = Number(S.share_pct).toLocaleString(LOC(), {maximumFractionDigits: 1});
+  const v = {r: anStr(S.region_name) || "—", p: anStr(S.period) || "—", n: n};
+  const line = S.kind === "gas_share" ? T("tg.act.fa_stat_gas", "stat.uz: {r}, {p} — {n} % квартир с газом", v)
+    : T("tg.act.fa_stat_walls", "stat.uz: {r}, {p} — {n} % жилищного фонда", v);
+  const u = faStatUrl(S.url);
+  return '<small class="fa-stat">' + esc(line) + '<span class="fa-stat-bg">' + esc(T("tg.act.fa_stat_bg", "фон региона, коэффициент не меняет")) + "</span></small>"
+    + (u ? '<span class="srcbar act-src fa-stat-src"><a href="' + esc(u) + '" target="_blank" rel="noopener">'
+      + esc(T("tg.act.fa_stat_src", "Читать в источнике stat.uz")) + "</a></span>" : "");
+}
 /* тело блока одной части или договора */
 function faBodyHtml(F){
   const E = anObj(F.effect), ap = F.mode === "apply" && E.applied_to_act === true;
@@ -7395,7 +7417,7 @@ function faBodyHtml(F){
         const c = Number(x.coef), dir = c > 1 ? " up" : c < 1 ? " down" : "";
         return '<tr data-group="' + esc(anStr(x.group)) + '"><td class="h" data-l="' + esc(cols[0]) + '">' + esc(anStr(x.group_label) || anStr(x.group)) + "</td>"
           + '<td data-l="' + esc(cols[1]) + '">' + esc(anStr(x.label) || anStr(x.option))
-          + (anStr(x.note) ? '<small class="fa-note">' + esc(x.note) + "</small>" : "") + "</td>"
+          + (anStr(x.note) ? '<small class="fa-note">' + esc(x.note) + "</small>" : "") + faStatHtml(x.stat) + "</td>"
           + '<td class="n fa-k' + dir + '" data-l="' + esc(cols[2]) + '"><b>' + esc(faMult(c)) + "</b></td>"
           + '<td class="n" data-l="' + esc(cols[3]) + '">' + esc(isNum(x.rate_pct) ? rfFmt(x.rate_pct) : "—") + "</td>"
           + '<td class="n" data-l="' + esc(cols[4]) + '">' + esc(faDelta(x.premium_delta)) + "</td></tr>";

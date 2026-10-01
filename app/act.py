@@ -3338,6 +3338,8 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     # множитель справочно (отметка вилки); apply — ставка акта = тариф × поправка уровня × множитель, не ниже минимума,
     # до вилки, франшизы и сверок. Комплексный продукт — по шаблону класса каждой части (_part_calc)
     fa = ae.factor_adjust(o.get("class_fields"), tpl, st, o)
+    # фон региона к факторам со ссылкой на stat.uz (stat_ref, 02.10.2026): только чтение stat_series, ставку не меняет
+    aa.factor_stats(con, fa, region_for_modules(m))
     if not multi:
         ae.factor_effect(fa, rate_res, m["sum_insured"])
     # вилка ставки (01.10.2026): поправки региона (stat.uz) и рынка (НАПП) к ставке акта; в режиме apply ставка с
@@ -3940,7 +3942,8 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     rate_res = ae.part_rate(ref, product, cls, risk["level"], S, term, otype, op.get("payer_type"), st, cm)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
     # факторы объекта части (02.10.2026): по шаблону класса части, до вилки и франшизы
-    fa = ae.factor_effect(ae.factor_adjust(op.get("class_fields"), tpl, st, op), rate_res, S)
+    fa = ae.factor_effect(aa.factor_stats(con, ae.factor_adjust(op.get("class_fields"), tpl, st, op), C["region_ra"]),
+                          rate_res, S)
     # вилка ставки части (01.10.2026): поправки региона и рынка по классу и виду объекта части
     fs = C.get("fs") or ae.fork_settings(st)
     ferrs = []
@@ -7846,6 +7849,7 @@ def _fa_one(fa: dict, lang: str) -> dict:
     eff = fa.get("effect") or {}
     steps = {x["group"]: x for x in eff.get("steps") or [] if x.get("kind") == "factor"}
     applied, lines = [], [t("fa_head", lang, n=len(fa.get("applied") or []), total=fa.get("groups") or 0)]
+    stat_rows = []
     if eff.get("available"):
         lines.append(t("fa_base_" + (eff.get("base") or "act"), lang, rate=pct(eff["base_pct"], lang)))
     for a in fa.get("applied") or []:
@@ -7854,9 +7858,20 @@ def _fa_one(fa: dict, lang: str) -> dict:
         kw = {"group": g, "option": o, "coef": _mult(a["coef"], lang), "note": note}
         lines.append(t("fa_line_sum", lang, rate=pct(stp["rate_pct"], lang), delta=_smoney(stp["premium_delta"], lang),
                        **kw) if stp else t("fa_line", lang, **kw))
-        applied.append({"group": a["group"], "group_label": g, "option": a["option"], "label": o, "coef": a["coef"],
-                        "note": note, "rate_pct": stp["rate_pct"] if stp else None,
-                        "premium_delta": stp["premium_delta"] if stp else None})
+        item = {"group": a["group"], "group_label": g, "option": a["option"], "label": o, "coef": a["coef"],
+                "note": note, "rate_pct": stp["rate_pct"] if stp else None,
+                "premium_delta": stp["premium_delta"] if stp else None}
+        if a.get("stat_ref"):
+            # фон региона (stat.uz) к фактору: блок stat из данных акта (на дату формирования), строка explain и
+            # строка раздела 4; акт до 02.10.2026 без блока — available = false, reason = old_act
+            sb = a.get("stat") or {"available": False, "reason": "old_act",
+                                   "reason_text": "акт сформирован до подключения фона stat.uz",
+                                   "note": ae.STAT_NOTE, "calibrated": ae.CALIBRATED}
+            item["stat"] = sb
+            sl = _fa_stat_line(sb, g, lang)
+            lines.append(sl)
+            stat_rows.append((t("fa_stat_row", lang, group=g), sl))
+        applied.append(item)
     for x in eff.get("steps") or []:
         if x.get("kind") == "bound":
             lo, hi = fa.get("bounds") or [None, None]
@@ -7905,7 +7920,19 @@ def _fa_one(fa: dict, lang: str) -> dict:
                                              "base_premium", "rate_pct", "premium", "delta_premium", "floored",
                                              "min_pct", "rate_type", "term_days", "steps")},
           "explain": lines, "calibrated": ae.CALIBRATED}
-    return {"json": js, "lines": lines, "row": (value, note), "s5": s5, "unfilled": [u["label"] for u in unfilled]}
+    return {"json": js, "lines": lines, "row": (value, note), "s5": s5, "unfilled": [u["label"] for u in unfilled],
+            "stat_rows": stat_rows}
+
+
+def _fa_stat_line(sb: dict, group: str, lang: str) -> str:
+    """Строка фона региона к фактору: доля материала стен в жилищном фонде или показатель (газ) со ссылкой."""
+    L = lambda x: ctpl.localize(x, lang) if x is not None else None  # noqa: E731
+    if not sb.get("available"):
+        return t("fa_stat_none", lang, group=group, reason=sb.get("reason_text") or sb.get("reason") or "—")
+    what = "; ".join(x for x in (L(z) for z in sb.get("labels") or []) if x) or sb.get("name") or ""
+    kw = {"region": sb.get("region_name") or sb.get("region") or "", "period": sb.get("period"), "what": what,
+          "share": tx.pct_fixed(sb.get("share_pct"), lang, 1), "url": sb.get("url") or ""}
+    return t("fa_stat_walls" if sb.get("kind") == "walls_share" else "fa_stat_value", lang, **kw)
 
 
 def _factor_view(D: dict, lang: str) -> dict:
@@ -7927,6 +7954,7 @@ def _factor_view(D: dict, lang: str) -> dict:
             n, cls = pf.get("index"), pf.get("class_code")
             parts.append(dict(one["json"], index=n, class_code=cls))
             rows.append(_row(t("fa_row_part", lang, n=n), one["row"][0], one["row"][1]))
+            rows += [_row(t("fa_part", lang, n=n, cls=cls, text=lb), v) for lb, v in one["stat_rows"]]
             lines += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["lines"]]
             s5 += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["s5"]]
             unf += [t("fa_part", lang, n=n, cls=cls, text=x) for x in one["unfilled"]]
@@ -7937,5 +7965,6 @@ def _factor_view(D: dict, lang: str) -> dict:
         return dict(empty, json={"available": False, "reason": "no_groups", "mode": FA.get("mode"),
                                  "calibrated": ae.CALIBRATED})
     one = _fa_one(FA, lang)
-    return {"json": one["json"], "rows": [_row(t("fa_row", lang), one["row"][0], one["row"][1])],
+    return {"json": one["json"], "rows": [_row(t("fa_row", lang), one["row"][0], one["row"][1])] +
+            [_row(lb, v) for lb, v in one["stat_rows"]],
             "lines": one["lines"], "s5": one["s5"], "unfilled": one["unfilled"]}

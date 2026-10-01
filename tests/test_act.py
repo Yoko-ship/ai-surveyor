@@ -24,7 +24,7 @@ llm.chat_raw отдаёт заготовленный ответ, llm._post бр�
 договор из частей, класс без аналитики), первая страница PDF и секция Word с картинкой, scoring.pdf/png и права,
 отчёт кредитного бюро КАТМ (PDF с текстом на выдуманных данных, физлицо без ФИО, скан с подменённой моделью,
 проверки заёмщика, правки сотрудника, классы 14/15 и не кредитный), три языка.
-Проверки 46 (02.10.2026): факторы объекта по подгруппам класса (шаблоны 1.4.0, factor_groups) — множитель, режимы
+Проверки 46 (02.10.2026): факторы объекта по подгруппам класса (шаблоны 1.4.1, factor_groups) — множитель, режимы
 reference (премии прежние) и apply (не ниже минимума), незаполненное — в «уточнить», проверка шаблона, части 0305.
 Ставки в проверках берутся из справочника копии базы (engine.rate_for / engine.min_rate), а не из головы.
 """
@@ -5393,9 +5393,9 @@ def check_templates_ref():
     print("41а. Шаблоны всех классов: файл, таблица class_templates, структура, доли, оговорки, мероприятия, ракурсы")
     from app import class_templates as ctm
     data = ctm.load_file()
-    ok("файл шаблонов: версия 1.4.0 от 02.10.2026, 20 шаблонов: 1–18, 13з, 16у (свои, без ссылок); классов жизни "
+    ok("файл шаблонов: версия 1.4.1 от 02.10.2026, 20 шаблонов: 1–18, 13з, 16у (свои, без ссылок); классов жизни "
        "и блока classification.life_classes_uz нет",
-       data["version"] == "1.4.0" and data["date"] == "2026-10-02" and list(data["classes"]) ==
+       data["version"] == "1.4.1" and data["date"] == "2026-10-02" and list(data["classes"]) ==
        [str(i) for i in range(1, 19)] + ["13з", "16у"] and data["aliases"] == {}
        and "life_classes_uz" not in (data.get("classification") or {}),
        list(data["classes"]))
@@ -5463,8 +5463,8 @@ def check_templates_api():
     print("41б. API шаблонов: список, класс на трёх языках, история; PUT — проверка структуры и новая версия")
     fresh()
     st, lst = call("GET", "/act/templates", params={"lang": "ru"})
-    ok("GET /act/templates — 20 шаблонов кратко (18 классов + 13з, 16у), версия файла 1.4.0, признак variant",
-       st == 200 and len(lst["templates"]) == 20 and lst["file_version"] == "1.4.0"
+    ok("GET /act/templates — 20 шаблонов кратко (18 классов + 13з, 16у), версия файла 1.4.1, признак variant",
+       st == 200 and len(lst["templates"]) == 20 and lst["file_version"] == "1.4.1"
        and [x["class_code"] for x in lst["templates"]] == [str(i) for i in range(1, 19)] + ["13з", "16у"]
        and lst["counts"] == {"всего": 20, "классов": 18, "вариантов": 2}
        and [x["class_code"] for x in lst["templates"] if x["variant"]] == ["13з", "16у"]
@@ -5518,12 +5518,12 @@ def check_templates_api():
         new["risks"]["items"][0]["share_pct"] = 20.2          # 20,2 + 30 + 30 + 15 = 95,2 → поправим травму
         new["risks"]["items"][3]["share_pct"] = 19.6          # сумма 99,8 — в пределах ± 0,5
         st, r = call("PUT", "/act/templates/1", {"template": new, "note": "тест: доли НС"})
-        ok("PUT с хорошей структурой — новая версия 1.5 (правка администратора к файлу 1.4.0)",
+        ok("PUT с хорошей структурой — новая версия 1.5 (правка администратора к файлу 1.4.1)",
            st == 200 and r["version"] == "1.5" and r["source"] == "admin"
            and r["template"]["risks"]["items"][0]["share_pct"] == 20.2, (st, str(r)[:300]))
         st, h = call("GET", "/act/templates/1/history")
-        ok("история: версия файла 1.4.0 и правка 1.5 — обе сохранены",
-           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.4.0", "file"), ("1.5", "admin")],
+        ok("история: версия файла 1.4.1 и правка 1.5 — обе сохранены",
+           st == 200 and [(x["version"], x["source"]) for x in h["history"]] == [("1.4.1", "file"), ("1.5", "admin")],
            h)
         # файл той же версии правку не затирает
         from app import class_templates as ctm
@@ -5531,7 +5531,7 @@ def check_templates_api():
         with db.tx() as con:
             ctm.ensure(con)
             cur = ctm.current(con, "1")
-        ok("ensure с файлом 1.4.0 не затирает правку 1.5", cur["version"] == "1.5" and cur["source"] == "admin",
+        ok("ensure с файлом 1.4.1 не затирает правку 1.5", cur["version"] == "1.5" and cur["source"] == "admin",
            cur["version"])
         st, a = call("POST", "/act/make", {"lang": "ru", "must": {"class_code": "1", "sum_insured": 1_000_000_000,
                                                                 "object_value": 1_000_000_000, "region": "Ташкент"}})
@@ -6424,7 +6424,7 @@ def _row_18(path):
 
 
 def check_templates_sync():
-    print("41г. Сервер: refsync доводит шаблоны 1.4.0 и класс 18 (старая база), классов жизни не заводит; новая "
+    print("41г. Сервер: refsync доводит шаблоны 1.4.1 и класс 18 (старая база), классов жизни не заводит; новая "
           "версия файла; db_build на копии")
     import importlib
     from app import class_templates as ctm, refsync
@@ -6442,8 +6442,8 @@ def check_templates_sync():
         res = refsync.sync_templates(disk)
         con = sqlite3.connect(str(disk))
         n = con.execute("SELECT COUNT(*), COUNT(DISTINCT class_code) FROM class_templates").fetchone()
-        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 20 шаблонов версии 1.4.0 (с классом 18)",
-           res["status"] == "обновлено" and n == (20, 20) and res["version"] == "1.4.0"
+        ok("база без таблицы: refsync.sync_templates создал таблицу и довёл 20 шаблонов версии 1.4.1 (с классом 18)",
+           res["status"] == "обновлено" and n == (20, 20) and res["version"] == "1.4.1"
            and "18" in (res.get("added") or []), (res.get("status"), n))
         life, nullable, fk = _life_rows(disk)
         ok("старая база (учётная группа NOT NULL): refsync снял NOT NULL и добавил только класс 18 — branch «общее», "
@@ -6476,8 +6476,8 @@ def check_templates_sync():
             ctm.reset_cache()
             ctm._file_cache.update(mtime=None, data=None)
         hist = [tuple(r) for r in con.execute("SELECT version, source FROM class_templates WHERE class_code='13' ORDER BY id")]
-        ok("файл 2.0 новее — добавлен всем 20 шаблонам; история класса 13: 1.4.0 файл, 1.1 админ, 2.0 файл",
-           len(res3["added"]) == 20 and hist == [("1.4.0", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
+        ok("файл 2.0 новее — добавлен всем 20 шаблонам; история класса 13: 1.4.1 файл, 1.1 админ, 2.0 файл",
+           len(res3["added"]) == 20 and hist == [("1.4.1", "file"), ("1.1", "admin"), ("2.0", "file")], (res3, hist))
         con.close()
         # образ собран до 1.2.0 (в classes нет класса 18): обновление справочников из образа его не теряет
         image = folder / "image.db"
@@ -8250,7 +8250,7 @@ FA_REPORT = {}
 
 
 def check_factor_groups():
-    print("46. Факторы объекта по подгруппам класса (шаблоны 1.4.0, factor_groups): множитель, справочно и в ставке, "
+    print("46. Факторы объекта по подгруппам класса (шаблоны 1.4.1, factor_groups): множитель, справочно и в ставке, "
           "незаполненное — в «уточнить», проверка шаблона, части комплексного продукта, Word и PDF")
     from app import class_templates as ctm
     fresh()
@@ -8260,9 +8260,9 @@ def check_factor_groups():
     t3 = data["classes"]["3"]
     groups = {g["code"]: g for g in t3["factor_groups"]}
     opt3 = {f["code"]: f for f in t3["optional"]}
-    ok("шаблоны 1.4.0: у всех 20 шаблонов есть factor_groups, проверка проходит; у каждой группы нейтральный вариант 1,0 "
+    ok("шаблоны 1.4.1: у всех 20 шаблонов есть factor_groups, проверка проходит; у каждой группы нейтральный вариант 1,0 "
        "и пометка «экспертно, не калибровано»",
-       data["version"] == "1.4.0" and all(t.get("factor_groups") for t in data["classes"].values())
+       data["version"] == "1.4.1" and all(t.get("factor_groups") for t in data["classes"].values())
        and all(not ctm.validate(t, c) for c, t in data["classes"].items())
        and all(any(o["coef"] == 1.0 for o in g["options"]) for t in data["classes"].values()
                for g in t["factor_groups"])
@@ -8462,6 +8462,135 @@ def check_factor_groups():
     set_act_settings(None)
 
 
+# фон региона к факторам (stat_ref, 02.10.2026): выдуманные ряды stat_series на копии базы
+FS_WALLS = {"housing_fund_by_walls_brick": 50.0, "housing_walls_raw_brick": 10.0, "housing_walls_panel_rc": 25.0,
+            "housing_walls_other": 5.0, "housing_walls_adobe": 10.0}
+FS_IDS = list(FS_WALLS) + ["gas_supply_share"]
+
+
+def _fs_put(con, region: str, vals: dict, period: str = "2025") -> None:
+    """Выдуманные значения наборов фона по региону (только копия базы теста): прежние строки региона — удалить."""
+    con.execute("DELETE FROM stat_series WHERE region=? AND dataset_id IN (%s)" % ",".join("?" * len(FS_IDS)),
+                [region] + FS_IDS)
+    for ds, v in vals.items():
+        con.execute("INSERT INTO stat_series (source, dataset_id, key, region, period, value, unit, fetched_at, url) "
+                    "VALUES ('stat.uz', ?, 'test', ?, ?, ?, 'тест', '2026-10-02T09:00:00+05:00', "
+                    "'https://stat.uz/ru/ofitsialnaya-statistika/environment')", (ds, region, period, v))
+
+
+def check_factor_stat():
+    print("46а. Фон региона к факторам объекта (stat_ref класса 8, stat.uz): доля материала стен в жилищном фонде, "
+          "газ, нет данных, проверка шаблона, акт")
+    from app import act_analytics as aa
+    from app import class_templates as ctm
+    from app import stat_sources as ss
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    data = ctm.load_file()
+    t8 = data["classes"]["8"]
+    g8 = {g["code"]: g for g in t8["factor_groups"]}
+    refs = {c: [(r["dataset_id"], r["option_codes"]) for r in g8[c].get("stat_ref") or []]
+            for c in ("construction", "walls_special", "heating")}
+    ok("шаблон 8: stat_ref у «конструкции» (кирпич и железобетон → 1256 + 1258, дерево → 1259), «особенностей» "
+       "(саман → 1257 + 1260, лёгкие → 1259) и «отопления» (газ → 1243); наборы — в реестре stat_sources",
+       refs["construction"] == [("housing_fund_by_walls_brick", ["reinforced"]),
+                                ("housing_walls_panel_rc", ["reinforced"]), ("housing_walls_other", ["wood"])]
+       and refs["walls_special"] == [("housing_walls_raw_brick", ["adobe"]), ("housing_walls_adobe", ["adobe"]),
+                                     ("housing_walls_other", ["light"])]
+       and refs["heating"] == [("gas_supply_share", ["auto", "stoves"])]
+       and [ss.DATASETS[d]["src_id"] for d in ae.WALL_FUND] == ["1256", "1257", "1258", "1259", "1260"]
+       and ss.DATASETS["gas_supply_share"]["src_id"] == "1243"
+       and all(ss.DATASETS[d]["class_codes"] == ["8"] and ss.DATASETS[d]["regions"] for d in FS_IDS)
+       and not ctm.check_factor_groups(t8), refs)
+
+    # --- проверка stat_ref шаблона
+    bad = _json.loads(_json.dumps(t8))
+    gb = {g["code"]: g for g in bad["factor_groups"]}
+    gb["construction"]["stat_ref"][0]["dataset_id"] = "no_such_dataset"
+    gb["heating"]["stat_ref"][0]["option_codes"] = ["gas_boiler"]
+    gb["walls_special"]["stat_ref"] = {"dataset_id": "housing_walls_adobe"}
+    errs = ctm.check_factor_groups(bad)
+    ok("check_factor_groups: неизвестный dataset_id, вариант не из группы и stat_ref не списком — ловятся",
+       any("construction.stat_ref[0].dataset_id" in e and "no_such_dataset" in e for e in errs)
+       and any("heating.stat_ref[0].option_codes" in e and "gas_boiler" in e for e in errs)
+       and any("walls_special.stat_ref: список" in e for e in errs) and len(errs) == 3
+       and bool(ctm.validate(bad, "8")), errs)
+
+    # --- чистая функция: доля за последний общий год пяти наборов
+    ser = {d: {"2024": {"value": v, "unit": "тыс. кв. м", "url": "u", "fetched_at": "f"}} for d, v in FS_WALLS.items()}
+    for d in list(FS_WALLS)[:4]:
+        ser[d]["2025"] = {"value": 999.0, "unit": "тыс. кв. м", "url": "u", "fetched_at": "f"}   # без глинобитных
+    rr = ae.option_stat_refs(g8["construction"], "reinforced")
+    s1 = ae.factor_stat(rr, ser, "region:TEST", "Тест", ss.DATASETS)
+    ok("factor_stat: кирпич и железобетон (50 + 25) / 100 = 75 %; год — последний, где есть все пять наборов (2024)",
+       s1["available"] and s1["share_pct"] == 75.0 and s1["period"] == "2024" and s1["value"] == 75.0
+       and s1["total"] == 100.0 and s1["kind"] == "walls_share" and s1["calibrated"] == 0
+       and s1["note"] == "фон региона, коэффициент не меняет" and s1["source_ids"] == ["1256", "1258"], s1)
+    s0 = ae.factor_stat(rr, {d: v for d, v in ser.items() if d != "housing_walls_adobe"}, "region:TEST", "Тест",
+                        ss.DATASETS)
+    ok("factor_stat: нет одного из пяти наборов — available false (no_data), доля не выдумывается",
+       s0["available"] is False and s0["reason"] == "no_data" and "housing_walls_adobe" in s0["reason_text"]
+       and "share_pct" not in s0, s0)
+
+    # --- через базу (stat_series копии): выдуманные ряды по регионам
+    with db.tx() as con:
+        _fs_put(con, "region:TOSHKENT", dict(FS_WALLS, gas_supply_share=88.8))
+        _fs_put(con, "region:XORAZM", {"housing_fund_by_walls_brick": 12.0, "housing_walls_raw_brick": 30.0,
+                                       "housing_walls_panel_rc": 3.0, "housing_walls_other": 15.0,
+                                       "housing_walls_adobe": 40.0})
+        _fs_put(con, "region:NAVOIY", {})
+    with db.tx() as con:
+        fa = aa.factor_stats(con, ae.factor_adjust({"walls_special": "adobe", "heating": "stoves"}, t8, None,
+                                                   {"construction": "reinforced"}), "Хорезмская область")
+        fa_t = aa.factor_stats(con, ae.factor_adjust({"heating": "auto"}, t8, None, {"construction": "wood"}),
+                               "Ташкентская область")
+        fa_n = aa.factor_stats(con, ae.factor_adjust({"heating": "central"}, t8, None, {"construction": "reinforced"}),
+                               "Навоийская область")
+        fa_u = aa.factor_stats(con, ae.factor_adjust({}, t8, None, {"construction": "reinforced"}), "Марс")
+    sx = {a["group"]: a.get("stat") for a in fa["applied"]}
+    st_t = {a["group"]: a.get("stat") for a in fa_t["applied"]}
+    ok("Хорезм (выдумано): кирпич + железобетон (12 + 3) / 100 = 15 %, саман (30 + 40) = 70 %; газа в базе нет — "
+       "available false; коэффициенты и множитель прежние (0,9 × 1,25 × 1,3)",
+       sx["construction"]["share_pct"] == 15.0 and sx["walls_special"]["share_pct"] == 70.0
+       and sx["construction"]["region"] == "region:XORAZM" and sx["construction"]["region_name"] == "Хорезмская область"
+       and sx["construction"]["url"] == "https://stat.uz/ru/ofitsialnaya-statistika/environment"
+       and sx["heating"]["available"] is False and sx["heating"]["reason"] == "no_data"
+       and fa["product"] == round(0.9 * 1.25 * 1.3, 4), sx)
+    ok("Ташкентская область (выдумано): дерево → «прочие» 5 / 100 = 5 %; газ — сам показатель 88,8 %",
+       st_t["construction"]["share_pct"] == 5.0 and st_t["construction"]["dataset"] == ["housing_walls_other"]
+       and st_t["heating"]["share_pct"] == 88.8 and st_t["heating"]["kind"] == "value"
+       and st_t["heating"]["period"] == "2025" and st_t["heating"]["url"].startswith("https://stat.uz/"), st_t)
+    ok("Навои без данных — available false с причиной; центральное отопление ссылки на газ не имеет (блока нет); "
+       "регион не опознан — region_unknown",
+       fa_n["applied"][0]["stat"]["available"] is False and fa_n["applied"][0]["stat"]["reason"] == "no_data"
+       and "stat" not in fa_n["applied"][1] and "stat_ref" not in fa_n["applied"][1]
+       and fa_u["applied"][0]["stat"]["reason"] == "region_unknown",
+       (fa_n["applied"], fa_u["applied"][0].get("stat")))
+
+    # --- акт: блок stat в JSON, строка explain и строка раздела 4
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": WH8_MUST,
+                                       "optional": dict(WH8_OPT, class_fields={"heating": "stoves"})})
+    fa = a.get("factor_adjustment") or {}
+    ap = {x["group"]: x for x in fa.get("applied") or []}
+    sb = (ap.get("construction") or {}).get("stat") or {}
+    secs = a.get("sections") or []
+    rows4 = [r_ for r_ in (secs[3].get("rows") or [] if len(secs) > 3 else [])
+             if str(r_.get("label", "")).startswith("Фон региона (stat.uz)")]
+    ok("акт 0807, Ташкентская область: у конструкции блок stat (75 %, 2025, ссылка stat.uz, «фон региона, "
+       "коэффициент не меняет»), у отопления — газ 88,8 %; строки explain и раздела 4",
+       st == 200 and sb.get("available") and sb.get("share_pct") == 75.0 and sb.get("period") == "2025"
+       and sb.get("url") == "https://stat.uz/ru/ofitsialnaya-statistika/environment"
+       and sb.get("note") == "фон региона, коэффициент не меняет"
+       and ap["heating"]["stat"]["share_pct"] == 88.8 and ap["construction"]["coef"] == 0.9
+       and any("По данным stat.uz: Ташкентская область, конец 2025 года" in x and "75,0" in x
+               and "жилищного фонда" in x for x in fa.get("explain") or [])
+       and len(rows4) == 2 and "88,8" in rows4[1]["value"],
+       (st, sb, [r_["label"] for r_ in rows4]))
+    FA_REPORT["фон stat.uz, акт 0807 (выдумано)"] = (sb.get("share_pct"), ap.get("heating", {}).get("stat", {})
+                                                     .get("share_pct"))
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -8559,6 +8688,7 @@ def main():
             bm_aid = check_below_min_act()
             check_min_rates_admin(bm_aid)
             check_factor_groups()
+            check_factor_stat()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:

@@ -4874,6 +4874,25 @@ TX.update({
     "fa_title": {"ru": "Факторы объекта по подгруппам класса", "uz": "Klass kichik guruhlari boʻyicha obyekt omillari",
                  "en": "Object factors by class subgroup"},
     "fa_row": {"ru": "Факторы объекта", "uz": "Obyekt omillari", "en": "Object factors"},
+    # фон региона к фактору (stat_ref, 02.10.2026): открытые наборы stat.uz, коэффициент не меняют
+    "fa_stat_walls": {"ru": "По данным stat.uz: {region}, конец {period} года — стены из материалов «{what}» — {share} "
+                            "жилищного фонда ({url}). Фон региона, коэффициент не меняет.",
+                      "uz": "stat.uz maʼlumotlariga koʻra: {region}, {period} yil oxiri — devorlari «{what}» "
+                            "boʻlgan uylar uy-joy fondining {share} qismi ({url}). Hudud foni, koeffitsiyentni "
+                            "oʻzgartirmaydi.",
+                      "en": "stat.uz data: {region}, end of {period} — walls of “{what}” make up {share} of the "
+                            "housing stock ({url}). Regional background, does not change the coefficient."},
+    "fa_stat_value": {"ru": "По данным stat.uz: {region}, конец {period} года — {what}: {share} ({url}). Фон региона, "
+                            "коэффициент не меняет.",
+                      "uz": "stat.uz maʼlumotlariga koʻra: {region}, {period} yil oxiri — {what}: {share} ({url}). "
+                            "Hudud foni, koeffitsiyentni oʻzgartirmaydi.",
+                      "en": "stat.uz data: {region}, end of {period} — {what}: {share} ({url}). Regional background, "
+                            "does not change the coefficient."},
+    "fa_stat_none": {"ru": "Фон региона по данным stat.uz ({group}) недоступен: {reason}.",
+                     "uz": "stat.uz boʻyicha hudud foni ({group}) mavjud emas: {reason}.",
+                     "en": "stat.uz regional background ({group}) is unavailable: {reason}."},
+    "fa_stat_row": {"ru": "Фон региона (stat.uz): {group}", "uz": "Hudud foni (stat.uz): {group}",
+                    "en": "Regional background (stat.uz): {group}"},
     "fa_row_value": {"ru": "{items}; итоговый множитель {mult}", "uz": "{items}; yakuniy koeffitsiyent {mult}",
                      "en": "{items}; overall multiplier {mult}"},
     "fa_row_none": {"ru": "не заполнены — ставка не меняется", "uz": "toʻldirilmagan — stavka oʻzgarmaydi",

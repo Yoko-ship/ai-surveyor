@@ -724,6 +724,43 @@ def _stat_source(i: dict) -> Optional[dict]:
             "dataset": s.get("id")}
 
 
+def factor_stats(con, fa: Optional[dict], region: Optional[str]) -> Optional[dict]:
+    """
+    Фон региона к факторам объекта (stat_ref групп шаблона 1.4.1, 02.10.2026): у каждого применённого фактора со
+    ссылкой на наборы stat.uz — блок stat (act_engine.factor_stat). Только чтение таблицы stat_series базы, в сеть
+    не ходит; набор не загружен или регион не опознан — stat.available = false с причиной. Коэффициенты и
+    множитель не меняются. Ошибка чтения базы — тоже available = false (акт формируется дальше).
+    """
+    from . import act_engine as ae
+    from . import risk_stats as rs
+    from . import stat_sources as ss
+    items = [a for a in (fa or {}).get("applied") or [] if a.get("stat_ref")]
+    if not items:
+        return fa
+    key = rs._region_key(region) if region else None
+    name = ss.REGION_NAMES_RU.get(key) if key else None
+    ids = sorted({r["dataset_id"] for a in items for r in a["stat_ref"]} | set(ae.WALL_FUND))
+    series = {}
+    err = None
+    if key:
+        try:
+            q = ("SELECT dataset_id, period, value, unit, url, fetched_at FROM stat_series WHERE region=? AND "
+                 "value IS NOT NULL AND dataset_id IN (%s)" % ",".join("?" * len(ids)))
+            for d, per, v, unit, url, fetched in con.execute(q, [key] + ids).fetchall():
+                if re.fullmatch(r"\d{4}", str(per)):           # только годовые значения (наборы — на конец года)
+                    series.setdefault(d, {})[per] = {"value": v, "unit": unit, "url": url, "fetched_at": fetched}
+        except Exception as e:                                  # таблицы нет (старая база) — фон не показываем
+            err = type(e).__name__
+    for a in items:
+        if err:
+            a["stat"] = {"available": False, "reason": "db_error", "reason_text": f"stat_series не прочитана ({err})",
+                         "dataset": [r["dataset_id"] for r in a["stat_ref"]], "note": ae.STAT_NOTE,
+                         "calibrated": ae.CALIBRATED}
+        else:
+            a["stat"] = ae.factor_stat(a["stat_ref"], series, key, name, ss.DATASETS)
+    return fa
+
+
 def fork_data(con, *, cls: str, region: str, group: Optional[str], fs: dict, product_code: Optional[str] = None,
               min_pct: Optional[float] = None, min_source: Optional[str] = None,
               statutory_ref: Optional[str] = None, min_info: Optional[dict] = None) -> dict:

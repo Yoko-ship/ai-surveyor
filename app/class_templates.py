@@ -35,6 +35,9 @@ required_views / clauses / measures (по группе объекта акта �
 optional.location, optional.protection, optional.construction): новые поля выбора — в optional, уже существующие
 (место хранения, защита, конструкция, вид транспорта груза, вид деятельности, территория 18…) — не дублируются, группа
 ссылается на них; варианты группы = options поля (check_factor_groups).
+Файл 1.4.1 (02.10.2026): у групп класса 8 «конструкция», «особенности конструкции» и «отопление» — stat_ref, ссылки на
+открытые наборы stat.uz (материал стен жилищного фонда, обеспеченность газом); проверка — check_stat_ref. Это фон
+региона в акте, коэффициент варианта не меняется (act_analytics.factor_stats).
 Коэффициенты экспертные (calibrated = 0); как они влияют на ставку — act_engine.factor_adjust.
 
 Модуль без HTTP и без сети: чтение файла, таблица, проверка структуры, выдача на языке.
@@ -652,6 +655,41 @@ def check_factor_groups(tpl: dict) -> list:
         if sorted(codes) != sorted(want):
             errs.append(f"{name}.options: варианты группы не совпадают с вариантами поля {f.get('code')} — "
                         f"в группе {', '.join(codes)}; в поле {', '.join(want)}")
+        errs += check_stat_ref(g, codes)
+    return errs
+
+
+def check_stat_ref(g: dict, codes: list) -> list:
+    """
+    Ссылки группы факторов на открытые наборы stat.uz (stat_ref, файл 1.4.1): [{dataset_id, option_codes, label
+    {ru, uz, en}}]. dataset_id — ключ реестра app/stat_sources.DATASETS, option_codes — непустой список вариантов
+    этой группы. Набор — фон региона в акте, коэффициент варианта не меняет. Нет поля — ошибок нет.
+    """
+    refs = g.get("stat_ref")
+    if refs is None:
+        return []
+    name = f"factor_groups.{g.get('code')}.stat_ref"
+    if not isinstance(refs, list) or not refs:
+        return [f"{name}: список {{dataset_id, option_codes, label}}"]
+    from . import stat_sources as ss        # реестр наборов — только словарь, без обращения к сети
+    errs = []
+    for i, r in enumerate(refs):
+        if not isinstance(r, dict):
+            errs.append(f"{name}[{i}]: {{dataset_id, option_codes, label}}")
+            continue
+        ds = r.get("dataset_id")
+        if not isinstance(ds, str) or ds not in ss.DATASETS:
+            errs.append(f"{name}[{i}].dataset_id: набора {json.dumps(ds, ensure_ascii=False)[:60]} нет в реестре "
+                        f"stat_sources.DATASETS")
+        oc = r.get("option_codes")
+        if not isinstance(oc, list) or not oc:
+            errs.append(f"{name}[{i}].option_codes: непустой список вариантов группы")
+        else:
+            bad = [str(x) for x in oc if x not in codes]
+            if bad:
+                errs.append(f"{name}[{i}].option_codes: в группе нет вариантов {', '.join(bad)}")
+        if not _has_ru(r.get("label")):
+            errs.append(f"{name}[{i}].label: подпись ru")
     return errs
 
 
