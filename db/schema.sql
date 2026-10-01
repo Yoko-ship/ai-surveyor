@@ -1353,3 +1353,42 @@ CREATE INDEX IF NOT EXISTS idx_class_templates_class ON class_templates (class_c
 CREATE INDEX IF NOT EXISTS idx_act_uploads_expires ON act_uploads (expires_at);
 CREATE INDEX IF NOT EXISTS idx_acts_expires ON acts (expires_at);
 CREATE INDEX IF NOT EXISTS idx_acts_owner ON acts (owner_key, created_at);
+
+-- ---------------------------------------------------------------------------
+-- Биржевые цены УзРТСБ (uzex.uz): сделки и котировки сырья, материалов, топлива (02.10.2026).
+-- Загрузка — app/uzex_sources.py, выдача и расписание — app/uzex.py, справка в акте — act_analytics.exchange_background.
+-- Ключ: страница + номер контракта + день загрузки. У реестра сделок (/Trade/List) один контракт даёт много сделок
+-- за день, поэтому вместо голого номера — deal_key = номер|дата|количество|сумма|порядковый номер одинаковых
+-- сделок; у котировочного листа deal_key = номер контракта. История не затирается: каждая загрузка — свой день.
+-- price_lot — как у источника (реестр: сумма сделки за всё количество; лист: цена лота «Bazis narxi»),
+-- price_unit = price_lot / lot_qty, price_unit_norm — за приведённую единицу (кг → т, декалитр → л).
+-- trade_date NULL = у страницы нет даты сделки, котировка «на дату загрузки» (date_basis). Людей в таблице нет:
+-- продавцы в названиях лотов — юридические лица.
+CREATE TABLE IF NOT EXISTS exchange_quotes (
+    id              INTEGER PRIMARY KEY,
+    page            TEXT NOT NULL,          -- 'List' | 'ContractsSumNew' | 'ContractsCurrencyNew'
+    contract_no     TEXT,                   -- номер контракта биржи (Shartnoma №)
+    deal_key        TEXT NOT NULL,
+    name            TEXT,                   -- товар как у биржи
+    grp             TEXT NOT NULL,          -- группа товара (uzex_sources.GROUPS)
+    lot_qty         REAL,                   -- количество сделки / размер лота
+    unit            TEXT,                   -- единица у биржи: тонна, килограмм, литр …
+    unit_norm       TEXT,                   -- приведённая: т, л, г, м², м³, шт
+    price_raw       REAL,                   -- число как на странице
+    price_lot       REAL,
+    price_unit      REAL,
+    price_unit_norm REAL,
+    price_basis     TEXT,                   -- что значит цена (проверено сверкой страниц)
+    currency        TEXT,
+    warehouse       TEXT,                   -- место склада (лист котировок)
+    trade_date      TEXT,                   -- дата сделки ISO; NULL — даты у источника нет
+    date_basis      TEXT,                   -- 'дата сделки' | 'на дату загрузки'
+    contract_type   TEXT,                   -- внутренний | экспортный | импортный
+    deal_status     TEXT,
+    fetched_at      TEXT NOT NULL,
+    fetched_date    TEXT NOT NULL,
+    url             TEXT NOT NULL,          -- страница источника (обязательна)
+    UNIQUE (page, deal_key, fetched_date)
+);
+CREATE INDEX IF NOT EXISTS ix_exchange_grp_date ON exchange_quotes(grp, trade_date);
+CREATE INDEX IF NOT EXISTS ix_exchange_page_key ON exchange_quotes(page, deal_key);

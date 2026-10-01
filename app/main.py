@@ -175,6 +175,11 @@ def startup():
         statagency.start_scheduler()
     except Exception as e:                 # модуль или сеть не готовы — сервер всё равно поднимается
         print("расписание агентства статистики не запущено:", e)
+    try:                                   # биржевые цены УзРТСБ (uzex.uz): раз в сутки
+        from . import uzex
+        uzex.start_scheduler()
+    except Exception as e:
+        print("расписание биржевых цен не запущено:", e)
     try:                                   # слежение за законодательством: раз в сутки, 06:30
         from . import lawwatch
         lawwatch.start_scheduler()
@@ -274,7 +279,8 @@ def health():
         updates = {}
         for key, sql in (("market_stats", "SELECT MAX(loaded_at) FROM market_stats"),
                          ("stat_series", "SELECT MAX(fetched_at) FROM stat_series"),
-                         ("lawwatch", "SELECT MAX(last_checked_at) FROM watched_acts")):
+                         ("lawwatch", "SELECT MAX(last_checked_at) FROM watched_acts"),
+                         ("exchange_quotes", "SELECT MAX(fetched_at) FROM exchange_quotes")):
             try:
                 updates[key] = con.execute(sql).fetchone()[0]
             except Exception:
@@ -1039,7 +1045,7 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("knowledge", "knowledge_router"), ("office_api", "office_router"),
                     ("photos", "photos_router"), ("valuation", "valuation_router"),
                     ("docparse", "docparse_router"), ("ingest", "ingest_router"),
-                    ("statagency", "statagency_router"),
+                    ("statagency", "statagency_router"), ("uzex", "uzex_router"),
                     ("approvals", "approvals_router"), ("lawwatch", "lawwatch_router"),
                     ("llm", "llm_router"), ("deploy", "deploy_router"), ("telegram", "telegram_router"),
                     ("tgbot", "tgbot_router"), ("registration", "registration_router"),

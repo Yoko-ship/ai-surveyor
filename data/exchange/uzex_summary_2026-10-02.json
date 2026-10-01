@@ -1,0 +1,597 @@
+{
+ "fetched": "2026-10-02",
+ "source": "uzex.uz /Trade/List",
+ "period_days": 30,
+ "db": "копия базы (не рабочая)",
+ "items": [
+  {
+   "group": "diesel",
+   "group_label": "дизельное топливо",
+   "unit": "т",
+   "median_unit_price": 16789000.0,
+   "min": 163350.0,
+   "max": 23450000.0,
+   "deals": 2546,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "diesel",
+   "group_label": "дизельное топливо",
+   "unit": "л",
+   "median_unit_price": 16500.01,
+   "min": 15700.0,
+   "max": 48000.0,
+   "deals": 27,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "diesel",
+   "group_label": "дизельное топливо",
+   "unit": "шт",
+   "median_unit_price": 4350000.0,
+   "min": 700000.0,
+   "max": 8000000.0,
+   "deals": 2,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-25",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "petrol",
+   "group_label": "бензин",
+   "unit": "т",
+   "median_unit_price": 13385000.0,
+   "min": 13175000.0,
+   "max": 23850775.0,
+   "deals": 2581,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "petrol",
+   "group_label": "бензин",
+   "unit": "л",
+   "median_unit_price": 11800.0,
+   "min": 11800.0,
+   "max": 11800.0,
+   "deals": 1,
+   "first_date": "2026-09-28",
+   "last_date": "2026-09-28",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "heating_oil",
+   "group_label": "печное топливо",
+   "unit": "т",
+   "median_unit_price": 8033024.97,
+   "min": 7860024.97,
+   "max": 12490099.9,
+   "deals": 24,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "fuel_other",
+   "group_label": "прочее топливо (газ, уголь, авиатопливо, мазут)",
+   "unit": "т",
+   "median_unit_price": 10459499.0,
+   "min": 4730.0,
+   "max": 22511000.0,
+   "deals": 648,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "oils",
+   "group_label": "масла и смазки",
+   "unit": "т",
+   "median_unit_price": 18810000.0,
+   "min": 17606999.9,
+   "max": 65000000.0,
+   "deals": 23,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "oils",
+   "group_label": "масла и смазки",
+   "unit": "шт",
+   "median_unit_price": 1800000.0,
+   "min": 1098000.0,
+   "max": 13794000.0,
+   "deals": 15,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-29",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "oils",
+   "group_label": "масла и смазки",
+   "unit": "л",
+   "median_unit_price": 86440.0,
+   "min": 22300.0,
+   "max": 117200.0,
+   "deals": 10,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "oils",
+   "group_label": "масла и смазки",
+   "unit": "метр",
+   "median_unit_price": 90450.0,
+   "min": 90450.0,
+   "max": 90450.0,
+   "deals": 1,
+   "first_date": "2026-09-29",
+   "last_date": "2026-09-29",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "metal",
+   "group_label": "металл, арматура, прокат",
+   "unit": "т",
+   "median_unit_price": 8610010.0,
+   "min": 75315.5,
+   "max": 86000000.0,
+   "deals": 189,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "metal",
+   "group_label": "металл, арматура, прокат",
+   "unit": "метр",
+   "median_unit_price": 411424.5,
+   "min": 14507.0,
+   "max": 5101536.0,
+   "deals": 14,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "metal",
+   "group_label": "металл, арматура, прокат",
+   "unit": "м²",
+   "median_unit_price": 335000.0,
+   "min": 335000.0,
+   "max": 335000.0,
+   "deals": 3,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-28",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "metal",
+   "group_label": "металл, арматура, прокат",
+   "unit": "рулон",
+   "median_unit_price": 410000.0,
+   "min": 410000.0,
+   "max": 410000.0,
+   "deals": 1,
+   "first_date": "2026-09-28",
+   "last_date": "2026-09-28",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "nonferrous",
+   "group_label": "цветные металлы",
+   "unit": "т",
+   "median_unit_price": 183972817.0,
+   "min": 2300000.0,
+   "max": 187819000.0,
+   "deals": 134,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "cement",
+   "group_label": "цемент",
+   "unit": "т",
+   "median_unit_price": 590505.0,
+   "min": 6195.0,
+   "max": 2600016.0,
+   "deals": 693,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "grain",
+   "group_label": "мука и зерно",
+   "unit": "т",
+   "median_unit_price": 3211880.0,
+   "min": 784.0,
+   "max": 14550000.0,
+   "deals": 1334,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "cotton",
+   "group_label": "хлопок",
+   "unit": "т",
+   "median_unit_price": 194080.75,
+   "min": 470.0,
+   "max": 19500000.0,
+   "deals": 149,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "chemicals",
+   "group_label": "химия и удобрения",
+   "unit": "т",
+   "median_unit_price": 9775390.0,
+   "min": 495005.0,
+   "max": 140000000.0,
+   "deals": 3176,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "chemicals",
+   "group_label": "химия и удобрения",
+   "unit": "л",
+   "median_unit_price": 125250.0,
+   "min": 25000.0,
+   "max": 350000.0,
+   "deals": 108,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "chemicals",
+   "group_label": "химия и удобрения",
+   "unit": "шт",
+   "median_unit_price": 169999.0,
+   "min": 12500.0,
+   "max": 1722036.0,
+   "deals": 47,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "chemicals",
+   "group_label": "химия и удобрения",
+   "unit": "г",
+   "median_unit_price": 1274.72,
+   "min": 501.0,
+   "max": 6150.0,
+   "deals": 8,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "chemicals",
+   "group_label": "химия и удобрения",
+   "unit": "м³",
+   "median_unit_price": 9023.29,
+   "min": 8286.43,
+   "max": 9142.86,
+   "deals": 5,
+   "first_date": "2026-09-28",
+   "last_date": "2026-09-29",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "т",
+   "median_unit_price": 12400000.0,
+   "min": 4000.0,
+   "max": 389200000.0,
+   "deals": 493,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "м²",
+   "median_unit_price": 38830.83,
+   "min": 19500.0,
+   "max": 160255.02,
+   "deals": 142,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "шт",
+   "median_unit_price": 2450.0,
+   "min": 1736.0,
+   "max": 1400000.0,
+   "deals": 75,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "г",
+   "median_unit_price": 1510144.5,
+   "min": 24184.0,
+   "max": 1623493.05,
+   "deals": 69,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "л",
+   "median_unit_price": 36430.0,
+   "min": 364.34,
+   "max": 380000.0,
+   "deals": 43,
+   "first_date": "2026-09-25",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "метр",
+   "median_unit_price": 900000.0,
+   "min": 14000.0,
+   "max": 900000.0,
+   "deals": 15,
+   "first_date": "2026-09-28",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  },
+  {
+   "group": "other",
+   "group_label": "прочее",
+   "unit": "м³",
+   "median_unit_price": 4250000.0,
+   "min": 4250000.0,
+   "max": 4250000.0,
+   "deals": 1,
+   "first_date": "2026-09-30",
+   "last_date": "2026-09-30",
+   "currency": "UZS",
+   "period": {
+    "from": "2026-09-02",
+    "to": "2026-10-02",
+    "days": 30
+   },
+   "url": "https://uzex.uz/Trade/List",
+   "source": "uzex.uz"
+  }
+ ]
+}

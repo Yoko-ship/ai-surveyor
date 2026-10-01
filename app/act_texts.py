@@ -5003,3 +5003,21 @@ TX.update({
                                                                                  "(ekspert baho)",
                        "en": "class template: factor groups (expert)"},
 })
+
+
+# справка биржи УзРТСБ в разделе 3 (02.10.2026, app/uzex.py, act_analytics.exchange_background)
+TX.update({
+    "ex_label": {"ru": "Справка биржи УзРТСБ", "uz": "UzRTXB birja maʼlumotnomasi", "en": "UzRCE exchange reference"},
+    "ex_item": {"ru": "{group} — медиана {price}/{unit} по {n} сделкам, последняя дата {date}",
+                "uz": "{group} — mediana {price}/{unit}, {n} ta bitim, oxirgi sana {date}",
+                "en": "{group} — median {price}/{unit} over {n} deals, last date {date}"},
+    "ex_text": {"ru": "{items}; источник uzex.uz", "uz": "{items}; manba uzex.uz", "en": "{items}; source uzex.uz"},
+    "ex_note": {"ru": "биржевые цены реальных сделок, для сверки стоимости запасов/грузов; стоимость объекта не меняет",
+                "uz": "real bitimlarning birja narxlari, zaxira/yuk qiymatini solishtirish uchun; obyekt qiymatini "
+                      "oʻzgartirmaydi",
+                "en": "exchange prices of actual deals, to cross-check the value of stock/cargo; the object value "
+                      "is unchanged"},
+    "ex_src": {"ru": "Справка биржи: реестр сделок УзРТСБ за {days} дней — {url}",
+               "uz": "Birja maʼlumotnomasi: UzRTXB bitimlar reyestri, {days} kun — {url}",
+               "en": "Exchange reference: UzRCE deal register, {days} days — {url}"},
+})

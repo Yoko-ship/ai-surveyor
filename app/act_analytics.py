@@ -924,3 +924,103 @@ def build(con, ctx: dict, *, cls: str, product_code: Optional[str], region: str,
         assumptions=list(ctx.get("assumptions") or []),
     )
     return out
+
+
+# ================================================================================================
+#  Справка биржи УзРТСБ (uzex.uz) для запасов, грузов и материалов — только чтение exchange_quotes
+# ================================================================================================
+EXCHANGE_CLASSES = ("7", "8", "9", "16")
+EXCHANGE_DAYS = 30
+EXCHANGE_MAX_ITEMS = 4
+EXCHANGE_NOTE = "биржевые цены реальных сделок, для сверки стоимости запасов/грузов; стоимость объекта не меняет"
+# вид груза класса 7 (шаблон, поле cargo_group) → группы товаров биржи; хрупкий, скоропортящийся и дорогой
+# груз (техника, продукты, табак) на бирже не торгуется — справки нет
+EXCHANGE_CARGO = {"bulk": ["diesel", "petrol", "cement", "grain"], "dangerous": ["chemicals", "fuel_other"],
+                  "general": ["metal"], "oversized": ["metal"],
+                  "fuel": ["diesel", "petrol", "heating_oil"], "топливо": ["diesel", "petrol", "heating_oil"]}
+# подгруппа объекта классов 8/9 (поле object_group) → группы товаров
+EXCHANGE_OBJECT_GROUP = {"agro": ["grain", "cotton"], "energy": ["diesel", "fuel_other"]}
+EXCHANGE_STOCK_KINDS = ("warehouse", "production")
+EXCHANGE_STOCK_GROUPS = ("warehouse", "production", "agro", "energy", "liquid_goods")
+EXCHANGE_DEFAULT = ["diesel", "metal", "cement"]      # вид запасов не указан — основные биржевые материалы
+_STOCK_TEXT = re.compile(r"склад|производ|цех|завод|фабрик|запас|сырь|ombor|ishlab chiqarish", re.I)
+
+
+def _exchange_text(fields: Optional[dict], *extra) -> str:
+    vals = [str(v) for v in (fields or {}).values() if isinstance(v, str)]
+    return " ".join(vals + [str(x) for x in extra if x])
+
+
+def _exchange_wanted(cls: str, kind: Optional[str], fields: Optional[dict], text: str) -> tuple:
+    """(группы, на чём основан выбор) для одного класса; ([], None) — справка классу не нужна."""
+    from . import uzex_sources as us
+    cls = str(cls or "").strip()
+    if cls not in EXCHANGE_CLASSES:
+        return [], None
+    fields = fields or {}
+    named = us.groups_in_text(text)
+    if cls == "7":
+        if named:
+            return named, "text"
+        cg = str(fields.get("cargo_group") or "").strip().lower()
+        return (list(EXCHANGE_CARGO[cg]), "cargo_group") if cg in EXCHANGE_CARGO else ([], None)
+    if cls in ("8", "9"):
+        og = str(fields.get("object_group") or "").strip().lower()
+        stock = kind in EXCHANGE_STOCK_KINDS or og in EXCHANGE_STOCK_GROUPS or bool(_STOCK_TEXT.search(text))
+        if not stock:
+            return [], None
+        if named:
+            return named, "text"
+        if og in EXCHANGE_OBJECT_GROUP:
+            return list(EXCHANGE_OBJECT_GROUP[og]), "object_group"
+        return list(EXCHANGE_DEFAULT), "default"
+    # 16 — перерыв в производстве: сырьё и топливо производства
+    if named:
+        return named, "text"
+    return list(EXCHANGE_DEFAULT), "default"
+
+
+def exchange_background(con, cls, object_kind: Optional[str] = None, parts: Optional[list] = None,
+                        class_fields: Optional[dict] = None, text: str = "", days: int = EXCHANGE_DAYS,
+                        as_of: Optional[str] = None) -> dict:
+    """
+    Справка биржи УзРТСБ к стоимости запасов, грузов и материалов (классы 7, 8, 9, 16). Только чтение базы
+    (exchange_quotes, загрузка — app/uzex.py); в сеть не ходит, ставку и стоимость объекта не меняет.
+    parts — части комплексного продукта ({class_code, object_kind, object_description, fields}): справка по каждой.
+    Нет подходящего класса или нет сделок за days дней — available = false, без пояснений в акте.
+    """
+    from . import uzex_sources as us
+    targets = [(str(cls or ""), object_kind, class_fields or {}, _exchange_text(class_fields, text))]
+    for p in parts or []:
+        targets.append((str(p.get("class_code") or ""), p.get("object_kind"), p.get("fields") or {},
+                        _exchange_text(p.get("fields"), p.get("object_description"), text)))
+    wanted, basis = [], None
+    for c, k, f, tx_ in targets:
+        gs, b = _exchange_wanted(c, k, f, tx_)
+        for g in gs:
+            if g not in wanted:
+                wanted.append(g)
+        if gs and (basis is None or basis == "default"):
+            basis = b
+    out = {"available": False, "items": [], "basis": basis, "days": int(days), "note": EXCHANGE_NOTE,
+           "source": us.SOURCE, "source_name": us.SOURCE_NAME, "url": us.BASE + us.PAGES["List"]["path"],
+           "calibrated": CALIBRATED}
+    if not wanted:
+        out["reason"] = "not_relevant"
+        return out
+    rows = us.summary(con, days=days, as_of=as_of, groups=wanted)
+    best = {}
+    for r in rows:                                   # у группы — единица с наибольшим числом сделок
+        if r["group"] not in best or r["deals"] > best[r["group"]]["deals"]:
+            best[r["group"]] = r
+    items = [{"group": g, "group_label": best[g]["group_label"], "median_unit_price": best[g]["median_unit_price"],
+              "unit": best[g]["unit"], "deals": best[g]["deals"], "last_date": best[g]["last_date"],
+              "first_date": best[g]["first_date"], "min": best[g]["min"], "max": best[g]["max"],
+              "currency": "UZS", "url": best[g]["url"]}
+             for g in wanted if g in best][:EXCHANGE_MAX_ITEMS]
+    if not items:
+        out["reason"] = "no_data"
+        return out
+    out.update(available=True, items=items, groups_requested=wanted,
+               period={"days": int(days), "to": as_of or date.today().isoformat()})
+    return out

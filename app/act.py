@@ -3425,6 +3425,17 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     # тип объекта, на котором посчитана аналитика, и откуда он (default — принят по умолчанию)
     analytics["object_type"] = (ctx.get("must") or {}).get("object_type") if ctx.get("ok") else None
     analytics["object_type_source"] = (ctx.get("sources") or {}).get("object_type")
+    # справка биржи УзРТСБ (02.10.2026): классы 7, 8, 9, 16 — медианы сделок uzex.uz из exchange_quotes (только
+    # чтение); стоимость объекта и ставку не меняет. Нет данных — available = false, в акте ничего не пишется
+    try:
+        exchange = aa.exchange_background(
+            con, cls, kind, clean.get("parts"), o.get("class_fields"),
+            text=" ".join(str(x) for x in (obj_doc.get("original"), obj_doc.get("translated"), o.get("object_type"))
+                          if x))
+    except Exception as e:               # справка не собрана — акт всё равно формируется
+        block_errors.append({"block": "exchange", "error": type(e).__name__})
+        exchange = {"available": False, "reason": "error", "items": []}
+    analytics["exchange"] = exchange
 
     present = {r["key"] for r in recognized if r.get("value")}
     if any(r["key"] == "manufacture_date" for r in recognized) or o.get("year"):
@@ -3515,6 +3526,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         "contract": ct, "contract_check": cc, "cross_check": xc,
         # дополнения 30.09.2026: аналитика раздела 4, описание объекта из документа, адрес объекта
         "analytics": analytics, "object_doc": obj_doc,
+        "exchange": exchange,
         "object_facts": {"address": ((upload.get("contract") or {}).get("fields") or {}).get("address")},
         # шаблон анализа класса (30.09.2026): версия и то, что акт из него взял; подписи — на языке при выдаче
         "template": _template_block(tpl_row, group, group_ra, views_req, clause_codes, tpl_risks, scen,
@@ -5458,7 +5470,12 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     if PV:
         rows3 += PV["s3_rows"]
         p3 += PV["s3_paragraphs"]
-    s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3, "source_lines": mv["source_lines"],
+    EX = _exchange_view(D, lang)
+    src3 = list(mv["source_lines"])
+    if EX["row"]:
+        rows3.append(EX["row"])
+        src3.append(EX["source_line"])
+    s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3, "source_lines": src3,
           "lists": mv["lists"]}
 
     # ---------- раздел 4 ----------
@@ -5676,7 +5693,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         "scenarios": scv["json"],
         # аналитика раздела 4 (30.09.2026): риски, факторы, чувствительность, состав тарифа, сценарии подробно,
         # удержание, балл, рынок и статистика с источниками, франшиза справочно, мероприятия, резюме
-        "analytics": anv["json"],
+        "analytics": dict(anv["json"] or {}, exchange=EX["json"]),
         "measures": [m["json"] for m in msv["items"]],
         "measures_summary": msv["summary"],
         "clauses": [{"code": c["code"], "text": c.get(lang) or c.get("ru"), "expert": True,
@@ -6055,6 +6072,27 @@ def money_k(v, lang: str) -> str:
         return money(x, lang)
     cur = {"ru": "сум", "uz": "soʻm", "en": "UZS"}[tx.lang_of(lang)]
     return tx._num(x, tx.lang_of(lang), 2) + tx.NBSP + cur
+
+
+def _exchange_view(D: dict, lang: str) -> dict:
+    """Справка биржи УзРТСБ для раздела 3: строка, строка источника (ссылка обязательна) и блок для ответа.
+    Акты до 02.10.2026 справки не имеют — available = false."""
+    ex = D.get("exchange") or (D.get("analytics") or {}).get("exchange") or {"available": False, "items": []}
+    items = [i for i in ex.get("items") or [] if i.get("url")] if ex.get("available") else []
+    if not items:
+        return {"row": None, "source_line": None, "json": dict(ex, available=False, text=None)}
+    from . import uzex_sources as us
+    parts = []
+    for i in items:
+        unit = (us.UNIT_LABELS.get(i["unit"]) or {}).get(tx.lang_of(lang)) or i["unit"]
+        parts.append(t("ex_item", lang, group=us.group_label(i["group"], tx.lang_of(lang)),
+                       price=money(i["median_unit_price"], lang), unit=unit, n=i["deals"],
+                       date=_ddmmyyyy(i["last_date"])))
+    text = t("ex_text", lang, items="; ".join(parts))
+    url = ex.get("url") or items[0]["url"]
+    line = t("ex_src", lang, url=url, days=ex.get("days") or 30)
+    return {"row": _row(t("ex_label", lang), text, t("ex_note", lang)), "source_line": line,
+            "json": dict(ex, text=text, source_line=line)}
 
 
 def _premium_final(D: dict) -> dict:

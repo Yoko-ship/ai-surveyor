@@ -8591,6 +8591,68 @@ def check_factor_stat():
                                                      .get("share_pct"))
 
 
+def check_exchange():
+    print("47. Справка биржи УзРТСБ (uzex.uz) в разделе 3: акт 0701, груз — дизельное топливо; выдуманные строки "
+          "exchange_quotes в копии базы; без строк — available false")
+    from datetime import timedelta
+    from app import uzex_sources as us
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    body = {"lang": "ru", "must": {"product_code": "0701", "sum_insured": 800_000_000, "object_value": 800_000_000,
+                                   "region": "Ташкент"},
+            "optional": {"class_fields": {"cargo_kind": "дизельное топливо", "cargo_group": "bulk",
+                                          "transport_mode": "auto", "route": "Навои — Ташкент"}}}
+    with db.tx() as con:
+        con.execute("DELETE FROM exchange_quotes")
+    st, a0 = call("POST", "/act/make", body)
+    ex0 = (a0.get("analytics") or {}).get("exchange") if isinstance(a0, dict) else None
+    ok("без строк биржи: акт 200, analytics.exchange.available = false (no_data), в разделе 3 справки нет",
+       st == 200 and ex0 and ex0["available"] is False and ex0.get("reason") == "no_data"
+       and "Справка биржи" not in all_text(a0), (st, ex0))
+    rows = []
+    for i, (price, days_ago) in enumerate(((14_200_000, 1), (14_800_000, 2), (14_500_000, 3))):
+        td = (date.today() - timedelta(days=days_ago)).isoformat()
+        rows.append({"page": "List", "contract_no": "9%d" % i, "deal_key": "9%d|%s|60|x|1" % (i, td),
+                     "name": "Дизельное топливо ЭКО (тест)", "grp": "diesel", "lot_qty": 60, "unit": "тонна",
+                     "unit_norm": "т", "price_raw": price * 60, "price_lot": price * 60, "price_unit": price,
+                     "price_unit_norm": price, "price_basis": "тест", "currency": "UZS", "warehouse": None,
+                     "trade_date": td, "date_basis": us.DATE_DEAL, "contract_type": "внутренний",
+                     "deal_status": None, "fetched_at": db.now(), "fetched_date": date.today().isoformat(),
+                     "url": us.page_url("List")})
+    with db.tx() as con:
+        us.save_rows(con, rows)
+    st, a = call("POST", "/act/make", body)
+    ex = a["analytics"]["exchange"]
+    it = (ex.get("items") or [{}])[0]
+    s3 = a["sections"][2]
+    row = next((r for r in s3["rows"] if r["label"] == "Справка биржи УзРТСБ"), None)
+    ok("со строками: справка есть — дизельное топливо, медиана 14 500 000 сум/т по 3 сделкам, ссылка uzex.uz, "
+       "пометка «стоимость объекта не меняет»",
+       st == 200 and ex["available"] and it.get("group") == "diesel" and it.get("median_unit_price") == 14_500_000
+       and it.get("deals") == 3 and it.get("url", "").startswith("https://uzex.uz/")
+       and "стоимость объекта не меняет" in ex["note"], ex)
+    ok("раздел 3: строка «Справка биржи УзРТСБ: дизельное топливо — медиана 14 500 000 сум/т по 3 сделкам, последняя "
+       "дата …, источник uzex.uz» и строка источника со ссылкой",
+       row is not None and "дизельное топливо — медиана 14 500 000 сум/т по 3 сделкам" in row["value"]
+       and (date.today() - timedelta(days=1)).strftime("%d.%m.%Y") in row["value"] and "uzex.uz" in row["value"]
+       and any("https://uzex.uz/Trade/List" in ln for ln in s3["source_lines"]), (row, s3["source_lines"]))
+    ok("стоимость объекта и ставка от справки не зависят",
+       a["value"]["ratio_pct"] == a0["value"]["ratio_pct"] and a["rate"]["applied_pct"] == a0["rate"]["applied_pct"])
+    st, au = call("POST", "/act/make", dict(body, lang="uz"))
+    ok("на узбекском — справка тоже есть, без кириллицы в подписи",
+       st == 200 and au["analytics"]["exchange"]["available"]
+       and not _cyr(next(r["label"] for r in au["sections"][2]["rows"] if "birja" in r["label"])))
+    off = dict(body, optional={"class_fields": {"cargo_kind": "смартфоны", "cargo_group": "valuable",
+                                                "transport_mode": "auto", "route": "Ташкент — Самарканд"}})
+    st, a2 = call("POST", "/act/make", off)
+    ok("груз «смартфоны» — справка не нужна (not_relevant), в разделе 3 её нет",
+       st == 200 and a2["analytics"]["exchange"]["available"] is False
+       and a2["analytics"]["exchange"]["reason"] == "not_relevant" and "Справка биржи" not in all_text(a2))
+    with db.tx() as con:
+        con.execute("DELETE FROM exchange_quotes")
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -8689,6 +8751,7 @@ def main():
             check_min_rates_admin(bm_aid)
             check_factor_groups()
             check_factor_stat()
+            check_exchange()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
