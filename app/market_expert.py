@@ -13,7 +13,11 @@
   memory    — память диалога в процессе: последние 8 реплик на сессию, срок 2 часа. В базу текст
               реплик не попадает (там по-прежнему только отпечаток вопроса — legal.log_question).
 
-Данные (только чтение): market_stats (отчёты НАПП, tools/market_stats.py), company_financials,
+Финансы страховщиков (с 03.10.2026): активы, капитал, резервы, прибыль, рентабельность, претензии и отказы,
+число договоров, карточка компании («расскажи про INSON») — из company_rankings (рэнкинг snsratings.uz,
+tools/ranking_parse.py): значение, место, доля, изменение к прошлому году и источник «Рэнкинг snsratings.uz».
+
+Данные (только чтение): market_stats (отчёты НАПП, tools/market_stats.py), company_financials, company_rankings,
 docs/market_facts.json (если есть — подхватывается по mtime). Формулы те же, что в app/market_picture.py:
   убыточность, % = выплаты с начала года / премии с начала года × 100;
   годовая ставка, % = премии с начала года × 12 / месяцев среза / обязательства на дату × 100;
@@ -34,6 +38,7 @@ from typing import Optional
 
 from . import db, llm
 from . import market_picture as mp
+from . import rankings as rk
 
 ROOT = Path(__file__).resolve().parent.parent
 FACTS_FILE = ROOT / "docs" / "market_facts.json"
@@ -212,6 +217,42 @@ CLASS_DIM_WORDS = ("классы", "классам", "класса", "по кл�
 QUANTITY = ("сколько", "объем", "объём", "итог", "how much", "volume", "total", "qancha", "hajm", "jami")
 AGO_WORDS = ("год назад", "прошл", "предыдущ", "year ago", "last year", "previous year", "prior year",
              "otgan yil", "bir yil oldin", "oldingi yil")
+# Финансы страховщиков (company_rankings, рэнкинг snsratings.uz): слово → показатели (первый — главный)
+FIN_WORDS = [
+    (("уставн капитал", "уставный капитал", "уставного капитал", "акционерн", "share capital", "ustav kapital",
+      "ustav fond", "aksiyador"), ["share_capital", "total_capital"]),
+    (("капитал", "kapital", "capital", "equity"), ["total_capital", "share_capital"]),
+    (("актив", "aktiv", "asset"), ["total_assets"]),
+    (("резерв", "zaxira", "reserve"), ["reserves_net", "reserves_gross"]),
+    (("рентабельн", "доходность капитал", "roe", "roa", "rentabel", "profitability", "return on"),
+     ["roe", "roa", "roe_share_capital"]),
+    (("прибыл", "убыток", "убытк", "foyda", "profit", "net income"), ["net_profit", "profit_before_tax"]),
+    (("претензи", "davo", "claims received", "number of claims", "complaint"),
+     ["claims_received", "claims_paid_count", "claims_refused", "claims_unsettled", "refused_to_claims"]),
+    (("отказ", "отказан", "rad etil", "rad qilin", "refus", "rejected", "denied"),
+     ["claims_refused", "refused_to_claims", "claims_received"]),
+    (("выручк", "tushum", "revenue"), ["net_revenue"]),
+    (("инвестиц", "investitsiya", "investment"), ["total_investments", "short_term_investments",
+                                                   "long_term_investments"]),
+    (("денежн средств", "денежные средства", "pul mablag", "cash"), ["cash"]),
+    (("дебитор", "debitor", "receivable"), ["short_term_receivables", "insurance_receivables"]),
+    (("подразделени", "филиал", "filial", "bolinma", "branches"), ["branches"]),
+    (("административн", "mamuriy", "admin expense", "administrative"), ["admin_expenses", "admin_to_period_expenses"]),
+    (("страховые обязательств", "страховых обязательств", "insurance liabilit", "sugurta majburiyat"),
+     ["insurance_liabilities"]),
+]
+# «договоры» — показатель только с «сколько / количество / число»: иначе вопрос о праве
+CONTRACT_WORDS = ("договор", "shartnoma", "contract", "polis")
+COUNT_WORDS = ("сколько", "количеств", "число", "how many", "number of", "qancha", "nechta", "soni")
+# неоднозначные слова («отказ», «претензия»): при правовом обороте вопрос не о статистике
+LEGAL_VERB = ("вправе", "может ли", "можно ли", "должен", "обязан", "почему", "как оформ", "как подать",
+              "как обжал", "что делать", "как быть", "жалоб", "в суд", "huquq", "mumkinmi", "nima qilish",
+              "can the", "may the", "how to", "what to do")
+AMBIG_FIN = ("отказ", "претензи", "davo", "rad etil", "rad qilin", "refus", "rejected", "denied", "complaint")
+CARD_WORDS = ("расскажи про", "расскажи о", "расскажите про", "расскажите о", "о компании", "про компанию",
+              "карточк", "профиль компании", "финансы компании", "финансовое состояние", "финансовые показател",
+              "что известно о", "обзор компании", "tell me about", "about the company", "company profile",
+              "financials of", "haqida", "moliyaviy holat", "moliyaviy korsatkich")
 
 
 # --------------------------------------------------------------------------- #
@@ -239,6 +280,19 @@ def companies(con) -> list:
         if "qayta" in base.split():
             words.add("uzre")          # «O'zbekiston qayta sug'urta»: «qayta» — обычное узбекское слово
         out.append({"row_key": r["row_key"], "name": _pretty(r["row_name"]), "words": words, "base": base})
+    # страховщики из рэнкинга, которых нет в отчётах НАПП market_stats (жизнь и др.): ключ по тому же правилу
+    have = {c["row_key"] for c in out}
+    if _has_table(con, "company_rankings"):
+        for r in _rows(con, "SELECT company, MAX(company_raw) AS raw FROM company_rankings WHERE company<>'ВСЕГО' "
+                            "GROUP BY company"):
+            key = "company:" + r["company"]
+            if key in have:
+                continue
+            base = nrm(r["company"])
+            words = {t for t in re.split(r"[^0-9a-z\-]+", base) if t and t not in LEGAL_FORM and len(t) >= 3}
+            words |= {t for t in re.split(r"[^0-9a-z]+", base) if t and t not in LEGAL_FORM and len(t) >= 3}
+            name = re.sub(r"\s+AJ$", "", r["company"]).replace("'", "ʻ")
+            out.append({"row_key": key, "name": "«%s» AJ" % name, "words": words, "base": base})
     return out
 
 
@@ -511,6 +565,8 @@ def match_facts(intent: dict, entity: Optional[dict], date: Optional[str], found
         seen.add(sig)
         if found and f.get("metric") in DUP_METRICS:
             continue
+        if f.get("topic") == "company_finance":
+            continue                     # рэнкинг snsratings — не «сводка НАПП»: его отвечает answer_fin
         if not _fact_entity_ok(f, entity, intent):
             continue
         if found and date and f.get("source_date") != date and f.get("topic") != "участники рынка":
@@ -559,8 +615,26 @@ def _find_class(q: str) -> tuple:
     return None, False, False
 
 
+# «капитал» — и показатель, и название страховщика KAPITAL SUG'URTA: «капитал APEX» — это APEX
+CAPITAL_TOKENS = ("капитал", "kapital", "capital")
+
+
 def _find_company(con, q: str) -> Optional[dict]:
     toks = _tokens(q)
+    if any(t.startswith(CAPITAL_TOKENS) for t in toks):
+        rest = " ".join(t for t in toks if not t.startswith(CAPITAL_TOKENS))
+        other = _find_company_toks(con, rest, _tokens(rest)) if rest else None
+        if other and not other["key"].startswith("company:KAPITAL"):
+            return other
+        # «у кого больше всего капитала», «рейтинг по капиталу» — показатель, а не KAPITAL SUG'URTA
+        insurer_word = any(t.startswith(("sugurta", "сугурт", "страхов", "insurance")) for t in toks)
+        if not other and not insurer_word and (_has(q, RANK_WORDS) or "у кого" in q or "больше всего" in q
+                                               or "eng kop" in q):
+            return None
+    return _find_company_toks(con, q, toks)
+
+
+def _find_company_toks(con, q: str, toks: list) -> Optional[dict]:
     alias = set()
     for a, w in COMPANY_ALIASES.items():
         if " " in a:
@@ -669,6 +743,31 @@ def ru_query(question: str, lang: str) -> str:
     return " ".join(words) or question
 
 
+def _fin_codes(q: str, comp: Optional[dict]) -> list:
+    """Показатели рэнкинга, о которых спрашивают: «активы», «капитал», «резервы», «претензии», «отказы»…"""
+    codes = []
+    legal_verb = any(v in q for v in LEGAL_VERB) or _has(q, tuple(w for w in LEGAL_MARK
+                                                                if w not in ("договор", "shartnoma", "contract")))
+    for words, cs in FIN_WORDS:
+        if not _has(q, words):
+            continue
+        if legal_verb and _has(q, AMBIG_FIN) and set(cs) & {"claims_received", "claims_refused"}:
+            continue                            # «может ли страховщик отказать…» — вопрос о праве
+        if cs[0] == "total_capital" and comp and comp["key"].startswith("company:KAPITAL") \
+                and sum(t.startswith(CAPITAL_TOKENS) for t in _tokens(q)) < 2:
+            continue                            # «капитал» здесь — название KAPITAL SUG'URTA
+        if cs[0] == "total_capital" and "share_capital" in codes:
+            continue                            # «уставный капитал» уже распознан
+        for c in cs:
+            if c not in codes:
+                codes.append(c)
+    if _has(q, CONTRACT_WORDS) and _has(q, COUNT_WORDS) and not legal_verb:
+        for c in ("contracts_active", "contracts_new"):
+            if c not in codes:
+                codes.append(c)
+    return codes
+
+
 def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=None) -> dict:
     """Вопрос о рынке? → {is_market, entity, metric, rank, dim, year, ago, follow_up, strong}."""
     q = nrm(question)
@@ -686,6 +785,7 @@ def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=Non
         "class" if _has(q, CLASS_DIM_WORDS) and not cls_key else None)
     year, ago = _year(q), _has(q, AGO_WORDS)
     definition = any(q.startswith(d) or (" " + d) in q for d in DEFINITION)
+    fin, card = _fin_codes(q, comp), bool(comp) and _has(q, CARD_WORDS)
 
     entity = None
     if comp:
@@ -718,6 +818,11 @@ def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=Non
     elif comp and metric is None and _has(q, ("сколько", "how much", "qancha", "показател", "итоги", "results",
                                              "natija")):
         is_market = True
+    if not definition and (card or (fin and comp)):
+        is_market = True                        # финансы компании или её карточка — из рэнкинга
+    elif fin and not comp and not definition and (rank or market_word or "у кого" in q or "больше всего" in q
+                                                  or "eng kop" in q or "most" in _tokens(q)):
+        is_market, rank = True, True            # «у кого больше всего капитала» — рейтинг из рэнкинга
 
     follow = False
     words_n = len(_tokens(q))
@@ -731,13 +836,13 @@ def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=Non
                and not rank and (any(q.startswith(s) for s in FOLLOW_START) or words_n <= 4))
     # условия продуктов других страховщиков: цифры рынка (премии, убыточность…) не перекрывают этот смысл
     competitor = competitor_intent(q, comp) and metric not in ("premiums", "payouts", "loss_ratio", "share",
-                                                                "growth", "own_funds")
+                                                                "growth", "own_funds") and not fin and not card
     if competitor:
         is_market = clarify = follow = False
     return {"is_market": is_market, "clarify": clarify, "competitor": competitor,
             "entity": entity, "metric": metric, "rank": rank, "dim": dim,
             "year": year, "ago": ago, "follow_up": follow, "definition": definition,
-            "market_word": market_word}
+            "market_word": market_word, "fin": fin, "card": card}
 
 
 def resolve(intent: dict, last: Optional[dict]) -> dict:
@@ -751,6 +856,9 @@ def resolve(intent: dict, last: Optional[dict]) -> dict:
         if not it.get("entity") and not it.get("rank") and not it.get("dim") and last.get("entity"):
             it["entity"] = last["entity"]
             used.append("entity")
+        if not it.get("fin") and not it.get("metric") and not it.get("card") and last.get("fin"):
+            it["fin"] = last["fin"]             # «а у APEX?» после «активы INSON» — тот же показатель рэнкинга
+            used.append("fin")
         if not it.get("metric") and last.get("metric"):
             # у компании разреза по классам нет: показатель переносим, класс — нет
             it["metric"] = last["metric"]
@@ -982,6 +1090,11 @@ def answer_company(con, it: dict, lang: str, src: Sources) -> dict:
     key = ent["key"]
     d = _pick_date(con, it, key)
     r = _row(con, key, d) if d else None
+    if not r and not it.get("year") and not it.get("ago"):
+        rr = rk.company_rows(con, _ranking_company(ent))
+        if rr and any(x["is_life"] for x in rr.values()):
+            # страховщик жизни: в отчётах НАПП по общему страхованию его строки нет — карточка из рэнкинга
+            return answer_fin(con, it, lang, src, card=True)
     if not r:
         return {"found": False, "date": d, "entity": ent,
                 "what": {"ru": "строки страховщика %s%s" % (ent["name"], " на запрошенный срез" if d is None else
@@ -1145,8 +1258,279 @@ def answer_own_funds(con, it: dict, lang: str, src: Sources) -> dict:
             "uz": "INSON %s: oʻz mablagʻlari %s soʻm, sugʻurta zaxiralari %s soʻm (manba: %s).",
             "en": "INSON as of %s: own funds UZS %s, insurance reserves UZS %s (source: %s)."}[lang] % (
         _ru_date(r["report_date"]), _num(r["own_funds"], lang), _num(r["reserves"], lang), r["source"] or "—")
+    limit = 0.2 * (r["own_funds"] + r["reserves"])
+    text += {"ru": " Лимит на один риск по Положению № 1806, п. 15 = 20 %% × (собственные средства + резервы) = %s сум.",
+             "uz": " Bitta xavf limiti (1806-son Nizom, 15-band) = 20 %% × (oʻz mablagʻlari + zaxiralar) = %s soʻm.",
+             "en": " Per-risk limit (Regulation 1806, para. 15) = 20 %% × (own funds + reserves) = UZS %s."}[lang] % (
+        _num(limit, lang))
+    extra, parts = _inson_ranking_extra(con, lang, src)
+    text += extra
     return {"found": True, "date": r["report_date"], "text": text, "table": None, "entity": None,
-            "numbers": {"own_funds": r["own_funds"], "reserves": r["reserves"], "source": r["source"]}}
+            "numbers": {"own_funds": r["own_funds"], "reserves": r["reserves"], "source": r["source"],
+                        "limit_per_risk": limit, "ranking": parts or None}}
+
+
+# --------------------------------------------------------------------------- #
+#  Финансы страховщиков: рэнкинг snsratings.uz (company_rankings)
+# --------------------------------------------------------------------------- #
+
+RANK_LABEL = {"ru": "рэнкинг страховщиков", "uz": "sugʻurtalovchilar reytingi", "en": "insurer ranking"}
+RANK_DATE = "2026-07-01"           # II кв. 2026: остатки — на 30.06.2026, потоки — с начала года по 30.06
+RANK_NOTE = {
+    "ru": "рэнкинг snsratings.uz по отчётности компаний (openinfo.uz) и НАПП, без проверки проектом: остатки "
+          "(активы, капитал, резервы) — на 30.06, потоки (премии, выплаты, прибыль, претензии) — с начала года; "
+          "выплаты — оплаченные; место — как в рэнкинге",
+    "uz": "snsratings.uz reytingi (openinfo.uz va NAPP maʼlumotlari): qoldiqlar — 30.06 holatiga, oqimlar — yil "
+          "boshidan; oʻrin — reytingdagidek",
+    "en": "snsratings.uz ranking (company filings on openinfo.uz and NAPP data): balances as of 30 June, flows "
+          "year to date; rank as in the ranking",
+}
+# названия показателей на uz/en (ru — из базы, как в содержании документа)
+FIN_NAME = {
+    "total_assets": ("Jami aktivlar", "Total assets"),
+    "total_capital": ("Jami kapital", "Total equity"),
+    "share_capital": ("Aksiyadorlik kapitali", "Share capital"),
+    "reserves_gross": ("Sugʻurta zaxiralari, brutto", "Insurance reserves, gross"),
+    "reserves_net": ("Sugʻurta zaxiralari, sof", "Insurance reserves, net"),
+    "net_profit": ("Sof foyda (zarar)", "Net profit (loss)"),
+    "profit_before_tax": ("Soliqqacha foyda", "Profit before tax"),
+    "roe": ("Kapital rentabelligi", "Return on equity"),
+    "roa": ("Aktivlar rentabelligi", "Return on assets"),
+    "roe_share_capital": ("Aksiyadorlik kapitali rentabelligi", "Return on share capital"),
+    "claims_received": ("Kelib tushgan daʼvolar", "Claims received"),
+    "claims_paid_count": ("Toʻlangan daʼvolar", "Claims paid (number)"),
+    "claims_refused": ("Rad etilgan daʼvolar", "Claims refused"),
+    "claims_unsettled": ("Hal qilinmagan daʼvolar", "Claims unsettled"),
+    "refused_to_claims": ("Rad etilganlar ulushi", "Refusal share"),
+    "premiums_total": ("Jami yigʻilgan mukofotlar", "Total premiums written"),
+    "claims_paid": ("Sugʻurta toʻlovlari", "Claims paid"),
+    "payouts_to_premiums": ("Toʻlovlar / mukofotlar", "Claims paid / premiums"),
+    "contracts_active": ("Amaldagi shartnomalar", "Contracts in force"),
+    "contracts_new": ("Tuzilgan shartnomalar", "Contracts concluded"),
+    "branches": ("Hududiy boʻlinmalar", "Branches"),
+}
+UNIT = {"млн сум": {"ru": "млн сум", "uz": "mln soʻm", "en": "UZS m"},
+        "млрд сум": {"ru": "млрд сум", "uz": "mlrd soʻm", "en": "UZS bn"},
+        "кол-во": {"ru": "шт.", "uz": "ta", "en": ""},
+        "сум": {"ru": "сум", "uz": "soʻm", "en": "UZS"},
+        "%": {"ru": "%", "uz": "%", "en": "%"}}
+# карточка компании: что показываем и в каком порядке
+CARD_CODES = ["premiums_total", "total_assets", "total_capital", "share_capital", "reserves_gross", "reserves_net",
+              "net_profit", "roe", "roa", "claims_paid", "payouts_to_premiums", "claims_received", "claims_paid_count",
+              "claims_refused", "refused_to_claims", "contracts_active", "branches"]
+# относительные показатели, где больше — хуже (для вывода «лучше / хуже рынка»)
+WORSE_IF_HIGHER = {"refused_to_claims", "payouts_to_premiums", "cost_to_premiums"}
+
+
+def _fin_name(r: dict, lang: str) -> str:
+    if lang == "ru":
+        return r["indicator_name"]
+    pair = FIN_NAME.get(r["indicator_code"])
+    return pair[0 if lang == "uz" else 1] if pair else r["indicator_name"]
+
+
+def _fin_val(v, unit: str, lang: str) -> str:
+    if v is None:
+        return "—"
+    if unit == "%":
+        return _pct(v, lang, 2)
+    nd = 0 if unit == "кол-во" else 1
+    u = UNIT.get(unit, {}).get(lang, unit)
+    return (_num(v, lang, nd) + (" " + u if u else "")).strip()
+
+
+def _fin_place(rank, n: int, lang: str) -> str:
+    if rank is None:
+        return {"ru": "место не указано", "uz": "oʻrin koʻrsatilmagan", "en": "no rank"}[lang]
+    return {"ru": "%d-е место из %d" % (rank, n), "uz": "%d-oʻrin (%d tadan)" % (rank, n),
+            "en": "rank %d of %d" % (rank, n)}[lang]
+
+
+def _fin_src(src: Sources, con, lang: str):
+    f = con.execute("SELECT MAX(source_file) FROM company_rankings").fetchone()
+    src.add({"kind": "market", "label": RANK_LABEL[lang], "title": rk.SOURCE_LABEL, "file": f[0] if f else None,
+             "date": RANK_DATE, "date_text": "30.06.2026", "period": "II кв. 2026" if lang == "ru" else
+             ("2026-yil II chorak" if lang == "uz" else "Q2 2026"), "url": rk.SOURCE_URL, "domain": "snsratings.uz"})
+
+
+def _fin_line(r: dict, n: int, lang: str) -> str:
+    """«совокупные активы 272 856,7 млн сум — 18-е место из 36, доля 1,61 %; год назад 207 277,6 млн сум
+    (18-е место); изменение +31,6 %»."""
+    u = r["unit"]
+    s = "%s %s — %s" % (_fin_name(r, lang).lower() if lang == "ru" else _fin_name(r, lang),
+                        _fin_val(r["value_cur"], u, lang), _fin_place(r["rank_cur"], n, lang))
+    if r["share_cur"] is not None:
+        s += {"ru": ", доля %s", "uz": ", ulush %s", "en": ", share %s"}[lang] % _pct(r["share_cur"], lang, 2)
+    if r["value_prev"] is not None:
+        prev_place = (_ord(r["rank_prev"], lang) if r["rank_prev"] is not None else
+                      {"ru": "место не указано", "uz": "oʻrin koʻrsatilmagan", "en": "no rank"}[lang])
+        s += {"ru": "; год назад %s (%s)", "uz": "; bir yil oldin %s (%s)", "en": "; a year ago %s (%s)"}[lang] % (
+            _fin_val(r["value_prev"], u, lang), prev_place)
+    else:
+        s += {"ru": "; год назад данных нет", "uz": "; bir yil oldin maʼlumot yoʻq",
+              "en": "; no data a year ago"}[lang]
+    if r["change_pct"] is not None and r["value_prev"] is not None:
+        s += {"ru": ", изменение %s", "uz": ", oʻzgarish %s", "en": ", change %s"}[lang] % _pct(
+            r["change_pct"], lang, 1, True)
+    elif u == "%" and r["change_pp"] is not None:
+        s += {"ru": ", изменение %s п.п.", "uz": ", oʻzgarish %s p.p.", "en": ", change %s pp"}[lang] % (
+            _pct(r["change_pp"], lang, 2, True).replace(" %", ""))
+    return s
+
+
+def _fin_table(rows: list, n_by: dict, lang: str) -> dict:
+    cols = {"ru": ["Показатель", "II кв. 2025", "Место", "II кв. 2026", "Место", "Доля, %", "Изменение"],
+            "uz": ["Koʻrsatkich", "2025 II chorak", "Oʻrin", "2026 II chorak", "Oʻrin", "Ulush, %", "Oʻzgarish"],
+            "en": ["Indicator", "Q2 2025", "Rank", "Q2 2026", "Rank", "Share, %", "Change"]}[lang]
+    out = []
+    for r in rows[:TABLE_MAX * 2]:
+        chg = (_pct(r["change_pct"], lang, 1, True) if r["change_pct"] is not None and r["value_prev"] is not None
+               else (_pct(r["change_pp"], lang, 2, True).replace(" %", " п.п." if lang == "ru" else " pp")
+                     if r["unit"] == "%" and r["change_pp"] is not None else "—"))
+        out.append([_fin_name(r, lang), _fin_val(r["value_prev"], r["unit"], lang), r["rank_prev"],
+                     _fin_val(r["value_cur"], r["unit"], lang), r["rank_cur"],
+                     _r(r["share_cur"], 2), chg])
+    return {"columns": cols, "rows": out}
+
+
+def _vs_market(con, r: dict, lang: str) -> Optional[str]:
+    """Относительный показатель против итога рынка — для вывода специалиста (правило, не данные)."""
+    if r["unit"] != "%" or r["value_cur"] is None:
+        return None
+    t = rk.total_row(con, r["indicator_code"], r["report_period"])
+    if not t or t["value_cur"] is None:
+        return None
+    hi = r["value_cur"] > t["value_cur"]
+    if lang == "ru":
+        word = "выше" if hi else "ниже"
+        tail = ""
+        if r["indicator_code"] in WORSE_IF_HIGHER:
+            tail = " — хуже рынка" if hi else " — лучше рынка"
+        elif r["indicator_code"] in ("roe", "roa", "roe_share_capital", "capital_to_assets"):
+            tail = " — лучше рынка" if hi else " — хуже рынка"
+        return "%s %s среднего по рынку (%s против %s)%s" % (_fin_name(r, lang).lower(), word,
+                                                              _pct(r["value_cur"], lang, 2), _pct(t["value_cur"], lang, 2),
+                                                              tail)
+    return "%s: %s vs %s" % (_fin_name(r, lang), _pct(r["value_cur"], lang, 2), _pct(t["value_cur"], lang, 2))
+
+
+def _ranking_company(ent: dict) -> str:
+    return (ent.get("key") or "").split(":", 1)[-1]
+
+
+def answer_fin(con, it: dict, lang: str, src: Sources, codes: Optional[list] = None, card: bool = False) -> dict:
+    """Показатели компании из рэнкинга: значение, место, доля, изменение к II кв. 2025."""
+    ent = it.get("entity") or {"type": "company", "key": mp.INSON_ROW, "name": "«INSON» AJ"}
+    comp = _ranking_company(ent)
+    period = rk.latest_period(con)
+    data = rk.company_rows(con, comp, period) if period else {}
+    if not data:
+        return {"found": False, "date": None, "entity": ent, "ranking": True,
+                "what": {"ru": "строк %s в рэнкинге страховщиков snsratings.uz" % ent.get("name", comp),
+                         "uz": "%s reytingda yoʻq" % ent.get("name", comp),
+                         "en": "%s in the snsratings.uz ranking" % ent.get("name", comp)}[lang]}
+    codes = CARD_CODES if card else (codes or [])
+    rows = [data[c] for c in codes if c in data]
+    missing = [c for c in codes if c not in data]
+    if not rows:
+        return {"found": False, "date": RANK_DATE, "entity": ent, "ranking": True,
+                "what": {"ru": "этого показателя у %s в рэнкинге" % ent.get("name", comp),
+                         "uz": "bu koʻrsatkich reytingda yoʻq", "en": "this indicator in the ranking"}[lang]}
+    n_by = {r["indicator_code"]: rk.companies_count(con, r["indicator_code"], period) for r in rows}
+    _fin_src(src, con, lang)
+    name = ent.get("name") or comp
+    life = any(r["is_life"] for r in rows)
+    if card:
+        g = lambda c: data.get(c)  # noqa: E731
+        bits = []
+        for c in ("premiums_total", "total_assets", "total_capital", "reserves_net", "net_profit", "roe",
+                  "payouts_to_premiums", "claims_received", "claims_refused", "refused_to_claims"):
+            if g(c):
+                bits.append(_fin_line(g(c), n_by.get(c) or rk.companies_count(con, c, period), lang))
+        head = {"ru": "%s по рэнкингу страховщиков snsratings.uz (II кв. 2026, на 30.06.2026): ",
+                "uz": "%s — snsratings.uz reytingi (2026-yil II chorak, 30.06.2026): ",
+                "en": "%s in the snsratings.uz insurer ranking (Q2 2026, as of 30 June 2026): "}[lang] % name
+        text = head + "; ".join(bits).rstrip(".") + "."
+    else:
+        text = {"ru": "%s по рэнкингу страховщиков snsratings.uz (II кв. 2026, на 30.06.2026): ",
+                "uz": "%s — snsratings.uz reytingi (2026-yil II chorak, 30.06.2026): ",
+                "en": "%s in the snsratings.uz insurer ranking (Q2 2026, as of 30 June 2026): "}[lang] % name
+        text += "; ".join(_fin_line(r, n_by[r["indicator_code"]], lang) for r in rows).rstrip(".") + "."
+    if life:
+        text += {"ru": " Компания — страховщик жизни: в отчётах НАПП по общему страхованию её строки нет.",
+                 "uz": " Hayot sugʻurtasi kompaniyasi.", "en": " A life insurer."}[lang]
+    if missing:
+        text += {"ru": " В рэнкинге нет: %s.", "uz": " Reytingda yoʻq: %s.", "en": " Not in the ranking: %s."}[lang] % (
+            ", ".join(missing))
+    vs = [x for x in (_vs_market(con, r, lang) for r in rows) if x]
+    nums = {"company": comp, "period": period, "indicators": {
+        r["indicator_code"]: {"value": r["value_cur"], "unit": r["unit"], "rank": r["rank_cur"],
+                              "share_pct": r["share_cur"], "value_prev": r["value_prev"], "rank_prev": r["rank_prev"],
+                              "change_pct": r["change_pct"], "change_pp": r["change_pp"],
+                              "insurers": n_by[r["indicator_code"]], "page": r["page"]} for r in rows},
+            "is_life": life, "source": rk.SOURCE_LABEL, "metric": "card" if card else "fin"}
+    return {"found": True, "date": RANK_DATE, "text": text, "table": _fin_table(rows, n_by, lang),
+            "entity": ent, "numbers": nums, "ranking": True, "vs_market": vs}
+
+
+def answer_rank_fin(con, it: dict, lang: str, src: Sources) -> dict:
+    """«У кого больше всего капитала» — первые 10 по главному показателю вопроса."""
+    code = (it.get("fin") or ["total_assets"])[0]
+    period = rk.latest_period(con)
+    rows = rk.indicator_rows(con, code, period) if period else []
+    if not rows:
+        return {"found": False, "date": None, "ranking": True,
+                "what": {"ru": "рэнкинга страховщиков по этому показателю", "uz": "bu koʻrsatkich boʻyicha reyting",
+                         "en": "an insurer ranking for this indicator"}[lang]}
+    _fin_src(src, con, lang)
+    n = len(rows)
+    lead = rows[0]
+    tot = rk.total_row(con, code, period)
+    cols = {"ru": ["Место", "Страховщик", "II кв. 2026", "Доля, %", "Место год назад", "Изменение"],
+            "uz": ["Oʻrin", "Sugʻurtalovchi", "2026 II chorak", "Ulush, %", "Oʻtgan yil oʻrni", "Oʻzgarish"],
+            "en": ["Rank", "Insurer", "Q2 2026", "Share, %", "Rank a year ago", "Change"]}[lang]
+    trs = []
+    for r in rows[:TABLE_MAX]:
+        chg = (_pct(r["change_pct"], lang, 1, True) if r["change_pct"] is not None and r["value_prev"] is not None
+               else "—")
+        trs.append([r["rank_cur"], r["company_raw"], _fin_val(r["value_cur"], r["unit"], lang), _r(r["share_cur"], 2),
+                    r["rank_prev"], chg])
+    nm = _fin_name(lead, lang)
+    text = {"ru": "%s — первое место в рэнкинге snsratings.uz (II кв. 2026) по показателю «%s»: %s",
+            "uz": "%s — snsratings.uz reytingida (2026-yil II chorak) «%s» boʻyicha birinchi: %s",
+            "en": "%s ranks first in the snsratings.uz ranking (Q2 2026) by «%s»: %s"}[lang] % (
+        lead["company_raw"], nm, _fin_val(lead["value_cur"], lead["unit"], lang))
+    if lead["share_cur"] is not None:
+        text += {"ru": ", доля %s", "uz": ", ulush %s", "en": ", share %s"}[lang] % _pct(lead["share_cur"], lang, 2)
+    if tot and tot["value_cur"] is not None:
+        text += {"ru": "; по рынку %s", "uz": "; bozor boʻyicha %s", "en": "; market %s"}[lang] % _fin_val(
+            tot["value_cur"], tot["unit"], lang)
+    text += {"ru": ". Компаний в рэнкинге: %d.", "uz": ". Reytingda %d ta kompaniya.",
+             "en": ". Insurers in the ranking: %d."}[lang] % n
+    ins = next((r for r in rows if r["company"] == "INSON AJ"), None)
+    if ins and lead["company"] != "INSON AJ":
+        text += {"ru": " INSON — %s (%s).", "uz": " INSON — %s (%s).", "en": " INSON — %s (%s)."}[lang] % (
+            _fin_place(ins["rank_cur"], n, lang), _fin_val(ins["value_cur"], ins["unit"], lang))
+    return {"found": True, "date": RANK_DATE, "text": text, "table": {"columns": cols, "rows": trs},
+            "numbers": {"metric": code, "leader": lead["company"], "leader_value": lead["value_cur"],
+                        "unit": lead["unit"], "insurers": n, "inson_rank": ins["rank_cur"] if ins else None},
+            "entity": None, "rank": True, "ranking": True}
+
+
+def _inson_ranking_extra(con, lang: str, src: Sources) -> tuple:
+    """Разбивка собственных средств INSON из рэнкинга — к ответу о собственных средствах."""
+    data = rk.company_rows(con, "INSON AJ")
+    if not data:
+        return "", {}
+    _fin_src(src, con, lang)
+    per = rk.latest_period(con)
+    parts = [_fin_line(data[c], rk.companies_count(con, c, per), lang)
+             for c in ("total_capital", "share_capital", "reserves_gross", "reserves_net", "total_assets") if c in data]
+    t = {"ru": " По рэнкингу snsratings.uz (II кв. 2026): %s.", "uz": " snsratings.uz reytingi boʻyicha: %s.",
+         "en": " Per the snsratings.uz ranking (Q2 2026): %s."}[lang] % "; ".join(parts).rstrip(".")
+    return t, {c: data[c]["value_cur"] for c in data if c in ("total_capital", "share_capital", "reserves_gross",
+                                                                 "reserves_net", "total_assets")}
+
 
 
 def opinion(res: dict, it: dict, lang: str) -> Optional[str]:
@@ -1179,6 +1563,7 @@ def opinion(res: dict, it: dict, lang: str) -> Optional[str]:
         out.append({"ru": "рыночная ставка — средняя по строке отчёта (премии к обязательствам), а не тариф "
                           "конкретного договора", "uz": "bozor stavkasi — hisobot qatori boʻyicha oʻrtacha",
                     "en": "the market rate is an average for the report line, not a contract tariff"}[lang])
+    out.extend(res.get("vs_market") or [])
     if not out:
         return None
     return "; ".join(out) + "."
@@ -1216,8 +1601,16 @@ def answer(question: str, lang: str, it: dict, with_ai: bool = False, history: O
         dates = _dates(con)
         latest = dates[-1] if dates else None
         ent = it.get("entity") or {}
-        if it.get("metric") == "own_funds" and (not ent or ent.get("key") == mp.INSON_ROW):
+        fin = it.get("fin") or []
+        own_words = it.get("metric") == "own_funds" and not (set(fin) - {"reserves_net", "reserves_gross"})
+        if it.get("card") and ent.get("type") == "company":
+            res = answer_fin(con, it, lang, src, card=True)
+        elif own_words and (not ent or ent.get("key") == mp.INSON_ROW):
             res = answer_own_funds(con, it, lang, src)
+        elif fin and ent.get("type") == "company":
+            res = answer_fin(con, it, lang, src, codes=fin)
+        elif fin and not ent and it.get("rank"):
+            res = answer_rank_fin(con, it, lang, src)
         elif ent.get("type") == "company":
             res = answer_company(con, it, lang, src)
         elif it.get("rank") and it.get("dim") in ("region", "class") and not ent:
@@ -1242,7 +1635,8 @@ def answer(question: str, lang: str, it: dict, with_ai: bool = False, history: O
             and (res.get("numbers") or {}).get("row_key") == "total":
         ent_f = {"type": "total", "key": "total"}
     # собственные средства — из company_financials; прочие показатели компании к ним не относятся
-    fs = [] if it.get("metric") == "own_funds" and res.get("found") else         match_facts(it, ent_f, res.get("date"), bool(res.get("found")))
+    fs = [] if (it.get("metric") == "own_funds" or res.get("ranking")) and res.get("found") else \
+        match_facts(it, ent_f, res.get("date"), bool(res.get("found")))
     have = {((s_.get("file") or "").lower(), s_.get("date")) for s_ in src.items}
     for f in fs:
         fname = (f.get("source_file") or "")
@@ -1276,11 +1670,13 @@ def answer(question: str, lang: str, it: dict, with_ai: bool = False, history: O
     sources = src.ensure(latest)
     ctx = {"kind": "market", "entity": res.get("entity") or (it.get("entity") if not res.get("rank") else None),
            "metric": it.get("metric") or (res.get("numbers") or {}).get("metric"), "rank": bool(res.get("rank")),
-           "dim": res.get("dim"), "date": res.get("date")}
+           "dim": res.get("dim"), "date": res.get("date"), "fin": it.get("fin") or None}
+    if res.get("ranking"):
+        ctx["metric"] = it.get("metric") if it.get("metric") == "own_funds" else None
     return {"found": found, "text": text, "opinion": view, "table": res.get("table"),
             "numbers": res.get("numbers"), "facts": fs, "sources": sources, "date": res.get("date"),
             "period": period_label(res["date"], lang) if res.get("date") else None,
-            "ytd_note": YTD_NOTE[lang], "ai": ai, "context": ctx}
+            "ytd_note": RANK_NOTE[lang] if res.get("ranking") else YTD_NOTE[lang], "ai": ai, "context": ctx}
 
 
 # --------------------------------------------------------------------------- #

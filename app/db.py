@@ -255,6 +255,17 @@ def snapshot(src, dest) -> None:
 # а CREATE TABLE IF NOT EXISTS старую таблицу не меняет — поэтому доводим руками.
 # Типы без диалектных особенностей: на PostgreSQL те же ALTER TABLE ... ADD COLUMN пройдут.
 ADDED_COLUMNS = {
+    "company_financials": [
+        # 03.10.2026: разбивка собственных средств и резервов и происхождение цифр (tools/ranking_parse.py)
+        ("total_capital", "REAL"),
+        ("share_capital", "REAL"),
+        ("reserves_gross", "REAL"),
+        ("reserves_net", "REAL"),
+        ("total_assets", "REAL"),
+        ("basis", "TEXT"),
+        ("source_url", "TEXT"),
+        ("confirmed", "INTEGER"),
+    ],
     "photos": [
         ("doc_kind", "TEXT NOT NULL DEFAULT 'фото объекта'"),
         ("parse_status", "TEXT"),

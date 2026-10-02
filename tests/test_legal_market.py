@@ -20,7 +20,9 @@
   8. текст вопроса не попадает в базу (в legal_questions только отпечаток, source=market);
   9. API: session_id, проверка формата, /legal/suggest (8 подсказок, гость тоже видит);
  10. память: не больше 8 реплик, срок 2 часа, чужой пользователь с тем же session_id контекста не видит;
- 11. индекс: тип источника law | company | market | note и подпись у цитаты.
+ 11. индекс: тип источника law | company | market | note и подпись у цитаты;
+ 13. финансы страховщиков (рэнкинг snsratings.uz, company_rankings): активы, капитал, резервы, претензии и отказы,
+     рентабельность, число договоров, карточка компании — с местом, долей, изменением и источником.
 """
 import asyncio
 import json as _json
@@ -488,6 +490,73 @@ def check_competitor_intent():
        and r["market"]["numbers"].get("row_key") == "cls3", r.get("intent"))
 
 
+def check_ranking():
+    print("13. финансы страховщиков — рэнкинг snsratings.uz")
+    from app import rankings
+    rankings.ensure_loaded()                   # в копии базы: как при старте сервера
+    legal._cache.clear()
+
+    def val(code, comp="INSON AJ"):
+        r = q1("SELECT value_cur, rank_cur FROM company_rankings WHERE company=? AND indicator_code=?", comp, code)
+        return (r[0], r[1]) if r else (None, None)
+
+    def ind(r, code):
+        return ((r.get("market") or {}).get("numbers") or {}).get("indicators", {}).get(code) or {}
+
+    def sns(r):
+        return any(s_.get("domain") == "snsratings.uz" and "Рэнкинг snsratings.uz" in (s_.get("title") or "")
+                   for s_ in r.get("sources") or [])
+
+    r = ask("активы APEX", sid="rk-1")
+    v, rk_ = val("total_assets", "APEX INSURANCE AJ")
+    ok("«активы APEX» → market, значение и место из company_rankings, источник рэнкинга",
+       r.get("intent") == "market" and ind(r, "total_assets").get("value") == v and ind(r, "total_assets").get("rank")
+       == rk_ and sns(r) and has_source(r), r["answer"]["text"][:200])
+    r = ask("капитал INSON", sid="rk-2")
+    v, rk_ = val("total_capital")
+    ok("«капитал INSON» → совокупный капитал, место, изменение к прошлому году",
+       ind(r, "total_capital").get("value") == v and mx._num(v, "ru", 1) in r["answer"]["text"]
+       and "%d-е место" % rk_ in r["answer"]["text"] and "год назад" in r["answer"]["text"], r["answer"]["text"][:300])
+    r = ask("резервы APEX", sid="rk-3")
+    ok("«резервы APEX» → чистые и брутто резервы APEX (не собственные средства INSON)",
+       ind(r, "reserves_net").get("value") == val("reserves_net", "APEX INSURANCE AJ")[0]
+       and ind(r, "reserves_gross"), r["answer"]["text"][:200])
+    r = ask("прибыль Kafolat", sid="rk-4")
+    ok("«прибыль Kafolat» → чистая прибыль KAFOLAT",
+       ind(r, "net_profit").get("value") == val("net_profit", "KAFOLAT SUG'URTA KOMPANIYASI AJ")[0],
+       r["answer"]["text"][:200])
+    r = ask("претензии и отказы у INSON", sid="rk-5")
+    ok("«претензии и отказы у INSON» → поступило, отказано, доля отказов",
+       ind(r, "claims_received").get("value") == val("claims_received")[0]
+       and ind(r, "claims_refused").get("value") == val("claims_refused")[0] and ind(r, "refused_to_claims"),
+       r["answer"]["text"][:200])
+    r = ask("рентабельность INSON", sid="rk-6")
+    ok("«рентабельность INSON» → ROE и ROA, вывод специалиста сравнивает с рынком",
+       ind(r, "roe").get("value") == val("roe")[0] and ind(r, "roa") and r["parts"]["opinion"]
+       and "среднего по рынку" in r["parts"]["opinion"]["text"], r["parts"].get("opinion"))
+    r = ask("сколько договоров у INSON", sid="rk-7")
+    ok("«сколько договоров у INSON» → действующие и заключённые договоры",
+       ind(r, "contracts_active").get("value") == val("contracts_active")[0] and ind(r, "contracts_new"),
+       r["answer"]["text"][:200])
+    r = ask("расскажи про компанию INSON", sid="rk-8")
+    codes = set(((r.get("market") or {}).get("numbers") or {}).get("indicators") or {})
+    ok("карточка «расскажи про компанию INSON»: премии, активы, капитал, резервы, выплаты, претензии, отказы, "
+       "рентабельность",
+       {"premiums_total", "total_assets", "total_capital", "reserves_net", "claims_paid", "claims_received",
+        "claims_refused", "roe"} <= codes and r["market"]["table"] and sns(r), sorted(codes))
+    ok("карточка: пометка — рэнкинг, остатки на 30.06, а не «ytd НАПП»", "snsratings" in (r.get("note") or ""),
+       r.get("note"))
+    r = ask("у кого больше всего капитала", sid="rk-9")
+    ok("«у кого больше всего капитала» → рейтинг из рэнкинга, APEX первым",
+       (r["market"]["numbers"] or {}).get("leader") == "APEX INSURANCE AJ" and r["market"]["table"],
+       r["answer"]["text"][:200])
+    r = ask("INSON aktivlari qancha", sid="rk-10")
+    ok("uz: активы INSON — тот же показатель", ind(r, "total_assets").get("value") == val("total_assets")[0]
+       and r.get("lang") == "uz", r["answer"]["text"][:200])
+    r = ask("может ли страховщик отказать в выплате?", sid="rk-11")
+    ok("правовой вопрос об отказе — не рэнкинг", not sns(r), r.get("intent"))
+
+
 def main():
     with temp_db():
         setup()
@@ -503,6 +572,7 @@ def main():
         check_index_kinds()
         check_review_fixes()
         check_competitor_intent()
+        check_ranking()
         check_privacy()
         check_inson()              # последним: удаляет строку INSON из копии базы
     print(f"\nИтого: {passed} ок, {failed} плохо")

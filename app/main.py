@@ -173,6 +173,11 @@ def startup():
     db.ensure_schema()
     from . import refsync                 # справочники образа -> постоянный диск (если сборка новее)
     refsync.sync_on_start()
+    try:                                   # рэнкинг страховщиков snsratings.uz → company_rankings (+ INSON в
+        from . import rankings             # company_financials вместо временных цифр): если пусто или текст новее
+        rankings.ensure_loaded()
+    except Exception as e:                 # нет файла или он не разобрался — сервер всё равно поднимается
+        print("рэнкинг страховщиков не загружен:", e)
     UPLOADS.mkdir(parents=True, exist_ok=True)
     (db.DATA_DIR / "photos").mkdir(parents=True, exist_ok=True)
     # фоновые потоки: каждый не больше одного, SURVEYOR_NO_BACKGROUND=1 выключает все (тесты, замеры)
@@ -908,8 +913,10 @@ def add_product(p: Product, user: dict = Depends(require(ADMIN))):
 @app.put("/admin/financials")
 def set_financials(f: Financials, user: dict = Depends(require(ADMIN))):
     with db.tx() as con:
-        con.execute("INSERT OR REPLACE INTO company_financials VALUES (?,?,?,?)",
-                    (f.report_date, f.own_funds, f.reserves, f.source))
+        # колонки по имени: с 03.10.2026 в таблице есть разбивка (капитал, резервы брутто/нетто, активы)
+        con.execute("INSERT OR REPLACE INTO company_financials (report_date, own_funds, reserves, source, confirmed)"
+                    " VALUES (?,?,?,?,?)", (f.report_date, f.own_funds, f.reserves,
+                                             f.source or "введено в админке", None))
         db.audit(con, user["login"], "финансовые показатели", f.report_date, f.model_dump())
         db.reference_changed(con)        # расчёт должен сразу видеть новое значение
     return {"ok": True, "risk_limit": 0.2 * (f.own_funds + f.reserves)}

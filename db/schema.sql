@@ -163,11 +163,21 @@ CREATE TABLE IF NOT EXISTS rules (
 );
 
 -- Финансовые показатели компании: для лимита 20% на один риск
+-- own_funds и reserves идут в лимит (Положение 1806 п. 15); остальные колонки — разбивка и происхождение цифр
+-- (с 03.10.2026: заполняются из рэнкинга snsratings.uz, tools/ranking_parse.py, до подтверждения бухгалтерией)
 CREATE TABLE IF NOT EXISTS company_financials (
-    report_date  TEXT PRIMARY KEY,
-    own_funds    REAL NOT NULL,
-    reserves     REAL NOT NULL,
-    source       TEXT
+    report_date    TEXT PRIMARY KEY,
+    own_funds      REAL NOT NULL,          -- собственные средства, сум (из рэнкинга — совокупный капитал)
+    reserves       REAL NOT NULL,          -- страховые резервы, сум (из рэнкинга — чистые, за вычетом доли перестраховщиков)
+    source         TEXT,
+    total_capital  REAL,                   -- совокупный капитал, сум
+    share_capital  REAL,                   -- акционерный капитал, сум
+    reserves_gross REAL,                   -- страховые резервы брутто, сум
+    reserves_net   REAL,                   -- страховые резервы чистые, сум
+    total_assets   REAL,                   -- совокупные активы, сум
+    basis          TEXT,                   -- что взято в own_funds и reserves
+    source_url     TEXT,
+    confirmed      INTEGER                 -- 1 — подтверждено бухгалтерией; 0 — нет; NULL — не указано
 );
 
 -- Предупредительные мероприятия: что предписать страхователю при определённом факторе риска.
@@ -1430,3 +1440,34 @@ CREATE TABLE IF NOT EXISTS exchange_quotes (
 );
 CREATE INDEX IF NOT EXISTS ix_exchange_grp_date ON exchange_quotes(grp, trade_date);
 CREATE INDEX IF NOT EXISTS ix_exchange_page_key ON exchange_quotes(page, deal_key);
+
+-- Рэнкинг страховых компаний snsratings.uz (по данным openinfo.uz и napp.uz): tools/ranking_parse.py.
+-- Один показатель одной компании за период; строка итога — company='ВСЕГО'. Суммы — в единице unit
+-- (млн сум, млрд сум, кол-во, %, сум). change_pct и growth_impact_pp — как в документе («Изменение, %» и
+-- «Влияние на рост рынка, п.п.»); change_pp — изменение доли (share_cur − share_prev), для относительных
+-- показателей в % — value_cur − value_prev, п.п.
+CREATE TABLE IF NOT EXISTS company_rankings (
+    report_period    TEXT NOT NULL,          -- '2026-Q2'
+    indicator_code   TEXT NOT NULL,          -- total_assets, total_capital, reserves_net, roe, claims_refused …
+    indicator_name   TEXT NOT NULL,          -- по-русски, как в содержании документа
+    section          TEXT,                   -- суммарные | количественные | относительные
+    company          TEXT NOT NULL,          -- как ключ market_stats без префикса: 'INSON AJ'; итог — 'ВСЕГО'
+    company_raw      TEXT,                   -- как в документе
+    is_life          INTEGER NOT NULL DEFAULT 0,
+    value_prev       REAL,
+    share_prev       REAL,
+    rank_prev        INTEGER,
+    value_cur        REAL,
+    share_cur        REAL,
+    rank_cur         INTEGER,
+    change_pct       REAL,
+    change_pp        REAL,
+    growth_impact_pp REAL,
+    unit             TEXT,
+    page             INTEGER,
+    source_file      TEXT,
+    source_sha256    TEXT,                   -- отпечаток текста: изменился файл — сервер перегружает при старте
+    loaded_at        TEXT,
+    PRIMARY KEY (report_period, indicator_code, company)
+);
+CREATE INDEX IF NOT EXISTS ix_company_rankings_company ON company_rankings(company, report_period);

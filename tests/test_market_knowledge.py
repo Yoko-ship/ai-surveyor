@@ -160,9 +160,22 @@ def main():
         keys = {"topic", "period", "metric", "value", "unit", "entity", "rank", "share_pct", "loss_ratio_pct", "yoy_pct",
                 "source_file", "source_date", "note"}
         check(all(keys <= set(x) for x in facts), "у каждого факта все поля схемы")
-        napp = [x for x in facts if x["source_file"]]
+        napp = [x for x in facts if x["source_file"] and x["topic"] != "company_finance"]
         lib = {p.name for p in mk.LIBRARY_NAPP.glob("*.xlsx")}
-        check(all(x["source_file"] in lib for x in napp), "source_file каждого факта — файл из library/03_Рынок_НАПП")
+        check(all(x["source_file"] in lib for x in napp), "source_file каждого факта НАПП — файл из library/03_Рынок_НАПП")
+
+        print("5. Финансы страховщиков (рэнкинг snsratings)")
+        rk = [x for x in facts if x["topic"] == "company_finance"]
+        txt = {p.name for p in mk.LIBRARY_NAPP.rglob("*.txt")}
+        check(len(rk) > 300 and all(x["source_file"] in txt for x in rk),
+              f"факты рэнкинга: {len(rk)}, source_file — текст рэнкинга из library/03_Рынок_НАПП")
+        v = one(con, "SELECT value_cur FROM company_rankings WHERE company='INSON AJ' AND indicator_code='total_capital'")
+        f = fact(facts, topic="company_finance", metric="total_capital", entity="INSON AJ")
+        check(len(f) == 1 and f[0]["value"] == round(v, 2) and "snsratings" in (f[0].get("source") or ""),
+              f"капитал INSON в JSON = базе ({v}) и с источником")
+        sec = dict(sections(md["03 Страховые компании.md"])).get("Финансы страховщиков (рэнкинг snsratings)", "")
+        check("snsratings.uz" in sec and mk._grp(f"{v:,.1f}") in sec and "INSON в рэнкинге" in sec,
+              "раздел «Финансы страховщиков (рэнкинг snsratings)» в заметке: источник и капитал INSON")
 
         print("4. Чего нет в данных — сказано прямо")
         spec = dict(sections(md["03 Страховые компании.md"])).get("Специализация компаний", "")

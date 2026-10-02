@@ -966,6 +966,7 @@ class Builder:
               "пакетах сильна конкретная компания, по этим данным сказать нельзя. Что можно сказать по отчёту: объём "
               "премий, убыточность, долю переданного в перестрахование, претензии и регионы, где у компании есть "
               "подразделения (таблицы выше).\n\n")
+        t += self._ranking()
         t += self._financials()
         t += self._inson(S)
         t += caveats_md() + "\n" + S.footer()
@@ -1047,8 +1048,9 @@ class Builder:
         t = "## Финансовые показатели\n\n"
         rs = _rows(self.con, "SELECT * FROM company_financials ORDER BY report_date") if _has_table(
             self.con, "company_financials") else []
-        t += (f"По страховщикам рынка (собственные средства, резервы, капитал по компаниям) — {NO_DATA}: в отчёте НАПП "
-              "есть только уставный капитал всех страховщиков вместе (лист 1.1, см. заметку «Рынок в целом»).\n\n")
+        t += ("В отчёте НАПП собственных средств, резервов и капитала по компаниям нет (есть только уставный капитал "
+              "всех страховщиков вместе, лист 1.1, см. заметку «Рынок в целом»); по компаниям — раздел «Финансы "
+              "страховщиков (рэнкинг snsratings)» выше.\n\n")
         if rs:
             t += "Таблица проекта company_financials (только INSON):\n\n"
             rows = []
@@ -1060,7 +1062,134 @@ class Builder:
                 self.facts.add("INSON", r["report_date"], "reserves", r["reserves"] / 1e6, "млн сум", '"INSON" AJ',
                                note=f"company_financials: {r['source'] or 'источник не указан'}")
             t += table(["На дату", "Собственные средства, млн сум", "Страховые резервы, млн сум", "Пометка"], rows)
-            t += "\nЭто не отчёт НАПП, а временные цифры проекта до данных бухгалтерии — для выводов не использовать.\n\n"
+            t += ("\nЭто не отчёт НАПП: цифры проекта для лимита на один риск (Положение № 1806, п. 15) — до "
+                  "подтверждения бухгалтерией (временные или из публичного рэнкинга, см. пометку).\n\n")
+        return t
+
+    # ---- рэнкинг snsratings.uz (company_rankings, tools/ranking_parse.py) ----
+    RANK_COLS = [("total_assets", "Активы"), ("total_capital", "Совокупный капитал"),
+                 ("reserves_net", "Резервы чистые"), ("premiums_total", "Премии всего"),
+                 ("net_profit", "Чистая прибыль"), ("roe", "Рентабельность капитала"),
+                 ("payouts_to_premiums", "Выплаты / премии"), ("refused_to_claims", "Доля отказов")]
+    RANK_FACTS = ["total_assets", "total_capital", "share_capital", "reserves_gross", "reserves_net", "premiums_total",
+                  "premiums_net", "claims_paid", "net_profit", "roe", "roa", "payouts_to_premiums", "claims_received",
+                  "claims_paid_count", "claims_refused", "refused_to_claims", "contracts_active", "contracts_new"]
+
+    def _rk_rows(self):
+        if not _has_table(self.con, "company_rankings"):
+            return None, {}
+        per = self.con.execute("SELECT MAX(report_period) FROM company_rankings").fetchone()[0]
+        if not per:
+            return None, {}
+        by = {}
+        for r in _rows(self.con, "SELECT * FROM company_rankings WHERE report_period=?", per):
+            by.setdefault(r["company"], {})[r["indicator_code"]] = r
+        return per, by
+
+    @staticmethod
+    def _rk_cell(r):
+        if not r or r["value_cur"] is None:
+            return NO_DATA
+        if r["unit"] == "%":
+            return fmt_pct(r["value_cur"], 2)
+        if r["unit"] == "кол-во":
+            return fmt_int(r["value_cur"])
+        return _grp(f"{r['value_cur']:,.1f}")
+
+    def _rk_fact(self, r, n):
+        """Факт рэнкинга: topic company_finance, источник — текст рэнкинга (а не отчёт НАПП)."""
+        unit = {"кол-во": "шт.", "%": "%"}.get(r["unit"], r["unit"])
+        self.facts.items.append({
+            "topic": "company_finance", "period": "II кв. 2026 (на 30.06.2026)" if r["report_period"] == "2026-Q2"
+            else r["report_period"], "metric": r["indicator_code"],
+            "value": None if r["value_cur"] is None else round(r["value_cur"], 2), "unit": unit,
+            "entity": r["company"], "rank": r["rank_cur"], "share_pct": r1(r["share_cur"]), "loss_ratio_pct": None,
+            "yoy_pct": r1(r["change_pct"]) if r["value_prev"] is not None else None,
+            "yoy_base_date": "2025-07-01" if r["change_pct"] is not None and r["value_prev"] is not None else None,
+            "source_file": r["source_file"], "source_date": "2026-07-01" if r["report_period"] == "2026-Q2" else None,
+            "note": (f"{r['indicator_name']}; место {r['rank_cur'] if r['rank_cur'] is not None else '—'} из {n}; "
+                     f"год назад {r['value_prev'] if r['value_prev'] is not None else 'нет данных'} "
+                     f"(место {r['rank_prev'] if r['rank_prev'] is not None else '—'}); стр. {r['page']}; "
+                     "Рэнкинг snsratings.uz, II кв. 2026 (по данным openinfo.uz, НАПП)"),
+            "source": "Рэнкинг snsratings.uz, II кв. 2026 (по данным openinfo.uz, НАПП)",
+            "source_url": "https://snsratings.uz"})
+
+    def _ranking(self):
+        t = "## Финансы страховщиков (рэнкинг snsratings)\n\n"
+        per, by = self._rk_rows()
+        if not by:
+            return t + (f"Рэнкинг страховщиков snsratings.uz в базе не загружен — {NO_DATA} "
+                        "(загрузка: `python tools/ranking_parse.py --load`).\n\n")
+        comps = [c for c in by if c != "ВСЕГО"]
+        n = {code: sum(1 for c in comps if code in by[c]) for code in self.RANK_FACTS}
+        src = next(iter(by["ВСЕГО"].values()))["source_file"] if "ВСЕГО" in by else ""
+        t += ("Источник: Рэнкинг snsratings.uz, II кв. 2026 (по данным openinfo.uz, НАПП), файл "
+              f"«{src}» (library/03_Рынок_НАПП/Рэнкинг snsratings). Это не отчёт НАПП: рэнкинг собран по бухгалтерской "
+              "отчётности компаний и данным НАПП, проектом не проверялся. Остатки (активы, капитал, резервы) — на "
+              "30.06.2026, потоки (премии, выплаты, прибыль, претензии) — с начала года по 30.06; выплаты — оплаченные. "
+              f"Страховщиков в рэнкинге: {len(comps)}, из них страховщиков жизни: "
+              f"{sum(1 for c in comps if any(r['is_life'] for r in by[c].values()))}. Место — как в рэнкинге "
+              "(по суммам — 1 у наибольшего значения).\n\n")
+        order = sorted(comps, key=lambda c: (by[c].get("total_assets") or {}).get("rank_cur") or 99)
+        rows = []
+        for c in order:
+            a = by[c].get("total_assets")
+            life = " (жизнь)" if any(r["is_life"] for r in by[c].values()) else ""
+            rows.append([a["rank_cur"] if a else "—", c + life] + [self._rk_cell(by[c].get(k)) for k, _ in self.RANK_COLS])
+            for k in self.RANK_FACTS:
+                if k in by[c]:
+                    self._rk_fact(by[c][k], n[k])
+        if "ВСЕГО" in by:
+            rows.append(["", "Весь рынок (ВСЕГО)"] + [self._rk_cell(by["ВСЕГО"].get(k)) for k, _ in self.RANK_COLS])
+            for k in self.RANK_FACTS:
+                if k in by["ВСЕГО"]:
+                    self._rk_fact(by["ВСЕГО"][k], n[k])
+        t += table(["Место по активам", "Компания"] + [f"{h}{', млн сум' if k not in ('roe', 'payouts_to_premiums', 'refused_to_claims') else ''}"
+                                                       for k, h in self.RANK_COLS], rows)
+        t += ("\nРентабельность капитала — чистая прибыль за полугодие / совокупный капитал (не в годовом выражении). "
+              "«Выплаты / премии» — как в рэнкинге (знаменатель — премии по данным НАПП, поэтому на ~1 % отличается "
+              "от «Премий всего» из отчётности). Доля отказов — отказано / поступило претензий.\n\n")
+        ins = by.get("INSON AJ")
+        if ins:
+            def line(code, label):
+                r = ins.get(code)
+                if not r:
+                    return f"- {label}: {NO_DATA}."
+                s_ = f"- {label}: {self._rk_cell(r)}{' млн сум' if r['unit'] == 'млн сум' else ''}"
+                if r["rank_cur"] is not None:
+                    s_ += f" — {r['rank_cur']}-е место из {n.get(code) or len(comps)}"
+                if r["share_cur"] is not None:
+                    s_ += f", доля {fmt_pct(r['share_cur'], 2)}"
+                if r["value_prev"] is not None:
+                    prev = fmt_pct(r["value_prev"], 2) if r["unit"] == "%" else (
+                        fmt_int(r["value_prev"]) if r["unit"] == "кол-во" else _grp(f"{r['value_prev']:,.1f}"))
+                    s_ += f"; год назад {prev}" + (f" ({r['rank_prev']}-е место)" if r["rank_prev"] is not None else "")
+                if r["change_pct"] is not None and r["value_prev"] is not None:
+                    s_ += f", изменение {fmt_yoy(r['change_pct'])}"
+                elif r["unit"] == "%" and r["change_pp"] is not None:
+                    pp = _grp(f"{r['change_pp']:,.2f}")
+                    s_ += f", изменение {'+' if r['change_pp'] > 0 else ''}{pp} п.п."
+                t_ = by["ВСЕГО"].get(code) if "ВСЕГО" in by else None
+                if r["unit"] == "%" and t_ and t_["value_cur"] is not None:
+                    s_ += f"; по рынку {fmt_pct(t_['value_cur'], 2)}"
+                return s_ + "."
+            t += "### INSON в рэнкинге\n\n"
+            t += "\n".join([
+                line("total_assets", "Совокупные активы (место INSON на рынке по активам)"),
+                line("premiums_total", "Всего собранные премии"),
+                line("total_capital", "Совокупный капитал"),
+                line("share_capital", "Акционерный капитал"),
+                line("reserves_gross", "Страховые резервы брутто"),
+                line("reserves_net", "Страховые резервы чистые"),
+                line("payouts_to_premiums", "Страховые выплаты / страховые премии"),
+                line("claims_received", "Поступило претензий"),
+                line("claims_refused", "Отказано по претензиям"),
+                line("refused_to_claims", "Доля отказов"),
+                line("roe", "Рентабельность собственного капитала"),
+                line("roa", "Рентабельность активов"),
+            ]) + "\n\n"
+            t += ("Совокупный капитал и чистые резервы INSON из рэнкинга записаны в company_financials (лимит на один "
+                  "риск, Положение № 1806, п. 15) с пометкой «из публичного рэнкинга, до подтверждения бухгалтерией».\n\n")
         return t
 
     def _inson(self, S):
@@ -1498,6 +1627,24 @@ def _write_atomic(path: Path, text: str):
     tmp.replace(path)
 
 
+def _ensure_ranking(con):
+    """Рэнкинга нет в базе-источнике (сервер ещё не перезапускался) — грузим его в копию из текста в library.
+    Рабочая база не трогается: con — соединение с копией."""
+    try:
+        import tools.ranking_parse as rp
+        if rp.source_file() and rp.needs_load(con):
+            con.executescript((ROOT / "db" / "schema.sql").read_text(encoding="utf-8")) \
+                if not _has_table(con, "company_rankings") else None
+            cols = {r[1] for r in con.execute("PRAGMA table_info(company_financials)")}
+            for name, decl in appdb.ADDED_COLUMNS.get("company_financials", []):
+                if cols and name not in cols:
+                    con.execute(f"ALTER TABLE company_financials ADD COLUMN {name} {decl}")
+            rp.load(con)
+            con.commit()
+    except Exception as e:                      # нет файла или не разобрался — заметка честно скажет «нет»
+        print("рэнкинг snsratings в копию не загружен:", e)
+
+
 def generate(db_path: Path | None = None, out_dir: Path = OUT_DIR, json_path: Path = JSON_PATH, rebuild: bool = True,
              parsed: Path | None = None, work_db: Path | None = None):
     """Собирает заметки и факты. Возвращает (docs, facts, путь к использованной копии базы).
@@ -1521,6 +1668,7 @@ def generate(db_path: Path | None = None, out_dir: Path = OUT_DIR, json_path: Pa
                 ms.DB, ms.PARSED = old_db, old_parsed
         con = sqlite3.connect(str(work))
         try:
+            _ensure_ranking(con)
             docs, facts = Builder(con, parsed).build()
             dates = [r[0] for r in con.execute("SELECT DISTINCT report_date FROM market_stats ORDER BY 1")]
         finally:

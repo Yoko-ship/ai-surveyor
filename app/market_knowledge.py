@@ -76,7 +76,7 @@ def signature(con) -> dict:
     r = con.execute("SELECT COUNT(*), MAX(report_date), ROUND(COALESCE(SUM(premiums_ytd),0),1),"
                     " ROUND(COALESCE(SUM(payouts_ytd),0),1) FROM market_stats").fetchone()
     sig["market_stats"] = [r[0], r[1], r[2], r[3]]
-    for t in ("napp_claims", "napp_branches", "market_stats_notes", "company_financials"):
+    for t in ("napp_claims", "napp_branches", "market_stats_notes", "company_financials", "company_rankings"):
         try:
             sig[t] = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
         except Exception:

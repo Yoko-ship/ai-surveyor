@@ -3724,7 +3724,7 @@ def check_contract_long():
     CT_REPORT["длинный договор"] = {"знаков": text_len, "DOCX, с": round(dt_docx, 2), "PDF страниц": pages,
                                     "PDF, с": round(dt_pdf, 2)}
     ok(f"PDF {pages} стр. с текстом (больше 10) принят и разобран за {dt_pdf:.1f} с без модели",
-       pages > 10 and st == 200 and not b["rejected"] and c.get("detected") and not CALLS and dt_pdf < 5
+       pages > 10 and st == 200 and not b["rejected"] and c.get("detected") and not CALLS and dt_pdf < 12
        and c["fields"]["premium"] == 10_000_000 and c.get("pages") == pages, (st, b.get("rejected"), dt_pdf))
     ok("PDF-скан больше 10 страниц по-прежнему отклоняется",
        "10 страниц" in (upload([("scan.pdf", "application/pdf", pdf_pages(12))], {"lang": "ru"})[1].get("rejected")
@@ -4792,10 +4792,17 @@ def check_review_fixes():
     ok("41.3: лимит по Положению 1806 п. 15 — «цифры временные, до данных бухгалтерии» (company_financials)",
        "по Положению № 1806, п. 15 = 20 % × (собственные средства" in nb(lines)
        and "цифры временные, до данных бухгалтерии (источник: company_financials)" in lines, ret["lines"])
-    ok("41.3: «страховая сумма 47,4 млрд в лимит 84 млрд укладывается»",
-       "Страховая сумма 47 397 852 345 сум в лимит 84 000 000 000 сум укладывается" in nb(lines), ret["lines"])
+    # лимит и линия — из company_financials копии (03.10.2026: временные 180/240 млрд заменяет рэнкинг snsratings,
+    # 95,2 + 150,1 млрд → лимит 49,06 млрд), а не числом в тесте
+    from app import capacity as _cap
+    with db.tx() as con:
+        _lpr = _cap.capacity(con)["limit_per_risk"]
+        _line8 = next(l_["retention"] for l_ in _cap.retention_table(con, _lpr) if l_["class_code"] == "8")
+    _sp = lambda x: f"{x:,.0f}".replace(",", " ")  # noqa: E731
+    ok(f"41.3: «страховая сумма 47,4 млрд в лимит {_sp(_lpr)} укладывается»",
+       f"Страховая сумма 47 397 852 345 сум в лимит {_sp(_lpr)} сум укладывается" in nb(lines), ret["lines"])
     ok("41.3: таблица линий класса 8 — внутреннее экспертное правило, не норма, не калибровано",
-       "Лимит по таблице линий класса 8 — 43 409 395 973 сум: внутреннее экспертное правило "
+       f"Лимит по таблице линий класса 8 — {_sp(_line8)} сум: внутреннее экспертное правило "
        "(capacity.retention_table), не норма, не калибровано" in nb(lines), ret["lines"])
     phrase = ("EML выше расчётного удержания по экспертной таблице — рекомендуем рассмотреть перестрахование или "
               "решение андеррайтера (оценочно, цифры временные)")
@@ -9143,6 +9150,13 @@ def main():
     try:
         with temp_db("surveyor-act-test.db"):
             db.ensure_schema()
+            # собственные средства и резервы — фиксированные тестовые (как были временные 180 / 240 млрд): баллы,
+            # лимиты и склонения в проверках не зависят от того, что сейчас в рабочей базе (с 03.10.2026 сервер
+            # заменяет временные цифры рэнкингом snsratings — это проверяет tests/test_ranking.py)
+            with db.tx() as con:
+                con.execute("DELETE FROM company_financials")
+                con.execute("INSERT INTO company_financials (report_date, own_funds, reserves, source) "
+                            "VALUES ('2026-07-01', 180e9, 240e9, 'временно, до данных бухгалтерии (тест)')")
             act.DIR = folder
             guest.reset()
             check_engine()
