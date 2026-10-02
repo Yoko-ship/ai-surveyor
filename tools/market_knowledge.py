@@ -22,6 +22,8 @@
     ... --db <путь к базе>      другая база-источник (по умолчанию — база сервера, app/db.DB_PATH)
     ... --no-rebuild            не пересобирать статистику на копии, читать как есть
     ... --out <папка> --json <файл>
+
+На сервере то же делает app/market_knowledge.py (без пересборки статистики, по сигналу нового среза НАПП).
 """
 from __future__ import annotations
 
@@ -1489,6 +1491,13 @@ def snapshot(src: Path, dst: Path):
         s.close()
 
 
+def _write_atomic(path: Path, text: str):
+    """Сервер читает заметки и факты, пока они пересобираются: пишем рядом и подменяем одним шагом."""
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(text, encoding="utf-8")
+    tmp.replace(path)
+
+
 def generate(db_path: Path | None = None, out_dir: Path = OUT_DIR, json_path: Path = JSON_PATH, rebuild: bool = True,
              parsed: Path | None = None, work_db: Path | None = None):
     """Собирает заметки и факты. Возвращает (docs, facts, путь к использованной копии базы).
@@ -1519,7 +1528,7 @@ def generate(db_path: Path | None = None, out_dir: Path = OUT_DIR, json_path: Pa
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         for name, text in docs.items():
-            (out_dir / name).write_text(text, encoding="utf-8")
+            _write_atomic(out_dir / name, text)
         payload = {
             "generated_at": datetime.now().isoformat(timespec="seconds"),
             "generator": "tools/market_knowledge.py",
@@ -1532,7 +1541,7 @@ def generate(db_path: Path | None = None, out_dir: Path = OUT_DIR, json_path: Pa
             "facts": facts,
         }
         Path(json_path).parent.mkdir(parents=True, exist_ok=True)
-        Path(json_path).write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+        _write_atomic(Path(json_path), json.dumps(payload, ensure_ascii=False, indent=1))
         return docs, facts, work
     finally:
         if tmpdir:

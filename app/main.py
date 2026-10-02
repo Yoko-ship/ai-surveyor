@@ -85,6 +85,7 @@ def _refresh_job():
             db.audit(con, "агент-статистик", "обновление рыночной статистики", "market_stats",
                      _refresh_state["log"][-1])
         background.ok("stats-refresh")
+        _after_stats()
     except Exception as e:  # ошибка сети не должна ронять сервер
         _refresh_state["log"] = [f"ошибка: {e}"]
         background.failed("stats-refresh", e)
@@ -93,10 +94,21 @@ def _refresh_job():
         _refresh_lock.release()
 
 
+def _after_stats():
+    """Новый срез НАПП → пересборка знаний о рынке (в фоне, только если данные изменились)."""
+    try:
+        from . import market_knowledge
+        market_knowledge.trigger()
+    except Exception as e:                # знания — дополнение: статистика уже обновлена
+        background.failed("market-knowledge", e)
+
+
 def _scheduler():
+    background.plan("stats-refresh", 60)
     time.sleep(60)               # даём серверу подняться
     while True:
         _refresh_job()
+        background.plan("stats-refresh", REFRESH_EVERY_SEC)
         time.sleep(REFRESH_EVERY_SEC)
 
 
@@ -185,6 +197,11 @@ def startup():
         lawwatch.start_scheduler()
     except Exception as e:
         print("расписание слежения за законодательством не запущено:", e)
+    try:                                   # документы конкурентов: раз в 7 дней, первая проверка через 15 минут
+        from . import competitors
+        competitors.start_scheduler()
+    except Exception as e:
+        print("расписание документов конкурентов не запущено:", e)
     try:                                   # бот Telegram: опрос getUpdates — только при TG_POLLING=1 и токене
         from . import tgbot
         if tgbot.start_polling():
@@ -285,8 +302,83 @@ def health():
                 updates[key] = con.execute(sql).fetchone()[0]
             except Exception:
                 updates[key] = None
+    sources = data_sources(updates)
+    updates["market_knowledge"] = sources["market_knowledge"]["last"]
+    updates["competitors"] = sources["competitors"]["last"]
     return {"status": "ok", "products": n, "db": base, "background": background.status(),
-            "updated": updates}
+            "updated": updates, "data_sources": sources}
+
+
+def _next_daily(hour: int, minute: int) -> str:
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    at = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+    if at <= now:
+        at += timedelta(days=1)
+    return at.isoformat(timespec="seconds")
+
+
+def data_sources(updated: dict = None) -> dict:
+    """Блок «Источники данных» для /health и админки (Система → Источники данных): когда обновлялось,
+    когда следующий запуск, последняя ошибка (только тип, без текста). Сбой одного модуля не роняет блок."""
+    updated = updated or {}
+
+    def thread(name):
+        st = background.state(name)
+        return {"next": st.get("next_at"), "error": st.get("last_error"), "error_at": st.get("last_error_at"),
+                "alive": st.get("alive")}
+
+    out = {}
+    t = thread("stats-refresh")
+    out["napp"] = {"title": "Отчёты НАПП", "last": _refresh_state["last"] or updated.get("market_stats"),
+                   "next": t["next"], "error": t["error"] or (
+                       "ошибка обновления" if any(str(l).startswith("ошибка") for l in _refresh_state["log"]) else None),
+                   "error_at": t["error_at"], "schedule": "раз в сутки"}
+    for key, title, mod, name in (("stat_uz", "stat.uz (агентство статистики)", "statagency", "stat-agency-refresh"),
+                                  ("exchange", "Биржа (uzex.uz)", "uzex", "exchange-refresh")):
+        t = thread(name)
+        try:
+            m = __import__(f"app.{mod}", fromlist=["_state"])
+            last, err = m._state.get("last"), m._state.get("error")
+        except Exception:
+            last, err = None, None
+        db_key = "stat_series" if key == "stat_uz" else "exchange_quotes"
+        out[key] = {"title": title, "last": last or updated.get(db_key), "next": t["next"],
+                    "error": t["error"] or ("ошибка обновления" if err else None), "error_at": t["error_at"],
+                    "schedule": "раз в сутки"}
+    t = thread("lawwatch")
+    try:
+        from . import lawwatch
+        law = lawwatch.last_status()
+        nxt = _next_daily(lawwatch.CHECK_HOUR, lawwatch.CHECK_MINUTE)
+    except Exception:
+        law, nxt = {}, None
+    out["laws"] = {"title": "Законодательство (lex.uz)", "last": law.get("last") or updated.get("lawwatch"),
+                   "next": nxt, "error": t["error"] or ("ошибка прохода" if law.get("error") else None),
+                   "error_at": t["error_at"], "schedule": law.get("schedule") or "раз в сутки"}
+    t = thread("market-knowledge")
+    try:
+        from . import market_knowledge
+        mk = market_knowledge.status()
+    except Exception:
+        mk = {}
+    out["market_knowledge"] = {"title": "Знания о рынке (заметки и факты)", "last": mk.get("last_built"),
+                               "next": "после обновления НАПП, если данные изменились",
+                               "slice": mk.get("slice"), "where": mk.get("where"),
+                               "error": t["error"] or mk.get("last_error"),
+                               "error_at": t["error_at"] or mk.get("last_error_at"),
+                               "schedule": mk.get("schedule")}
+    t = thread("competitors-refresh")
+    try:
+        from . import competitors
+        cs = competitors.status()
+    except Exception:
+        cs = {}
+    out["competitors"] = {"title": "Документы конкурентов", "last": cs.get("last_run"), "next": cs.get("next_run"),
+                          "checked": cs.get("checked"), "changed": cs.get("changed"),
+                          "robots_closed": cs.get("robots_closed"), "errors": cs.get("errors"),
+                          "error": t["error"], "error_at": t["error_at"], "schedule": cs.get("schedule")}
+    return out
 
 
 CLASSES_SHOWN, CLASSES_ORDER = db.CLASSES_SHOWN, db.CLASSES_ORDER
@@ -1059,7 +1151,9 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("act", "act_router"), ("min_rates", "min_rates_router"),
                     # админ-панель 02.10.2026: сотрудник вручную, импорт продуктов и страховых случаев
                     ("staff", "staff_router"), ("product_import", "product_import_router"),
-                    ("claims_import", "claims_import_router")):
+                    ("claims_import", "claims_import_router"),
+                    # автообновление 03.10.2026: знания о рынке после нового среза НАПП, документы конкурентов
+                    ("market_knowledge", "market_knowledge_router"), ("competitors", "competitors_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

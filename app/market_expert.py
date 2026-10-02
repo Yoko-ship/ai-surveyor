@@ -402,19 +402,40 @@ def _clean_fact(f) -> Optional[dict]:
     return out
 
 
+def facts_file() -> Optional[Path]:
+    """Файл фактов: пересобранный сервером (STORAGE_DIR/knowledge) или из docs — более свежий по mtime."""
+    from . import market_knowledge as mkn
+    cands = [FACTS_FILE]
+    if mkn.KNOWLEDGE is not None:
+        cands.insert(0, mkn.KNOWLEDGE / "market_facts.json")
+    best = None
+    for p in cands:
+        try:
+            mt = p.stat().st_mtime
+        except OSError:
+            continue
+        if best is None or mt > best[0]:
+            best = (mt, p)
+    return best[1] if best else None
+
+
 def facts() -> list:
+    path = facts_file()
     try:
-        st = FACTS_FILE.stat()
+        st = path.stat() if path is not None else None
     except OSError:
+        st = None
+    if st is None:
         with _facts_lock:
             _facts_cache.update({"mtime": None, "items": [], "bad": 0})
         return []
+    stamp = (str(path), st.st_mtime)          # смена файла (docs ↔ постоянный диск) — тоже перечитать
     with _facts_lock:
-        if _facts_cache["mtime"] == st.st_mtime:
+        if _facts_cache["mtime"] == stamp:
             return _facts_cache["items"]
     items, bad, err = [], 0, None
     try:
-        data = json.loads(FACTS_FILE.read_text(encoding="utf-8"))
+        data = json.loads(path.read_text(encoding="utf-8"))
         raw = data.get("facts") if isinstance(data, dict) else data
         for f in raw or []:
             c = _clean_fact(f)
@@ -428,12 +449,12 @@ def facts() -> list:
         # ошибки не глотаем: в журнал (раз на версию файла)
         try:
             with db.tx() as con:
-                db.audit(con, "system", "market_facts.json: записи отброшены", "docs/market_facts.json",
+                db.audit(con, "system", "market_facts.json: записи отброшены", db.stored_path(path),
                          {"отброшено": bad, "ошибка": err})
         except Exception as e:
             print("market_expert: журнал не записан:", e)
     with _facts_lock:
-        _facts_cache.update({"mtime": st.st_mtime, "items": items, "bad": bad})
+        _facts_cache.update({"mtime": stamp, "items": items, "bad": bad})
     return items
 
 

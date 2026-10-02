@@ -74,9 +74,11 @@ def _refresh_job():
 
 
 def _scheduler():
+    background.plan(THREAD, FIRST_DELAY_SEC)
     time.sleep(FIRST_DELAY_SEC)                      # не спорим за сеть с НАПП и stat.uz при старте
     while True:
         _refresh_job()
+        background.plan(THREAD, REFRESH_EVERY_SEC)
         time.sleep(REFRESH_EVERY_SEC)
 
 

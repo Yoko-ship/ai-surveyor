@@ -224,6 +224,7 @@ var NAV = [
   items:[
    {id:"deploy", title:"Запуск и обслуживание", kind:"frame", src:"/admin/deploy",
     why:"Готовая страница: настройки, режим данных, резервные копии, чек-лист запуска."},
+   {id:"data",   title:"Источники данных", why:"Когда обновлялись НАПП, stat.uz, биржа, законы, знания о рынке и документы конкурентов."},
    {id:"ai",     title:"Искусственный интеллект", why:"Состояние модели, проверка связи и журнал обращений."},
    {id:"bot",    title:"Бот Telegram", why:"Состояние бота и способ получения обновлений."},
    {id:"google", title:"Вход через Google", why:"Настроен вход или нет и с каких доменов пускаем."},
@@ -1548,6 +1549,28 @@ V.system_ai = async function (el) {
         esc(x.total_tokens == null ? "—" : x.total_tokens) + '</td><td class="n">' + esc(x.ms == null ? "—" : x.ms) +
         "</td><td>" + (x.ok ? "успех" : esc(x.error || "ошибка")) + "</td></tr>"; }), "Обращений пока не было");
   } catch (e) { $("#aiCalls").innerHTML = fail(e); }
+};
+V.system_data = async function (el) {
+  var h = await api("/health"), d = h.data_sources || {};
+  el.innerHTML = '<div class="card"><h3>Источники данных</h3><p class="note">Данные обновляются сами по расписанию. ' +
+    'Ошибка — только её тип; подробности в журнале сервера.</p>' +
+    tbl(["Источник", "Обновлено", "Следующий запуск", "Расписание", "Последняя ошибка"], Object.keys(d).map(function (k) {
+      var x = d[k] || {};
+      var nx = x.next && /^\d{4}-/.test(x.next) ? when(x.next) : esc(x.next || "—");
+      return "<tr><td>" + esc(x.title || k) + "</td><td>" + (x.last ? when(x.last) : "—") + "</td><td>" + nx +
+        "</td><td>" + esc(x.schedule || "—") + "</td><td>" + (x.error ? esc(x.error) + (x.error_at ? " · " + when(x.error_at) : "") : "—") +
+        "</td></tr>"; }), "Нет данных") +
+    '<div class="bar" style="margin-top:12px"><button class="btn btn-primary" id="mkRebuild">Пересобрать знания о рынке</button>' +
+    '<button class="btn" id="cmpRefresh">Проверить сайты конкурентов</button></div><div class="msg" id="dsMsg"></div></div>';
+  function go(path, btn) {
+    btn.onclick = async function () {
+      var m = $("#dsMsg"); m.className = "msg"; m.textContent = "Запускаем…";
+      try { var r = await send(path, "POST", {}); m.textContent = r.note || (r.started ? "Запущено." : "Уже идёт."); }
+      catch (e) { m.className = "msg bad"; m.textContent = "Не получилось: " + e.message; }
+    };
+  }
+  go("/market/knowledge/rebuild", $("#mkRebuild"));
+  go("/market/competitors/refresh", $("#cmpRefresh"));
 };
 V.system_bot = async function (el) {
   var b = await api("/tg/bot-status");

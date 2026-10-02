@@ -94,6 +94,56 @@ def competitors_dir() -> Path:
 # (STORAGE_DIR) — STORAGE_DIR/library_live: library/ в образе Docker пустая и живёт до перезапуска.
 # Без STORAGE_DIR — None: акты кладутся в LIB, как при ручной загрузке tools/lex_fetch.py.
 LIVE_LIB = (db.DATA_DIR / "library_live") if os.environ.get("STORAGE_DIR") else None
+HISTORY_DIR = "_history"         # прежние версии документов конкурентов (tools/competitors_fetch.py) — не в индекс
+
+
+def competitors_live_dir() -> Optional[Path]:
+    """Новые версии документов конкурентов на постоянном диске (STORAGE_DIR/library_live/Конкуренты)."""
+    return (LIVE_LIB / "Конкуренты") if LIVE_LIB is not None else None
+
+
+def _fresher(found: dict, key: str, p: Path) -> None:
+    """Из двух копий одного файла (образ и постоянный диск) берём более свежую по mtime."""
+    try:
+        mt = p.stat().st_mtime
+    except OSError:
+        return
+    if key not in found or mt > found[key][0]:
+        found[key] = (mt, p)
+
+
+def competitor_files() -> list:
+    """Документы конкурентов: library/03_…/Конкуренты и STORAGE_DIR/library_live/Конкуренты.
+    Один и тот же «Компания/документ.txt» — один раз (свежий); папки _history не индексируются."""
+    found = {}
+    for base in (competitors_dir(), competitors_live_dir()):
+        if base is None or not base.exists():
+            continue
+        for p in base.rglob("*.txt"):
+            rel = p.relative_to(base)
+            if HISTORY_DIR in rel.parts:
+                continue
+            _fresher(found, rel.as_posix(), p)
+    return [found[k][1] for k in sorted(found)]
+
+
+def market_notes_dirs() -> list:
+    """Где лежат обзоры рынка: STORAGE_DIR/knowledge/Рынок (пересборка на сервере) и docs/Знания/Рынок."""
+    from . import market_knowledge as mkn
+    out = []
+    if mkn.KNOWLEDGE is not None:
+        out.append(mkn.KNOWLEDGE / "Рынок")
+    out.append(market_notes_dir())
+    return [d for d in out if d.exists()]
+
+
+def market_note_files() -> list:
+    """Обзоры рынка по имени файла — более свежий из двух мест."""
+    found = {}
+    for d in market_notes_dirs():
+        for p in d.glob("*.md"):
+            _fresher(found, p.name, p)
+    return [found[k][1] for k in sorted(found)]
 # FAQ переименован 22.09.2026 («ИИ специалист по страхованию»). Старое имя поддерживается:
 # на развёрнутом сервере файл мог остаться прежним.
 FAQ_FILE_NEW = ROOT / "docs" / "Специалист — FAQ.json"
@@ -134,8 +184,10 @@ def source_kind(path: str) -> str:
     p = path or ""
     if p.startswith("library/02_"):
         return "company"
-    if p.startswith("library/03_"):
+    if p.startswith("library/03_") or "/library_live/Конкуренты/" in p:
         return "competitor"      # правила и оферты других страховщиков (library/03_Рынок_НАПП/Конкуренты)
+    if "/knowledge/Рынок/" in p:  # обзоры рынка, пересобранные на сервере (STORAGE_DIR/knowledge)
+        return "competitor" if is_competitor_note(p) else "market"
     if p.startswith("docs/Знания/Рынок/") and is_competitor_note(p):
         return "competitor"      # обзор продуктов и условий конкурентов — не данные НАПП и не норма
     if p.startswith("docs/Знания/Рынок/"):
@@ -946,10 +998,13 @@ def source_files() -> list:
     dirs = [LIB]
     if LIVE_LIB is not None and LIVE_LIB != LIB:
         dirs.append(LIVE_LIB)
+    live_comp = competitors_live_dir()
     for d in dirs:
         if not d.exists():
             continue
         for p in sorted(d.rglob("*.txt")):
+            if live_comp is not None and live_comp in p.parents:
+                continue                     # документы конкурентов на постоянном диске — ниже, не акты
             if skipped(p):
                 continue
             out.append({"path": p, "kind": "act"})
@@ -957,21 +1012,19 @@ def source_files() -> list:
         for p in sorted(company_dir().glob("*.txt")):
             if not skipped(p):
                 out.append({"path": p, "kind": "company"})
-    if competitors_dir().exists():
-        # сканы без расшифровки помечены «Индексировать: нет» — в индекс не идут
-        for p in sorted(competitors_dir().rglob("*.txt")):
-            if not skipped(p):
-                out.append({"path": p, "kind": "competitor"})
+    # сканы без расшифровки помечены «Индексировать: нет» — в индекс не идут
+    for p in competitor_files():
+        if not skipped(p):
+            out.append({"path": p, "kind": "competitor"})
     if NOTES.exists():
         for p in sorted(NOTES.glob("*.md")):
             out.append({"path": p, "kind": "note"})
     if knowledge_dir().exists():
         for p in sorted(knowledge_dir().glob("*.md")):
             out.append({"path": p, "kind": "note"})
-    if market_notes_dir().exists():
-        # обзоры рынка появляются по мере работы агента рынка — подхватываются по mtime, как законы
-        for p in sorted(market_notes_dir().glob("*.md")):
-            out.append({"path": p, "kind": "competitor" if is_competitor_note(p) else "market"})
+    # обзоры рынка: пересобираются сервером после нового среза НАПП — подхватываются по mtime, как законы
+    for p in market_note_files():
+        out.append({"path": p, "kind": "competitor" if is_competitor_note(p) else "market"})
     return out
 
 
@@ -2131,8 +2184,7 @@ def competitor_note_items(rq: str, company_words=()) -> list:
     """Строки таблиц и абзацы обзора «Конкуренты — продукты и условия», где есть термин вопроса:
     строка таблицы → «Компания — вид: колонка: значение». Служебные строки (MKT-…, «Цены могут
     отличаться»), пустые ячейки и «не опубликовано» не берутся. Только то, что реально написано в обзоре."""
-    d = market_notes_dir()
-    files = [f for f in d.glob("*.md") if is_competitor_note(f)] if d.exists() else []
+    files = [f for f in market_note_files() if is_competitor_note(f)]
     if not files:
         return []
     terms, kind = _q_terms(rq)
@@ -2314,7 +2366,7 @@ MARKET_CONF = 0.95                    # ответ из таблиц НАПП: �
 
 def _market_notes(question: str, lang: str) -> list:
     """Обзоры рынка docs/Знания/Рынок из индекса — дополнительные цитаты к цифрам (если файлы есть)."""
-    if not market_notes_dir().exists():
+    if not market_notes_dirs():
         return []
     try:
         ensure_index()

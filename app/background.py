@@ -4,6 +4,7 @@
     background.start("stats-refresh", loop_fn)      # loop_fn — бесконечный цикл модуля
     background.run_loop(name, step, first_delay, every)  # готовый цикл: пауза → step() → пауза ...
     background.ok(name) / background.failed(name, exc) — отметки итераций из своих циклов
+    background.plan(name, seconds)                  — когда следующий запуск (для /health, «Источники данных»)
 
 SURVEYOR_NO_BACKGROUND=1 — служебный флаг для тестов и замеров: ни один поток не запускается.
 Ошибки пишутся в журнал (logging) с трассировкой; наружу (/health) — только время и тип ошибки,
@@ -13,7 +14,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 log = logging.getLogger("surveyor.background")
 
@@ -32,7 +33,14 @@ def _now() -> str:
 
 def _st(name: str) -> dict:
     return _state.setdefault(name, {"started": None, "last_ok": None, "last_error_at": None,
-                                    "last_error": None, "errors": 0})
+                                    "last_error": None, "errors": 0, "next_at": None})
+
+
+def plan(name: str, seconds: float) -> None:
+    """Отметка «следующий запуск через seconds» — перед сном цикла."""
+    at = (datetime.now() + timedelta(seconds=max(0, seconds))).isoformat(timespec="seconds")
+    with _lock:
+        _st(name)["next_at"] = at
 
 
 def ok(name: str) -> None:
@@ -77,6 +85,7 @@ def start(name: str, target) -> bool:
 
 def run_loop(name: str, step, first_delay: float, every: float):
     """Цикл «пауза → step() → пауза». Исключение в step() журналируется, цикл продолжается."""
+    plan(name, first_delay)
     time.sleep(first_delay)
     while True:
         try:
@@ -84,7 +93,15 @@ def run_loop(name: str, step, first_delay: float, every: float):
             ok(name)
         except Exception as e:
             failed(name, e)
+        plan(name, every)
         time.sleep(every)
+
+
+def state(name: str) -> dict:
+    """Состояние одного потока (копия) — для блока «Источники данных»."""
+    with _lock:
+        t = _threads.get(name)
+        return {"alive": bool(t and t.is_alive()), **dict(_st(name))}
 
 
 def status() -> dict:

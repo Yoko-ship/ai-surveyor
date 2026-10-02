@@ -164,6 +164,8 @@ ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"
                      ("POST", "/valuation/settings"),
                      ("POST", "/lawwatch/check"),      # внеплановая сверка актов на lex.uz
                      ("POST", "/market/refresh"),      # перезабор отчётов НАПП
+                     ("POST", "/market/knowledge/rebuild"),    # пересборка знаний о рынке (app/market_knowledge.py)
+                     ("POST", "/market/competitors/refresh"),  # проход по сайтам конкурентов (app/competitors.py)
                      ("POST", "/exchange/refresh"),    # перезабор биржевых цен uzex.uz (app/uzex.py)
                      # справочники, которые админ правит из мини-приложения (задача 144)
                      ("PUT", "/osgor/brv"),            # размер БРВ для ОСГОР

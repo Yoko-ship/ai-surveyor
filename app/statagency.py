@@ -700,9 +700,11 @@ def _refresh_job():
 
 
 def _scheduler():
+    background.plan("stat-agency-refresh", 180)
     time.sleep(180)                                  # даём серверу подняться и не спорить с НАПП за сеть
     while True:
         _refresh_job()
+        background.plan("stat-agency-refresh", REFRESH_EVERY_SEC)
         time.sleep(REFRESH_EVERY_SEC)
 
 

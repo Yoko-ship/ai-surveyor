@@ -316,7 +316,9 @@ def check_health():
     st, h = jcall("GET", "/health", token=False)
     ok("9. /health: status/products на месте, база %s, потоки и даты обновлений" % h.get("db"),
        st == 200 and h["status"] == "ok" and h["products"] > 0 and h["db"]["journal_mode"] == "wal"
-       and "threads" in h["background"] and set(h["updated"]) == {"market_stats", "stat_series", "lawwatch", "exchange_quotes"})
+       and "threads" in h["background"] and set(h["updated"]) == {"market_stats", "stat_series", "lawwatch", "exchange_quotes",
+                                   "market_knowledge", "competitors"}
+       and set(h["data_sources"]) == {"napp", "stat_uz", "exchange", "laws", "market_knowledge", "competitors"})
 
 
 def check_backup_restore():
