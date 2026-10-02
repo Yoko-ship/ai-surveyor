@@ -36,6 +36,14 @@
 (sha256), язык, источник ответа, уверенность и время. Этого хватает, чтобы увидеть частые вопросы
 без ответа и отдать их юристу на пополнение FAQ.
 
+Рынок (с 02.10.2026, app/market_expert.py): вопрос о страховом рынке (лидер, доля, убыточность, премии,
+классы, регионы, рыночная ставка) отвечается ИЗ ДАННЫХ — market_stats (отчёты НАПП), company_financials,
+docs/market_facts.json — с плашкой источника (файл отчёта и дата среза). Модель только пересказывает.
+Память диалога: POST /legal/ask c session_id — последние 8 реплик в памяти процесса (2 часа),
+уточнения «а по классу 8?» разрешаются по контексту. В базу текст реплик не пишется.
+Индекс знаний: закон (law), тарифная политика INSON (company), обзоры рынка docs/Знания/Рынок (market),
+заметки docs/*.md и docs/Знания/*.md (note); у цитаты source_kind и source_label.
+
 Подключение (app/main.py): app.include_router(legal.router) — индекс собирается сам при первом
 обращении и дособирается по mtime файлов; принудительно — POST /legal/reindex (администратор).
 """
@@ -53,12 +61,35 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from . import db, llm
+from . import market_expert as mx
 
 router = APIRouter()
 
 ROOT = Path(__file__).resolve().parent.parent
 LIB = ROOT / "library" / "01_Законодательство"
 NOTES = ROOT / "docs"
+# Папки знаний считаются от ROOT/NOTES в момент обращения (тесты подменяют ROOT и NOTES):
+#   NOTES/Знания/*.md          — разборы команды (app/knowledge.py), тип note;
+#   NOTES/Знания/Рынок/*.md    — обзоры рынка (строит агент рынка; может не быть), тип market;
+#   ROOT/library/02_Компания_INSON/*.txt — тарифная политика и документы компании, тип company.
+
+
+def knowledge_dir() -> Path:
+    return NOTES / "Знания"
+
+
+def market_notes_dir() -> Path:
+    return NOTES / "Знания" / "Рынок"
+
+
+def company_dir() -> Path:
+    return ROOT / "library" / "02_Компания_INSON"
+
+
+def competitors_dir() -> Path:
+    """Публичные документы других страховщиков РУз (правила, оферты, паспорта продуктов) — тип competitor.
+    Это не норма права: в ответе помечаются «документ страховщика», official = 0."""
+    return ROOT / "library" / "03_Рынок_НАПП" / "Конкуренты"
 # Акты, найденные живым поиском на lex.uz (app/legal_live.py). На сервере с постоянным диском
 # (STORAGE_DIR) — STORAGE_DIR/library_live: library/ в образе Docker пустая и живёт до перезапуска.
 # Без STORAGE_DIR — None: акты кладутся в LIB, как при ручной загрузке tools/lex_fetch.py.
@@ -75,6 +106,71 @@ ASSISTANT_NAME = {
     "uz": "INSON sugʻurta boʻyicha sunʼiy intellekt mutaxassisi",
     "en": "INSON AI insurance specialist",
 }
+# роль помощника (поле assistant_role ответа)
+ASSISTANT_ROLE = dict(mx.ROLE)
+
+# тип источника куска индекса и подпись для человека
+SOURCE_LABEL = {
+    "law": {"ru": "закон", "uz": "qonun", "en": "law"},
+    "company": {"ru": "тарифная политика INSON", "uz": "INSON tarif siyosati", "en": "INSON tariff policy"},
+    "market": {"ru": "данные НАПП", "uz": "NAPP maʼlumotlari", "en": "NAPP data"},
+    "competitor": {"ru": "документ другого страховщика — не норма", "uz": "boshqa sugʻurtalovchi hujjati — norma emas",
+                   "en": "another insurer's document — not a legal rule"},
+    "note": {"ru": "заметка проекта", "uz": "loyiha qaydi", "en": "project note"},
+    "ai": {"ru": "ответ ИИ — не подтверждён источником", "uz": "SI javobi — manba bilan tasdiqlanmagan",
+           "en": "AI answer — not confirmed by a source"},
+    "none": {"ru": "источник не найден", "uz": "manba topilmadi", "en": "no source found"},
+}
+# пометки частей ответа: данные (с источником) и мнение/вывод
+PART_LABEL = {
+    "data": {"ru": "Данные (с источником)", "uz": "Maʼlumotlar (manba bilan)", "en": "Data (with source)"},
+    "opinion": {"ru": "Вывод — мнение, а не норма и не данные", "uz": "Xulosa — fikr, norma yoki maʼlumot emas",
+                "en": "Conclusion — an opinion, not a rule or data"},
+}
+
+
+def source_kind(path: str) -> str:
+    """law | company | competitor | market | note по пути файла индекса."""
+    p = path or ""
+    if p.startswith("library/02_"):
+        return "company"
+    if p.startswith("library/03_"):
+        return "competitor"      # правила и оферты других страховщиков (library/03_Рынок_НАПП/Конкуренты)
+    if p.startswith("docs/Знания/Рынок/") and is_competitor_note(p):
+        return "competitor"      # обзор продуктов и условий конкурентов — не данные НАПП и не норма
+    if p.startswith("docs/Знания/Рынок/"):
+        return "market"
+    if p.startswith("docs/") or p.startswith("db:"):
+        return "note"
+    return "law"                 # library/01_… и акты живого поиска на постоянном диске
+
+
+def is_competitor_note(path) -> bool:
+    """Заметка о конкурентах («Конкуренты — продукты и условия.md») — тип competitor, а не market."""
+    return "конкурент" in Path(str(path)).name.lower()
+
+
+# Вопрос о конкурентах, рынке, условиях и ставках других страховщиков: только тогда документы
+# конкурентов участвуют в ответе наравне с остальными; иначе — дополнением после нормы
+COMPETITOR_WORDS = ("конкурент", "рынк", "рынок", "услови", "франшиз", "ставк", "тариф", "других страховщ",
+                    "другие страховщ", "другой страхов", "других компан", "продукт", "оферт", "raqobat", "bozor", "shart", "boshqa",
+                    "franshiza", "stavka", "competitor", "market", "terms", "deductible", "other insurer", "offer")
+
+
+def wants_competitor(question: str) -> bool:
+    q = norm(question)
+    return any(w in q for w in COMPETITOR_WORDS)
+
+
+# порядок цитат: норма первой, документы конкурентов — последними
+KIND_ORDER = {"law": 0, "company": 1, "note": 2, "market": 3, "competitor": 4}
+
+
+def source_label(kind: str, lang: str) -> str:
+    d = SOURCE_LABEL.get(kind) or SOURCE_LABEL["none"]
+    return d.get(lang) or d[DEFAULT_LANG]
+
+
 # пометка практического ответа: норма его не покрывает
 PRACTICE_NOTE = {
     "ru": "Ответ по практике компании и учебникам CII, а не по норме права.",
@@ -531,6 +627,15 @@ TOC_MIN_CHARS = 100         # короче — это строка оглавл�
 RUBRIC_MAX_LINES = 40       # рубрикатор lex.uz длиннее сорока строк не бывает
 
 
+# элементы веб-форм на страницах продуктов других страховщиков: строка целиком — не текст условий
+FORM_JUNK_RE = re.compile(
+    r"^\s*(?:получить\s+расч[её]т|рассчитать(?:\s+стоимость)?|номер\s+телефона|телефон|ф\.?\s*и\.?\s*о\.?"
+    r"|ваше\s+имя|имя|e-?mail|эл\.?\s*почта|отправить(?:\s+заявку)?|оставить\s+заявку|заказать\s+звонок"
+    r"|оформить(?:\s+онлайн)?|купить(?:\s+полис)?|подробнее|согласен\s+на\s+обработку.*|\+?998[\d\s\-()]*"
+    r"|hisoblash|telefon\s+raqami|ism|yuborish|ariza\s+qoldirish|get\s+a\s+quote|phone(?:\s+number)?"
+    r"|full\s+name|send|submit)\s*[:*]?\s*$", re.IGNORECASE)
+
+
 def _clean_lines(text: str) -> list:
     """Строки файла без служебного мусора выгрузки lex.uz.
 
@@ -578,6 +683,9 @@ def _clean_lines(text: str) -> list:
         if low in CHROME:
             drop()
             continue                       # кнопка или пункт меню страницы lex.uz
+        if len(ln) < 80 and FORM_JUNK_RE.match(ln):
+            drop()
+            continue                       # поле или кнопка веб-формы страницы продукта
         if ln.startswith("["):
             if "]" not in ln:
                 skip_left = RUBRIC_MAX_LINES      # предел, чтобы незакрытая скобка не съела акт
@@ -845,9 +953,25 @@ def source_files() -> list:
             if skipped(p):
                 continue
             out.append({"path": p, "kind": "act"})
+    if company_dir().exists():
+        for p in sorted(company_dir().glob("*.txt")):
+            if not skipped(p):
+                out.append({"path": p, "kind": "company"})
+    if competitors_dir().exists():
+        # сканы без расшифровки помечены «Индексировать: нет» — в индекс не идут
+        for p in sorted(competitors_dir().rglob("*.txt")):
+            if not skipped(p):
+                out.append({"path": p, "kind": "competitor"})
     if NOTES.exists():
         for p in sorted(NOTES.glob("*.md")):
             out.append({"path": p, "kind": "note"})
+    if knowledge_dir().exists():
+        for p in sorted(knowledge_dir().glob("*.md")):
+            out.append({"path": p, "kind": "note"})
+    if market_notes_dir().exists():
+        # обзоры рынка появляются по мере работы агента рынка — подхватываются по mtime, как законы
+        for p in sorted(market_notes_dir().glob("*.md")):
+            out.append({"path": p, "kind": "competitor" if is_competitor_note(p) else "market"})
     return out
 
 
@@ -893,6 +1017,21 @@ def _index_file(con, path: Path, kind: str) -> dict:
     official = 1 if (kind == "act" and language == "uz") else 0
     if kind == "note":
         act = "Заметка проекта: " + act
+    elif kind == "market":
+        act = "Обзор рынка: " + act
+    elif kind == "company":
+        act = "Документ INSON: " + act
+    elif kind == "competitor":
+        # шапка выгрузки (компания, источник, дата, пометки) — до строки «-----»; в цитаты не идёт
+        head, sep, body = raw.partition("\n-----\n")
+        if sep:
+            m = re.search(r"Источник:\s*(\S+)", head)
+            url = m.group(1) if m else ""
+            m = re.search(r"Компания:\s*(.+)", head)
+            act = f"Документ страховщика {m.group(1).strip() if m else path.parent.name} (не норма): " + act
+            raw = body
+        else:
+            act = "Обзор конкурентов (не норма): " + act
     units = split_units(raw, language)
     rows_ = []
     for u in units:
@@ -930,7 +1069,7 @@ def _index_rules(con) -> int:
 
 # версия разбора текста: меняется вместе с правилами очистки и разметки разрывов. Индекс,
 # собранный прежней версией, пересобирается сам — иначе в цитатах остаётся старый мусор.
-PARSER_VERSION = "2026-09-22.quotes"
+PARSER_VERSION = "2026-10-02.forms"
 PARSER_ROW = "db:parser"
 
 
@@ -1302,8 +1441,22 @@ def _on_topic(r: dict, stems: list) -> bool:
     return _coverage(r, list(stems)) >= KEY_SHARE_MIN and -r.get("score", 0.0) >= SCORE_MIN
 
 
-def search(question: str, lang: str, limit: int = MAX_PASSAGES) -> list:
+# документ компании (тарифная политика — распознанный скан с перечнем продуктов) отвечает только на вопрос
+# о компании: иначе перечень продуктов («страхование лиц, выезжающих за рубеж») выдавался за ответ
+# на правовой вопрос «нужно ли страховать туристов» и живой поиск закона на lex.uz не запускался
+COMPANY_WORDS = ("inson", "инсон", "тарифн", "политик", "компани", "приказ", "54-п", "агентск", "вознагражд",
+                 "минимальн", "tarif siyosat", "kompaniya", "tariff policy", "company", "minimum")
+
+
+def wants_company(question: str) -> bool:
+    q = norm(question)
+    return any(w in q for w in COMPANY_WORDS)
+
+
+def search(question: str, lang: str, limit: int = MAX_PASSAGES, allow_competitor: Optional[bool] = None) -> list:
     stems = stems_of(question, lang)
+    company_ok = wants_company(question)
+    competitor_ok = wants_competitor(question) if allow_competitor is None else allow_competitor
     q = match_query(question, lang)
     if not q:
         return []
@@ -1328,8 +1481,16 @@ def search(question: str, lang: str, limit: int = MAX_PASSAGES) -> list:
         r["coverage_w"] = _coverage_w(r, weights)
         title = (r["title"] or "").lower()
         in_title = sum(weights.get(s, 1.0) for s in stems if s in title) / max(1e-9, sum(weights.values()))
-        # норма важнее заметки проекта и правила движка: заметка не источник права
-        weight = 1.0 if r["path"].startswith("library/") else 0.8
+        # норма важнее заметки проекта и правила движка: заметка не источник права;
+        # документ компании (тарифная политика) — между нормой и заметкой
+        kind = source_kind(r["path"])
+        r["source_kind"] = kind
+        if kind == "company" and not company_ok:
+            continue
+        if kind == "competitor" and not competitor_ok:
+            continue                       # документ конкурента не отвечает на правовой вопрос вместо нормы
+        weight = (0.85 if kind == "company" else 0.8 if kind == "competitor"
+                  else (1.0 if r["path"].startswith("library/") else 0.8))
         # решает вес найденных слов (редкое слово темы важнее общих), bm25 — только уточняет
         # порядок внутри; попадание в заголовок статьи ценится отдельно: он и есть тема вопроса
         r["rank"] = (0.6 * r["coverage_w"] + 0.25 * in_title + 0.15 * (-r["score"] / worst)) * weight
@@ -1479,9 +1640,11 @@ def _citation(r: dict, lang: str, stems: list = ()) -> dict:
         quote = _best_sentences(r["body"], list(stems), 1, QUOTE_MAX)
         if not verbatim(rel, quote):
             quote = ""
+    kind = source_kind(rel)
     return {"act": _cap(r["act"]), "unit": _unit_of(r), "quote": quote,
             "url": _clean_url(r["url"]) or None, "language": r["language"],
-            "official": bool(r["official"]), "closest": False}
+            "official": bool(r["official"]), "closest": False,
+            "source_kind": kind, "source_label": source_label(kind, lang)}
 
 
 # --------------------------------------------------------------------------- #
@@ -1524,7 +1687,8 @@ def faq_answer(item: dict, lang: str, confidence: float) -> dict:
         official = bool(official.get(q_lang or lang)) if isinstance(official, dict) else bool(official)
         citations.append({"act": c.get("act") or "", "unit": c.get("article") or "",
                           "quote": (quote or "")[:QUOTE_MAX], "url": _clean_url(url) or None,
-                          "language": q_lang or lang, "official": official})
+                          "language": q_lang or lang, "official": official,
+                          "source_kind": "law", "source_label": source_label("law", lang)})
         fell_back = fell_back or q_fb
     note = None
     if fell_back:
@@ -1555,8 +1719,8 @@ _guard_cache = {"mtime": None, "text": ""}
 
 # Роль помощника. Правовой блок (legal_guard.ru.txt) подклеивается к ней целиком: запреты
 # «не сочинять нормы», «не обещать выплату», «не толковать договор» действуют и здесь.
-AI_ROLE = ("Ты «ИИ специалист по страхованию INSON» — помощник сотрудников страховой организации "
-           "в Узбекистане. Ты отвечаешь и на вопросы практики (андеррайтинг, документы, оценка, "
+AI_ROLE = ("Ты «ИИ специалист по страхованию INSON» — специалист по страхованию и рынку Узбекистана, "
+           "помощник сотрудников страховой организации в Узбекистане. Ты отвечаешь и на вопросы практики (андеррайтинг, документы, оценка, "
            "убытки), и на правовые вопросы. Практику объясняй просто и по делу; норму — только со "
            "ссылкой на акт, статью и пункт. Ответ — 2–5 предложений. Язык ответа строго: %s.")
 
@@ -1592,42 +1756,44 @@ def system_prompt(lang: str, free: bool = False) -> str:
     return base + ("\n\n" + guard if guard else "")
 
 
-def ai_answer(question: str, passages: list, lang: str) -> dict:
+def _history_text(history: Optional[list]) -> str:
+    """Последние реплики диалога для модели (только в запрос; ПД маскирует app/llm)."""
+    if not history:
+        return ""
+    lines = ["%s: %s" % ("Пользователь" if h.get("role") == "user" else "Специалист", (h.get("text") or "")[:300])
+             for h in history[-6:]]
+    return "Контекст диалога (предыдущие реплики):\n" + "\n".join(lines) + "\n\n"
+
+
+def ai_answer(question: str, passages: list, lang: str, history: Optional[list] = None) -> dict:
     """Пересказ по найденным пассажам. Нет ключа — ai.status='off', мгновенный ответ уже отдан."""
     if not llm.enabled():
         return {"status": "off", "text": None}
     body = "\n\n".join(f"[{_cap(r['act'])} {_unit_of(r)}]\n{r['body'][:1200]}" for r in passages[:MAX_PASSAGES])
     if not body:
         return {"status": "off", "text": None}
-    old = getattr(llm, "TIMEOUT_SEC", None)
     try:
-        llm.TIMEOUT_SEC = AI_TIMEOUT_SEC            # ответ по норме ждать дольше 8 с нет смысла
+        # ответ по норме ждать дольше 8 с нет смысла; таймаут — только этому вызову
         text = llm.chat("вопрос специалисту по страхованию", system_prompt(lang),
-                        f"Вопрос: {question}\n\nПассажи:\n{body}", max_tokens=400)
+                        f"{_history_text(history)}Вопрос: {question}\n\nПассажи:\n{body}", max_tokens=400,
+                        timeout=AI_TIMEOUT_SEC)
     except Exception as e:
         return {"status": "error", "text": None, "reason": str(e)[:200]}
-    finally:
-        if old is not None:
-            llm.TIMEOUT_SEC = old
     if not text:
         return {"status": "error", "text": None, "reason": (llm.last_error or {}).get("text")}
     return {"status": "ok", "text": text.strip()}
 
 
-def ai_free_answer(question: str, lang: str) -> dict:
+def ai_free_answer(question: str, lang: str, history: Optional[list] = None) -> dict:
     """Ни FAQ, ни закон вопрос не покрыли: отвечает модель, ответ помечается «ИИ»."""
     if not llm.enabled():
         return {"status": "off", "text": None}
-    old = getattr(llm, "TIMEOUT_SEC", None)
     try:
-        llm.TIMEOUT_SEC = AI_TIMEOUT_SEC
         text = llm.chat("вопрос специалисту по страхованию (без нормы)",
-                        system_prompt(lang, free=True), f"Вопрос: {question}", max_tokens=400)
+                        system_prompt(lang, free=True), f"{_history_text(history)}Вопрос: {question}",
+                        max_tokens=400, timeout=AI_TIMEOUT_SEC)
     except Exception as e:
         return {"status": "error", "text": None, "reason": str(e)[:200]}
-    finally:
-        if old is not None:
-            llm.TIMEOUT_SEC = old
     if not text:
         return {"status": "error", "text": None, "reason": (llm.last_error or {}).get("text")}
     return {"status": "ok", "text": text.strip(), "source": "ai",
@@ -1827,13 +1993,166 @@ def _live_enabled() -> bool:
         return False
 
 
-def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None) -> dict:
-    """who — кто спрашивает («u:<id>», «g:<guest_id>», «ip:<адрес>»): только для личного предела
-    живого поиска на lex.uz; в журнал и в ответ не попадает."""
-    return with_actuality(_ask(question, lang, with_ai, who))
+def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None,
+        session_id: str = None) -> dict:
+    """who — кто спрашивает («u:<id>», «g:<guest_id>», «ip:<адрес>»): для личного предела живого
+    поиска на lex.uz и для ключа памяти диалога; в журнал и в ответ не попадает.
+    session_id — диалог (строка до 64 знаков от фронта): последние 8 реплик держатся в памяти процесса,
+    уточнения («а по классу 8?») разрешаются по контексту. Вопрос о рынке отвечается из данных
+    (app/market_expert.py), остальное — по праву и практике, как раньше."""
+    question = (question or "").strip()
+    if not question:
+        raise HTTPException(422, "Вопрос пустой")
+    if session_id is not None and not mx.SESSION_RE.match(session_id):
+        raise HTTPException(422, "session_id: латиница, цифры и знаки _ . : - , до 64 знаков")
+    lang = lang if lang in LANGS else detect_lang(question)
+    mkey = mx.memory.key(session_id, who)
+    mem = mx.memory.get(mkey)
+    last = mem["ctx"]
+    intent = mx.detect(question, lang, last)
+    if intent.get("clarify"):
+        out = _clarify_answer(question, lang)
+        out["session_id"] = session_id
+        mx.memory.add(mkey, question, out["answer"]["text"], {"kind": "clarify", "entity": intent.get("entity")})
+        return out
+    if intent["is_market"]:
+        it = mx.resolve(intent, last)
+        out = _market_answer(question, lang, with_ai, it, mem["turns"])
+        ctx = out.pop("_ctx")
+        out["context"] = {"used": bool(it.get("context_used")), "fields": it.get("context_fields") or [],
+                          "follow_up": bool(it.get("follow_up"))}
+    else:
+        out = _decorate(with_actuality(_ask(question, lang, with_ai, who, history=mem["turns"])), lang)
+        ctx = {"kind": "legal"}
+        out["context"] = {"used": bool(mem["turns"]) and with_ai, "fields": ["history"] if mem["turns"] else [],
+                          "follow_up": False}
+    out["session_id"] = session_id
+    mx.memory.add(mkey, question, (out.get("answer") or {}).get("text") or "", ctx)
+    return out
 
 
-def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None) -> dict:
+def _decorate(out: dict, lang: str) -> dict:
+    """Правовой ответ: тип и подпись источника, разделение «данные» и «мнение/вывод»."""
+    out = dict(out)
+    # норма — первой, документы других страховщиков — последними (порядок внутри типа сохраняется)
+    out["citations"] = sorted(out.get("citations") or [],
+                              key=lambda c: (bool(c.get("closest")), KIND_ORDER.get(c.get("source_kind") or "law", 2)))
+    ans = out.get("answer") or {}
+    cits = [c for c in out.get("citations") or [] if not c.get("closest")]
+    ai = out.get("ai") or {}
+    if ans.get("source") == "faq":
+        basis = " ".join(str(x or "") for x in (ans.get("basis"), ans.get("text"))).lower()
+        if cits:
+            kind = "law"
+        elif "54-п" in basis or "тарифн" in basis or "tarif siyosat" in basis or "tariff policy" in basis:
+            kind = "company"         # ответ опирается на тарифную политику компании, а не на закон
+        else:
+            kind = "note"
+    elif cits:
+        kind = cits[0].get("source_kind") or "law"
+    elif ai.get("status") == "ok":
+        kind = "ai"
+    else:
+        kind = "none"
+    out["intent"] = "legal"
+    out["source_kind"] = kind
+    # предлагать поиск акта на lex.uz уместно только там, где ответ — норма или нормы нет;
+    # ответ из тарифной политики, заметки, данных рынка или документа конкурента — не про закон
+    out["lex_search_offer"] = kind in ("law", "none", "ai")
+    out["source_label"] = source_label(kind, lang)
+    srcs = []
+    for c in out.get("citations") or []:
+        item = {"kind": c.get("source_kind") or "law", "label": c.get("source_label") or source_label("law", lang),
+                "title": " ".join(x for x in (c.get("act"), c.get("unit")) if x), "url": c.get("url"),
+                "closest": bool(c.get("closest"))}
+        if item not in srcs:
+            srcs.append(item)
+    out["sources"] = srcs
+    out["assistant_role"] = dict(ASSISTANT_ROLE)
+    data_lbl = PART_LABEL["data"].get(lang) or PART_LABEL["data"][DEFAULT_LANG]
+    op_lbl = PART_LABEL["opinion"].get(lang) or PART_LABEL["opinion"][DEFAULT_LANG]
+    out["parts"] = {"data": {"label": data_lbl, "text": ans.get("text") or "", "source_kind": kind,
+                             "source_label": out["source_label"]},
+                    "opinion": ({"label": op_lbl, "text": ai["text"], "by": "ai"}
+                                if ai.get("status") == "ok" and ai.get("text") else None)}
+    return out
+
+
+def _clarify_answer(question: str, lang: str) -> dict:
+    """Короткое уточнение без контекста («а по классу 8?»): спрашиваем показатель и период, а не подбираем FAQ."""
+    t0 = time.time()
+    text = mx.CLARIFY[lang] if lang in mx.CLARIFY else mx.CLARIFY[DEFAULT_LANG]
+    out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000),
+           "answer": {"text": text, "source": "clarify", "confidence": 0.0, "kind": "уточнение"},
+           "citations": [], "related": related(lang), "ai": {"status": "off", "text": None}, "note": None,
+           "cached": False, "assistant_name": dict(ASSISTANT_NAME), "assistant_role": dict(ASSISTANT_ROLE),
+           "live": dict(LIVE_NOT_NEEDED), "intent": "clarify", "source_kind": "none",
+           "source_label": source_label("none", lang), "sources": [], "lex_search_offer": False,
+           "suggest": [i["q"] for i in mx.suggest(lang) if i["kind"] == "market"],
+           "parts": {"data": {"label": PART_LABEL["data"].get(lang) or PART_LABEL["data"][DEFAULT_LANG],
+                              "text": text, "source_kind": "none", "source_label": source_label("none", lang)},
+                     "opinion": None},
+           "context": {"used": False, "fields": [], "follow_up": False}}
+    log_question(question, lang, "clarify", 0.0, out["took_ms"], False)
+    return out
+
+
+MARKET_CONF = 0.95                    # ответ из таблиц НАПП: уверенность высокая, но это не норма
+
+
+def _market_notes(question: str, lang: str) -> list:
+    """Обзоры рынка docs/Знания/Рынок из индекса — дополнительные цитаты к цифрам (если файлы есть)."""
+    if not market_notes_dir().exists():
+        return []
+    try:
+        ensure_index()
+        stems = stems_of(question, lang)
+        found = [r for r in search(question, lang, limit=8) if r.get("source_kind") == "market"]
+        return [_citation(r, lang, stems) for r in found if r.get("coverage", 0) >= KEY_SHARE_MIN][:2]
+    except Exception as e:
+        print("legal: обзоры рынка не найдены:", e)
+        return []
+
+
+def _market_answer(question: str, lang: str, with_ai: bool, it: dict, history: list) -> dict:
+    """Вопрос о рынке: ответ из данных (app/market_expert.py), формат — как у правового ответа плюс market."""
+    t0 = time.time()
+    res = mx.answer(question, lang, it, with_ai=with_ai, history=history)
+    cits = _market_notes(question, lang)
+    found = bool(res["found"])
+    note = res["ytd_note"]
+    if not found:
+        note = (note + "; " if note else "") + (mx.NO_DATA[lang] % "").rstrip(" .")
+    label = source_label("market", lang)
+    data_lbl = PART_LABEL["data"].get(lang) or PART_LABEL["data"][DEFAULT_LANG]
+    ai = res["ai"]
+    opinion = None
+    if res.get("opinion"):
+        opinion = {"label": mx.OPINION_LABEL[lang], "text": res["opinion"], "by": "rules"}
+    if ai.get("status") == "ok" and ai.get("text"):
+        opinion = {"label": mx.OPINION_LABEL[lang], "text": ai["text"], "by": "ai",
+                   "rules_text": res.get("opinion")}
+    took = int((time.time() - t0) * 1000)
+    out = {"lang": lang, "took_ms": took,
+           "answer": {"text": res["text"], "source": "market", "confidence": MARKET_CONF if found else 0.0,
+                      "kind": "данные"},
+           "citations": cits, "related": related(lang), "ai": ai, "note": note, "cached": False,
+           "assistant_name": dict(ASSISTANT_NAME), "assistant_role": dict(ASSISTANT_ROLE),
+           "live": dict(LIVE_NOT_NEEDED), "intent": "market", "lex_search_offer": False,
+           "source_kind": "market", "source_label": label, "sources": res["sources"],
+           "market": {"found": found, "date": res["date"], "period": res["period"], "ytd_note": res["ytd_note"],
+                      "unit": mx.MLN[lang], "table": res["table"], "numbers": res["numbers"],
+                      "facts": res["facts"]},
+           "parts": {"data": {"label": data_lbl, "text": res["text"], "source_kind": "market",
+                              "source_label": label, "sources": res["sources"]},
+                     "opinion": opinion},
+           "_ctx": res["context"]}
+    log_question(question, lang, "market", out["answer"]["confidence"], took, found)
+    return out
+
+
+def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None,
+         history: Optional[list] = None) -> dict:
     t0 = time.time()
     question = (question or "").strip()
     if not question:
@@ -1841,7 +2160,11 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
     lang = lang if lang in LANGS else detect_lang(question)
     ensure_index()
 
-    key = (norm(question), lang, bool(with_ai), _live_enabled())
+    # история диалога влияет только на пересказ модели: без ИИ ответ от неё не зависит
+    hist_key = ""
+    if with_ai and history:
+        hist_key = hashlib.sha256("\n".join(h.get("text") or "" for h in history).encode("utf-8")).hexdigest()[:16]
+    key = (norm(question), lang, bool(with_ai), _live_enabled(), hist_key)
     cached = _cache_get(key)
     if cached:
         out = dict(cached)
@@ -1906,7 +2229,7 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
             # обычные ответы из базы живой поиск не замедляет
             live = _live(question, lang, who)
             if live.get("status") in ("found", "found_base"):
-                out = _live_answer(question, lang, with_ai, live, closest, t0)
+                out = _live_answer(question, lang, with_ai, live, closest, t0, history)
                 if out:
                     _cache_put(key, out)
                     log_question(question, lang, "lex", out["answer"]["confidence"], out["took_ms"], True)
@@ -1929,7 +2252,7 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
                     note += "; %s: %s — %s" % (s["reason"], s.get("badge") or s["act"],
                                                s.get("official_url") or s["url"])
             # ни FAQ, ни закон не покрыли вопрос — отвечает модель, ответ помечен «ИИ»
-            ai = ai_free_answer(question, lang) if with_ai else {"status": "off", "text": None}
+            ai = ai_free_answer(question, lang, history) if with_ai else {"status": "off", "text": None}
             if ai.get("status") == "ok":
                 note = note + " " + (ai.get("note") or "")
             out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
@@ -1943,12 +2266,17 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
         answer = {"text": summarize_passages(passages, lang, stems),
                   "source": "passages", "confidence": conf}
         citations = [_citation(r, lang, stems) for r in passages]
+        if not wants_competitor(question) and any(c.get("source_kind") == "law" for c in citations):
+            # норма найдена — документ другого страховщика можно показать только дополнением после неё
+            extra = [r for r in search(question, lang, limit=8, allow_competitor=True)
+                     if r.get("source_kind") == "competitor" and _on_topic(r, stems)][:1]
+            citations += [dict(_citation(r, lang, stems), supplement=True) for r in extra]
         if lang == "en" and citations and not any(c["official"] for c in citations):
             note = (note + " " if note else "") + "unofficial: no official English text of the act exists"
 
     ai = {"status": "off", "text": None}
     if with_ai and passages:
-        ai = ai_answer(question, passages, lang)
+        ai = ai_answer(question, passages, lang, history)
 
     took = int((time.time() - t0) * 1000)
     out = {"lang": lang, "took_ms": took, "answer": answer, "citations": citations,
@@ -1965,7 +2293,8 @@ def legal_live_text(status: str, lang: str) -> str:
     return t.get(lang) or t.get(DEFAULT_LANG) or ""
 
 
-def _live_answer(question: str, lang: str, with_ai: bool, live: dict, closest: list, t0: float):
+def _live_answer(question: str, lang: str, with_ai: bool, live: dict, closest: list, t0: float,
+                 history: Optional[list] = None):
     """Ответ по норме, найденной на lex.uz. Цитата — только дословная (legal._citation сверяет её
     с сохранённым в библиотеку текстом акта); не сошлась ни одна — ответа нет (None)."""
     from . import legal_live
@@ -1993,7 +2322,7 @@ def _live_answer(question: str, lang: str, with_ai: bool, live: dict, closest: l
         parts.append((legal_live.UNOFFICIAL.get(lang) or legal_live.UNOFFICIAL[DEFAULT_LANG]).rstrip(".")
                      + (f" ({live['official_url']})" if live.get("official_url") else ""))
     note = "; ".join(p for p in parts if p)
-    ai = ai_answer(question, kept, lang) if with_ai else {"status": "off", "text": None}
+    ai = ai_answer(question, kept, lang, history) if with_ai else {"status": "off", "text": None}
     return {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
             "citations": cits + closest, "related": related(lang), "ai": ai, "note": note,
             "cached": False, "assistant_name": dict(ASSISTANT_NAME), "live": _live_public(live)}
@@ -2020,6 +2349,7 @@ class AskIn(BaseModel):
     q: str = Field(min_length=2, max_length=1000)
     lang: Optional[str] = None
     ai: bool = False
+    session_id: Optional[str] = Field(None, max_length=64)   # диалог: генерирует фронт
 
 
 def _who(request: Request) -> Optional[str]:
@@ -2039,8 +2369,20 @@ def _who(request: Request) -> Optional[str]:
 
 @router.post("/legal/ask")
 def legal_ask(body: AskIn, request: Request):
-    """Мгновенный юридический ответ. lang не указан — определяем по тексту вопроса."""
-    return ask(body.q, body.lang, with_ai=body.ai, who=_who(request))
+    """Мгновенный ответ специалиста (право, практика, рынок). lang не указан — определяем по тексту.
+    session_id — память диалога (последние 8 реплик, 2 часа, только в памяти процесса)."""
+    return ask(body.q, body.lang, with_ai=body.ai, who=_who(request), session_id=body.session_id or None)
+
+
+@router.get("/legal/suggest")
+def legal_suggest(lang: str = DEFAULT_LANG):
+    """8 примеров вопросов — по рынку и по праву — на языке интерфейса."""
+    lang = lang if lang in LANGS else DEFAULT_LANG
+    items = mx.suggest(lang)
+    for i in items:
+        i["label"] = source_label(i["kind"], lang)
+    return {"lang": lang, "count": len(items), "items": items,
+            "assistant_name": dict(ASSISTANT_NAME), "assistant_role": dict(ASSISTANT_ROLE)}
 
 
 @router.get("/legal/faq")

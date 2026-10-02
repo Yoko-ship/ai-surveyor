@@ -563,14 +563,15 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
 
 
 def chat(purpose: str, system: str, user: str, max_tokens: int = 700,
-         temperature: float = 0.2, files: Optional[list] = None) -> Optional[str]:
+         temperature: float = 0.2, files: Optional[list] = None,
+         timeout: Optional[float] = None) -> Optional[str]:
     """
     Единственная точка обращения к модели. Маскирует персональные данные, логирует метрики.
     Возвращает текст ответа или None — вызывающий код обязан уметь работать без ИИ.
     """
     return chat_raw(purpose, [{"role": "system", "content": system},
                               {"role": "user", "content": user}],
-                    max_tokens, temperature, files)["text"]
+                    max_tokens, temperature, files, timeout=timeout)["text"]
 
 
 def ping() -> dict:

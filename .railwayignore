@@ -23,23 +23,20 @@ __pycache__/
 .railway/
 
 .git/
-.secrets.env
-library/*
-!library/catalog.json
-!library/КАТАЛОГ.md
 # исключение: открытые тексты законов (.txt) — нужны специалисту на сервере
 !library/01_Законодательство/
 library/01_Законодательство/**/*.html
 library/01_Законодательство/**/*.doc
 library/01_Законодательство/**/*.docx
 library/01_Законодательство/**/*.pdf
-docs/source/
-data/surveyor.db
+# исключение: публичные документы других страховщиков (.txt) — специалист отвечает о рынке на сервере;
+# оригиналы pdf/doc/docx остаются на локальной машине, отчёты НАПП (xlsx) в эту папку не входят
+!library/03_Рынок_НАПП/
+library/03_Рынок_НАПП/*
+!library/03_Рынок_НАПП/Конкуренты/
+library/03_Рынок_НАПП/Конкуренты/**/*.html
+library/03_Рынок_НАПП/Конкуренты/**/*.doc
+library/03_Рынок_НАПП/Конкуренты/**/*.docx
+library/03_Рынок_НАПП/Конкуренты/**/*.pdf
 data/surveyor.db-wal
 data/surveyor.db-shm
-data/uploads/
-data/photos/
-data/reports/
-data/backups/
-sandbox/
-

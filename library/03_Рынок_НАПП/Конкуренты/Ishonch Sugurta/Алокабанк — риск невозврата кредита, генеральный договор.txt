@@ -1,0 +1,69 @@
+Компания: Ishonch Sugurta
+Документ: Алокабанк — риск невозврата кредита, генеральный договор
+Источник: https://ishonch-sugurta.uz/storage/uploads/document/QcVmxW0k3Js3Fntu2VqhBbbS2siI5g7iprIesBIy.pdf
+Загружено: 02.10.2026
+Язык: узбекский (латиница)
+Формат оригинала: PDF, страниц 19, без текстового слоя 19
+Пометка: публичный документ страховщика с его официального сайта; не норма права. Персональные данные (телефоны, e-mail, ФИО) вырезаны: замен 0.
+Текст: PDF — скан без (или с негодным) текстовым слоем. Ниже — дословная выборочная расшифровка по изображениям страниц (стр. 1–4, 6–7 из 19; стр. 8–19 (реквизиты, приложения: заявление-анкета, форма полиса, оферта) не расшифрованы; перевод на русский — в квадратных скобках); многоточие «...» — пропущенный текст. Номера пунктов — как в документе.
+-----
+1000-94/250008-sonli KREDITNI QAYTMASLIK TAVAKKALCHILIGINI SUG'URTALASH BOSH SHARTNOMASI
+(Генеральный договор страхования риска невозврата кредита № 1000-94/250008)
+Toshkent shahri, 31.07.2025. Стороны: «ISHONCH SUG'URTA KOMPANIYASI» AJ QK (Sug'urtalovchi — страховщик) и AT «ALOQABANK» (Naf oluvchi — выгодоприобретатель). Должности и ФИО подписантов на скане не переносятся.
+[Ниже — дословные выдержки на узбекском языке (латиница) и перевод на русский в квадратных скобках.]
+
+1. UMUMIY QOIDALAR
+1.2. Shartnomada nazarda tutilgan sug'urta hodisasi yuz berganda kredit va unga hisoblangan foizlarni so'ndirish bo'yicha Qarzdor majburiyatlarini bajarmasligi yoki lozim darajada bajarmasligi natijasida Sug'urta qildiruvchi/Naf oluvchining kredit va unga hisoblangan foizlarning qaytmaganlik bilan bog'liq mulkiy manfaatlari mazkur Shartnomaning sug'urta ob'ekti hisoblanadi.
+[Объект страхования — имущественные интересы банка, связанные с невозвратом кредита и начисленных процентов из-за неисполнения или ненадлежащего исполнения заёмщиком обязательств.]
+1.3. Qarzdor mazkur Shartnoma shartlariga muvofiq ishlab chiqilgan ommaviy oferta shaklidagi shartnoma bilan tanishib rozilik bildirganligini asoslovchi ariza-anketani (1-ilova) to'ldirish orqali elektron sug'urta polis (2-ilova) tuzadi.
+[Заёмщик оформляет электронный полис, заполнив заявление-анкету по публичной оферте.]
+
+2. ASOSIY TUSHUNCHALAR (выдержки)
+Qarz oluvchi – Sug'urta qildiruvchi bilan kredit shartnomasini (oferta shartnomasi) tuzgan yuridik shaxs. [Заёмщик — юридическое лицо.]
+Kutish davri – ... Ushbu Shartnoma bo'yicha kutish muddati - 1 (bir) kalendar kun. [Период ожидания — 1 календарный день.]
+Sug'urta davri – ... Sug'urta muddati Kredit shartnomasi (oferta shartnomasi) muddatiga mutanosib ravishda belgilanadi va Qarz oluvchi Kredit shartnomasi bo'yicha o'z majburiyatlarini to'liq bajargunga qadar amal qiladi. [Срок страхования равен сроку кредита, до полного исполнения обязательств заёмщиком.]
+
+3. SUG'URTA HODISALARI
+3.1. Sug'urta hodisasi deb sug'urta davri mobaynida quyida keltirilgan sabablarga ko'ra yuz bergan va Bankka o'z vaqtida to'lovlarni amalga oshirish majburiyatlarining buzilishiga sabab bo'lgan voqeaga aytiladi:
+3.1.1. Qarz oluvchi tomonidan to'lamaslik. Kredit shartnomasi bo'yicha to'lovlar jadvalida ko'rsatilgan to'lovlarni belgilangan muddatdan kechiktirish va summani 90 (to'qson) kalendar kundan ortiq muddatga kechiktirib to'lash (to'lamaslik);
+[Неуплата: просрочка платежа по графику более 90 календарных дней.]
+3.1.2. Qarz oluvchining uzoq muddat to'lamaganligi. ... birinchi sug'urta hodisasi bo'yicha sug'urta tovoni to'langandan keyin summani 90 (to'qson) kalendar kundan ortiq muddatga kechiktirib to'lash ... Bunda, kredit "qoniqarsiz" deb e'tirof etiladi;
+[Длительная неуплата: повторная просрочка более 90 дней после первой выплаты; кредит признаётся «неудовлетворительным».]
+3.1.3. Qarz oluvchining bankrotligi yoki to'lovga layoqatsizligi. ... a) vakolatli sud tomonidan qarz oluvchining to'lovga layoqatsiz (vaqtinchalik va/yoki doimiy) va/yoki bankrot deb topilishi; b) ... tashqi boshqaruvni joriy etish to'g'risida ajrim chiqarish; d) ... kelishuv bitimi tuzilsa; e) ... Qarz oluvchining mol-mulkka egalik huquqi tugatilsa; f) ... Qarz oluvchining majburiyatli shaxslarga ... nisbatan talab qilish huquqi to'xtatilsa.
+[Банкротство или неплатёжеспособность заёмщика: признание судом, внешнее управление, мировое соглашение, прекращение права собственности на имущество, прекращение прав требования к должникам.]
+3.2. Quyidagilar sug'urta hodisalari hisoblanmaydi va shunga ko'ra sug'urta tovoni to'lanadigan tarkibiga kiritilmaydi:
+3.2.1. Bankning to'liq olinmagan komissiyalari (boshqaruv uchun komissiyalar va boshqalar), kreditning qarzdor tomonidan to'lanmagan qismi — ya'ni asosiy qarz va foizlar bundan mustasno;
+3.2.2. Qarz oluvchi tomonidan kredit maqsadsiz ishlatilganda;
+3.2.3. Bevosita yoki bilvosita quyidagilar oqibatida yuzaga kelgan Bank zararlari: a) Kredit shartnomasini rasmiylashtirishda Bank yoki uning vakillari tomonidan O'zbekiston Respublikasi qonun hujjatlari talablariga rioya etilmaganda; b) Bank tomonidan Qarzdor haqida ataylab noto'g'ri ma'lumotlar taqdim etilganligi holati aniqlanganda.
+[Не являются страховым случаем: недополученные комиссии банка (кроме основного долга и процентов); нецелевое использование кредита; убытки банка из-за нарушения закона при оформлении кредита или умышленно неверных сведений о заёмщике.]
+
+4. SUG'URTA PULI, SUG'URTA QIYMATI VA SUG'URTA MUKOFOTI
+4.1. Har bir Qarzdor bo'yicha sug'urta summasi Bank tomonidan taqdim etilgan va muayyan Sug'urta polisining ajralmas qismi bo'lgan Anketa-arizada ko'rsatilgan ma'lumotlar va axborotlar asosida belgilanadi.
+4.2. ... Sug'urta mukofoti Sug'urtalovchi va Sug'urta qildiruvchi/Qarz oluvchi bilan kelishilgan miqdorda to'lanadi. Sug'urta mukofotining miqdori Sug'urta summasiga nisbatan yillik 1 (%) foizdan kam 2,0 (%) foizdan ko'p belgilanishi mumkin emas.
+[Страховая премия — не менее 1% и не более 2,0% годовых от страховой суммы.]
+4.3. Kredit shartnomasi bo'yicha barcha majburiyatlar Qarzdor tomonidan muddatidan oldin bajarilgan taqdirda, to'langan sug'urta mukofotining 20 (yigirma) foizi miqdoridagi xarajatlarni chegirgan holda va sug'urta mukofotining qolgan summasidan muddati o'tmagan sug'urta davriga mutanosib ravishda qaytariladi. Bunda, agar ushbu Sug'urta polisi bo'yicha ilgari sug'urta tovoni to'langan yoki to'lanishi lozim bo'lsa, to'langan sug'urta mukofoti qaytarilmaydi.
+[При досрочном погашении кредита премия возвращается за неистекший период за вычетом 20% расходов; если по полису была выплата — не возвращается.]
+4.4. Har bir alohida onlayn sug'urta polisi bo'yicha sug'urta summasi Kredit shartnomasi (oferta shartnomasi) bo'yicha kredit summasining 125 (bir yuz yigirma besh) foizidan ko'p bo'lmagan summani tashkil qiladi.
+[Страховая сумма — не более 125% суммы кредита.]
+4.5. ... Sug'urta mukofoti 1 (bir) kun ichida to'lanishi kerak. ...
+
+5. SHARTNOMANING AMAL QILISHI (выдержки)
+5.3. Sug'urta polisi sug'urta mukofoti to'langan kundan boshlab 1 (bir) ish kuni ichida beriladi. ...
+6.2.4. Sug'urtalovchining oldindan yozma roziligisiz kredit shartnomasi (oferta shartnomasi) shartlari va talablari, shu jumladan kredit muddati va kredit limitiga nisbatan qisqartirmaslik yoki o'zgartirmaslik;
+[Обязанность не менять условия кредита (срок, лимит) без письменного согласия страховщика.]
+
+7. SUG'URTA TOVONI (выдержки)
+7.5. 3.1.-bandning 3.1.2. kichik bandida ko'rsatilgan holatlar yuzaga kelganda – asosiy qarzning umumiy summasi miqdorida, shuningdek, muddati o'tkazib yuborilgan qarz uchun hisoblangan foizlar, kreditning asosiy summasi va foizlari bo'yicha muddati o'tgan qarzdorlik uchun hisoblangan foizlar, ammo har qanday holatda ham sug'urta summasidan oshmaydigan miqdorda sug'urta tovonini to'laydi.
+7.6. [то же для п. 3.1.3 — банкротство]
+[Возмещение — вся сумма основного долга, плюс проценты на просроченный долг, но не более страховой суммы.]
+7.7. Sug'urtalovchi da'vo arizasi va zarur hujjatlar taqdim etilgan kundan boshlab 15 (o'n besh) kun ichida sodir bo'lgan voqeani sug'urta hodisasi deb e'tirof etish yoki e'tirof etmaslik to'g'risida qaror qabul qiladi.
+7.8. ... sug'urta tovonini to'lash sug'urta hodisasi to'g'risidagi Qaror imzolangandan keyin 5 (besh) bank ish kuni ichida amalga oshiriladi.
+[Решение о признании случая — 15 дней с подачи документов; выплата — 5 банковских дней после подписания решения.]
+
+8. SUBROGATSIYA
+8.1. Sug'urta tovonini to'lagan Sug'urtalovchiga to'langan summa doirasida ... javobgar bo'lgan shaxsga nisbatan ... talab qilish huquqi o'tadi. ...
+
+9. BOSHQA SHARTLAR (выдержки)
+9.7. sug'urta tovonini o'z vaqtida to'lamaganlik uchun Sug'urtalovchi Sug'urta qildiruvchiga kechiktirilgan har bir kun uchun muddati o'tgan summaning 0,1 foizi miqdorida, lekin ... to'lanishi lozim bo'lgan summaning 50 foizidan ko'p bo'lmagan miqdorda penya to'laydi.
+[Пеня страховщика за просрочку выплаты — 0,1% в день, не более 50% суммы.]
+9.18. Ushbu Shartnomadan kelib chiqadigan barcha nizolar ... sud tartibida hal qilinadi.

@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 2373,
+    "keys": 2392,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -2382,5 +2382,24 @@
   "tg.act.obj_err": "Check the objects: each needs a name, a sum and a value above zero; year — four digits; plate — up to 6 characters; rate — above 0 and not over 100.",
   "tg.act.obj_fa_hint": "Each object has its own class fields — coefficients are per object.",
   "tg.act.send_reopen": "Open the app again from the bot and send the report once more.",
-  "tg.act.send_link_tg": "Link Telegram in your profile — then the bot will send the report to the chat."
+  "tg.act.send_link_tg": "Link Telegram in your profile — then the bot will send the report to the chat.",
+  "tg.lg.new": "New conversation",
+  "tg.lg.enter_hint": "Enter sends, Shift+Enter adds a new line",
+  "tg.lg.bot_name": "INSON specialist",
+  "tg.lg.bot_role": "property insurance: market, law, rates",
+  "tg.lg.fu_year": "And a year ago?",
+  "tg.lg.fu_class8": "And for class 8?",
+  "tg.lg.fu_inson": "And at INSON?",
+  "tg.lg.fu_article": "Which article?",
+  "tg.lg.fu_act": "What does this mean for the report?",
+  "tg.lg.fu_in_uz": "In Uzbek",
+  "tg.lg.fu_in_ru": "In Russian",
+  "tg.lg.read_in": "Read at the source: {site}",
+  "tg.lg.thinking": "the specialist is thinking…",
+  "tg.lg.follow_up": "follow-up to the previous question",
+  "tg.lg.data": "Data",
+  "tg.lg.opinion": "Specialist's conclusion",
+  "tg.lg.by_ai": "AI",
+  "tg.lg.by_rules": "by rules",
+  "tg.lg.src_competitor": "another insurer's document, not a legal norm"
 }

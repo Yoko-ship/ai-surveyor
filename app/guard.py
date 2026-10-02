@@ -108,7 +108,7 @@ WHITE_PREFIX = ("/tg/webhook/", "/i18n/", "/static/")     # секрет веб�
 GUEST_GET_EXACT = {
     "/tg/me", "/tg/status", "/tg/bot-status",
     "/osgor/activities", "/osgor/brv",                 # БРВ читают все, правит PUT только админ
-    "/legal/faq", "/legal/acts",
+    "/legal/faq", "/legal/acts", "/legal/suggest",
     "/valuation/norms",                                # нормы износа: чтение открыто, запись — админ
     "/market/rows", "/market/series", "/market/status",
     "/market/branches", "/market/claims",              # подразделения и претензии из открытых отчётов НАПП
@@ -209,7 +209,7 @@ ANY_ROLE_EXACT = {"/analytics/risk", "/analytics/risk/fields", "/analytics/risk/
     "/analytics/risk/documents",       # свои файлы для анализа: вкладка «Фото» гостя
                   # юридические ответы (app/legal.py): читать может любой вошедший, включая сотрудника;
                   # перечисляем точно — пересборка индекса /legal/reindex закрыта администратором
-                  "/legal/ask", "/legal/faq", "/legal/acts"}
+                  "/legal/ask", "/legal/faq", "/legal/acts", "/legal/suggest"}
 ANY_ROLE_PREFIX = ("/analytics/risk/document/",)
 # Утверждение и отклонение расчёта калибровки меняет действующие коэффициенты — это запись
 # в справочники, а она только у администратора (раздел 8, строка «Справочники, тарифы, версии»).

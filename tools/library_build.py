@@ -24,6 +24,7 @@ GROUPS = {
     "01_Законодательство/02_Акты_регуляторов": "Положения НАПП и Минфина",
     "02_Компания_INSON": "Внутренние документы страховой организации",
     "03_Рынок_НАПП": "Квартальная статистика страхового рынка",
+    "03_Рынок_НАПП/Конкуренты": "Публичные правила, оферты и паспорта продуктов других страховщиков РУз (не норма)",
     "04_Образцы_документов": "Образцы полисов, договоров, запросов филиалов",
     "05_Методология": "Учебники и профессиональная литература",
     "06_Заметки_проекта": "Разборы и рабочие материалы проекта",
@@ -112,12 +113,46 @@ def put(entry: dict) -> dict:
     return rec
 
 
+COMPETITORS = "03_Рынок_НАПП/Конкуренты"
+
+
+def collect_competitors(known: set) -> list:
+    """Публичные документы других страховщиков: одна запись на документ (оригинал + текст рядом).
+    Компания и источник — из шапки .txt; скан без расшифровки помечается."""
+    out = []
+    base = LIB / COMPETITORS
+    if not base.exists():
+        return out
+    for txt in sorted(base.rglob("*.txt")):
+        rel_txt = str(txt.relative_to(LIB)).replace("\\", "/")
+        orig = next((txt.with_suffix(s) for s in (".pdf", ".docx", ".doc") if txt.with_suffix(s).exists()), None)
+        rel_orig = str(orig.relative_to(LIB)).replace("\\", "/") if orig else None
+        known.update(x for x in (rel_txt, rel_orig) if x)
+        head = txt.read_text(encoding="utf-8", errors="ignore").partition("\n-----\n")[0]
+        company = re.search(r"Компания:\s*(.+)", head)
+        company = company.group(1).strip() if company else txt.parent.name
+        note = None
+        if "Индексировать: нет" in head:
+            note = "Скан без текста (или негодный текстовый слой): в поиск не идёт, читать оригинал."
+        elif "Текст: PDF — скан" in head:
+            note = "Скан: в тексте — выборочная дословная расшифровка по изображениям страниц."
+        elif "ошибками распознавания" in head:
+            note = "Текстовый слой PDF с ошибками распознавания — цитаты сверять с оригиналом."
+        out.append({"name": f"{company} — {txt.stem}", "group": COMPETITORS,
+                    "about": "Публичный документ страховщика с его официального сайта (правила, оферта, "
+                             "паспорт или страница продукта). Не норма права.",
+                    "note": note, "tag": "рынок", "файл": rel_orig, "текст": rel_txt})
+    return out
+
+
 def collect_extra(known: set) -> list:
     """Файлы, положенные в библиотеку вручную, тоже попадают в каталог."""
     extra = []
     for p in sorted(LIB.rglob("*")):
         if p.is_file() and p.name != "КАТАЛОГ.md" and p.name != "catalog.json":
             rel = str(p.relative_to(LIB)).replace("\\", "/")
+            if "__pycache__" in rel:
+                continue
             if rel not in known:
                 extra.append({"name": p.stem, "group": str(p.parent.relative_to(LIB)).replace("\\", "/"),
                               "about": None, "note": None, "tag": None, "файл": rel, "текст": None})
@@ -160,6 +195,14 @@ def guess_lang(name: str, path: str | None) -> str:
             head = p.read_text(encoding="utf-8", errors="ignore")[:4000]
         except Exception:
             return "ru"
+        # шапка выгрузки документов страховщиков: «Язык: узбекский (латиница)» и т.п.
+        m = re.search(r"^Язык:\s*(\S+)", head, re.MULTILINE)
+        if m and m.group(1).startswith("узбек"):
+            return "uz"
+        if m and m.group(1).startswith("англ"):
+            return "en"
+        if m and m.group(1).startswith("рус"):
+            return "ru"
         if "ў" in head.lower() or "ғ" in head.lower() or "қ" in head.lower():
             return "uz"
         if "sug‘urta" in head.lower() or "sugʻurta" in head.lower() or "toʻgʻrisida" in head.lower():
@@ -190,8 +233,13 @@ def main():
     for md in sorted((ROOT / "docs" / "Знания").glob("*.md")):
         records.append(put(dict(group="06_Заметки_проекта", name=md.stem, source=md, text=None,
                                 about="Разбор темы из реестра знаний команды.", tag="знание")))
+    # обзоры рынка (docs/Знания/Рынок): сводки по НАПП и по продуктам других страховщиков
+    for md in sorted((ROOT / "docs" / "Знания" / "Рынок").glob("*.md")):
+        records.append(put(dict(group="06_Заметки_проекта", name="Рынок — " + md.stem, source=md, text=None,
+                                about="Обзор рынка из реестра знаний команды.", tag="рынок")))
 
     known = {r["файл"] for r in records if r["файл"]} | {r["текст"] for r in records if r["текст"]}
+    records += collect_competitors(known)
     records += collect_extra(known)
     records = [enrich(r) for r in records]
 

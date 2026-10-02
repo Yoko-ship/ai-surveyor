@@ -24,6 +24,8 @@ COPY data/dealers_uz.json data/dealers_uz.json
 COPY library/catalog.json library/catalog.json
 # открытые тексты законов и актов регуляторов (.txt) — по ним отвечает ИИ специалист
 COPY library/01_Законодательство library/01_Законодательство
+# публичные правила и оферты других страховщиков (.txt, без оригиналов) — специалист отвечает о рынке
+COPY library/03_Рынок_НАПП/Конкуренты library/03_Рынок_НАПП/Конкуренты
 COPY db db
 COPY docs docs
 COPY tools tools
