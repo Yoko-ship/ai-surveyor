@@ -2388,6 +2388,10 @@ def _market_answer(question: str, lang: str, with_ai: bool, it: dict, history: l
     if not found:
         note = (note + "; " if note else "") + (mx.NO_DATA[lang] % "").rstrip(" .")
     label = source_label("market", lang)
+    # ответ из рэнкинга snsratings (финансы компаний): подпись источника — рэнкинг, а не «данные НАПП»
+    srcs = res.get("sources") or []
+    if srcs and all((x.get("domain") == "snsratings.uz") for x in srcs):
+        label = srcs[0].get("label") or label
     data_lbl = PART_LABEL["data"].get(lang) or PART_LABEL["data"][DEFAULT_LANG]
     ai = res["ai"]
     opinion = None
