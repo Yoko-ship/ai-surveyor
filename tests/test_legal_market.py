@@ -451,6 +451,31 @@ def check_review_fixes():
     ok("таймаут передаётся параметром вызова", "llm.TIMEOUT_SEC =" not in src and "timeout=" in src)
 
 
+def check_competitor_intent():
+    print("13. условия продуктов конкурентов — intent competitor")
+    for q, lang in (("какая франшиза по КАСКО у конкурентов", "ru"),
+                    ("KASKO boʻyicha raqobatchilarda franshiza qancha?", "uz"),
+                    ("исключения по имуществу у других страховщиков", "ru"),
+                    ("Boshqa sugʻurtalovchilarda mulk boʻyicha istisnolar qanday?", "uz")):
+        r = ask(q, sid="cmp-" + lang)
+        comps = {c.get("company") for c in r["citations"]}
+        ok("%s → competitor, цитаты конкурентов (до 5, разные компании), «не норма»" % q,
+           r.get("intent") == "competitor" and 0 < len(r["citations"]) <= 5 and len(comps) == len(r["citations"])
+           and all(c.get("source_kind") == "competitor" and "не норма" in legal.source_label("competitor", "ru")
+                   for c in r["citations"]) and r["sources"] and r["lex_search_offer"] is False,
+           (r.get("intent"), r["answer"]["text"][:200]))
+    r = ask("какая франшиза по КАСКО у конкурентов", sid="cmp-x")
+    ok("статистика класса — только короткой строкой в конце", r["answer"]["text"].rstrip().endswith(
+        r["market_line"]) if r.get("market_line") else "НАПП" not in r["answer"]["text"][:120],
+       r.get("market_line"))
+    r = ask("что продаёт Gross", sid="cmp-g")
+    ok("«что продаёт Gross» → документы Gross первыми", r.get("intent") == "competitor" and r["citations"]
+       and "Gross" in (r["citations"][0].get("company") or ""), [c.get("company") for c in r["citations"]])
+    r = ask("убыточность по классу 3", sid="cmp-m")
+    ok("«убыточность по классу 3» — по-прежнему market", r.get("intent") == "market"
+       and r["market"]["numbers"].get("row_key") == "cls3", r.get("intent"))
+
+
 def main():
     with temp_db():
         setup()
@@ -465,6 +490,7 @@ def main():
         check_memory()
         check_index_kinds()
         check_review_fixes()
+        check_competitor_intent()
         check_privacy()
         check_inson()              # последним: удаляет строку INSON из копии базы
     print(f"\nИтого: {passed} ок, {failed} плохо")

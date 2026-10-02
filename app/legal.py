@@ -2010,6 +2010,11 @@ def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None,
     mem = mx.memory.get(mkey)
     last = mem["ctx"]
     intent = mx.detect(question, lang, last)
+    if intent.get("competitor"):
+        out = _competitor_answer(question, lang, intent)
+        out["session_id"] = session_id
+        mx.memory.add(mkey, question, out["answer"]["text"], {"kind": "competitor", "entity": intent.get("entity")})
+        return out
     if intent.get("clarify"):
         out = _clarify_answer(question, lang)
         out["session_id"] = session_id
@@ -2075,6 +2080,109 @@ def _decorate(out: dict, lang: str) -> dict:
                              "source_label": out["source_label"]},
                     "opinion": ({"label": op_lbl, "text": ai["text"], "by": "ai"}
                                 if ai.get("status") == "ok" and ai.get("text") else None)}
+    return out
+
+
+COMPETITOR_MAX = 5
+COMPETITOR_TEXT = {
+    "ru": ("По документам других страховщиков (не норма — их правила, оферты и страницы продуктов):",
+           "В документах других страховщиков в базе ответа не нашлось."),
+    "uz": ("Boshqa sugʻurtalovchilar hujjatlari boʻyicha (norma emas — ularning qoidalari va ofertalari):",
+           "Bazadagi boshqa sugʻurtalovchilar hujjatlarida javob topilmadi."),
+    "en": ("From other insurers' documents (not a legal rule — their rules, offers and product pages):",
+           "Nothing found in other insurers' documents in the database."),
+}
+
+
+def _competitor_of(r: dict) -> str:
+    """Компания документа: папка в library/03_…/Конкуренты/<Компания>/ или «обзор конкурентов»."""
+    p = Path(r.get("path") or "")
+    if "Конкуренты" in p.parts:
+        i = p.parts.index("Конкуренты")
+        if len(p.parts) > i + 2:
+            return p.parts[i + 1]
+    return "обзор"
+
+
+def _competitor_answer(question: str, lang: str, intent: dict) -> dict:
+    """Условия продуктов других страховщиков: только их документы и обзор конкурентов (тип competitor).
+    До 5 цитат по разным компаниям; рыночная статистика класса — короткой строкой в конце, если есть."""
+    t0 = time.time()
+    ensure_index()
+    rq = mx.ru_query(question, lang)
+    stems = stems_of(rq, DEFAULT_LANG)
+    found = [r for r in search(rq, DEFAULT_LANG, limit=40, allow_competitor=True)
+             if r.get("source_kind") == "competitor"]
+    ent = intent.get("entity") or {}
+    if ent.get("type") == "company":
+        # спросили про конкретного страховщика — его документы первыми
+        words = set(ent.get("words") or [])
+        mine = [r for r in found if any(w in mx.nrm(_competitor_of(r)).replace(" ", "")
+                                        or w in mx.nrm(_competitor_of(r)) for w in words)]
+        found = mine + [r for r in found if r not in mine]
+    picked, seen = [], set()
+    for r in found:                                   # по одной цитате на компанию
+        who_ = _competitor_of(r)
+        if who_ in seen:
+            continue
+        c = _citation(r, DEFAULT_LANG, stems)
+        if not c["quote"]:
+            continue
+        seen.add(who_)
+        c["source_label"] = source_label("competitor", lang)
+        c["company"] = who_
+        picked.append(c)
+        if len(picked) >= COMPETITOR_MAX:
+            break
+    head, none_ = COMPETITOR_TEXT.get(lang) or COMPETITOR_TEXT[DEFAULT_LANG]
+    if picked:
+        text = head + " " + " ".join("%s: «%s»" % (c["company"] if c["company"] != "обзор" else c["act"], c["quote"])
+                                     for c in picked)
+    else:
+        text = none_
+    # рыночная статистика класса — одной строкой, если класс назван и строка есть
+    market_line = None
+    if ent.get("type") == "class":
+        try:
+            res = mx.answer(question, lang, dict(intent, metric=None, rank=False, is_market=True))
+            n = res.get("numbers") or {}
+            if res.get("found") and n.get("premiums") is not None:
+                market_line = {"ru": "Рынок по классу (НАПП, %s, ytd): премии %s млн сум, убыточность %s.",
+                               "uz": "Klass boʻyicha bozor (NAPP, %s, ytd): mukofot %s mln soʻm, zararlilik %s.",
+                               "en": "Class market (NAPP, %s, ytd): premiums %s UZS m, loss ratio %s."}[lang] % (
+                    mx._ru_date(res["date"]), mx._num(n["premiums"], lang), mx._pct(n.get("loss_ratio_pct"), lang))
+                text += " " + market_line
+        except Exception as e:
+            print("legal: статистика класса к ответу о конкурентах не добавлена:", e)
+    from urllib.parse import urlsplit
+    sources, doms = [], set()
+    for c in picked:
+        dom = urlsplit(c.get("url") or "").netloc or None
+        key = dom or c["act"]
+        if key in doms:
+            continue
+        doms.add(key)
+        sources.append({"kind": "competitor", "label": source_label("competitor", lang), "title": c["act"],
+                        "url": c.get("url"), "domain": dom, "company": c["company"]})
+    if not sources:
+        sources.append({"kind": "competitor", "label": source_label("competitor", lang),
+                        "title": "library/03_Рынок_НАПП/Конкуренты", "url": None, "domain": None})
+    took = int((time.time() - t0) * 1000)
+    out = {"lang": lang, "took_ms": took,
+           "answer": {"text": text, "source": "competitor", "confidence": 0.5 if picked else 0.0,
+                      "kind": "документы конкурентов"},
+           "citations": picked, "related": related(lang), "ai": {"status": "off", "text": None},
+           "note": source_label("competitor", lang), "cached": False,
+           "assistant_name": dict(ASSISTANT_NAME), "assistant_role": dict(ASSISTANT_ROLE),
+           "live": dict(LIVE_NOT_NEEDED), "intent": "competitor", "lex_search_offer": False,
+           "source_kind": "competitor", "source_label": source_label("competitor", lang), "sources": sources,
+           "market_line": market_line,
+           "parts": {"data": {"label": PART_LABEL["data"].get(lang) or PART_LABEL["data"][DEFAULT_LANG],
+                              "text": text, "source_kind": "competitor",
+                              "source_label": source_label("competitor", lang), "sources": sources},
+                     "opinion": None},
+           "context": {"used": False, "fields": [], "follow_up": False}}
+    log_question(question, lang, "competitor", out["answer"]["confidence"], took, bool(picked))
     return out
 
 

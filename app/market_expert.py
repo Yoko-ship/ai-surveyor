@@ -605,6 +605,49 @@ def _year(q: str) -> Optional[int]:
     return int(m.group(1)) if m else None
 
 
+# Условия продуктов других страховщиков — не статистика НАПП, а их документы (intent «competitor»)
+PRODUCT_TERMS = ("франшиз", "исключени", "услови", "правил", "оферт", "износ", "лимит", "покрыти", "тариф",
+                 "ставк", "franshiza", "istisno", "shart", "qoida", "oferta", "eskirish", "limit", "qoplam", "tarif",
+                 "stavka", "deductible", "exclusion", "terms", "conditions", "rules", "wear", "coverage", "tariff",
+                 "rate", "offer")
+COMPETITOR_MARK = ("конкурент", "других страховщ", "другие страховщ", "другой страхов", "других компан",
+                   "у других", "raqobatchi", "boshqa sugurtalovchi", "boshqa kompaniya", "competitor",
+                   "other insurer", "other companies")
+SELL_WORDS = ("что прода", "что предлага", "какие продукты", "nima sot", "qanday mahsulot", "what does",
+              "sells", "sell", "products of")
+COMPARE_WORDS = ("сравни", "сравнить", "solishtir", "compare")
+# русские слова запроса к индексу (документы конкурентов — на русском)
+RU_TERMS = {"franshiza": "франшиза", "istisno": "исключения", "shart": "условия", "qoida": "правила",
+            "kasko": "каско", "mulk": "имущество", "yuk": "грузы", "kredit": "кредит", "limit": "лимит",
+            "tarif": "тариф", "eskirish": "износ", "qoplam": "покрытие", "deductible": "франшиза",
+            "exclusion": "исключения", "terms": "условия", "conditions": "условия", "rules": "правила",
+            "casco": "каско", "property": "имущество", "cargo": "грузы", "credit": "кредит", "wear": "износ",
+            "coverage": "покрытие", "tariff": "тариф", "rate": "тариф", "sell": "продукты", "nima": "продукты"}
+
+
+def competitor_intent(q: str, comp: Optional[dict]) -> bool:
+    """Вопрос об условиях продуктов других страховщиков (франшиза, исключения, «что продаёт Gross»)."""
+    if _has(q, COMPARE_WORDS):
+        return True
+    if comp and comp.get("key") != mp.INSON_ROW and _has(q, SELL_WORDS):
+        return True
+    if _has(q, PRODUCT_TERMS) and (_has(q, COMPETITOR_MARK) or (comp and comp.get("key") != mp.INSON_ROW)):
+        return True
+    return False
+
+
+def ru_query(question: str, lang: str) -> str:
+    """Запрос к документам конкурентов на русском: для uz/en — переводим ключевые слова словарём."""
+    if lang == "ru":
+        return question
+    words = []
+    for t in _tokens(question):
+        for k, v in RU_TERMS.items():
+            if t.startswith(k) and v not in words:
+                words.append(v)
+    return " ".join(words) or question
+
+
 def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=None) -> dict:
     """Вопрос о рынке? → {is_market, entity, metric, rank, dim, year, ago, follow_up, strong}."""
     q = nrm(question)
@@ -665,7 +708,13 @@ def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=Non
     # «а по классу 8?» без контекста: сущность есть, показателя и периода нет — просим уточнить
     clarify = (not is_market and not definition and not legal_like and strong_entity and not metric
                and not rank and (any(q.startswith(s) for s in FOLLOW_START) or words_n <= 4))
-    return {"is_market": is_market, "clarify": clarify, "entity": entity, "metric": metric, "rank": rank, "dim": dim,
+    # условия продуктов других страховщиков: цифры рынка (премии, убыточность…) не перекрывают этот смысл
+    competitor = competitor_intent(q, comp) and metric not in ("premiums", "payouts", "loss_ratio", "share",
+                                                                "growth", "own_funds")
+    if competitor:
+        is_market = clarify = follow = False
+    return {"is_market": is_market, "clarify": clarify, "competitor": competitor,
+            "entity": entity, "metric": metric, "rank": rank, "dim": dim,
             "year": year, "ago": ago, "follow_up": follow, "definition": definition,
             "market_word": market_word}
 
