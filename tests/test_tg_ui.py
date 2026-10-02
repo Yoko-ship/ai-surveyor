@@ -454,7 +454,7 @@ def check_chat_tab(html):
         'T("tg.act.send_docx", "Прислать Word в чат")': "нет кнопки «Прислать Word в чат»",
         'T("tg.act.send_pdf", "Прислать PDF в чат")': "нет кнопки «Прислать PDF в чат»",
         "initData: (TG && TG.initData)": "в запросе отправки нет initData",
-        "lang: I18N_LANG, initData": "акт присылается не на языке интерфейса",
+        "lang: actLang(), initData": "акт присылается не на выбранном языке акта",
         'd.code === "start_bot"': "не объяснено, что нужно нажать «Старт» у бота",
         'data-go="openbot"': "нет кнопки «Открыть бота»",
         "TG.openTelegramLink(url)": "бот открывается не через openTelegramLink",

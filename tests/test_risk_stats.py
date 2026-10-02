@@ -330,9 +330,41 @@ def test_thresholds_admin():
             check("новая шкала: балл ДТП", ind(b["indicators"], "road_accidents")["points"], 100.0, 1e-9)
 
 
+def test_special_regions():
+    print("\nОсобые регионы акта (02.10.2026): «Республика Узбекистан» (uz_all) и «Другое» (other)")
+    from app import act
+    with temp_db():
+        with db.tx() as con:
+            seed(con)
+            th = ra.load_thresholds(con)
+            m_all = {"region": "uz_all", "region_code": act.region_code("uz_all")}
+            m_out = {"region": "other", "region_code": act.region_code("other"), "region_text": "Kazakhstan"}
+            check("uz_all: код", m_all["region_code"], "uz_all")
+            check("uz_all: регион для модулей", act.region_for_modules(m_all), "Республика Узбекистан")
+            check("uz_all: ключ справочника регионов — вся республика",
+                  rs._region_key(act.region_for_modules(m_all)), "total")
+            items = rs.risk_indicators(con, "3", act.region_for_modules(m_all), th)
+            a = ind(items, "road_accidents")
+            truth("uz_all: ДТП — по республике (10 000), регион с республикой не сравнивается",
+                  a["value"] == 10000.0 and a["scope"].startswith("республика") and not a.get("level_vs_country"), a)
+            b = rs.external_block(con, ["3"], act.region_for_modules(m_all), th)
+            check("uz_all: составляющая «внешняя статистика» не применяется", b["applicable"], False)
+            check("other: код", m_out["region_code"], "other")
+            check("other: фон открытых данных к факторам не берётся", act.region_for_stats(m_out), "")
+            check("other: особый регион — вне Узбекистана", act.region_scope(m_out), "outside")
+            check("uz_all: особый регион — вся республика", act.region_scope(m_all), "republic")
+            an = {"available": True, "stats": {"available": True, "indicators": [{"id": "road_accidents"}]},
+                  "napp": {"available": True}}
+            act._region_scope_stats(an, "outside")
+            truth("other: статистика и НАПП по регионам не применяются (reason = outside)",
+                  an["stats"]["available"] is False and an["stats"]["reason"] == "outside"
+                  and an["stats"]["indicators"] == [] and an["napp"]["available"] is False, an)
+
+
 def main():
     test_parsers()
     test_indicators_by_group()
+    test_special_regions()
     test_analysis_premium_unchanged()
     test_component_drops_without_data()
     test_thresholds_admin()

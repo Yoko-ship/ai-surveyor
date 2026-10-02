@@ -177,6 +177,23 @@ FIELDS = {
                     "объем двигателя", "dvigatel hajmi", "dvigatel ish hajmi",
                     "двигатель ҳажми", "двигатель хажми",
                     "engine capacity", "engine displacement"]},
+        # Вид топлива, мощность и масса (02.10.2026, автозаполнение акта: fuel и характеристики объекта).
+        # В перечне ПКМ № 683 этих граф нет — берём, только если они есть в бланке (как регион учёта).
+        {"key": "fuel", "name": "Вид топлива", "type": "text", "to_valuation": None, "norm": None,
+         "labels": ["вид топлива", "тип топлива", "вид двигателя", "тип двигателя", "топливо",
+                    "yoqilg'i turi", "yoqilg'i", "ёқилғи тури", "ёкилги тури", "ёқилғи",
+                    "fuel type", "type of fuel", "fuel"]},
+        {"key": "engine_power", "name": "Мощность двигателя", "type": "text", "to_valuation": None,
+         "norm": None,
+         "labels": ["мощность двигателя", "мощность", "dvigatel quvvati", "quvvati",
+                    "двигатель қуввати", "двигатель куввати", "қуввати", "engine power", "power"]},
+        {"key": "max_mass", "name": "Масса (разрешённая максимальная / без нагрузки)", "type": "text",
+         "to_valuation": None, "norm": None,
+         "labels": ["разрешенная максимальная масса", "максимальная масса", "полная масса",
+                    "масса без нагрузки", "снаряженная масса", "масса",
+                    "ruxsat etilgan maksimal vazn", "to'la vazni", "yuksiz vazni", "vazni",
+                    "рухсат этилган максимал вазн", "тўла вазни", "тула вазни", "вазни",
+                    "maximum permissible mass", "gross vehicle weight", "unladen mass", "mass"]},
         # Такой графы нормативные акты не называют. Берём, только если она есть в бланке;
         # из государственного номера регион НЕ выводим — это догадка, а не данные документа.
         {"key": "region", "name": "Регион учёта", "type": "region", "to_valuation": "регион",

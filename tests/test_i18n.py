@@ -228,9 +228,22 @@ def test_rules():
     ok("rec_text переводит вид", rec["kind"] == "deductible", rec)
 
 
+def test_act_regions():
+    """регионы акта: 14 областей и два особых — вся республика (uz_all) и «Другое» (other) на трёх языках"""
+    want = {"uz_all": {"ru": "Республика Узбекистан", "uz": "Oʻzbekiston Respublikasi", "en": "Republic of Uzbekistan"}}
+    for lang in i18n.LANGS:
+        regs = [k for k in i18n.keys(lang) if k.startswith("tg.act.reg.")]
+        ok(f"{lang}: регионов в словаре 16 (14 + uz_all + other)", len(regs) == 16, len(regs))
+        ok(f"{lang}: «вся республика»", i18n.t("tg.act.reg.uz_all", lang) == want["uz_all"][lang])
+        other = i18n.t("tg.act.reg.other", lang)
+        ok(f"{lang}: «Другое» переведено и не пустое", other and not other.startswith("tg.act."), other)
+    ok("uz/en: «Другое» без кириллицы", not re.search(r"[А-Яа-яЁё]", i18n.t("tg.act.reg.other", "uz")
+                                                     + i18n.t("tg.act.reg.other", "en")))
+
+
 def main():
     print("Словарь интерфейса:")
-    for fn in (test_same_keys, test_translate, test_pick_lang, test_routes, test_rules):
+    for fn in (test_same_keys, test_translate, test_pick_lang, test_routes, test_rules, test_act_regions):
         print("-", fn.__doc__ or fn.__name__)
         fn()
     print(f"\nитог: ок {passed}, плохо {failed}")

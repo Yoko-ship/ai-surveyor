@@ -253,6 +253,44 @@ def test_build_year_hint():
 # 3. Чтение PDF и скан без текста
 # --------------------------------------------------------------------------- #
 
+def test_passport_autofill():
+    """02.10.2026: вид топлива, мощность и масса из техпаспорта и маппинг в поля акта (app/vehicle_prefill.py)."""
+    import json
+    from app import vehicle_prefill as vp
+    extra = "Вид топлива: бензин/метан\nМощность двигателя: 78 кВт\nРазрешённая максимальная масса: 1650 кг\n"
+    out = D.parse_text(PASSPORT_TEXT + extra, D.KIND_PASSPORT)
+    assert by_key(out, "fuel")["значение"] == "бензин/метан"
+    assert by_key(out, "engine_power")["значение"] == "78 кВт"
+    assert by_key(out, "max_mass")["значение"] == "1650 кг"
+    by = {f["поле"]: f["значение"] for f in out["поля"] if f.get("значение") is not None}
+    veh = vp.from_passport(by)
+    assert veh["label"] == "Chevrolet Cobalt LTZ" and veh["year"] == 2019, veh
+    assert veh["veh_group"] == "car" and veh["fuel"] == "cng", veh          # газ сильнее бензина
+    assert veh["characteristics"] == {"engine_power": "78 кВт", "max_mass": "1650 кг", "engine_cc": "1485",
+                                      "seats": "5"}, veh
+    dump = json.dumps(veh, ensure_ascii=False)
+    assert "Каримов" not in dump and "31234567890123" not in dump and "Амира" not in dump   # ПД владельца нет
+    pf = {x["field"]: x for x in vp.prefill(veh, None)}
+    assert set(pf) == {"object_label", "year", "class_fields.veh_group", "class_fields.fuel", "characteristics"}
+    assert all(x["source"] == "techpassport" and x["source_label"] == "техпаспорт" for x in pf.values())
+    # фото дополняет то, чего нет в техпаспорте, но не спорит с ним
+    cat = {"code": "truck", "confidence": 0.7, "fuel": "electric", "fuel_confidence": 0.6, "source": "photo",
+           "why": "кузов-фургон", "file": "f1"}
+    mixed = {x["field"]: x for x in vp.prefill(dict(veh, fuel=None), cat)}
+    assert mixed["class_fields.veh_group"]["value"] == "car" and mixed["class_fields.fuel"]["value"] == "electric"
+    assert mixed["class_fields.fuel"]["source"] == "photo" and mixed["class_fields.fuel"]["confidence"] == 0.6
+    for text, code in (("грузовой самосвал", "truck"), ("Автобус", "bus"), ("полуприцеп", "trailer"),
+                       ("трактор колёсный", "agro"), ("гусеничный кран", "special_tracked"), ("автокран",
+                       "special_wheeled"), ("Мотоцикл", "moto"), ("yengil avtomobil", "car"), ("N3", "truck"),
+                       ("", None)):
+        assert vp.group_from_text(text) == code, (text, vp.group_from_text(text))
+    for text, code in (("Дизельное топливо", "diesel"), ("пропан-бутан", "lpg"), ("elektr", "electric"),
+                       ("ДТ", "diesel"), ("гибрид", "hybrid"), ("бензин", "petrol"), ("неизвестно", None)):
+        assert vp.fuel_from_text(text) == code, (text, vp.fuel_from_text(text))
+    assert vp.from_passport({"color": "белый"}) is None
+    print("автозаполнение по техпаспорту:", veh)
+
+
 def test_pdf_passport():
     f = make_pdf(PASSPORT_TEXT, TMP / "passport.pdf")
     out = D.parse_file(f, "application/pdf", D.KIND_PASSPORT)

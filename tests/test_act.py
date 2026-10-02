@@ -4775,9 +4775,13 @@ def check_review_fixes():
     ok("41.2: показатель региона — Ташкентская область, 49,95 % (регион, а не республика)",
        vh["scope"] == "region" and abs(vh["value"] - 49.95) < 1e-9 and "49,95" in vh["value_text"], vh)
     with db.tx() as con:
-        ok("41.2: все 14 кодов регионов экрана узнаются модулями по названию",
-           all(mp.resolve_region(act.region_for_modules({"region": c, "region_code": c}))[0]
-               for c in act._region_names()) and len(act._region_names()) == 14)
+        # 02.10.2026: плюс два особых — uz_all (вся республика → total) и other (вне Узбекистана → без региона)
+        regs = [c for c in act._region_names() if c not in (act.REGION_ALL, act.REGION_OTHER)]
+        ok("41.2: все 14 кодов регионов экрана узнаются модулями по названию; uz_all — республика, other — нет",
+           all(mp.resolve_region(act.region_for_modules({"region": c, "region_code": c}))[0] for c in regs)
+           and len(regs) == 14 and len(act._region_names()) == 16
+           and mp.resolve_region(act.region_for_modules({"region": "uz_all", "region_code": "uz_all"}))[0] == "total"
+           and act.region_for_stats({"region": "other", "region_code": "other"}) == "")
     del con
 
     # --- 41.3. удержание — оценка: норма на временных цифрах, таблица линий — экспертная ---
@@ -8653,6 +8657,484 @@ def check_exchange():
         con.execute("DELETE FROM exchange_quotes")
 
 
+# ------------------------------------------------------------------ 48–52. доработки 02.10.2026 (вечер)
+
+FLEET = [
+    {"label": "Truck A (test)", "sum_insured": 900_000_000, "object_value": 1_000_000_000, "year": 2019,
+     "class_fields": {"veh_group": "truck", "fuel": "diesel"}, "mileage": 120_000, "plate_hint": "…123"},
+    {"label": "Car B (test)", "sum_insured": 300_000_000, "object_value": 250_000_000, "year": 2024,
+     "class_fields": {"veh_group": "car", "fuel": "petrol"}, "requested_rate_pct": 0.05},
+    {"label": "Excavator C (test)", "sum_insured": 1_745_000_000, "object_value": 1_850_000_000, "year": 2010,
+     "object_kind": "excavator", "condition": "worn"},
+]
+FLEET_OPT = {"location": "open_area", "losses_3y": {"count": 0, "small_count": 0, "amount": 0}}
+OBJ_REPORT = {}
+
+
+def fleet_make(objects=None, must=None, optional=None, lang="ru", session=None):
+    body = {"lang": lang, "must": dict({"product_code": "0318", "region": "tashkent_region"}, **(must or {})),
+            "optional": dict(FLEET_OPT, objects=objects if objects is not None else FLEET, **(optional or {}))}
+    if session:
+        body["session"] = session
+    return call("POST", "/act/make", body)
+
+
+def _obj_expected(con, ob: dict, level: str) -> tuple:
+    """Ставка и премия объекта вручную: act_engine.rate по справочнику копии базы (тариф × поправка уровня, минимум)."""
+    ref = db.load_reference(con)
+    st = act.load_settings(con)
+    prod = db.rows(con, "SELECT code, name, pricing_mode, rate_text FROM products WHERE code='0318'")[0]
+    kind_type = tx.OBJECT_KINDS[ob["object_kind"]][0] if ob.get("object_kind") in tx.OBJECT_KINDS else None
+    otype = ae.match_object_type(ref, "3", kind_type, None)
+    r = ae.rate(ref, prod, "3", level, ob["sum_insured"], 365, otype, None, st)
+    return r["applied_pct"], r["premium"]
+
+
+def check_objects():
+    print("48. Несколько объектов в одном акте (парк ТС): у каждого свой уровень, ставка, премия; итоги договора")
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    st, a = fleet_make()
+    ok("акт на 3 объекта: 200, суммы договора посчитаны по объектам",
+       st == 200 and a["objects_total"]["count"] == 3 and a["objects_total"]["sum_insured"] == 2_945_000_000
+       and a["objects_total"]["object_value"] == 3_100_000_000 and a["objects_total"]["sums_from_objects"], (st, a))
+    objs = a["objects"]
+    with db.tx() as con:
+        exp = [_obj_expected(con, ob, o["level"]) for ob, o in zip(FLEET, objs)]
+    ok("ставка каждого объекта — тариф × поправка его уровня (не ниже минимума), премия — от его суммы",
+       all(o["rate"]["applied_pct"] == e[0] and o["premium"] == e[1] for o, e in zip(objs, exp)),
+       [(o["rate"]["applied_pct"], o["premium"], e) for o, e in zip(objs, exp)])
+    ok("уровни разные: экскаватор 2010 г. с износом — высокий, грузовик и легковой — не высокий",
+       objs[2]["level"] == "high" and objs[0]["level"] != "high" and objs[1]["level"] != "high",
+       [o["level"] for o in objs])
+    total = sum(o["premium"] for o in objs)
+    ok("премия договора = сумма премий объектов (premium.amount, objects_total.premium)",
+       a["premium"]["amount"] == total == a["objects_total"]["premium"], (a["premium"], total))
+    avg = round(total / 2_945_000_000 * 100, 4)
+    ok("средняя ставка — справочно: сумма премий / сумма × 365 / срок; уровень договора — самый высокий",
+       a["objects_total"]["rate_avg_pct"] == avg and a["objects_total"]["reference_only"]
+       and a["risk"]["level"] == "high" and a["objects_total"]["worst_index"] == 3, a["objects_total"])
+    ok("сумма к стоимости по каждому объекту: легковой 120 % — выше стоимости, остальные в норме",
+       [o["value"]["verdict"] for o in objs] == ["normal", "over", "normal"]
+       and any("Car B (test)" in c and "938" in c for c in a["decision"]["checks"]), a["decision"]["checks"])
+    ok("запрошенная ставка объекта ниже минимума — пометка у объекта и проверка андеррайтеру",
+       objs[1]["below_min"] and any("Car B (test)" in c and "0,05" in c for c in a["decision"]["checks"]))
+    sd = a["objects_total"]["scenarios"]
+    sc = a["scenarios"]
+    ok("сценарии: PML и EML — по самому крупному объекту (№ 3), MFL — сумма по объектам",
+       sd["largest"]["index"] == 3 and sc["pml"]["amount"] == sd["largest"]["PML"]
+       and sc["eml"]["amount"] == sd["largest"]["EML"] and sc["mfl"]["amount"] == sd["sum"]["MFL"]
+       and sd["sum"]["MFL"] == sum(o["scenarios"]["mfl"] for o in objs)
+       and sc["pml"]["amount"] <= sc["eml"]["amount"] <= sc["mfl"]["amount"], (sd, sc.get("pml")))
+    s1, s3 = a["sections"][0], a["sections"][2]
+    t1 = next((li["table"] for li in s1.get("lists") or [] if li.get("table")), None)
+    t3 = next((li["table"] for li in s3.get("lists") or [] if li.get("table")
+               and li["title"] == "Сумма к стоимости по объектам"), None)
+    ok("раздел 1: таблица объектов (№, объект, год, сумма, стоимость, уровень, ставка, премия)",
+       t1 and t1["columns"] == ["№", "Объект", "Год", "Страховая сумма", "Стоимость", "Уровень риска", "Ставка",
+                                "Премия"] and len(t1["rows"]) == 3 and t1["rows"][2][1] == "Excavator C (test)", t1)
+    ok("раздел 3: та же таблица плюс сумма к стоимости по объекту",
+       t3 and len(t3["columns"]) == 9 and "выше стоимости" in t3["rows"][1][8], t3)
+    ok("раздел 4: строка средней ставки и премии договора, перечень «Ставка и премия по объектам»",
+       any(r["label"] == "Средняя ставка по объектам" for r in a["sections"][3]["rows"])
+       and any(li["title"] == "Ставка и премия по объектам" and len(li["items"]) == 3
+               for li in a["sections"][3]["lists"]))
+    ok("вилка договора — сумма премий объектов по отметкам; рынок класса — общий",
+       a["rate_fork"]["reason"] == "parts_reference"
+       and next(m for m in a["rate_fork"]["marks"] if m["code"] == "act")["premium"] == total
+       and any(m["code"] == "market" for m in a["rate_fork"]["marks"]), a["rate_fork"].get("marks"))
+    ok("факторы — по каждому объекту (свои поля класса)",
+       a["factor_adjustment"].get("by_objects") and len(a["factor_adjustment"]["objects"]) == 3
+       and a["factor_adjustment"]["objects"][0]["product"] != a["factor_adjustment"]["objects"][1]["product"],
+       a["factor_adjustment"].get("objects"))
+    OBJ_REPORT["парк из 3 ТС"] = {"премии": [o["premium"] for o in objs], "ставки": [o["rate_pct"] for o in objs],
+                                  "уровни": [o["level"] for o in objs], "премия договора": total,
+                                  "средняя ставка": a["objects_total"]["rate_avg_pct"],
+                                  "PML/EML/MFL": (sc["pml"]["amount"], sc["eml"]["amount"], sc["mfl"]["amount"])}
+    # один объект в перечне = обычный акт: та же премия
+    one = dict(FLEET[0])
+    st, single = call("POST", "/act/make", {"lang": "ru", "must": {"product_code": "0318", "region": "tashkent_region",
+                                                                 "sum_insured": one["sum_insured"],
+                                                                 "object_value": one["object_value"]},
+                                           "optional": dict(FLEET_OPT, year=one["year"],
+                                                            class_fields=one["class_fields"])})
+    st2, f1 = fleet_make([one])
+    ok("перечень из одного объекта = обычный акт по тому же объекту (ставка и премия совпадают)",
+       st == 200 and st2 == 200 and f1["premium"]["amount"] == single["premium"]["amount"]
+       and f1["objects"][0]["rate"]["applied_pct"] == single["rate"]["applied_pct"],
+       (single["premium"], f1["premium"]))
+    # сумма договора введена и не сходится — 422; сходится в пределах допуска — 200
+    st, r = fleet_make(must={"sum_insured": 3_000_000_000})
+    ok("введённая сумма не равна сумме по объектам — 422 с разницей", st == 422 and "sum_insured" in r["errors"]
+       and "55 000 000" in r["errors"]["sum_insured"], r)
+    st, r = fleet_make(must={"sum_insured": 2_945_000_000, "object_value": 3_100_000_000})
+    ok("введённые суммы совпали — 200", st == 200 and r["objects_total"]["sums_from_objects"] is False, st)
+    st, r = fleet_make(optional={"parts": [{"class_code": "3", "sum_insured": 1}, {"class_code": "8",
+                                                                                   "sum_insured": 1}]})
+    ok("перечень объектов вместе с частями — 422 с понятной ошибкой",
+       st == 422 and "части комплексного продукта" in r["errors"].get("objects", ""), r)
+    st, r = fleet_make(must={"product_code": "0305", "region": "samarkand"})
+    ok("комплексный продукт (несколько классов) — 422: перечень только у продукта одного класса",
+       st == 422 and "несколько классов" in r["errors"].get("objects", ""), r)
+    st, r = fleet_make([dict(FLEET[0])] * 51)
+    ok("больше 50 объектов — 422", st == 422 and "до 50" in r["errors"].get("objects", ""), r)
+    st, r = fleet_make([dict(FLEET[0], plate_hint="01 A 123 BC")])
+    ok("полный госномер в plate_hint — 422 (только часть номера)", st == 422 and "госномер" in r["errors"]["objects"], r)
+    bad_hints = [fleet_make([dict(FLEET[0], plate_hint=h)])[0] for h in ("A123BC", "…123AB", "12345", "AB")]
+    ok("plate_hint с буквами или больше 4 цифр — 422", bad_hints == [422] * 4, bad_hints)
+    good_hints = [fleet_make([dict(FLEET[0], plate_hint=h)])[0] for h in ("…123", "...0457", "12")]
+    ok("plate_hint «…123», «...0457», «12» — принимаются", good_hints == [200] * 3, good_hints)
+    st, r = fleet_make(optional={"deductible": {"amount": 10 ** 13, "type": "unconditional"}})
+    ok("парк: франшиза суммой больше половины суммы парка — 422 (проверка после суммы по объектам)",
+       st == 422 and "deductible" in r["errors"], r)
+    st, r = fleet_make(optional={"deductible": {"amount": 1_000_000, "type": "unconditional"}})
+    ok("парк: франшиза суммой в пределах половины суммы парка — 200", st == 200, (st, r.get("errors")))
+    st, r = fleet_make([dict(FLEET[0], label="Тестов Тест Тестович")])
+    ok("ФИО в подписи объекта — 422", st == 422 and "персональные" in r["errors"]["objects"], r)
+    st, r = fleet_make([dict(FLEET[0], sum_insured=0)])
+    ok("сумма объекта 0 — 422", st == 422 and "sum_insured" in r["errors"]["objects"], r)
+    st, r = fleet_make([dict(FLEET[0], photo_ids=["x9"])])
+    ok("неверный id файла — 422", st == 422 and "photo_ids" in r["errors"]["objects"], r)
+    # франшиза договора — тем же множителем у каждого объекта
+    st, fr = fleet_make(optional={"deductible": {"pct": 1, "type": "unconditional"}})
+    fo = fr["objects"]
+    ok("франшиза договора: у каждого объекта премия ниже, премия договора = сумма премий объектов с франшизой",
+       st == 200 and all(o["franchise_applied"] and o["premium"] < o["premium_before_franchise"] for o in fo)
+       and fr["premium"]["amount"] == sum(o["premium"] for o in fo)
+       and fr["premium"]["before_franchise"] == sum(o["premium_before_franchise"] for o in fo),
+       [(o["premium_before_franchise"], o["premium"]) for o in fo])
+    # три языка, Word и PDF
+    aid = a["id"]
+    st, en = call("GET", f"/act/{aid}", params={"lang": "en"})
+    ok("GET ?lang=en: те же объекты и цифры, подписи на английском",
+       st == 200 and [o["premium"] for o in en["objects"]] == [o["premium"] for o in objs]
+       and en["objects"][2]["level_label"] == "high"
+       and any(li.get("title") == "Objects of the contract (3)" for li in en["sections"][0]["lists"]), en.get("objects"))
+    st, body, _h = call("GET", f"/act/{aid}.docx", raw=True)
+    xml = zipfile.ZipFile(io.BytesIO(body)).read("word/document.xml").decode("utf-8")
+    ok("Word: таблица объектов в разделах 1 и 3", st == 200 and xml.count("Excavator C (test)") >= 2
+       and "Объекты договора (3)" in xml and "Сумма к стоимости по объектам" in xml)
+    st, body, _h = call("GET", f"/act/{aid}.pdf", params={"lang": "uz"}, raw=True)
+    with pymupdf.open(stream=body, filetype="pdf") as d:
+        txt = pdf_text(d)
+    ok("PDF на узбекском: таблица объектов", st == 200 and "Shartnoma obyektlari (3)" in _norm(txt), _norm(txt)[:300])
+    single_js = single
+    ok("обычный акт: objects = [], objects_total = null", single_js["objects"] == [] and single_js["objects_total"]
+       is None)
+
+
+def check_objects_photos():
+    print("48а. Парк ТС: фото привязаны к объектам (photo_ids) — у каждого объекта свой осмотр")
+    fresh()
+    model_on(True)
+    REPLY["text"] = "```json\n" + _json.dumps({
+        "files": [{"n": 1, "view": "front"}, {"n": 2, "view": "left"}, {"n": 3, "view": "front"}],
+        "object_kind": "truck", "class_hint": "vehicle", "condition": "good",
+        "vehicle_category": {"code": "truck", "confidence": 0.8, "why": "кузов-фургон, сдвоенные задние колёса",
+                             "fuel": None, "file": 1},
+        "fields": [{"key": "year", "value": "2021", "source": "document", "file": 3}],
+        "damages": [{"what": "вмятина на двери", "where": "слева", "file": 3}]}, ensure_ascii=False) + "\n```"
+    files = [("a1.jpg", "image/jpeg", image(kind="jpg")), ("a2.png", "image/png", image((10, 200, 10))),
+             ("b1.png", "image/png", image((10, 10, 200)))]
+    st, up = upload(files, {"lang": "ru", "class_code": "3"})
+    sid = up.get("session")
+    objs = [dict(FLEET[0], photo_ids=["f1", "f2"]), dict(FLEET[1], photo_ids=[3], year=None),
+            dict(FLEET[2])]
+    st, a = fleet_make(objs, session=sid)
+    o = a["objects"]
+    ok("объект 1 — свои фото f1, f2: осмотрен, повреждений нет",
+       st == 200 and o[0]["photo_ids"] == ["f1", "f2"] and o[0]["inspected"] and o[0]["damages"] == 0, o[0])
+    ok("объект 2 — номер файла 3 = f3: вмятина с его снимка повышает риск; год — с его снимка (2021)",
+       o[1]["photo_ids"] == ["f3"] and o[1]["damages"] == 1 and o[1]["year"] == 2021 and o[1]["year_source"] == "photo"
+       and any(f["code"] == "f_cond_damage" for f in o[1]["risk_factors"]), o[1])
+    ok("объект 3 без фото — не осмотрен, проверка «нет своих фото»",
+       not o[2]["inspected"] and any("Excavator C (test)" in c and "фото" in c for c in a["decision"]["checks"]),
+       a["decision"]["checks"])
+    st, a2 = fleet_make([dict(FLEET[0]), dict(FLEET[1])], session=sid)
+    ok("фото не привязаны — осмотр парка у всех объектов и пометка в разделе 5",
+       st == 200 and all(x["inspected"] for x in a2["objects"])
+       and any("не привязаны" in p for p in a2["sections"][4]["paragraphs"]), a2["sections"][4]["paragraphs"])
+    model_on(False)
+
+
+def _service_strings(a: dict, user: tuple = ()) -> list:
+    """Служебные строки акта: разделы и блоки, которые сервер пишет сам (без значений, введённых сотрудником)."""
+    out = []
+    for s in a["sections"]:
+        out += [s["title"]] + list(s["paragraphs"])
+        out += [x for r in s["rows"] for x in (r["label"], str(r["value"]), r.get("note") or "")]
+        for li in s.get("lists") or []:
+            out += [li["title"]] + list(li["items"])
+            if li.get("table"):
+                out += list(li["table"]["columns"]) + [str(c) for row in li["table"]["rows"] for c in row]
+    fa = a.get("factor_adjustment") or {}
+    out += list(fa.get("explain") or [])
+    for x in fa.get("applied") or []:
+        out += [x.get("note") or "", (x.get("stat") or {}).get("reason_text") or "", (x.get("stat") or {}).get("note")
+                or ""]
+    bm = a.get("below_min_assessment") or {}
+    out += [bm.get("text") or ""] + list(bm.get("lines") or [])
+    ex = (a.get("analytics") or {}).get("exchange") or {}
+    out += [ex.get("note") or "", ex.get("source_name") or "", ex.get("text") or ""]
+    stt = (a.get("analytics") or {}).get("stats") or {}
+    out += [stt.get("note") or ""] + [i.get("text") or "" for i in stt.get("indicators") or []]
+    rf = a.get("rate_fork") or {}
+    out += [rf.get("summary") or ""] + list(rf.get("how") or [])
+    reg = ((rf.get("adjustments") or {}).get("region") or {})
+    out += [i.get("unit") or "" for i in reg.get("indicators") or []]
+    out += [str(((rf.get("adjustments") or {}).get("market") or {}).get("full_year_period") or "")]
+    out += list((a.get("scenarios") or {}).get("how") or [])
+    out += [o.get("text") or "" for o in a.get("objects") or []]
+    for u in user:
+        out = [s.replace(u, "") for s in out]
+    return [s for s in out if _cyr(s)]
+
+
+def check_three_langs():
+    print("49. Акт на трёх языках из одного снимка: цифры одинаковые, в uz/en служебные строки без кириллицы")
+    fresh()
+    model_on(False)
+    set_act_settings(None)
+    body = {"lang": "ru", "must": {"product_code": "0318", "sum_insured": 2_945_000_000, "object_value": 3_100_000_000,
+                                   "region": "tashkent_region"},
+            "optional": dict(FLEET_OPT, class_fields={"veh_group": "truck", "fuel": "diesel"},
+                             requested_rate_pct=0.1)}
+    st, a = call("POST", "/act/make", body)
+    ok("/act/make: langs_available = ru, uz, en", st == 200 and a["langs_available"] == ["ru", "uz", "en"],
+       a.get("langs_available"))
+    aid = a["id"]
+    got = {}
+    for lg in ("ru", "uz", "en"):
+        st, got[lg] = call("GET", f"/act/{aid}", params={"lang": lg})
+        ok(f"GET ?lang={lg}: 200, lang и langs_available", st == 200 and got[lg]["lang"] == lg
+           and got[lg]["langs_available"] == ["ru", "uz", "en"])
+
+    def nums(x):
+        return (x["premium"]["amount"], x["rate"]["applied_pct"], x["risk"]["level"], x["value"]["ratio_pct"],
+                (x["scenarios"].get("pml") or {}).get("amount"), x["factor_adjustment"].get("product"),
+                x["below_min_assessment"].get("verdict"), [m["rate_pct"] for m in x["rate_fork"]["marks"]])
+    ok("цифры на трёх языках одинаковые (премия, ставка, уровень, сценарии, факторы, вилка, оценка ставки)",
+       nums(got["ru"]) == nums(got["uz"]) == nums(got["en"]), [nums(got[k]) for k in got])
+    for lg in ("uz", "en"):
+        bad = _service_strings(got[lg])
+        ok(f"{lg}: служебные строки без кириллицы (факторы, оценка ставки, биржа, статистика, вилка)", not bad, bad[:5])
+    ok("factor_adjustment.explain на узбекском — пометка факторов переведена",
+       any("ekspert baho" in x for x in got["uz"]["factor_adjustment"]["explain"]),
+       got["uz"]["factor_adjustment"]["explain"][:4])
+    ok("below_min_assessment.text есть на всех языках", all(got[k]["below_min_assessment"].get("text") for k in got))
+    # класс 7 — биржа и шаблонное правило сценария на трёх языках
+    st, c = call("POST", "/act/make", {"lang": "ru", "must": {"class_code": "7", "sum_insured": 500_000_000,
+                                                             "object_value": 500_000_000, "region": "tashkent_city"}})
+    for lg in ("uz", "en"):
+        st, cl = call("GET", f"/act/{c['id']}", params={"lang": lg})
+        bad = _service_strings(cl)
+        ok(f"класс 7, {lg}: без кириллицы (вид объекта по умолчанию, биржа, сценарии)", st == 200 and not bad, bad[:5])
+        parts = [p for it in cl["analytics"].get("scenarios", {}).get("items") or [] for p in it.get("parts") or []]
+        ok(f"класс 7, {lg}: формула простого правила шаблона (по-русски в снимке) не отдаётся",
+           all(p.get("formula") is None for p in parts if p.get("peril") == "template"), parts[:2])
+    st, body_, _h = call("GET", f"/act/{aid}.pdf", params={"lang": "en"}, raw=True)
+    with pymupdf.open(stream=body_, filetype="pdf") as d:
+        txt = _norm(pdf_text(d))
+    ok("PDF ?lang=en из того же снимка", st == 200 and "INSPECTION REPORT" in txt.upper(), txt[:200])
+    st, body_, _h = call("GET", f"/act/{aid}.docx", params={"lang": "uz"}, raw=True)
+    xml = zipfile.ZipFile(io.BytesIO(body_)).read("word/document.xml").decode("utf-8")
+    ok("Word ?lang=uz из того же снимка", st == 200 and "DALOLATNOMA" in xml.upper())
+
+
+def check_regions():
+    print("50. Регион: «Республика Узбекистан» (uz_all) и «Другое» (other, территория текстом)")
+    fresh()
+    model_on(False)
+    ok("коды и названия: uz_all, other", act.region_code("uz_all") == "uz_all"
+       and act.region_code("Республика Узбекистан") == "uz_all" and act.region_code("Oʻzbekiston Respublikasi")
+       == "uz_all" and act.region_code("other") == "other")
+    ok("модули: uz_all → «Республика Узбекистан»; other — республика для расчёта, фон stat.uz не берётся",
+       act.region_for_modules({"region": "uz_all", "region_code": "uz_all"}) == "Республика Узбекистан"
+       and act.region_for_modules({"region": "other", "region_code": "other"}) == "Республика Узбекистан"
+       and act.region_for_stats({"region": "other", "region_code": "other"}) == "")
+    must = {"product_code": "0318", "sum_insured": 2_945_000_000, "object_value": 3_100_000_000}
+    st, a = call("POST", "/act/make", {"lang": "ru", "must": dict(must, region="uz_all"), "optional": CRANE_OPT})
+    reg = (a.get("rate_fork") or {}).get("adjustments", {}).get("region") or {}
+    ok("uz_all: поправка региона 0 с причиной «вся республика», статистика по республике с пометкой",
+       st == 200 and a["region"]["scope"] == "republic" and reg.get("pct") == 0
+       and "вся республика" in (reg.get("text") or "") and a["analytics"]["stats"].get("scope") == "republic"
+       and "Республике Узбекистан" in (a["analytics"]["stats"].get("note") or ""), (reg.get("text"), a.get("region")))
+    st, r = call("POST", "/act/make", {"lang": "ru", "must": dict(must, region="other")})
+    ok("other без текста территории — 422 region_text", st == 422 and "region_text" in r["errors"], r)
+    st, r = call("POST", "/act/make", {"lang": "ru", "must": dict(must, region="other", region_text="Х" * 121)})
+    ok("текст территории длиннее 120 знаков — 422", st == 422 and "120" in r["errors"]["region_text"], r)
+    st, r = call("POST", "/act/make", {"lang": "ru", "must": dict(must, region="other",
+                                                                 region_text="Тестов Тест Тестович")})
+    ok("ФИО вместо территории — 422", st == 422 and "персональных" in r["errors"]["region_text"], r)
+    terr = "Республика Казахстан, маршрут Ташкент–Алматы"
+    cargo = {"class_code": "7", "sum_insured": 500_000_000, "object_value": 500_000_000, "region": "other",
+             "region_text": terr}
+    st, c = call("POST", "/act/make", {"lang": "ru", "must": cargo})
+    rows1 = {r["label"]: r for r in c["sections"][0]["rows"]}
+    creg = (c.get("rate_fork") or {}).get("adjustments", {}).get("region") or {}
+    ok("класс 7, other: в разделе 1 регион и «Территория страхования» — как введено, с пометкой",
+       st == 200 and rows1["Регион"]["value"] == terr and rows1["Территория страхования"]["value"] == terr
+       and "вне Узбекистана" in rows1["Территория страхования"]["note"] and c["territory"]["text"] == terr, rows1)
+    ok("other: статистика недоступна с честной пометкой, поправка региона 0",
+       c["analytics"]["stats"]["available"] is False and c["analytics"]["stats"]["reason"] == "outside"
+       and c["analytics"]["stats"]["indicators"] == [] and "открытые данные" in c["analytics"]["stats"]["note"]
+       and creg.get("pct") == 0 and "вне Узбекистана" in (creg.get("text") or ""), (c["analytics"]["stats"], creg))
+    st, cu = call("GET", f"/act/{c['id']}", params={"lang": "uz"})
+    ok("other на узбекском: территория как введена, пометка — на узбекском",
+       st == 200 and cu["territory"]["text"] == terr and "Oʻzbekistondan tashqarida" in cu["territory"]["note"]
+       and not _service_strings(cu, user=(terr,)), _service_strings(cu, user=(terr,))[:3])
+    st, c8 = call("POST", "/act/make", {"lang": "ru", "must": dict(cargo, class_code="8", region="tashkent_city",
+                                                                  region_text=None)})
+    ok("класс 8 с обычным регионом: строки «Территория страхования» нет",
+       st == 200 and c8["territory"] is None and all(r["label"] != "Территория страхования"
+                                                     for r in c8["sections"][0]["rows"]), c8.get("territory"))
+    st, c7 = call("POST", "/act/make", {"lang": "ru", "must": dict(cargo, region="tashkent_city", region_text=None)})
+    ok("класс 7 с обычным регионом: территория = регион из списка",
+       st == 200 and c7["territory"]["text"] == "город Ташкент", c7.get("territory"))
+
+
+PASSPORT_LINES = ["СВИДЕТЕЛЬСТВО О РЕГИСТРАЦИИ АВТОМОТОТРАНСПОРТНОГО СРЕДСТВА",
+                  "Тип транспортного средства: легковой", "Марка: Chevrolet", "Модель и модификация: Cobalt LTZ",
+                  "Год выпуска: 2019", "Цвет окраски: белый", "Рабочий объём двигателя: 1485",
+                  "Вид топлива: бензин/метан", "Мощность двигателя: 78 кВт", "Разрешённая максимальная масса: 1650 кг",
+                  "Номер кузова: KA123456789", "Идентификационный номер (VIN): XWBJA69V0KA123456",
+                  "Количество сидений: 5", "Владелец: Тестов Тест Тестович",
+                  "Адрес владельца: г. Тестовый, ул. Примерная, 1", "ПИНФЛ: 30000000000000"]
+
+
+def check_vehicle_autofill():
+    print("51. Автозаполнение ТС: техпаспорт → подпись, год, подгруппа, топливо, характеристики; фото → категория")
+    from app import vehicle_prefill as vp
+    from app import class_templates as ctpl
+    fresh()
+    with db.tx() as con:
+        tpl = ctpl.current(con, "3")["template"]
+    groups = {g["code"]: [o["code"] for o in g["options"]] for g in tpl["factor_groups"]}
+    ok("коды категорий и топлива — те же, что в шаблоне класса 3",
+       list(vp.VEH_GROUPS) == groups["veh_group"] and list(vp.FUELS) == groups["fuel"], groups)
+    prompt = act.model_prompt(2, "ru")
+    ok("запрос к модели: vehicle_category с подгруппами, топливом, уверенностью и «почему»",
+       "vehicle_category" in prompt and "special_tracked" in prompt and "газовые баллоны" in prompt
+       and "fuel_why" in prompt and "уверенность" in prompt)
+    model_on(False)
+    pas = ("passport.docx", DOCX_MIME, docx_bytes(PASSPORT_LINES))
+    st, r = upload([pas], {"lang": "ru", "class_code": "3"})
+    pf = {x["field"]: x for x in r.get("prefill_fields") or []}
+    ok("модели нет: техпаспорт всё равно разобран, prefill без ошибки, vehicle_category = null",
+       st == 200 and r["vehicle_category"] is None and pf, (st, r.get("prefill_fields")))
+    ok("техпаспорт → подпись «Chevrolet Cobalt LTZ», год 2019, легковой, газ-метан (бензин/метан), источник техпаспорт",
+       pf.get("object_label", {}).get("value") == "Chevrolet Cobalt LTZ" and pf["year"]["value"] == 2019
+       and pf["class_fields.veh_group"]["value"] == "car" and pf["class_fields.fuel"]["value"] == "cng"
+       and all(x["source"] == "techpassport" and x["source_label"] == "техпаспорт" and 0 < x["confidence"] <= 1
+               for x in pf.values()), pf)
+    ch = (pf.get("characteristics") or {}).get("value") or {}
+    ok("характеристики: мощность, масса, объём, места",
+       ch.get("engine_power") == "78 кВт" and ch.get("max_mass") == "1650 кг" and ch.get("engine_cc") == "1485"
+       and ch.get("seats") == "5", ch)
+    ok("те же подсказки в prefill под своими ключами (с подписью и «проверьте»), пробега нет — его вводит сотрудник",
+       r["prefill"] and r["prefill"]["class_fields.veh_group"]["value"] == "car"
+       and r["prefill"]["class_fields.veh_group"]["value_label"] == "легковой автомобиль"
+       and "техпаспорта" in r["prefill"]["year"]["check_label"] and "mileage" not in pf, r.get("prefill"))
+    dump = _json.dumps(r, ensure_ascii=False)
+    ok("ПД владельца из техпаспорта не возвращаются", "Тестов" not in dump and "30000000000000" not in dump
+       and "Примерная" not in dump)
+    # фото: категория и топливо по снимку
+    model_on(True)
+    REPLY["text"] = "```json\n" + _json.dumps({
+        "files": [{"n": 1, "view": "back"}], "object_kind": "car", "class_hint": "vehicle", "condition": "good",
+        "vehicle_category": {"code": "car", "confidence": 0.86, "why": "кузов седан, четыре двери",
+                             "fuel": "electric", "fuel_confidence": 0.7, "fuel_why": "зарядный порт, нет выхлопной трубы",
+                             "file": 1},
+        "fields": [], "damages": []}, ensure_ascii=False) + "\n```"
+    st, r = upload([("back.jpg", "image/jpeg", image(kind="jpg"))], {"lang": "ru", "class_code": "3"})
+    vc = r.get("vehicle_category") or {}
+    pf = {x["field"]: x for x in r.get("prefill_fields") or []}
+    ok("фото: vehicle_category {code, label, confidence, why} и топливо, источник «фото»",
+       st == 200 and vc.get("code") == "car" and vc.get("label") == "легковой автомобиль" and vc.get("confidence")
+       == 0.86 and "седан" in vc.get("why") and vc.get("fuel") == "electric" and vc.get("fuel_label") == "электромобиль"
+       and vc.get("source") == "photo" and vc.get("file") == "f1", vc)
+    ok("фото: предзаполнение class_fields.veh_group и fuel с источником «фото»",
+       pf["class_fields.veh_group"]["value"] == "car" and pf["class_fields.veh_group"]["source"] == "photo"
+       and pf["class_fields.fuel"]["value"] == "electric" and pf["class_fields.fuel"]["confidence"] == 0.7
+       and pf["class_fields.fuel"]["check_label"] == "с фото, проверьте", pf)
+    # техпаспорт + фото: графа документа сильнее вида на снимке
+    st, r = upload([pas, ("back.jpg", "image/jpeg", image(kind="jpg"))], {"lang": "ru", "class_code": "3"})
+    pf = {x["field"]: x for x in r.get("prefill_fields") or []}
+    ok("техпаспорт и фото вместе: подгруппа и топливо — из техпаспорта", pf["class_fields.fuel"]["value"] == "cng"
+       and pf["class_fields.fuel"]["source"] == "techpassport" and r["vehicle_category"]["fuel"] == "electric", pf)
+    REPLY["text"] = "```json\n" + _json.dumps({"files": [{"n": 1, "view": "back"}], "fields": [], "damages": [],
+                                                "vehicle_category": {"code": "spaceship", "confidence": 2}},
+                                               ensure_ascii=False) + "\n```"
+    st, r = upload([("back.jpg", "image/jpeg", image(kind="jpg"))], {"lang": "ru", "class_code": "3"})
+    ok("неизвестная категория от модели отбрасывается — без ошибки", st == 200 and r["vehicle_category"] is None
+       and not r.get("prefill_fields"), r.get("vehicle_category"))
+    ok("уверенность модели в процентах приводится к 0–1", act._conf(86) == 0.86 and act._conf("x") == 0.0
+       and act._conf(3) == 0.03)
+    model_on(False)
+
+
+def check_send_fallback():
+    print("52. Отправка ботом: initData устарел — запасной путь по привязке вошедшего пользователя")
+    from app import telegram, tgbot
+    import time as _t
+    token = "123456:TEST-token-fallback"
+    sent = []
+
+    def fake_file(method, fields, field, filename, blob, mime):
+        sent.append({"chat_id": fields.get("chat_id"), "filename": filename})
+        return {"ok": True, "result": {"message_id": 9}}
+    old = (tgbot.bot_token, telegram.bot_token, tgbot._deliver_file, tgbot._deliver)
+    tgbot.bot_token = telegram.bot_token = lambda: token
+    tgbot._deliver_file = fake_file
+    tgbot._deliver = no_network
+    saved_h, saved_c = list(HEADERS), dict(COOKIES)
+    try:
+        for login, tg in (("tg_fallback_on", "777000222"), ("tg_fallback_off", None)):
+            now = datetime.now().isoformat(timespec="seconds")
+            tok = secrets.token_urlsafe(32)
+            with db.tx() as con:
+                cur = con.execute("INSERT INTO users (login, full_name, role, branch, password_hash, salt, status, "
+                                  "created_at, approved_by, approved_at, telegram_id) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+                                  (login, "Test User", "агент", "тест", secrets.token_hex(32), secrets.token_hex(16),
+                                   "активен", now, "test", now, tg))
+                con.execute("INSERT INTO sessions (token, user_id, created_at, expires_at, ip, user_agent) "
+                            "VALUES (?,?,?,?,?,?)", (tok, cur.lastrowid, now,
+                                                     (datetime.now() + timedelta(hours=2)).isoformat(timespec="seconds"),
+                                                     "127.0.0.1", "test_act"))
+            HEADERS[:] = [(b"authorization", f"Bearer {tok}".encode())]
+            COOKIES.clear()
+            act.reset_limits()
+            st, a = call("POST", "/act/make", {"lang": "ru", "must": CRANE_MUST, "optional": CRANE_OPT})
+            stale = init_data(int(tg or 777000333), token, auth_date=_t.time() - 3 * 24 * 3600)
+            ok(f"{login}: устаревший initData не проходит проверку подписи по сроку",
+               not telegram.check_init_data(stale, token).get("ok"))
+            n0 = len(sent)
+            st, r = call("POST", f"/act/{a['id']}/send", {"format": "pdf", "initData": stale})
+            if tg:
+                ok("initData устарел, у пользователя есть привязка — отправлено по привязке",
+                   st == 200 and r.get("sent") and len(sent) == n0 + 1 and sent[-1]["chat_id"] == tg, (st, r))
+                forged = init_data(777000999, "999999:чужой-токен")
+                st, r = call("POST", f"/act/{a['id']}/send", {"format": "pdf", "initData": forged})
+                ok("поддельный initData с чужим id — отправлено по привязке вошедшего, а не чужому id",
+                   st == 200 and sent[-1]["chat_id"] == tg and all(x["chat_id"] != "777000999" for x in sent),
+                   (st, r, sent[-1:]))
+                own_aid = a["id"]
+            else:
+                ok("initData устарел, привязки нет — 403 bad_init_data, ничего не отправлено",
+                   st == 403 and r.get("code") == "bad_init_data" and len(sent) == n0, (st, r))
+                n1 = len(sent)
+                st, r = call("POST", f"/act/{own_aid}/send", {"format": "pdf", "initData": stale})
+                ok("чужой акт (другого пользователя) — 404, ничего не отправлено",
+                   st == 404 and len(sent) == n1, (st, r))
+    finally:
+        tgbot.bot_token, telegram.bot_token, tgbot._deliver_file, tgbot._deliver = old
+        HEADERS[:] = saved_h
+        COOKIES.clear()
+        COOKIES.update(saved_c)
+        act.reset_limits()
+
+
 def main():
     ORIG.update(chat_raw=llm.chat_raw, enabled=llm.enabled, supports_files=llm.supports_files, post=llm._post)
     llm.chat_raw = fake_chat_raw
@@ -8752,6 +9234,12 @@ def main():
             check_factor_groups()
             check_factor_stat()
             check_exchange()
+            check_objects()
+            check_objects_photos()
+            check_three_langs()
+            check_regions()
+            check_vehicle_autofill()
+            check_send_fallback()
             check_send(aid)
             check_cleanup(sid, aid)
     finally:
@@ -8796,6 +9284,10 @@ def main():
     if FA_REPORT:
         print("\nфакторы объекта по подгруппам класса (ставка, премия, множитель …):")
         for k, v in FA_REPORT.items():
+            print("  ", k, v)
+    if OBJ_REPORT:
+        print("\nпарк ТС (несколько объектов в одном акте):")
+        for k, v in OBJ_REPORT.items():
             print("  ", k, v)
     if SCEN_REPORT:
         print("\nсценарии (сумма, % страховой суммы):")

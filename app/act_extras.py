@@ -859,6 +859,15 @@ def parse_document(con, path: Path, class_code: str = "", limits: Optional[dict]
     y = by.get("year") or by.get("build_year") or (fd.get("year") or {}).get("value")
     if y:
         add("year", y)
+    if kind == D.KIND_PASSPORT:
+        # техпаспорт (02.10.2026): подпись объекта, год, подгруппа ТС, топливо, характеристики — автозаполнение акта
+        # (app/vehicle_prefill.py); поля владельца сюда не попадают — docparse их не извлекает
+        from . import vehicle_prefill as vp
+        veh = vp.from_passport(by)
+        if veh:
+            out["vehicle"] = veh
+            if by.get("engine_power"):
+                add("engine_power", by["engine_power"])
     if ctr:
         # договор: его значения (сумма «общая», срок по датам) точнее общего разбора — заменяют их
         f = ctr["fields"]

@@ -75,6 +75,33 @@ def test_expired():
     assert not res["ok"] and "устарел" in res["reason"].lower(), res
 
 
+def test_act_send_stale_init_by_link():
+    """Отправка акта ботом (app/act.py _telegram_id, 02.10.2026): initData устарел (мини-приложение открыто больше
+    суток) — запасной путь по привязке вошедшего пользователя; привязки нет — отказ bad_init."""
+    from app import act
+    stale = make_init_data(auth_date=int(time.time()) - 3 * 24 * 3600)
+    old = tg.bot_token
+    tg.bot_token = lambda: TOKEN
+    try:
+        with db.tx() as con:
+            for login, tid in (("tgsend_on", "999000222"), ("tgsend_off", None)):
+                con.execute("DELETE FROM users WHERE login=?", (login,))
+                con.execute("INSERT INTO users (login, full_name, role, password_hash, salt, status, telegram_id,"
+                            " created_at) VALUES (?,?,?,?,?,?,?,?)",
+                            (login, "Тест Отправка", "агент", "x", "y", "активен", tid, db.now()))
+                MADE_LOGINS.append(login)
+            on = db.rows(con, "SELECT id FROM users WHERE login='tgsend_on'")[0]["id"]
+            off = db.rows(con, "SELECT id FROM users WHERE login='tgsend_off'")[0]["id"]
+        assert act._telegram_id(None, {"id": on}, stale) == ("999000222", None)
+        assert act._telegram_id(None, {"id": off}, stale) == (None, "bad_init")
+        assert act._telegram_id(None, None, stale) == (None, "bad_init")
+        assert act._telegram_id(None, {"id": off}, make_init_data()) == (TG_ID, None)     # свежий initData
+        assert act._telegram_id(None, {"id": on}, "") == ("999000222", None)              # без initData — привязка
+        assert act._telegram_id(None, {"id": off}, "") == (None, "no_telegram")
+    finally:
+        tg.bot_token = old
+
+
 def test_no_token_and_garbage():
     assert not tg.check_init_data(make_init_data(), "")["ok"]
     assert not tg.check_init_data("", TOKEN)["ok"]

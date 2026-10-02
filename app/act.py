@@ -85,6 +85,21 @@ mode reference (по умолчанию: премия по ставке акта
 Персональные данные: текст в модель уходит через llm.mask_pd (внутри llm.chat_raw), имена файлов в модель
 не передаются, в ответе модели значения, похожие на ФИО и паспорт, отбрасываются (llm.has_pd).
 В журнал (audit) пишутся только счётчики и коды — без значений, имён и содержимого фото.
+
+Доработки 02.10.2026 (вечер):
+  * несколько объектов в одном акте (парк ТС): optional.objects [{label, sum_insured, object_value, object_kind?,
+    year?, mileage?, plate_hint?, photo_ids?, class_fields?, requested_rate_pct?, condition?}] до 50 — каждый объект
+    своим расчётом (_object_calc: уровень, ставка, факторы, вилка, франшиза договора, сумма к стоимости, сценарии),
+    итоги договора (_apply_objects): премия — сумма, средняя ставка — справочно, PML/EML — самый крупный объект,
+    MFL — сумма по объектам; блоки objects и objects_total, таблицы в разделах 1 и 3. Вместе с parts и у продукта
+    из нескольких классов — 422 (так проще и честнее: части и парк — разные модели договора);
+  * акт на трёх языках из одного снимка: langs_available, служебные строки снимка (пометки факторов, биржа, единицы
+    показателей, выбор строки НАПП, формулы шаблонов, типы объекта справочника) выдаются на языке запроса;
+  * регионы uz_all (вся республика) и other (территория текстом must.region_text, до 120 знаков, без ПД): поправка
+    региона 0 с причиной, статистика по республике или «открытые данные не применяются»; у класса 7 — строка
+    «Территория страхования»;
+  * автозаполнение ТС (app/vehicle_prefill.py): категория и топливо с фото (vehicle_category модели), техпаспорт →
+    подпись, год, подгруппа, топливо, характеристики; в ответе /act/photos — vehicle_category и prefill_fields.
 """
 import json
 import re
@@ -117,6 +132,7 @@ from . import market_picture as mpic
 from . import act_texts as tx
 from . import auth, db, guest, i18n, llm
 from . import min_rates as mrs
+from . import vehicle_prefill as vp
 from .act_texts import money, pct, t
 
 router = APIRouter()
@@ -135,6 +151,8 @@ AI_MAX_SIDE = 2048                        # длинная сторона сни
 AI_SHRINK_STEPS = ((AI_MAX_SIDE, 85), (1600, 75), (1280, 65))
 MAX_SUM = 1e15                            # защита от опечатки в разрядах, а не норма
 MAX_RECOGNIZED = 100
+MAX_REGION_TEXT = 120                     # территория страхования текстом (регион «Другое»)
+REGION_ALL, REGION_OTHER = "uz_all", "other"   # вся республика; территория вне списка (вне Узбекистана)
 ADMIN = "админ"
 SEND_FORMATS = {"docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 "pdf": "application/pdf"}
@@ -590,6 +608,9 @@ SCHEMA_HINT = (
     'cargo|other или null", '
     '"class_hint": "special_machinery|vehicle|building|equipment|cargo|other или null", '
     '"condition": "new|good|worn|damaged или null", '
+    '"vehicle_category": null или {"code": "' + "|".join(vp.VEH_GROUPS) + ' или null", "confidence": 0.0, '
+    '"why": "коротко, по каким признакам", "fuel": "' + "|".join(vp.FUELS) + ' или null", "fuel_confidence": 0.0, '
+    '"fuel_why": "коротко, что видно", "file": 1}, '
     '"fields": [{"key": "ключ", "value": "значение", "source": "photo|plate|document|marking", '
     '"file": 1, "note": "строка или null"}], '
     '"damages": [{"what": "что повреждено", "where": "где", "file": 1}], '
@@ -626,6 +647,19 @@ FIELD_HINTS = (
     "объекта (описание, площади, кадастровый номер); пустая строка бланка — null. term_from и term_to — те же "
     "даты срока в виде ГГГГ-ММ-ДД. object_description_translated — описание объекта в переводе.")
 
+# категория ТС по подгруппам шаблона класса 3 (factor_groups veh_group, fuel) — для автозаполнения акта (02.10.2026)
+VEHICLE_HINT = (
+    "если на снимках транспортное средство или самоходная техника — заполни vehicle_category: code — подгруппа: "
+    "car — легковой автомобиль, truck — грузовой автомобиль (самосвал, тягач, фургон), bus — автобус или "
+    "микроавтобус, trailer — прицеп или полуприцеп, special_wheeled — колёсная спецтехника (автокран, погрузчик, "
+    "автовышка, бетононасос, грейдер), special_tracked — гусеничная спецтехника (экскаватор, бульдозер, гусеничный "
+    "кран), agro — сельхозтехника (трактор, комбайн), moto — мотоцикл, мопед; fuel — только если видно: electric "
+    "(зарядный порт, шильдик ev или electric, нет выхлопной трубы), cng или lpg (газовые баллоны в багажнике, на "
+    "крыше или раме, надписи метан, cng, пропан, lpg), diesel или petrol (надпись на лючке бака, табличка, "
+    "документ), hybrid (надпись hybrid); не видно — fuel = null. confidence и fuel_confidence — уверенность от 0 до "
+    "1; why и fuel_why — коротко, по каким признакам на снимке (без номеров и людей); file — номер снимка. если "
+    "транспорта нет — vehicle_category = null.")
+
 LANG_NAME = {"ru": "русском", "uz": "узбекском (латиница)", "en": "английском"}
 
 
@@ -637,7 +671,8 @@ def model_prompt(n: int, lang: str, credit_scan: bool = False) -> str:
             f"строчными буквами; марки, модели, номера и единицы — как написано на объекте. "
             f"видимые повреждения перечисли в damages; если повреждений не видно — пустой список. "
             f"перевод описания объекта из запроса филиала (object_description_translated) — на {LANG_NAME[lang]} "
-            f"языке; если запроса филиала нет — branch_request = null. {CONTRACT_HINT} "
+            f"языке; если запроса филиала нет — branch_request = null. {VEHICLE_HINT} "
+            f"пояснения why и fuel_why — на {LANG_NAME[lang]} языке. {CONTRACT_HINT} "
             f"{crr.MODEL_HINT if credit_scan else crr.MODEL_HINT_OFF} "
             f"схема ответа: {SCHEMA_HINT if credit_scan else SCHEMA_HINT_NO_CR}")
 
@@ -839,10 +874,100 @@ def parse_model(text: str, n: int, inclusive: bool = True) -> Optional[dict]:
             kf = None
         cbr = {"fields": cbr, "file": kf or next((i for i, k in sorted(kinds.items()) if k == crr.KIND), None)}
     return {"views": views, "document_kinds": kinds, "fields": fields, "damages": damages, "branch_request": brq,
-            "contract": ctr, "credit_report": cbr,
+            "contract": ctr, "credit_report": cbr, "vehicle_category": vehicle_category_in(data.get("vehicle_category"), n),
             "object_kind": kind if kind in tx.OBJECT_KINDS else None,
             "class_hint": hint if hint in CLASS_HINTS else None,
             "condition": cond if cond in CONDITIONS else None, "dropped": dropped}
+
+
+def _conf(v) -> float:
+    """Уверенность модели 0–1 (проценты 0–100 приводятся); не число — 0."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return 0.0
+    if x != x:
+        return 0.0
+    x = x / 100 if 1 < x <= 100 else x
+    return round(min(1.0, max(0.0, x)), 2)
+
+
+def vehicle_category_in(raw, n: int) -> Optional[dict]:
+    """Блок vehicle_category ответа модели → {code, confidence, why, fuel, fuel_confidence, fuel_why, file} или
+    None. Коды — только из подгрупп шаблона класса 3; пояснение с ПД отбрасывается."""
+    if not isinstance(raw, dict):
+        return None
+    code = str(raw.get("code") or "").strip().lower()
+    fuel = str(raw.get("fuel") or "").strip().lower()
+    code = code if code in vp.VEH_GROUPS else None
+    fuel = fuel if fuel in vp.FUELS else None
+    if not code and not fuel:
+        return None
+    why, fwhy = _s(raw.get("why"), 200), _s(raw.get("fuel_why"), 200)
+    try:
+        fi = int(raw.get("file"))
+        fi = fi if 1 <= fi <= n else None
+    except (TypeError, ValueError):
+        fi = None
+    return {"code": code, "confidence": _conf(raw.get("confidence")) if code else None,
+            "why": None if (not why or llm.has_pd(why)) else why, "fuel": fuel,
+            "fuel_confidence": _conf(raw.get("fuel_confidence", raw.get("confidence"))) if fuel else None,
+            "fuel_why": None if (not fwhy or llm.has_pd(fwhy)) else fwhy, "file": fi}
+
+
+def _veh_option_label(con, group: str, code: Optional[str], lang: str) -> Optional[str]:
+    """Подпись варианта группы факторов шаблона класса 3 (veh_group, fuel) на языке ответа."""
+    if not code:
+        return None
+    tpl = (ctpl.current(con, "3") or {}).get("template") or {}
+    for g in tpl.get("factor_groups") or []:
+        if g.get("code") == group:
+            for o in g.get("options") or []:
+                if o.get("code") == code:
+                    return ctpl.localize(o.get("label"), lang)
+    return code
+
+
+
+def vehicle_autofill(con, parsed: dict, rec: dict, fields: list, views: dict, model_to_id: dict, lang: str) -> tuple:
+    """
+    Автозаполнение по ТС для ответа /act/photos: (vehicle_category для экрана или None, список prefill_fields).
+    Техпаспорт с текстом — docparse (блок vehicle разбора); скан техпаспорта — поля модели с источником
+    «документ»; категория и топливо по фото — блок vehicle_category модели. Модели нет — только техпаспорт.
+    """
+    passport, pfile = None, None
+    for fid, res in parsed.items():
+        if (res or {}).get("vehicle"):
+            passport, pfile = res["vehicle"], fid
+            break
+    if passport is None:
+        doc = {k: (preferred([x for x in fields if x.get("source") == "document"], k) or {}) for k in
+               ("brand", "model", "year", "engine_power")}
+        by = {k: v.get("value") for k, v in doc.items() if v.get("value")}
+        if by.get("brand") or by.get("model"):
+            passport = vp.from_passport(by)
+            pfile = next((v.get("file_id") for v in doc.values() if v.get("file_id")), None)
+    vc = rec.get("vehicle_category") if rec.get("ok") else None
+    cat = None
+    if vc:
+        fid = model_to_id.get(vc.get("file")) if vc.get("file") else None
+        src = "techpassport" if fid and views.get(fid) == "document" else "photo"
+        cat = dict(vc, file=fid, source=src)
+    items = vp.prefill(passport, cat, lang, pfile)
+    view = None
+    if cat and (cat.get("code") or cat.get("fuel")):
+        view = {"code": cat.get("code"), "label": _veh_option_label(con, "veh_group", cat.get("code"), lang),
+                "confidence": cat.get("confidence"), "why": cat.get("why"),
+                "fuel": cat.get("fuel"), "fuel_label": _veh_option_label(con, "fuel", cat.get("fuel"), lang),
+                "fuel_confidence": cat.get("fuel_confidence"), "fuel_why": cat.get("fuel_why"),
+                "file": cat.get("file"), "source": cat["source"],
+                "source_label": vp.SOURCE_LABELS[cat["source"]].get(lang) or vp.SOURCE_LABELS[cat["source"]]["ru"]}
+    for it in items:
+        if it["field"] in ("class_fields.veh_group", "class_fields.fuel"):
+            it["value_label"] = _veh_option_label(con, it["field"].split(".", 1)[1], it["value"], lang)
+        it["label"] = tx.label(tx.VEH_FIELD_LABELS, it["field"], lang)
+        it["check_label"] = t("prefill_photo_check" if it["source"] == "photo" else "prefill_passport_check", lang)
+    return view, items
 
 
 def _priority(f: dict) -> int:
@@ -1394,6 +1519,10 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
     if "region" in prefill:
         prefill["region"]["code"] = region_code(prefill["region"]["value"])
     all_fields = fields + doc_fields
+    # автозаполнение по ТС (02.10.2026): техпаспорт → подпись, год, подгруппа, топливо, характеристики; фото →
+    # категория и топливо с уверенностью; ПД владельца сюда не попадают; модели нет — только техпаспорт
+    with db.tx() as con:
+        veh_view, veh_items = vehicle_autofill(con, parsed, rec, all_fields, views, model_to_id, lang)
     parsed_ok = sum(1 for r in parsed.values() if r.get("text_layer"))
 
     with db.tx() as con:
@@ -1423,7 +1552,9 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
                   "object_kind": kind, "class_hint": hint, "condition": rec.get("condition"),
                   "files": len(saved), "photo_files": len(model_files), "parsed_docs": parsed_ok,
                   "prefill": prefill, "doc_notes": doc_notes, "not_sent": not_sent, "lang": lang,
-                  "branch_request": brq, "contract": ctr, "credit_report": cbr}
+                  "branch_request": brq, "contract": ctr, "credit_report": cbr,
+                  # только коды и характеристики ТС (без ПД): категория и подсказки автозаполнения
+                  "vehicle_category": veh_view, "prefill_fields": veh_items}
         now = _now()
         # в базе о файле — только порядковый номер, формат, размер и путь: имени файла нет
         keep = ("id", "index", "fmt", "mime", "size", "path")
@@ -1501,7 +1632,10 @@ def _photos(request, user, owner, lang, files, class_code, product_code, limits,
         "notes": notes,
         "not_sent": not_sent,
         "documents": doc_list,
-        "prefill": prefill_view(prefill, lang) if prefill else None,
+        "prefill": _with_vehicle(prefill_view(prefill, lang) if prefill else None, veh_items),
+        # автозаполнение по ТС: тот же перечень списком; vehicle_category — категория и топливо с фото
+        "prefill_fields": veh_items,
+        "vehicle_category": veh_view,
         "branch_request": branch_view(brq, lang),
         "contract": contract_view(ctr, lang),
         "cross_check": cross_view(cross, lang),
@@ -2232,6 +2366,17 @@ def _shots(request, user, owner, lang, files, site, q, emp_rate, st, sid, folder
     })
 
 
+def _with_vehicle(pf: Optional[dict], items: list) -> Optional[dict]:
+    """Подсказки ТС в общий prefill под своими ключами (object_label, year, class_fields.veh_group, …): что уже
+    подсказал документ (запрос, договор), не заменяется."""
+    if not items:
+        return pf
+    out = dict(pf or {})
+    for it in items:
+        out.setdefault(it["field"], dict(it))
+    return out
+
+
 def prefill_view(prefill: dict, lang: str) -> dict:
     """Подсказка для шага 2: значения из документа с источником и пометкой «из документа, проверьте»
     (прочитанное моделью из текста договора — «прочитано моделью из текста, проверьте»)."""
@@ -2348,6 +2493,20 @@ def validate(con, body: dict) -> tuple:
     else:
         m["region"] = region
         m["region_code"] = region_code(region)
+    # территория текстом (02.10.2026): обязательна для «Другое» (вне Узбекистана, маршрут), у остальных — по желанию
+    rt_raw = must.get("region_text")
+    rt = re.sub(r"\s+", " ", str(rt_raw)).strip() if rt_raw not in (None, "") and not isinstance(
+        rt_raw, (dict, list, bool)) else ""
+    if rt_raw not in (None, "") and not rt:
+        errs["region_text"] = "текст территории страхования"
+    elif len(rt) > MAX_REGION_TEXT:
+        errs["region_text"] = f"не длиннее {MAX_REGION_TEXT} знаков"
+    elif rt and llm.has_pd(rt):
+        errs["region_text"] = "без персональных данных: только территория (страна, область, маршрут)"
+    elif rt:
+        m["region_text"] = rt
+    if m.get("region_code") == REGION_OTHER and not m.get("region_text") and "region_text" not in errs:
+        errs["region_text"] = "для региона «Другое» укажите территорию страхования текстом (до 120 знаков)"
 
     o = clean["optional"]
     this_year = date.today().year
@@ -2554,6 +2713,14 @@ def validate(con, body: dict) -> tuple:
         if p_err:
             errs["parts"] = p_err
         clean["parts"] = plan
+    # несколько объектов в одном акте (02.10.2026, парк ТС): у каждого свой уровень, ставка и премия
+    _objects_in(con, clean, errs, must, opt, tpl)
+    if m.get("sum_insured_from_objects"):
+        # сумма договора посчитана по объектам — франшиза суммой проверяется против неё, как у обычного акта
+        o["deductible"], ded_err = deductible_in(opt.get("deductible"), m["sum_insured"])
+        errs.pop("deductible", None)
+        if ded_err:
+            errs["deductible"] = ded_err
     return clean, errs
 
 
@@ -2781,6 +2948,134 @@ def validate_class_fields(raw, tpl: Optional[dict]) -> tuple:
         except ValueError:
             bad.append(str(code))
     return out, ("неверные значения: " + ", ".join(bad)) if bad else None
+
+
+MAX_OBJECTS = 50
+MAX_OBJECT_PHOTOS = MAX_FILES
+# госномер косвенно указывает на владельца: в акт — только подсказка до 4 цифр, можно с многоточием впереди
+# («…123», «...0457», «123»); буквы и полный номер не принимаются
+_PLATE_HINT = re.compile(r"(?:…|\.{1,3})?\s*\d{1,4}")
+
+
+def _photo_ref(v) -> Optional[str]:
+    """Ссылка на файл загрузки: «f3» (id из /act/photos) или номер файла в запросе (3) → «f3» / «#3»."""
+    if isinstance(v, bool) or v is None:
+        return None
+    if isinstance(v, int):
+        return f"#{v}" if 1 <= v <= MAX_OBJECT_PHOTOS else None
+    s = str(v).strip().lower()
+    if re.fullmatch(r"f\d{1,2}", s):
+        return s
+    if re.fullmatch(r"\d{1,2}", s) and 1 <= int(s) <= MAX_OBJECT_PHOTOS:
+        return "#" + s
+    return None
+
+
+def validate_objects(raw, tpl: Optional[dict]) -> tuple:
+    """
+    optional.objects (недоверенный ввод) → (объекты | None, ошибка | None). Объект: {label, sum_insured,
+    object_value, object_kind?, year?, mileage?, plate_hint?, photo_ids?, class_fields?, requested_rate_pct?,
+    condition?}. До MAX_OBJECTS объектов; подпись — без ПД; номер — только подсказка (часть номера), полный
+    госномер не принимается; поля класса — по шаблону класса договора.
+    """
+    if not isinstance(raw, list) or not raw or len(raw) > MAX_OBJECTS:
+        return None, f"objects — список от 1 до {MAX_OBJECTS} объектов {{label, sum_insured, object_value, …}}"
+    this_year = date.today().year
+    out = []
+    for i, ob in enumerate(raw, 1):
+        if not isinstance(ob, dict):
+            return None, f"объект {i}: объект {{label, sum_insured, object_value, …}}"
+        label = _s(ob.get("label"), 120)
+        if not label:
+            return None, f"объект {i}: нужна подпись label (например, марка и модель)"
+        if llm.has_pd(label):
+            return None, f"объект {i}: в подписи похоже на персональные данные — только марка, модель, вид"
+        vals = {}
+        for key in ("sum_insured", "object_value"):
+            x = _money_in(ob.get(key))
+            if x is None or x <= 0 or x > MAX_SUM:
+                return None, f"объект {i}: {key} — число больше нуля"
+            vals[key] = x
+        kind = ob.get("object_kind")
+        if kind not in (None, ""):
+            if kind not in tx.OBJECT_KINDS and kind not in ctpl.kind_labels(tpl):
+                return None, f"объект {i}: неизвестный вид объекта"
+        else:
+            kind = None
+        try:
+            year = _int_in(ob.get("year"), 1950, this_year + 1)
+            mileage = _int_in(ob.get("mileage"), 0, 9_999_999)
+        except ValueError:
+            return None, f"объект {i}: year — целое 1950–{this_year + 1}, mileage — целое от 0"
+        cond = ob.get("condition")
+        if cond not in (None, "") and cond not in CONDITIONS:
+            return None, f"объект {i}: condition — одно из " + ", ".join(CONDITIONS)
+        plate = _s(ob.get("plate_hint"), 40)
+        if plate and not _PLATE_HINT.fullmatch(plate):
+            return None, (f"объект {i}: plate_hint — только до 4 цифр номера, например «…123» или «123»; "
+                          "буквы и полный госномер в акт не берутся")
+        rr = ob.get("requested_rate_pct")
+        req = None
+        if rr not in (None, ""):
+            req = _money_in(rr)
+            if req is None or not 0 < req <= 100:
+                return None, f"объект {i}: requested_rate_pct — процент больше 0 и не больше 100"
+        pids = ob.get("photo_ids")
+        refs = []
+        if pids not in (None, "", []):
+            if not isinstance(pids, list) or len(pids) > MAX_OBJECT_PHOTOS:
+                return None, f"объект {i}: photo_ids — список до {MAX_OBJECT_PHOTOS} id файлов из /act/photos"
+            for v in pids:
+                r = _photo_ref(v)
+                if r is None:
+                    return None, f"объект {i}: photo_ids — id файла («f1») или его номер в загрузке (1–{MAX_FILES})"
+                if r not in refs:
+                    refs.append(r)
+        cf, cf_err = validate_class_fields(ob.get("class_fields"), tpl)
+        if cf_err:
+            return None, f"объект {i}: class_fields — {cf_err}"
+        out.append({"index": i, "label": label, "sum_insured": vals["sum_insured"],
+                    "object_value": vals["object_value"], "object_kind": kind, "year": year, "mileage": mileage,
+                    "condition": cond or None, "plate_hint": plate or None, "photo_ids": refs,
+                    "class_fields": cf, "requested_rate_pct": req})
+    return out, None
+
+
+def _objects_in(con, clean: dict, errs: dict, must: dict, opt: dict, tpl: Optional[dict]) -> None:
+    """Перечень объектов (парк ТС): проверка и суммы договора. Сумма и стоимость договора — сумма по объектам:
+    не введены — считаются; введены — должны совпасть с допуском parts.sum_tolerance (иначе 422). Вместе с
+    частями комплексного продукта и у продукта из нескольких классов — нельзя (понятная ошибка)."""
+    m = clean["must"]
+    clean["objects"] = None
+    raw = opt.get("objects")
+    if raw in (None, "", []):
+        return
+    if opt.get("parts") not in (None, "", []):
+        errs["objects"] = ("перечень объектов и части комплексного продукта вместе не принимаются: оформите парк "
+                           "отдельным актом по продукту одного класса")
+        return
+    if len(m.get("product_classes") or []) > 1:
+        errs["objects"] = ("у продукта несколько классов (" + ", ".join(m["product_classes"]) + "): перечень "
+                           "объектов принимается только у продукта одного класса")
+        return
+    if "product_code" in errs or "class_code" in errs:
+        return
+    objs, o_err = validate_objects(raw, tpl)
+    if o_err:
+        errs["objects"] = o_err
+        return
+    clean["objects"] = objs
+    tol = float(load_settings(con)["parts"]["sum_tolerance"])
+    for key in ("sum_insured", "object_value"):
+        total = round(sum(float(x[key]) for x in objs), 2)
+        if must.get(key) in (None, ""):
+            m[key] = total
+            m[key + "_from_objects"] = True
+            errs.pop(key, None)
+        elif key in m and abs(float(m[key]) - total) > tol:
+            errs[key] = (f"сумма по объектам {ae._plain_number(total)} не равна введённой "
+                         f"{ae._plain_number(m[key])} (разница {ae._plain_number(abs(float(m[key]) - total))}, "
+                         f"допуск {ae._plain_number(tol)} сум); можно не вводить — посчитается по объектам")
 
 
 REQUEST_SOURCES = ("document", "photo", "input", "session")
@@ -3181,13 +3476,24 @@ def region_code(text: str) -> Optional[str]:
     return None
 
 
+def region_scope(must: dict) -> Optional[str]:
+    """Особые регионы (02.10.2026): republic — вся республика (uz_all), outside — территория вне Узбекистана
+    (other, текстом); обычный регион — None."""
+    code = must.get("region_code")
+    return "republic" if code == REGION_ALL else ("outside" if code == REGION_OTHER else None)
+
+
 def region_for_modules(must: dict) -> str:
     """
     Регион для risk_analytics, risk_stats и market_picture: они узнают регион по русскому названию
     (market_picture.resolve_region). Код из списка экрана (tashkent_region) → «Ташкентская область»;
-    не из списка — как ввёл сотрудник.
+    не из списка — как ввёл сотрудник. «Другое» (вне Узбекистана) — республика как нейтральное значение для расчёта
+    (модулю нужен регион); статистика региона и НАПП по регионам такому акту не показываются (_region_scope_stats),
+    поправка региона 0 (_fork_prepare, scope), фон региона к факторам не берётся (region_for_stats).
     """
     code = must.get("region_code") or region_code(must.get("region") or "")
+    if code == REGION_OTHER:
+        code = REGION_ALL
     if code:
         got = i18n.t(f"tg.act.reg.{code}", "ru")
         if got and not got.startswith("tg.act."):
@@ -3195,9 +3501,17 @@ def region_for_modules(must: dict) -> str:
     return must.get("region") or ""
 
 
+def region_for_stats(must: dict) -> str:
+    """Регион для фона открытых данных (stat.uz) к факторам объекта: вне Узбекистана — пусто (не применяются)."""
+    return "" if region_scope(must) == "outside" else region_for_modules(must)
+
+
 def region_label(must: dict, lang: str) -> str:
-    """Регион на языке акта, если есть перевод в словаре; иначе — как ввёл сотрудник."""
+    """Регион на языке акта, если есть перевод в словаре; иначе — как ввёл сотрудник. «Другое» — территория,
+    как её ввёл сотрудник (region_text)."""
     code = must.get("region_code")
+    if code == REGION_OTHER and must.get("region_text"):
+        return must["region_text"]
     if code:
         got = i18n.t(f"tg.act.reg.{code}", lang)
         if got and not got.startswith("tg.act."):
@@ -3238,12 +3552,13 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     cls = m["class_code"]
 
     # сессия фото: только своя и живая
-    upload, session_missing = None, False
+    upload, session_missing, upload_files = None, False, []
     if clean.get("session"):
         rows = db.rows(con, "SELECT * FROM act_uploads WHERE id=? AND owner_key=? AND expires_at > ?",
                        clean["session"], owner, _iso(_now()))
         if rows:
             upload = json.loads(rows[0]["result_json"] or "{}")
+            upload_files = json.loads(rows[0].get("files_json") or "[]")
         if not rows or upload.get("kind") == "market":   # снимки объявлений — не осмотр объекта
             upload, session_missing = None, True
     upload = upload or {}
@@ -3333,7 +3648,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     # до вилки, франшизы и сверок. Комплексный продукт — по шаблону класса каждой части (_part_calc)
     fa = ae.factor_adjust(o.get("class_fields"), tpl, st, o)
     # фон региона к факторам со ссылкой на stat.uz (stat_ref, 02.10.2026): только чтение stat_series, ставку не меняет
-    aa.factor_stats(con, fa, region_for_modules(m))
+    aa.factor_stats(con, fa, region_for_stats(m))
     if not multi:
         ae.factor_effect(fa, rate_res, m["sum_insured"])
     # вилка ставки (01.10.2026): поправки региона (stat.uz) и рынка (НАПП) к ставке акта; в режиме apply ставка с
@@ -3342,7 +3657,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     fs = ae.fork_settings(st)
     fork_in, fork_adj = _fork_prepare(con, fs, cls=cls, region=region_for_modules(m), group=group_ra,
                                       product=product, rate_res=_annual_view(rate_res), errors=fork_errors,
-                                      min_info=min_info)
+                                      min_info=min_info, scope=region_scope(m))
     if not multi and rate_res.get("rate_type") != "fixed":
         # у фиксированной ставки (на весь срок) вилка — справочно в годовом выражении, ставку акта не меняет
         ae.apply_fork(rate_res, fork_adj, m["sum_insured"])
@@ -3414,6 +3729,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
                                      m["object_value"], term, rate_res, scen, meas, risk["level"], statutory, th,
                                      group_ra, tpl_risks, block_errors)
         _napp_settings(analytics, fs, st)
+        _region_scope_stats(analytics, region_scope(m))
     analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
     analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
     # тип объекта, на котором посчитана аналитика, и откуда он (default — принят по умолчанию)
@@ -3485,6 +3801,7 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
     docs = {"req": req, "ct": ct, "rq_trust": rq_trust, "ct_trust": ct_trust, "upload": upload,
             "term_from_request": term_from_request, "term_from_contract": term_from_contract}
     rc, cc, xc, rq_checks, ct_checks = _doc_checks(st, m, docs, rate_res, rate_final, premium_final, value, fr)
+    doc_checks = list(rq_checks) + list(ct_checks)
     if rq_checks:
         # тариф ниже минимума или расхождение с запросом — «принять без оговорок» уже нельзя
         dec["checks"] += rq_checks
@@ -3501,7 +3818,9 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
         "must": {"product_code": m.get("product_code"), "product_name": (product or {}).get("name"),
                  "class_code": cls, "class_name": cls_row[0]["name"] if cls_row else None,
                  "sum_insured": m["sum_insured"], "object_value": m["object_value"], "region": m["region"],
-                 "region_code": m.get("region_code"), "product_classes": m.get("product_classes") or []},
+                 "region_code": m.get("region_code"), "product_classes": m.get("product_classes") or [],
+                 # территория текстом и особый регион (02.10.2026): republic | outside | None
+                 "region_text": m.get("region_text"), "region_scope": region_scope(m)},
         "multi_class": len(m.get("product_classes") or []) > 1,
         "sources_downgraded": downgraded,
         "optional": {k: v for k, v in o.items() if v is not None},
@@ -3578,6 +3897,27 @@ def build_data(con, clean: dict, owner: str, lang: str) -> dict:
             D["decision"]["checks"] += cks
             if D["decision"]["code"] == "d_accept":
                 D["decision"]["code"] = "d_accept_with_clauses"
+    if clean.get("objects") and not multi:
+        # парк ТС (02.10.2026): договор посчитан как один объект выше (осмотр, документы, сверки, аналитика),
+        # дальше — каждый объект своим расчётом и итоги договора по объектам
+        model_ids = {fid for fid, v in (upload.get("views") or {}).items()} if ai_ok else set()
+        X = {"ref": ref, "st": st, "m": m, "o": o, "cls": cls, "product": product, "tpl": tpl, "kind": kind,
+             "class_hint": upload.get("class_hint") or "", "special": special_product, "y": y, "term": term,
+             "rate_type": rate_type, "min_info": min_info,
+             "no_products": not product and ctpl.products_count(con, cls) == 0,
+             "fork_in": fork_in, "fs": fs, "fr": fr, "region_ra": region_ra, "recognized": recognized,
+             "ai_ok": ai_ok, "model_ids": model_ids, "damages": damages, "upload_files": upload_files,
+             "risk_in": {"inspected": ai_ok, "damages": damages,
+                         "condition": o.get("condition") or (upload.get("condition") if ai_ok else None),
+                         "year": y, "location": location, "guard": o.get("guard"),
+                         "losses_count": o.get("losses_count"), "documents": documents, "today": date.today()},
+             "docs": docs, "doc_checks": doc_checks, "errors": block_errors,
+             # для пересчёта мероприятий от премии договора по объектам
+             "ctx": ctx, "group_ra": group_ra, "kind_ra": kind_ra, "location": location, "statutory": statutory,
+             "th": th, "meas_codes": ctpl.for_group(tpl.get("measures"), group_ra)}
+        _apply_objects(con, clean, D, X)
+    else:
+        D["objects"], D["objects_total"] = [], None
     return D
 
 
@@ -3727,9 +4067,10 @@ def _no_products_rate(rate_res: dict, cls: str) -> dict:
 
 def _fork_prepare(con, fs: dict, *, cls: str, region: str, group: Optional[str], product: Optional[dict],
                   rate_res: dict, errors: list, min_source: Optional[str] = None,
-                  min_info: Optional[dict] = None) -> tuple:
+                  min_info: Optional[dict] = None, scope: Optional[str] = None) -> tuple:
     """Данные региона и рынка (только чтение базы) и поправки вилки к ставке акта → (данные, поправки) или
-    (None, None) при сбое: акт формируется, вилка — с reason = error."""
+    (None, None) при сбое: акт формируется, вилка — с reason = error. scope (region_scope): republic — вся
+    республика, outside — вне Узбекистана; поправка региона у обоих 0 со своей причиной."""
     try:
         fin = aa.fork_data(con, cls=cls, region=region, group=group, fs=fs, product_code=(product or {}).get("code"),
                            min_pct=rate_res.get("min_pct"), min_source=min_source,
@@ -3737,6 +4078,12 @@ def _fork_prepare(con, fs: dict, *, cls: str, region: str, group: Optional[str],
     except Exception as e:
         errors.append({"block": "rate_fork", "error": type(e).__name__})
         return None, None
+    if scope:
+        R = fin["region"]
+        R.update(pct=0.0, raw_pct=None, clamped=None, used=0, reason=scope)
+        for i in R.get("indicators") or []:
+            if i.get("why") != "kind":
+                i.update(used=False, effect_pct=None, why=scope)
     return fin, ae.fork_adjust(rate_res, fin["region"], fin["market"], fs)
 
 
@@ -3765,6 +4112,21 @@ def _fork_finish(fin: Optional[dict], adj: Optional[dict], fs: dict, rate_res: d
                                             rate_full_year_pct=mk.get("rate_full_year_pct"),
                                             class_rows=mk.get("class_rows") or [])
     return out
+
+
+def _region_scope_stats(analytics: dict, scope: Optional[str]) -> None:
+    """Статистика региона при особом регионе: вне Узбекистана открытые данные (stat.uz, НАПП по регионам) не
+    применяются — блоки stats и napp пустые с причиной outside; вся республика — показатели по республике с
+    пометкой republic (сравнивать регион с республикой не с чем)."""
+    if not scope or not isinstance(analytics, dict) or not analytics.get("available"):
+        return
+    st_ = analytics.get("stats") or {}
+    if scope == "outside":
+        analytics["stats"] = {"available": False, "applicable": False, "reason": "outside", "indicators": [],
+                              "not_found": {}, "points": None, "calibrated": ae.CALIBRATED}
+        analytics["napp"] = {"available": False, "reason": "outside", "calibrated": ae.CALIBRATED}
+    else:
+        analytics["stats"] = dict(st_, scope="republic")
 
 
 def _napp_settings(analytics: dict, fs: dict, st: Optional[dict]) -> None:
@@ -3948,13 +4310,14 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     rate_res = ae.part_rate(ref, product, cls, risk["level"], S, term, otype, op.get("payer_type"), st, cm)
     statutory = rate_res["mode"] in ("statutory", "statutory_undefined")
     # факторы объекта части (02.10.2026): по шаблону класса части, до вилки и франшизы
-    fa = ae.factor_effect(aa.factor_stats(con, ae.factor_adjust(op.get("class_fields"), tpl, st, op), C["region_ra"]),
-                          rate_res, S)
+    fa = ae.factor_effect(aa.factor_stats(con, ae.factor_adjust(op.get("class_fields"), tpl, st, op),
+                                          region_for_stats(m)), rate_res, S)
     # вилка ставки части (01.10.2026): поправки региона и рынка по классу и виду объекта части
     fs = C.get("fs") or ae.fork_settings(st)
     ferrs = []
     fork_in, fork_adj = _fork_prepare(con, fs, cls=cls, region=C["region_ra"], group=group_ra, product=product,
-                                      rate_res=rate_res, errors=ferrs, min_source=cm.get("source"))
+                                      rate_res=rate_res, errors=ferrs, min_source=cm.get("source"),
+                                      scope=region_scope(m))
     errs += [dict(e, block=f"part{idx}:" + e["block"]) for e in ferrs]
     ae.apply_fork(rate_res, fork_adj, S)
     applicable = cls in ae.VALUE_CLASSES
@@ -4000,6 +4363,7 @@ def _part_calc(con, P: dict, idx: int, C: dict) -> dict:
     analytics = _analytics_block(con, ctx, cls, pcode, C["region_ra"], S, V, term, rate_res, scen, meas,
                                  risk["level"], statutory, th, group_ra, tpl_risks, perrs)
     _napp_settings(analytics, fs, st)
+    _region_scope_stats(analytics, region_scope(m))
     errs += [dict(e, block=f"part{idx}:" + e["block"]) for e in perrs]
     analytics["activity"] = (ctx.get("must") or {}).get("activity") if ctx.get("ok") else None
     analytics["activity_source"] = (ctx.get("sources") or {}).get("activity")
@@ -4209,6 +4573,292 @@ def _apply_parts(con, clean: dict, D: dict, C: dict) -> None:
     # вилка ставки договора — справочно (сумма премий частей по каждой отметке); у частей — своя вилка
     D["rate_fork"] = ae.fork_contract(items, S, C["term"], (C["docs"].get("req") or {}).get("tariff_pct"),
                                       (C["docs"].get("ct") or {}).get("tariff_pct"), C["fs"]["mode"])
+
+
+def _object_calc(con, ob: dict, X: dict) -> dict:
+    """
+    Один объект перечня (парк ТС) тем же расчётом, что однопродуктовый акт: уровень риска по своим признакам
+    (год, состояние, осмотр своих фото), ставка act_engine.rate (тариф × поправка уровня, не ниже минимума продукта),
+    факторы объекта по своим полям класса, вилка — поправки региона и рынка договора (данные читаются один раз),
+    франшиза договора — тем же множителем, сумма к стоимости, сценарии PML/EML/MFL по своей сумме.
+    """
+    ref, st, o, cls = X["ref"], X["st"], X["o"], X["cls"]
+    S, V = float(ob["sum_insured"]), float(ob["object_value"])
+    term = X["term"]
+    ids = ob.get("file_ids") or []
+    rec = [r for r in X["recognized"] if r.get("file_id") in ids] if ids else []
+    y, y_src = ob.get("year"), "input" if ob.get("year") is not None else None
+    if y is None and rec:
+        pr = preferred(rec, "year")
+        y = ae.to_year(pr["value"]) if pr else None
+        y_src = "photo" if y is not None else None
+    if y is None and X["n"] == 1 and X["y"] is not None:
+        y, y_src = X["y"], "contract"
+    cf = dict(o.get("class_fields") or {})
+    cf.update(ob.get("class_fields") or {})             # поля объекта сильнее общих полей договора
+    op = {k: v for k, v in o.items() if k not in ("class_fields", "object_kind", "requested_rate_pct", "deductible",
+                                                  "year", "condition")}
+    if cf:
+        op["class_fields"] = cf
+    if y is not None:
+        op["year"] = y
+    cond = ob.get("condition") or o.get("condition")
+    if cond:
+        op["condition"] = cond
+    kind = ob.get("object_kind") or X["kind"]
+    kind_type = tx.OBJECT_KINDS[kind][0] if kind in tx.OBJECT_KINDS else None
+    group = ae.object_group(cls, f"{kind_type or ''} {ob['label']}", X["class_hint"])
+    otype = ae.match_object_type(ref, cls, kind_type, o.get("object_type"))
+    kind_ra = kind or _kind_from_text(ob["label"])
+    otype_ra = otype or ae.match_object_type(ref, cls, (tx.OBJECT_KINDS.get(kind_ra) or (None,))[0], None)
+    group_ra = "special" if group == "vehicle" and X["special"] else group
+    # осмотр: фото привязаны к объектам — у объекта только свои снимки и повреждения; не привязаны — осмотр парка
+    # учитывается у всех объектов (так и пишется в акте)
+    ri = dict(X["risk_in"], year=y)
+    if X["bound"]:
+        mine = set(ids)
+        ri["inspected"] = bool(X["ai_ok"]) and bool(mine & X["model_ids"])
+        ri["damages"] = [d for d in X["damages"] if d.get("file") in mine]
+        ri["condition"] = cond if (ri["inspected"] or ob.get("condition") or o.get("condition")) else None
+    elif cond:
+        ri["condition"] = cond
+    risk = ae.risk_level(ri, st)
+    rate_res = ae.rate(ref, X["product"], cls, risk["level"], S, term, otype, o.get("payer_type"), st,
+                       rate_type=X["rate_type"])
+    _min_how(rate_res, X["min_info"])
+    if X["no_products"]:
+        rate_res = _no_products_rate(rate_res, cls)
+    rate_res.pop("engine_chain", None)                 # цепочка калькулятора — у договора, у объекта не нужна
+    fa = ae.factor_effect(aa.factor_stats(con, ae.factor_adjust(cf, X["tpl"], st, op), region_for_stats(X["m"])),
+                          rate_res, S)
+    adj = None
+    if X["fork_in"] is not None:
+        adj = ae.fork_adjust(_annual_view(rate_res), X["fork_in"]["region"], X["fork_in"]["market"], X["fs"])
+        if rate_res.get("rate_type") != "fixed":
+            ae.apply_fork(rate_res, adj, S)
+    # франшиза договора (сотрудника) — тем же множителем к ставке объекта, не ниже минимума
+    fr = X["fr"]
+    fr_on = bool(fr.get("applied")) and fr.get("multiplier") is not None and rate_res.get("applied_pct") is not None
+    if fr_on:
+        rate_f, prem_f, floored = ax.apply_multiplier(rate_res, float(fr["multiplier"]), S)
+    else:
+        rate_f, prem_f, floored = rate_res.get("applied_pct"), rate_res.get("premium"), False
+    value = ae.value_check(S, V, st, None, None, group, kind_type or ob["label"])
+    value["applicable"] = cls in ae.VALUE_CLASSES
+    ctx = ax.ra_context(con, cls=cls, product_code=(X["product"] or {}).get("code"), otype=otype_ra, group=group_ra,
+                        kind=kind_ra, S=S, V=V, region=X["region_ra"], term_days=o.get("term_days"), year=y, o=op,
+                        recognized=rec, text=ob["label"])
+    scen = ax.scenarios(ctx, cls, S, template=X["tpl"], V=V, fields=cf)
+    if not ctx.get("ok"):
+        X["errors"].append({"block": f"object{ob['index']}:risk_analytics", "error": ctx.get("error")})
+    req = ob.get("requested_rate_pct")
+    minp = rate_res.get("min_pct")
+    return {
+        "index": ob["index"], "label": ob["label"], "object_kind": kind, "object_kind_own": bool(ob.get("object_kind")),
+        "group": group, "object_type_ref": otype, "year": y, "year_source": y_src, "mileage": ob.get("mileage"),
+        "plate_hint": ob.get("plate_hint"), "condition": ob.get("condition"), "photo_ids": list(ids),
+        "photo_refs_unknown": list(ob.get("refs_unknown") or []), "inspected": bool(ri.get("inspected")),
+        "damages": ri.get("damages") or [], "recognized": [{k: r.get(k) for k in ("key", "value", "source", "file_id")}
+                                                         for r in rec[:30]],
+        "class_fields": cf, "sum_insured": S, "object_value": V, "term_days": term, "level": risk["level"],
+        "risk": risk, "rate": rate_res, "statutory": rate_res["mode"] in ("statutory", "statutory_undefined"),
+        "premium_before_franchise": rate_res.get("premium"), "premium": prem_f, "rate_pct": rate_f,
+        "franchise_applied": fr_on, "franchise_floor": bool(floored), "value": value, "factor_adjustment": fa,
+        "scenarios": scen, "requested_rate_pct": req,
+        "below_min": req is not None and minp is not None and float(req) + 1e-12 < float(minp),
+        "rate_fork": _fork_finish(X["fork_in"], adj, X["fs"], _annual_view(rate_res), S, None, None, None, prem_f,
+                                  fr_on, factors=fa),
+    }
+
+
+def _objects_scen(items: list, S: float, base: dict) -> tuple:
+    """Сценарии договора из объектов: PML и EML — по самому крупному объекту (одно событие — один объект), MFL —
+    сумма по всем объектам (накопление: весь парк в одном месте). Сложение — тем же act_engine.aggregate_scenarios,
+    что у частей комплексного продукта (все объекты — «разные объекты»). (блок scenarios договора, разбор)."""
+    rows = [{"index": p["index"], "class_code": base.get("class_code"), "main": False, "scenarios": p["scenarios"]}
+            for p in items]
+    agg_sum = ae.aggregate_scenarios(rows)
+    avail = [p for p in items if (p["scenarios"] or {}).get("available")]
+    largest = max(avail, key=lambda p: (p["sum_insured"], -p["index"])) if avail else None
+    detail = {"largest": None, "sum": None, "excluded": agg_sum.get("excluded") or [], "calibrated": ae.CALIBRATED}
+    if not largest:
+        return {"available": False, "reason": "obj_sc_na", "class_code": base.get("class_code"), "rule": "objects",
+                "items": {}, "retention": None, "assumptions": [], "calibrated": ae.CALIBRATED,
+                "order": ax.SCENARIO_ORDER, "source": "objects", "objects": detail}, detail
+    L = {s: round(float(largest["scenarios"]["items"][s]["amount"])) for s in ae.SCENARIOS3}
+    Sm = {s: agg_sum["items"][s]["amount"] for s in ae.SCENARIOS3}
+    detail["largest"] = dict(L, index=largest["index"], label=largest["label"], sum_insured=largest["sum_insured"])
+    detail["sum"] = dict(Sm, count=len(avail))
+    pick = {"PML": L["PML"], "EML": L["EML"], "MFL": max(Sm["MFL"], L["EML"])}
+    items_ = {}
+    for s in ae.SCENARIOS3:
+        a = pick[s]
+        items_[s] = {"amount": a, "pct": round(a / S * 100, 1) if S else None,
+                     "what": "sc_w_obj_sum" if s == "MFL" else "sc_w_obj_largest",
+                     "what_params": {} if s == "MFL" else {"n": largest["index"], "label": largest["label"]},
+                     "state": None, "formula": None, "level": None, "source_scenario": s}
+    ret = ae.contract_retention([(largest["scenarios"] or {}).get("retention")], pick["EML"], pick["MFL"])
+    return {"available": True, "reason": None, "class_code": base.get("class_code"), "rule": "objects",
+            "items": items_, "retention": ret, "assumptions": list(base.get("assumptions") or []),
+            "calibrated": ae.CALIBRATED, "order": ax.SCENARIO_ORDER, "source": "objects", "objects": detail,
+            "order_ok": pick["PML"] <= pick["EML"] <= pick["MFL"]}, detail
+
+
+def _apply_objects(con, clean: dict, D: dict, X: dict) -> None:
+    """
+    Несколько объектов в одном акте (парк ТС, 02.10.2026): каждый объект — _object_calc; премия договора — сумма
+    премий объектов, средняя ставка договора — справочно (класс один, ставка проверена по каждому объекту);
+    уровень договора — самый высокий из объектов; сумма к стоимости — по договору и по каждому объекту; сценарии —
+    _objects_scen; вилка договора — сумма премий объектов по каждой отметке (act_engine.fork_contract, как у частей).
+    """
+    st, m = X["st"], X["m"]
+    S, V = float(m["sum_insured"]), float(m["object_value"])
+    term = X["term"]
+    # ссылки на файлы загрузки: id «f3» или номер файла в запросе «#3»; чужие и неизвестные — в пометку
+    files = X["upload_files"]
+    by_id = {f.get("id"): f.get("id") for f in files}
+    by_index = {f"#{f.get('index')}": f.get("id") for f in files}
+    objs = []
+    for ob in clean["objects"]:
+        ids, unknown = [], []
+        for r in ob.get("photo_ids") or []:
+            fid = by_id.get(r) if not r.startswith("#") else by_index.get(r)
+            if fid and fid not in ids:
+                ids.append(fid)
+            elif not fid:
+                unknown.append(r)
+        objs.append(dict(ob, file_ids=ids, refs_unknown=unknown))
+    X["bound"] = any(ob["file_ids"] for ob in objs)
+    X["n"] = len(objs)
+    items = [_object_calc(con, ob, X) for ob in objs]
+    prem = [p["premium"] for p in items]
+    before = [p["premium_before_franchise"] for p in items]
+    total = round(sum(prem)) if all(x is not None for x in prem) else None
+    total_before = round(sum(before)) if all(x is not None for x in before) else None
+    rt = (D["rate"] or {}).get("rate_type") or "annual"
+
+    def avg(x):
+        if x is None or not S:
+            return None
+        return round(x / S * 100 * (1 if rt == "fixed" else 365 / term), 4)
+    worst = max(items, key=lambda p: (ae.LEVEL_ORDER.get(p["level"], 1), p["sum_insured"]))
+    cv = ae.contract_value([{"index": p["index"], "sum_insured": p["sum_insured"], "object_value": p["object_value"],
+                             "value_applicable": p["value"]["applicable"]} for p in items], st)
+    scen, sdetail = _objects_scen(items, S, D.get("scenarios") or {"class_code": X["cls"]})
+    notes = []
+    if not X["bound"] and len(items) > 1 and D["inspection"].get("photos"):
+        notes.append({"code": "obj_n_unbound", "params": {}})
+    if any(p["photo_refs_unknown"] for p in items):
+        notes.append({"code": "obj_n_refs_unknown", "params": {"n": ", ".join(str(p["index"]) for p in items
+                                                                           if p["photo_refs_unknown"])}})
+    if X["fr"].get("applied"):
+        notes.append({"code": "obj_n_franchise", "params": {"mult": X["fr"].get("multiplier")}})
+    if m.get("sum_insured_from_objects") or m.get("object_value_from_objects"):
+        notes.append({"code": "obj_n_sums_auto", "params": {}})
+    D["objects"] = items
+    D["objects_total"] = {
+        "count": len(items), "sum_insured": round(sum(p["sum_insured"] for p in items), 2),
+        "object_value": round(sum(p["object_value"] for p in items), 2), "premium": total,
+        "premium_before_franchise": total_before, "rate_avg_pct": avg(total), "rate_avg_before_pct": avg(total_before),
+        "rate_type": rt, "term_days": term, "level": worst["level"], "worst_index": worst["index"],
+        "levels": {lv: sum(1 for p in items if p["level"] == lv) for lv in ae.LEVELS},
+        "value": cv, "value_by_verdict": {v: [p["index"] for p in items if p["value"]["verdict"] == v]
+                                          for v in ("under", "normal", "over")},
+        "scenarios": sdetail, "bound": X["bound"], "notes": notes,
+        "sums_from_objects": bool(m.get("sum_insured_from_objects")), "reference_only": True,
+        "calibrated": ae.CALIBRATED}
+    # верхние поля — итоги договора: уровень — самый высокий, премия — сумма, средняя ставка — справочно
+    contract_risk = D["risk"]
+    if ae.LEVEL_ORDER.get(worst["level"], 1) > ae.LEVEL_ORDER.get(contract_risk["level"], 1):
+        D["risk"] = dict(worst["risk"], contract=True, object_index=worst["index"])
+    rr = dict(D["rate"])
+    same = lambda k: len({p["rate"].get(k) for p in items}) == 1   # noqa: E731
+    rr.update(applied_pct=avg(total_before), premium=total_before, calc_pct=None, objects=True,
+              base_pct=items[0]["rate"].get("base_pct") if same("base_pct") else None,
+              adj_pct=items[0]["rate"].get("adj_pct") if same("adj_pct") else None,
+              min_applied=any(p["rate"].get("min_applied") for p in items),
+              fork_applied=any(p["rate"].get("fork_applied") for p in items),
+              factors_applied=any(p["rate"].get("factors_applied") for p in items),
+              annual_equiv_pct=round(total_before / S * 100 * 365 / term, 4) if rt == "fixed" and total_before
+              is not None and S else None,
+              how=[{"code": "how_objects", "params": {"n": len(items), "premium": total_before,
+                                                      "rate": avg(total_before), "days": term}}] +
+              [{"code": "how_object_line", "params": {"n": p["index"], "label": p["label"], "level": p["level"],
+                                                      "rate": p["rate"].get("applied_pct"),
+                                                      "premium": p["premium_before_franchise"]}} for p in items])
+    D["rate"] = rr
+    D["premium_final"] = {"amount": total, "rate_pct": avg(total), "franchise_applied": bool(X["fr"].get("applied"))}
+    if X["fr"].get("applied"):
+        D["franchise"] = dict(D["franchise"], premium_before=total_before, premium_after=total, rate_after=avg(total),
+                              objects=True)
+    D["scenarios"] = scen
+    if cv:
+        D["value"] = dict(D["value"], **{k: cv[k] for k in ("ratio_pct", "verdict", "legal_ref", "diff")},
+                          contract=True)
+    # вилка договора — справочно: сумма премий объектов по каждой отметке; рынок класса — как у договора
+    cf_ = D.get("rate_fork") or {}
+    fk = ae.fork_contract(items, S, term, (X["docs"].get("req") or {}).get("tariff_pct"),
+                          (X["docs"].get("ct") or {}).get("tariff_pct"), X["fs"]["mode"])
+    for mk in fk.get("marks") or []:
+        if str(mk.get("note") or "").startswith("parts_"):
+            mk["note"] = "objects_" + mk["note"][len("parts_"):]
+        if (mk.get("source") or {}).get("kind") == "parts":
+            mk["source"] = {"kind": "objects"}
+    mkt = next((x for x in cf_.get("marks") or [] if x.get("code") == "market"), None)
+    if mkt:
+        fk["marks"].append(dict(mkt, premium=round(ae.premium_of(float(mkt["rate_pct"]), S, term))
+                                if mkt.get("rate_pct") is not None else None))
+    fk.update(objects=True, count=len(items), adjustments=cf_.get("adjustments"), region_data=cf_.get("region_data"),
+              market_data=cf_.get("market_data"), rate_type=rt)
+    D["rate_fork"] = fk
+    # факторы объекта — по каждому объекту (свои поля класса), как у частей комплексного продукта
+    D["factor_adjustment"] = {"by_objects": True, "mode": ae.factor_settings(st)["mode"],
+                              "objects": [dict(p["factor_adjustment"], index=p["index"], label=p["label"])
+                                          for p in items], "calibrated": ae.CALIBRATED}
+    # мероприятия: та же функция, что у акта, от премии договора по объектам и средней ставки (не ниже минимума)
+    try:
+        D["measures"] = ax.measures(con, X["ctx"], D["rate"], cls=X["cls"], group=X["group_ra"], kind=X["kind_ra"],
+                                    S=S, V=V, o=X["o"], location=X["location"], statutory=X["statutory"], th=X["th"],
+                                    premium=total, codes=X["meas_codes"])
+    except Exception as e:
+        X["errors"].append({"block": "objects:measures", "error": type(e).__name__})
+    # чего не хватает: подпись объекта — его вид, марка и модель; год и пробег — если введены у всех объектов
+    have = {"object_type", "brand", "model"}
+    if all(p["year"] is not None for p in items):
+        have.add("year")
+    if all(p["mileage"] is not None for p in items):
+        have.add("mileage")
+    D["missing"] = [k for k in D["missing"] if k not in have]
+    for c in D["decision"]["checks"]:
+        if c["code"] == "c_missing":
+            c["params"] = dict(c["params"], keys=[k for k in c["params"].get("keys") or [] if k not in have])
+    D["decision"]["checks"] = [c for c in D["decision"]["checks"]
+                               if not (c["code"] == "c_missing" and not c["params"].get("keys"))]
+    # сверки с запросом и договором — по итогам договора (средняя ставка, сумма премий)
+    fr_c = {"status": D["franchise"].get("status"), "needed": D["franchise"].get("needed"),
+            "size_pct": D["franchise"].get("size_pct")}
+    rc, cc, xc, rq_checks, ct_checks = _doc_checks(st, m, X["docs"], D["rate"], avg(total), total, D["value"], fr_c)
+    dec = D["decision"]
+    # сверки, посчитанные по договору как по одному объекту, заменяются сверками по итогам объектов
+    dec["checks"] = [c for c in dec["checks"] if not any(c is d for d in X["doc_checks"])] + rq_checks + ct_checks
+    D["request_check"], D["contract_check"], D["cross_check"] = rc, cc, xc
+    # проверки по объектам: сумма к стоимости, самый высокий уровень, все повышающие признаки, ставка ниже минимума
+    for p in items:
+        base = {"n": p["index"], "label": p["label"]}
+        if p["value"]["applicable"] and p["value"]["verdict"] in ("under", "over"):
+            dec["checks"].append({"code": "c_obj_" + p["value"]["verdict"], "params": base})
+        if p["risk"]["up"] >= int(st["decline_min_up"]):
+            dec["checks"].append({"code": "c_obj_decline", "params": base})
+        elif p["level"] == "high":
+            dec["checks"].append({"code": "c_obj_high", "params": base})
+        if p["below_min"]:
+            dec["checks"].append({"code": "c_obj_below_min", "params": dict(base, req=p["requested_rate_pct"],
+                                                                             min=p["rate"].get("min_pct"))})
+        if X["bound"] and not p["inspected"]:
+            dec["checks"].append({"code": "c_obj_no_photos", "params": base})
+    if dec["code"] == "d_accept" and (D["risk"]["level"] != "low" or [c for c in dec["checks"]
+                                                                    if c["code"] != "c_confirm"]):
+        dec["code"] = "d_accept_with_clauses"
 
 
 def _template_block(row: Optional[dict], group: str, group_ra: str, views_req: list, clause_codes: Optional[list],
@@ -4451,11 +5101,25 @@ def _fmt_param(key: str, v, lang: str):
 
 
 def _otype_label(otype: str, lang: str) -> str:
-    """Тип объекта справочника (по-русски) → подпись на языке акта через OBJECT_KINDS."""
+    """Тип объекта справочника (по-русски) → подпись на языке акта через OBJECT_KINDS, затем OTYPE_LABELS
+    (типы базовых ставок и умолчания risk_analytics, у которых нет вида объекта на экране)."""
     for _code, (ref_type, labels) in tx.OBJECT_KINDS.items():
         if ref_type and ref_type == otype:
             return labels.get(lang) or labels["ru"]
+    if otype in tx.OTYPE_LABELS:
+        return tx.label(tx.OTYPE_LABELS, otype, lang)
     return otype
+
+
+def _sc_part_local(p: dict, lang: str) -> dict:
+    """Слагаемое сценария аналитики: формула простого правила шаблона в снимке — по-русски; на узбекском и
+    английском её заменяет строка «как посчитано» (formula = None), подпись what — на языке акта (what_text)."""
+    out = dict(p)
+    if isinstance(p.get("what"), dict):
+        out["what_text"] = p["what"].get(lang) or p["what"].get("ru")
+    if tx.lang_of(lang) != "ru" and p.get("formula") and _CYR.search(str(p["formula"])):
+        out["formula"] = None
+    return out
 
 
 def _text(item: dict, lang: str) -> str:
@@ -4510,6 +5174,9 @@ def _check_text(c: dict, lang: str, group: Optional[str] = None) -> str:
         return t(c["code"], lang, source=t("pt_src_" + str(p.get("source") or "default"), lang))
     if c["code"].startswith("c_part_"):
         return t(c["code"], lang, n=p.get("n"), cls=p.get("cls"))
+    if c["code"].startswith("c_obj_"):
+        return t(c["code"], lang, n=p.get("n"), label=p.get("label") or "", req=pct(p.get("req"), lang),
+                 min=pct(p.get("min"), lang))
     return t(c["code"], lang)
 
 
@@ -4984,7 +5651,7 @@ def _fork_src(src: Optional[dict], lang: str) -> Optional[dict]:
         title = t("rf_src_napp_claims", lang, date=_date(src.get("as_of")))
     elif kind == "adjusted":
         title = t("rf_src_adjusted", lang)
-    elif kind in ("request", "contract", "technical", "parts", "factors"):
+    elif kind in ("request", "contract", "technical", "parts", "factors", "objects"):
         title = t("rf_src_" + kind, lang)
     elif kind == "statutory":
         title = t("rf_src_statutory", lang, title=_act_ref_text(title, lang))
@@ -5055,7 +5722,8 @@ def _fork_region_lines(R: dict, lang: str, cls: Optional[str]) -> tuple:
         why = {"no_rules": t("rf_reg_r_no_rules", lang, cls=cls or ""), "kind": t("rf_reg_r_kind", lang, cls=cls or ""),
                "region_unknown": t("rf_reg_r_region_unknown", lang, region=R.get("region_requested") or ""),
                "no_regional": t("rf_reg_r_no_regional", lang),
-               "zero_weight": t("rf_reg_r_zero_weight", lang)}.get(R["reason"], "")
+               "zero_weight": t("rf_reg_r_zero_weight", lang),
+               "republic": t("rf_reg_r_republic", lang), "outside": t("rf_reg_r_outside", lang)}.get(R["reason"], "")
         lines.append(f"{head} — {t('rf_reg_none', lang)} ({why})")
     else:
         lo, hi = R["bounds"]
@@ -5086,6 +5754,19 @@ def _fork_region_lines(R: dict, lang: str, cls: Optional[str]) -> tuple:
     return lines, srcs
 
 
+def _territory(D: dict, lang: str) -> Optional[dict]:
+    """Территория страхования: у класса 7 (грузы, в том числе часть 7 комплексного продукта) — всегда; у остальных —
+    только если сотрудник ввёл её текстом при обычном регионе. {"text", "note", "code", "scope"} или None."""
+    must = D["must"]
+    classes = {must.get("class_code")} | {p.get("class_code") for p in (D.get("parts") or {}).get("items") or []}
+    scope = must.get("region_scope")
+    text = must.get("region_text") or region_label(must, lang)
+    if "7" not in classes and not (must.get("region_text") and scope != "outside"):
+        return None
+    return {"text": text, "note": t("reg_note_" + scope, lang) if scope else None,
+            "code": must.get("region_code"), "scope": scope, "as_entered": bool(must.get("region_text"))}
+
+
 def _caveat(iid: str, lang: str) -> Optional[str]:
     """Оговорка показателя региона: что он измеряет на самом деле (все ДТП, все кражи, жилой фонд)."""
     return tx.label(tx.STAT_CAVEATS, iid, lang) if iid in tx.STAT_CAVEATS else None
@@ -5102,6 +5783,13 @@ def _pack_choice_text(pc: Optional[dict], lang: str, cls: Optional[str] = None, 
         txt += t(prefix + "sub", lang, sub=", ".join(x for x in pc.get("product_classes") or []
                                                       if not str(x).isdigit()))
     return txt
+
+
+def _pc_local(pc: Optional[dict], lang: str, cls: Optional[str] = None) -> Optional[dict]:
+    """Выбор строки НАПП в ответе: пояснение note в снимке по-русски — на языке акта (как pack_note)."""
+    if not isinstance(pc, dict) or tx.lang_of(lang) == "ru":
+        return pc
+    return dict(pc, note=_pack_choice_text(pc, lang, cls) or None)
 
 
 def _fork_market_lines(M: dict, lang: str, cls: Optional[str] = None) -> list:
@@ -5148,6 +5836,25 @@ def _fork_market_lines(M: dict, lang: str, cls: Optional[str] = None) -> list:
         if cr:
             lines.append(cr)
     return lines
+
+
+def _fork_unit(i: dict, lang: str) -> Optional[str]:
+    """Единица показателя региона на языке акта (как в строке «Поправка региона»)."""
+    vu = i.get("value_unit_ru")
+    if vu is None:
+        return i.get("unit_ru")
+    unit = tx.label(tx.STAT_UNITS, vu, lang) if vu in tx.STAT_UNITS else (vu if tx.lang_of(lang) == "ru" else "")
+    if i.get("kind") == "count_pc":
+        unit = (unit + " " + t("rf_per1000", lang)).strip()
+    return unit or None
+
+
+def _fy_text(period: Optional[str], lang: str) -> Optional[str]:
+    """«2025 год» → на языке акта («2025 yil», «2025»)."""
+    y = _fy_year(period)
+    if not y:
+        return period if tx.lang_of(lang) == "ru" else None
+    return t("rf_fy_period", lang, year=y)
 
 
 def _fy_year(period: Optional[str]) -> Optional[str]:
@@ -5208,7 +5915,8 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
     elif reason == "error":
         summary = t("rf_sum_error", lang)
     elif reason == "parts_reference":
-        summary = t("rf_sum_parts", lang, min=pct((by.get("min") or {}).get("rate_pct"), lang),
+        summary = t("rf_sum_objects" if F.get("objects") else "rf_sum_parts", lang,
+                    n=F.get("count") or 0, min=pct((by.get("min") or {}).get("rate_pct"), lang),
                     act=pct((by.get("act") or {}).get("rate_pct"), lang),
                     adj=pct((by.get("adjusted") or {}).get("rate_pct"), lang))
     else:
@@ -5227,7 +5935,8 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
                 if reason not in ("parts_reference",) else ""
     # поправки
     reg_js = mkt_js = None
-    if R and F.get("available") and reason != "parts_reference":
+    # парк ТС: поправки региона и рынка — общие для всех объектов, показываются у договора
+    if R and F.get("available") and (reason != "parts_reference" or F.get("objects")):
         rl, rs_ = _fork_region_lines(R, lang, cls)
         how += rl
         srcs += rs_
@@ -5238,7 +5947,8 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
                                   if i["id"] in tx.STAT_LABELS else i.get("name_ru"),
                                   "region_value": i.get("region_value"), "country_value": i.get("country_value"),
                                   "ratio": i.get("ratio"), "effect_pct": i.get("effect_pct"), "period": i.get("period"),
-                                  "unit": i.get("unit_ru"), "source": _fork_src(dict(i["source"], name=_stat_name(i, lang))
+                                  "unit": _fork_unit(i, lang), "unit_ru": i.get("unit_ru"),
+                                  "source": _fork_src(dict(i["source"], name=_stat_name(i, lang))
                                                                   if i.get("source") else None, lang),
                                   "used": bool(i.get("used")), "why": i.get("why"), "caveat": _caveat(i["id"], lang),
                                   "why_text": tx.label(tx.FORK_WHY_LABELS, i["why"], lang) if i.get("why") else None}
@@ -5253,12 +5963,15 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
                   "cap_at_market": bool(MK.get("cap_at_market")),
                   "loss_ratio_basis": MK.get("basis"), "market_rate_pct": MK.get("market_rate_pct"),
                   "threshold": MK.get("threshold"), "steps": MK.get("steps"), "as_of": MK.get("as_of"),
-                  "row_key": MK.get("row_key"), "pack_choice": MK.get("pack_choice"),
+                  "row_key": MK.get("row_key"), "pack_choice": _pc_local(MK.get("pack_choice"), lang, cls),
                   # 01.10.2026: скачок убыточности за неполный год — ступень по полному году (rate_fork.market.basis)
                   "basis": MK.get("basis"), "full_year_switch": bool(MK.get("full_year_switch")),
                   "loss_ratio_last_pct": MK.get("loss_ratio_last_pct"),
                   "loss_ratio_full_year_pct": MK.get("loss_ratio_full_year_pct"),
-                  "rate_full_year_pct": MK.get("rate_full_year_pct"), "full_year_period": MK.get("full_year_period"),
+                  "rate_full_year_pct": MK.get("rate_full_year_pct"),
+                  # «2025 год» снимка — на языке акта; год числом — full_year
+                  "full_year_period": _fy_text(MK.get("full_year_period"), lang),
+                  "full_year": _fy_year(MK.get("full_year_period")),
                   "class_rows": list(MK.get("class_rows") or []),
                   "pack_note": _pack_choice_text(MK.get("pack_choice"), lang, cls),
                   "source": mds, "text": ml[0], "lines": ml, "calibrated": ae.CALIBRATED}
@@ -5272,7 +5985,8 @@ def _fork_view(F: Optional[dict], lang: str, cls: Optional[str] = None) -> dict:
     # источники: отметки и показатели (без повторов)
     seen, src_lines = set(), []
     for s in [m["source"] for m in marks if m.get("source")] + srcs:
-        if s.get("kind") in ("adjusted", "policy_act", "request", "contract", "technical", "parts", "factors"):
+        if s.get("kind") in ("adjusted", "policy_act", "request", "contract", "technical", "parts", "factors",
+                             "objects"):
             continue
         key = (s["title"], s.get("url"))
         if key in seen:
@@ -5376,16 +6090,27 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         src = fs.get("contract_no") or fs.get("contract_date") or ctd.get("source") or "input"
         rows1.append(_row(t("ct_row", lang), val, tx.label(tx.CT_SOURCE_LABELS, src, lang)))
     rows1 += _object_rows(D, lang)
-    rows1.append(_row(t("region", lang), region_label(must, lang)))
+    scope = must.get("region_scope")
+    rows1.append(_row(t("region", lang), region_label(must, lang),
+                      t("reg_note_" + scope, lang) if scope else None))
+    terr = _territory(D, lang)
+    if terr:
+        # класс 7 (грузы): территория страхования отдельной строкой — как ввёл сотрудник или регион из списка
+        rows1.append(_row(t("territory", lang), terr["text"], terr["note"]))
     if opt.get("guard") is not None:
         rows1.append(_row(t("guard", lang), t("yes" if opt["guard"] else "no", lang)))
     # комплексный продукт (30.09.2026): перечень частей договора
     PV = _parts_view(D, lang) if (D.get("parts") or {}).get("mode") == "multi" else None
+    OV = _objects_view(D, lang) if D.get("objects") else None
     p1 = []
     if PV:
         rows1 += PV["s1_rows"]
         p1.append(PV["s1_paragraph"])
     s1 = {"n": 1, "title": t("s1", lang), "paragraphs": p1, "rows": rows1}
+    if OV:
+        # парк ТС: перечень объектов таблицей (№, объект, год, сумма, стоимость, уровень, ставка, премия)
+        p1.append(OV["s1_paragraph"])
+        s1["lists"] = [OV["s1_list"]]
 
     # ---------- раздел 2 ----------
     p2, rows2 = [], []
@@ -5464,13 +6189,15 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     if PV:
         rows3 += PV["s3_rows"]
         p3 += PV["s3_paragraphs"]
+    if OV:
+        p3.append(OV["s3_paragraph"])
     EX = _exchange_view(D, lang)
     src3 = list(mv["source_lines"])
     if EX["row"]:
         rows3.append(EX["row"])
         src3.append(EX["source_line"])
     s3 = {"n": 3, "title": t("s3", lang), "paragraphs": p3, "rows": rows3, "source_lines": src3,
-          "lists": mv["lists"]}
+          "lists": ([OV["s3_list"]] if OV else []) + mv["lists"]}
 
     # ---------- раздел 4 ----------
     level_label = tx.label(tx.LEVEL_LABELS, risk["level"], lang)
@@ -5482,7 +6209,11 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     mode = rate_res["mode"]
     pf = _premium_final(D)
     rows4 = [_row(t("level", lang), level_label, t("uncalibrated", lang))]
-    if mode == "tariff":
+    if OV and mode in ("tariff", "statutory"):
+        # парк ТС: ставка — по каждому объекту (таблица ниже), у договора — средняя справочно и сумма премий
+        rows4 = [_row(t("level", lang), level_label, t("obj_level_note", lang, n=D["objects_total"]["worst_index"]))]
+        rows4 += OV["s4_rows"]
+    elif mode == "tariff":
         rows4 += [_row(t("applied_rate", lang), pct(rate_res["applied_pct"], lang),
                        t("min_applied", lang) if rate_res["min_applied"] else None)]
         if rate_res.get("rate_type") == "fixed":
@@ -5519,6 +6250,10 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     # факторы объекта по подгруппам класса (02.10.2026): строка (у частей — по строке на часть) и перечень ниже
     FAV = _factor_view(D, lang)
     rows4 += FAV["rows"]
+    if OV:
+        lists_obj4 = [OV["s4_list"]]
+    else:
+        lists_obj4 = []
     fr_text = PV["fr_text"] if PV else _fr_text(fr, lang)
     if not PV:
         rows4.append(_row(t("franchise", lang), fr_text))
@@ -5530,7 +6265,10 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                   {"title": t("how_title", lang), "items": [_text(h, lang) for h in rate_res["how"]]}]
         anv = {"summary": PV["summary"], "lists": PV["s4_lists"], "json": PV["analytics_json"]}
     else:
-        lists4 = [{"title": t("factors", lang), "items": factors + [rule_text]},
+        # парк ТС: уровень договора — по самому опасному объекту, его признаки
+        f_title = t("obj_factors_title", lang, n=risk["object_index"]) if OV and risk.get("object_index") \
+            else t("factors", lang)
+        lists4 = [{"title": f_title, "items": factors + [rule_text]},
                   {"title": t("how_title", lang),
                    "items": [_text(h, lang) for h in rate_res["how"]]}]
         # аналитика риска (30.09.2026): резюме первым абзацем, таблицы — после «Как посчитан тариф»
@@ -5540,6 +6278,7 @@ def render(D: dict, lang: str, meta: dict) -> dict:
             print("акт: аналитика раздела 4 не показана:", type(e).__name__, e)
             anv = {"summary": None, "lists": [], "json": {"available": False, "reason": "render_error",
                                                           "calibrated": ae.CALIBRATED}}
+    lists4 += lists_obj4                     # парк ТС: ставка и премия по каждому объекту
     if FV.get("list"):
         lists4.append(FV["list"])            # «Вилка ставки» — сразу после «Как посчитан тариф»
     if FAV["lines"]:
@@ -5556,6 +6295,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
         lists4.append({"title": t("fr_alt_title", lang), "items": [a["text"] for a in fr_alts]})
     lists4 += scv["lists"]
     p4 = [anv["summary"]] if anv.get("summary") else []
+    if OV:
+        p4.append(t("obj_analytics_note", lang))
     if D.get("multi_class"):
         p4.append(t("multi_class_note", lang, classes=", ".join(must.get("product_classes") or [])))
     if not fr.get("needed") and fr.get("code") == "fr_not_needed" and fr.get("status") in (None, "none"):
@@ -5610,6 +6351,8 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     p5 += FAV["s5"]
     if FAV["unfilled"]:
         lists5.append({"title": t("fa_unfilled_title", lang), "items": FAV["unfilled"]})
+    if OV and OV["notes"]:
+        p5 += OV["notes"]
     if PV:
         # распределение суммы по классам: подтверждено сотрудником или принято по умолчанию; поля частей
         p5.append(PV["s5_paragraph"])
@@ -5711,6 +6454,16 @@ def render(D: dict, lang: str, meta: dict) -> dict:
                                         "totals": None, "notes": []},
         **({"suggested_parts": PV["json"]["suggested_parts"]} if PV and not PV["json"]["confirmed"] else {}),
         "footer": t("footer", lang),
+        # регион и территория страхования (02.10.2026): особые регионы uz_all (вся республика) и other (текстом)
+        "region": {"code": must.get("region_code"), "label": region_label(must, lang),
+                   "scope": must.get("region_scope"), "text": must.get("region_text"),
+                   "note": t("reg_note_" + must["region_scope"], lang) if must.get("region_scope") else None},
+        "territory": _territory(D, lang),
+        # несколько объектов в одном акте (парк ТС, 02.10.2026); однообъектный акт — пустой список и None
+        "objects": OV["json"] if OV else [],
+        "objects_total": OV["total"] if OV else None,
+        # акт хранится одним снимком и выдаётся на любом из трёх языков без пересчёта (GET /act/{id}?lang=)
+        "langs_available": list(tx.LANGS),
         "downloads": {"docx": f"/act/{meta['id']}.docx?lang={lang}", "pdf": f"/act/{meta['id']}.pdf?lang={lang}",
                       "scoring_pdf": f"/act/{meta['id']}/scoring.pdf?lang={lang}",
                       "scoring_png": f"/act/{meta['id']}/scoring.png?lang={lang}"},
@@ -5728,6 +6481,140 @@ def render(D: dict, lang: str, meta: dict) -> dict:
     except Exception as e:
         print("акт: скоринг не показан:", type(e).__name__, e)
         out["scoring"] = {"available": False, "reason": "render_error", "calibrated": ae.CALIBRATED}
+    return out
+
+
+def _objects_view(D: dict, lang: str) -> dict:
+    """Парк ТС на языке акта: таблицы разделов 1 и 3, строки и перечень раздела 4, пометки раздела 5, JSON objects
+    и objects_total. Подпись объекта — как ввёл сотрудник (без ПД, проверено при вводе)."""
+    lang = tx.lang_of(lang)
+    NA = t("na", lang)
+    items, T = D.get("objects") or [], D.get("objects_total") or {}
+    cols = [t("obj_col_n", lang), t("obj_col_object", lang), t("obj_col_year", lang), t("obj_col_sum", lang),
+            t("obj_col_value", lang), t("obj_col_level", lang), t("obj_col_rate", lang), t("obj_col_premium", lang)]
+    rows1, rows3, lines4, js = [], [], [], []
+    for p in items:
+        lv = tx.label(tx.LEVEL_LABELS, p["level"], lang)
+        rate_txt = pct(p["rate_pct"], lang) if p.get("rate_pct") is not None else NA
+        prem_txt = money(p["premium"], lang) if p.get("premium") is not None else NA
+        year_txt = str(p["year"]) if p.get("year") is not None else NA
+        rows1.append([str(p["index"]), p["label"], year_txt, money(p["sum_insured"], lang),
+                      money(p["object_value"], lang), lv, rate_txt, prem_txt])
+        v = p["value"]
+        vtxt = t("obj_v_" + v["verdict"], lang, ratio=pct(v["ratio_pct"], lang, 2)) if v.get("applicable") \
+            else t("obj_v_na", lang)
+        rows3.append(rows1[-1] + [vtxt])
+        fa = p.get("factor_adjustment") or {}
+        line = t("obj_line", lang, n=p["index"], label=p["label"], level=lv,
+                 rate=pct(p["rate"].get("applied_pct"), lang) if p["rate"].get("applied_pct") is not None else NA,
+                 premium=money(p.get("premium_before_franchise"), lang)
+                 if p.get("premium_before_franchise") is not None else NA)
+        extra = []
+        if p.get("franchise_applied"):
+            extra.append(t("obj_fr", lang, rate=rate_txt, premium=prem_txt))
+        if (fa.get("effect") or {}).get("available"):
+            extra.append(t("obj_fa", lang, mult=_mult(fa.get("product") or 1, lang)))
+        if p["rate"].get("min_applied"):
+            extra.append(t("min_applied", lang))
+        if p.get("below_min"):
+            extra.append(t("obj_below_min", lang, req=pct(p["requested_rate_pct"], lang),
+                           min=pct(p["rate"].get("min_pct"), lang)))
+        lines4.append(line + ("; " + "; ".join(extra) if extra else ""))
+        sc = p.get("scenarios") or {}
+        js.append({
+            "index": p["index"], "label": p["label"], "object_kind": p.get("object_kind"),
+            "kind_label": tx.label({k: v_[1] for k, v_ in tx.OBJECT_KINDS.items()}, p["object_kind"], lang)
+            if p.get("object_kind") in tx.OBJECT_KINDS else None,
+            "year": p.get("year"), "year_source": p.get("year_source"), "mileage": p.get("mileage"),
+            "plate_hint": p.get("plate_hint"), "photo_ids": p.get("photo_ids") or [],
+            "photo_refs_unknown": p.get("photo_refs_unknown") or [], "inspected": bool(p.get("inspected")),
+            "damages": len(p.get("damages") or []), "recognized": p.get("recognized") or [],
+            "class_fields": p.get("class_fields") or {},
+            "sum_insured": p["sum_insured"], "object_value": p["object_value"],
+            "level": p["level"], "level_label": lv,
+            "risk_factors": [{"code": f["code"], "sign": f["sign"], "text": _text(f, lang)}
+                             for f in p["risk"]["factors"]],
+            "rate": {"mode": p["rate"]["mode"], "base_pct": p["rate"].get("base_pct"),
+                     "adj_pct": p["rate"].get("adj_pct"), "calc_pct": p["rate"].get("calc_pct"),
+                     "applied_pct": p["rate"].get("applied_pct"), "min_pct": p["rate"].get("min_pct"),
+                     "min_applied": bool(p["rate"].get("min_applied")),
+                     "factors_applied": bool(p["rate"].get("factors_applied")),
+                     "factor_product": fa.get("product"), "fork_applied": bool(p["rate"].get("fork_applied")),
+                     "rate_type": p["rate"].get("rate_type") or "annual",
+                     "how": [_text(h, lang) for h in p["rate"].get("how") or []]},
+            "rate_pct": p.get("rate_pct"), "premium_before_franchise": p.get("premium_before_franchise"),
+            "premium": p.get("premium"), "premium_text": prem_txt, "franchise_applied": bool(p.get("franchise_applied")),
+            "requested_rate_pct": p.get("requested_rate_pct"), "below_min": bool(p.get("below_min")),
+            "value": {"ratio_pct": v.get("ratio_pct"), "verdict": v.get("verdict"), "applicable": v.get("applicable"),
+                      "text": vtxt, "legal_ref_text": tx.label(tx.LEGAL_REFS, v["legal_ref"], lang)
+                      if v.get("legal_ref") else None},
+            "scenarios": {"available": bool(sc.get("available")),
+                          **({s.lower(): sc["items"][s]["amount"] for s in ae.SCENARIOS3} if sc.get("available")
+                             else {})},
+            "text": lines4[-1], "calibrated": ae.CALIBRATED})
+    cnt = len(items)
+    sd = T.get("scenarios") or {}
+    total_txt = money(T.get("premium"), lang) if T.get("premium") is not None else NA
+    s1_par = t("obj_s1_par", lang, n=cnt, premium=total_txt, sum=money(T.get("sum_insured"), lang),
+               value=money(T.get("object_value"), lang))
+    if T.get("sums_from_objects"):
+        s1_par += " " + t("obj_sums_auto", lang)
+    vb = T.get("value_by_verdict") or {}
+    s3_par = t("obj_s3_par", lang, n=cnt, under=len(vb.get("under") or []), over=len(vb.get("over") or []))
+    rows4 = [_row(t("obj_rate_avg", lang), pct(T.get("rate_avg_before_pct"), lang)
+                  if T.get("rate_avg_before_pct") is not None else NA,
+                  t("obj_rate_avg_note", lang, days=T.get("term_days") or 365)),
+             _row(t("min_rate", lang), pct(D["rate"].get("min_pct"), lang) if D["rate"].get("min_pct") is not None
+                  else NA, _min_src_text(D, lang))]
+    if T.get("premium_before_franchise") is not None and T.get("premium") != T.get("premium_before_franchise"):
+        rows4.append(_row(t("rate_with_fr", lang), pct(T.get("rate_avg_pct"), lang),
+                          t("premium_no_fr", lang, before=money(T["premium_before_franchise"], lang))))
+    rows4.append(_row(t("premium", lang), total_txt, t("obj_premium_note", lang, n=cnt,
+                                                       days=T.get("term_days") or 365)))
+    notes = [t(n_["code"], lang, **{k: (_mult(v_, lang) if k == "mult" and v_ is not None else v_)
+                                    for k, v_ in (n_.get("params") or {}).items()}) for n_ in T.get("notes") or []]
+    lg = sd.get("largest") or {}
+    sm = sd.get("sum") or {}
+    total = {"count": cnt, "sum_insured": T.get("sum_insured"), "object_value": T.get("object_value"),
+             "premium": T.get("premium"), "premium_text": total_txt,
+             "premium_before_franchise": T.get("premium_before_franchise"),
+             "rate_avg_pct": T.get("rate_avg_pct"), "rate_avg_before_pct": T.get("rate_avg_before_pct"),
+             "rate_type": T.get("rate_type"), "term_days": T.get("term_days"), "reference_only": True,
+             "level": T.get("level"), "level_label": tx.label(tx.LEVEL_LABELS, T.get("level") or "moderate", lang),
+             "worst_index": T.get("worst_index"), "levels": T.get("levels"),
+             "value": {k: (T.get("value") or {}).get(k) for k in ("ratio_pct", "verdict", "sum_insured",
+                                                                  "object_value")} if T.get("value") else None,
+             "value_by_verdict": vb,
+             "scenarios": {"largest": {k: lg.get(k) for k in ("index", "label", "PML", "EML", "MFL")} if lg else None,
+                           "sum": {k: sm.get(k) for k in ("PML", "EML", "MFL", "count")} if sm else None,
+                           "rule_text": t("obj_sc_rule", lang)},
+             "bound": bool(T.get("bound")), "sums_from_objects": bool(T.get("sums_from_objects")), "notes": notes,
+             "calibrated": ae.CALIBRATED}
+    w1 = [5, 27, 7, 15, 15, 10, 9, 12]
+    return {
+        "s1_paragraph": s1_par,
+        "s1_list": _li(t("obj_title", lang, n=cnt), [], {"columns": cols, "rows": rows1, "widths": w1}),
+        "s3_paragraph": s3_par,
+        "s3_list": _li(t("obj_s3_title", lang), [], {"columns": cols + [t("obj_col_ratio", lang)], "rows": rows3,
+                                                     "widths": [4, 20, 6, 13, 13, 9, 8, 11, 16]}),
+        "s4_rows": rows4,
+        "s4_list": {"title": t("obj_s4_title", lang), "items": lines4},
+        "notes": notes, "json": js, "total": total}
+
+
+def _objects_sc_how(sc: dict, lang: str) -> list:
+    """Как посчитаны сценарии договора из объектов: правило и обе разбивки (самый крупный объект и сумма)."""
+    d = sc.get("objects") or {}
+    lg, sm = d.get("largest") or {}, d.get("sum") or {}
+    out = [t("obj_sc_rule", lang)]
+    if lg:
+        out.append(t("obj_sc_largest", lang, n=lg.get("index"), label=lg.get("label") or "",
+                     pml=money(lg.get("PML"), lang), eml=money(lg.get("EML"), lang), mfl=money(lg.get("MFL"), lang)))
+    if sm:
+        out.append(t("obj_sc_sum", lang, k=sm.get("count"), pml=money(sm.get("PML"), lang),
+                     eml=money(sm.get("EML"), lang), mfl=money(sm.get("MFL"), lang)))
+    for e in d.get("excluded") or []:
+        out.append(t("obj_sc_excluded", lang, n=e.get("index")))
     return out
 
 
@@ -6073,8 +6960,10 @@ def _exchange_view(D: dict, lang: str) -> dict:
     Акты до 02.10.2026 справки не имеют — available = false."""
     ex = D.get("exchange") or (D.get("analytics") or {}).get("exchange") or {"available": False, "items": []}
     items = [i for i in ex.get("items") or [] if i.get("url")] if ex.get("available") else []
+    # пометка и название источника — на языке акта (в снимке акта они по-русски)
+    loc = {"note": t("ex_note", lang), "source_name": t("ex_source_name", lang)}
     if not items:
-        return {"row": None, "source_line": None, "json": dict(ex, available=False, text=None)}
+        return {"row": None, "source_line": None, "json": dict(ex, available=False, text=None, **loc)}
     from . import uzex_sources as us
     parts = []
     for i in items:
@@ -6086,7 +6975,7 @@ def _exchange_view(D: dict, lang: str) -> dict:
     url = ex.get("url") or items[0]["url"]
     line = t("ex_src", lang, url=url, days=ex.get("days") or 30)
     return {"row": _row(t("ex_label", lang), text, t("ex_note", lang)), "source_line": line,
-            "json": dict(ex, text=text, source_line=line)}
+            "json": dict(ex, text=text, source_line=line, **loc)}
 
 
 def _premium_final(D: dict) -> dict:
@@ -6244,6 +7133,8 @@ def _scenarios_view(sc: Optional[dict], must: dict, lang: str) -> dict:
                   checks=[{"code": c["code"], "params": c.get("params")} for c in sc.get("checks") or []])
     elif sc.get("source") == "parts":
         how = _parts_sc_how(sc, lang)
+    elif sc.get("source") == "objects":
+        how = _objects_sc_how(sc, lang)
     else:
         how = [t("sc_how_source", lang, cls=sc.get("class_code"), rule=t("sc_rule_" + sc["rule"], lang))]
     if classic and sc.get("source") != "template":
@@ -6777,7 +7668,8 @@ def _analytics_view(D: dict, lang: str) -> dict:
             how_txt = "; ".join(how)
             pct_txt = tx.pct_fixed(it["pct"], lang, 1) if it.get("pct") is not None else NA
             scitems.append({"name": it["name"], "amount": it["amount"], "pct": it.get("pct"), "pct_text": pct_txt,
-                            "formula": how_txt, "parts": it["parts"], "chosen": it.get("chosen"),
+                            "formula": how_txt, "parts": [_sc_part_local(p, lang) for p in it["parts"]],
+                            "chosen": it.get("chosen"),
                             "text": t("an_sc_line", lang, name=it["name"], amount=money(it["amount"], lang),
                                       pct=pct_txt, how=how_txt), "calibrated": ae.CALIBRATED})
             scrows.append([it["name"], money(it["amount"], lang) + " (" + pct_txt + ")", how_txt])
@@ -7042,8 +7934,12 @@ def _analytics_view(D: dict, lang: str) -> dict:
         mitems.append(line)
         mrows.append([name, value + cmpx, f"{i.get('period') or '—'}; {where}"])
         msrc += srcs
-    if not sitems2:
+    if ST.get("reason") == "outside":
+        mitems.append(t("an_st_outside", lang))
+    elif not sitems2:
         mitems.append(t("an_st_none", lang, cls=cls))
+    if ST.get("scope") == "republic":
+        mitems.append(t("an_st_republic_note", lang))
     nf = tx.label(tx.STAT_NOT_FOUND, cls, lang) if cls in tx.STAT_NOT_FOUND else \
         ((ST.get("not_found") or {}).get(cls) if lang == "ru" else None)
     if nf:
@@ -7064,7 +7960,8 @@ def _analytics_view(D: dict, lang: str) -> dict:
                     "loss_ratio_pct": mk.get("loss_ratio_pct"), "rate_full_year_pct": mk.get("rate_full_year_pct"),
                     "loss_ratio_full_year_pct": mk.get("loss_ratio_full_year_pct"), "full_year": mk.get("full_year"),
                     "pack": bool(mk.get("pack")), "row_key": mk.get("row_key"), "row_note": row_note,
-                    "pack_choice": mk.get("pack_choice"), "pack_classes": list(mk.get("pack_classes") or []),
+                    "pack_choice": _pc_local(mk.get("pack_choice"), lang, cls),
+                    "pack_classes": list(mk.get("pack_classes") or []),
                     "class_rows": list(mk.get("class_rows") or []),
                     # подпись строки на экране: у комплексного продукта — какой пакет взят и почему
                     "pack_label": (row_note if mk.get("pack_choice") else
@@ -7081,7 +7978,11 @@ def _analytics_view(D: dict, lang: str) -> dict:
                     "lines": list(mitems), "source_lines": list(msrc), "calibrated": ae.CALIBRATED}
     js["stats"] = {"available": bool(ST.get("available")), "region": region_label(must, lang),
                    "indicators": sitems2, "not_found": nf, "applicable": bool(ST.get("applicable")),
-                   "points": ST.get("points"), "calibrated": ae.CALIBRATED}
+                   "points": ST.get("points"), "calibrated": ae.CALIBRATED,
+                   # особый регион (02.10.2026): outside — вне Узбекистана, republic — по республике
+                   "reason": ST.get("reason"), "scope": ST.get("scope"),
+                   "note": t("an_st_outside", lang) if ST.get("reason") == "outside" else
+                   (t("an_st_republic_note", lang) if ST.get("scope") == "republic" else None)}
     lists.append(_li(t("an_market_title", lang), mitems,
                      {"columns": [t("col_indicator", lang), t("col_value", lang), t("col_period", lang)],
                       "rows": mrows, "widths": [40, 32, 28]} if mrows else None, sources=msrc,
@@ -7437,6 +8338,8 @@ def act_make(request: Request, body: dict = Body(...)):
                   "cross_differs": (D.get("cross_check") or {}).get("differs", 0),
                   # скоринг и отчёт бюро — только класс и коды проверок: ни названий, ни ИНН, ни сумм
                   "scoring": (out.get("scoring") or {}).get("class_code"),
+                  # парк ТС и особый регион — только число объектов и код: ни подписей, ни территории текстом
+                  "objects": len(D.get("objects") or []), "region_scope": D["must"].get("region_scope"),
                   "borrower": bool(D.get("borrower")),
                   "borrower_checks": [c["code"] for c in (D.get("borrower") or {}).get("checks") or []]})
         for e in D.get("block_errors") or []:
@@ -7625,17 +8528,22 @@ def _telegram_id(request: Request, user: Optional[dict], init_data: str) -> tupl
     или привязка вошедшего пользователя (users.telegram_id). (id или None, код отказа или None).
     """
     from . import telegram
+    bad = None
     if init_data:
         res = telegram.check_init_data(init_data, telegram.bot_token())
         tid = str(((res.get("user") or {}).get("id")) or "") if res.get("ok") else ""
-        return (tid, None) if tid.isdigit() else (None, "bad_init")
+        if tid.isdigit():
+            return tid, None
+        # подпись не сошлась или устарела (мини-приложение открыто больше суток): запасной путь —
+        # привязка вошедшего пользователя; «bad_init» только если и её нет
+        bad = "bad_init"
     if user and user.get("id"):
         with db.tx() as con:
             r = db.rows(con, "SELECT telegram_id FROM users WHERE id=?", user["id"])
         tid = str((r[0]["telegram_id"] if r else "") or "").strip()
         if tid.isdigit():
             return tid, None
-    return None, "no_telegram"
+    return None, bad or "no_telegram"
 
 
 @router.post("/act/{aid}/send")
@@ -7886,7 +8794,8 @@ def _fa_one(fa: dict, lang: str) -> dict:
         lines.append(t("fa_base_" + (eff.get("base") or "act"), lang, rate=pct(eff["base_pct"], lang)))
     for a in fa.get("applied") or []:
         stp = steps.get(a["group"]) if eff.get("available") else None
-        g, o, note = L(a.get("group_label")) or a["group"], L(a.get("label")) or a["option"], L(a.get("note")) or ""
+        g, o = L(a.get("group_label")) or a["group"], L(a.get("label")) or a["option"]
+        note = _loc_text(a.get("note"), lang, "fa_note_expert")
         kw = {"group": g, "option": o, "coef": _mult(a["coef"], lang), "note": note}
         lines.append(t("fa_line_sum", lang, rate=pct(stp["rate_pct"], lang), delta=_smoney(stp["premium_delta"], lang),
                        **kw) if stp else t("fa_line", lang, **kw))
@@ -7896,9 +8805,9 @@ def _fa_one(fa: dict, lang: str) -> dict:
         if a.get("stat_ref"):
             # фон региона (stat.uz) к фактору: блок stat из данных акта (на дату формирования), строка explain и
             # строка раздела 4; акт до 02.10.2026 без блока — available = false, reason = old_act
-            sb = a.get("stat") or {"available": False, "reason": "old_act",
-                                   "reason_text": "акт сформирован до подключения фона stat.uz",
-                                   "note": ae.STAT_NOTE, "calibrated": ae.CALIBRATED}
+            sb = _fa_stat_local(a.get("stat") or {"available": False, "reason": "old_act",
+                                                  "reason_text": "акт сформирован до подключения фона stat.uz",
+                                                  "note": ae.STAT_NOTE, "calibrated": ae.CALIBRATED}, lang)
             item["stat"] = sb
             sl = _fa_stat_line(sb, g, lang)
             lines.append(sl)
@@ -7956,13 +8865,62 @@ def _fa_one(fa: dict, lang: str) -> dict:
             "stat_rows": stat_rows}
 
 
+_CYR = re.compile(r"[А-Яа-яЁё]")
+
+
+def _loc_text(x, lang: str, fallback_key: Optional[str] = None) -> str:
+    """Подпись {ru, uz, en} или строка шаблона на языке акта. Строка только по-русски в акте на узбекском или
+    английском не печатается: вместо неё — общая подпись fallback_key (или пусто)."""
+    if x is None:
+        return ""
+    if isinstance(x, dict):
+        x = ctpl.localize(x, lang) if x.get(tx.lang_of(lang)) else x.get("ru")
+    s = str(x or "")
+    if tx.lang_of(lang) != "ru" and _CYR.search(s):
+        return t(fallback_key, lang) if fallback_key else ""
+    return s
+
+
+def _region_name_local(name: Optional[str], lang: str) -> str:
+    """Название региона из справочника (по-русски) → на языке акта через словарь регионов; не нашлось — как есть."""
+    if not name or tx.lang_of(lang) == "ru":
+        return name or ""
+    code = region_code(name)
+    if code:
+        got = i18n.t(f"tg.act.reg.{code}", lang)
+        if got and not got.startswith("tg.act."):
+            return got
+    low = _fold(name)
+    if "республика узбекистан" in low or low == "узбекистан":
+        return i18n.t("tg.act.reg.uz_all", lang)
+    return name
+
+
+def _fa_stat_local(sb: dict, lang: str) -> dict:
+    """Блок stat фактора на языке акта: причина, пометка и формула — из act_texts, регион — по словарю."""
+    out = dict(sb)
+    code = sb.get("reason")
+    if code and "fa_stat_r_" + code in tx.TX:
+        out["reason_text"] = t("fa_stat_r_" + code, lang)
+    elif sb.get("reason_text"):
+        out["reason_text"] = _loc_text(sb["reason_text"], lang)
+    out["note"] = t("fa_stat_note", lang)
+    if sb.get("formula"):
+        out["formula"] = t("fa_stat_formula_" + (sb.get("kind") or "value"), lang)
+    if sb.get("region_name"):
+        out["region_name"] = _region_name_local(sb["region_name"], lang)
+    if tx.lang_of(lang) != "ru" and sb.get("name") and _CYR.search(str(sb["name"])):
+        out["name"] = "; ".join(str(x) for x in sb.get("dataset") or []) or None
+    return out
+
+
 def _fa_stat_line(sb: dict, group: str, lang: str) -> str:
     """Строка фона региона к фактору: доля материала стен в жилищном фонде или показатель (газ) со ссылкой."""
-    L = lambda x: ctpl.localize(x, lang) if x is not None else None  # noqa: E731
     if not sb.get("available"):
         return t("fa_stat_none", lang, group=group, reason=sb.get("reason_text") or sb.get("reason") or "—")
-    what = "; ".join(x for x in (L(z) for z in sb.get("labels") or []) if x) or sb.get("name") or ""
-    kw = {"region": sb.get("region_name") or sb.get("region") or "", "period": sb.get("period"), "what": what,
+    what = "; ".join(x for x in (_loc_text(z, lang) for z in sb.get("labels") or []) if x) or sb.get("name") or ""
+    kw = {"region": _region_name_local(sb.get("region_name"), lang) or sb.get("region") or "",
+          "period": sb.get("period"), "what": what,
           "share": tx.pct_fixed(sb.get("share_pct"), lang, 1), "url": sb.get("url") or ""}
     return t("fa_stat_walls" if sb.get("kind") == "walls_share" else "fa_stat_value", lang, **kw)
 
@@ -7977,6 +8935,21 @@ def _factor_view(D: dict, lang: str) -> dict:
              "s5": [], "unfilled": []}
     if not FA:
         return empty
+    if FA.get("by_objects"):
+        objs, rows, lines, s5, unf = [], [], [], [], []
+        for of in FA.get("objects") or []:
+            if not of.get("groups"):
+                continue
+            one = _fa_one(of, lang)
+            n, lab = of.get("index"), of.get("label") or ""
+            objs.append(dict(one["json"], index=n, label=lab))
+            rows.append(_row(t("fa_row_obj", lang, n=n, label=lab), one["row"][0], one["row"][1]))
+            lines += [t("fa_obj", lang, n=n, text=x) for x in one["lines"]]
+            s5 += [t("fa_obj", lang, n=n, text=x) for x in one["s5"]]
+            unf += [t("fa_obj", lang, n=n, text=x) for x in one["unfilled"]]
+        return {"json": {"available": bool(objs), "by_objects": True, "mode": FA.get("mode"), "objects": objs,
+                         "explain": lines, "calibrated": ae.CALIBRATED},
+                "rows": rows, "lines": lines, "s5": s5, "unfilled": unf}
     if FA.get("by_parts"):
         parts, rows, lines, s5, unf = [], [], [], [], []
         for pf in FA.get("parts") or []:
