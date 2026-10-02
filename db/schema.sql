@@ -89,6 +89,20 @@ CREATE TABLE IF NOT EXISTS min_rate_versions (
     note              TEXT
 );
 
+-- Базовая ставка продукта по версиям (импорт продуктов из Excel, app/product_import.py). Каждая загрузка —
+-- своя версия тарифа с датой вступления; products.rate_text — только текущий текст, история — здесь.
+CREATE TABLE IF NOT EXISTS product_rate_versions (
+    tariff_version_id INTEGER PRIMARY KEY REFERENCES tariff_versions(id),
+    product_code      TEXT NOT NULL,
+    base_rate_pct     REAL NOT NULL,
+    rate_type         TEXT NOT NULL DEFAULT 'annual',   -- annual (годовая) | fixed (на весь срок)
+    rate_text_before  TEXT,                             -- текст тарифа продукта до загрузки
+    source            TEXT NOT NULL,                    -- import
+    created_at        TEXT NOT NULL,
+    created_by        TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_product_rate_versions_product ON product_rate_versions(product_code);
+
 -- Коэффициенты андеррайтинга: фактор -> вариант -> множитель
 CREATE TABLE IF NOT EXISTS coefficients (
     id          INTEGER PRIMARY KEY,
@@ -512,8 +526,29 @@ CREATE TABLE IF NOT EXISTS claims (
     cause         TEXT,                     -- причина: пожар, кража, ...
     claimed       REAL,                     -- заявлено
     paid          REAL,                     -- выплачено
-    status        TEXT NOT NULL DEFAULT 'заявлен', -- 'заявлен' | 'оплачен' | 'отказ'
-    source        TEXT                      -- откуда запись: учётная система, ручной ввод
+    status        TEXT NOT NULL DEFAULT 'заявлен', -- 'заявлен' | 'оплачен' | 'урегулирован' | 'в работе' | 'отказ'
+    source        TEXT,                     -- откуда запись: учётная система, ручной ввод, Excel
+    -- поля загрузки из Excel (app/claims_import.py); ФИО страхователя не храним
+    product_code  TEXT,                     -- код продукта (если убыток не привязан к запросу сюрвейера)
+    contract_no   TEXT,                     -- номер договора в учётной системе
+    branch        TEXT,                     -- филиал
+    region        TEXT,                     -- регион
+    sum_insured   REAL,                     -- страховая сумма по договору
+    premium       REAL,                     -- премия по договору
+    batch_id      INTEGER,                  -- последняя загрузка, которая создала или обновила строку (claim_batches)
+    updated_at    TEXT
+);
+
+-- Загрузки страховых случаев из Excel: одна строка — один файл
+CREATE TABLE IF NOT EXISTS claim_batches (
+    id         INTEGER PRIMARY KEY,
+    file_name  TEXT,
+    rows       INTEGER NOT NULL DEFAULT 0,  -- строк в файле
+    created    INTEGER NOT NULL DEFAULT 0,  -- новых случаев
+    updated    INTEGER NOT NULL DEFAULT 0,  -- обновлено по номеру дела
+    skipped    INTEGER NOT NULL DEFAULT 0,  -- строк с ошибками (не записаны)
+    loaded_by  TEXT,
+    loaded_at  TEXT NOT NULL
 );
 
 -- Прогоны калибровки: каждое предложение хранится целиком, применяется только через утверждение
@@ -535,6 +570,7 @@ CREATE TABLE IF NOT EXISTS calibration_runs (
 
 CREATE INDEX IF NOT EXISTS ix_claims_request ON claims(request_id);
 CREATE INDEX IF NOT EXISTS ix_claims_event ON claims(event_date);
+CREATE INDEX IF NOT EXISTS ix_claims_external_no ON claims(external_no);   -- повторная загрузка дела — обновление
 
 -- ============ ПОЛЬЗОВАТЕЛИ И ДОСТУП (app/auth.py) ============
 
@@ -556,6 +592,8 @@ CREATE TABLE IF NOT EXISTS users (
     department    TEXT,                            -- департамент со слов самого человека (свободный текст с подсказками)
     google_sub    TEXT,                            -- вход через Google: вечный идентификатор аккаунта (app/google_auth.py)
     email         TEXT,                            -- почта из аккаунта Google (адрес подтверждён самим Google)
+    unit          TEXT,                            -- отдел внутри департамента (заводит администратор вручную)
+    must_change_password INTEGER NOT NULL DEFAULT 0, -- 1 = временный пароль от администратора: сменить при первом входе
     created_at    TEXT NOT NULL,
     approved_by   TEXT,                            -- логин админа, подтвердившего заявку
     approved_at   TEXT,

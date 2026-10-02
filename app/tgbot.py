@@ -897,6 +897,14 @@ def tg_me(request: Request, view: Optional[str] = None):
                 "admin_available": False, "login_url": GUEST_LOGIN_URL,
                 "view": "user" if as_user else "full", "real_role": None,
                 "reason": "Приложение открыто для всех. Вход нужен только администратору"}
+    if u.get("must_change_password"):
+        # вход по временному паролю (app/staff.py): до смены пароля разделов нет, только смена
+        return {"mode": _mode(), "tg_mode": _mode(), "guest": False, "login_url": "",
+                "status": auth.STATUS_ACTIVE, "must_change_password": True, "next": "PUT /auth/password",
+                "user": {"id": u["id"], "full_name": u["full_name"], "name": u["full_name"], "role": u["role"],
+                         "branch": u.get("branch"), "status": u["status"], "is_admin": False},
+                "rights": [], "can_edit": [], "nav": [], "view": "full", "real_role": u["role"],
+                "admin_available": False, "reason": auth.MUST_CHANGE_DETAIL}
     shown = dict(u, role=auth.ROLE_EMPLOYEE) if as_user else u
     nav = list(NAV_BASE)
     if shown["role"] == "админ":
@@ -910,7 +918,7 @@ def tg_me(request: Request, view: Optional[str] = None):
             "can_edit": can_edit(shown),
             "nav": [{"key": k, "title": t} for k, t in nav],
             "view": "user" if as_user else "full", "real_role": u["role"],
-            "admin_available": u["role"] == "админ",
+            "admin_available": u["role"] == "админ", "must_change_password": False,
             "reason": ""}
 
 

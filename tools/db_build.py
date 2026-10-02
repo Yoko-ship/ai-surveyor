@@ -697,8 +697,11 @@ def main():
             "SELECT code, review_status, review_reason, review_since FROM rules WHERE review_status<>'ok'")]
     except Exception:
         saved_reviews = []
-    for t in ["min_rates", "product_classes", "products", "preventive_measures", "perils", "coefficients",
-              "base_rates", "load_components", "checklists", "rules", "classes", "groups", "tariff_versions"]:
+    # product_rate_versions (импорт продуктов, app/product_import.py) ссылается на tariff_versions и на
+    # продукты справочника — пересобирается вместе с ними, иначе остались бы висячие ссылки
+    for t in ["min_rates", "product_rate_versions", "product_classes", "products", "preventive_measures", "perils",
+              "coefficients", "base_rates", "load_components", "checklists", "rules", "classes", "groups",
+              "tariff_versions"]:
         cur.execute(f"DELETE FROM {t}")
 
     data = json.loads(TARIFF.read_text(encoding="utf-8"))

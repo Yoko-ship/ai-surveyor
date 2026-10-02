@@ -118,6 +118,24 @@ input,select,textarea{font:inherit;color:var(--ink);background:var(--soft);borde
 .frame{width:100%;height:calc(100vh - 150px);min-height:460px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
 .hint{font-size:12px;color:var(--muted);margin:0 0 8px}
 .flag{border-left:3px solid var(--warn);padding-left:9px;color:var(--warn);font-size:12px;margin:0 0 10px}
+.flag.bad{border-color:var(--stop);color:var(--stop)}
+/* загрузки из Excel и сотрудники (02.10.2026): длинные таблицы прокручиваются внутри карточки */
+.scroll.tall{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.scroll.tall thead th{position:sticky;top:0;background:var(--card);z-index:1}
+tr.row-bad td{background:color-mix(in srgb,var(--stop) 11%,transparent)}
+tr.row-warn td{background:color-mix(in srgb,var(--warn) 10%,transparent)}
+td.notes{min-width:220px}
+td.notes span{display:block}td.notes .err{color:var(--stop)}td.notes .wrn{color:var(--warn)}td.notes .chg{color:var(--muted)}
+tr.tot td{font-weight:700;border-top:2px solid var(--line)}
+tr.edit td{background:var(--soft)}
+td.ctl{min-width:250px}td.ctl .btn{margin:0 2px 4px 0}
+td.nw{white-space:nowrap}
+.tile.bad b{color:var(--stop)}
+.secret{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center;margin:10px 0;padding:12px 14px;border:1px dashed var(--warn);border-radius:10px;background:var(--soft)}
+.secret code{font:600 24px var(--mono);letter-spacing:.08em;user-select:all;word-break:break-all}
+.seg{display:inline-flex;flex-wrap:wrap}
+.seg .btn{border-radius:0;margin-left:-1px}.seg .btn:first-child{border-radius:10px 0 0 10px;margin-left:0}.seg .btn:last-child{border-radius:0 10px 10px 0}
+.seg .btn[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);-webkit-text-fill-color:var(--accent);position:relative}
 @media (max-width:860px){
   :root{--rail:48px}
   .app{grid-template-columns:var(--rail) minmax(0,1fr)}
@@ -156,7 +174,7 @@ var NAV = [
  {id:"people", icon:"◉", short:"Люди", title:"Люди",
   why:"Кто работает в системе, кто ждёт подтверждения и кто когда входил.",
   items:[
-   {id:"users",   title:"Пользователи", why:"Список работников: ФИО, департамент, должность, телефон, почта, способ входа, роль."},
+   {id:"users",   title:"Пользователи", why:"Список работников и заведение новых: ФИО, департамент, отдел, должность, телефон, почта, способ входа, роль; правка карточки и сброс пароля."},
    {id:"pending", title:"Заявки на вход", why:"Заявки, поданные логином и паролем. Подтверждение открывает доступ."},
    {id:"logins",  title:"Журнал входов", why:"Строки журнала действий, где действие начинается со слова «вход»."}]},
  {id:"requests", icon:"❑", short:"Запросы", title:"Запросы и согласования",
@@ -169,7 +187,7 @@ var NAV = [
  {id:"tariffs", icon:"₌", short:"Тарифы", title:"Тарифы и справочники",
   why:"Всё, из чего складывается ставка: версии, минимумы, коэффициенты, справочники, нормы износа.",
   items:[
-   {id:"forms",     title:"Версии, ставки, продукты", why:"Формы админки: версия тарифов, минимальная ставка, коэффициент, продукт."},
+   {id:"forms",     title:"Версии, ставки, продукты", why:"Формы админки: версия тарифов, минимальная ставка, коэффициент, продукт; много продуктов сразу — из Excel."},
    {id:"minrates",  title:"Минимальные ставки страховщика", why:"Минимальная ставка и тип ставки по каждому продукту: правка в строке новой версией с датой начала, история версий, импорт из Excel с предпросмотром."},
    {id:"reference", title:"Справочники", why:"Продукты, классы, опасности, коэффициенты, чек-листы, правила, минимальные ставки."},
    {id:"valuation", title:"Оценка: износ и настройки", why:"Процент износа за год, остаточный минимум и настройки оценки."},
@@ -177,8 +195,8 @@ var NAV = [
    {id:"osgor",     title:"ОСГОР: виды деятельности", why:"Справочник видов деятельности и коэффициентов по ним."},
    {id:"vehicle",   title:"Транспорт и спецтехника", why:"Справочник групп техники и документов, по которым её опознают."},
    {id:"review",    title:"Правила к пересмотру", why:"Проверки, помеченные роботом-юристом после изменения нормы."},
-   {id:"calibration", title:"Калибровка", kind:"frame", src:"/calibration",
-    why:"Готовая страница калибровки коэффициентов по убыткам."}]},
+   {id:"calibration", title:"Калибровка и убытки",
+    why:"Страховые случаи из Excel и сводка убыточности по продуктам; вторая вкладка — калибровка коэффициентов по убыткам."}]},
  {id:"market", icon:"↗", short:"Рынок", title:"Рынок и данные",
   why:"Внешние данные рынка и собственные показатели компании.",
   items:[
@@ -238,8 +256,8 @@ function fail(e) {
          '.</p><p class="note">Что сделать: обновите страницу; если сказано про вход — войдите заново ' +
          'на <a href="/login">странице входа</a>; если раздел открыт только администратору — попросите админа.</p></div>';
 }
-function tbl(head, rows, empty) {
-  return '<div class="scroll"><table><thead><tr>' + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+function tbl(head, rows, empty, cls) {
+  return '<div class="scroll' + (cls ? " " + cls : "") + '"><table><thead><tr>' + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") +
     "</tr></thead><tbody>" + (rows.length ? rows.join("") :
     '<tr><td colspan="' + head.length + '">' + (empty || "Записей пока нет") + "</td></tr>") + "</tbody></table></div>";
 }
@@ -263,37 +281,149 @@ function login_method(m) {
 }
 
 /* --- Люди --- */
+/* Заведение сотрудника вручную, правка карточки и сброс пароля (app/staff.py, 02.10.2026).
+   Временный пароль сервер отдаёт один раз — показываем крупно и нигде не храним. */
+var STAFF_FIELDS = [["full_name", "ФИО", true, "Иванов Иван Иванович"], ["position", "Должность", true, "андеррайтер"],
+  ["department", "Департамент", true, "андеррайтинг"], ["unit", "Отдел", false, "имущество"],
+  ["branch", "Филиал", false, "Ташкент"], ["phone", "Телефон", true, "+998 90 123 45 67"]];
+var STAFF_NAMES = {};
+STAFF_FIELDS.forEach(function (f) { STAFF_NAMES[f[0]] = f[1].toLowerCase(); });
+function staff_inputs(u) {
+  return STAFF_FIELDS.map(function (f) {
+    var v = u ? (u[f[0]] || "") : (f[0] === "phone" ? "+998 " : "");
+    return "<label>" + f[1] + (f[2] ? "" : " (необязательно)") + '<input name="' + f[0] + '" value="' + esc(v) + '"' +
+      (f[2] ? " required" : "") + (f[0] === "phone" ? ' type="tel" inputmode="tel"' : "") +
+      ' placeholder="' + esc(f[3]) + '" autocomplete="off"></label>';
+  }).join("");
+}
+function staff_secret(login, pw, what) {
+  return '<div class="secret" role="status"><div><div class="hint" style="margin:0">' + esc(what) + " · логин <b>" + esc(login) +
+    "</b></div><code>" + esc(pw) + "</code></div>" +
+    '<button class="btn btn-secondary btn-sm" type="button" data-copy="' + esc(pw) + '">Скопировать пароль</button>' +
+    '<p class="flag" style="flex-basis:100%;margin:0">Пароль показывается один раз. Передайте его сотруднику лично, ' +
+    "не пересылайте в общих чатах. При первом входе сотрудник задаст свой пароль.</p></div>";
+}
+function copy_text(t, btn) {
+  var done = function () { btn.textContent = "Скопировано"; };
+  var by_hand = function () {
+    var a = document.createElement("textarea"); a.value = t; document.body.appendChild(a); a.select();
+    try { document.execCommand("copy"); done(); } catch (e) { btn.textContent = "Выделите пароль и скопируйте вручную"; }
+    a.remove();
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(done, by_hand);
+  else by_hand();
+}
 V.people_users = async function (el) {
-  var d = await api("/tg/users");
-  var rows = d.items.map(function (u) {
+  var d = await api("/tg/users"), byId = {}, fresh = false;
+  el.innerHTML = (d.can_manage ? '<div class="card"><h3>Добавить сотрудника</h3>' +
+    '<p class="note">Сотрудник сразу получает доступ с ролью «сотрудник». Временный пароль можно не задавать — система ' +
+    "придумает его сама и покажет один раз. При первом входе сотрудник сменит пароль на свой.</p>" +
+    '<form class="f" id="uAdd" autocomplete="off">' + staff_inputs(null) +
+    '<label>Логин<input name="login" required placeholder="i.ivanov" autocapitalize="off" spellcheck="false" autocomplete="off"></label>' +
+    '<label>Временный пароль (необязательно)<input name="temp_password" placeholder="придумает система" autocomplete="new-password"></label>' +
+    '<button class="btn btn-primary">Добавить сотрудника</button></form><div class="msg" id="uAddMsg"></div><div id="uAddOut"></div></div>' : "") +
+    '<div id="uListBox"></div>';
+  var paint = function (u) {
     var way = login_method(u.login_method);
     var mail = u.email || "—";
     var role = '<span class="v ' + (u.is_admin ? "ok" : "dim") + '">' + esc(u.role) + "</span>";
     var st = u.status === "активен" ? "ok" : u.status === "заблокирован" ? "stop" : "warn";
     var ctl = d.can_manage
-      ? (u.is_admin ? '<button class="btn btn-secondary btn-sm" data-act="revoke" data-id="' + u.id + '">Снять права админа</button>'
+      ? '<button class="btn btn-secondary btn-sm" data-act="edit" data-id="' + u.id + '">Изменить</button> ' +
+        '<button class="btn btn-secondary btn-sm" data-act="reset" data-id="' + u.id + '">Сбросить пароль</button> ' +
+        (u.is_admin ? '<button class="btn btn-secondary btn-sm" data-act="revoke" data-id="' + u.id + '">Снять права админа</button>'
                     : '<button class="btn btn-secondary btn-sm" data-act="make" data-id="' + u.id + '">Сделать админом</button>') +
         ' <button class="btn btn-danger btn-sm" data-act="block" data-id="' + u.id + '">Заблокировать</button>'
       : "—";
-    return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.department) + "</td><td>" + esc(u.position) +
+    return "<tr><td>" + esc(u.full_name || u.login) + "</td><td>" + esc(u.department) +
+      (u.unit ? '<br><span class="hint">' + esc(u.unit) + "</span>" : "") + "</td><td>" + esc(u.position) +
       "</td><td>" + esc(u.phone || "—") + "</td><td>" + esc(mail) + "</td><td>" + esc(u.login) + "</td><td>" + esc(way) +
-      "</td><td>" + role + '</td><td><span class="v ' + st + '">' + esc(u.status) + "</span></td><td>" + ctl + "</td></tr>";
-  });
-  el.innerHTML = '<div class="card"><h3>Работники: ' + d.count + "</h3>" +
-    '<p class="note">Права меняет администратор. Последнего администратора снять нельзя — управлять системой станет некому.</p>' +
-    tbl(["ФИО", "Департамент", "Должность", "Телефон", '<span data-i18n="tg.user_email">Почта</span>', "Логин",
-         '<span data-i18n="tg.user_login_method">Вход</span>', "Роль", "Статус", ""], rows, "Работников пока нет") +
-    '<div class="msg" id="uMsg"></div></div>';
+      "</td><td>" + role + '</td><td><span class="v ' + st + '">' + esc(u.status) + "</span>" +
+      (u.must_change_password ? ' <span class="v warn" title="Сотрудник ещё не сменил временный пароль">временный пароль</span>' : "") +
+      '</td><td class="ctl">' + ctl + "</td></tr>";
+  };
+  /* список рисуем отдельно от формы добавления: показанный пароль и набранный текст не пропадают */
+  var load_list = async function (note) {
+    var box = $("#uListBox");
+    try { if (fresh) d = await api("/tg/users"); } catch (e) { box.innerHTML = fail(e); return; }
+    fresh = true;
+    byId = {}; d.items.forEach(function (u) { byId[u.id] = u; });
+    box.innerHTML = '<div class="card"><h3>Работники: ' + d.count + "</h3>" +
+      '<p class="note">Права меняет администратор. Последнего администратора снять нельзя — управлять системой станет некому. ' +
+      "Бейдж «временный пароль» — сотрудник ещё не вошёл и не задал свой пароль.</p>" +
+      '<div id="uOut">' + (note || "") + "</div>" +
+      tbl(["ФИО", "Департамент / отдел", "Должность", "Телефон", '<span data-i18n="tg.user_email">Почта</span>', "Логин",
+           '<span data-i18n="tg.user_login_method">Вход</span>', "Роль", "Статус", ""], d.items.map(paint), "Работников пока нет") +
+      '<div class="msg" id="uMsg"></div></div>';
+    if (window.i18nPaint) window.i18nPaint(box);
+  };
+  await load_list();
+
+  var add = $("#uAdd");
+  if (add) add.onsubmit = async function (e) {
+    e.preventDefault();
+    var m = $("#uAddMsg"), out = $("#uAddOut"), body = {};
+    new FormData(add).forEach(function (v, k) { body[k] = String(v).trim(); });
+    m.className = "msg"; m.textContent = "Заводим сотрудника…"; out.innerHTML = "";
+    try {
+      var r = await send("/tg/users/manual", "POST", body);
+      add.reset(); add.elements["phone"].value = "+998 ";
+      m.textContent = (r.message || "Сотрудник заведён") + "." +
+        (r.temp_password ? "" : " Пароль вы задали сами — передайте его сотруднику лично.");
+      if (r.temp_password) out.innerHTML = staff_secret(r.user.login, r.temp_password, "Временный пароль для " + (r.user.full_name || r.user.login));
+      load_list();
+    } catch (err) { m.className = "msg bad"; m.textContent = "Сотрудник не заведён: " + err.message; }
+  };
+
   el.onclick = async function (e) {
+    var c = e.target.closest("button[data-copy]");
+    if (c) return copy_text(c.dataset.copy, c);
+    if (e.target.closest("button[data-edit-cancel]")) { var open = el.querySelector("tr.edit"); if (open) open.remove(); return; }
     var b = e.target.closest("button[data-act]"); if (!b) return;
-    var id = b.dataset.id, act = b.dataset.act, m = $("#uMsg");
+    var id = b.dataset.id, act = b.dataset.act, m = $("#uMsg"), u = byId[id] || {}, r;
+    if (act === "edit") {
+      var was = el.querySelector("tr.edit"); if (was) was.remove();
+      var tr = document.createElement("tr"); tr.className = "edit";
+      tr.innerHTML = '<td colspan="10"><b>Карточка: ' + esc(u.full_name || u.login) + "</b>" +
+        '<form class="f" style="margin-top:8px" autocomplete="off">' + staff_inputs(u) +
+        '<button class="btn btn-primary">Сохранить изменения</button>' +
+        '<button class="btn btn-secondary" type="button" data-edit-cancel="1">Отменить</button></form><div class="msg"></div></td>';
+      b.closest("tr").after(tr);
+      tr.querySelector("input").focus();
+      tr.querySelector("form").onsubmit = async function (ev) {
+        ev.preventDefault();
+        var f = ev.target, em = tr.querySelector(".msg"), diff = {};
+        STAFF_FIELDS.forEach(function (x) {
+          var v = f.elements[x[0]].value.trim();
+          if (v !== String(u[x[0]] || "")) diff[x[0]] = v;
+        });
+        if (!Object.keys(diff).length) { em.className = "msg"; em.textContent = "Ничего не изменилось — сохранять нечего."; return; }
+        em.className = "msg"; em.textContent = "Сохраняем…";
+        try {
+          r = await send("/tg/users/" + id, "PUT", diff);
+          load_list('<p class="hint">Карточка «' + esc(r.user.full_name || r.user.login) + "» сохранена" +
+            (r.changed.length ? ": изменено — " + esc(r.changed.map(function (k) { return STAFF_NAMES[k] || k; }).join(", ")) : ", изменений нет") + ".</p>");
+        } catch (err) { em.className = "msg bad"; em.textContent = "Не сохранилось: " + err.message; }
+      };
+      return;
+    }
+    if (act === "reset") {
+      if (!confirm("Сбросить пароль сотруднику «" + (u.full_name || u.login) + "»?\n\nТекущий пароль и все открытые входы " +
+                   "перестанут действовать. Система выдаст временный пароль — его нужно передать сотруднику лично.")) return;
+      m.className = "msg"; m.textContent = "Сбрасываем пароль…";
+      try {
+        r = await send("/tg/users/" + id + "/reset-password", "POST", {});
+        load_list(staff_secret(r.login, r.temp_password, "Новый временный пароль для " + (u.full_name || r.login)));
+      } catch (err) { m.className = "msg bad"; m.textContent = "Пароль не сброшен: " + err.message; }
+      return;
+    }
     var ask = act === "block" ? "Заблокировать работника? Он перестанет входить в систему."
             : act === "make" ? "Выдать права администратора?" : "Снять права администратора?";
     if (!confirm(ask)) return;
     m.className = "msg"; m.textContent = "Отправляем…";
     try {
       await send(act === "block" ? "/auth/block/" + id : "/tg/users/" + id + (act === "make" ? "/make-admin" : "/revoke-admin"), "POST", {});
-      open_section("people", "users");
+      load_list();
     } catch (err) { m.className = "msg bad"; m.textContent = "Не вышло: " + err.message; }
   };
 };
@@ -468,8 +598,9 @@ V.tariffs_forms = function (el) {
    '<label>Название<input name="name" required></label><label>Классы<input name="classes" required placeholder="8"></label>' +
    '<label>Текст тарифа<input name="rate_text" placeholder="0,05%"></label><label>Мин. ставка, %<input name="min_rate_pct" type="number" step="0.001"></label>' +
    '<label>ID версии<input name="tariff_version_id" type="number"></label><button class="btn btn-primary">Создать продукт</button></form><div class="msg"></div></div>' +
-   "</div>";
+   "</div>" + prod_import_card();
   bind_forms(el);
+  prod_import_bind();
 };
 V.tariffs_reference = async function (el) {
   var names = [["products", "Продукты"], ["classes", "Классы"], ["perils", "Опасности"], ["coefficients", "Коэффициенты"],
@@ -863,7 +994,238 @@ V.tariffs_review = async function (el) {
     catch (err) { m.className = "msg bad"; m.textContent = "Не вышло: " + err.message; }
   };
 };
-V.tariffs_calibration = function (el) { el.innerHTML = frame("/calibration", "Калибровка"); };
+/* Калибровка — две вкладки, чтобы меню не разрасталось: страховые случаи (исходные данные) и готовая страница калибровки. */
+V.tariffs_calibration = function (el) {
+  el.innerHTML = '<div class="seg" role="tablist" aria-label="Калибровка" style="margin-bottom:12px">' +
+    '<button class="btn btn-secondary btn-sm" type="button" role="tab" data-tab="claims" aria-pressed="true">Страховые случаи</button>' +
+    '<button class="btn btn-secondary btn-sm" type="button" role="tab" data-tab="coef" aria-pressed="false">Калибровка коэффициентов</button></div>' +
+    '<div id="calBody"></div>';
+  var show = function (tab) {
+    el.querySelectorAll("[data-tab]").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.tab === tab)); });
+    if (tab === "claims") claims_tab($("#calBody")); else $("#calBody").innerHTML = frame("/calibration", "Калибровка");
+  };
+  el.querySelector(".seg").onclick = function (e) { var b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); };
+  show("claims");
+};
+
+/* --- Загрузка из Excel: общее для продуктов и страховых случаев (app/product_import.py, app/claims_import.py) ---
+   Порядок один: файл → предпросмотр с ошибками по строкам → «Применить» по token. Записываются только строки без ошибок. */
+async function upload_xlsx(path, file) {
+  var fd = new FormData(); fd.append("file", file);
+  var r = await fetch(path, {method: "POST", body: fd, headers: {Accept: "application/json"}});
+  var b = null; try { b = await r.json(); } catch (e) { b = null; }
+  if (!r.ok) {
+    var d = b && b.detail ? (typeof b.detail === "string" ? b.detail : JSON.stringify(b.detail)) : "";
+    if (r.status === 401) d = d || "Нужно войти в систему";
+    if (r.status === 403) d = d || "Загрузка открыта только администратору";
+    throw new Error(d || ("сервер ответил " + r.status));
+  }
+  return b;
+}
+var IMP_ACT = {create: ["ok", "создать"], update: ["warn", "обновить"], skip: ["dim", "без изменений"]};
+function imp_act(it) {
+  if (it.errors && it.errors.length) return '<span class="v stop">ошибка</span>';
+  var a = IMP_ACT[it.action] || ["dim", it.action || "—"];
+  return '<span class="v ' + a[0] + '">' + esc(a[1]) + "</span>";
+}
+function imp_row(it) {
+  return it.errors && it.errors.length ? '<tr class="row-bad">' : it.warnings && it.warnings.length ? '<tr class="row-warn">' : "<tr>";
+}
+function imp_notes(it) {
+  var out = (it.errors || []).map(function (x) { return '<span class="err">' + esc(x) + "</span>"; })
+    .concat((it.warnings || []).map(function (x) { return '<span class="wrn">' + esc(x) + "</span>"; }))
+    .concat((it.changes || []).map(function (x) { return '<span class="chg">' + esc(x) + "</span>"; }));
+  return out.length ? out.join("") : '<span class="hint">—</span>';
+}
+function imp_tiles(list) {
+  return '<div class="tiles" style="margin-top:12px">' + list.map(function (t) {
+    return '<div class="tile' + (t[2] ? " " + t[2] : "") + '"><b>' + esc(t[0]) + "</b><span>" + esc(t[1]) + "</span></div>";
+  }).join("") + "</div>";
+}
+function money(n) { return n == null || n === "" ? "—" : num(n) + " сум"; }
+function ratio(x) { return x == null ? "—" : (Number(x) * 100).toFixed(1).replace(".", ",") + "%"; }
+function ddmm(s) { var p = String(s || "").slice(0, 10).split("-"); return esc(p.length === 3 ? p[2] + "." + p[1] + "." + p[0] : (s || "—")); }
+
+/* --- продукты из Excel: карточка в «Версии, ставки, продукты», рядом с «Новый продукт» --- */
+function prod_import_card() {
+  return '<div class="card" id="pImp"><h3>Продукты из Excel</h3>' +
+    '<p class="note">Когда продуктов много: скачайте шаблон, заполните и загрузите. Сначала покажем, что изменится; ' +
+    "в справочник запишем только после «Применить» и только строки без ошибок. Из справочника ничего не удаляется.</p>" +
+    '<div class="bar"><button class="btn btn-primary" type="button" id="pPick">Загрузить файл</button>' +
+    '<a class="btn btn-secondary" href="/reference/products/template.xlsx" download>Скачать шаблон</a>' +
+    '<input type="file" id="pFile" accept=".xlsx,.xlsm" hidden></div>' +
+    '<div id="pWork"></div><div id="pList"></div></div>';
+}
+function prod_import_bind() {
+  $("#pPick").onclick = function () { $("#pFile").value = ""; $("#pFile").click(); };
+  $("#pFile").onchange = async function () {
+    var f = this.files[0], w = $("#pWork");
+    if (!f) return;
+    w.innerHTML = '<p class="hint">Разбираем файл «' + esc(f.name) + "»…</p>";
+    try { prod_preview(await upload_xlsx("/reference/products/import", f)); }
+    catch (e) { w.innerHTML = '<p class="flag bad">Файл не принят: ' + esc(e.message) + ". Проверьте, что это шаблон из кнопки «Скачать шаблон», и загрузите снова.</p>"; }
+  };
+  prod_list();
+}
+function prod_preview(b) {
+  var w = $("#pWork"), c = {create: 0, update: 0, skip: 0};
+  b.items.forEach(function (it) { if (!it.errors.length) c[it.action] = (c[it.action] || 0) + 1; });
+  var rows = b.items.map(function (it) {
+    return imp_row(it) + '<td class="n">' + esc(it.row) + "</td><td>" + esc(it.product_code || "—") + "</td><td>" + esc(it.name || "—") +
+      "</td><td>" + esc((it.classes || []).join(", ") || "—") + '</td><td class="n">' + (it.rate_pct == null ? "—" : pct(it.rate_pct)) +
+      '</td><td class="n">' + (it.min_rate_pct == null ? "—" : pct(it.min_rate_pct)) + "</td><td>" + esc(it.rate_type || "—") +
+      "</td><td>" + ddmm(it.effective_from) + "</td><td>" + esc(it.status || "—") + "</td><td>" + imp_act(it) +
+      '</td><td class="notes">' + imp_notes(it) + "</td></tr>";
+  });
+  w.innerHTML = '<h3 style="margin-top:14px">Предпросмотр' + (b.file_name ? ": " + esc(b.file_name) : "") + "</h3>" +
+    '<p class="note">Пока ничего не записано. Красные строки — с ошибками, их не запишем; жёлтые — с предупреждениями, их запишем. ' +
+    "Предпросмотр действует " + esc(b.expires_min || 30) + " мин.</p>" +
+    imp_tiles([[c.create, "будет создано"], [c.update, "будет обновлено"], [c.skip, "пропущено — без изменений"],
+               [b.error_count, "с ошибками — не запишем", b.error_count ? "bad" : ""]]) +
+    ((b.ignored_columns || []).length ? '<p class="flag">Колонки не из шаблона пропущены: ' + esc(b.ignored_columns.join(", ")) + "</p>" : "") +
+    tbl(["Строка", "Код", "Название", "Классы", "Ставка", "Мин. ставка", "Тип ставки", "С даты", "Статус", "Действие", "Что изменится / замечания"],
+        rows, "В файле нет строк с продуктами", "tall") +
+    '<div class="actions"><button class="btn btn-primary" type="button" id="pApply"' + (b.to_write ? "" : " disabled") +
+    ">Применить: записать " + esc(b.to_write || 0) + " стр.</button>" +
+    '<button class="btn btn-secondary" type="button" id="pCancel">Отменить</button></div><div class="msg" id="pMsg"></div>' +
+    (b.to_write ? "" : '<p class="hint">Записывать нечего: все строки либо с ошибками, либо без изменений.</p>');
+  $("#pCancel").onclick = function () { w.innerHTML = ""; };
+  $("#pApply").onclick = async function () {
+    var m = $("#pMsg"), btn = this;
+    btn.disabled = true; m.className = "msg"; m.textContent = "Записываем в справочник…";
+    try {
+      var r = await send("/reference/products/import/apply", "POST", {token: b.token});
+      m.textContent = "Готово: создано " + r.created + ", обновлено " + r.updated + ", пропущено " + r.skipped + ".";
+      $("#pCancel").textContent = "Закрыть предпросмотр";
+      prod_list();
+    } catch (e) {
+      btn.disabled = false; m.className = "msg bad";
+      m.textContent = "Не записано: " + e.message +
+        ". Если предпросмотр устарел — загрузите файл ещё раз.";
+    }
+  };
+}
+async function prod_list() {
+  var box = $("#pList"); if (!box) return;
+  box.innerHTML = '<p class="hint">Загружаем справочник продуктов…</p>';
+  try {
+    var rows = await api("/reference/products");
+    box.innerHTML = '<h3 style="margin-top:16px">Продукты в справочнике: ' + rows.length + "</h3>" +
+      tbl(["Код", "Название", "Классы", "Тариф", "Статус"], rows.map(function (p) {
+        return "<tr><td>" + esc(p.code) + "</td><td>" + esc(p.name) + "</td><td>" + esc(p.classes || "—") + "</td><td>" +
+          esc(p.rate_text || "—") + '</td><td><span class="v ' + (p.status === "действует" ? "ok" : "dim") + '">' + esc(p.status || "—") + "</span></td></tr>";
+      }), "Продуктов пока нет", "tall");
+  } catch (e) { box.innerHTML = '<p class="flag bad">Список продуктов не загрузился: ' + esc(e.message) + "</p>"; }
+}
+
+/* --- страховые случаи: вкладка в «Калибровка» (данные о случаях — основа калибровки по убыткам) --- */
+var CLM = {years: 3};
+function claims_tab(box) {
+  box.innerHTML = '<div class="card"><h3>Загрузка страховых случаев</h3>' +
+    '<p class="note">Файл Excel по шаблону: одна строка — один страховой случай. Повторная загрузка того же номера дела обновляет запись. ' +
+    "ФИО, паспорт, телефон и адрес страхователя не нужны — такие колонки система не загружает.</p>" +
+    '<div class="bar"><button class="btn btn-primary" type="button" id="cPick">Загрузить файл</button>' +
+    '<a class="btn btn-secondary" href="/claims/template.xlsx" download>Скачать шаблон</a>' +
+    '<input type="file" id="cFile" accept=".xlsx,.xlsm" hidden></div><div id="cWork"></div></div>' +
+    '<div class="card"><div class="bar" style="justify-content:space-between"><div><h3>Убытки по продуктам</h3>' +
+    '<p class="note" id="cPeriod" style="margin:0">Загружаем…</p></div>' +
+    '<div class="seg" role="group" aria-label="Период">' + [1, 3, 5].map(function (y) {
+      return '<button class="btn btn-secondary btn-sm" type="button" data-years="' + y + '" aria-pressed="' + (y === CLM.years) + '">' +
+        y + (y === 1 ? " год" : y === 3 ? " года" : " лет") + "</button>";
+    }).join("") + '</div></div><div id="cSum"></div><p class="hint" id="cNote" style="margin-top:8px"></p></div>' +
+    '<div class="card"><h3>Последние загрузки</h3><div id="cBatches"><p class="hint">Загружаем…</p></div></div>';
+  $("#cPick").onclick = function () { $("#cFile").value = ""; $("#cFile").click(); };
+  $("#cFile").onchange = async function () {
+    var f = this.files[0], w = $("#cWork");
+    if (!f) return;
+    w.innerHTML = '<p class="hint">Разбираем файл «' + esc(f.name) + "»…</p>";
+    try { claims_preview(await upload_xlsx("/claims/import", f)); }
+    catch (e) { w.innerHTML = '<p class="flag bad">Файл не принят: ' + esc(e.message) + ". Проверьте, что это шаблон из кнопки «Скачать шаблон», и загрузите снова.</p>"; }
+  };
+  box.querySelector(".seg").onclick = function (e) {
+    var b = e.target.closest("button[data-years]"); if (!b) return;
+    CLM.years = Number(b.dataset.years);
+    box.querySelectorAll(".seg button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    claims_summary();
+  };
+  claims_summary();
+}
+function claims_preview(b) {
+  var w = $("#cWork"), pd = b.pd_columns_ignored || [];
+  var other = (b.warnings || []).filter(function (x) { return x.indexOf("персональными данными") < 0; });
+  var rows = b.items.map(function (it) {
+    return imp_row(it) + '<td class="n">' + esc(it.row) + '</td><td class="nw">' + esc(it.claim_no || "—") + "</td><td>" + imp_act(it) +
+      '</td><td class="notes">' + imp_notes(it) + "</td><td>" + esc(it.product_code || "—") +
+      "</td><td>" + esc(it.class_code || "—") + '</td><td class="nw">' + esc(it.contract_no || "—") + "</td><td>" + esc(it.branch || "—") +
+      (it.region ? '<br><span class="hint">' + esc(it.region) + "</span>" : "") + "</td><td>" + ddmm(it.event_date) +
+      "</td><td>" + esc(it.status || "—") + '</td><td class="n">' + money(it.claimed) + '</td><td class="n">' + money(it.paid) +
+      '</td><td class="n">' + money(it.sum_insured) + '</td><td class="n">' + money(it.premium) + "</td></tr>";
+  });
+  var good = (b.create_count || 0) + (b.update_count || 0);
+  w.innerHTML = '<h3 style="margin-top:14px">Предпросмотр' + (b.file_name ? ": " + esc(b.file_name) : "") + "</h3>" +
+    (pd.length ? '<p class="flag bad"><b>Колонки с персональными данными не загружены:</b> ' + esc(pd.join(", ")) +
+      ". Их содержимое не сохраняется в системе. В следующий раз удалите эти колонки из файла.</p>" : "") +
+    other.map(function (x) { return '<p class="flag">' + esc(x) + "</p>"; }).join("") +
+    '<p class="note">Пока ничего не записано. Красные строки — с ошибками, их не загрузим; жёлтые — с предупреждениями, их загрузим.' +
+    (b.expires_min ? " Предпросмотр действует " + esc(b.expires_min) + " мин." : "") + "</p>" +
+    imp_tiles([[b.create_count || 0, "будет создано"], [b.update_count || 0, "будет обновлено"],
+               [b.error_count || 0, "с ошибками — не загрузим", b.error_count ? "bad" : ""]]) +
+    tbl(["Строка", "№ дела", "Действие", "Замечания", "Продукт", "Класс", "Договор", "Филиал / регион", "Дата события", "Статус",
+         "Заявлено", "Выплачено", "Страховая сумма", "Премия"], rows, "В файле нет строк со страховыми случаями", "tall") +
+    '<div class="actions"><button class="btn btn-primary" type="button" id="cApply"' + (good ? "" : " disabled") +
+    ">Применить: загрузить " + good + " стр.</button>" +
+    '<button class="btn btn-secondary" type="button" id="cCancel">Отменить</button></div><div class="msg" id="cMsg"></div>' +
+    (good ? "" : '<p class="hint">Загружать нечего: в каждой строке есть ошибка. Исправьте файл и загрузите снова.</p>');
+  $("#cCancel").onclick = function () { w.innerHTML = ""; };
+  $("#cApply").onclick = async function () {
+    var m = $("#cMsg"), btn = this;
+    btn.disabled = true; m.className = "msg"; m.textContent = "Загружаем случаи…";
+    try {
+      var r = await send("/claims/import/apply", "POST", {token: b.token});
+      m.innerHTML = "Загрузка № " + esc(r.batch_id) + ": строк " + r.rows + ", создано " + r.created + ", обновлено " + r.updated +
+        ", пропущено " + r.skipped + "." + ((r.errors || []).length ? '<br>Пропущены из-за ошибок: ' + r.errors.map(function (x) {
+          return "строка " + esc(x.row) + (x.claim_no ? " (дело " + esc(x.claim_no) + ")" : ""); }).join(", ") + "." : "");
+      $("#cCancel").textContent = "Закрыть предпросмотр";
+      claims_summary();
+    } catch (e) {
+      btn.disabled = false; m.className = "msg bad";
+      m.textContent = "Не загружено: " + e.message + ". Если предпросмотр устарел — загрузите файл ещё раз.";
+    }
+  };
+}
+async function claims_summary() {
+  var s = $("#cSum"); if (!s) return;
+  s.innerHTML = '<p class="hint">Считаем…</p>';
+  try {
+    var d = await api("/claims/summary?years=" + CLM.years), t = d.totals || {};
+    $("#cPeriod").textContent = "Период: с " + ddmm(d.period_from) + " по " + ddmm(d.period_to) + ". Суммы — в сумах.";
+    var refused = 0, paidc = 0;
+    var rows = d.items.map(function (x) {
+      refused += x.refused || 0; paidc += x.paid_cases || 0;
+      return "<tr><td>" + esc(x.product_code) + (x.product_name ? '<br><span class="hint">' + esc(x.product_name) + "</span>" : "") +
+        "</td><td>" + esc(x.class_code) + (x.class_name ? '<br><span class="hint">' + esc(x.class_name) + "</span>" : "") +
+        '</td><td class="n">' + num(x.cases) + '</td><td class="n">' + num(x.refused) + '</td><td class="n">' + num(x.paid_cases) +
+        '</td><td class="n">' + money(x.claimed) + '</td><td class="n">' + money(x.paid) + '</td><td class="n">' + money(x.avg_paid) +
+        '</td><td class="n">' + money(x.premium) + '</td><td class="n">' + ratio(x.loss_ratio) + "</td></tr>";
+    });
+    if (rows.length) rows.push('<tr class="tot"><td colspan="2">Итого</td><td class="n">' + num(t.cases) + '</td><td class="n">' + num(refused) +
+      '</td><td class="n">' + num(paidc) + '</td><td class="n">' + money(t.claimed) + '</td><td class="n">' + money(t.paid) +
+      '</td><td class="n">—</td><td class="n">' + money(t.premium) + '</td><td class="n">' + ratio(t.loss_ratio) + "</td></tr>");
+    s.innerHTML = tbl(["Продукт", "Класс", "Случаев", "Отказов", "С выплатой", "Заявлено", "Выплачено", "Средняя выплата", "Премия", "Убыточность"],
+      rows, "За выбранный период случаев нет. Загрузите файл выше.", "tall");
+    $("#cNote").textContent = d.note || "";
+    $("#cBatches").innerHTML = tbl(["№", "Файл", "Строк", "Создано", "Обновлено", "Пропущено", "Кто загрузил", "Когда"],
+      (d.batches || []).map(function (x) {
+        return '<tr><td class="n">' + esc(x.id) + "</td><td>" + esc(x.file_name || "—") + '</td><td class="n">' + num(x.rows) +
+          '</td><td class="n">' + num(x.created) + '</td><td class="n">' + num(x.updated) + '</td><td class="n">' + num(x.skipped) +
+          "</td><td>" + esc(x.loaded_by || "—") + "</td><td>" + when(x.loaded_at) + "</td></tr>";
+      }), "Загрузок пока нет");
+  } catch (e) {
+    s.innerHTML = '<p class="flag bad">Сводка не загрузилась: ' + esc(e.message) + "</p>";
+    $("#cPeriod").textContent = ""; $("#cBatches").innerHTML = '<p class="hint">—</p>';
+  }
+}
+
 
 /* --- Рынок и данные --- */
 V.market_stats = function (el) { el.innerHTML = frame("/stats", "Динамика рынка"); };

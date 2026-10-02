@@ -275,6 +275,19 @@ ADDED_COLUMNS = {
         ("department", "TEXT"),                # департамент со слов человека (свободный текст с подсказками)
         ("google_sub", "TEXT"),                # вход через Google: вечный идентификатор аккаунта (app/google_auth.py)
         ("email", "TEXT"),                     # рабочая почта из аккаунта Google (проверена самим Google)
+        ("unit", "TEXT"),                      # отдел: сотрудника заводит администратор вручную (app/staff.py)
+        ("must_change_password", "INTEGER NOT NULL DEFAULT 0"),   # временный пароль — сменить при входе
+    ],
+    "claims": [
+        # загрузка страховых случаев из Excel (app/claims_import.py)
+        ("product_code", "TEXT"),
+        ("contract_no", "TEXT"),
+        ("branch", "TEXT"),
+        ("region", "TEXT"),
+        ("sum_insured", "REAL"),
+        ("premium", "REAL"),
+        ("batch_id", "INTEGER"),
+        ("updated_at", "TEXT"),
     ],
     "pd_consents": [
         # обязательные поля из раздела 7 docs/Регистрация и роли.md

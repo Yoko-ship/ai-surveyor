@@ -535,6 +535,8 @@ def people(con) -> list:
                     "department": u.get("department") or "", "position": u.get("position") or "",
                     **contacts(u), "role": u["role"], "status": u["status"],
                     "is_admin": u["role"] == ADMIN, "branch": u.get("branch") or "",
+                    "unit": u.get("unit") or "",
+                    "must_change_password": bool(u.get("must_change_password")),
                     "telegram": bool(u.get("telegram_id")), "login_method": login_method(u)})
     return out
 

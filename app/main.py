@@ -391,13 +391,15 @@ def create_request(body: RequestIn, request: Request = None):
         oid = cur.lastrowid
         for p in result["perils_included"]:
             con.execute("INSERT INTO object_perils VALUES (?,?,1)", (oid, p))
-        tv = db.rows(con, "SELECT id FROM tariff_versions WHERE level='компания' ORDER BY effective_from DESC LIMIT 1")
+        from . import min_rates as _mrs
+        # действующая на сегодня версия уровня «компания», без версий правок по одному продукту
+        tv_id = _mrs.current_version(con, "компания")
         r = result["rates"]
         cur = con.execute(
             "INSERT INTO calculations (request_id, object_id, tariff_version_id, net_rate_pct, risk_load_pct, cat_load_pct,"
             " gross_rate_pct, min_rate_pct, applied_rate_pct, premium, verdict, explanation, created_at)"
             " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (rid, oid, tv[0]["id"] if tv else None, r["net_pct"], r["risk_load_pct"], r["cat_load_pct"],
+            (rid, oid, tv_id, r["net_pct"], r["risk_load_pct"], r["cat_load_pct"],
              r["technical_pct"], r["min_pct"], r["applied_pct"], result["premium"], result["verdict"],
              json.dumps({"chain": result["explanation"], "manual": r["manual"], "manual_reason": body.manual_reason},
                         ensure_ascii=False), db.now()))
@@ -1054,7 +1056,10 @@ for _mod, _name in (("portfolio", "portfolio_router"), ("proposal", "proposal_ro
                     ("vehicle_class", "vehicle_router"), ("osgor", "osgor_router"), ("finance", "finance_router"),
                     ("risk_api", "risk_router"), ("analysis_docs", "analysis_docs_router"),
                     ("legal", "legal_router"), ("surveyor_chat", "surveyor_chat_router"),
-                    ("act", "act_router"), ("min_rates", "min_rates_router")):
+                    ("act", "act_router"), ("min_rates", "min_rates_router"),
+                    # админ-панель 02.10.2026: сотрудник вручную, импорт продуктов и страховых случаев
+                    ("staff", "staff_router"), ("product_import", "product_import_router"),
+                    ("claims_import", "claims_import_router")):
     try:
         _m = __import__(f"app.{_mod}", fromlist=["router"])
         app.include_router(_m.router)

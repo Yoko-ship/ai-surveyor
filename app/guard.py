@@ -169,13 +169,20 @@ ADMIN_METHOD_PATH = {("POST", "/valuation/norms"), ("DELETE", "/valuation/norms"
                      ("PUT", "/osgor/brv"),            # размер БРВ для ОСГОР
                      ("PUT", "/analytics/risk/thresholds"),   # пороги уровня риска аналитики
                      ("PUT", "/act/settings"),         # пороги лёгкого движка акта (app/act.py)
-                     ("POST", "/legal/reindex")}       # пересборка индекса законодательства (app/legal.py)
+                     ("POST", "/legal/reindex"),       # пересборка индекса законодательства (app/legal.py)
+                     # админ-панель 02.10.2026: сотрудник вручную, импорт продуктов и страховых случаев
+                     ("POST", "/tg/users/manual"),
+                     ("POST", "/reference/products/import"), ("POST", "/reference/products/import/apply"),
+                     ("POST", "/claims/import"), ("POST", "/claims/import/apply")}
 # то же по началу пути: у удаления нормы износа код в адресе (/valuation/norms/{code}),
 # и точное совпадение из ADMIN_METHOD_PATH его не ловило
 ADMIN_METHOD_PREFIX = {("DELETE", "/valuation/norms/"),
                        ("PUT", "/act/templates/"),           # шаблоны анализа по классам (app/act.py)
                        # минимальные ставки страховщика: правка и импорт из Excel (app/min_rates.py)
-                       ("PUT", "/reference/min-rates/"), ("POST", "/reference/min-rates/")}
+                       ("PUT", "/reference/min-rates/"), ("POST", "/reference/min-rates/"),
+                       # карточка сотрудника и сброс пароля (/tg/users/{uid}, /tg/users/{uid}/reset-password);
+                       # make-admin и revoke-admin под тот же префикс — они и так только для админа
+                       ("PUT", "/tg/users/"), ("POST", "/tg/users/")}
 
 # --- разделы, закрытые ролью (таблица прав: docs/Регистрация и роли.md, раздел 8) ---
 # Админ проходит везде (auth.check_role), поэтому в списках его можно не повторять.
@@ -322,20 +329,47 @@ def _deny(request: Request, code: int, detail: str):
     return JSONResponse({"detail": detail}, status_code=code)
 
 
+# Временный пароль (app/staff.py): пока он не сменён, сессия открывает только эти адреса — проверка идёт
+# ДО белого списка, иначе с временным паролем оставались бы доступны /auth/admin-request и подобные.
+# Страницы /tg и /login, статика и вход заново — чтобы человек вообще мог дойти до смены пароля.
+MUST_CHANGE_OPEN_EXACT = {"/tg", "/login", "/health", "/theme.js", "/favicon.ico", "/i18n.js",
+                          "/auth/login", "/auth/verify-code", "/tg/me"}
+MUST_CHANGE_OPEN_PREFIX = ("/static/", "/i18n/")
+
+
+def must_change_blocks(path: str) -> bool:
+    return not (path in auth.MUST_CHANGE_ALLOWED or path in MUST_CHANGE_OPEN_EXACT
+                or path.startswith(MUST_CHANGE_OPEN_PREFIX))
+
+
+def _must_change_deny():
+    return JSONResponse({"detail": auth.MUST_CHANGE_DETAIL, "must_change_password": True}, status_code=403)
+
+
 async def check(request: Request):
     """None — пропустить дальше; иначе готовый ответ-отказ."""
     path = request.url.path.rstrip("/") or "/"
     dev = dev_bypass(request)
-    if is_open(path, dev) or dev:
+    if dev:
+        return None
+    user = None
+    if must_change_blocks(path) and auth.request_token(request):
+        user = await run_in_threadpool(user_of, request)
+        if user and user.get("must_change_password"):
+            return _must_change_deny()
+    if is_open(path, dev):
         return None
     if path in DEV_ONLY:                                  # документация API на рабочем сервере закрыта
         return _deny(request, 404, "страница недоступна")
-    user = await run_in_threadpool(user_of, request)
+    if user is None:
+        user = await run_in_threadpool(user_of, request)
     if not user:
         # гостевой режим: приложение открыто для чтения и расчёта, менять данные нельзя
         if guest_allowed(request.method, path):
             return guest_limit(request, request.method, path, request.scope.get("surveyor_guest") or "")
         return _deny(request, 401, NEED_LOGIN)
+    if user.get("must_change_password") and must_change_blocks(path):
+        return _must_change_deny()
     if needs_admin(request.method, path) and user["role"] != ADMIN:
         return _deny(request, 403, "нужны права администратора")
     roles = allowed_roles(path)

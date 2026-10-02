@@ -39,7 +39,10 @@ ALPHA = {0.90: 1.3, 0.95: 1.645, 0.98: 2.0}
 N_FULL = 1000            # объём выборки, при котором своей статистике доверяем полностью (Z = 1)
 MIN_CONTRACTS = 30       # меньше — группа в калибровку не идёт
 MIN_CLAIMS = 5           # меньше — частота и тяжесть ненадёжны
-CLAIM_STATUSES = ("заявлен", "оплачен", "отказ")
+# «урегулирован» и «в работе» — статусы загрузки из Excel (app/claims_import.py)
+CLAIM_STATUSES = ("заявлен", "оплачен", "урегулирован", "в работе", "отказ")
+PAID_STATUSES = ("оплачен", "урегулирован")       # размер убытка — выплата
+NO_OBJECT_TYPE = "не указан"                       # группа для убытков без вида объекта
 METHOD = "burning cost (CII M97) × теория доверия Z = sqrt(n/1000); рисковая надбавка по методике Росстрахнадзора"
 
 
@@ -139,8 +142,11 @@ def _contracts(con, period_from: str, period_to: str) -> list:
 def _claims(con, period_from: str, period_to: str, request_ids: set) -> tuple:
     """
     Убытки к выборке: все, что привязаны к договорам выборки (по договорному базису), плюс убытки
-    без привязки к договору, если дата события попала в период и указаны класс и тип объекта.
-    Отказы не считаются. Размер убытка — выплачено, а для ещё не оплаченных — заявлено (incurred).
+    без привязки к договору, если дата события попала в период и указан класс (загрузка из Excel пишет
+    класс всегда; без вида объекта убыток идёт в группу «не указан» — виден в экспозиции, но ставку
+    по нему калибровка не предлагает: базовой ставки для такой группы нет).
+    Отказы не считаются. Размер убытка — выплачено (оплачен, урегулирован), а для ещё не оплаченных —
+    заявлено (incurred).
     Возвращает (список убытков, число убытков без привязки).
     """
     rows = db.rows(con, "SELECT * FROM claims WHERE status <> 'отказ'")
@@ -149,12 +155,13 @@ def _claims(con, period_from: str, period_to: str, request_ids: set) -> tuple:
         linked = c["request_id"] in request_ids
         if not linked:
             ev = c["event_date"] or c["reported_date"] or ""
-            if not (c["class_code"] and c["object_type"] and period_from <= ev[:10] <= period_to):
+            if not (c["class_code"] and period_from <= ev[:10] <= period_to):
                 continue
             unlinked += 1
-        amount = c["paid"] if c["status"] == "оплачен" and c["paid"] is not None else (c["claimed"] or c["paid"] or 0)
+        amount = c["paid"] if c["status"] in PAID_STATUSES and c["paid"] is not None else (c["claimed"] or c["paid"] or 0)
+        ot = c["object_type"] or (None if linked else NO_OBJECT_TYPE)
         out.append({"id": c["id"], "request_id": c["request_id"], "class_code": c["class_code"],
-                    "object_type": c["object_type"], "amount": float(amount), "cause": c["cause"]})
+                    "object_type": ot, "amount": float(amount), "cause": c["cause"]})
     return out, unlinked
 
 
@@ -526,7 +533,14 @@ def add_claim(c: ClaimIn):
 
 @router.get("/claims")
 def list_claims(status: Optional[str] = None, limit: int = 200):
-    sql, args = "SELECT c.*, r.external_no contract_no, r.product_code FROM claims c LEFT JOIN requests r ON r.id = c.request_id WHERE 1=1", []
+    # колонки перечислены явно: у claims теперь свои product_code и contract_no (загрузка из Excel),
+    # а при совпадении имён строка базы отдаёт первое из них
+    sql, args = ("SELECT c.id, c.request_id, c.external_no, c.class_code, c.object_type, c.event_date,"
+                 " c.reported_date, c.paid_date, c.cause, c.claimed, c.paid, c.status, c.source,"
+                 " c.branch, c.region, c.sum_insured, c.premium, c.batch_id, c.updated_at,"
+                 " COALESCE(c.contract_no, r.external_no) AS contract_no,"
+                 " COALESCE(c.product_code, r.product_code) AS product_code"
+                 " FROM claims c LEFT JOIN requests r ON r.id = c.request_id WHERE 1=1"), []
     if status:
         sql += " AND c.status=?"; args.append(status)
     sql += " ORDER BY c.id DESC LIMIT ?"; args.append(limit)

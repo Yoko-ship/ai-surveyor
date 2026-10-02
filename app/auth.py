@@ -129,6 +129,17 @@ class CodeIn(BaseModel):
     code: str
 
 
+class PasswordIn(BaseModel):
+    old_password: str = ""
+    new_password: str = ""
+
+
+PASSWORD_MIN = 8
+# Пока временный пароль не сменён, сессия открывает только эти адреса (app/guard.py)
+MUST_CHANGE_ALLOWED = {"/auth/password", "/auth/me", "/auth/logout"}
+MUST_CHANGE_DETAIL = "Смените временный пароль: PUT /auth/password"
+
+
 # ---------- заглушка отправки кода ----------
 
 def send_code(user: dict, code: str) -> Optional[str]:
@@ -150,9 +161,10 @@ def send_code(user: dict, code: str) -> Optional[str]:
 
 def _public(u: dict) -> dict:
     return {k: u.get(k) for k in ("id", "login", "full_name", "phone", "role", "branch", "agent_eais_id",
-                                  "position", "department",
+                                  "position", "department", "unit",
                                   "status", "created_at", "approved_by", "approved_at", "last_login")
-            } | {"telegram": bool(u.get("telegram_id"))}
+            } | {"telegram": bool(u.get("telegram_id")),
+                 "must_change_password": bool(u.get("must_change_password"))}
 
 
 def _user_by_login(con, login: str) -> Optional[dict]:
@@ -300,7 +312,11 @@ def login_user(con, data: LoginIn, ip: str = "", user_agent: str = "") -> dict:
     _check_can_login(con, u)
     if not u["telegram_id"]:
         token, exp = create_session(con, u, ip, user_agent)
-        return {"step": "done", "token": token, "expires_at": exp, "user": _public(u)}
+        out = {"step": "done", "token": token, "expires_at": exp, "user": _public(u)}
+        if u.get("must_change_password"):
+            # временный пароль от администратора: до смены сессия пускает только в MUST_CHANGE_ALLOWED
+            out |= {"must_change_password": True, "next": "PUT /auth/password", "message": MUST_CHANGE_DETAIL}
+        return out
     # второй шаг: одноразовый код
     code = f"{secrets.randbelow(10**6):06d}"
     con.execute("DELETE FROM login_codes WHERE user_id=?", (u["id"],))
@@ -328,7 +344,32 @@ def verify_login_code(con, data: CodeIn, ip: str = "", user_agent: str = "") -> 
     con.execute("DELETE FROM login_codes WHERE user_id=?", (u["id"],))
     _check_can_login(con, u)
     token, exp = create_session(con, u, ip, user_agent)
-    return {"step": "done", "token": token, "expires_at": exp, "user": _public(u)}
+    out = {"step": "done", "token": token, "expires_at": exp, "user": _public(u)}
+    if u.get("must_change_password"):
+        out |= {"must_change_password": True, "next": "PUT /auth/password", "message": MUST_CHANGE_DETAIL}
+    return out
+
+
+def change_password(con, user: dict, data: PasswordIn, keep_token: Optional[str] = None) -> dict:
+    """Смена пароля самим человеком. Старый пароль обязателен — и временный тоже: сессию могли оставить
+    открытой на чужом компьютере. Остальные сессии закрываются, текущая остаётся."""
+    u = _user_by_id(con, user["id"])
+    if not check_password(data.old_password or "", u["password_hash"], u["salt"]):
+        db.audit(con, u["login"], "смена пароля: неверный текущий пароль", f"user:{u['id']}", None)
+        raise HTTPException(403, "Текущий пароль не подходит")
+    new = data.new_password or ""
+    if len(new) < PASSWORD_MIN:
+        raise HTTPException(422, f"Новый пароль — не короче {PASSWORD_MIN} символов")
+    if new == data.old_password:
+        raise HTTPException(422, "Новый пароль должен отличаться от временного")
+    pw_hash, salt = hash_password(new)
+    con.execute("UPDATE users SET password_hash=?, salt=?, must_change_password=0 WHERE id=?",
+                (pw_hash, salt, u["id"]))
+    if keep_token:
+        con.execute("DELETE FROM sessions WHERE user_id=? AND token<>?", (u["id"], keep_token))
+    db.audit(con, u["login"], "пароль изменён", f"user:{u['id']}",
+             {"был временный": bool(u.get("must_change_password"))})
+    return {"ok": True, "must_change_password": False, "message": "Пароль изменён"}
 
 
 def session_user(con, token: Optional[str], extend: bool = True) -> Optional[dict]:
@@ -522,6 +563,13 @@ def logout(request: Request, response: Response):
         logout_session(con, request_token(request))
     response.delete_cookie(COOKIE, path="/")
     return {"ok": True}
+
+
+@router.put("/auth/password")
+def put_password(body: PasswordIn, request: Request, user: dict = Depends(current_user)):
+    """Смена пароля: {old_password, new_password}. Обязательна после входа с временным паролем."""
+    with db.tx() as con:
+        return change_password(con, user, body, keep_token=request_token(request))
 
 
 @router.get("/auth/me")

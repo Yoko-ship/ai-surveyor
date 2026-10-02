@@ -304,15 +304,9 @@ def insurer_name(settings: dict) -> Optional[str]:
 
 
 def tariff_version(con, level: str) -> Optional[int]:
-    """Действующая версия тарифов уровня (без версий отдельных правок минимальной ставки — их id в D["min_rate"])."""
-    today = date.today().isoformat()
-    mrs.ensure(con)
-    r = con.execute("SELECT id FROM tariff_versions WHERE level=? AND effective_from <= ? AND "
-                    "(effective_to IS NULL OR effective_to >= ?) AND id NOT IN "
-                    "(SELECT tariff_version_id FROM min_rate_versions) "
-                    "ORDER BY effective_from DESC, id DESC LIMIT 1",
-                    (level, today, today)).fetchone()
-    return r[0] if r else None
+    """Действующая версия тарифов уровня (без версий правок по одному продукту — минимальной ставки, её id
+    в D["min_rate"], и базовой ставки из импорта продуктов)."""
+    return mrs.current_version(con, level)
 
 
 # --------------------------------------------------------------------------- #
