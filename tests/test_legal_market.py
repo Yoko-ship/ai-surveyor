@@ -468,6 +468,18 @@ def check_competitor_intent():
     ok("статистика класса — только короткой строкой в конце", r["answer"]["text"].rstrip().endswith(
         r["market_line"]) if r.get("market_line") else "НАПП" not in r["answer"]["text"][:120],
        r.get("market_line"))
+    if (legal.market_notes_dir() / "Конкуренты — продукты и условия.md").exists():
+        r = ask("какая франшиза по КАСКО у конкурентов", sid="cmp-t")
+        first = (r["citations"] or [{}])[0].get("quote") or ""
+        names = ("Euroasia", "Kapital", "Semurg", "SQB", "Gross", "Alfa", "Imkon", "Neo")
+        ok("первая цитата: слово «франшиза» и название компании, без «|» и «MKT-»",
+           "франшиз" in first.lower() and any(n in first for n in names) and "|" not in first
+           and "MKT-" not in first, first)
+        ok("ответ начинается сводкой по компаниям («Компания — …; …»)",
+           any(r["answer"]["text"].startswith(n) for n in names) and "; " in r["answer"]["text"].split(".")[0],
+           r["answer"]["text"][:200])
+        ok("в ответе нет служебных строк обзора", "MKT-" not in r["answer"]["text"]
+           and "Цены могут отличаться" not in r["answer"]["text"] and "|" not in r["answer"]["text"])
     r = ask("что продаёт Gross", sid="cmp-g")
     ok("«что продаёт Gross» → документы Gross первыми", r.get("intent") == "competitor" and r["citations"]
        and "Gross" in (r["citations"][0].get("company") or ""), [c.get("company") for c in r["citations"]])
