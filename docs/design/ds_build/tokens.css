@@ -1,0 +1,66 @@
+/* Токены. Раскладка: компактное окно M3 (0–599 dp), поля 16, сетка 4; один акцент — синий INSON. */
+:root{
+  /* цвет — Revolut Open Design, дословно */
+  --bg:#f7f8fb; --surface:#ffffff; --surface-warm:#eef4ff;
+  --fg:#111827; --fg-2:#334155; --muted:#64748b;
+  --border:#dbe3ef; --border-soft:#edf2f7;
+  --warn:#f59e0b; --danger:#ef4444;
+  /* заменено под INSON */
+  --accent:#1D2C8F; --accent-on:#ffffff; --success:#22A85A;
+  /* производные (наши): мягкие подложки, текст статусов с контрастом AA, шкала балла */
+  --accent-soft:#e6e9f7; --success-on:#052e16; --success-fg:#157a3f; --success-soft:#e3f5ea;
+  --warn-fg:#b45309; --warn-soft:#fef3d7; --danger-fg:#c62828; --danger-soft:#fde8e8; --lime:#84b53a;
+  --scrim:rgba(17,24,39,.45); --stage:#e9edf5; --frame:#0b1020;
+  --cam:#151c38; --cam-2:#26345f; --cam-ink:#e9eeff; --cam-shutter:#ffffff; --ph-1:#c9d1e6; --ph-2:#8e9ac0;
+  --logo-ins:#1D2C8F; --logo-on:#22A85A;
+  /* шрифты — Google Fonts */
+  --font-sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  /* шкала текста — Revolut */
+  --text-xs:12px; --text-sm:14px; --text-base:16px; --text-lg:18px; --text-xl:24px; --text-2xl:36px;
+  --leading-body:1.5; --leading-tight:1.02; --tracking-display:-0.03em;
+  /* роли типографики — Material 3 (размер/интерлиньяж/вес) */
+  --t-display-s:700 36px/44px var(--font-sans);
+  --t-headline-s:700 24px/32px var(--font-sans);
+  --t-title-l:600 22px/28px var(--font-sans);
+  --t-title-m:500 16px/24px var(--font-sans);
+  --t-body-l:400 16px/24px var(--font-sans);
+  --t-body-m:400 14px/20px var(--font-sans);
+  --t-label-l:500 14px/20px var(--font-sans);
+  --t-label-m:500 12px/16px var(--font-sans);
+  /* отступы — Revolut, только эти значения */
+  --space-4:4px; --space-8:8px; --space-12:12px; --space-16:16px; --space-20:20px; --space-24:24px; --space-32:32px; --space-48:48px;
+  /* радиусы — Revolut */
+  --radius-sm:12px; --radius-md:20px; --radius-lg:30px; --radius-pill:999px;
+  /* тени — Revolut */
+  --elev-ring:0 0 0 1px var(--border);
+  --elev-raised:0 24px 64px rgba(17,24,39,.12);
+  --focus-ring:0 0 0 4px rgba(29,44,143,.22);
+  /* движение — Revolut */
+  --motion-fast:150ms; --motion-base:240ms; --ease:cubic-bezier(.22,1,.36,1);
+  /* раскладка — M3 и Apple HIG */
+  --gutter:16px; --touch:48px; --nav-h:80px; --icon:24px;
+  /* слои состояний — M3 */
+  --sl-hover:.08; --sl-focus:.10; --sl-press:.10;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  /* производные: тёмная тема выведена нами с тем же контрастом текста */
+  --bg:#0b1020; --surface:#141b2e; --surface-warm:#1b2542;
+  --fg:#f1f5f9; --fg-2:#cbd5e1; --muted:#94a3b8; --border:#2a3550; --border-soft:#1c2539;
+  --warn:#fbbf24; --danger:#f87171; --accent:#93a3ff; --accent-on:#0b1020; --success:#34c474;
+  --accent-soft:#212c55; --success-on:#052e16; --success-fg:#5bd08e; --success-soft:#12301f;
+  --warn-fg:#fbbf24; --warn-soft:#3a2b0c; --danger-fg:#f87171; --danger-soft:#3b1719; --lime:#a3d65c;
+  --scrim:rgba(0,0,0,.6); --stage:#05070f; --frame:#000000; --ph-1:#3b4c86; --ph-2:#1e2a55;
+  --logo-ins:#93a3ff; --logo-on:#34c474;
+  --elev-raised:0 24px 64px rgba(0,0,0,.5); --focus-ring:0 0 0 4px rgba(147,163,255,.28);
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0b1020; --surface:#141b2e; --surface-warm:#1b2542;
+  --fg:#f1f5f9; --fg-2:#cbd5e1; --muted:#94a3b8; --border:#2a3550; --border-soft:#1c2539;
+  --warn:#fbbf24; --danger:#f87171; --accent:#93a3ff; --accent-on:#0b1020; --success:#34c474;
+  --accent-soft:#212c55; --success-on:#052e16; --success-fg:#5bd08e; --success-soft:#12301f;
+  --warn-fg:#fbbf24; --warn-soft:#3a2b0c; --danger-fg:#f87171; --danger-soft:#3b1719; --lime:#a3d65c;
+  --scrim:rgba(0,0,0,.6); --stage:#05070f; --frame:#000000; --ph-1:#3b4c86; --ph-2:#1e2a55;
+  --logo-ins:#93a3ff; --logo-on:#34c474;
+  --elev-raised:0 24px 64px rgba(0,0,0,.5); --focus-ring:0 0 0 4px rgba(147,163,255,.28);
+  color-scheme:dark}

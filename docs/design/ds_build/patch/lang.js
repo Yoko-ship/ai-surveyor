@@ -1,0 +1,27 @@
+var L = {
+ ru:{prem:"премия, сум",rec:"рекомендуемая ставка",lvl:"уровень риска",lvlW:"умеренный",scoreOf:"балл из 500 · уровень умеренный",why:"Из чего сложился балл →",notCredit:"Страховой балл объекта. Не является кредитным скорингом.",
+  pdf:"PDF",word:"Word",chat:"В чат",alertT:"По запрошенной 0,20 % страховать нельзя",alertX:"Это 57 % минимума при пороге 60 %. Допустимо от 0,35 %. Почему — раздел 3, как законно снизить — раздел 4.",
+  fork:"Вилка ставки, % годовых",min:"минимум",recS:"рекомендуем",regm:"регион + рынок",mkt:"рынок НАПП",reqS:"запрошено",forkMore:"Каждый шаг с причиной — раздел 3 →",
+  pts:[[0.20,"bad","запрошено","ниже минимума: 57 % при пороге 60 %, страховать нельзя"],[0.35,"","минимум","тариф политики 54-П: ниже страховщик договор не заключает"],[0.42,"rec","рекомендуем","<em>× 1,2 за умеренный риск</em>: открытая площадка, стройка, нет моточасов. Входит в премию"],[0.465,"","регион + рынок","<em>+10,75 %</em>: ДТП и кражи в области выше, чем по республике. Ориентир, в премию не входит"],[0.695,"","рынок НАПП","премии к обязательствам по классу 3. Мы ниже рынка, цена конкурентная"]],
+  tabs:["Акт","Сценарии","Рынок","Объект"],secs:["Выявление опасностей","Анализ и оценка риска","Тариф и обоснование ставки","Предупредительные мероприятия для страхователя","Контроль и оценка эффективности"],
+  sub:["5 опасностей · фото, техпаспорт, запрос, stat.uz","умеренный · 337 из 500 · PML 872 млн","0,35 → 0,42 % · у каждого шага причина","5 мер · до 0,379 % при подтверждении","что проверить при продлении"],
+  sec:"Раздел",say:"Что сказать клиенту",more:"Подробнее",
+  foot:"подлежит подтверждению андеррайтером · экспертные коэффициенты, не калибровано",ask:"Спросить специалиста по акту",lang:"Язык акта",exp:"экспертно, не калибровано"},
+ uz:{prem:"mukofot, so'm",rec:"tavsiya etilgan stavka",lvl:"xavf darajasi",lvlW:"o'rtacha",scoreOf:"500 dan ball · daraja o'rtacha",why:"Ball nimadan iborat →",notCredit:"Obyektning sug'urta bali. Kredit skoringi emas.",
+  pdf:"PDF",word:"Word",chat:"Chatga",alertT:"So'ralgan 0,20 % stavkada sug'urtalab bo'lmaydi",alertX:"Bu minimumning 57 % i, chegara 60 %. 0,35 % dan ruxsat etiladi. Sababi — 3-bo'lim, qonuniy pasaytirish — 4-bo'lim.",
+  fork:"Stavka oralig'i, yillik %",min:"minimum",recS:"tavsiya",regm:"hudud + bozor",mkt:"NAPP bozori",reqS:"so'ralgan",forkMore:"Har bir qadam sababi bilan — 3-bo'lim →",
+  pts:[[0.20,"bad","so'ralgan","minimumdan past: 57 %, chegara 60 %, sug'urtalab bo'lmaydi"],[0.35,"","minimum","54-P tarif siyosati: undan past shartnoma tuzilmaydi"],[0.42,"rec","tavsiya","<em>o'rtacha xavf uchun × 1,2</em>: ochiq maydon, qurilish, motosoat yo'q. Mukofotga kiradi"],[0.465,"","hudud + bozor","<em>+10,75 %</em>: viloyatda YTH va o'g'irlik respublikadan yuqori. Mo'ljal, mukofotga kirmaydi"],[0.695,"","NAPP bozori","3-sinf bo'yicha mukofot/majburiyat. Biz bozordan past"]],
+  tabs:["Dalolatnoma","Ssenariylar","Bozor","Obyekt"],secs:["Xavflarni aniqlash","Xavfni tahlil qilish va baholash","Tarif va stavka asoslanishi","Sug'urtalanuvchi uchun ogohlantiruvchi chora-tadbirlar","Nazorat va samaradorlikni baholash"],
+  sub:["5 ta xavf · foto, texpasport, so'rov, stat.uz","o'rtacha · 500 dan 337 · PML 872 mln","0,35 → 0,42 % · har qadam sababi bilan","5 ta chora · tasdiqlansa 0,379 % gacha","uzaytirishda nimani tekshirish"],
+  sec:"Bo'lim",say:"Mijozga nima aytish kerak",more:"Batafsil",
+  foot:"anderrayter tasdig'idan o'tishi kerak · ekspert koeffitsiyentlari, kalibrlanmagan",ask:"Dalolatnoma bo'yicha mutaxassisdan so'rash",lang:"Dalolatnoma tili",exp:"ekspert bahosi, kalibrlanmagan"},
+ en:{prem:"premium, UZS",rec:"recommended rate",lvl:"risk level",lvlW:"moderate",scoreOf:"score of 500 · moderate level",why:"How the score adds up →",notCredit:"Insurance score of the object. Not a credit score.",
+  pdf:"PDF",word:"Word",chat:"To chat",alertT:"Cannot insure at the requested 0.20 %",alertX:"That is 57 % of the minimum, the threshold is 60 %. Allowed from 0.35 %. Why — section 3; how to lower it lawfully — section 4.",
+  fork:"Rate range, % per year",min:"minimum",recS:"recommended",regm:"region + market",mkt:"NAPP market",reqS:"requested",forkMore:"Every step with its reason — section 3 →",
+  pts:[[0.20,"bad","requested","below the minimum: 57 % against a 60 % threshold, cannot insure"],[0.35,"","minimum","tariff policy 54-P: the insurer does not go below it"],[0.42,"rec","recommended","<em>× 1.2 for moderate risk</em>: open yard, construction site, no engine hours. In the premium"],[0.465,"","region + market","<em>+10.75 %</em>: accidents and thefts in the region above the national level. Guide only, not in the premium"],[0.695,"","NAPP market","premiums to liabilities for class 3. We are below the market"]],
+  tabs:["Report","Scenarios","Market","Object"],secs:["Hazard identification","Risk analysis and assessment","Tariff and rate rationale","Loss prevention measures for the insured","Monitoring and effectiveness review"],
+  sub:["5 hazards · photos, registration, request, stat.uz","moderate · 337 of 500 · PML 872 mln","0.35 → 0.42 % · a reason for every step","5 measures · down to 0.379 % once confirmed","what to check at renewal"],
+  sec:"Section",say:"What to tell the client",more:"Details",
+  foot:"subject to underwriter approval · expert coefficients, not calibrated",ask:"Ask the specialist about this report",lang:"Report language",exp:"expert, not calibrated"}
+};
+

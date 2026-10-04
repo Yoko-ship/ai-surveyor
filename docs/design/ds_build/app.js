@@ -1,0 +1,864 @@
+
+(function(){
+"use strict";
+/* ===== данные (выдуманные) ===== */
+var CR = {sum:2945000000, value:3100000000, min:0.35, k:1.2, rate:0.42, prem:12369000, req:0.20, score:337, pml:872, eml:1750, mfl:2900, regm:0.465, mkt:0.695, fac:0.71, act:"20261002-0E39DF"};
+var CASES_SEED = [
+  {id:"c1", code:"0318", prod:"Спецтехника юрлиц", cls:"auto", obj:"Автокран XCMG QY50K5D+, 2026", prem:12369000, risk:"m", st:"done", date:"02.10.2026", no:"20261002-0E39DF", full:true},
+  {id:"c2", code:"0215", prod:"Имущество юрлиц", cls:"prop", obj:"Склад готовой продукции, Чирчик", prem:41800000, risk:"l", st:"done", date:"30.09.2026", no:"20260930-7A11C2"},
+  {id:"c3", code:"0318", prod:"Спецтехника юрлиц", cls:"auto", obj:"Экскаватор Hyundai R220, 2019", prem:null, risk:null, st:"draft", date:"03.10.2026", no:null, step:"Осмотр не закончен: проверка, шаг 2 из 3"},
+  {id:"c4", code:"0210", prod:"Имущество юрлиц", cls:"prop", obj:"Офис, Ташкент, Мирабадский район", prem:6120000, risk:"l", st:"done", date:"01.10.2026", no:"20261001-55B0E4"},
+  {id:"c7", code:"0410", prod:"Грузы в перевозке", cls:"cargo", obj:"Хлопковая пряжа, Ташкент — Алматы, 2 фуры", prem:4310000, risk:"m", st:"done", date:"29.09.2026", no:"20260929-3D72B8"},
+  {id:"c5", code:"ОСГОР", prod:"Ответственность работодателя", cls:"liab", obj:"ООО «Т•••• текстиль», 35 работников", prem:9450000, risk:"m", st:"done", date:"27.09.2026", no:"20260927-0C9F3A"},
+  {id:"c6", code:"0301", prod:"КАСКО юрлиц", cls:"auto", obj:"Toyota Hilux, 2021", prem:3980000, risk:"h", st:"done", date:"26.09.2026", no:null}
+];
+/* классы для фильтра дел; статусов у дел нет */
+var CLS = [["all","Все"],["auto","Транспорт"],["prop","Имущество"],["cargo","Грузы"],["liab","Ответственность"]];
+var LVL = {l:"низкий",m:"умеренный",h:"повышенный"};
+function riskTag(r){return r?'<span class="lvl '+r+'">риск '+LVL[r]+'</span>':'<span class="note">уровень после осмотра</span>';}
+/* предупредительные мероприятия: r — множитель движка к ставке (экспертно, не калибровано) */
+var MEAS = [
+  {k:"park",t:"Охраняемая стоянка",r:0.95,eff:"−5 %",cl:"dn",closes:"открытая площадка",why:"Ночью кран стоит на охраняемой площадке с видеонаблюдением, а не на открытом грунте. Меньше краж узлов, угона и вандализма.",doc:"договор со стоянкой и фото крана на месте"},
+  {k:"gps",t:"GPS-трекер с блокировкой двигателя",r:0.97,eff:"−3 %",cl:"dn",closes:"кража и угон",why:"Кран можно найти и остановить удалённо. Угон реже заканчивается полной потерей, это сценарий MFL.",doc:"договор с оператором и фото установки"},
+  {k:"oper",t:"Допуск оператора",r:0.98,eff:"−2 %",cl:"dn",closes:"работа на стройке · опрокидывание",why:"Удостоверение машиниста крана и журнал инструктажей. Меньше ошибок при подъёме на неровной стройплощадке, это сценарий PML.",doc:"копия удостоверения и журнал инструктажей"},
+  {k:"insp",t:"Освидетельствование крана",r:null,eff:"+10 % без него",cl:"up",closes:"нет сведений о моточасах · износ",why:"Действующее техническое освидетельствование и учёт как опасного объекта. В 0,42 % заложено, что оно есть. Нет документа при выдаче полиса — ставка × 1,10.",doc:"акт освидетельствования"},
+  {k:"fire",t:"Огнетушители и обучение",r:null,eff:"тяжесть ▼",cl:"na",closes:"пожар двигателя (дизель)",why:"Два огнетушителя в кабине и инструктаж оператора. На ставку не влияет: пожар случается так же часто, но гасится раньше и убыток меньше.",doc:"фото огнетушителей в кабине"}
+];
+/* как в движке (act_extras.measures): премия × множители подтверждённых мер, не ниже минимальной ставки */
+function measCalc(){
+  var m=S.act.meas,f=1,used=[];
+  MEAS.forEach(function(x){if(x.r&&m[x.k]&&m[x.k].c){f*=x.r;used.push(x);}});
+  var floorP=CR.sum*CR.min/100,prem=Math.max(Math.round(CR.prem*f),floorP);
+  return {f:f,used:used,rate:Math.max(CR.rate*f,CR.min),prem:prem,save:CR.prem-prem,floor:Math.round(CR.prem*f)<floorP};
+}
+function freshMeas(){return {park:{d:0,c:0},gps:{d:0,c:0},oper:{d:0,c:0},insp:{d:1,c:0},fire:{d:0,c:0}};}
+var PRODUCTS = {"0318":{name:"Спецтехника юрлиц",min:0.35},"0301":{name:"КАСКО юрлиц",min:1.2},"0215":{name:"Имущество юрлиц",min:0.15}};
+var RISKK = {A:1.0,B:1.2,C:1.4,D:1.7};
+var OKED = {"13.10":{name:"Прядение текстильных волокон",cls:"6",rate:0.6},"41.20":{name:"Строительство зданий",cls:"11",rate:1.1},"62.01":{name:"Разработка программ",cls:"1",rate:0.2}};
+var ANGLES = ["Спереди","Слева","Справа","Сзади","Табличка"];
+var FACTS_SEED = [
+  {k:"obj",l:"объект · продукт 0318 Спецтехника",v:"Автокран XCMG QY50K5D+, 2026",src:"техпаспорт"},
+  {k:"type",l:"тип и топливо · факторы тарифа",v:"Спецтехника колёсная, дизель",src:"техпаспорт"},
+  {k:"sum",l:"страховая сумма",v:"2 945 000 000 сум",src:"запрос филиала",mono:true},
+  {k:"term",l:"срок, включительно",v:"365 дней",src:"запрос филиала"},
+  {k:"region",l:"регион",v:"Ташкентская область",src:"запрос филиала"},
+  {k:"mass",l:"масса",v:"36 170 кг",src:"табличка",warn:"В техпаспорте 38 600 кг. Уточните на месте."}
+];
+var FACTORS = [
+  {k:"age",t:"Возраст техники",o:["до 5 лет","5–10 лет","старше 10"]},
+  {k:"store",t:"Хранение ночью",o:["охраняемая стоянка","открытая площадка","не знаю"]},
+  {k:"oper",t:"Опыт оператора",o:["больше 5 лет","до 5 лет","не знаю"]},
+  {k:"site",t:"Где работает",o:["город","карьер, стройка","не знаю"]},
+  {k:"gps",t:"GPS-трекер",o:["есть","нет"]},
+  {k:"loss",t:"Убытки за 3 года",o:["нет","были"]}
+];
+var FRANCH = [
+  {k:"none",t:"Без франшизы",s:"Рекомендуется для этого объекта"},
+  {k:"p05",t:"0,5 % от суммы",s:"14 725 000 сум на каждый случай"},
+  {k:"p1",t:"1 % от суммы",s:"29 450 000 сум на каждый случай"},
+  {k:"fix",t:"Фиксированная",s:"10 000 000 сум на каждый случай"}
+];
+
+/* ===== тексты акта на трёх языках ===== */
+var L = {
+ ru:{prem:"премия, сум",rec:"рекомендуемая ставка",lvl:"уровень риска",lvlW:"умеренный",scoreOf:"балл из 500 · уровень умеренный",why:"Из чего сложился балл →",notCredit:"Страховой балл объекта. Не является кредитным скорингом.",
+  pdf:"PDF",word:"Word",chat:"В чат",alertT:"По запрошенной 0,20 % страховать нельзя",alertX:"Это 57 % минимума при пороге 60 %. Допустимо от 0,35 %. Почему и как законно снизить — раздел 4.",
+  fork:"Вилка ставки, % годовых",min:"минимум",recS:"рекомендуем",regm:"регион + рынок",mkt:"рынок НАПП",reqS:"запрошено",forkMore:"Каждый шаг с причиной — раздел 4 →",
+  pts:[[0.20,"bad","запрошено","ниже минимума: 57 % при пороге 60 %, страховать нельзя"],[0.35,"","минимум","тариф политики 54-П: ниже страховщик договор не заключает"],[0.42,"rec","рекомендуем","<em>× 1,2 за умеренный риск</em>: открытая площадка, стройка, нет моточасов. Входит в премию"],[0.465,"","регион + рынок","<em>+10,75 %</em>: ДТП и кражи в области выше, чем по республике. Ориентир, в премию не входит"],[0.695,"","рынок НАПП","премии к обязательствам по классу 3. Мы ниже рынка, цена конкурентная"]],
+  tabs:["Акт","Сценарии","Рынок","Объект"],secs:["Объект и идентификация","Результаты осмотра. Предсуществующие повреждения","Стоимость и страховая сумма","Риск-факторы и франшиза","Заключение и рекомендация"],
+  sub:["XCMG QY50K5D+, 2026 · расхождение массы","5 ракурсов · повреждений нет · моточасы не зафиксированы","2 945 000 000 · ~95 % рыночной · в норме","умеренный · 0,42 % · франшиза · сценарии · мероприятия","рекомендован при оговорках"],
+  sec:"Раздел",more:"Подробнее",
+  foot:"подлежит подтверждению андеррайтером · экспертные коэффициенты, не калибровано",ask:"Спросить специалиста по акту",lang:"Язык акта",exp:"экспертно, не калибровано"},
+ uz:{prem:"mukofot, so'm",rec:"tavsiya etilgan stavka",lvl:"xavf darajasi",lvlW:"o'rtacha",scoreOf:"500 dan ball · daraja o'rtacha",why:"Ball nimadan iborat →",notCredit:"Obyektning sug'urta bali. Kredit skoringi emas.",
+  pdf:"PDF",word:"Word",chat:"Chatga",alertT:"So'ralgan 0,20 % stavkada sug'urtalab bo'lmaydi",alertX:"Bu minimumning 57 % i, chegara 60 %. 0,35 % dan ruxsat etiladi. Sababi va qonuniy pasaytirish — 4-bo'lim.",
+  fork:"Stavka oralig'i, yillik %",min:"minimum",recS:"tavsiya",regm:"hudud + bozor",mkt:"NAPP bozori",reqS:"so'ralgan",forkMore:"Har bir qadam sababi bilan — 4-bo'lim →",
+  pts:[[0.20,"bad","so'ralgan","minimumdan past: 57 %, chegara 60 %, sug'urtalab bo'lmaydi"],[0.35,"","minimum","54-P tarif siyosati: undan past shartnoma tuzilmaydi"],[0.42,"rec","tavsiya","<em>o'rtacha xavf uchun × 1,2</em>: ochiq maydon, qurilish, motosoat yo'q. Mukofotga kiradi"],[0.465,"","hudud + bozor","<em>+10,75 %</em>: viloyatda YTH va o'g'irlik respublikadan yuqori. Mo'ljal, mukofotga kirmaydi"],[0.695,"","NAPP bozori","3-sinf bo'yicha mukofot/majburiyat. Biz bozordan past"]],
+  tabs:["Dalolatnoma","Ssenariylar","Bozor","Obyekt"],secs:["Obyekt va identifikatsiya","Ko'rik natijalari. Oldindan mavjud shikastlar","Qiymat va sug'urta summasi","Xavf omillari va franshiza","Xulosa va tavsiya"],
+  sub:["XCMG QY50K5D+, 2026 · massa farqi","5 ta rakurs · shikast yo'q · motosoat qayd etilmagan","2 945 000 000 · bozorning ~95 % i · me'yorda","o'rtacha · 0,42 % · franshiza · ssenariylar · chora-tadbirlar","shartlar bilan tavsiya etiladi"],
+  sec:"Bo'lim",more:"Batafsil",
+  foot:"anderrayter tasdig'idan o'tishi kerak · ekspert koeffitsiyentlari, kalibrlanmagan",ask:"Dalolatnoma bo'yicha mutaxassisdan so'rash",lang:"Dalolatnoma tili",exp:"ekspert bahosi, kalibrlanmagan"},
+ en:{prem:"premium, UZS",rec:"recommended rate",lvl:"risk level",lvlW:"moderate",scoreOf:"score of 500 · moderate level",why:"How the score adds up →",notCredit:"Insurance score of the object. Not a credit score.",
+  pdf:"PDF",word:"Word",chat:"To chat",alertT:"Cannot insure at the requested 0.20 %",alertX:"That is 57 % of the minimum, the threshold is 60 %. Allowed from 0.35 %. Why, and how to lower it lawfully — section 4.",
+  fork:"Rate range, % per year",min:"minimum",recS:"recommended",regm:"region + market",mkt:"NAPP market",reqS:"requested",forkMore:"Every step with its reason — section 4 →",
+  pts:[[0.20,"bad","requested","below the minimum: 57 % against a 60 % threshold, cannot insure"],[0.35,"","minimum","tariff policy 54-P: the insurer does not go below it"],[0.42,"rec","recommended","<em>× 1.2 for moderate risk</em>: open yard, construction site, no engine hours. In the premium"],[0.465,"","region + market","<em>+10.75 %</em>: accidents and thefts in the region above the national level. Guide only, not in the premium"],[0.695,"","NAPP market","premiums to liabilities for class 3. We are below the market"]],
+  tabs:["Report","Scenarios","Market","Object"],secs:["Object and identification","Inspection results. Pre-existing damage","Value and sum insured","Risk factors and deductible","Conclusion and recommendation"],
+  sub:["XCMG QY50K5D+, 2026 · mass mismatch","5 views · no damage · engine hours not recorded","2 945 000 000 · ~95 % of market · within range","moderate · 0.42 % · deductible · scenarios · measures","recommended subject to conditions"],
+  sec:"Section",more:"Details",
+  foot:"subject to underwriter approval · expert coefficients, not calibrated",ask:"Ask the specialist about this report",lang:"Report language",exp:"expert, not calibrated"}
+};
+
+/* ===== ответы специалиста ===== */
+var ANSWERS = {
+ rate:{q:"Почему ставка 0,42 %, а не запрошенные 0,20 %?",
+  data:[["Минимальный тариф продукта 0318","0,35 %","тарифная политика"],["Поправка за класс риска B","× 1,2","скоринг · экспертно"],["Запрошено филиалом","0,20 %","запрос филиала"],["Доля от минимума","57 %","расчёт"]],
+  table:{h:["Ставка","Премия, сум","Решение"],r:[["0,20 %","5 890 000","нет"],["0,35 %","10 307 500","минимум"],["0,42 %","12 369 000","рекомендуем"]]},
+  out:"По 0,20 % страховать нельзя: это 57 % минимума, а порог 60 %. Предложите клиенту 0,42 %, премия 12 369 000 сум. Ниже 0,35 % — только решение андеррайтера с обоснованием.",
+  src:["Тарифная политика компании, версия 54-П","внутренний документ"]},
+ pml:{q:"Что значат PML, EML и MFL по этому крану?",
+  data:[["PML — вероятный крупный убыток","872 млн","аналитика риска"],["EML — оценка крупного убытка","1,75 млрд","аналитика риска"],["MFL — максимально возможный убыток","2,9 млрд","аналитика риска"],["Страховая сумма","2 945 млн","запрос филиала"]],
+  table:{h:["Показатель","Сумма","Доля суммы"],r:[["PML","872 000 000","29,6 %"],["EML","1 750 000 000","59,4 %"],["MFL","2 900 000 000","98,5 %"]]},
+  out:"Самый вероятный крупный случай — опрокидывание при подъёме, около 872 млн сум. Полная гибель почти равна страховой сумме. Лимит на один риск — 20 % собственных средств (Положение 1806, п. 15); собственные средства в прототипе временные, проверку повторить на настоящих.",
+  src:["Положение 1806, п. 15","lex.uz"]},
+ market:{q:"Какое место у INSON на рынке?",
+  data:[["1-е место · APEX","27,6 %","НАПП"],["15-е место · INSON","1,33 %","НАПП"],["Рыночная ставка по классу","0,695 %","НАПП"]],
+  table:null,
+  out:"INSON на 15-м месте с долей 1,33 %. Лидер APEX держит 27,6 % рынка. Наша рекомендуемая ставка 0,42 % ниже рыночной 0,695 % по классу, то есть цена для клиента конкурентная.",
+  src:["Статистика НАПП, сборы по компаниям (пример)","napp.uz"]},
+ limit:{q:"Какой лимит на один риск?",
+  data:[["Предел на один риск от собственных средств","не более 20 %","Положение 1806"],["Собственные средства","120 млрд сум","временные, не настоящие"],["Лимит на один риск","24 млрд сум","расчёт"]],
+  table:null,
+  out:"Автокран на 2,945 млрд сум в лимит укладывается. Цифру собственных средств нужно заменить на данные компании на 01.07.2026.",
+  src:["Положение 1806, п. 15","lex.uz"]}
+};
+
+/* ===== состояние ===== */
+var S;
+function freshCheck(){return {stage:0,fix:false,edit:null,changed:[],valEdit:false,value:CR.value,valOwn:false,a1:"",a2:"",a3:"",mil:"",ex:{factors:false,franchise:"none",multi:false,losses:"none"},fsel:{age:0,store:2,oper:2,site:2,gps:0,loss:0}};}
+function fresh(){
+  return {tab:"cases",flow:null,step:1,fromCase:false,caseId:null,
+    loading:false,pinSk:false,query:"",filter:"all",cases:CASES_SEED.map(function(c){return Object.assign({},c);}),
+    shots:[0,1,2],
+    facts:FACTS_SEED.map(function(f){return Object.assign({},f);}),
+    chk:freshCheck(),
+    act:{loading:false,pin:false,tab:"act",lang:"ru",sec:null,meas:freshMeas()},
+    sheet:null,
+    chat:[{day:"Вчера"},{me:"Какой лимит на один риск?"},{bot:"limit"}],typing:false,ctx:true,
+    quick:{prod:"0318",sum:"2945000000",risk:"B",req:"0,20"},
+    osgor:{oked:"13.10",n:"35",wage:"3750000"},
+    prof:{lang:"ru",notif:true},out:false,newCase:null};
+}
+S = fresh();
+
+/* ===== помощники ===== */
+function fmt(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g," ");}
+function pc(v,d){return v.toFixed(d==null?2:d).replace(".",",");}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function digits(s){return Number(String(s).replace(/[^\d]/g,""))||0;}
+function rnum(s){return Number(String(s).replace(",",".").replace(/[^\d.]/g,""))||0;}
+var $ = function(id){return document.getElementById(id);};
+var IC = {
+  cases:'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>',
+  plus:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+  plus2:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H10l-5 4V6a1 1 0 0 1 1-1z"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>',
+  back:'<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>',
+  close:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  search:'<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>',
+  cam:'<svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>',
+  calc:'<svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 12h2M14 12h2M8 16h2M14 16h2"/></svg>',
+  team:'<svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="17" cy="10" r="2.5"/><path d="M3 19c1-3 3.5-5 6-5s5 2 6 5M15 14.5c2.5 0 4.5 1.5 5.5 4.5"/></svg>',
+  doc:'<svg viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></svg>',
+  down:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+  send:'<svg viewBox="0 0 24 24"><path d="M4 12l16-8-6 16-3-7z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg>',
+  exit:'<svg viewBox="0 0 24 24"><path d="M14 4h5v16h-5M10 8l-4 4 4 4M6 12h10"/></svg>'
+};
+function tag(src){
+  var c = /введено|своя|сотрудник/.test(src)?"me":/оценка|расчёт|скоринг|аналитика/.test(src)?"ai":/временн|экспертно|пример/.test(src)?"exp":"doc";
+  return '<span class="tg '+c+'">'+esc(src)+'</span>';
+}
+var toastT;
+function toast(msg){var t=$("toast");t.innerHTML='<div class="toast" role="status">'+esc(msg)+'</div>';clearTimeout(toastT);toastT=setTimeout(function(){t.innerHTML="";},2800);}
+
+/* ===== экраны ===== */
+function head(title,sub,left,right){
+  return (left||"")+'<div class="ttl"><b>'+title+'</b>'+(sub?'<span>'+sub+'</span>':'')+'</div>'+(right||"");
+}
+function backBtn(a,label){return '<button class="ibtn" data-a="'+a+'" aria-label="'+(label||"Назад")+'">'+IC.back+'</button>';}
+
+function scrCases(){
+  var counts={all:S.cases.length};
+  S.cases.forEach(function(c){counts[c.cls]=(counts[c.cls]||0)+1;});
+  var body='<div class="stack">'+
+    '<button class="bignew" data-a="startInspect"><span class="pl">'+IC.plus2+'</span><span><b>Новый осмотр</b><span>Снять объект, проверить данные, получить акт</span></span></button>'+
+    '<div class="search">'+IC.search+'<input class="inp" id="q" type="search" placeholder="Объект, продукт или номер акта" value="'+esc(S.query)+'" aria-label="Поиск по делам"></div>'+
+    '<div class="chips scroll" role="tablist" aria-label="Класс страхования">'+CLS.map(function(x){return '<button class="chip'+(S.filter===x[0]?' on':'')+'" data-a="filter" data-v="'+x[0]+'">'+x[1]+'<span class="c">'+(counts[x[0]]||0)+'</span></button>';}).join("")+'</div>'+
+    '<div id="caseList" class="cases"></div></div>';
+  return {head:head("Дела","Ташкентский областной филиал",'',' <button class="ava" data-a="tab" data-v="profile" aria-label="Профиль">ДМ</button>'),body:body,nav:true};
+}
+function caseCard(c){
+  return '<button class="case" data-a="openCase" data-v="'+c.id+'"><div class="top"><span><span class="code">'+esc(c.code)+'</span>'+esc(c.prod)+'</span><span class="num">'+c.date+'</span></div>'+
+    '<div class="obj">'+esc(c.obj)+'</div>'+
+    '<div class="bot">'+(c.prem?'<span class="prem num">'+fmt(c.prem)+'<small>сум</small></span>':'<span class="small muted">'+esc(c.step||"")+'</span>')+riskTag(c.risk)+'</div></button>';
+}
+function caseListHTML(){
+  if(S.loading||S.pinSk){
+    var sk='';for(var i=0;i<4;i++){sk+='<div class="skcard"><div class="sk" style="height:12px;width:40%"></div><div class="sk" style="height:16px;width:85%"></div><div style="display:flex;justify-content:space-between"><div class="sk" style="height:14px;width:35%"></div><div class="sk" style="height:20px;width:28%;border-radius:999px"></div></div></div>';}
+    return sk;
+  }
+  var q=S.query.trim().toLowerCase();
+  var list=S.cases.filter(function(c){
+    if(S.filter!=="all"&&c.cls!==S.filter)return false;
+    if(!q)return true;
+    return (c.obj+" "+c.code+" "+c.prod+" "+(c.no||"")).toLowerCase().indexOf(q)>=0;
+  });
+  if(!list.length){
+    return '<div class="empty"><div class="eic">'+IC.search+'</div><b>Ничего не нашлось</b><p>'+(q?'По запросу «'+esc(S.query)+'» дел нет. ':'В этом классе дел пока нет. ')+'Проверьте написание или покажите все классы.</p><button class="btn btn-s btn-sm" data-a="resetFilter">Сбросить поиск и класс</button></div>';
+  }
+  return list.map(caseCard).join("");
+}
+
+function scrNew(){
+  var drafts=S.cases.filter(function(c){return c.st==="draft";});
+  var body='<div class="stack"><p class="muted small">Выберите, что оформляем. Если выйти на середине, осмотр сохранится в «Делах».</p><div class="types">'+
+    '<button class="type" data-a="startInspect"><span class="ti">'+IC.cam+'</span><span><b>Осмотр объекта</b><span>Фото и документы → проверка → акт с вилкой ставки</span><em>≈ 5 минут</em></span><span class="chev">›</span></button>'+
+    '<button class="type" data-a="flow" data-v="quick"><span class="ti">'+IC.calc+'</span><span><b>Быстрый расчёт</b><span>Ставка и премия без фото, чтобы назвать клиенту цену</span><em>≈ 1 минута</em></span><span class="chev">›</span></button>'+
+    '<button class="type" data-a="flow" data-v="osgor"><span class="ti">'+IC.team+'</span><span><b>ОСГОР</b><span>Ответственность работодателя по ОКЭД и фонду оплаты труда</span><em>≈ 2 минуты</em></span><span class="chev">›</span></button>'+
+    '</div>'+
+    (drafts.length?'<div class="cap" style="margin-top:8px">Продолжить незаконченный осмотр</div><div class="cases">'+drafts.map(function(c){return '<button class="case" data-a="openCase" data-v="'+c.id+'"><div class="top"><span><span class="code">'+esc(c.code)+'</span>'+esc(c.prod)+'</span><span class="num">'+c.date+'</span></div><div class="obj">'+esc(c.obj)+'</div><div class="bot"><span class="small muted">'+esc(c.step||"")+'</span><span class="note">продолжить ›</span></div></button>';}).join("")+'</div>':'')+
+    '</div>';
+  return {head:head("Новый","Тип оформления"),body:body,nav:true};
+}
+
+/* --- мастер осмотра --- */
+function progHTML(){
+  if(S.flow!=="inspect")return "";
+  var n=["Съёмка","Проверка","Акт"];
+  return '<div class="prog">'+n.map(function(t,i){var k=i+1;var cls=k<S.step?"done":k===S.step?"on":"";var can=k<S.step&&!S.fromCase;return '<button class="'+cls+'" '+(can?'data-a="goStep" data-v="'+k+'"':'disabled')+' aria-label="Шаг '+k+': '+t+'"><i></i>'+k+' · '+t+'</button>';}).join("")+'</div>';
+}
+function scrShoot(){
+  var have=S.shots.map(function(i){return ANGLES[i];});
+  var next=ANGLES.filter(function(a){return have.indexOf(a)<0;})[0];
+  var crane='<svg class="crane" viewBox="0 0 220 110" aria-hidden="true"><path d="M20 70h130v18H20z"/><path d="M150 52h30v36h-30z"/><path d="M160 52v-10h14l6 10"/><path d="M60 68L200 14"/><path d="M200 14v34"/><path d="M196 48h8"/><circle cx="44" cy="92" r="9"/><circle cx="74" cy="92" r="9"/><circle cx="130" cy="92" r="9"/><circle cx="166" cy="92" r="9"/></svg>';
+  var body='<div class="stack">'+
+    '<div><h2 style="font:var(--t-title-l);letter-spacing:-.02em">Снимите объект</h2><p class="muted small">Подскажу, какой ракурс нужен, и прочитаю документы. Камера в прототипе условная: кнопка добавляет снимок.</p></div>'+
+    '<div class="cam"><span class="ai">распознаю: автокран</span>'+crane+'<div class="frame"></div>'+
+      '<div class="hint">'+(next?'Сейчас: '+next.toLowerCase():'Все ракурсы сняты')+'<span>'+(next?'Держите объект целиком в рамке':'Можно добавить ещё фото или идти дальше')+'</span></div>'+
+      '<button class="shot" data-a="shoot" aria-label="Сделать снимок"'+(next?'':' disabled')+'></button></div>'+
+    '<div class="strip" aria-label="Снимки и документы">'+
+      S.shots.map(function(i){return '<div class="th">'+ANGLES[i]+'<button class="x" data-a="unshoot" data-v="'+i+'" aria-label="Удалить снимок: '+ANGLES[i]+'">×</button></div>';}).join("")+
+      '<div class="th doc">'+IC.doc+'Техпаспорт</div><div class="th doc">'+IC.doc+'Запрос филиала</div>'+
+      '<button class="th add" data-a="addFile">+ файл</button></div>'+
+    '<div class="card"><div class="cap" style="margin-bottom:12px">Собрано и не хватает</div><div class="todo">'+
+      ANGLES.map(function(a){var ok=have.indexOf(a)>=0;return '<div><span class="b '+(ok?'ok':'no')+'">'+(ok?'✓':'·')+'</span><div>'+(a==="Табличка"?'Фото таблички с номером и массой':'Фото '+a.toLowerCase())+(ok?'':' <span>· можно без него</span>')+'</div></div>';}).join("")+
+      '<div><span class="b ok">✓</span><div>Техпаспорт: XCMG QY50K5D+, 2026, дизель <span>· 7 полей</span></div></div>'+
+      '<div><span class="b ok">✓</span><div>Запрос филиала: сумма, срок, ставка <span>· 16 строк</span></div></div>'+
+    '</div></div>'+
+    '<p class="note">Данные людей в документах маскируются перед отправкой в модель.</p></div>';
+  return {head:head("Новый осмотр","Автокран · продукт 0318",backBtn("wizBack")),body:body,
+    cta:'<button class="btn btn-p" data-a="goStep" data-v="2">Дальше: проверить 6 полей</button>'};
+}
+function factRow(f){
+  var c=S.chk;
+  var top='<div class="v'+(f.mono?' num':'')+'">'+esc(f.v)+'</div>'+tag(f.src)+'<div class="l">'+esc(f.l)+'</div>'+(f.warn&&!f.fixed?'<div class="w">'+esc(f.warn)+'</div>':'');
+  if(c.stage===0&&c.fix){
+    if(c.edit===f.k){
+      return '<div class="fact"><div class="l" style="grid-column:1/-1">'+esc(f.l)+'</div><div class="edit"><input class="inp'+(f.mono?' num':'')+'" id="ed" value="'+esc(f.v)+'" aria-label="'+esc(f.l)+'"><div class="row"><button class="btn btn-p btn-sm" data-a="saveFact" data-v="'+f.k+'">Сохранить</button><button class="btn btn-s btn-sm" data-a="cancelEdit">Отмена</button></div></div></div>';
+    }
+    return '<div class="fact"><div class="v'+(f.mono?' num':'')+'">'+esc(f.v)+'</div><button class="ed" data-a="editFact" data-v="'+f.k+'">Изменить</button><div class="l">'+esc(f.l)+' '+tag(f.src)+'</div>'+(f.warn&&!f.fixed?'<div class="w">'+esc(f.warn)+'</div>':'')+'</div>';
+  }
+  return '<div class="fact">'+top+'</div>';
+}
+function scrCheck(){
+  var c=S.chk;var h='';
+  var bot=function(x){return '<div><div class="who">Сюрвейер</div><div class="msg">'+x+'</div></div>';};
+  var me=function(x){return '<div class="msg me">'+esc(x)+'</div>';};
+  /* 1 — прочитанное */
+  var a1=(c.stage===0)?(c.fix?'<div class="acts"><button class="btn btn-p btn-sm" data-a="fixDone">Готово</button></div><p class="note" style="margin-top:8px">Правка помечается «введено сотрудником». В прототипе акт не пересчитывается.</p>':'<div class="acts"><button class="btn btn-g btn-sm" data-a="ok1">Всё верно</button><button class="btn btn-s btn-sm" data-a="fix1">Поправить</button></div>'):'';
+  h+=bot('Прочитал техпаспорт и запрос филиала. '+(c.fix&&c.stage===0?'Нажмите «Изменить» у строки, которую нужно поправить.':'Проверьте, всё ли так.')+'<div style="margin-top:8px">'+S.facts.map(factRow).join("")+'</div>'+a1);
+  if(c.stage>=1){
+    h+=me(c.a1);
+    var ratio=CR.sum/c.value*100;
+    var pos=Math.max(0,Math.min(100,(ratio-70)/40*100));
+    var norm=ratio>=90&&ratio<=100;
+    var a2='';
+    if(c.stage===1){
+      a2=c.valEdit?'<div class="edit" style="display:grid;gap:8px;margin-top:12px"><div class="inpwrap"><input class="inp num" id="valIn" inputmode="numeric" value="'+fmt(c.value)+'" aria-label="Стоимость объекта, сум"><span class="u">сум</span></div><div class="row"><button class="btn btn-p btn-sm" data-a="saveVal">Записать</button><button class="btn btn-s btn-sm" data-a="cancelVal">Отмена</button></div></div>'
+        :'<div class="acts"><button class="btn btn-g btn-sm" data-a="ok2">Принять</button><button class="btn btn-s btn-sm" data-a="val2">Своя цифра</button></div>';
+    }
+    h+=bot('Оценил стоимость по 4 объявлениям avtoelon не старше 6 месяцев.'+
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;gap:8px"><b class="num" style="font-size:16px">'+fmt(c.value)+' сум</b>'+tag(c.valOwn?"введено сотрудником":"оценка · медиана")+'</div>'+
+      '<div class="ratio" aria-hidden="true"><div class="zone" style="left:'+((90-70)/40*100)+'%;width:'+(10/40*100)+'%"></div><div class="mk" style="left:'+pos+'%"></div></div>'+
+      '<div class="small '+(norm?'muted':'')+'" style="'+(norm?'':'color:var(--warn-fg);font-weight:600')+'">Сумма = '+pc(ratio,1)+' % стоимости · '+(norm?'в норме (90–100 %)':(ratio<90?'недострахование, выплата будет пропорциональной (ГК ст. 936)':'сумма выше стоимости, превышение недействительно (ГК ст. 938)'))+'</div>'+
+      '<div class="srcbar"><span>4 объявления · ссылки в акте</span><button data-a="srcLink" data-v="avtoelon.uz">Читать в источнике avtoelon.uz</button></div>'+a2);
+  }
+  if(c.stage>=2){
+    h+=me(c.a2);
+    var a3='';
+    if(c.stage===2){
+      a3='<div class="chips" style="margin-top:12px">'+["до 2 000","2 000–5 000","5 000–12 000","больше 12 000"].map(function(x){return '<button class="chip" data-a="mil" data-v="'+x+'">'+x+'</button>';}).join("")+'</div>'+
+        '<div class="row" style="margin-top:8px"><div class="inpwrap" style="flex:2"><input class="inp num" id="milIn" inputmode="numeric" placeholder="точно, например 4 200" value="'+esc(c.mil)+'" aria-label="Моточасы"><span class="u">м/ч</span></div><button class="btn btn-p btn-sm" data-a="milSave">Записать</button></div>'+
+        '<button class="btn btn-sm" style="margin-top:8px;width:100%;color:var(--muted)" data-a="milSkip">Пропустить, уточню позже</button>';
+    }
+    h+=bot('Остались моточасы. Из документов они не читаются. Выберите диапазон или введите точно.'+a3);
+  }
+  if(c.stage>=3){
+    h+=me(c.a3);
+    var ex=c.ex;
+    var fr=FRANCH.filter(function(x){return x.k===ex.franchise;})[0];
+    h+=bot('Всё собрано, можно формировать акт. Если нужно, откройте дополнительные блоки:'+
+      '<div class="chips" style="margin-top:12px">'+
+      '<button class="chip'+(ex.factors?' on':'')+'" data-a="sheet" data-v="factors">'+(ex.factors?'Факторы: заполнены':'+ Факторы тарифа')+'</button>'+
+      '<button class="chip'+(ex.franchise!=="none"?' on':'')+'" data-a="sheet" data-v="franchise">'+(ex.franchise!=="none"?'Франшиза: '+fr.t:'+ Франшиза')+'</button>'+
+      '<button class="chip'+(ex.multi?' on':'')+'" data-a="sheet" data-v="multi">'+(ex.multi?'Объектов: 2':'+ Несколько объектов')+'</button>'+
+      '<button class="chip'+(ex.losses!=="none"?' on':'')+'" data-a="sheet" data-v="losses">'+(ex.losses!=="none"?'Убытки: были':'+ Убытки за 3 года')+'</button></div>');
+  }
+  var left=3-c.stage;
+  return {head:head("Проверка","Автокран XCMG QY50K · 0318",backBtn("wizBack")),body:'<div class="dlg">'+h+'</div>',
+    cta:c.stage>=3?'<button class="btn btn-p" data-a="makeAct">Сформировать акт</button>':'<button class="btn btn-p" disabled>Ответьте на вопросы выше · осталось '+left+'</button>'};
+}
+
+function gaugeSVG(score){
+  var cx=150,cy=146,r=120;
+  function pt(f){return [(cx-r*Math.cos(Math.PI*f)).toFixed(1),(cy-r*Math.sin(Math.PI*f)).toFixed(1)];}
+  function arc(a,b,col,op){var p=pt(a),q=pt(b);return '<path d="M'+p[0]+' '+p[1]+' A'+r+' '+r+' 0 0 1 '+q[0]+' '+q[1]+'" fill="none" style="stroke:var('+col+');opacity:'+op+'" stroke-width="18"/>';}
+  var f=score/500;
+  var bands=[[0,.25,"--danger","D"],[.25,.5,"--warn","C"],[.5,.75,"--lime","B"],[.75,1,"--success","A"]];
+  var s='<svg viewBox="0 0 300 160" role="img" aria-label="Страховой балл '+score+' из 500, класс B">';
+  s+=bands.map(function(b){var on=f>=b[0]&&f<b[1];return arc(b[0]+.008,b[1]-.008,b[2],on?1:.32);}).join("");
+  bands.forEach(function(b){var m=(b[0]+b[1])/2;var x=(cx-(r-30)*Math.cos(Math.PI*m)).toFixed(1),y=(cy-(r-30)*Math.sin(Math.PI*m)+4).toFixed(1);s+='<text x="'+x+'" y="'+y+'" text-anchor="middle" style="fill:var(--muted);font:700 12px var(--font-mono)">'+b[3]+'</text>';});
+  var p=pt(f);
+  s+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="12" style="fill:var(--bg);stroke:var(--fg)" stroke-width="4"/>';
+  return s+'</svg>';
+}
+function forkHTML(t){
+  function pos(v){return ((v-0.15)/0.6*100).toFixed(1);}
+  var m=[[CR.req,t.reqS,"up low"],[CR.min,t.min,"dn"],[CR.rate,t.recS,"up rec"],[CR.regm,t.regm,"dn"],[CR.mkt,t.mkt,"up"]];
+  return '<div class="fork" role="img" aria-label="Вилка ставки: минимум 0,35, рекомендуем 0,42, регион и рынок 0,465, рынок НАПП 0,695, запрошено 0,20"><div class="track"></div><div class="band" style="left:'+pos(CR.min)+'%;width:'+(pos(CR.regm)-pos(CR.min)).toFixed(1)+'%"></div>'+
+    m.map(function(x){var v=pc(x[0],x[0]===CR.regm||x[0]===CR.mkt?3:2);var up=x[2].indexOf("up")===0;
+      return '<div class="m '+x[2]+'" style="left:'+pos(x[0])+'%">'+(up?'<b>'+v+'</b><span>'+x[1]+'</span><i></i>':'<i></i><b>'+v+'</b><span>'+x[1]+'</span>')+'</div>';}).join("")+'</div>';
+}
+function actSkeleton(){
+  return '<div class="stack"><div style="display:grid;justify-items:center;gap:12px;padding:12px 0"><div class="sk" style="width:240px;height:120px;border-radius:120px 120px 0 0"></div><div class="sk" style="width:120px;height:14px"></div></div>'+
+    '<div class="kpi">'+[0,1,2].map(function(){return '<div><div class="sk" style="height:16px;width:80%"></div><div class="sk" style="height:12px;width:60%;margin-top:8px"></div></div>';}).join("")+'</div>'+
+    '<div class="skcard"><div class="sk" style="height:12px;width:45%"></div><div class="sk" style="height:40px"></div></div>'+
+    '<div class="skcard"><div class="sk" style="height:14px;width:70%"></div><div class="sk" style="height:14px;width:60%"></div><div class="sk" style="height:14px;width:75%"></div></div>'+
+    '<p class="note" style="text-align:center">Считаю ставку, проверки и аналитику риска…</p></div>';
+}
+function scrAct(){
+  var A=S.act,t=L[A.lang];
+  var langSeg='<div class="seg" style="width:132px" role="group" aria-label="'+t.lang+'">'+["ru","uz","en"].map(function(l){return '<button class="'+(A.lang===l?'on':'')+'" data-a="actLang" data-v="'+l+'">'+l.toUpperCase()+'</button>';}).join("")+'</div>';
+  var hd=head("Акт",'№ <span class="num">'+(S.fromCase?CR.act:(S.newCase?S.newCase.no:CR.act))+'</span>',backBtn(S.fromCase?"closeFlow":"wizBack"),A.loading||A.pin?'':langSeg);
+  if(A.loading||A.pin)return {head:hd,body:actSkeleton(),cta:'<button class="btn btn-p" disabled>Формирую акт…</button>'};
+  var body='<div class="stack">'+
+    '<div class="gauge">'+gaugeSVG(CR.score)+'<div class="c"><b>'+CR.score+'</b><span>'+t.scoreOf+'</span></div></div>'+
+    '<div style="display:grid;justify-items:center;gap:4px;margin-top:-8px"><button class="lnk" data-a="openSec" data-v="score">'+t.why+'</button>'+
+    '<p class="note" style="text-align:center">'+t.notCredit+' <span class="tg exp">'+t.exp+'</span></p></div>'+
+    '<div class="kpi"><div><b>'+fmt(CR.prem)+'</b><span>'+t.prem+'</span></div><div><b class="rec">'+pc(CR.rate)+' %</b><span>'+t.rec+'</span></div><div><b style="font-family:var(--font-sans)">'+t.lvlW+'</b><span>'+t.lvl+'</span></div></div>'+
+    '<div class="btn3"><button class="btn btn-s" data-a="export" data-v="PDF">'+IC.down+t.pdf+'</button><button class="btn btn-s" data-a="export" data-v="Word">'+IC.down+t.word+'</button><button class="btn btn-g" data-a="export" data-v="chat">'+IC.send+t.chat+'</button></div>'+
+    '<div class="alert bad"><span class="ic">!</span><div><b>'+t.alertT+'</b>'+t.alertX+'</div></div>'+
+    '<div class="card"><div class="cap">'+t.fork+'</div>'+forkHTML(t)+
+      '<div class="pts">'+t.pts.map(function(p){return '<div class="'+p[1]+'"><b>'+pc(p[0],p[0]===CR.regm||p[0]===CR.mkt?3:2)+'</b><span><em>'+p[2]+'</em> · '+p[3]+'</span></div>';}).join("")+'</div>'+
+      '<button class="lnk" data-a="openSec" data-v="4">'+t.forkMore+'</button></div>'+
+    '<div class="tabs" role="tablist">'+t.tabs.map(function(x,i){var k=["act","scen","market","object"][i];return '<button role="tab" aria-selected="'+(A.tab===k)+'" class="'+(A.tab===k?'on':'')+'" data-a="actTab" data-v="'+k+'">'+x+'</button>';}).join("")+'</div>'+
+    '<div id="actTabBody">'+actTabHTML()+'</div>'+
+    '<p class="note">№ '+CR.act+' · 02.10.2026 · '+t.foot+'</p></div>';
+  return {head:hd,body:body,cta:'<button class="btn btn-p" data-a="askSpec">'+IC.chat+t.ask+'</button>'};
+}
+function actTabHTML(){
+  var A=S.act,t=L[A.lang];
+  if(A.tab==="act"){
+    var cnt=[1,0,0,0,0];
+    return '<div class="stack"><div class="secs">'+t.secs.map(function(s,i){return '<button class="sec" data-a="openSec" data-v="'+(i+1)+'"><span class="n">'+(i+1)+'</span><span class="t"><b>'+s+'</b><span>'+t.sub[i]+'</span></span>'+(cnt[i]?'<span class="cnt">'+cnt[i]+'</span>':'')+'<span class="chev">›</span></button>';}).join("")+'</div></div>';
+  }
+  if(A.tab==="scen") return scenHTML();
+  if(A.tab==="market") return marketHTML();
+  return '<div class="stack">'+objectHTML()+valueHTML()+'</div>';
+}
+var SCEN=[
+  {k:"PML",n:"вероятный крупный убыток",v:CR.pml,p:"1 раз в 25 лет",py:"≈ 4 % в год",what:"Самый крупный убыток, который реально ждать при обычной работе: опрокидывание при подъёме на неровной стройплощадке, ремонт стрелы и поворотной части.",how:"29,6 % страховой суммы: доля для колёсного крана при опрокидывании с ремонтом. Защиты нет (площадка открытая, допуск оператора не подтверждён), поэтому доля не снижена."},
+  {k:"EML",n:"оценка крупного убытка",v:CR.eml,p:"1 раз в 100 лет",py:"≈ 1 % в год",what:"Крупный убыток, когда часть защиты не сработала: опрокидывание с падением груза или пожар двигателя. Кран восстанавливают частично.",how:"59,4 % страховой суммы: доля для спецтехники с дизелем при пожаре или тяжёлом опрокидывании. Огнетушителей в кабине нет — доля не снижена."},
+  {k:"MFL",n:"максимально возможный убыток",v:CR.mfl,p:"1 раз в 250 лет",py:"≈ 0,4 % в год",what:"Худший случай: полная гибель крана или угон без возврата.",how:"98,5 % страховой суммы: полная гибель за вычетом годных остатков. GPS с блокировкой нет, поэтому угон считается невозвратным."}
+];
+function mln(v){return v>=1000?pc(v/1000,v%100?2:1)+' млрд':v+' млн';}
+function scenHTML(){
+  var t=L[S.act.lang];
+  return '<div class="stack"><div class="card"><div class="cap" style="margin-bottom:12px">Крупный убыток против страховой суммы</div><div class="bars">'+
+    SCEN.map(function(r){return '<div class="bar"><div class="bl"><span><b>'+r.k+'</b> <span class="muted">'+r.p+'</span></span><span class="num">'+mln(r.v)+'</span></div><div class="tr"><i style="width:'+(r.v/2945*100).toFixed(1)+'%"></i></div></div>';}).join("")+
+    '<div class="bar"><div class="bl"><span><b>Сумма</b> <span class="muted">страховая</span></span><span class="num">2,945 млрд</span></div><div class="tr"><i class="hi" style="width:100%"></i></div></div></div>'+
+    '<div class="axis abs"><span style="left:0">0</span><span style="left:'+(1000/2945*100).toFixed(1)+'%;transform:translateX(-50%)">1 млрд</span><span style="left:'+(2000/2945*100).toFixed(1)+'%;transform:translateX(-50%)">2 млрд</span><span style="right:0">2,945</span></div>'+
+    '<p class="note" style="margin-top:8px">'+tag("экспертно, не калибровано")+' Частоты — экспертная оценка разработчика, без данных об убытках компании.</p>'+
+    '<button class="btn btn-s btn-sm" style="margin-top:12px;width:100%" data-a="openSec" data-v="scen">'+t.more+': что это, как часто, из чего</button></div>'+
+    '<div class="card"><div class="cap" style="margin-bottom:8px">Главные риски объекта</div><div class="rlist">'+
+    [["Опрокидывание при подъёме","h","высокий"],["ДТП при переезде","m","средний"],["Пожар двигателя","m","средний"],["Кража узлов на стоянке","m","средний"],["Стихийные явления","l","низкий"]].map(function(r){return '<div><span>'+r[0]+'</span><span class="lvl '+r[1]+'">'+r[2]+'</span></div>';}).join("")+'</div></div></div>';
+}
+function marketHTML(){
+  var rows=[["APEX","1-е место",27.6,false],["INSON","15-е место",1.33,true]];
+  return '<div class="stack"><div class="card"><div class="cap" style="margin-bottom:12px">Доля рынка по сборам</div><div class="bars">'+
+    rows.map(function(r){return '<div class="bar"><div class="bl"><span><b>'+r[0]+'</b> <span class="muted">'+r[1]+'</span></span><span class="num">'+pc(r[2],r[2]<10?2:1)+' %</span></div><div class="tr"><i'+(r[3]?'':' class="hi"')+' style="width:'+(r[2]/30*100).toFixed(1)+'%"></i></div></div>';}).join("")+'</div>'+
+    '<div class="axis"><span>0 %</span><span>10 %</span><span>20 %</span><span>30 %</span></div>'+
+    '<div class="srcbar"><span>НАПП, сборы по компаниям · пример</span><button data-a="srcLink" data-v="napp.uz">Читать в источнике napp.uz</button></div></div>'+
+    '<div class="card"><dl class="kv"><dt>Рыночная ставка по классу 3</dt><dd class="num">0,695 %</dd><dt>Наша рекомендуемая</dt><dd class="num" style="color:var(--accent)">0,42 %</dd><dt>С поправкой региона и рынка</dt><dd class="num">0,465 %</dd></dl>'+
+    '<p class="note" style="margin-top:8px">Рыночная — премии, делённые на обязательства по классу. Поправки региона и рынка в премию не входят: их ещё проверяет актуарий. Подробно — раздел 4.</p></div></div>';
+}
+function objectHTML(){
+  var f={};S.facts.forEach(function(x){f[x.k]=x;});
+  var mil=S.chk.a3&&S.chk.a3.indexOf("Пропустить")<0?S.chk.a3:"не указано";
+  var rows=[["Объект",f.obj.v,f.obj.src],["Тип и топливо",f.type.v,f.type.src],["Грузоподъёмность","50 т","техпаспорт"],["Масса",f.mass.v,f.mass.src],["Моточасы",mil,mil==="не указано"?"уточнить":"введено сотрудником"],["Регион",f.region.v,f.region.src],["Госномер","01 A ••• ••","техпаспорт"],["VIN","LXG•••••••6921","техпаспорт"],["Фото",S.shots.length+" из 5","съёмка"]];
+  return '<div class="card"><div class="tblwrap"><table class="tbl"><tbody>'+rows.map(function(r){return '<tr><td class="muted" style="width:38%">'+r[0]+'</td><td><b style="font-weight:600">'+esc(r[1])+'</b><div style="margin-top:4px">'+tag(r[2])+'</div></td></tr>';}).join("")+'</tbody></table></div>'+
+    '<p class="note" style="margin-top:8px">Номера и VIN показаны частично. Данные владельца не хранятся.</p></div>';
+}
+function valueHTML(){
+  var ads=[3050000000,3080000000,3120000000,3190000000];
+  return '<div class="card"><div class="cap" style="margin-bottom:8px">Оценка стоимости</div><div class="tblwrap"><table class="tbl"><thead><tr><th>Объявление</th><th class="r">Цена, сум</th></tr></thead><tbody>'+
+    ads.map(function(a,k){return '<tr><td>XCMG QY50K5D+, 2026 · avtoelon · '+["08.2026","07.2026","09.2026","05.2026"][k]+'</td><td class="r num">'+fmt(a)+'</td></tr>';}).join("")+
+    '<tr><td><b>Медиана</b></td><td class="r num"><b>'+fmt(CR.value)+'</b></td></tr></tbody></table></div>'+
+    '<p class="note" style="margin-top:8px">Сумма 2 945 000 000 = 95 % стоимости, в норме (ГК ст. 936). Порог расхождения оценок 15 %, разброс 4,6 %.</p>'+
+    '<div class="srcbar"><span>Объявления не старше 6 месяцев</span><button data-a="srcLink" data-v="avtoelon.uz">Читать в источнике avtoelon.uz</button></div></div>';
+}
+function goSec(n,label){return '<button class="lnk" data-a="openSec" data-v="'+n+'">'+label+'</button>';}
+function secHTML(i){
+  var e=tag("экспертно, не калибровано");
+  if(i==="scen"){
+    return '<div class="stack"><p class="small muted">Три сценария крупного убытка по этому крану: что случится, как часто и из чего посчитана сумма.</p>'+
+      SCEN.map(function(s){return '<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b style="font:var(--t-title-m);font-weight:700">'+s.k+' <span class="muted" style="font:var(--t-label-l)">'+s.n+'</span></b><b class="num" style="white-space:nowrap">'+mln(s.v)+'</b></div>'+
+        '<dl class="say" style="margin-top:12px"><div><dt>Что это</dt><dd>'+s.what+'</dd></div>'+
+        '<div><dt>Как часто</dt><dd><b>'+s.p+'</b> ('+s.py+'). <span class="tg exp">экспертная оценка разработчика, не калибровано</span></dd></div>'+
+        '<div><dt>Из чего</dt><dd>'+s.how+'</dd></div></dl></div>';}).join("")+
+      '<div class="card"><div class="cap" style="margin-bottom:8px">Лимит на один риск</div><dl class="kv"><dt>Не более 20 % собственных средств</dt><dd>Положение 1806, п. 15</dd><dt>Собственные средства</dt><dd class="num">120 млрд сум</dd><dt>Лимит на один риск</dt><dd class="num">24 млрд сум</dd></dl>'+
+        '<p class="note" style="margin-top:8px">'+tag("временные, не настоящие")+' MFL 2,9 млрд в лимит укладывается. Повторить проверку на собственных средствах компании.</p></div>'+
+      '<div class="card"><div class="cap" style="margin-bottom:8px">Откуда возьмётся точность</div>'+
+        '<p class="small">Сейчас частоты и доли — экспертная оценка. Их будут пересчитывать из данных компании:</p>'+
+        '<div class="rlist" style="margin-top:8px"><div><span>Департамент претензий: частота и тяжесть убытков по классу</span></div><div><span>Актуарные заключения и резервы компании</span></div><div><span>Загрузка через админку: «Страховые случаи» из Excel</span></div></div>'+
+        '<p class="note" style="margin-top:8px">Платформа уточняет оценки сама по мере накопления данных. Пометка «не калибровано» снимется, когда расчёт пройдёт проверку актуария.</p></div></div>';
+  }
+  if(i==="score"){
+    var sc=[["Базовый балл","500",""],["Открытая площадка, порт, стройбаза","−60","запрос филиала"],["Работы с механическими повреждениями","−45","запрос филиала"],["Моточасы не зафиксированы","−30","фото"],["Расхождение массы 36 170 / 38 600 кг","−28","табличка / маркировка"],["Убытков за 3 года нет: штрафа нет","+0","запрос филиала"]];
+    return '<div class="stack"><div class="card"><div class="gauge" style="max-width:240px">'+gaugeSVG(CR.score)+'<div class="c"><b>337</b><span>из 500 · умеренный</span></div></div></div>'+
+      '<div class="card"><div class="cap" style="margin-bottom:8px">Из чего сложился балл</div><div class="tblwrap"><table class="tbl"><thead><tr><th>Признак</th><th class="r">Вклад</th></tr></thead><tbody>'+
+      sc.map(function(r){return '<tr><td>'+r[0]+(r[2]?'<div style="margin-top:4px">'+tag(r[2])+'</div>':'')+'</td><td class="r num"><b>'+r[1]+'</b></td></tr>';}).join("")+
+      '<tr><td><b>Итого</b></td><td class="r num"><b>337</b></td></tr></tbody></table></div>'+
+      '<p class="note" style="margin-top:8px">500 − 60 − 45 − 30 − 28 + 0 = 337. Регион в балл не входит: он учтён поправкой в лестнице ставки (раздел 4), чтобы не считать дважды. '+e+'</p></div>'+
+      '<div class="card"><div class="cap" style="margin-bottom:8px">Почему уровень «умеренный»</div><div class="rlist">'+
+      [["375–500","низкий · × 1,0"],["250–374","умеренный · × 1,2"],["125–249","повышенный · × 1,4"],["0–124","высокий · × 1,7"]].map(function(r,k){return '<div'+(k===1?' style="font-weight:600"':'')+'><span class="num">'+r[0]+(k===1?' ← 337':'')+'</span><span>'+r[1]+'</span></div>';}).join("")+'</div>'+
+      '<p class="note" style="margin-top:8px">Множитель уровня применяется к тарифу политики: 0,35 % × 1,2 = 0,42 %.</p></div>'+
+      '<div class="alert"><span class="ic">i</span><div><b>Не является кредитным скорингом</b>Балл описывает риск объекта, а не платёжеспособность клиента. '+e+'</div></div>'+
+      goSec(4,"Как оценка стала ставкой — раздел 4 →")+'</div>';
+  }
+  switch(i){
+  case 1: var f1=[["Класс","Спецтехника"],["Тип","Автокран (Truck Crane)"],["Марка/модель","XCMG QY50K5D+"],["Год выпуска","июнь 2026 г."],["Серийный номер (VIN)","LXG•••••••6921 · считан с заводского шильдика"],["Производитель","XCMG, КНР"],["Двигатель","SC9DF340Q61, 248 кВт / 1900 об/мин"],["Грузоподъёмность","50 000 кг при вылете 3 м"],["Полная масса","98 600 кг"],["Габариты","14 375 × 2 650 × 3 480 мм"],["Снаряжённая масса по шильдику","36 170 кг"],["Снаряжённая масса по маркировке бампера","~38 600 кг"],["Место эксплуатации","открытая площадка / порт / стройбаза"]];
+    return '<div class="stack"><div class="card"><dl class="kv">'+f1.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+r[1]+'</dd>';}).join("")+'</dl></div>'+
+      '<div class="alert"><span class="ic">!</span><div><b>Расхождение в снаряжённой массе</b>По шильдику 36 170 кг, по маркировке бампера ~38 600 кг. До выдачи полиса устранить расхождение.</div></div>'+
+      '<p class="note">VIN показан частично. Данные владельца не хранятся.</p></div>';
+  case 2: return '<div class="stack"><div class="card"><p class="small">Осмотр проведён по фотоматериалам: виды спереди, сзади, с обоих боковых сторон, шильдик. Комплект признан достаточным.</p>'+
+      '<div class="rlist" style="margin-top:12px"><div><span>Фото</span><span class="num">'+S.shots.length+' + шильдик</span></div><div><span>Видимых повреждений</span><span class="lvl l">не выявлено</span></div><div><span>ЛКП</span><span>без сколов и царапин</span></div><div><span>Деформации</span><span>нет</span></div><div><span>Моточасы</span><span class="lvl m">не зафиксированы</span></div><div><span>Паспорт самоходной машины</span><span class="lvl m">не представлен</span></div></div></div>'+
+      '<p class="small">Видимых повреждений не выявлено: ЛКП без сколов и царапин, деформаций нет. Показания счётчика моточасов не зафиксированы — данные недоступны. Паспорт самоходной машины не представлен; идентификация по шильдику.</p></div>';
+  case 3: return '<div class="stack"><div class="card"><p class="small">Заявленная страховая сумма 2 945 000 000 сум — ~95 % расчётной рыночной стоимости на дату осмотра. В допустимом диапазоне.</p>'+
+      '<dl class="kv" style="margin-top:12px"><dt>Страховая сумма</dt><dd class="num">2 945 000 000</dd><dt>Рыночная стоимость, медиана</dt><dd class="num">'+fmt(CR.value)+'</dd><dt>Доля</dt><dd class="num">95 %</dd></dl></div>'+valueHTML()+'</div>';
+  case 4: return '<div class="stack"><div class="card"><p class="small">Среда эксплуатации формирует умеренный уровень риска: осадки, вибрация, механические повреждения при работах. Рекомендуемый тариф 0,42 %. Рекомендуется безусловная франшиза.</p>'+
+      '<div class="cap" style="margin:12px 0 8px">Оговорки</div><div class="rlist"><div><span>Охраняемое хранение навесного и сменного оборудования</span></div><div><span>Ограничение территории покрытия</span></div><div><span>Повторный осмотр через 12 месяцев или 2 000 моточасов</span></div></div></div>'+
+      '<div class="card"><div class="cap" style="margin-bottom:8px">Сценарии убытка PML / EML / MFL</div><div class="tblwrap"><table class="tbl"><thead><tr><th>Сценарий</th><th class="r">Сумма</th><th class="r">Доля</th></tr></thead><tbody>'+
+      SCEN.map(function(s){return '<tr><td><b>'+s.k+'</b><div class="note">'+s.p+'</div></td><td class="r num" style="white-space:nowrap">'+mln(s.v)+'</td><td class="r num">'+pc(s.v/2945*100,1)+' %</td></tr>';}).join("")+'</tbody></table></div>'+
+      '<p class="note" style="margin-top:8px">Частота — '+tag("экспертно, не калибровано")+'</p>'+
+      '<button class="btn btn-s btn-sm" style="margin-top:12px;width:100%" data-a="openSec" data-v="scen">Подробнее о сценариях</button></div>'+
+      '<div class="cap">Лестница ставки</div><p class="small muted" style="margin-top:-8px">У каждого шага причина, направление и источник. В премию входят только первые три строки.</p>'+
+      '<div class="card"><ol class="ladder">'+ladderHTML()+'</ol></div>'+
+      '<div class="cap">Предупредительные мероприятия</div>'+measuresHTML()+'</div>';
+  case 5: return '<div class="stack"><div class="card"><p class="small">Техника новая, без повреждений. Сумма соответствует рыночной стоимости. Рекомендован к принятию при соблюдении оговорок. До выдачи полиса андеррайтеру верифицировать паспорт самоходной машины и устранить расхождение в снаряжённой массе.</p>'+
+      '<div class="rlist" style="margin-top:12px"><div><span>Рекомендация</span><span class="lvl l">принять при оговорках</span></div><div><span>Верифицировать паспорт самоходной машины</span><span class="lvl m">андеррайтеру</span></div><div><span>Устранить расхождение массы</span><span class="lvl m">андеррайтеру</span></div></div></div>'+
+      '<p class="note">Акт сформирован ИИ-сюрвейером INSON, подлежит подтверждению андеррайтером. № '+CR.act+' · 02.10.2026</p></div>';
+  }
+  return "";
+}
+function lstep(cls,val,title,dir,why,src){
+  var d={up:"▲ повышает",dn:"▼ понижает",base:"• основа",no:"▼ нельзя"}[dir]||"";
+  return '<li class="'+cls+'"><div class="lv">'+val+'</div><div><div class="lt"><b>'+title+'</b>'+(d?'<span class="dir '+dir+'">'+d+'</span>':'')+'</div><p>'+why+'</p>'+(src?'<div>'+src.split("|").map(tag).join(" ")+'</div>':'')+'</div></li>';
+}
+function lgrp(t){return '<li class="grp"><div class="cap">'+t+'</div></li>';}
+function ladderHTML(){
+  return lgrp("В премию")+
+    lstep("k","0,35 %","Тариф политики","base","Минимальная ставка продукта 0318 «Спецтехника юрлиц». Ниже неё страховщик договор не заключает.","приказ 54-П")+
+    lstep("k","× 1,2","+20 % за умеренный уровень риска","up","Балл 337 попал в зону «умеренный». Его дали опасности: <em>открытая площадка</em> (−60), <em>работа на стройке</em> (−45), <em>нет моточасов</em> (−30). Убытков нет, поэтому уровень не выше.","скоринг · экспертно")+
+    lstep("rec","0,42 %","Рекомендуемая ставка","","0,35 × 1,2 = 0,42 %. Премия: 2 945 000 000 × 0,42 % = <em>12 369 000 сум</em> за 365 дней.","расчёт")+
+    lgrp("Справочно: в премию не входит, и почему")+
+    lstep("k","× 1,05","Дизель","up","Старые дизельные двигатели чаще текут топливом и маслом — выше риск пожара в моторном отсеке.","техпаспорт")+
+    lstep("k","× 1,4","Такси / аренда","up","Кран сдаётся в аренду с оператором: частая смена водителей и интенсивная эксплуатация, больше часов под нагрузкой.","запрос филиала")+
+    lstep("k","× 1,15","Открытая площадка","up","Ночью кран стоит без охраны: кража узлов, угон, вандализм.","фото")+
+    lstep("ref","0,71 %","С факторами объекта","","0,42 × 1,05 × 1,4 × 1,15 = 0,71 %. В премию не входит: коэффициенты не калиброваны на убытках компании, а открытая площадка уже снизила балл — брать за неё второй раз нельзя.","экспертно, не калибровано")+
+    lstep("k","+10,75 %","Поправка региона","up","В Ташкентской области ДТП и кражи транспорта выше, чем в среднем по республике.","stat.uz")+
+    lstep("k","0 %","Поправка рынка","base","Сборы и выплаты по классу 3 за год без резких изменений — поправлять не за что.","НАПП")+
+    lstep("ref","0,465 %","Регион + рынок","","0,42 × 1,1075 × 1,00 = 0,465 %. В премию не входит: поправки ещё проверяет актуарий. Ориентир, если клиент сравнивает цены.","экспертно, не калибровано")+
+    lgrp("Сравнение с рынком")+
+    lstep("ref","0,695 %","Рынок НАПП","","Премии, делённые на обязательства по классу 3. Наша 0,42 % ниже рынка на 40 % — цена для клиента конкурентная.","НАПП")+
+    lgrp("Запрос филиала")+
+    lstep("bad","0,20 %","Запрошено — нет","no","Ниже минимума 0,35 %: это <em>57 %</em> минимума при пороге 60 %. Почему нельзя: это минимальная ставка страховщика; уровень риска умеренный, а не низкий; убытков нет, но защиты нет — площадка открытая, GPS и допуск оператора не подтверждены.","запрос филиала");
+}
+function measuresHTML(){
+  var m=S.act.meas,c=measCalc();
+  var f=c.used.length?'0,42 × '+c.used.map(function(x){return pc(x.r,2);}).join(" × ")+' = '+pc(CR.rate*c.f,3)+' %':'Ни одна мера не подтверждена документом: ставка 0,42 %';
+  return '<div class="stack"><p class="small muted">Меры закрывают риск-факторы этого раздела. Скидка учитывается, когда мера подтверждена документом. Скидки перемножаются, ставка не ниже минимума 0,35 %.</p>'+
+    '<div class="card">'+MEAS.map(function(x){var s=m[x.k];
+      return '<div class="meas"><div class="mh"><b>'+x.t+'</b><span class="eff '+x.cl+'">'+x.eff+'</span></div><p>'+x.why+'</p>'+
+        '<span class="note">Закрывает: <b style="color:var(--fg)">'+x.closes+'</b></span>'+
+        '<div class="mrow"><button class="cbx" role="checkbox" aria-checked="'+!!s.d+'" data-a="meas" data-v="'+x.k+':d"><i></i>Выполнено</button><button class="cbx" role="checkbox" aria-checked="'+!!s.c+'" data-a="meas" data-v="'+x.k+':c"><i></i>Подтверждено документом</button></div>'+
+        (s.d&&!s.c&&x.r?'<span class="note" style="color:var(--warn-fg)">Скидка не учтена: нужен документ — '+x.doc+'.</span>':'<span class="note">Документ: '+x.doc+'.</span>')+'</div>';}).join("")+'</div>'+
+    '<div class="mtot" aria-live="polite"><div class="f">'+f+'</div><dl class="kv"><dt>Ставка</dt><dd class="num">'+pc(c.rate,3)+' %</dd><dt>Премия</dt><dd class="num">'+fmt(c.prem)+' сум</dd><dt>Экономия клиента</dt><dd class="num" style="color:var(--success-fg)">'+fmt(c.save)+' сум</dd></dl>'+
+      (c.floor?'<span class="note">Упёрлись в минимум 0,35 %: ниже ставка не опускается.</span>':'')+
+      '<span class="note">Все три меры со скидкой: 0,42 × 0,95 × 0,97 × 0,98 = 0,379 %. Премию движок считает от премии акта: 12 369 000 × 0,903 = 11 170 073 сум.</span></div>'+
+    '<p class="note">'+tag("экспертно, не калибровано")+' Размеры скидок — справочник мероприятий движка. Подлежит подтверждению андеррайтером.</p></div>';
+}
+function controlHTML(){
+  var m=S.act.meas,c=measCalc();
+  return '<div class="stack"><p class="small muted">Что проверить при продлении договора, чтобы понять, сработали ли меры и верна ли оценка.</p>'+
+    '<div class="card"><div class="cap" style="margin-bottom:8px">Проверить при продлении</div><div class="haz">'+
+      '<div><b>Подтверждения мероприятий</b><div class="rlist">'+MEAS.map(function(x){var s=m[x.k];return '<div><span>'+x.t+'</span><span class="lvl '+(s.c?'l':s.d?'m':'h')+'">'+(s.c?'подтверждено':s.d?'нет документа':'не выполнено')+'</span></div>';}).join("")+'</div></div>'+
+      '<div><b>Убытки за период</b><p>Сколько и каких случаев было за год. Данные — из департамента претензий: «Страховые случаи» из Excel через админку.</p></div>'+
+      '<div><b>Повторный осмотр</b><p>Фото стоянки и установленного GPS, табличка с массой, моточасы с приборной панели.</p></div>'+
+      '<div><b>Пересчёт балла</b><p>Закрытая опасность возвращает баллы: стоянка +60, моточасы +30, масса уточнена +28. Убытки за период балл снижают.</p></div>'+
+    '</div></div>'+
+    '<div class="card"><div class="cap" style="margin-bottom:8px">Как изменится ставка</div><div class="tblwrap"><table class="tbl"><thead><tr><th>Что подтверждено</th><th class="r">Балл</th><th class="r">Ставка</th></tr></thead><tbody>'+
+      '<tr><td>Ничего, как сейчас</td><td class="r num">337</td><td class="r num">0,42 %</td></tr>'+
+      '<tr><td>Меры раздела 4 с документом: '+c.used.length+' из 3</td><td class="r num">337</td><td class="r num">'+pc(c.rate,3)+' %</td></tr>'+
+      '<tr><td>При продлении: стоянка, моточасы и масса подтверждены, убытков нет → уровень низкий, × 1,0</td><td class="r num">455</td><td class="r num">0,35 %</td></tr>'+
+    '</tbody></table></div>'+
+    '<p class="note" style="margin-top:8px">337 + 60 + 30 + 28 = 455, это зона «низкий». 0,35 × 1,0 × скидки мер = 0,316 %, но ставка не ниже минимума 0,35 %. '+tag("экспертно, не калибровано")+' Пересчитает движок по данным продления.</p></div></div>';
+}
+var lastFull=null;
+function fullHTML(){
+  if(S.act.sec==null){lastFull=null;return "";}
+  var t=L[S.act.lang],s=S.act.sec,scen=s==="scen",sco=s==="score";
+  var title=scen?"Сценарии крупного убытка":sco?"Из чего сложился балл":t.secs[s-1];
+  var anim=lastFull!==s;lastFull=s;
+  return '<div class="full'+(anim?' in':'')+'" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><header class="hd">'+backBtn("closeSec",t.tabs[0])+'<div class="ttl"><b>'+title+'</b><span>'+(scen?'PML · EML · MFL':sco?'337 из 500 · умеренный':t.sec+' '+s)+' · № '+CR.act+'</span></div></header><div class="vw" id="fullVw">'+secHTML(s)+'</div></div>';
+}
+
+/* --- быстрый расчёт и ОСГОР --- */
+function scrQuick(){
+  var q=S.quick;
+  var body='<div class="stack"><div class="field"><label for="qProd">Продукт</label><select class="inp" id="qProd">'+Object.keys(PRODUCTS).map(function(k){return '<option value="'+k+'"'+(q.prod===k?' selected':'')+'>'+k+' · '+PRODUCTS[k].name+'</option>';}).join("")+'</select></div>'+
+    '<div class="field"><label for="qSum">Страховая сумма</label><div class="inpwrap"><input class="inp num" id="qSum" inputmode="numeric" value="'+fmt(digits(q.sum))+'"><span class="u">сум</span></div></div>'+
+    '<div class="field"><span class="lbl">Класс риска объекта</span><div class="seg" role="group" aria-label="Класс риска">'+Object.keys(RISKK).map(function(k){return '<button class="'+(q.risk===k?'on':'')+'" data-a="qRisk" data-v="'+k+'">'+k+' · ×'+pc(RISKK[k],1)+'</button>';}).join("")+'</div></div>'+
+    '<div class="field"><label for="qReq">Ставка, которую просит филиал</label><div class="inpwrap"><input class="inp num" id="qReq" inputmode="decimal" value="'+esc(q.req)+'"><span class="u">%</span></div></div>'+
+    '<div id="qOut"></div><p class="note">'+tag("экспертно, не калибровано")+' Тарифы и коэффициенты в прототипе — пример. В приложении их считает движок по классу продукта.</p></div>';
+  return {head:head("Быстрый расчёт","Цена без осмотра",backBtn("closeFlow")),body:body,cta:'<button class="btn btn-p" data-a="saveQuick">Сохранить в дела</button>'};
+}
+function quickOut(){
+  var q=S.quick,p=PRODUCTS[q.prod],sum=digits(q.sum),rate=p.min*RISKK[q.risk],prem=sum*rate/100,req=rnum(q.req);
+  var v,cls;
+  if(!sum){return '<div class="alert"><span class="ic">!</span><div><b>Нет страховой суммы</b>Введите сумму цифрами, например 2 945 000 000.</div></div>';}
+  if(!req){v="Ставка филиала не указана";cls="draft";}
+  else if(req>=p.min){v="Можно: не ниже минимума "+pc(p.min)+" %";cls="ok";}
+  else if(req/p.min>=0.6){v="Только с согласия андеррайтера: "+Math.round(req/p.min*100)+" % минимума";cls="wait";}
+  else {v="Нет: "+Math.floor(req/p.min*100)+" % минимума при пороге 60 %";cls="bad";}
+  return '<div class="card"><dl class="kv"><dt>Минимальный тариф</dt><dd class="num">'+pc(p.min)+' %</dd><dt>Поправка класса '+q.risk+'</dt><dd class="num">× '+pc(RISKK[q.risk],1)+'</dd><dt>Рекомендуемая ставка</dt><dd class="num" style="color:var(--accent)">'+pc(rate,3).replace(/0$/,"")+' %</dd><dt><b style="color:var(--fg)">Премия за год</b></dt><dd class="num"><b>'+fmt(prem)+' сум</b></dd></dl>'+
+    '<div style="margin-top:12px"><span class="st '+(cls==="bad"?"wait":cls)+'" style="'+(cls==="bad"?"background:var(--danger-soft);color:var(--danger-fg)":"")+'">'+v+'</span></div></div>';
+}
+function scrOsgor(){
+  var o=S.osgor;
+  var body='<div class="stack"><div class="field"><span class="lbl">Вид деятельности по ОКЭД</span><div class="types" style="gap:8px">'+Object.keys(OKED).map(function(k){return '<button class="opt'+(o.oked===k?' on':'')+'" data-a="oked" data-v="'+k+'"><span class="rd"></span><div><b><span class="num">'+k+'</span> · '+OKED[k].name+'</b><span>класс проф. риска '+OKED[k].cls+' · тариф '+pc(OKED[k].rate,1)+' % ФОТ</span></div></button>';}).join("")+'</div></div>'+
+    '<div class="row"><div class="field"><label for="oN">Работников</label><input class="inp num" id="oN" inputmode="numeric" value="'+esc(o.n)+'"></div><div class="field" style="flex:1.6"><label for="oW">Средняя зарплата в месяц</label><div class="inpwrap"><input class="inp num" id="oW" inputmode="numeric" value="'+fmt(digits(o.wage))+'"><span class="u">сум</span></div></div></div>'+
+    '<div id="oOut"></div><p class="note">'+tag("пример")+' Ставки ОСГОР в прототипе условные. В приложении класс и тариф берутся по ОКЭД из справочника.</p></div>';
+  return {head:head("ОСГОР","Ответственность работодателя",backBtn("closeFlow")),body:body,cta:'<button class="btn btn-p" data-a="saveOsgor">Сохранить в дела</button>'};
+}
+function osgorOut(){
+  var o=S.osgor,n=digits(o.n),w=digits(o.wage),r=OKED[o.oked].rate;
+  if(!n||!w)return '<div class="alert"><span class="ic">!</span><div><b>Не хватает данных</b>Укажите число работников и среднюю зарплату, чтобы посчитать фонд оплаты труда.</div></div>';
+  var fot=n*w*12;
+  return '<div class="card"><dl class="kv"><dt>Фонд оплаты труда за год</dt><dd class="num">'+fmt(fot)+'</dd><dt>Тариф</dt><dd class="num">'+pc(r,1)+' %</dd><dt><b style="color:var(--fg)">Премия за год</b></dt><dd class="num"><b>'+fmt(fot*r/100)+' сум</b></dd></dl></div>';
+}
+
+/* --- специалист --- */
+function answerHTML(k){
+  var a=ANSWERS[k];
+  var h='<div class="ans"><div class="blk"><h5>Данные</h5>'+a.data.map(function(d){return '<div class="drow"><span>'+d[0]+'</span><span class="dv num">'+d[1]+'</span><span class="ds">'+tag(d[2])+'</span></div>';}).join("")+'</div>';
+  if(a.table)h+='<div class="tblwrap"><table class="tbl"><thead><tr>'+a.table.h.map(function(x,i){return '<th'+(i?' class="r"':'')+'>'+x+'</th>';}).join("")+'</tr></thead><tbody>'+a.table.r.map(function(r){return '<tr>'+r.map(function(x,i){return '<td class="'+(i?'r ':'')+(i<2?'num':'')+'">'+x+'</td>';}).join("")+'</tr>';}).join("")+'</tbody></table></div>';
+  h+='<div class="blk out"><h5>Вывод</h5>'+a.out+'</div>';
+  h+='<div class="srcbar" style="margin-top:0"><span>'+a.src[0]+'</span>'+(a.src[1].indexOf(".")>0?'<button data-a="srcLink" data-v="'+a.src[1]+'">Читать в источнике '+a.src[1]+'</button>':'<span>'+a.src[1]+'</span>')+'</div></div>';
+  return h;
+}
+function scrSpec(){
+  var h='';
+  if(S.ctx)h+='<div class="ctx">'+tag("акт")+'<b>Автокран XCMG QY50K · 0318 · № '+CR.act+'</b><button data-a="noCtx" aria-label="Убрать акт из вопроса">×</button></div>';
+  if(!S.chat.length&&!S.typing){
+    h+='<div class="empty"><div class="eic">'+IC.chat+'</div><b>История пуста</b><p>Спросите о ставке, нормах или рынке. Подсказки под строкой ввода.</p></div>';
+  } else {
+    h+='<div class="chat">'+S.chat.map(function(m){
+      if(m.day)return '<div class="day">'+m.day+'</div>';
+      if(m.me)return '<div class="msg me">'+esc(m.me)+'</div>';
+      if(m.bot)return '<div><div class="who">Специалист</div><div class="msg" style="max-width:100%">'+answerHTML(m.bot)+'</div></div>';
+      return '<div><div class="who">Специалист</div><div class="msg">'+esc(m.text)+'</div></div>';
+    }).join("")+(S.typing?'<div><div class="who">Специалист</div><div class="msg" style="padding:0"><span class="typing" aria-label="Специалист пишет"><i></i><i></i><i></i></span></div></div>':'')+'</div>';
+  }
+  var sugg=["rate","pml","market"];
+  var cta='<div class="chips scroll">'+sugg.map(function(k){return '<button class="chip" data-a="ask" data-v="'+k+'">'+ANSWERS[k].q+'</button>';}).join("")+'</div>'+
+    '<form class="send" id="sendForm"><input class="inp" id="chatIn" placeholder="Вопрос специалисту" autocomplete="off" aria-label="Вопрос специалисту"><button class="btn btn-p" aria-label="Отправить вопрос">'+IC.send+'</button></form>';
+  return {head:head("Специалист","Нормы, тарифы, рынок · с источниками",'',S.chat.length?'<button class="ibtn" data-a="clearChat" aria-label="Очистить историю">'+IC.trash+'</button>':''),body:'<div class="stack">'+h+'</div>',cta:cta,nav:true,chat:true};
+}
+
+/* --- профиль --- */
+function themeNow(){return document.documentElement.getAttribute("data-theme")||"auto";}
+function themeSeg(){var t=themeNow();return [["light","Светлая"],["dark","Тёмная"],["auto","Авто"]].map(function(x){return '<button class="'+(t===x[0]?'on':'')+'" data-a="theme" data-v="'+x[0]+'" aria-pressed="'+(t===x[0])+'">'+x[1]+'</button>';}).join("");}
+function scrProfile(){
+  var p=S.prof;
+  var body='<div class="stack"><div class="card pcard"><span class="ava">ДМ</span><div><b>Дилшод М.</b><span>Агент-сюрвейер · ID агента •••• 18</span><span>Ташкентский областной филиал</span></div></div>'+
+    '<div class="card set">'+
+    '<div class="sr"><span class="lbl">Язык приложения</span><div class="seg">'+[["ru","Русский"],["uz","O‘zbekcha"],["en","English"]].map(function(x){return '<button class="'+(p.lang===x[0]?'on':'')+'" data-a="plang" data-v="'+x[0]+'">'+x[1]+'</button>';}).join("")+'</div>'+(p.lang!=="ru"?'<span class="note">В прототипе интерфейс остаётся на русском. Язык акта переключается в самом акте.</span>':'')+'</div>'+
+    '<div class="sr"><span class="lbl">Тема</span><div class="seg" id="themeSegApp">'+themeSeg()+'</div><span class="note">«Авто» следует настройке телефона или Telegram.</span></div>'+
+    '<button class="switch" role="switch" aria-checked="'+p.notif+'" data-a="notif"><span>Присылать акты и ответы специалиста в Telegram</span><i></i></button>'+
+    '</div>'+
+    '<div class="card"><dl class="kv"><dt>Телефон</dt><dd class="num">+998 •• ••• •• 41</dd><dt>Дел за месяц</dt><dd class="num">'+S.cases.length+'</dd><dt>Версия</dt><dd class="num">прототип 0.1</dd></dl></div>'+
+    '<button class="btn btn-d" data-a="sheet" data-v="logout">'+IC.exit+'Выйти из приложения</button>'+
+    '<p class="note">Данные в прототипе выдуманные. Персональные данные клиентов в приложении хранятся только на серверах в Узбекистане.</p></div>';
+  return {head:head("Профиль","Настройки и выход"),body:body,nav:true};
+}
+function scrOut(){
+  return {head:'',body:'<div class="empty" style="padding-top:96px"><div class="logo" style="font-size:36px"><b>INS</b><i>ON</i></div><b>Вы вышли</b><p>Дела и незаконченные осмотры сохранены. Чтобы продолжить, войдите снова через Telegram.</p><button class="btn btn-p" data-a="login">Войти снова</button></div>'};
+}
+
+/* --- шторки --- */
+function sheetHTML(){
+  if(!S.sheet)return "";
+  var c=S.chk,k=S.sheet,title="",b="",f="";
+  if(k==="factors"){
+    title="Факторы тарифа";
+    b='<p class="small muted">Уточните, что знаете. «Не знаю» не ухудшает ставку, но попадёт в список «уточнить».</p>'+
+      FACTORS.map(function(x){return '<div class="frow"><div class="fl">'+x.t+'</div><div class="seg">'+x.o.map(function(o,i){return '<button class="'+(c.fsel[x.k]===i?'on':'')+'" data-a="fsel" data-v="'+x.k+':'+i+'" style="font-size:12px">'+o+'</button>';}).join("")+'</div></div>';}).join("")+
+      '<div class="alert"><span class="ic">i</span><div><b>С факторами было бы 0,71 %</b>Справочно, в премию не входит. '+tag("экспертно, не калибровано")+'</div></div>';
+    f='<button class="btn btn-p" data-a="sheetSave" data-v="factors">Сохранить факторы</button>';
+  } else if(k==="franchise"){
+    title="Франшиза";
+    b='<p class="small muted">Для этого объекта франшиза не требуется: класс B, убытков за 3 года нет. Предложите её, если клиент просит снизить цену.</p>'+
+      FRANCH.map(function(x){return '<button class="opt'+(c.ex.franchise===x.k?' on':'')+'" data-a="fr" data-v="'+x.k+'"><span class="rd"></span><div><b>'+x.t+'</b><span class="num" style="font-family:var(--font-sans)">'+x.s+'</span></div></button>';}).join("")+
+      '<p class="note">Скидку за франшизу считает движок по таблице продукта. В прототипе премия не меняется.</p>';
+    f='<button class="btn btn-p" data-a="sheetClose">Готово</button>';
+  } else if(k==="multi"){
+    title="Несколько объектов";
+    b='<div class="opt on"><span class="rd"></span><div><b>Автокран XCMG QY50K5D+, 2026</b><span class="num">2 945 000 000 сум · этот осмотр</span></div></div>'+
+      (c.ex.multi?'<div class="opt on"><span class="rd"></span><div><b>Автокран XCMG QY25K, 2020</b><span class="num">1 480 000 000 сум · пример</span></div><button class="ibtn" data-a="multiOff" aria-label="Убрать второй объект">'+IC.close+'</button></div>':'<button class="btn btn-s" data-a="multiOn">'+IC.plus2+'Добавить объект</button>')+
+      '<p class="note">Ставка проверяется по каждому объекту отдельно, не по средней по договору.</p>';
+    f='<button class="btn btn-p" data-a="sheetClose">Готово</button>';
+  } else if(k==="losses"){
+    title="Убытки за 3 года";
+    b=[["none","Убытков не было","Так указано в запросе филиала"],["some","Были убытки","Даты и суммы вносятся в приложении"]].map(function(x){return '<button class="opt'+(c.ex.losses===x[0]?' on':'')+'" data-a="loss" data-v="'+x[0]+'"><span class="rd"></span><div><b>'+x[1]+'</b><span>'+x[2]+'</span></div></button>';}).join("");
+    f='<button class="btn btn-p" data-a="sheetClose">Готово</button>';
+  } else if(k==="logout"){
+    title="Выйти из приложения?";
+    b='<p class="small muted">Дела и незаконченные осмотры останутся. Для входа снова понадобится Telegram.</p>';
+    f='<button class="btn btn-d" data-a="logout">Выйти</button><button class="btn btn-s" data-a="sheetClose">Остаться</button>';
+  } else if(k.indexOf("case:")===0){
+    var cs=S.cases.filter(function(x){return x.id===k.slice(5);})[0];
+    title=cs.obj;
+    b='<dl class="kv"><dt>Продукт</dt><dd>'+esc(cs.code+" · "+cs.prod)+'</dd><dt>Класс</dt><dd>'+CLS.filter(function(x){return x[0]===cs.cls;})[0][1]+'</dd><dt>Уровень риска</dt><dd>'+(cs.risk?LVL[cs.risk]:"после осмотра")+'</dd><dt>Дата</dt><dd class="num">'+cs.date+'</dd>'+(cs.no?'<dt>Акт</dt><dd class="num">'+cs.no+'</dd>':'')+(cs.prem?'<dt>Премия</dt><dd class="num">'+fmt(cs.prem)+' сум</dd>':'<dt>Где остановились</dt><dd>'+esc(cs.step)+'</dd>')+'</dl>'+
+      '<p class="note">В прототипе полный акт есть только у автокрана 0318. У остальных дел показана карточка.</p>';
+    f='<button class="btn btn-p" data-a="openCase" data-v="c1">Открыть пример: автокран 0318</button><button class="btn btn-s" data-a="sheetClose">Закрыть</button>';
+  }
+  return '<div class="scrim" data-a="scrim"><div class="sheet" role="dialog" aria-modal="true" aria-label="'+esc(title)+'"><div class="grab"></div><div class="sh"><b>'+esc(title)+'</b><button class="ibtn" data-a="sheetClose" aria-label="Закрыть">'+IC.close+'</button></div><div class="sb">'+b+'</div><div class="sf">'+f+'</div></div></div>';
+}
+
+/* ===== сборка экрана ===== */
+var lastKey="";
+function current(){
+  if(S.out)return scrOut();
+  if(S.flow==="inspect")return S.step===1?scrShoot():S.step===2?scrCheck():scrAct();
+  if(S.flow==="quick")return scrQuick();
+  if(S.flow==="osgor")return scrOsgor();
+  return {cases:scrCases,new:scrNew,spec:scrSpec,profile:scrProfile}[S.tab]();
+}
+function render(opt){
+  opt=opt||{};
+  var s=current();
+  var key=(S.out?"out":"")+S.tab+"|"+S.flow+"|"+S.step;
+  var changed=key!==lastKey;lastKey=key;
+  var vw=$("vw"),keep=vw.scrollTop;
+  $("hd").innerHTML=s.head||"";$("hd").hidden=!s.head;
+  $("prog").innerHTML=progHTML();
+  vw.innerHTML=s.body;
+  $("cta").innerHTML=s.cta||"";$("cta").hidden=!s.cta;
+  var nav=$("nav");nav.hidden=!s.nav;
+  if(s.nav){nav.innerHTML=[["cases","Дела",IC.cases],["new","Новый",IC.plus],["spec","Специалист",IC.chat],["profile","Профиль",IC.user]].map(function(n){return '<button class="'+(S.tab===n[0]?'on':'')+(n[0]==="new"?' new':'')+'" data-a="tab" data-v="'+n[0]+'" aria-current="'+(S.tab===n[0]?'page':'false')+'">'+n[2]+n[1]+'</button>';}).join("");}
+  $("full").innerHTML=fullHTML();
+  $("sheet").innerHTML=sheetHTML();
+  if($("caseList"))$("caseList").innerHTML=caseListHTML();
+  if($("qOut"))$("qOut").innerHTML=quickOut();
+  if($("oOut"))$("oOut").innerHTML=osgorOut();
+  if(changed){vw.scrollTop=0;vw.classList.remove("enter");void vw.offsetWidth;vw.classList.add("enter");}
+  else if(opt.bottom||s.chat){vw.scrollTop=vw.scrollHeight;}
+  else vw.scrollTop=keep;
+  if(opt.focus){var el=$(opt.focus);if(el){el.focus();if(el.select)el.select();}}
+  $("themeSegPanel").innerHTML=themeSeg();
+  markStory();
+}
+
+/* ===== действия ===== */
+function setTheme(t){
+  if(t==="auto")document.documentElement.removeAttribute("data-theme");else document.documentElement.setAttribute("data-theme",t);
+  try{localStorage.setItem("proto-theme",t);}catch(e){}
+}
+function startInspect(){
+  S.flow="inspect";S.step=1;S.fromCase=false;S.shots=[0,1,2];S.chk=freshCheck();S.facts=FACTS_SEED.map(function(f){return Object.assign({},f);});
+  S.act={loading:false,pin:false,tab:"act",lang:"ru",sec:null,meas:freshMeas()};S.newCase=null;
+}
+function upsertNew(st){
+  if(!S.newCase){S.newCase={id:"n"+Date.now(),code:"0318",prod:"Спецтехника юрлиц",obj:"Автокран XCMG QY50K5D+, 2026",prem:null,cls:"auto",risk:null,st:"draft",date:"04.10.2026",no:null,step:"",full:true};S.cases.unshift(S.newCase);}
+  S.newCase.st=st;
+  if(st==="draft"){S.newCase.step=["Съёмка","Проверка","Акт"][S.step-1]+", шаг "+S.step+" из 3";S.newCase.prem=null;}
+  else{S.newCase.prem=CR.prem;S.newCase.risk="m";S.newCase.no=S.newCase.no||"20261004-3B7D21";}
+}
+var actT;
+var A = {
+  tab:function(v){S.tab=v;S.flow=null;S.sheet=null;S.act.sec=null;S.pinSk=false;S.act.pin=false;render();},
+  filter:function(v){S.filter=v;render();},
+  resetFilter:function(){S.query="";S.filter="all";S.pinSk=false;render();},
+  startInspect:function(){startInspect();render();},
+  flow:function(v){S.flow=v;render();},
+  closeFlow:function(){var fromCase=S.fromCase;S.flow=null;S.act.sec=null;S.tab=fromCase?"cases":"new";render();},
+  openCase:function(v){
+    S.sheet=null;
+    if(v==="c1"){S.flow="inspect";S.step=3;S.fromCase=true;S.act={loading:false,pin:false,tab:"act",lang:"ru",sec:null,meas:freshMeas()};render();return;}
+    var c=S.cases.filter(function(x){return x.id===v;})[0];
+    if(c&&c.full&&S.newCase&&c.id===S.newCase.id){S.flow="inspect";S.fromCase=false;S.step=c.st==="draft"?Math.max(1,parseInt(c.step.split("шаг ")[1])||1):3;render();return;}
+    S.sheet="case:"+v;render();
+  },
+  wizBack:function(){
+    if(S.step>1&&!S.fromCase){S.step--;S.act.sec=null;render();return;}
+    upsertNew("draft");S.flow=null;S.tab="cases";render();toast("Осмотр сохранён в «Делах». Продолжите с того же шага.");
+  },
+  goStep:function(v){S.step=+v;if(S.step===2&&S.chk.stage===0&&!S.newCase){upsertNew("draft");}else if(S.newCase&&S.newCase.st==="draft")upsertNew("draft");render();},
+  shoot:function(){var have=S.shots;for(var i=0;i<ANGLES.length;i++){if(have.indexOf(i)<0){have.push(i);break;}}render();toast("Снимок добавлен: "+ANGLES[have[have.length-1]].toLowerCase()+".");},
+  unshoot:function(v){S.shots=S.shots.filter(function(i){return i!==+v;});render();},
+  addFile:function(){toast("В приложении откроется выбор файла: фото, PDF, Word или Excel до 15 МБ.");},
+  ok1:function(){S.chk.a1="Всё верно";S.chk.stage=1;render({bottom:true});},
+  fix1:function(){S.chk.fix=true;render();},
+  editFact:function(v){S.chk.edit=v;render({focus:"ed"});},
+  cancelEdit:function(){S.chk.edit=null;render();},
+  saveFact:function(v){
+    var val=$("ed").value.trim();var f=S.facts.filter(function(x){return x.k===v;})[0];
+    if(!val){toast("Поле пустое. Введите значение или нажмите «Отмена».");return;}
+    if(val!==f.v){f.v=val;f.src="введено сотрудником";f.fixed=true;if(S.chk.changed.indexOf(f.l)<0)S.chk.changed.push(f.l.split(" · ")[0]);}
+    S.chk.edit=null;render();
+  },
+  fixDone:function(){var c=S.chk;c.a1=c.changed.length?"Поправил: "+c.changed.join(", "):"Всё верно";c.fix=false;c.edit=null;c.stage=1;render({bottom:true});},
+  ok2:function(){S.chk.a2="Принять "+fmt(S.chk.value)+" сум";S.chk.stage=2;render({bottom:true});},
+  val2:function(){S.chk.valEdit=true;render({focus:"valIn",bottom:true});},
+  cancelVal:function(){S.chk.valEdit=false;render();},
+  saveVal:function(){var n=digits($("valIn").value);if(n<100000000){toast("Стоимость слишком мала. Введите сумму в сумах, например 3 100 000 000.");return;}S.chk.value=n;S.chk.valOwn=true;S.chk.valEdit=false;S.chk.a2="Своя оценка: "+fmt(n)+" сум";S.chk.stage=2;render({bottom:true});},
+  mil:function(v){S.chk.a3=v+" моточасов";S.chk.stage=3;render({bottom:true});},
+  milSave:function(){var n=digits($("milIn").value);if(!n){toast("Введите число моточасов или выберите диапазон.");return;}S.chk.a3=fmt(n)+" моточасов";S.chk.stage=3;render({bottom:true});},
+  milSkip:function(){S.chk.a3="Пропустить, уточню позже";S.chk.stage=3;render({bottom:true});},
+  sheet:function(v){S.sheet=v;render();},
+  sheetClose:function(){S.sheet=null;render();},
+  scrim:function(v,e){if(e.target.classList.contains("scrim")){S.sheet=null;render();}},
+  sheetSave:function(v){S.chk.ex[v]=true;S.sheet=null;render();toast("Факторы сохранены. На премию в акте не влияют, показаны справочно.");},
+  fsel:function(v){var p=v.split(":");S.chk.fsel[p[0]]=+p[1];render();},
+  fr:function(v){S.chk.ex.franchise=v;render();},
+  multiOn:function(){S.chk.ex.multi=true;render();},
+  multiOff:function(){S.chk.ex.multi=false;render();},
+  loss:function(v){S.chk.ex.losses=v;render();},
+  makeAct:function(){S.step=3;S.act.loading=true;upsertNew("done");render();clearTimeout(actT);actT=setTimeout(function(){S.act.loading=false;if(S.flow==="inspect"&&S.step===3)render();},1100);},
+  actLang:function(v){S.act.lang=v;render();},
+  actTab:function(v){S.act.tab=v;render();},
+  openSec:function(v){S.act.sec=(v==="scen"||v==="score")?v:+v;render();},
+  closeSec:function(){S.act.sec=null;render();},
+  export:function(v){toast(v==="chat"?"В приложении акт придёт в чат Telegram файлом PDF. В прототипе ничего не отправляется.":"В приложении скачается акт в "+v+". В прототипе файл не создаётся.");},
+  meas:function(v){var p=v.split(":"),m=S.act.meas[p[0]];if(p[1]==="c"){m.c=m.c?0:1;if(m.c)m.d=1;}else{m.d=m.d?0:1;if(!m.d)m.c=0;}var fv=$("fullVw");if(fv){var st=fv.scrollTop;fv.innerHTML=secHTML(S.act.sec);fv.scrollTop=st;var b=fv.querySelector('[data-v="'+v+'"]');if(b)b.focus();}else render();},
+  askSpec:function(){S.ctx=true;S.flow=null;S.tab="spec";render();},
+  srcLink:function(v){toast("В приложении откроется "+v+". В прототипе ссылки наружу не ведут.");},
+  qRisk:function(v){S.quick.risk=v;render();},
+  oked:function(v){S.osgor.oked=v;render();},
+  saveQuick:function(){var q=S.quick,p=PRODUCTS[q.prod];var prem=digits(q.sum)*p.min*RISKK[q.risk]/100;if(!prem){toast("Введите страховую сумму, чтобы сохранить расчёт.");return;}S.cases.unshift({id:"q"+Date.now(),code:q.prod,prod:p.name,obj:"Быстрый расчёт, сумма "+fmt(digits(q.sum))+" сум",prem:prem,cls:(q.prod==="0215"?"prop":"auto"),risk:{A:"l",B:"m",C:"h",D:"h"}[q.risk],st:"done",date:"04.10.2026",step:""});S.flow=null;S.tab="cases";S.filter="all";render();toast("Расчёт сохранён в «Делах».");},
+  saveOsgor:function(){var o=S.osgor;var prem=digits(o.n)*digits(o.wage)*12*OKED[o.oked].rate/100;if(!prem){toast("Укажите работников и зарплату, чтобы сохранить расчёт.");return;}S.cases.unshift({id:"o"+Date.now(),code:"ОСГОР",prod:"Ответственность работодателя",obj:"ОКЭД "+o.oked+", "+digits(o.n)+" работников",prem:prem,cls:"liab",risk:null,st:"done",date:"04.10.2026",step:""});S.flow=null;S.tab="cases";S.filter="all";render();toast("Расчёт ОСГОР сохранён в «Делах».");},
+  ask:function(v){askQ(ANSWERS[v].q,v);},
+  noCtx:function(){S.ctx=false;render();},
+  clearChat:function(){S.chat=[];render();toast("История очищена.");},
+  theme:function(v){setTheme(v);render();},
+  plang:function(v){S.prof.lang=v;render();},
+  notif:function(){S.prof.notif=!S.prof.notif;render();},
+  logout:function(){S.sheet=null;S.out=true;render();},
+  login:function(){S.out=false;S.tab="cases";render();},
+  story:function(v){story(v);}
+};
+var askT;
+function askQ(text,key){
+  if(S.typing)return;
+  S.chat.push({me:text});S.typing=true;render({bottom:true});
+  clearTimeout(askT);askT=setTimeout(function(){
+    S.typing=false;
+    S.chat.push(key?{bot:key}:{text:"В прототипе я отвечаю на три заготовленных вопроса из подсказок. В приложении отвечу по нормам с lex.uz и данным рынка, со ссылкой на источник."});
+    if(S.tab==="spec"&&!S.flow)render({bottom:true});
+  },reduce()?50:800);
+}
+function reduce(){return window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;}
+
+document.addEventListener("click",function(e){
+  var el=e.target.closest("[data-a]");if(!el)return;
+  var a=el.getAttribute("data-a");
+  if(a==="scrim"&&e.target!==el)return;
+  if(el.disabled)return;
+  if(A[a]){e.preventDefault();A[a](el.getAttribute("data-v"),e);}
+});
+document.addEventListener("input",function(e){
+  var id=e.target.id,v=e.target.value;
+  if(id==="q"){S.query=v;$("caseList").innerHTML=caseListHTML();}
+  else if(id==="qSum"){S.quick.sum=v;$("qOut").innerHTML=quickOut();}
+  else if(id==="qReq"){S.quick.req=v;$("qOut").innerHTML=quickOut();}
+  else if(id==="oN"){S.osgor.n=v;$("oOut").innerHTML=osgorOut();}
+  else if(id==="oW"){S.osgor.wage=v;$("oOut").innerHTML=osgorOut();}
+  else if(id==="milIn"){S.chk.mil=v;}
+});
+document.addEventListener("change",function(e){if(e.target.id==="qProd"){S.quick.prod=e.target.value;$("qOut").innerHTML=quickOut();}});
+document.addEventListener("submit",function(e){
+  e.preventDefault();
+  if(e.target.id==="sendForm"){var i=$("chatIn"),t=i.value.trim();if(!t){i.focus();return;}
+    var key=null;Object.keys(ANSWERS).forEach(function(k){if(ANSWERS[k].q===t)key=k;});askQ(t,key);var n=$("chatIn");if(n)n.focus();}
+});
+document.addEventListener("keydown",function(e){
+  if(e.key==="Escape"){if(S.sheet){S.sheet=null;render();}else if(S.act.sec!=null){S.act.sec=null;render();}}
+  if(e.key==="Enter"&&e.target.id==="ed"){e.preventDefault();A.saveFact(S.chk.edit);}
+  if(e.key==="Enter"&&e.target.id==="valIn"){e.preventDefault();A.saveVal();}
+  if(e.key==="Enter"&&e.target.id==="milIn"){e.preventDefault();A.milSave();}
+});
+
+/* ===== витрина экранов ===== */
+var STORIES=[
+ ["Дела",[["cases","Список дел"],["cases-loading","Загрузка"],["cases-empty","Ничего не найдено"]]],
+ ["Новый",[["new","Выбор типа"],["shoot","Осмотр · 1 Съёмка"],["check","Осмотр · 2 Проверка"],["check-fix","Проверка · Поправить"],["check-done","Проверка · всё собрано"],["sheet-factors","Шторка · Факторы"],["act-loading","Осмотр · 3 Акт, загрузка"],["act","Осмотр · 3 Акт"]]],
+ ["Акт",[["act-scen","Вкладка Сценарии"],["act-market","Вкладка Рынок"],["act-object","Вкладка Объект"],["act-score","Из чего сложился балл"],["act-s1","1 Объект"],["act-s2","2 Осмотр"],["act-s3","3 Стоимость"],["act-s4","4 Риск-факторы и франшиза"],["act-s5","5 Заключение"],["act-pml","Сценарии: подробнее"],["act-uz","Акт на узбекском"]]],
+ ["Другие типы",[["quick","Быстрый расчёт"],["osgor","ОСГОР"]]],
+ ["Специалист",[["spec","Чат с ответом"],["spec-empty","Пустая история"]]],
+ ["Профиль",[["profile","Профиль и тема"],["logout","Выход"]]]
+];
+var curStory="cases";
+function markStory(){var b=document.querySelectorAll("#stories button");for(var i=0;i<b.length;i++)b[i].classList.toggle("on",b[i].getAttribute("data-v")===curStory);}
+function storiesHTML(){return STORIES.map(function(g){return '<h4>'+g[0]+'</h4><div class="st-list">'+g[1].map(function(s){return '<button data-a="story" data-v="'+s[0]+'">'+s[1]+'</button>';}).join("")+'</div>';}).join("");}
+function toActDone(){startInspect();S.chk.stage=3;S.chk.a1="Всё верно";S.chk.a2="Принять 3 100 000 000 сум";S.chk.a3="Пропустить, уточню позже";upsertNew("done");S.step=3;S.flow="inspect";}
+function story(id){
+  var th=S?themeNow():null;
+  clearTimeout(actT);clearTimeout(askT);
+  S=fresh();curStory=id;lastKey="";
+  switch(id){
+    case "cases-loading":S.pinSk=true;break;
+    case "cases-empty":S.query="бульдозер";break;
+    case "new":S.tab="new";break;
+    case "shoot":S.tab="new";startInspect();break;
+    case "check":S.tab="new";startInspect();S.step=2;break;
+    case "check-fix":S.tab="new";startInspect();S.step=2;S.chk.fix=true;S.chk.edit="mass";break;
+    case "check-done":S.tab="new";startInspect();S.step=2;S.chk.stage=3;S.chk.a1="Всё верно";S.chk.a2="Принять 3 100 000 000 сум";S.chk.a3="2 000–5 000 моточасов";break;
+    case "sheet-factors":S.tab="new";startInspect();S.step=2;S.chk.stage=3;S.chk.a1="Всё верно";S.chk.a2="Принять 3 100 000 000 сум";S.chk.a3="4 200 моточасов";S.sheet="factors";break;
+    case "act-loading":S.tab="new";toActDone();S.act.pin=true;break;
+    case "act":S.tab="new";toActDone();break;
+    case "act-scen":S.tab="new";toActDone();S.act.tab="scen";break;
+    case "act-market":S.tab="new";toActDone();S.act.tab="market";break;
+    case "act-object":S.tab="new";toActDone();S.act.tab="object";break;
+    case "act-score":S.tab="new";toActDone();S.act.sec="score";break;
+    case "act-s1":S.tab="new";toActDone();S.act.sec=1;break;
+    case "act-s2":S.tab="new";toActDone();S.act.sec=2;break;
+    case "act-s3":S.tab="new";toActDone();S.act.sec=3;break;
+    case "act-s4":S.tab="new";toActDone();S.act.sec=4;S.act.meas.park={d:1,c:1};S.act.meas.gps={d:1,c:0};break;
+    case "act-s5":S.tab="new";toActDone();S.act.sec=5;break;
+    case "act-pml":S.tab="new";toActDone();S.act.sec="scen";break;
+    case "act-uz":S.tab="new";toActDone();S.act.lang="uz";break;
+    case "quick":S.tab="new";S.flow="quick";break;
+    case "osgor":S.tab="new";S.flow="osgor";break;
+    case "spec":S.tab="spec";S.chat=[{day:"Вчера"},{me:"Какой лимит на один риск?"},{bot:"limit"},{day:"Сегодня"},{me:ANSWERS.rate.q},{bot:"rate"}];break;
+    case "spec-empty":S.tab="spec";S.chat=[];S.ctx=false;break;
+    case "profile":S.tab="profile";break;
+    case "logout":S.tab="profile";S.sheet="logout";break;
+  }
+  render();
+}
+
+/* ===== запуск ===== */
+$("stories").innerHTML=storiesHTML();
+(function init(){
+  var t=null;try{t=localStorage.getItem("proto-theme");}catch(e){}
+  var h=(location.hash||"").slice(1);
+  if(/-dark$/.test(h)){t="dark";h=h.replace(/-dark$/,"");}
+  else if(/-light$/.test(h)){t="light";h=h.replace(/-light$/,"");}
+  if(t&&t!=="auto")setTheme(t);
+  var ids=[];STORIES.forEach(function(g){g[1].forEach(function(s){ids.push(s[0]);});});
+  if(h&&ids.indexOf(h)>=0){story(h);return;}
+  S.loading=true;render();
+  setTimeout(function(){S.loading=false;if($("caseList"))$("caseList").innerHTML=caseListHTML();},reduce()?0:700);
+})();
+})();

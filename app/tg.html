@@ -9188,9 +9188,21 @@ function chatBoot(){
   // вставка из буфера: скриншот или файл — в список шага «Фото»
   document.addEventListener("paste", e => {
     if (TAB !== "chat" || !e.clipboardData) return;
-    const files = Array.prototype.slice.call(e.clipboardData.files || []);
+    // Windows кладёт снимок экрана не в clipboardData.files, а в items (image/png без имени) — читаем оба пути
+    let files = Array.prototype.slice.call(e.clipboardData.files || []);
+    if (!files.length) {
+      const items = Array.prototype.slice.call(e.clipboardData.items || []);
+      files = items.filter(it => it.kind === "file" && /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
+    }
     if (!files.length) return;
     e.preventDefault();
+    // снимку из буфера даём имя с расширением: по нему проверяется формат и строится подпись в списке файлов
+    files = files.map((f, i) => {
+      if (f.name && /\.[a-z0-9]{2,5}$/i.test(f.name)) return f;
+      const ext = /png/.test(f.type) ? "png" : /webp/.test(f.type) ? "webp" : "jpg";
+      try { return new File([f], "снимок-" + Date.now() + "-" + (i + 1) + "." + ext, {type: f.type || "image/" + ext}); }
+      catch (_) { return f; }
+    });
     if (CH.wz === 2) mkAddFiles(files); else wzAddFiles(files);   // шаг «Проверить»: снимок экрана со списком объявлений
   });
 }

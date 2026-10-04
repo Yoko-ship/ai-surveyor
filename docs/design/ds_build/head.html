@@ -1,0 +1,23 @@
+<!--
+  Источники дизайн-системы (взяты дословно, где не сказано иное)
+  1. Revolut, Open Design — токены цвета, шкала текста, отступы, радиусы, тени, движение:
+     https://open-design.ai/plugins/design-system-revolut/
+  2. Wise, Open Design — Inter для текста, спокойная плотность форм:
+     https://open-design.ai/plugins/design-system-wise/
+  3. Material 3 — цель касания 48×48 dp, компактное окно 0–599 dp с полями 16 dp,
+     нижняя навигация 80 dp (иконка 24, подпись 12), слои состояний, роли типографики:
+     https://m3.material.io/foundations/designing/structure  ·  https://m3.material.io/styles/typography/type-scale-tokens
+     https://m3.material.io/components/navigation-bar/specs  ·  https://m3.material.io/foundations/interaction/states/state-layers
+  4. Apple Human Interface Guidelines — минимум касания 44×44 pt, поля 16 pt, safe-area:
+     https://developer.apple.com/design/human-interface-guidelines/layout
+     https://developer.apple.com/design/human-interface-guidelines/typography
+  5. Шрифты Google Fonts: Inter (https://fonts.google.com/specimen/Inter), JetBrains Mono (https://fonts.google.com/specimen/JetBrains+Mono)
+  Заменено под INSON: акцент Revolut → синий INSON #1D2C8F (accent-on #fff); success → зелёный INSON #22A85A;
+  цифры — JetBrains Mono вместо Inter; поле телефона 18 px Revolut → 16 px (M3 и HIG, сетка 4).
+  Производные (выведены нами, не из источника): все токены тёмной темы, мягкие подложки *-soft,
+  текстовые варианты *-fg для статусов (контраст AA на белом), --lime для шкалы балла, цвета камеры.
+-->
+<title>Сюрвейер INSON</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
