@@ -169,6 +169,14 @@ def _bootstrap_code():
 def startup():
     from .web import install_log_filters   # журналы uvicorn: без строки запроса, секрета вебхука и ПД
     install_log_filters()
+    from . import auth as _auth
+    if _auth.dev_mode():                   # режим разработчика: исходники мини-аппа app/tg/ новее app/tg.html — пересобрать
+        try:
+            from . import tgpage
+            if tgpage.ensure_fresh():
+                print("мини-приложение пересобрано: app/tg.html")
+        except Exception as e:             # сборка не удалась — отдаём прежний app/tg.html
+            print("мини-приложение не пересобрано:", e)
     db.init_storage()
     db.ensure_schema()
     from . import refsync                 # справочники образа -> постоянный диск (если сборка новее)

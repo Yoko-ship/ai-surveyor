@@ -38,7 +38,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from . import db
+from . import db, textnorm
 
 router = APIRouter()
 
@@ -458,7 +458,7 @@ OBJECT_LABELS = [
 # --------------------------------------------------------------------------- #
 # Нормализация текста
 # --------------------------------------------------------------------------- #
-APOSTROPHES = "‘’ʻʼ`´′ʹ'"
+APOSTROPHES = textnorm.APOSTROPHES_DOC          # ‘ ’ ʻ ʼ ` ´ ′ ʹ ' — сводятся к одному «'»
 
 REGIONS = {
     "республика каракалпакстан": "Республика Каракалпакстан",
@@ -519,11 +519,7 @@ def _norm_cached(text: str) -> str:
 
 
 def _norm_raw(text: str) -> str:
-    t = (text or "").lower().replace("ё", "е")
-    for a in APOSTROPHES:
-        t = t.replace(a, "'")
-    t = t.replace(" ", " ")
-    return re.sub(r"\s+", " ", t).strip()
+    return textnorm.doc_norm(text)
 
 
 # --------------------------------------------------------------------------- #
@@ -902,9 +898,6 @@ def _tail_after_label(line: str, labels: List[str], folded: bool) -> Optional[tu
         return lab, tail
     return None
 
-
-# публичное имя для app/ingest.py: тот же поиск хвоста строки после подписи
-tail_after_label = _tail_after_label
 
 
 def find_field(lines: List[str], field: dict) -> Optional[dict]:

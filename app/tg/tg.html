@@ -1,0 +1,222 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title data-i18n="tg.title">Сюрвейер INSON</title>
+<link rel="icon" href="data:,">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- язык переключается без перезагрузки: app/i18n.js шлёт событие i18n:changed, страница перерисовывает экран -->
+<!-- переключатель RU/UZ/EN стоит в левом меню (#sideLang), плавающий из app/i18n.js здесь не нужен -->
+<script>window.I18N_LIVE = true; window.I18N_NO_FLOAT = true;</script>
+<script src="/i18n.js"></script>
+<style>
+/*@TG_CSS*/</style>
+
+<aside id="side">
+  <button class="burger" id="burger" type="button" aria-controls="nav" aria-expanded="false">
+    <i aria-hidden="true">&#9776;</i><span data-i18n="tg.menu_collapse">Свернуть меню</span></button>
+  <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
+    <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode"></span></div></div>
+  <nav id="nav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
+  <!-- Способы входа: как этот человек попадает в приложение. Данные: GET /auth/links →
+       {links:[{provider,title,display,…}], can_link, can_unlink, google:{configured,message,hint}}.
+       Привязка Google — POST /auth/link/google/start → {url} (возврат на /tg?link=ok|error);
+       привязка Telegram — POST /auth/link/telegram/start → код боту с опросом /auth/tg-link/status.
+       Видна каждому вошедшему: второй способ входа нужен не только администратору. -->
+  <div class="links hidden" id="links">
+    <h3 data-i18n="tg.links.title">Способы входа</h3>
+    <div class="row"><span data-i18n="tg.links.tg">Telegram</span><b id="lnTg">—</b>
+      <button type="button" class="un hidden" id="lnTgOff" data-i18n="tg.links.unbind">Отвязать</button></div>
+    <div class="row"><span data-i18n="tg.links.google">Google</span><b id="lnGo">—</b>
+      <button type="button" class="un hidden" id="lnGoOff" data-i18n="tg.links.unbind">Отвязать</button></div>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="lnBind" data-i18n="tg.links.bind_google">Привязать Google</button>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="lnBindTg" data-i18n="tg.links.bind_tg">Привязать Telegram</button>
+    <div class="lncode hidden" id="lnCode"></div>
+    <p class="lnhow hidden" id="lnHow"></p>
+    <a class="btn btn-secondary btn-sm hidden" id="lnOpenBot" href="#" target="_blank" rel="noopener" data-i18n="tg.links.open_bot">Открыть бота</a>
+    <p class="why" data-i18n="tg.links.why">Второй способ входа: с нового устройства вы попадёте в этот же профиль.</p>
+    <div class="note msg" id="lnMsg"></div>
+  </div>
+  <!-- запрос доступа в админку: гостю и обычному сотруднику. Роль выдаёт только владелец -->
+  <div class="links askadm hidden" id="askAdmBox">
+    <h3 data-i18n="tg.adminreq.title">Доступ в админку</h3>
+    <button type="button" class="btn btn-secondary btn-sm hidden" id="askAdm" data-i18n="tg.adminreq.ask">Запросить доступ в админку</button>
+    <div class="note msg" id="askMsg"></div>
+  </div>
+  <div id="sideLang" role="group" data-i18n-aria="common.lang" aria-label="Язык">
+    <button type="button" data-lang-pick="ru" data-i18n-title="common.lang_ru" title="Русский" lang="ru" aria-pressed="false">RU</button>
+    <button type="button" data-lang-pick="uz" data-i18n-title="common.lang_uz" title="Oʻzbekcha" lang="uz" aria-pressed="false">UZ</button>
+    <button type="button" data-lang-pick="en" data-i18n-title="common.lang_en" title="English" lang="en" aria-pressed="false">EN</button>
+  </div>
+  <div class="whoami hidden" id="whoami"><span id="whoText"></span>
+    <!-- смена имени: нажатие на имя открывает поле (PUT /tg/me/name) -->
+    <div class="nameform hidden" id="whoNameForm">
+      <label for="whoName" data-i18n="tg.reg.name">Имя</label>
+      <input id="whoName" type="text" maxlength="80" autocomplete="name">
+      <div><button type="button" class="btn btn-primary btn-sm" id="whoNameSave" data-i18n="common.save">Сохранить</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="whoNameCancel" data-i18n="common.cancel">Отмена</button></div>
+      <div class="note msg" id="whoNameMsg"></div>
+    </div>
+    <!-- только у администратора: посмотреть приложение глазами обычного пользователя; права не меняются -->
+    <label class="switch hidden" id="viewSwitch"><input type="checkbox" id="viewToggle"><span data-i18n="tg.view.toggle">Режим пользователя</span></label>
+    <button type="button" class="btn btn-secondary btn-sm" id="outBtn" data-i18n="common.logout">Выйти</button></div>
+</aside>
+<div id="scrim"></div>
+
+<!-- фон раздела приложения: размытая картинка под содержимым, ставится в appBg() -->
+<div id="appbg" aria-hidden="true"></div>
+
+
+<div class="wrap">
+  <!-- строка заголовка раздела: название по центру (ставит paintTop), INSON справа -->
+  <header class="topbar" id="topbar"><span aria-hidden="true"></span><div class="tb-title" id="topTitle" role="heading" aria-level="1"></div><b class="logo">INSON</b></header>
+  <!-- страница открыта не в Telegram: ведём в мини-апп, там вход автоматический -->
+  <div class="tgopen hidden" id="tgOpenBar">
+    <a class="btn btn-primary" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
+    <p data-i18n="tg.open_in_tg_hint">Приложение работает внутри Telegram — там вход автоматический.</p>
+  </div>
+  <div class="banner" id="pdWarn" data-i18n="tg.test_server_rule">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
+  <div class="banner hidden" id="authWarn"></div>
+
+
+  <!-- ---------- приложение ---------- -->
+  <div id="screen-app" class="hidden">
+
+
+  <!-- ИИ-сюрвейер, лёгкая версия (ТЗ 2.0 от 29.09.2026): мастер «Фото → Проверить → Акт».
+       Шаги рисует JS в #wzBody; закреплённая кнопка внизу — для браузера, в Telegram — MainButton. -->
+  <section id="tab-chat" data-section="chat" class="hidden">
+    <ol class="wz-steps" id="wzSteps" data-i18n-aria="tg.wz.steps_aria" aria-label="Шаги анализа"></ol>
+    <div id="wzBody"></div>
+    <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.act.no_photos">Без фото</button></div></div>
+    <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
+    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+    <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
+    <input type="file" id="mkFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" hidden>
+    <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
+  </section>
+
+  <!-- калькулятор премии: продукт, сумма, срок, главные факторы — без диалога -->
+  <section id="tab-calc" data-section="calc" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.calc">Калькулятор</h1>
+      <p data-i18n="tg.calc.lead2">Быстрая премия: продукт, страховая сумма, срок и пара главных факторов. Диалог с ИИ для этого не нужен.</p></div></div>
+    <div id="calcForm"></div>
+    <div id="calcOut"></div>
+  </section>
+
+  <!-- ОСГОР: калькулятор премии -->
+  <section id="tab-osgor" data-section="osgor" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.os.title">ОСГОР — калькулятор премии</h1>
+      <p data-i18n="tg.os.lead">Обязательное страхование ответственности работодателя. Ставка и коэффициенты заданы нормативным актом — скидок и надбавок нет.</p></div></div>
+    <div class="grid2">
+    <div>
+    <div class="card">
+      <h2 data-i18n="tg.os.form_title">Работодатель</h2>
+      <p class="sub" data-i18n="tg.os.form_hint">Вид деятельности, фонд оплаты труда и срок договора.</p>
+      <label class="f" for="osQ" data-i18n="tg.os.okved">Вид деятельности (ОКЭД)</label>
+      <div class="combo">
+        <input id="osQ" type="text" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="osList"
+          data-i18n-placeholder="tg.os.okved_ph" placeholder="код или слово, например 41 или строительство">
+        <ul id="osList" class="suggest hidden" role="listbox" data-i18n-aria="tg.os.okved" aria-label="Вид деятельности (ОКЭД)"></ul>
+      </div>
+      <div class="picked" id="osPicked"></div>
+      <span class="ferr" id="osQErr"></span>
+      <!-- ФОТ на всю ширину; срок и дата — короткие поля, по два в ряд даже на телефоне -->
+      <div class="fg">
+        <div class="full">
+          <label class="f" for="osPay" data-i18n="tg.os.payroll">Фонд оплаты труда за год, сум</label>
+          <input id="osPay" type="text" inputmode="numeric" autocomplete="off" placeholder="1 200 000 000">
+          <span class="hint" data-i18n="tg.os.payroll_hint">Это и есть страховая сумма (ЗРУ-210, ст. 10).</span>
+          <span class="ferr" id="osPayErr"></span>
+        </div>
+        <div class="half">
+          <label class="f" for="osDays" data-i18n="calc.term_days">Срок, дней</label>
+          <input id="osDays" type="text" inputmode="numeric" value="365">
+        </div>
+        <div class="half">
+          <label class="f" for="osDate" data-i18n="tg.os.date">Дата договора</label>
+          <input id="osDate" type="date">
+        </div>
+      </div>
+      <div class="actions"><button type="button" class="btn btn-primary tg-main" id="osBtn" data-i18n="tg.os.calc">Рассчитать</button></div>
+      <div class="note msg" id="osMsg"></div>
+    </div>
+    <div id="osBrvBox"></div>
+    </div>
+    <div id="osResult"></div>
+    </div>
+  </section>
+
+  <!-- Специалист: диалог. GET /legal/suggest — подсказки и имя; GET /legal/faq — запас; POST /legal/ask с session_id -->
+  <section id="tab-legal" data-section="legal" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.lg.title">ИИ специалист по страхованию</h1>
+      <p data-i18n="tg.lg.lead">Спросите про закон, андеррайтинг, тарифы, документы и франшизу — ответ придёт сразу, со ссылкой на источник.</p></div></div>
+    <div class="card lgchat">
+      <div class="lghead">
+        <div class="lgwho"><b id="lgName"></b><span id="lgRole"></span></div>
+        <button type="button" class="btn btn-secondary" id="lgNew" data-i18n="tg.lg.new">Новый разговор</button>
+      </div>
+      <div class="lgthread" id="lgFeed" aria-live="polite"></div>
+      <div class="qchips lgchips" id="lgChips"></div>
+      <div class="lgcompose">
+        <label class="f" for="lgQ" data-i18n="tg.lg.q">Ваш вопрос</label>
+        <div class="lgrow">
+          <textarea id="lgQ" rows="2" maxlength="500" data-i18n-placeholder="tg.lg.q_ph"
+            placeholder="например: что будет, если страховая сумма меньше стоимости"></textarea>
+          <button type="button" class="btn btn-primary tg-main" id="lgSend" data-i18n="tg.lg.send">Спросить</button>
+        </div>
+        <p class="lghint" data-i18n="tg.lg.enter_hint">Enter — отправить, Shift+Enter — новая строка</p>
+        <div class="note msg" id="lgMsg"></div>
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- пользователи -->
+  <section id="tab-users" data-section="users" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.nav.users">Пользователи</h1>
+      <p data-i18n="tg.users_lead2">Кто работает в системе: имя, департамент, должность, телефон. Список открыт всем вошедшим. Блокировка закрывает доступ сразу и завершает все сессии человека.</p></div>
+      <button type="button" class="btn btn-secondary" id="usrReload" data-i18n="tg.requests_refresh">Обновить список</button></div>
+    <!-- «Запросы доступа» видит только владелец: те же кнопки, что приходят ему в Telegram -->
+    <div class="cards reqs" id="admReqs"></div>
+    <div class="cards people" id="usrList"></div>
+  </section>
+
+  <!-- настройки; у админа — ещё «Данные и справочники» -->
+  <section id="tab-settings" data-section="settings" class="hidden">
+    <div class="sec-head"><div><h1 data-i18n="tg.settings_title">Настройки</h1>
+      <p data-i18n="tg.settings_lead3">Профиль — у всех. Бот Telegram, перенос сервера, данные и справочники — у администратора.</p></div></div>
+    <div class="card" id="profileCard">
+      <h2 data-i18n="tg.profile.title">Профиль</h2>
+      <p class="sub" data-i18n="tg.profile.hint">Имя видят коллеги в разделе «Пользователи». Роль и права меняет администратор.</p>
+      <div class="profile-row">
+        <div><label class="f" for="pfName" data-i18n="tg.reg.name">Имя</label>
+          <input id="pfName" type="text" maxlength="80" autocomplete="name"></div>
+        <button type="button" class="btn btn-primary" id="pfSave" data-i18n="tg.profile.save">Сохранить имя</button>
+      </div>
+      <span class="hint" data-i18n="tg.profile.name_hint">Как к вам обращаться — от 2 до 80 символов.</span>
+      <div class="note msg" id="pfMsg"></div>
+      <div class="mini m4" id="pfInfo"></div>
+    </div>
+    <div id="admData"></div>
+    <div class="grid2" id="setAdmin">
+    <div class="card">
+      <h2 data-i18n="tg.nav.bot">Бот Telegram</h2>
+      <p class="sub" data-i18n="tg.bot_hint">Пока бот не подключён, уведомления согласующим не уходят — они видят запросы в приложении.</p>
+      <div class="kv" id="botKv"></div>
+      <div class="actions"><button type="button" class="btn btn-secondary" id="botReload" data-i18n="common.refresh">Обновить</button></div>
+    </div>
+    <div class="card">
+      <h2 data-i18n="tg.transfer_title">Перенос и копии</h2>
+      <p class="sub" data-i18n="tg.transfer_hint">Состояние сервера, резервные копии и чек-лист переноса — на отдельной странице.</p>
+      <div class="actions"><a class="btn btn-secondary" href="/admin/deploy" data-i18n="tg.transfer_open">Открыть «Перенос и копии»</a></div>
+    </div>
+    </div>
+  </section>
+
+  </div>
+</div>
+
+
+<script>
+/*@TG_JS*/</script>

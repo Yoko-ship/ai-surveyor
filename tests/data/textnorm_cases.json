@@ -1,0 +1,202 @@
+[
+ {
+  "s": "Sugʻurta summasi qiymatdan oshsa nima boʻladi?",
+  "lang": null,
+  "fold": "Sugurta summasi qiymatdan oshsa nima boladi?",
+  "norm": "sugurta summasi qiymatdan oshsa nima boladi?",
+  "quote_norm": "Sugurta summasi qiymatdan oshsa nima boladi?",
+  "detect_lang": "uz",
+  "mx_nrm": "sugurta summasi qiymatdan oshsa nima boladi?",
+  "doc_norm": "sug'urta summasi qiymatdan oshsa nima bo'ladi?"
+ },
+ {
+  "s": "Sug'urta summasi qiymatdan oshsa nima bo'ladi?",
+  "lang": null,
+  "fold": "Sugurta summasi qiymatdan oshsa nima boladi?",
+  "norm": "sugurta summasi qiymatdan oshsa nima boladi?",
+  "quote_norm": "Sugurta summasi qiymatdan oshsa nima boladi?",
+  "detect_lang": "uz",
+  "mx_nrm": "sugurta summasi qiymatdan oshsa nima boladi?",
+  "doc_norm": "sug'urta summasi qiymatdan oshsa nima bo'ladi?"
+ },
+ {
+  "s": "Sug‘urta  shartnomasi   qanday shaklda tuziladi?",
+  "lang": null,
+  "fold": "Sugurta shartnomasi qanday shaklda tuziladi?",
+  "norm": "sugurta shartnomasi qanday shaklda tuziladi?",
+  "quote_norm": "Sugurta shartnomasi qanday shaklda tuziladi?",
+  "detect_lang": "uz",
+  "mx_nrm": "sugurta shartnomasi qanday shaklda tuziladi?",
+  "doc_norm": "sug'urta shartnomasi qanday shaklda tuziladi?"
+ },
+ {
+  "s": "Oʻzbekiston Respublikasi Qonuni «Sugʻurta faoliyati toʻgʻrisida» 13-modda",
+  "lang": null,
+  "fold": "Ozbekiston Respublikasi Qonuni «Sugurta faoliyati togrisida» 13-modda",
+  "norm": "ozbekiston respublikasi qonuni «sugurta faoliyati togrisida» 13-modda",
+  "quote_norm": "Ozbekiston Respublikasi Qonuni «Sugurta faoliyati togrisida» 13-modda",
+  "detect_lang": "uz",
+  "mx_nrm": "ozbekiston respublikasi qonuni «sugurta faoliyati togrisida» 13-modda",
+  "doc_norm": "o'zbekiston respublikasi qonuni «sug'urta faoliyati to'g'risida» 13-modda"
+ },
+ {
+  "s": "Что если страховая сумма больше стоимости имущества?",
+  "lang": null,
+  "fold": "Что если страховая сумма больше стоимости имущества?",
+  "norm": "что если страховая сумма больше стоимости имущества?",
+  "quote_norm": "Что если страховая сумма больше стоимости имущества?",
+  "detect_lang": "ru",
+  "mx_nrm": "что если страховая сумма больше стоимости имущества?",
+  "doc_norm": "что если страховая сумма больше стоимости имущества?"
+ },
+ {
+  "s": "  Страховой полис  серия AB № 0001234 \n\n выдан ",
+  "lang": null,
+  "fold": "Страховой полис серия AB № 0001234 выдан",
+  "norm": "страховой полис серия ab № 0001234 выдан",
+  "quote_norm": "Страховой полис серия AB № 0001234 выдан",
+  "detect_lang": "ru",
+  "mx_nrm": "страховой полис серия ab № 0001234 выдан",
+  "doc_norm": "страховой полис серия ab № 0001234 выдан"
+ },
+ {
+  "s": "Ёлка, ёж и Ёмкость — проверка буквы ё",
+  "lang": null,
+  "fold": "Ёлка, ёж и Ёмкость — проверка буквы ё",
+  "norm": "ёлка, ёж и ёмкость — проверка буквы ё",
+  "quote_norm": "Ёлка, ёж и Ёмкость — проверка буквы ё",
+  "detect_lang": "ru",
+  "mx_nrm": "елка, еж и емкость — проверка буквы е",
+  "doc_norm": "елка, еж и емкость — проверка буквы е"
+ },
+ {
+  "s": "What if the sum insured exceeds the value of the property?",
+  "lang": "en",
+  "fold": "What if the sum insured exceeds the value of the property?",
+  "norm": "what if the sum insured exceeds the value of the property?",
+  "quote_norm": "What if the sum insured exceeds the value of the property?",
+  "detect_lang": "en",
+  "mx_nrm": "what if the sum insured exceeds the value of the property?",
+  "doc_norm": "what if the sum insured exceeds the value of the property?"
+ },
+ {
+  "s": "The insurer shall pay the insurance indemnity within the period set by the contract of insurance.",
+  "lang": "en",
+  "fold": "The insurer shall pay the insurance indemnity within the period set by the contract of insurance.",
+  "norm": "the insurer shall pay the insurance indemnity within the period set by the contract of insurance.",
+  "quote_norm": "The insurer shall pay the insurance indemnity within the period set by the contract of insurance.",
+  "detect_lang": "en",
+  "mx_nrm": "the insurer shall pay the insurance indemnity within the period set by the contract of insurance.",
+  "doc_norm": "the insurer shall pay the insurance indemnity within the period set by the contract of insurance."
+ },
+ {
+  "s": "Ўзбекистон Республикаси Фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар",
+  "lang": "uz-cyrl",
+  "fold": "Ўзбекистон Республикаси Фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар",
+  "norm": "ўзбекистон республикаси фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар",
+  "quote_norm": "Ўзбекистон Республикаси Фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар",
+  "detect_lang": "uz",
+  "mx_nrm": "ўзбекистон республикаси фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар",
+  "doc_norm": "ўзбекистон республикаси фуқаролик кодекси, суғурта шартномаси бўйича мажбуриятлар"
+ },
+ {
+  "s": "Дополни­тельная​ информация﻿",
+  "lang": null,
+  "fold": "Дополнительная информация",
+  "norm": "дополнительная информация",
+  "quote_norm": "Дополнительная информация",
+  "detect_lang": "ru",
+  "mx_nrm": "дополни­тельная​ информация﻿",
+  "doc_norm": "дополни­тельная​ информация﻿"
+ },
+ {
+  "s": "gʼalla, gʻalla, g`alla, g´alla, g′alla, gʽalla, gʹalla",
+  "lang": "uz-latn",
+  "fold": "galla, galla, galla, galla, galla, galla, gʹalla",
+  "norm": "galla, galla, galla, galla, galla, galla, gʹalla",
+  "quote_norm": "galla, galla, galla, galla, galla, galla, gʹalla",
+  "detect_lang": "uz",
+  "mx_nrm": "galla, galla, galla, galla, galla, galla, galla",
+  "doc_norm": "g'alla, g'alla, g'alla, g'alla, g'alla, gʽalla, g'alla"
+ },
+ {
+  "s": "APEX INSURANCE «O'zbekinvest» va Kafolat — bozor yetakchisi kim?",
+  "lang": "uz-latn",
+  "fold": "APEX INSURANCE «Ozbekinvest» va Kafolat — bozor yetakchisi kim?",
+  "norm": "apex insurance «ozbekinvest» va kafolat — bozor yetakchisi kim?",
+  "quote_norm": "APEX INSURANCE «Ozbekinvest» va Kafolat — bozor yetakchisi kim?",
+  "detect_lang": "uz",
+  "mx_nrm": "apex insurance «ozbekinvest» va kafolat — bozor yetakchisi kim?",
+  "doc_norm": "apex insurance «o'zbekinvest» va kafolat — bozor yetakchisi kim?"
+ },
+ {
+  "s": "Страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф",
+  "lang": "ru",
+  "fold": "Страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф",
+  "norm": "страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф",
+  "quote_norm": "Страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф",
+  "detect_lang": "ru",
+  "mx_nrm": "страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф",
+  "doc_norm": "страхование имущества юридических лиц от огня и других опасностей, договор страхования, страховая премия, страховой тариф"
+ },
+ {
+  "s": "Sugʻurtalovchi sugʻurta hodisasi yuz berganda sugʻurta toʻlovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart.",
+  "lang": "uz-latn",
+  "fold": "Sugurtalovchi sugurta hodisasi yuz berganda sugurta tolovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart.",
+  "norm": "sugurtalovchi sugurta hodisasi yuz berganda sugurta tolovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart.",
+  "quote_norm": "Sugurtalovchi sugurta hodisasi yuz berganda sugurta tolovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart.",
+  "detect_lang": "uz",
+  "mx_nrm": "sugurtalovchi sugurta hodisasi yuz berganda sugurta tolovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart.",
+  "doc_norm": "sug'urtalovchi sug'urta hodisasi yuz berganda sug'urta to'lovini shartnomada nazarda tutilgan muddatda amalga oshirishi shart."
+ },
+ {
+  "s": "Article 938. Consequences of insurance in excess of the insured value",
+  "lang": "en",
+  "fold": "Article 938. Consequences of insurance in excess of the insured value",
+  "norm": "article 938. consequences of insurance in excess of the insured value",
+  "quote_norm": "Article 938. Consequences of insurance in excess of the insured value",
+  "detect_lang": "en",
+  "mx_nrm": "article 938. consequences of insurance in excess of the insured value",
+  "doc_norm": "article 938. consequences of insurance in excess of the insured value"
+ },
+ {
+  "s": "",
+  "lang": null,
+  "fold": "",
+  "norm": "",
+  "quote_norm": "",
+  "detect_lang": "ru",
+  "mx_nrm": "",
+  "doc_norm": ""
+ },
+ {
+  "s": "123 456,78 сум",
+  "lang": null,
+  "fold": "123 456,78 сум",
+  "norm": "123 456,78 сум",
+  "quote_norm": "123 456,78 сум",
+  "detect_lang": "ru",
+  "mx_nrm": "123 456,78 сум",
+  "doc_norm": "123 456,78 сум"
+ },
+ {
+  "s": "Mixed текст with русские words and English words in one line together",
+  "lang": "en",
+  "fold": "Mixed текст with русские words and English words in one line together",
+  "norm": "mixed текст with русские words and english words in one line together",
+  "quote_norm": "Mixed текст with русские words and English words in one line together",
+  "detect_lang": "en",
+  "mx_nrm": "mixed текст with русские words and english words in one line together",
+  "doc_norm": "mixed текст with русские words and english words in one line together"
+ },
+ {
+  "s": "\tТаб\tи\nперенос\r\nстроки",
+  "lang": null,
+  "fold": "Таб и перенос строки",
+  "norm": "таб и перенос строки",
+  "quote_norm": "Таб и перенос строки",
+  "detect_lang": "ru",
+  "mx_nrm": "таб и перенос строки",
+  "doc_norm": "таб и перенос строки"
+ }
+]

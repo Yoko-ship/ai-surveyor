@@ -2000,9 +2000,11 @@ def check_lang_fields():
 
 def check_minor():
     print("34. Мелочи: управляющие байты, проценты, подпись года")
-    src = (Path(act.__file__)).read_bytes()
+    # app/act.py — фасад, код акта — в пакете app/act_pkg/ (04.10.2026): проверяем оба
+    pkg = sorted((Path(act.__file__).parent / "act_pkg").glob("*.py"))
+    src = b"".join(f.read_bytes() for f in [Path(act.__file__)] + pkg)
     bad = [b for b in src if (b < 32 and b not in (9, 10, 13)) or b == 127]
-    ok("в app/act.py нет сырых управляющих символов", not bad, bad[:5])
+    ok("в app/act.py и app/act_pkg/ нет сырых управляющих символов", not bad and len(pkg) > 1, bad[:5])
     ok("сигнатура zip записана как b\"PK\\x03\\x04\"", b'b"PK\\x03\\x04"' in src)
     ok("_format_of по-прежнему узнаёт DOCX", act._format_of(docx_bytes(["Страховая сумма: 1 сум"])) == "docx")
     sc = {"available": True, "order": "classic", "class_code": "9", "rule": "property9", "k": 1,

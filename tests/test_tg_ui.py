@@ -150,6 +150,14 @@ def teardown(rid):
 
 # ---------- проверки ----------
 
+def check_build_fresh():
+    """Исходники мини-аппа — app/tg/ (разметка, стили, модули js); app/tg.html собирается из них (app/tgpage.py)."""
+    from app import tgpage
+    assert all(p.exists() for p in tgpage.sources()), "нет исходников app/tg/"
+    assert tgpage.is_fresh(), "app/tg.html не совпадает с исходниками app/tg/ — запустите tools/tg_build.py"
+    print("0. app/tg.html собран из app/tg/ и свежий — ок")
+
+
 def check_page():
     st, html = call("GET", "/tg")
     assert st == 200, st
@@ -1544,6 +1552,7 @@ if __name__ == "__main__":
         agent_id, uids, prod = setup()
         rid = None
         try:
+            check_build_fresh()
             html = check_page()
             check_nav_by_role()
             check_guest_screen(uids, html)

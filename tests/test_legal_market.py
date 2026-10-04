@@ -449,7 +449,9 @@ def check_review_fixes():
     legal.ai_free_answer("вопрос", "ru")
     legal.ai_answer("вопрос", [{"act": "a", "unit": "", "body": "текст"}], "ru")
     ok("llm.TIMEOUT_SEC глобально не меняется", llm.TIMEOUT_SEC == before)
-    src = (Path(legal.__file__).read_text(encoding="utf-8") + Path(mx.__file__).read_text(encoding="utf-8"))
+    # код специалиста — пакет app/legal (app/market_expert.py — фасад над ним): смотрим все его файлы
+    src = "".join(p.read_text(encoding="utf-8") for p in sorted(Path(legal.__file__).parent.glob("*.py")))
+    src += Path(mx.__file__).read_text(encoding="utf-8")
     ok("таймаут передаётся параметром вызова", "llm.TIMEOUT_SEC =" not in src and "timeout=" in src)
 
 

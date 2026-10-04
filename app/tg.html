@@ -1728,6 +1728,15 @@ label.f .pf-pop,.pf-pop{display:block;flex-basis:100%;width:100%;margin:4px 0 2p
 .ob-d p{margin:6px 0;font-size:13px}
 .ob-d li.up{color:var(--warn)}
 .fa-obj>summary{cursor:pointer;min-height:40px;display:flex;align-items:center;font-weight:700}
+/* бывшие инлайновые стили из скрипта: два класса и тег — сильнее общих правил .note / .lgans / .tbl td */
+p.note.mt-s2,p.lgans.mt-s2{margin-top:var(--s2)}
+.mini>div.wide{grid-column:1/-1}
+p.note.os-note{margin:var(--s2) 0 0}
+p.note.brv-src{margin:6px 0 0}
+.tbl td.w96{width:96px}
+.tbl td.w90{width:90px}
+.tbl td.w1{width:1%}
+.tbl td.nw{white-space:nowrap}
 </style>
 
 <aside id="side">
@@ -1938,6 +1947,7 @@ label.f .pf-pop,.pf-pop{display:block;flex-basis:100%;width:100%;margin:4px 0 2p
 
 
 <script>
+/* app/tg/js/core.js — утилиты, форматирование чисел и дат, Telegram WebApp, api(), состояние входа (ME) */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 /* Подписи: T("ключ", "русский запас") из /i18n.js. Словарь не подключился — остаётся русский. */
@@ -1952,6 +1962,22 @@ const pct = (n, d) => (n == null || isNaN(Number(n))) ? "—" : nf(n, d == null 
 const num = s => Number(String(s == null ? "" : s).replace(/[^\d.-]/g, "")) || 0;
 /* десятичное число из поля: пробелы убираем, запятую считаем точкой */
 const dec = s => { const t = String(s == null ? "" : s).replace(/[\s  ]/g, "").replace(",", "."); return t === "" ? null : Number(t); };
+/* поле ввода десятичного числа: только цифры и один разделитель дробной части; возвращает очищенный текст */
+function decimalLive(el){
+  const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
+  if (c !== el.value) el.value = c;
+  return c;
+}
+/* поле суммы: цифры группируются по разрядам на лету, курсор остаётся после той же цифры */
+function groupDigitsLive(el){
+  const pos = el.selectionStart || 0;
+  const before = el.value.slice(0, pos).replace(/\D/g, "").length;
+  const d = el.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  el.value = d ? Number(d).toLocaleString(LOC()) : "";
+  let i = 0, seen = 0;
+  while (i < el.value.length && seen < before) { if (/\d/.test(el.value[i])) seen++; i++; }
+  try { el.setSelectionRange(i, i); } catch (e) {}
+}
 const SUM = () => T("common.sum", "сум");
 const money = n => n == null ? "—" : fmt(n) + " " + SUM();
 /* крупные суммы коротко: 50,0 млрд сум */
@@ -1977,8 +2003,8 @@ const dateOnly = s => {
 const spin = t => '<span class="spin"></span> ' + esc(t);
 const errHtml = t => '<span class="err">' + esc(t) + "</span>";
 const okHtml = t => '<span class="ok">' + esc(t) + "</span>";
+function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-const navTitle = (key, ru) => T("tg.nav." + key, ru);
 
 /* ---------- Telegram: готовность, разворот, светлая или тёмная тема ---------- */
 /* У мини-аппа своя палитра (заказчик 28.09.2026): лавандовый фон, белые карточки, фиолетовый акцент.
@@ -2098,6 +2124,7 @@ function screen(name){
   if (typeof syncTgButtons === "function") syncTgButtons();
 }
 
+/* app/tg/js/nav.js — навигация: меню слева, вкладки, кнопки Telegram, язык, вход, фон раздела, способы входа */
 /* ---------- «Открыть в Telegram»: только в обычном браузере ---------- */
 const BOT_FALLBACK = "inson_surveyor_bot";
 function botName(){
@@ -2246,8 +2273,6 @@ function haptic(kind){
   if (!TG || !TG.HapticFeedback) return;
   tgCall(() => { if (kind === "select") TG.HapticFeedback.selectionChanged(); else TG.HapticFeedback.notificationOccurred(kind); });
 }
-/* нажать кнопку страницы, если она есть и не выключена */
-const pressBtn = sel => () => { const b = $(sel); if (b && !b.disabled) b.click(); };
 function syncTgButtons(){
   if (!IN_TG) return;
   let text = null, fn = null, back = null, off = false;
@@ -2487,6 +2512,265 @@ $("#outBtn").onclick = async () => {
 };
 
 
+/* =====================================================================================
+   Кинематографичные штрихи внутри приложения.
+
+   Фон раздела (#appbg): размытая и затемнённая картинка под содержимым, лёгкий параллакс.
+   При системной настройке «меньше движения» и при включённой экономии трафика движение
+   и картинки выключаются (классы fx-still / fx-lite).
+   Обложку убрали по решению заказчика 28.09.2026: приложение сразу открывается на разделе.
+   ===================================================================================== */
+/* бережный режим: системная настройка «меньше движения» и экономия трафика у оператора */
+const MOTION_OFF = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
+function cineFlags(){
+  const c = navigator.connection || {};
+  const slow = !!c.saveData || /^(slow-2g|2g)$/.test(c.effectiveType || "");
+  document.body.classList.toggle("fx-lite", slow);
+  document.body.classList.toggle("fx-still", slow || !!(MOTION_OFF && MOTION_OFF.matches));
+}
+document.body.classList.add("cine");
+cineFlags();
+if (MOTION_OFF && MOTION_OFF.addEventListener) MOTION_OFF.addEventListener("change", cineFlags);
+
+/* ---------- фон раздела внутри приложения ---------- */
+const APP_BG = {chat: "chat", calc: "calc", osgor: "osgor", legal: "specialist",
+  users: "documents", settings: "admin"};
+let APP_BG_NOW = "";
+function appBg(key){
+  const scene = APP_BG[key] || "particles";
+  if (scene === APP_BG_NOW || document.body.classList.contains("fx-lite")) return;
+  APP_BG_NOW = scene;
+  const box = $("#appbg");
+  const img = new Image();
+  img.alt = "";
+  img.decoding = "async";
+  img.srcset = "/static/bg/" + scene + "-640.jpg 640w, /static/bg/" + scene + ".jpg 1024w";
+  img.sizes = "100vw";
+  img.src = "/static/bg/" + scene + "-640.jpg";
+  img.onload = () => { img.classList.add("on"); };
+  img.onerror = () => { img.remove(); };         // картинки нет — остаётся обычный фон темы
+  box.innerHTML = "";
+  box.appendChild(img);
+}
+/* лёгкий параллакс фона приложения при прокрутке страницы */
+let appTick = false;
+window.addEventListener("scroll", () => {
+  if (appTick || document.body.classList.contains("fx-still")) return;
+  appTick = true;
+  requestAnimationFrame(() => {
+    appTick = false;
+    const img = $("#appbg img");
+    if (img) img.style.setProperty("--par", Math.round(window.scrollY * -0.06) + "px");
+  });
+}, {passive: true});
+
+/* ---------- Способы входа (левая панель, у каждого вошедшего) ---------- */
+/* Данные: GET /auth/links → {links:[{provider, title, display, external_id_masked, …}],
+   can_link, can_unlink, google:{configured, message, hint}, profile}.
+   Привязать Google — POST /auth/link/google/start → {url}; Google возвращает на /tg?link=ok
+   или /tg?link=error&reason=… — показываем словами.
+   Привязать Telegram — POST /auth/link/telegram/start → код боту, дальше опрос
+   GET /auth/tg-link/status?link_id=… (тот же порядок, что на экране входа по коду).
+   «Отвязать» показываем, только если сервер разрешил (can_unlink): последний способ входа
+   отнимать нельзя — человек потеряет вход. */
+let LINKS = null;
+const LN = {id: "", timer: null, until: 0, note: null};
+
+function linkRow(sel, text, off){
+  const b = $(sel);
+  b.textContent = text;
+  b.classList.toggle("off", !!off);
+}
+const linkOf = p => ((LINKS && LINKS.links) || []).filter(x => x.provider === p)[0] || null;
+const canLink = p => ((LINKS && LINKS.can_link) || []).indexOf(p) >= 0;
+const canUnlink = p => ((LINKS && LINKS.can_unlink) || []).indexOf(p) >= 0;
+
+function paintLinks(){
+  const show = !!ME.user;
+  $("#links").classList.toggle("hidden", !show);
+  paintAskAdmin();
+  if (!show) return;
+  const none = T("tg.links.none", "не привязан");
+  const tg = linkOf("telegram"), go = linkOf("google");
+  linkRow("#lnTg", tg ? (tg.display || tg.external_id_masked || "") : none, !tg);
+  linkRow("#lnGo", go ? (go.display || go.external_id_masked || "") : none, !go);
+  $("#lnTgOff").textContent = $("#lnGoOff").textContent = T("tg.links.unbind", "Отвязать");
+  $("#lnTgOff").classList.toggle("hidden", !canUnlink("telegram"));
+  $("#lnGoOff").classList.toggle("hidden", !canUnlink("google"));
+  const g = (LINKS && LINKS.google) || {};
+  const gOff = canLink("google") && g.configured === false;
+  $("#lnBind").textContent = T("tg.links.bind_google", "Привязать Google");
+  $("#lnBind").classList.toggle("hidden", !canLink("google"));
+  $("#lnBind").disabled = gOff;
+  $("#lnBindTg").textContent = T("tg.links.bind_tg", "Привязать Telegram");
+  $("#lnBindTg").classList.toggle("hidden", !canLink("telegram"));
+  // «Google не настроен» — не ошибка человека, а состояние сервера: говорим спокойно, без красного
+  $("#lnMsg").innerHTML = LN.note ? LN.note()
+    : gOff ? esc([g.message, g.hint].filter(Boolean).join(" ")) : "";
+}
+function lnCodeHide(){
+  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.add("hidden"));
+}
+async function loadLinks(){
+  if (!ME.user) { LINKS = null; paintLinks(); return; }
+  const r = await api("/auth/links");
+  LINKS = r.ok ? (r.data || {}) : null;
+  if (!r.ok) LN.note = () => errHtml(T("tg.links.load_fail", "Способы входа не загрузились: {reason}", {reason: r.error}));
+  paintLinks();
+}
+
+/* вернулись от Google: /tg?link=ok или /tg?link=error&reason=… — говорим словами и чистим адрес */
+(function(){
+  const q = new URLSearchParams(location.search), v = q.get("link");
+  if (!v) return;
+  const reason = q.get("reason") || "";
+  LN.note = v === "ok"
+    ? () => okHtml(T("tg.links.google_done", "Google привязан."))
+    : () => errHtml(T("tg.links.google_err", "Google не привязан: {reason}", {reason: reason}));
+  q.delete("link");
+  q.delete("reason");
+  const rest = q.toString();
+  try { history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash); } catch (e) {}
+})();
+
+$("#lnBind").onclick = async () => {
+  const btn = $("#lnBind");
+  btn.disabled = true;
+  LN.note = () => spin(T("tg.links.google_open", "открываю вход Google…"));
+  paintLinks();
+  const r = await api("/auth/link/google/start", jsonOpts("POST", {}));
+  if (r.ok && r.data && r.data.url) { location.href = r.data.url; return; }
+  btn.disabled = false;
+  if (r.error) {
+    LN.note = () => errHtml(T("tg.links.google_fail", "Google не открылся: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
+  location.href = "/auth/google?link=1";    // запасной путь: обычный вход через Google с признаком привязки
+};
+
+/* --- привязка Telegram: код боту и опрос, как на экране входа --- */
+function lnStop(){ if (LN.timer) { clearInterval(LN.timer); LN.timer = null; } }
+function lnLeft(){
+  const s = Math.max(0, Math.round((LN.until - Date.now()) / 1000));
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
+function lnWait(){
+  LN.note = () => okHtml(T("tg.links.wait", "Жду сообщение боту — код действует {left}", {left: lnLeft()}));
+  paintLinks();
+}
+$("#lnBindTg").onclick = async () => {
+  const btn = $("#lnBindTg");
+  btn.disabled = true;
+  LN.note = () => spin(T("tg.links.code_wait", "готовлю код…"));
+  paintLinks();
+  const r = await api("/auth/link/telegram/start", jsonOpts("POST", {}));
+  btn.disabled = false;
+  if (!r.ok) {
+    LN.note = () => errHtml(T("tg.links.code_fail", "Код не выдан: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
+  const d = r.data || {};
+  LN.id = d.link_id || "";
+  LN.until = Date.now() + (d.expires_in || 600) * 1000;
+  $("#lnCode").textContent = d.code || "";
+  $("#lnHow").textContent = T("tg.links.how", "Отправьте этот код боту {bot} — и Telegram станет вторым входом.",
+                              {bot: d.bot || botName()});
+  $("#lnOpenBot").href = d.link || ("https://t.me/" + encodeURIComponent(botName()));
+  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.remove("hidden"));
+  lnStop();
+  LN.timer = setInterval(lnPoll, (d.poll_seconds || 2) * 1000);
+  lnWait();
+};
+async function lnPoll(){
+  if (!LN.id) { lnStop(); return; }
+  const r = await api("/auth/tg-link/status?link_id=" + encodeURIComponent(LN.id));
+  if (!r.ok) return;                        // сеть моргнула — ждём следующую попытку
+  const d = r.data || {};
+  if (d.status === "ожидание") { lnWait(); return; }
+  lnStop();
+  LN.id = "";
+  lnCodeHide();
+  if (d.status === "привязано") {
+    LN.note = () => okHtml(T("tg.links.tg_linked", "Telegram привязан: {who}", {who: d.display || ""}));
+    await loadLinks();
+    return;
+  }
+  LN.note = () => errHtml(T("tg.links.link_fail", "Привязка не удалась: {reason}", {reason: d.reason || ""}));
+  paintLinks();
+}
+
+async function lnUnbind(p){
+  LN.note = () => spin(T("tg.links.unbinding", "отвязываю…"));
+  paintLinks();
+  const r = await api("/auth/link/" + p, {method: "DELETE"});
+  if (!r.ok) {
+    LN.note = () => errHtml(T("tg.links.unbind_fail", "Не отвязали: {reason}", {reason: r.error}));
+    paintLinks();
+    return;
+  }
+  LN.note = () => okHtml(T("tg.links.unbind_done", "Способ входа отвязан. Вход остался по второму способу."));
+  await loadLinks();
+}
+$("#lnTgOff").onclick = () => lnUnbind("telegram");
+$("#lnGoOff").onclick = () => lnUnbind("google");
+
+/* ---------- Доступ в админку: запрос владельцу ---------- */
+/* Админом никто не становится сам. Гость внутри Telegram: POST /auth/admin-request {initData} —
+   сервер проверяет подпись, заводит профиль «сотрудник» и ставит запрос владельцу, токен сессии
+   запоминаем через setToken. Гость в браузере: уходим на /login — там вход Telegram или Google
+   одним кликом, а после входа эта же кнопка ждёт на месте.
+   Свой статус — GET /auth/admin-request: ожидает / подтверждён / отклонён / нет. */
+let ADMREQ = null, ASK_NOTE = null;
+
+function paintAskAdmin(){
+  const show = !(ME.user && REAL_ADMIN());  // у администратора просить нечего
+  $("#askAdmBox").classList.toggle("hidden", !show);
+  if (!show) return;
+  const st = (ADMREQ && ADMREQ.status) || "";
+  const wait = st === "ожидает";
+  $("#askAdm").textContent = T("tg.adminreq.ask", "Запросить доступ в админку");
+  $("#askAdm").classList.toggle("hidden", wait);
+  $("#askMsg").innerHTML = ASK_NOTE ? ASK_NOTE()
+    : wait ? okHtml(T("tg.adminreq.wait", "Запрос отправлен владельцу — ждите подтверждения в Telegram."))
+    : st === "отклонён" ? errHtml(T("tg.adminreq.no", "Владелец доступ не открыл. Напишите ему, если это ошибка."))
+    : "";
+}
+async function loadAdminReq(){
+  if (!ME.user) { ADMREQ = null; paintAskAdmin(); return; }
+  const r = await api("/auth/admin-request");
+  ADMREQ = r.ok ? (r.data || null) : null;
+  paintAskAdmin();
+}
+$("#askAdm").onclick = async () => {
+  const btn = $("#askAdm");
+  if (!ME.user && !IN_TG) {                 // в браузере сначала вход: /login, оттуда вернёмся сюда
+    ASK_NOTE = () => spin(T("tg.adminreq.to_login", "открываю вход…"));
+    paintAskAdmin();
+    location.href = (ME.login_url || "/login?next=/tg");
+    return;
+  }
+  btn.disabled = true;
+  ASK_NOTE = () => spin(T("tg.adminreq.sending", "отправляю запрос…"));
+  paintAskAdmin();
+  const r = await api("/auth/admin-request", jsonOpts("POST", ME.user ? {} : {initData: (TG && TG.initData) || ""}));
+  btn.disabled = false;
+  if (!r.ok) {
+    ASK_NOTE = () => errHtml(T("tg.adminreq.fail", "Запрос не отправлен: {reason}", {reason: r.error}));
+    paintAskAdmin();
+    return;
+  }
+  const d = r.data || {};
+  if (d.token) setToken(d.token);           // гость мини-аппа: профиль только что заведён
+  ADMREQ = {status: d.status || "", request_id: d.request_id};
+  ASK_NOTE = d.already_admin
+    ? () => okHtml(T("tg.adminreq.already", "Доступ в админку уже открыт."))
+    : () => okHtml(T("tg.adminreq.sent", "Запрос отправлен владельцу — ждите подтверждения в Telegram."));
+  if (d.token) await loadMe(); else paintAskAdmin();
+};
+
+/* app/tg/js/legal.js — вкладка «Специалист» */
 /* =====================================================================================
    Специалист: диалог на языке интерфейса (ru / uz / en).
    Данные: GET  /legal/suggest?lang=… — {items:[{kind,q,label}], assistant_name, assistant_role} — подсказки до первого вопроса;
@@ -2749,8 +3033,8 @@ function lgReply(it){
       + esc(op.by === "ai" ? T("tg.lg.by_ai", "ИИ") : T("tg.lg.by_rules", "по правилам")) + "</span></div>"
       + '<p class="lgans">' + esc(lgStr(op.text)) + "</p></div>" : "")
     + lgLiveLine(lv)
-    + (note ? '<p class="note" style="margin-top:var(--s2)">' + esc(note) + "</p>" : "")
-    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans" style="margin-top:var(--s2)">' + esc(res.ai.text) + "</p>" : "")
+    + (note ? '<p class="note mt-s2">' + esc(note) + "</p>" : "")
+    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + esc(res.ai.text) + "</p>" : "")
     + lgSkipped(lv)
     + cits.map(c => lgCitation(c || {}, lv)).join("")
     + srcs.map(lgSourceBar).join("")
@@ -2851,7 +3135,7 @@ async function loadLegal(){
   lgPaintHead();
   lgPaintFeed();
   if (LG.sugLang !== I18N_LANG) {
-    if (!LG.items.length) $("#lgChips").innerHTML = '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>";
+    if (!LG.items.length) $("#lgChips").innerHTML = anLoadingCard();
     await lgFetchSuggest();
   } else lgPaintChips();
 }
@@ -2863,6 +3147,7 @@ function lgRepaint(){
   if (LG.booted && LG.sugLang !== I18N_LANG) lgFetchSuggest();
 }
 
+/* app/tg/js/calc.js — вкладка «Калькулятор» */
 /* =====================================================================================
    Калькулятор премии (заказчик 22.09.2026): продукт, страховая сумма, срок и пара главных
    факторов класса — и сразу ставка, премия и минимум. Без диалога и без документов.
@@ -2876,9 +3161,7 @@ const CALC_TERMS = [3, 6, 12];
 const CALC_FACTORS = 3;                       // столько главных факторов класса показываем
 /* пункты, которые заказчик убрал из интерфейса (их же убирает сервер) */
 const HIDE_CHECKS = ["disclosure", "premium_unpaid"];
-const HIDE_DOC = /^заявлени/i;
 function keepCheck(c){ return HIDE_CHECKS.indexOf(String((c || {}).code || "")) < 0; }
-function keepDoc(name){ return !HIDE_DOC.test(String(name || "").trim()); }
 
 async function loadCalc(){
   if (!CALC.done && !CALC.busy) {
@@ -2933,7 +3216,7 @@ function calcPaint(){
     $("#calcRetry").onclick = () => { CALC.err = ""; loadCalc(); };
     return;
   }
-  if (!CALC.done) { box.innerHTML = '<div class="card"><p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>"; return; }
+  if (!CALC.done) { box.innerHTML = '<div class="card">' + anLoadingCard() + "</div>"; return; }
   const uncal = calcFactorCodes().some(code => calcOptions(code).some(o => !o.calibrated));
   box.innerHTML = '<div class="card">'
     + "<h2>" + esc(T("tg.an.f.class_code", "Класс страхования")) + "</h2>"
@@ -3085,6 +3368,7 @@ function calcChainRow(x){
 /* смена языка: форма и итог перерисовываются целиком, введённые значения лежат в CALC */
 function calcRepaint(){ calcPaint(); }
 
+/* app/tg/js/wizard.js — ИИ-сюрвейер: шаги «Фото» и «Проверить» (загрузка, распознанное, поля класса, объекты) */
 /* =====================================================================================
    ИИ-сюрвейер — лёгкая версия (ТЗ 2.0 от 29.09.2026: docs/ТЗ — Мини-приложение ИИ-сюрвейер (лёгкая версия).md).
    Мастер из трёх шагов:
@@ -3344,8 +3628,7 @@ function wzLoad(){
   let s = null;
   try { s = JSON.parse(sessionStorage.getItem(CH_KEY) || "null"); } catch (e) { s = null; }
   if (!s || typeof s !== "object") return;
-  const arr = v => Array.isArray(v) ? v : [];
-  const obj = v => v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  const arr = sArr, obj = sObj;
   CH.wz = [1, 2, 3].indexOf(s.wz) >= 0 ? s.wz : 1;
   CH.session = typeof s.session === "string" ? s.session : "";
   CH.ai = typeof s.ai === "boolean" ? s.ai : null;
@@ -3527,6 +3810,8 @@ function wzPart(name){
   if (typing(el)) { CH.later = true; return; }
   el.innerHTML = m[1]();
 }
+/* место под ошибку поля: id="wzErr-<ключ>" ищет проверка формы */
+function wzErrHtml(key, err){ return '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span>"; }
 const msgHtml = () => '<div class="msg" role="status">' + (CH.err ? errHtml(CH.err) : "") + "</div>";
 
 /* ---------- шаг 1: фото и снимки документов ---------- */
@@ -3621,7 +3906,7 @@ function wzViewsHtml(){
   }
   classes.forEach(tplNeed);
   const got = classes.map(c => TPL.cache[tplKey(c)]).filter(Boolean);
-  if (!got.length) return head + '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p></div>";
+  if (!got.length) return head + anLoadingCard() + "</div>";
   const rows = [];
   got.filter(x => x.template).forEach(x => {
     const tp = x.template, rv = anObj(tp.required_views), by = {};
@@ -4155,7 +4440,7 @@ function wzMoneyHtml(key){
     + '<button type="button" data-copy="' + other + '">'
     + esc(key === "sum_insured" ? T("tg.an.eq_value", "= стоимости") : T("tg.an.eq_sum", "= страховой сумме")) + "</button></div>"
     + preDiff(key, v)
-    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
+    + wzErrHtml(key, err) + "</div>";
 }
 function wzRegionHtml(){
   const cur = CH.must.region || "", err = CH.errs.region;
@@ -4199,7 +4484,7 @@ function optSelect(key, label, codes, nameFn, hint){
     + '<select id="wzo-' + key + '" data-fk="' + key + '" data-scope="opt"><option value="">' + esc(T("tg.act.opt_unset", "не указано")) + "</option>"
     + codes.map(c => '<option value="' + esc(c) + '"' + (String(c) === v ? " selected" : "") + ">" + esc(nameFn(c)) + "</option>").join("") + "</select>"
     + (hint ? '<span class="hint">' + esc(hint) + "</span>" : "")
-    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
+    + wzErrHtml(key, err) + "</div>";
 }
 /* обязательный вид страхования (ставка по нормативному акту): франшиза не применяется */
 function wzStatutory(){
@@ -4292,10 +4577,7 @@ function wzFrInput(el){
   const f = CH.fr;
   if (f.unit === "amount") { groupDigitsLive(el); f.amount = num(el.value) || null; }
   else {
-    // только цифры и один разделитель дробной части
-    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
-    if (c !== el.value) el.value = c;
-    f.pct = c;
+    f.pct = decimalLive(el);
   }
   const eq = $("#wzFrEq");
   if (eq) eq.textContent = frEqText();
@@ -4320,7 +4602,7 @@ function optInput(key, label, kind, hint){
     + (money ? ' data-money="1"' : ' data-int="1" maxlength="4"')
     + ' value="' + esc(v == null || v === "" ? "" : money ? Number(v).toLocaleString(LOC()) : v) + '">'
     + (hint ? '<span class="hint">' + esc(hint) + "</span>" : "")
-    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
+    + wzErrHtml(key, err) + "</div>";
 }
 function optYesNo(key, label){
   const v = CH.opt[key], err = CH.errs[key];
@@ -4329,7 +4611,7 @@ function optYesNo(key, label){
     + '<button type="button" data-set="' + key + '" data-value="yes" aria-pressed="' + (v === "yes") + '">' + esc(T("tg.act.yes", "да")) + "</button>"
     + '<button type="button" data-set="' + key + '" data-value="no" aria-pressed="' + (v === "no") + '">' + esc(T("tg.act.no", "нет")) + "</button>"
     + "</div>"
-    + '<span class="ferr" id="wzErr-' + key + '">' + esc(err || "") + "</span></div>";
+    + wzErrHtml(key, err) + "</div>";
 }
 function wzMoreHtml(){
   const n = wzOptCount();
@@ -4401,11 +4683,7 @@ function wzClearErr(key){
 function wzFieldInput(el){
   if (el.dataset.money) groupDigitsLive(el);
   if (el.dataset.int && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
-  if (el.dataset.decimal) {
-    // только цифры и один разделитель дробной части
-    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
-    if (c !== el.value) el.value = c;
-  }
+  if (el.dataset.decimal) decimalLive(el);
   const box = el.dataset.scope === "opt" ? CH.opt : CH.must, key = el.dataset.fk, raw = String(el.value || "").trim();
   if (raw === "") delete box[key];
   else box[key] = el.dataset.money ? num(raw) : raw;
@@ -4552,13 +4830,6 @@ function tfSet(s, g, v){
   const key = g.t === "kind" ? (s === "m" ? "object_kind" : "kind") : g.key;
   if (v == null || v === "") delete box[key]; else box[key] = v;
 }
-/* подпись варианта выбора поля класса: сначала подпись сервера на языке запроса (option_labels шаблона),
-   затем известный словарь, иначе «вариант N». field — поле шаблона (объект) или его код */
-function cfOptName(field, c, i){
-  const own = field && typeof field === "object" ? anStr(anObj(field.option_labels)[c]).trim() : "";
-  if (own) return own;
-  return cfOptDict(field && typeof field === "object" ? field.code : field, c, i);
-}
 function cfOptDict(field, c, i){
   switch (field + "." + c) {
     case "activity_kind.consult": return T("tg.tpl.o.activity_kind.consult", "консультации, офисные услуги");
@@ -4647,10 +4918,7 @@ function tfInput(el){
   const g = tfTarget(f);
   if (f.type === "money") groupDigitsLive(el);
   else if ((f.type === "int" || f.type === "year") && /\D/.test(el.value)) el.value = el.value.replace(/\D/g, "");
-  else if (f.type === "number") {
-    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
-    if (c !== el.value) el.value = c;
-  }
+  else if (f.type === "number") decimalLive(el);
   const raw = String(el.value || "").trim();
   tfSet(s, g, raw === "" ? null : f.type === "money" ? num(raw) : raw);
   pfDrop(s, pfFieldKey(g));                    // исправлено руками — подсказка автозаполнения снята
@@ -5089,9 +5357,7 @@ function ptMoneyInput(el, key){
 function ptFrInput(el){
   const it = CH.pt && CH.pt.items[Number(el.dataset.ptfr)];
   if (!it) return;
-  const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
-  if (c !== el.value) el.value = c;
-  it.fr = c;
+  it.fr = decimalLive(el);
   ptEdited();
 }
 function ptSame(v){
@@ -5152,9 +5418,14 @@ function premUnitHtml(s){
   const m = /^(.*\d)[\s  ]+(\D+)$/.exec(String(s || ""));
   return m ? esc(m[1]) + ' <span class="u">' + esc(m[2]) + "</span>" : esc(s);
 }
+/* полоска уровня риска из трёх делений (low / moderate / high) */
+function lvBarHtml(lv){
+  const lvI = ["low", "moderate", "high"].indexOf(lv);
+  return '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>";
+}
 function ptSumHtml(a, P){
   const tt = anObj(P.totals), sc = anObj(tt.scenarios), ret = anObj(tt.retention);
-  const lv = tt.level, lvI = ["low", "moderate", "high"].indexOf(lv), val = a.value || {};
+  const lv = tt.level, val = a.value || {};
   const cv = anObj(tt.value);
   const ratio = isNum(cv.ratio_pct) ? pct(cv.ratio_pct, dp(cv.ratio_pct) ? 2 : 0) : T("tg.pt.value_na_short", "не применяется");
   const fv = cv.verdict;
@@ -5162,7 +5433,7 @@ function ptSumHtml(a, P){
     + '<div class="kprem"><span>' + esc(T("tg.act.premium", "Премия")) + "</span><b>" + premUnitHtml(anStr(tt.premium_text) || actPremium(a)) + "</b>"
     + "<em>" + esc(T("tg.pt.prem_sum", "сумма премий {n} частей", {n: P.items.length})) + "</em></div>"
     + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
-    + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
+    + lvBarHtml(lv)
     + '<b class="lvname">' + esc(anStr(tt.level_label) || levelName(lv)) + "</b>"
     + "<em>" + esc(T("tg.pt.worst", "по самой опасной части {n}", {n: tt.worst_index})) + "</em></div>"
     + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
@@ -5547,8 +5818,7 @@ function dqInput(el){
   const k = el.dataset.dq, d = CH[k];
   if (!d) return;
   const r = d.req, f = el.dataset.dqf;
-  const decimal = () => { const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, "")); if (c !== el.value) el.value = c; return c; };
-  if (f === "tariff_pct") { const c = decimal(); r.tariff_pct = c === "" ? null : dec(c); }
+  if (f === "tariff_pct") { const c = decimalLive(el); r.tariff_pct = c === "" ? null : dec(c); }
   else if (f === "premium") { groupDigitsLive(el); r.premium = num(el.value) || null; }
   else if (f === "term_days") { if (/\D/.test(el.value)) el.value = el.value.replace(/\D/g, ""); r.term_days = el.value ? Number(el.value) : null; }
   else if (f === "term_from" || f === "term_to") {
@@ -5560,7 +5830,7 @@ function dqInput(el){
     if (h) h.textContent = dqTermHint(k);
   } else if (f === "fr_val" && r.franchise) {
     if (dqFrMode(r.franchise) === "amount") { groupDigitsLive(el); r.franchise.amount = num(el.value) || null; }
-    else { const c = decimal(); r.franchise.pct = c === "" ? null : dec(c); }
+    else { const c = decimalLive(el); r.franchise.pct = c === "" ? null : dec(c); }
     r.franchise.text = null;
   }
   wzClearErr(k);
@@ -6749,7 +7019,7 @@ function obCondName(c){
   }
 }
 function obLoad(x){
-  const o = v => v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  const o = sObj;
   const str = (v, n) => typeof v === "string" ? v.slice(0, n) : v == null ? "" : String(v).slice(0, n);
   if (!x || typeof x !== "object" || !Array.isArray(x.items)) return null;
   const items = x.items.filter(it => it && typeof it === "object").slice(0, OB_MAX).map(it => Object.assign(obItem(), {
@@ -6828,7 +7098,7 @@ function obMoneyRoHtml(key){
   return '<div><label class="f" for="wzf-' + key + '">' + esc(label) + ' <span class="unit">' + esc(SUM()) + "</span></label>"
     + '<input id="wzf-' + key + '" type="text" readonly aria-readonly="true" value="' + esc(Number(v) > 0 ? Number(v).toLocaleString(LOC()) : "") + '" placeholder="0">'
     + '<span class="hint">' + esc(T("tg.act.obj_sum_ro", "Сумма по объектам — меняется в карточках объектов ниже.")) + "</span>"
-    + '<span class="ferr" id="wzErr-' + key + '"></span></div>';
+    + wzErrHtml(key) + "</div>";
 }
 function obTotHtml(){
   const n = (CH.ob && CH.ob.items.length) || 0, S = obSum("sum"), V = obSum("value");
@@ -6962,9 +7232,7 @@ function obInput(el){
     if (k === "mileage" && w && el.value) w.classList.remove("pf-need");
   }
   else if (k === "rate") {
-    const c = el.value.replace(/[^\d.,]/g, "").replace(/^([^.,]*[.,])(.*)$/, (m, a, b) => a + b.replace(/[.,]/g, ""));
-    if (c !== el.value) el.value = c;
-    it.rate = c;
+    it.rate = decimalLive(el);
   }
   else if (k === "label") {
     it.label = String(el.value || "").slice(0, 120);
@@ -7062,7 +7330,7 @@ const obAct = a => !!a && anArr(a.objects).length > 0 && !!a.objects_total && ty
 const obMoney = v => isNum(v) ? money(v) : "—";
 const obPct = v => isNum(v) ? pct(v, Math.max(2, dp(v))) : "—";
 function obSumHtml(a){
-  const Tt = anObj(a.objects_total), lv = Tt.level, lvI = ["low", "moderate", "high"].indexOf(lv), cv = anObj(Tt.value), vb = anObj(Tt.value_by_verdict);
+  const Tt = anObj(a.objects_total), lv = Tt.level, cv = anObj(Tt.value), vb = anObj(Tt.value_by_verdict);
   const ratio = isNum(cv.ratio_pct) ? pct(cv.ratio_pct, dp(cv.ratio_pct) ? 2 : 0) : T("tg.act.na", "данные недоступны");
   const u = anArr(vb.under).length, o = anArr(vb.over).length, nrm = anArr(vb.normal).length;
   return '<div class="act-kpis">'
@@ -7071,7 +7339,7 @@ function obSumHtml(a){
     + "<div><span>" + esc(T("tg.act.obj_rate_avg", "Средняя ставка")) + "</span><b>" + esc(obPct(Tt.rate_avg_pct)) + "</b>"
     + "<em>" + esc(T("tg.act.obj_rate_ref", "справочно: премия к страховой сумме")) + "</em></div>"
     + "<div><span>" + esc(T("tg.act.level", "Уровень риска")) + "</span>"
-    + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
+    + lvBarHtml(lv)
     + '<b class="lvname">' + esc(levelName(lv)) + "</b><em>" + esc(T("tg.act.obj_level_worst", "наивысший — объект {n}", {n: anStr(Tt.worst_index)}))
     + (Tt.calibrated ? "" : "; " + esc(T("tg.act.uncal_level", "пороги не калиброваны"))) + "</em></div>"
     + "<div><span>" + esc(T("tg.act.ratio", "Сумма к стоимости")) + "</span><b>" + esc(ratio) + "</b>"
@@ -7184,6 +7452,184 @@ function actLangPick(l){
   actFetch();
 }
 
+/* ---------- обработчики шага: одни на весь #wzBody (части перерисовываются без перепривязки) ---------- */
+function wzClick(e){
+  const t = e.target.closest("button, a[data-dl]");
+  const box = $("#wzBody");
+  if (!t || !box.contains(t)) return;
+  const d = t.dataset;
+  if (d.dl) return;                                  // обычная ссылка на файл — в браузере
+  if (d.send) { CH.msgAt = t.closest("#scoCard") ? "sco" : "act"; actSend(d.send); return; }
+  if (d.go === "scoimg") { scoImg(); return; }
+  if (d.cbreset) { cbReset(); return; }
+  if (d.mk) { mkAction(d.mk); return; }
+  if (d.mkopen != null) { const l = MK.links && MK.links.links[Number(d.mkopen)]; if (l) mkOpen(l.url, l.site); return; }
+  if (d.mvopen != null) { const l = ((CH.act && CH.act.market_value && CH.act.market_value.links) || [])[Number(d.mvopen)]; if (l) mkOpen(l.url); return; }
+  if (d.mkrm) { mkRemove(Number(d.mkrm)); return; }
+  if (d.mkdel != null) { mkDel(Number(d.mkdel)); return; }
+  if (d.pick === "cam") { $("#chatCam").click(); return; }
+  if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
+  if (d.rm) { wzRemove(Number(d.rm)); return; }
+  if (d.cbk) { cbToggle(Number(d.cbk)); return; }
+  if (d.prodopen) { CH.prodOpen = true; wzPart("prod"); const q = $("#wzProdQ"); if (q) q.focus(); return; }
+  if (d.prodclose) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); return; }
+  if (d.prod) { wzPickProduct(d.prod); return; }
+  if (d.clsonly) { wzPickClass(d.clsonly); return; }
+  if (d.add || d.copy) { wzQuickAdd(t); return; }
+  if (d.set) { wzSetOpt(t); return; }
+  if (d.fr) { wzFrSet(d.fr, d.value); return; }
+  if (d.dqfr) { dqFrSet(d.dqfr, d.value); return; }
+  if (d.dqreset) { dqReset(d.dqreset); return; }
+  if (d.go === "frapply") { actFrApply(); return; }
+  if (d.go === "docall") { actDocAll(); return; }
+  if (d.go === "anall") { anAll(); return; }
+  if (d.go === "addphoto") { wzGo(1); return; }
+  if (d.go === "fix") { wzGo(2); return; }
+  if (d.go === "restart") { haptic("select"); actReset(); return; }
+  if (d.go === "legal") { openTab("legal"); return; }
+  // части договора и поля класса
+  if (d.tfb) { tfBool(t); return; }
+  if (d.ptdel != null) { ptDel(Number(d.ptdel)); return; }
+  if (d.ptsame) { ptSame(d.ptsame); return; }
+  if (d.go === "ptopen") { CH.ptAdd = true; wzSave(); wzPart("parts"); wzPart("tpl"); wzPart("more"); const s = $("#ptAddCls"); if (s) s.focus(); return; }
+  if (d.go === "ptinit") { ptInit(); return; }
+  if (d.go === "ptadd") { ptAdd(); return; }
+  if (d.go === "ptconfirm") { ptConfirm(); return; }
+  if (d.go === "toparts") { wzGo(2); wzFocusField("parts"); return; }
+  if (d.go === "copy") { actCopy(); return; }
+  if (d.go === "openbot") { actOpenBot(); return; }
+  // несколько объектов, автозаполнение ТС, язык акта
+  if (d.obmode) { obMode(d.obmode); return; }
+  if (d.go === "obadd") { obAdd(); return; }
+  if (d.obdel != null) { obDel(Number(d.obdel)); return; }
+  if (d.obph) { obPhoto(d.obph); return; }
+  if (d.pf) {
+    e.preventDefault();                               // значок внутри подписи поля: не передаём щелчок полю
+    const p = document.getElementById(d.pf + "-p");
+    if (p) { p.hidden = !p.hidden; t.setAttribute("aria-expanded", String(!p.hidden)); }
+    return;
+  }
+  if (d.actlang) { actLangPick(d.actlang); return; }
+}
+function wzInput(e){
+  const el = e.target;
+  if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
+  if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
+  if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
+  if (el.dataset && el.dataset.dq) { dqInput(el); return; }
+  if (el.dataset && el.dataset.cbf) { cbInput(el); return; }
+  if (el.dataset && el.dataset.mkq) { MK.q = String(el.value || "").slice(0, 60); mkSave(); return; }
+  if (el.dataset && el.dataset.mkprice != null) { mkPriceInput(el); return; }
+  if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }
+  if (el.dataset && el.dataset.mka && el.tagName !== "SELECT") { mkAddInput(el); return; }
+  if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
+  if (el.dataset && el.dataset.tf && el.tagName !== "SELECT") { tfInput(el); return; }
+  if (el.dataset && el.dataset.pts != null) { ptMoneyInput(el, "sum"); return; }
+  if (el.dataset && el.dataset.ptv != null) { ptMoneyInput(el, "value"); return; }
+  if (el.dataset && el.dataset.ptfr != null) { ptFrInput(el); return; }
+  if (el.dataset && el.dataset.obk && el.tagName !== "SELECT") { obInput(el); return; }
+}
+function wzChange(e){
+  const el = e.target;
+  if (el.tagName === "SELECT" && el.dataset.fk) wzFieldInput(el);
+  if (el.dataset && el.dataset.mkuse != null) mkUse(el);
+  if (el.tagName === "SELECT" && el.dataset.mka) mkAddInput(el);
+  if (el.tagName === "SELECT" && el.dataset.tf) tfInput(el);
+  if (el.id === "ptAddCls") { const x = $("#wzErr-ptadd"); if (x) x.textContent = ""; }
+  if (el.tagName === "SELECT" && el.dataset.obk) obInput(el);
+}
+function wzToggle(e){
+  const el = e.target;
+  if (el && el.tagName === "DETAILS" && el.id === "wzMore") CH.optOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.an) {
+    CH.anOpen[el.dataset.an] = el.open;
+    const b = document.querySelector('#wzBody [data-go="anall"]');
+    if (b) b.textContent = anAllLabel();
+  }
+  if (el && el.tagName === "DETAILS" && el.id === "actSumD") CH.sumOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.rfhow) { CH.rfOpen = CH.rfOpen || {}; CH.rfOpen[el.dataset.rfhow] = el.open; }
+  if (el && el.tagName === "DETAILS" && el.id === "cbAct") CH.cbActOpen = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.ptn) CH.ptOpen[el.dataset.ptn] = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.ptmore) CH.ptMore[el.dataset.ptmore] = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.obmore) CH.obMore[el.dataset.obmore] = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.obd) CH.obOpen[el.dataset.obd] = el.open;
+  if (el && el.tagName === "DETAILS" && el.dataset.sn) {
+    CH.docOpen[el.dataset.sn] = el.open;
+    const b = document.querySelector('#wzBody [data-go="docall"]');
+    if (b) b.textContent = actDocAllLabel();
+  }
+}
+function wzKey(e){
+  const el = e.target;
+  if (el.id === "wzProdQ" && e.key === "Enter") {
+    e.preventDefault();
+    const only = document.querySelectorAll("#wzProdList [data-prod]");
+    if (only.length === 1) wzPickProduct(only[0].dataset.prod);
+  }
+  if (el.id === "mkQ" && e.key === "Enter") { e.preventDefault(); mkLinks(true); }
+  if (el.id === "wzProdQ" && e.key === "Escape" && (CH.must.product_code || CH.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
+}
+
+/* ---------- файлы: плитки, перетаскивание в любое место экрана, вставка из буфера ---------- */
+function chatBoot(){
+  const box = $("#wzBody");
+  box.addEventListener("click", wzClick);
+  box.addEventListener("input", wzInput);
+  box.addEventListener("change", wzChange);
+  box.addEventListener("toggle", wzToggle, true);          // toggle не всплывает — ловим на погружении
+  box.addEventListener("keydown", wzKey);
+  // отложенная перерисовка: данные пришли, пока человек печатал, — рисуем, когда он ушёл из поля
+  box.addEventListener("focusout", () => setTimeout(() => { if (CH.later && !typing(box)) wzPaint(); }, 0));
+  $("#chatMain").onclick = wzMain;
+  $("#chatFile").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
+  $("#chatCam").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
+  $("#mkFile").onchange = e => { mkAddFiles(e.target.files); e.target.value = ""; };
+  let depth = 0;
+  const zone = on => {
+    $("#chatDrop").classList.toggle("hidden", !on);
+    const d = $("#wzDrop");
+    if (d) d.classList.toggle("over", !!on);
+  };
+  document.addEventListener("dragenter", e => {
+    if (TAB !== "chat" || !e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") < 0) return;
+    depth++;
+    zone(true);
+  });
+  document.addEventListener("dragover", e => { if (!$("#chatDrop").classList.contains("hidden")) e.preventDefault(); });
+  document.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) zone(false); });
+  document.addEventListener("drop", e => {
+    if (TAB !== "chat") return;
+    depth = 0;
+    zone(false);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+      e.preventDefault();
+      if (CH.wz === 2) mkAddFiles(e.dataTransfer.files);   // на шаге «Проверить» — снимки объявлений
+      else wzAddFiles(e.dataTransfer.files);
+    }
+  });
+  // вставка из буфера: скриншот или файл — в список шага «Фото»
+  document.addEventListener("paste", e => {
+    if (TAB !== "chat" || !e.clipboardData) return;
+    // Windows кладёт снимок экрана не в clipboardData.files, а в items (image/png без имени) — читаем оба пути
+    let files = Array.prototype.slice.call(e.clipboardData.files || []);
+    if (!files.length) {
+      const items = Array.prototype.slice.call(e.clipboardData.items || []);
+      files = items.filter(it => it.kind === "file" && /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
+    }
+    if (!files.length) return;
+    e.preventDefault();
+    // снимку из буфера даём имя с расширением: по нему проверяется формат и строится подпись в списке файлов
+    files = files.map((f, i) => {
+      if (f.name && /\.[a-z0-9]{2,5}$/i.test(f.name)) return f;
+      const ext = /png/.test(f.type) ? "png" : /webp/.test(f.type) ? "webp" : "jpg";
+      try { return new File([f], "screenshot-" + Date.now() + "-" + (i + 1) + "." + ext, {type: f.type || "image/" + ext}); }
+      catch (_) { return f; }
+    });
+    if (CH.wz === 2) mkAddFiles(files); else wzAddFiles(files);   // шаг «Проверить»: снимок экрана со списком объявлений
+  });
+}
+
+/* app/tg/js/act.js — ИИ-сюрвейер: шаг «Акт» (сводка, скоринг, вилка, ниже минимума, факторы, аналитика, отправка) */
 /* ---------- «Сформировать акт»: POST /act/make ---------- */
 const ERR_FIELD = {product_code: "prod", class_code: "prod", sum_insured: "sum_insured", object_value: "object_value",
   region: "region", year: "year", purchase_year: "purchase_year", location: "location", guard: "guard",
@@ -7643,7 +8089,7 @@ function wzStep3Html(){
   }
   const dec = (a.decision || {}).code || "", risk = a.risk || {}, val = a.value || {}, prem = a.premium || {};
   const tone = dec === "accept" ? "ok" : dec === "decline" ? "stop" : "warn";
-  const lv = risk.level, lvI = ["low", "moderate", "high"].indexOf(lv);
+  const lv = risk.level;
   const disc = (a.discrepancies || []).length;
   const ratio = val.ratio_pct == null || isNaN(Number(val.ratio_pct)) ? T("tg.act.na", "данные недоступны") : pct(val.ratio_pct, Number(val.ratio_pct) % 1 ? 2 : 0);
   const rateNote = actRateNote(a);
@@ -7690,7 +8136,7 @@ function wzStep3Html(){
     + '<div class="act-dec">' + esc(decName(dec)) + "</div>"
     + (P ? ptSumHtml(a, P) : O ? obSumHtml(a) + actFrHtml(a) : '<div class="act-kpis">'
     + '<div><span>' + esc(T("tg.act.level", "Уровень риска")) + "</span>"
-    + '<i class="lvbar lv-' + esc(lv || "none") + '" aria-hidden="true">' + [0, 1, 2].map(k => "<u" + (k <= lvI ? ' class="on"' : "") + "></u>").join("") + "</i>"
+    + lvBarHtml(lv)
     + "<b class=\"lvname\">" + esc(levelName(lv)) + "</b>" + (risk.calibrated ? "" : "<em>" + esc(T("tg.act.uncal_level", "пороги не калиброваны")) + "</em>") + "</div>"
     + "<div><span>" + esc(T("tg.act.rate", "Рекомендуемый тариф")) + "</span><b>" + esc(actRate(a)) + "</b>"
     + (rateNote || multi || rtNote ? "<em>" + esc([rtNote || (multi ? T("tg.act.rate_annual", "годовых") : ""), rateNote].filter(Boolean).join("; ")) + "</em>" : "")
@@ -9030,198 +9476,9 @@ function chatRelang(){
   if (CH.act && CH.act.lang !== actLang()) actFetch();
 }
 
-/* ---------- обработчики шага: одни на весь #wzBody (части перерисовываются без перепривязки) ---------- */
-function wzClick(e){
-  const t = e.target.closest("button, a[data-dl]");
-  const box = $("#wzBody");
-  if (!t || !box.contains(t)) return;
-  const d = t.dataset;
-  if (d.dl) return;                                  // обычная ссылка на файл — в браузере
-  if (d.send) { CH.msgAt = t.closest("#scoCard") ? "sco" : "act"; actSend(d.send); return; }
-  if (d.go === "scoimg") { scoImg(); return; }
-  if (d.cbreset) { cbReset(); return; }
-  if (d.mk) { mkAction(d.mk); return; }
-  if (d.mkopen != null) { const l = MK.links && MK.links.links[Number(d.mkopen)]; if (l) mkOpen(l.url, l.site); return; }
-  if (d.mvopen != null) { const l = ((CH.act && CH.act.market_value && CH.act.market_value.links) || [])[Number(d.mvopen)]; if (l) mkOpen(l.url); return; }
-  if (d.mkrm) { mkRemove(Number(d.mkrm)); return; }
-  if (d.mkdel != null) { mkDel(Number(d.mkdel)); return; }
-  if (d.pick === "cam") { $("#chatCam").click(); return; }
-  if (d.pick === "files" || t.id === "wzDrop") { $("#chatFile").click(); return; }
-  if (d.rm) { wzRemove(Number(d.rm)); return; }
-  if (d.cbk) { cbToggle(Number(d.cbk)); return; }
-  if (d.prodopen) { CH.prodOpen = true; wzPart("prod"); const q = $("#wzProdQ"); if (q) q.focus(); return; }
-  if (d.prodclose) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); return; }
-  if (d.prod) { wzPickProduct(d.prod); return; }
-  if (d.clsonly) { wzPickClass(d.clsonly); return; }
-  if (d.add || d.copy) { wzQuickAdd(t); return; }
-  if (d.set) { wzSetOpt(t); return; }
-  if (d.fr) { wzFrSet(d.fr, d.value); return; }
-  if (d.dqfr) { dqFrSet(d.dqfr, d.value); return; }
-  if (d.dqreset) { dqReset(d.dqreset); return; }
-  if (d.go === "frapply") { actFrApply(); return; }
-  if (d.go === "docall") { actDocAll(); return; }
-  if (d.go === "anall") { anAll(); return; }
-  if (d.go === "addphoto") { wzGo(1); return; }
-  if (d.go === "fix") { wzGo(2); return; }
-  if (d.go === "restart") { haptic("select"); actReset(); return; }
-  if (d.go === "legal") { openTab("legal"); return; }
-  // части договора и поля класса
-  if (d.tfb) { tfBool(t); return; }
-  if (d.ptdel != null) { ptDel(Number(d.ptdel)); return; }
-  if (d.ptsame) { ptSame(d.ptsame); return; }
-  if (d.go === "ptopen") { CH.ptAdd = true; wzSave(); wzPart("parts"); wzPart("tpl"); wzPart("more"); const s = $("#ptAddCls"); if (s) s.focus(); return; }
-  if (d.go === "ptinit") { ptInit(); return; }
-  if (d.go === "ptadd") { ptAdd(); return; }
-  if (d.go === "ptconfirm") { ptConfirm(); return; }
-  if (d.go === "toparts") { wzGo(2); wzFocusField("parts"); return; }
-  if (d.go === "copy") { actCopy(); return; }
-  if (d.go === "openbot") { actOpenBot(); return; }
-  // несколько объектов, автозаполнение ТС, язык акта
-  if (d.obmode) { obMode(d.obmode); return; }
-  if (d.go === "obadd") { obAdd(); return; }
-  if (d.obdel != null) { obDel(Number(d.obdel)); return; }
-  if (d.obph) { obPhoto(d.obph); return; }
-  if (d.pf) {
-    e.preventDefault();                               // значок внутри подписи поля: не передаём щелчок полю
-    const p = document.getElementById(d.pf + "-p");
-    if (p) { p.hidden = !p.hidden; t.setAttribute("aria-expanded", String(!p.hidden)); }
-    return;
-  }
-  if (d.actlang) { actLangPick(d.actlang); return; }
-}
-function wzInput(e){
-  const el = e.target;
-  if (el.id === "wzProdQ") { CH.prodQ = el.value; wzPart("list"); return; }
-  if (el.dataset && el.dataset.rec != null) { recInput(el); return; }
-  if (el.dataset && el.dataset.frval) { wzFrInput(el); return; }
-  if (el.dataset && el.dataset.dq) { dqInput(el); return; }
-  if (el.dataset && el.dataset.cbf) { cbInput(el); return; }
-  if (el.dataset && el.dataset.mkq) { MK.q = String(el.value || "").slice(0, 60); mkSave(); return; }
-  if (el.dataset && el.dataset.mkprice != null) { mkPriceInput(el); return; }
-  if (el.dataset && el.dataset.mkrate) { mkRateInput(el); return; }
-  if (el.dataset && el.dataset.mka && el.tagName !== "SELECT") { mkAddInput(el); return; }
-  if (el.dataset && el.dataset.fk && el.tagName !== "SELECT") wzFieldInput(el);
-  if (el.dataset && el.dataset.tf && el.tagName !== "SELECT") { tfInput(el); return; }
-  if (el.dataset && el.dataset.pts != null) { ptMoneyInput(el, "sum"); return; }
-  if (el.dataset && el.dataset.ptv != null) { ptMoneyInput(el, "value"); return; }
-  if (el.dataset && el.dataset.ptfr != null) { ptFrInput(el); return; }
-  if (el.dataset && el.dataset.obk && el.tagName !== "SELECT") { obInput(el); return; }
-}
-function wzChange(e){
-  const el = e.target;
-  if (el.tagName === "SELECT" && el.dataset.fk) wzFieldInput(el);
-  if (el.dataset && el.dataset.mkuse != null) mkUse(el);
-  if (el.tagName === "SELECT" && el.dataset.mka) mkAddInput(el);
-  if (el.tagName === "SELECT" && el.dataset.tf) tfInput(el);
-  if (el.id === "ptAddCls") { const x = $("#wzErr-ptadd"); if (x) x.textContent = ""; }
-  if (el.tagName === "SELECT" && el.dataset.obk) obInput(el);
-}
-function wzToggle(e){
-  const el = e.target;
-  if (el && el.tagName === "DETAILS" && el.id === "wzMore") CH.optOpen = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.an) {
-    CH.anOpen[el.dataset.an] = el.open;
-    const b = document.querySelector('#wzBody [data-go="anall"]');
-    if (b) b.textContent = anAllLabel();
-  }
-  if (el && el.tagName === "DETAILS" && el.id === "actSumD") CH.sumOpen = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.rfhow) { CH.rfOpen = CH.rfOpen || {}; CH.rfOpen[el.dataset.rfhow] = el.open; }
-  if (el && el.tagName === "DETAILS" && el.id === "cbAct") CH.cbActOpen = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.ptn) CH.ptOpen[el.dataset.ptn] = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.ptmore) CH.ptMore[el.dataset.ptmore] = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.obmore) CH.obMore[el.dataset.obmore] = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.obd) CH.obOpen[el.dataset.obd] = el.open;
-  if (el && el.tagName === "DETAILS" && el.dataset.sn) {
-    CH.docOpen[el.dataset.sn] = el.open;
-    const b = document.querySelector('#wzBody [data-go="docall"]');
-    if (b) b.textContent = actDocAllLabel();
-  }
-}
-function wzKey(e){
-  const el = e.target;
-  if (el.id === "wzProdQ" && e.key === "Enter") {
-    e.preventDefault();
-    const only = document.querySelectorAll("#wzProdList [data-prod]");
-    if (only.length === 1) wzPickProduct(only[0].dataset.prod);
-  }
-  if (el.id === "mkQ" && e.key === "Enter") { e.preventDefault(); mkLinks(true); }
-  if (el.id === "wzProdQ" && e.key === "Escape" && (CH.must.product_code || CH.must.class_code)) { CH.prodOpen = false; CH.prodQ = ""; wzPart("prod"); }
-}
-
-/* ---------- файлы: плитки, перетаскивание в любое место экрана, вставка из буфера ---------- */
-function chatBoot(){
-  const box = $("#wzBody");
-  box.addEventListener("click", wzClick);
-  box.addEventListener("input", wzInput);
-  box.addEventListener("change", wzChange);
-  box.addEventListener("toggle", wzToggle, true);          // toggle не всплывает — ловим на погружении
-  box.addEventListener("keydown", wzKey);
-  // отложенная перерисовка: данные пришли, пока человек печатал, — рисуем, когда он ушёл из поля
-  box.addEventListener("focusout", () => setTimeout(() => { if (CH.later && !typing(box)) wzPaint(); }, 0));
-  $("#chatMain").onclick = wzMain;
-  $("#chatFile").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
-  $("#chatCam").onchange = e => { wzAddFiles(e.target.files); e.target.value = ""; };
-  $("#mkFile").onchange = e => { mkAddFiles(e.target.files); e.target.value = ""; };
-  let depth = 0;
-  const zone = on => {
-    $("#chatDrop").classList.toggle("hidden", !on);
-    const d = $("#wzDrop");
-    if (d) d.classList.toggle("over", !!on);
-  };
-  document.addEventListener("dragenter", e => {
-    if (TAB !== "chat" || !e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") < 0) return;
-    depth++;
-    zone(true);
-  });
-  document.addEventListener("dragover", e => { if (!$("#chatDrop").classList.contains("hidden")) e.preventDefault(); });
-  document.addEventListener("dragleave", () => { depth = Math.max(0, depth - 1); if (!depth) zone(false); });
-  document.addEventListener("drop", e => {
-    if (TAB !== "chat") return;
-    depth = 0;
-    zone(false);
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
-      e.preventDefault();
-      if (CH.wz === 2) mkAddFiles(e.dataTransfer.files);   // на шаге «Проверить» — снимки объявлений
-      else wzAddFiles(e.dataTransfer.files);
-    }
-  });
-  // вставка из буфера: скриншот или файл — в список шага «Фото»
-  document.addEventListener("paste", e => {
-    if (TAB !== "chat" || !e.clipboardData) return;
-    // Windows кладёт снимок экрана не в clipboardData.files, а в items (image/png без имени) — читаем оба пути
-    let files = Array.prototype.slice.call(e.clipboardData.files || []);
-    if (!files.length) {
-      const items = Array.prototype.slice.call(e.clipboardData.items || []);
-      files = items.filter(it => it.kind === "file" && /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
-    }
-    if (!files.length) return;
-    e.preventDefault();
-    // снимку из буфера даём имя с расширением: по нему проверяется формат и строится подпись в списке файлов
-    files = files.map((f, i) => {
-      if (f.name && /\.[a-z0-9]{2,5}$/i.test(f.name)) return f;
-      const ext = /png/.test(f.type) ? "png" : /webp/.test(f.type) ? "webp" : "jpg";
-      try { return new File([f], "снимок-" + Date.now() + "-" + (i + 1) + "." + ext, {type: f.type || "image/" + ext}); }
-      catch (_) { return f; }
-    });
-    if (CH.wz === 2) mkAddFiles(files); else wzAddFiles(files);   // шаг «Проверить»: снимок экрана со списком объявлений
-  });
-}
-
 chatBoot();
 
-/* ---------- уровни риска для админки порогов (Настройки → пороги) ---------- */
-function lvName(i, fallback){
-  switch (i) {
-    case 0: return T("tg.an.lv1", "Низкий");
-    case 1: return T("tg.an.lv2", "Умеренный");
-    case 2: return T("tg.an.lv3", "Повышенный");
-    case 3: return T("tg.an.lv4", "Высокий");
-    case 4: return T("tg.an.lv5", "Критический");
-    default: return fallback || "—";
-  }
-}
-function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
-
+/* app/tg/js/osgor.js — вкладка «ОСГОР» */
 /* =====================================================================================
    ОСГОР: калькулятор премии (POST /osgor/quick), подсказка ОКЭД по мере ввода (GET /osgor/activities).
    ===================================================================================== */
@@ -9255,15 +9512,6 @@ async function osRelang(){
 }
 
 /* ФОТ с разделителями прямо при вводе; курсор остаётся после той же цифры */
-function groupDigitsLive(el){
-  const pos = el.selectionStart || 0;
-  const before = el.value.slice(0, pos).replace(/\D/g, "").length;
-  const d = el.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-  el.value = d ? Number(d).toLocaleString(LOC()) : "";
-  let i = 0, seen = 0;
-  while (i < el.value.length && seen < before) { if (/\d/.test(el.value[i])) seen++; i++; }
-  try { el.setSelectionRange(i, i); } catch (e) {}
-}
 $("#osPay").addEventListener("input", () => { groupDigitsLive($("#osPay")); $("#osPayErr").textContent = ""; });
 
 function osSearch(){
@@ -9375,7 +9623,7 @@ function osPaintResult(){
     + '<div class="big">' + esc(money(d.premium)) + "</div>"
     + '<p class="sub">' + esc(T("tg.os.premium_for", "за {n} дн. · страховая сумма {s}", {n: d.term_days, s: money(d.sum_insured)})) + "</p>"
     // вид деятельности — строкой; категория, КСТ, минимум и БРВ — одним блоком с сегментами
-    + '<div class="mini"><div style="grid-column:1/-1"><span>' + esc(T("tg.os.activity", "Вид деятельности")) + "</span><b>" + esc((a.okved || "") + " · " + (a.name || "—")) + "</b></div></div>"
+    + '<div class="mini"><div class="wide"><span>' + esc(T("tg.os.activity", "Вид деятельности")) + "</span><b>" + esc((a.okved || "") + " · " + (a.name || "—")) + "</b></div></div>"
     + '<div class="seg">'
     + "<div><span>" + esc(T("tg.os.category", "Категория риска")) + "</span><b>" + esc(a.category != null ? T("tg.os.cat_of", "{c} из 20", {c: a.category}) : "—") + "</b></div>"
     + "<div><span>" + esc(T("tg.os.kst", "КСТ")) + "</span><b>" + esc(d.kst != null ? nf(d.kst, 3) : "—") + "</b></div>"
@@ -9386,7 +9634,7 @@ function osPaintResult(){
     + (d.lines || []).map(l => '<div><div class="top"><span>' + esc(l.step) + "</span><b>" + esc(l.value) + "</b></div>"
       + (l.explain ? "<p>" + esc(l.explain) + "</p>" : "") + (l.legal_ref ? "<small>" + esc(l.legal_ref) + "</small>" : "") + "</div>").join("")
     + "</div>"
-    + (notes.length ? notes.map(n => '<p class="note warn" style="margin:var(--s2) 0 0">' + esc(n) + "</p>").join("") : "")
+    + (notes.length ? notes.map(n => '<p class="note warn os-note">' + esc(n) + "</p>").join("") : "")
     + (d.brv_source ? '<p class="note">' + esc(T("tg.os.brv_source", "БРВ: {s}", {s: d.brv_source})) + "</p>" : "")
     + (d.legal_note_en ? '<p class="note">' + esc(d.legal_note_en) + "</p>" : "")
     + '<div class="srcbar"><span>' + esc(T("tg.os.legal", "Норма: ПКМ № 177, Правила ОСГОР, прил. 9")) + '</span><a href="https://lex.uz/" target="_blank" rel="noopener">'
@@ -9413,7 +9661,7 @@ function brvHtml(prefix){
     + (cur
       ? '<div class="seg"><div class="main"><span>' + esc(T("tg.os.brv_now", "Действует сейчас")) + "</span><b>" + esc(money(cur.value)) + "</b></div>"
         + "<div><span>" + esc(T("tg.os.brv_from", "С даты")) + "</span><b>" + esc(dateOnly(cur.effective_from)) + "</b></div></div>"
-        + '<p class="note" style="margin:6px 0 0">' + esc(T("common.source", "Источник")) + ": " + esc(cur.source || "—") + "</p>"
+        + '<p class="note brv-src">' + esc(T("common.source", "Источник")) + ": " + esc(cur.source || "—") + "</p>"
       : '<p class="note warn">' + esc(T("tg.os.brv_missing", "Размер БРВ ещё не введён — минимальная премия не проверяется.")) + "</p>")
     + (b.next ? '<p class="note">' + esc(T("tg.os.brv_next", "С {d} будет {v}", {d: dateOnly(b.next.effective_from), v: money(b.next.value)})) + "</p>" : "")
     + (edit
@@ -9458,6 +9706,18 @@ async function saveBrv(prefix){
   if (m2) m2.innerHTML = okHtml(T("tg.os.brv_saved", "БРВ сохранена. Расчёты по договорам с этой даты возьмут новое значение."));
 }
 
+/* app/tg/js/settings.js — вкладка «Настройки»: справочники администратора, состояние бота */
+/* ---------- уровни риска для админки порогов (Настройки → пороги) ---------- */
+function lvName(i, fallback){
+  switch (i) {
+    case 0: return T("tg.an.lv1", "Низкий");
+    case 1: return T("tg.an.lv2", "Умеренный");
+    case 2: return T("tg.an.lv3", "Повышенный");
+    case 3: return T("tg.an.lv4", "Высокий");
+    case 4: return T("tg.an.lv5", "Критический");
+    default: return fallback || "—";
+  }
+}
 /* =====================================================================================
    Данные и справочники — только администратору (can_edit из /tg/me). Сервер права проверяет сам.
    ===================================================================================== */
@@ -9487,6 +9747,7 @@ function settingsRepaint(){
   if (IS_ADMIN()) paintBot();
   admPaint();
 }
+const admLoadErr = r => '<div class="note">' + errHtml(r.error) + "</div>";
 function admPaint(){
   const box = $("#admData");
   const tabs = admTabs();
@@ -9531,7 +9792,7 @@ async function admThresholds(body){
   if (!ADM.th) {
     body.innerHTML = anLoadingCard();
     const r = await api("/analytics/risk/thresholds");
-    if (!r.ok) { body.innerHTML = '<div class="note">' + errHtml(r.error) + "</div>"; return; }
+    if (!r.ok) { body.innerHTML = admLoadErr(r); return; }
     ADM.th = r.data;
     if (ADM.tab !== "risk_thresholds") return;
   }
@@ -9578,7 +9839,7 @@ async function admCoef(body){
   if (!ADM.coef) {
     body.innerHTML = anLoadingCard();
     const r = await api("/reference/coefficients");
-    if (!r.ok) { body.innerHTML = '<div class="note">' + errHtml(r.error) + "</div>"; return; }
+    if (!r.ok) { body.innerHTML = admLoadErr(r); return; }
     ADM.coef = r.data || [];
     if (ADM.tab !== "coefficients") return;
   }
@@ -9599,8 +9860,8 @@ function admCoefTable(){
     + shown.map(c => "<tr><td>" + esc(c.factor_name)
       + (c.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>")
       + "<small>" + esc(T("tg.adm.cls_n", "класс {c}", {c: c.class_code || "—"})) + " · " + esc(c.option_name) + "</small></td>"
-      + '<td class="num" style="width:96px"><input type="text" inputmode="decimal" data-cm="' + c.id + '" value="' + esc(c.multiplier) + '" aria-label="' + esc(T("tg.adm.mult", "Множитель")) + '"></td>'
-      + '<td class="act" style="width:1%"><button type="button" class="btn btn-secondary btn-sm" data-cs="' + c.id + '">' + esc(T("common.save", "Сохранить")) + "</button></td></tr>").join("")
+      + '<td class="num w96"><input type="text" inputmode="decimal" data-cm="' + c.id + '" value="' + esc(c.multiplier) + '" aria-label="' + esc(T("tg.adm.mult", "Множитель")) + '"></td>'
+      + '<td class="act w1"><button type="button" class="btn btn-secondary btn-sm" data-cs="' + c.id + '">' + esc(T("common.save", "Сохранить")) + "</button></td></tr>").join("")
     + "</tbody></table></div>" + '<div class="note msg" id="coefMsg"></div>';
   document.querySelectorAll("[data-cs]").forEach(b => { b.onclick = () => admCoefSave(Number(b.dataset.cs)); });
 }
@@ -9623,7 +9884,7 @@ async function admMin(body){
   if (!ADM.minr) {
     body.innerHTML = anLoadingCard();
     const r = await api("/reference/min_rates");
-    if (!r.ok) { body.innerHTML = '<div class="note">' + errHtml(r.error) + "</div>"; return; }
+    if (!r.ok) { body.innerHTML = admLoadErr(r); return; }
     ADM.minr = r.data || [];
     if (ADM.tab !== "min_rates") return;
   }
@@ -9672,7 +9933,7 @@ async function admNorms(body){
   if (!ADM.norms) {
     body.innerHTML = anLoadingCard();
     const r = await api("/valuation/norms");
-    if (!r.ok) { body.innerHTML = '<div class="note">' + errHtml(r.error) + "</div>"; return; }
+    if (!r.ok) { body.innerHTML = admLoadErr(r); return; }
     ADM.norms = r.data || [];
     if (ADM.tab !== "depreciation_norms") return;
   }
@@ -9680,9 +9941,9 @@ async function admNorms(body){
     + "</th><th>" + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + "</th><th></th></tr></thead><tbody>"
     + ADM.norms.map(n => "<tr><td>" + esc(n.name) + (n.calibrated ? "" : ' <span class="tag off">' + esc(T("tg.adm.uncal", "не калибровано")) + "</span>")
       + "<small>" + esc(n.code) + "</small></td>"
-      + '<td style="width:90px" data-l="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"><input type="text" inputmode="decimal" data-nr="' + esc(n.code) + '" value="' + esc(n.rate_pct) + '" aria-label="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"></td>'
-      + '<td style="width:90px" data-l="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"><input type="text" inputmode="decimal" data-nm="' + esc(n.code) + '" value="' + esc(n.residual_min_pct == null ? "" : n.residual_min_pct) + '" aria-label="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"></td>'
-      + '<td class="act" style="width:1%;white-space:nowrap"><button type="button" class="btn btn-secondary btn-sm" data-ns="' + esc(n.code) + '">' + esc(T("common.save", "Сохранить")) + "</button> "
+      + '<td class="w90" data-l="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"><input type="text" inputmode="decimal" data-nr="' + esc(n.code) + '" value="' + esc(n.rate_pct) + '" aria-label="' + esc(T("tg.adm.norm_rate", "Износ в год, %")) + '"></td>'
+      + '<td class="w90" data-l="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"><input type="text" inputmode="decimal" data-nm="' + esc(n.code) + '" value="' + esc(n.residual_min_pct == null ? "" : n.residual_min_pct) + '" aria-label="' + esc(T("tg.adm.norm_min", "Остаток не ниже, %")) + '"></td>'
+      + '<td class="act w1 nw"><button type="button" class="btn btn-secondary btn-sm" data-ns="' + esc(n.code) + '">' + esc(T("common.save", "Сохранить")) + "</button> "
       + '<button type="button" class="btn btn-link btn-sm" data-nd="' + esc(n.code) + '">' + esc(T("common.delete", "Удалить")) + "</button></td></tr>").join("")
     + "</tbody></table></div>"
     + '<div class="h3">' + esc(T("tg.adm.norm_add", "Новая норма")) + '</div><div class="inline">'
@@ -9727,6 +9988,35 @@ async function admNormDelete(code){
   $("#nnMsg").innerHTML = okHtml(T("tg.adm.norm_deleted", "Норма {c} удалена.", {c: code}));
 }
 
+/* ---------- настройки: состояние бота ---------- */
+let BOT_ERR = "";
+async function loadBot(){
+  $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_state", "Состояние")) + "</span><b><span class=\"spin\"></span></b>";
+  const r = await api("/tg/bot-status");
+  BOT_ERR = r.ok ? "" : r.error;
+  if (r.ok) BOT = r.data;
+  paintBot();
+}
+function paintBot(){
+  if (BOT_ERR) { $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_state", "Состояние")) + "</span><b>" + esc(BOT_ERR) + "</b>"; return; }
+  const b = BOT;
+  if (!b) return;
+  const yes = T("common.yes", "да"), no = T("common.no", "нет");
+  $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_connected", "Бот подключён")) + "</span><b>" + esc(b.connected ? yes : no) + "</b>"
+    + "<span>" + esc(T("tg.bot_token", "Токен")) + "</span><b>" + esc(b.token_mask || T("common.not_set", "не задан")) + "</b>"
+    + "<span>" + esc(T("tg.bot_webhook", "Вебхук")) + "</span><b>" + esc(b.webhook_set ? T("tg.bot_webhook_on", "настроен") : T("tg.bot_webhook_off", "не настроен")) + "</b>"
+    + "<span>" + esc(T("tg.bot_polling", "Опрос обновлений")) + "</span><b>" + esc(b.polling ? (b.polling_running ? T("tg.bot_polling_on", "идёт") : T("tg.bot_polling_idle", "включён, но не запущен")) : T("tg.bot_polling_off", "выключен")) + "</b>"
+    + (b.polling_error ? "<span>" + esc(T("tg.bot_last_error", "Последняя ошибка опроса")) + "</span><b>" + esc(b.polling_error) + "</b>" : "")
+    + "<span>" + esc(T("tg.bot_messages", "Сообщений в журнале")) + "</span><b>" + fmt(b.messages) + "</b>"
+    + "<span>" + esc(T("tg.bot_last_message", "Последнее сообщение")) + "</span><b>" + esc(when(b.last_message_at) || "—") + "</b>"
+    + "<span>" + esc(T("tg.bot_admin_code", "Код первого администратора")) + "</span><b>" + esc(b.bootstrap_code_set ? T("tg.set", "задан") : T("common.not_set", "не задан")) + "</b>"
+    + "<span>" + esc(T("tg.consent_version", "Согласие, версия")) + "</span><b>" + esc(b.consent_version || "—") + "</b>"
+    + (b.reason ? "<span>" + esc(T("tg.bot_reason", "Пояснение")) + "</span><b>" + esc(b.reason) + "</b>" : "");
+}
+$("#botReload").onclick = loadBot;
+
+
+/* app/tg/js/users.js — вкладка «Пользователи» и запуск приложения (boot) */
 /* ---------- пользователи (список видят все вошедшие) ---------- */
 let CAN_MANAGE = false, USERS = null;
 const USER_MSG = {};
@@ -9823,292 +10113,6 @@ async function blockUser(uid){
 const BLOCK_REASON = "решение администратора в мини-аппе";   // пишется в журнал сервера, на экран не выводится
 $("#usrReload").onclick = loadUsers;
 
-/* ---------- настройки: состояние бота ---------- */
-let BOT_ERR = "";
-async function loadBot(){
-  $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_state", "Состояние")) + "</span><b><span class=\"spin\"></span></b>";
-  const r = await api("/tg/bot-status");
-  BOT_ERR = r.ok ? "" : r.error;
-  if (r.ok) BOT = r.data;
-  paintBot();
-}
-function paintBot(){
-  if (BOT_ERR) { $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_state", "Состояние")) + "</span><b>" + esc(BOT_ERR) + "</b>"; return; }
-  const b = BOT;
-  if (!b) return;
-  const yes = T("common.yes", "да"), no = T("common.no", "нет");
-  $("#botKv").innerHTML = "<span>" + esc(T("tg.bot_connected", "Бот подключён")) + "</span><b>" + esc(b.connected ? yes : no) + "</b>"
-    + "<span>" + esc(T("tg.bot_token", "Токен")) + "</span><b>" + esc(b.token_mask || T("common.not_set", "не задан")) + "</b>"
-    + "<span>" + esc(T("tg.bot_webhook", "Вебхук")) + "</span><b>" + esc(b.webhook_set ? T("tg.bot_webhook_on", "настроен") : T("tg.bot_webhook_off", "не настроен")) + "</b>"
-    + "<span>" + esc(T("tg.bot_polling", "Опрос обновлений")) + "</span><b>" + esc(b.polling ? (b.polling_running ? T("tg.bot_polling_on", "идёт") : T("tg.bot_polling_idle", "включён, но не запущен")) : T("tg.bot_polling_off", "выключен")) + "</b>"
-    + (b.polling_error ? "<span>" + esc(T("tg.bot_last_error", "Последняя ошибка опроса")) + "</span><b>" + esc(b.polling_error) + "</b>" : "")
-    + "<span>" + esc(T("tg.bot_messages", "Сообщений в журнале")) + "</span><b>" + fmt(b.messages) + "</b>"
-    + "<span>" + esc(T("tg.bot_last_message", "Последнее сообщение")) + "</span><b>" + esc(when(b.last_message_at) || "—") + "</b>"
-    + "<span>" + esc(T("tg.bot_admin_code", "Код первого администратора")) + "</span><b>" + esc(b.bootstrap_code_set ? T("tg.set", "задан") : T("common.not_set", "не задан")) + "</b>"
-    + "<span>" + esc(T("tg.consent_version", "Согласие, версия")) + "</span><b>" + esc(b.consent_version || "—") + "</b>"
-    + (b.reason ? "<span>" + esc(T("tg.bot_reason", "Пояснение")) + "</span><b>" + esc(b.reason) + "</b>" : "");
-}
-$("#botReload").onclick = loadBot;
-
-
-/* =====================================================================================
-   Кинематографичные штрихи внутри приложения.
-
-   Фон раздела (#appbg): размытая и затемнённая картинка под содержимым, лёгкий параллакс.
-   При системной настройке «меньше движения» и при включённой экономии трафика движение
-   и картинки выключаются (классы fx-still / fx-lite).
-   Обложку убрали по решению заказчика 28.09.2026: приложение сразу открывается на разделе.
-   ===================================================================================== */
-/* бережный режим: системная настройка «меньше движения» и экономия трафика у оператора */
-const MOTION_OFF = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)");
-function cineFlags(){
-  const c = navigator.connection || {};
-  const slow = !!c.saveData || /^(slow-2g|2g)$/.test(c.effectiveType || "");
-  document.body.classList.toggle("fx-lite", slow);
-  document.body.classList.toggle("fx-still", slow || !!(MOTION_OFF && MOTION_OFF.matches));
-}
-document.body.classList.add("cine");
-cineFlags();
-if (MOTION_OFF && MOTION_OFF.addEventListener) MOTION_OFF.addEventListener("change", cineFlags);
-
-/* ---------- фон раздела внутри приложения ---------- */
-const APP_BG = {chat: "chat", calc: "calc", osgor: "osgor", legal: "specialist",
-  users: "documents", settings: "admin"};
-let APP_BG_NOW = "";
-function appBg(key){
-  const scene = APP_BG[key] || "particles";
-  if (scene === APP_BG_NOW || document.body.classList.contains("fx-lite")) return;
-  APP_BG_NOW = scene;
-  const box = $("#appbg");
-  const img = new Image();
-  img.alt = "";
-  img.decoding = "async";
-  img.srcset = "/static/bg/" + scene + "-640.jpg 640w, /static/bg/" + scene + ".jpg 1024w";
-  img.sizes = "100vw";
-  img.src = "/static/bg/" + scene + "-640.jpg";
-  img.onload = () => { img.classList.add("on"); };
-  img.onerror = () => { img.remove(); };         // картинки нет — остаётся обычный фон темы
-  box.innerHTML = "";
-  box.appendChild(img);
-}
-/* лёгкий параллакс фона приложения при прокрутке страницы */
-let appTick = false;
-window.addEventListener("scroll", () => {
-  if (appTick || document.body.classList.contains("fx-still")) return;
-  appTick = true;
-  requestAnimationFrame(() => {
-    appTick = false;
-    const img = $("#appbg img");
-    if (img) img.style.setProperty("--par", Math.round(window.scrollY * -0.06) + "px");
-  });
-}, {passive: true});
-
-/* ---------- Способы входа (левая панель, у каждого вошедшего) ---------- */
-/* Данные: GET /auth/links → {links:[{provider, title, display, external_id_masked, …}],
-   can_link, can_unlink, google:{configured, message, hint}, profile}.
-   Привязать Google — POST /auth/link/google/start → {url}; Google возвращает на /tg?link=ok
-   или /tg?link=error&reason=… — показываем словами.
-   Привязать Telegram — POST /auth/link/telegram/start → код боту, дальше опрос
-   GET /auth/tg-link/status?link_id=… (тот же порядок, что на экране входа по коду).
-   «Отвязать» показываем, только если сервер разрешил (can_unlink): последний способ входа
-   отнимать нельзя — человек потеряет вход. */
-let LINKS = null;
-const LN = {id: "", timer: null, until: 0, note: null};
-
-function linkRow(sel, text, off){
-  const b = $(sel);
-  b.textContent = text;
-  b.classList.toggle("off", !!off);
-}
-const linkOf = p => ((LINKS && LINKS.links) || []).filter(x => x.provider === p)[0] || null;
-const canLink = p => ((LINKS && LINKS.can_link) || []).indexOf(p) >= 0;
-const canUnlink = p => ((LINKS && LINKS.can_unlink) || []).indexOf(p) >= 0;
-
-function paintLinks(){
-  const show = !!ME.user;
-  $("#links").classList.toggle("hidden", !show);
-  paintAskAdmin();
-  if (!show) return;
-  const none = T("tg.links.none", "не привязан");
-  const tg = linkOf("telegram"), go = linkOf("google");
-  linkRow("#lnTg", tg ? (tg.display || tg.external_id_masked || "") : none, !tg);
-  linkRow("#lnGo", go ? (go.display || go.external_id_masked || "") : none, !go);
-  $("#lnTgOff").textContent = $("#lnGoOff").textContent = T("tg.links.unbind", "Отвязать");
-  $("#lnTgOff").classList.toggle("hidden", !canUnlink("telegram"));
-  $("#lnGoOff").classList.toggle("hidden", !canUnlink("google"));
-  const g = (LINKS && LINKS.google) || {};
-  const gOff = canLink("google") && g.configured === false;
-  $("#lnBind").textContent = T("tg.links.bind_google", "Привязать Google");
-  $("#lnBind").classList.toggle("hidden", !canLink("google"));
-  $("#lnBind").disabled = gOff;
-  $("#lnBindTg").textContent = T("tg.links.bind_tg", "Привязать Telegram");
-  $("#lnBindTg").classList.toggle("hidden", !canLink("telegram"));
-  // «Google не настроен» — не ошибка человека, а состояние сервера: говорим спокойно, без красного
-  $("#lnMsg").innerHTML = LN.note ? LN.note()
-    : gOff ? esc([g.message, g.hint].filter(Boolean).join(" ")) : "";
-}
-function lnCodeHide(){
-  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.add("hidden"));
-}
-async function loadLinks(){
-  if (!ME.user) { LINKS = null; paintLinks(); return; }
-  const r = await api("/auth/links");
-  LINKS = r.ok ? (r.data || {}) : null;
-  if (!r.ok) LN.note = () => errHtml(T("tg.links.load_fail", "Способы входа не загрузились: {reason}", {reason: r.error}));
-  paintLinks();
-}
-
-/* вернулись от Google: /tg?link=ok или /tg?link=error&reason=… — говорим словами и чистим адрес */
-(function(){
-  const q = new URLSearchParams(location.search), v = q.get("link");
-  if (!v) return;
-  const reason = q.get("reason") || "";
-  LN.note = v === "ok"
-    ? () => okHtml(T("tg.links.google_done", "Google привязан."))
-    : () => errHtml(T("tg.links.google_err", "Google не привязан: {reason}", {reason: reason}));
-  q.delete("link");
-  q.delete("reason");
-  const rest = q.toString();
-  try { history.replaceState(null, "", location.pathname + (rest ? "?" + rest : "") + location.hash); } catch (e) {}
-})();
-
-$("#lnBind").onclick = async () => {
-  const btn = $("#lnBind");
-  btn.disabled = true;
-  LN.note = () => spin(T("tg.links.google_open", "открываю вход Google…"));
-  paintLinks();
-  const r = await api("/auth/link/google/start", jsonOpts("POST", {}));
-  if (r.ok && r.data && r.data.url) { location.href = r.data.url; return; }
-  btn.disabled = false;
-  if (r.error) {
-    LN.note = () => errHtml(T("tg.links.google_fail", "Google не открылся: {reason}", {reason: r.error}));
-    paintLinks();
-    return;
-  }
-  location.href = "/auth/google?link=1";    // запасной путь: обычный вход через Google с признаком привязки
-};
-
-/* --- привязка Telegram: код боту и опрос, как на экране входа --- */
-function lnStop(){ if (LN.timer) { clearInterval(LN.timer); LN.timer = null; } }
-function lnLeft(){
-  const s = Math.max(0, Math.round((LN.until - Date.now()) / 1000));
-  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
-}
-function lnWait(){
-  LN.note = () => okHtml(T("tg.links.wait", "Жду сообщение боту — код действует {left}", {left: lnLeft()}));
-  paintLinks();
-}
-$("#lnBindTg").onclick = async () => {
-  const btn = $("#lnBindTg");
-  btn.disabled = true;
-  LN.note = () => spin(T("tg.links.code_wait", "готовлю код…"));
-  paintLinks();
-  const r = await api("/auth/link/telegram/start", jsonOpts("POST", {}));
-  btn.disabled = false;
-  if (!r.ok) {
-    LN.note = () => errHtml(T("tg.links.code_fail", "Код не выдан: {reason}", {reason: r.error}));
-    paintLinks();
-    return;
-  }
-  const d = r.data || {};
-  LN.id = d.link_id || "";
-  LN.until = Date.now() + (d.expires_in || 600) * 1000;
-  $("#lnCode").textContent = d.code || "";
-  $("#lnHow").textContent = T("tg.links.how", "Отправьте этот код боту {bot} — и Telegram станет вторым входом.",
-                              {bot: d.bot || botName()});
-  $("#lnOpenBot").href = d.link || ("https://t.me/" + encodeURIComponent(botName()));
-  ["#lnCode", "#lnHow", "#lnOpenBot"].forEach(s => $(s).classList.remove("hidden"));
-  lnStop();
-  LN.timer = setInterval(lnPoll, (d.poll_seconds || 2) * 1000);
-  lnWait();
-};
-async function lnPoll(){
-  if (!LN.id) { lnStop(); return; }
-  const r = await api("/auth/tg-link/status?link_id=" + encodeURIComponent(LN.id));
-  if (!r.ok) return;                        // сеть моргнула — ждём следующую попытку
-  const d = r.data || {};
-  if (d.status === "ожидание") { lnWait(); return; }
-  lnStop();
-  LN.id = "";
-  lnCodeHide();
-  if (d.status === "привязано") {
-    LN.note = () => okHtml(T("tg.links.tg_linked", "Telegram привязан: {who}", {who: d.display || ""}));
-    await loadLinks();
-    return;
-  }
-  LN.note = () => errHtml(T("tg.links.link_fail", "Привязка не удалась: {reason}", {reason: d.reason || ""}));
-  paintLinks();
-}
-
-async function lnUnbind(p){
-  LN.note = () => spin(T("tg.links.unbinding", "отвязываю…"));
-  paintLinks();
-  const r = await api("/auth/link/" + p, {method: "DELETE"});
-  if (!r.ok) {
-    LN.note = () => errHtml(T("tg.links.unbind_fail", "Не отвязали: {reason}", {reason: r.error}));
-    paintLinks();
-    return;
-  }
-  LN.note = () => okHtml(T("tg.links.unbind_done", "Способ входа отвязан. Вход остался по второму способу."));
-  await loadLinks();
-}
-$("#lnTgOff").onclick = () => lnUnbind("telegram");
-$("#lnGoOff").onclick = () => lnUnbind("google");
-
-/* ---------- Доступ в админку: запрос владельцу ---------- */
-/* Админом никто не становится сам. Гость внутри Telegram: POST /auth/admin-request {initData} —
-   сервер проверяет подпись, заводит профиль «сотрудник» и ставит запрос владельцу, токен сессии
-   запоминаем через setToken. Гость в браузере: уходим на /login — там вход Telegram или Google
-   одним кликом, а после входа эта же кнопка ждёт на месте.
-   Свой статус — GET /auth/admin-request: ожидает / подтверждён / отклонён / нет. */
-let ADMREQ = null, ASK_NOTE = null;
-
-function paintAskAdmin(){
-  const show = !(ME.user && REAL_ADMIN());  // у администратора просить нечего
-  $("#askAdmBox").classList.toggle("hidden", !show);
-  if (!show) return;
-  const st = (ADMREQ && ADMREQ.status) || "";
-  const wait = st === "ожидает";
-  $("#askAdm").textContent = T("tg.adminreq.ask", "Запросить доступ в админку");
-  $("#askAdm").classList.toggle("hidden", wait);
-  $("#askMsg").innerHTML = ASK_NOTE ? ASK_NOTE()
-    : wait ? okHtml(T("tg.adminreq.wait", "Запрос отправлен владельцу — ждите подтверждения в Telegram."))
-    : st === "отклонён" ? errHtml(T("tg.adminreq.no", "Владелец доступ не открыл. Напишите ему, если это ошибка."))
-    : "";
-}
-async function loadAdminReq(){
-  if (!ME.user) { ADMREQ = null; paintAskAdmin(); return; }
-  const r = await api("/auth/admin-request");
-  ADMREQ = r.ok ? (r.data || null) : null;
-  paintAskAdmin();
-}
-$("#askAdm").onclick = async () => {
-  const btn = $("#askAdm");
-  if (!ME.user && !IN_TG) {                 // в браузере сначала вход: /login, оттуда вернёмся сюда
-    ASK_NOTE = () => spin(T("tg.adminreq.to_login", "открываю вход…"));
-    paintAskAdmin();
-    location.href = (ME.login_url || "/login?next=/tg");
-    return;
-  }
-  btn.disabled = true;
-  ASK_NOTE = () => spin(T("tg.adminreq.sending", "отправляю запрос…"));
-  paintAskAdmin();
-  const r = await api("/auth/admin-request", jsonOpts("POST", ME.user ? {} : {initData: (TG && TG.initData) || ""}));
-  btn.disabled = false;
-  if (!r.ok) {
-    ASK_NOTE = () => errHtml(T("tg.adminreq.fail", "Запрос не отправлен: {reason}", {reason: r.error}));
-    paintAskAdmin();
-    return;
-  }
-  const d = r.data || {};
-  if (d.token) setToken(d.token);           // гость мини-аппа: профиль только что заведён
-  ADMREQ = {status: d.status || "", request_id: d.request_id};
-  ASK_NOTE = d.already_admin
-    ? () => okHtml(T("tg.adminreq.already", "Доступ в админку уже открыт."))
-    : () => okHtml(T("tg.adminreq.sent", "Запрос отправлен владельцу — ждите подтверждения в Telegram."));
-  if (d.token) await loadMe(); else paintAskAdmin();
-};
-
 /* ---------- запросы доступа в «Пользователях»: их видит только владелец ---------- */
 const REQ_MSG = {};
 function admReqsPaint(){
@@ -10151,5 +10155,6 @@ async function admReqDecide(rid, yes){
   await loadUsers();
 }
 
+/* запуск — последней строкой собранной страницы */
 boot();
 </script>
