@@ -16,8 +16,8 @@
 
 ### Получить проект на другом устройстве
 
-Рабочий приватный репозиторий: [Yoko-ship/ai-surveyor](https://github.com/Yoko-ship/ai-surveyor).
-Войти в GitHub под аккаунтом с доступом, установить Git и Python 3.12, затем:
+Рабочий публичный репозиторий: [Yoko-ship/ai-surveyor](https://github.com/Yoko-ship/ai-surveyor).
+Для клонирования вход в GitHub не требуется. Установить Git и Python 3.12, затем:
 
 ```sh
 git clone https://github.com/Yoko-ship/ai-surveyor.git
@@ -35,6 +35,7 @@ Git переносит код, справочники, тесты и докум�
 После изменений обновить `WORK_LOG.md`, проверить состав `git diff` и `git status`,
 добавить нужные файлы, сделать коммит и выполнить `git push`. На каждом устройстве
 заканчивать этот цикл перед переходом к следующему, чтобы избежать конфликтов.
+Для `git push` нужна авторизация аккаунта с правом записи в репозиторий.
 Первоначальный публичный источник: [azamgapparov126-maker/ai-surveyor](https://github.com/azamgapparov126-maker/ai-surveyor).
 
 ### Windows
