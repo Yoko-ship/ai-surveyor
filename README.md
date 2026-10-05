@@ -100,10 +100,15 @@ export SURVEYOR_NO_BACKGROUND=1
 export LLM_PROVIDER=none
 export TG_POLLING=0
 export LEX_LIVE=0
+if [ ! -f data/surveyor.db ]; then
+    sandbox/.venv/bin/python tools/db_build.py || exit 1
+    sandbox/.venv/bin/python tools/market_stats.py || exit 1
+fi
 sandbox/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-Приложение само создаёт отсутствующую базу и обновляет схему при старте. Затем открыть
+Первичная сборка загружает справочники в отсутствующую базу; сервер обновляет схему
+при старте. Существующую рабочую базу не пересобирать. Затем открыть
 http://127.0.0.1:8000/tg. Порядок команд соответствует приложению; отдельный запуск
 на macOS/Linux в ходе подготовки не проверялся. Для полного набора тестов дополнительно
 нужен Node.js; запуск — `sandbox/.venv/bin/python tools/test_all.py`.
