@@ -269,14 +269,8 @@ def serve(port: int, copy: Path):
     socket.getaddrinfo = gai
     socket.socket.connect = sconnect
 
+    os.environ["SURVEYOR_NO_BACKGROUND"] = "1"
     from app import main as m
-    from app import team, statagency, lawwatch, tgbot
-    m._scheduler = lambda: None               # НАПП
-    m._inbox_watcher = lambda: None           # автоимпорт выгрузок
-    team.start_scheduler = lambda: None       # ежедневный доклад
-    statagency.start_scheduler = lambda: None  # stat.uz
-    lawwatch.start_scheduler = lambda: None   # законы
-    tgbot.start_polling = lambda: False       # бот
 
     import uvicorn
     uvicorn.run(m.app, host="127.0.0.1", port=port, log_level="warning", access_log=False)

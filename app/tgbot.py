@@ -797,18 +797,21 @@ def poll_once() -> int:
 def poll_loop():
     """Поток опроса. Поднимается только при TG_POLLING=1 и заданном токене."""
     _poll_state["running"] = True
-    time.sleep(5)
-    while True:
-        try:
-            if not connected() or not polling_enabled():
-                _poll_state["running"] = False
-                return
-            poll_once()
-            background.ok("tg-polling")
-        except Exception as e:
-            _poll_state["last_error"] = str(e)[:200]
-            background.failed("tg-polling", e)
-            time.sleep(10)
+    try:
+        background.wait(5)
+        while not background.stopping():
+            try:
+                if not connected() or not polling_enabled():
+                    _poll_state["running"] = False
+                    return
+                poll_once()
+                background.ok("tg-polling")
+            except Exception as e:
+                _poll_state["last_error"] = str(e)[:200]
+                background.failed("tg-polling", e)
+                background.wait(10)
+    finally:
+        _poll_state["running"] = False
 
 
 def start_polling():

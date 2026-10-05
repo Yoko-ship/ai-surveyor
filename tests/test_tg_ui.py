@@ -870,7 +870,7 @@ def _run_act_analytics(html):
         "const acts = JSON.parse(require('fs').readFileSync(0, 'utf8'));",
         "console.log(JSON.stringify(acts.map(a => [actAnHtml(a), a.sections.map(s => (s.lists || [])"
         ".filter(li => li.table).map(actDocTableHtml).join('')).join('')])));"])
-    acts = [_json.loads((root / "sandbox" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
+    acts = [_json.loads((root / "tests" / "fixtures" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
     old = dict(acts[0], analytics={"available": False, "reason": "old_act", "calibrated": 0})
     none = {k: v for k, v in acts[0].items() if k != "analytics"}
     import tempfile
@@ -995,7 +995,7 @@ def _run_scoring(html):
         "CH.act = acts[0]; CH.scoImg = {id: acts[0].id, lang: acts[0].lang, url: 'blob:x', open: true};",
         "const img = scoImgHtml();",
         "console.log(JSON.stringify({pos, band, cards, img, G: SCO_G}));"])
-    acts = [_json.loads((root / "sandbox" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
+    acts = [_json.loads((root / "tests" / "fixtures" / n).read_text(encoding="utf-8")) for n in ("act_demo.json", "act_demo_equipment.json")]
     # договор из частей: баллы частей и пометка — в форме ответа app/act_scoring.view (act_demo_multi.json старше скоринга)
     sc_m = dict(acts[1]["scoring"], parts_note="Договор из 2 частей: балл — по самой опасной части 1", worst_part=1,
                 parts=[{"index": 1, "class_code": "3", "score": 246, "class": "C", "score_class": "C2",
@@ -1116,13 +1116,16 @@ def _run_rate_fork(html):
         "const out = inp.acts.map(a => { CH.act = a; return {card: rfCardHtml(a), lay: strip(a.rate_fork && a.rate_fork.available ? rfLayout(a.rate_fork) : null)}; });",
         "out.push({part: rfPartHtml(inp.part)});",
         "console.log(JSON.stringify(out));"])
-    crane = _json.loads((root / "sandbox" / "act_demo.json").read_text(encoding="utf-8"))
-    equip = _json.loads((root / "sandbox" / "act_demo_equipment.json").read_text(encoding="utf-8"))
+    crane = _json.loads((root / "tests" / "fixtures" / "act_demo.json").read_text(encoding="utf-8"))
+    equip = _json.loads((root / "tests" / "fixtures" / "act_demo_equipment.json").read_text(encoding="utf-8"))
     # склад класса 8: поправка региона −3,2 % (жилой фонд по материалу стен) — в форме ответа сервера, как test_act 45б
     wh = copy.deepcopy(crane)
     F = wh["rate_fork"]
-    for m, r in zip(F["marks"], (0.05, 0.06, 0.0581, 0.185, 0.3872)):
-        m["rate_pct"] = r
+    # Контрольная геометрия склада: состав отметок задан явно, независимо от новых отметок сервера.
+    rates = {"min": 0.05, "act": 0.06, "adjusted": 0.0581, "market": 0.185, "technical": 0.3872}
+    F["marks"] = [m for m in F["marks"] if m["code"] in rates]
+    for m in F["marks"]:
+        m["rate_pct"] = rates[m["code"]]
     for m in F["marks"]:
         m["is_recommended"] = m["code"] == "act"
     F["recommended"] = {"code": "act", "rate_pct": 0.06, "premium": 2520000}
@@ -1334,7 +1337,7 @@ def _run_parts(html):
         "CH.must = {class_code: '13', sum_insured: 1}; CH.pt = null; CH.opt = {cf: {activity_kind: 'trade', limit_per_case: 200000000}};",
         "out.tpl13 = tplCardHtml(); out.cf13 = tfBodyCf('13', CH.opt.cf); out.more13 = tplMoreHtml();",
         "console.log(JSON.stringify(out));"])
-    act = _json.loads((root / "sandbox" / "act_demo_multi.json").read_text(encoding="utf-8"))
+    act = _json.loads((root / "tests" / "fixtures" / "act_demo_multi.json").read_text(encoding="utf-8"))
     with tempfile.TemporaryDirectory(prefix="tg-pt-") as tmp:
         f = Path(tmp) / "pt.js"
         f.write_text(js, encoding="utf-8")

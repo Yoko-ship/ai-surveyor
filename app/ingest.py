@@ -680,6 +680,11 @@ def detect_kind(text: str, tables: list = None, filename: str = None) -> dict:
                 strong_hit = _is_blank_title(marker, blank_head, requisites)
             else:
                 strong_hit = w >= 4 and where != "текст"
+                if k["kind"] in {D.KIND_PASSPORT, D.KIND_CADASTRE} and where == "шапка":
+                    # Упоминание техпаспорта/кадастра в учебнике — не заголовок документа.
+                    title_prefix = any(D.fold(line).startswith(marker)
+                                       for line in (text or "").splitlines()[:BLANK_HEAD_LINES])
+                    strong_hit = strong_hit and (title_prefix or (header and _marker_hit(marker, header)))
             if strong_hit:
                 # сильный маркер (бланковая формулировка) засчитываем только в шапке,
                 # в шапке листа XLSX или в имени файла: те же слова в глубине длинного

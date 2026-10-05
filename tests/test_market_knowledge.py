@@ -161,8 +161,12 @@ def main():
                 "source_file", "source_date", "note"}
         check(all(keys <= set(x) for x in facts), "у каждого факта все поля схемы")
         napp = [x for x in facts if x["source_file"] and x["topic"] != "company_finance"]
-        lib = {p.name for p in mk.LIBRARY_NAPP.glob("*.xlsx")}
-        check(all(x["source_file"] in lib for x in napp), "source_file каждого факта НАПП — файл из library/03_Рынок_НАПП")
+        # В Git находятся разобранные CSV; оригинальные XLSX могут быть только у разработчика.
+        norm = lambda name: re.sub(r"[\s_]", "", Path(name).stem).lower()
+        lib = {norm(p.name) for p in mk.LIBRARY_NAPP.glob("*.xlsx")}
+        lib.update(norm(p.name) for p in (ROOT / "data" / "parsed").iterdir() if p.is_dir())
+        check(all(norm(x["source_file"]) in lib for x in napp),
+              "source_file каждого факта НАПП соответствует исходному отчёту или его CSV")
 
         print("5. Финансы страховщиков (рэнкинг snsratings)")
         rk = [x for x in facts if x["topic"] == "company_finance"]

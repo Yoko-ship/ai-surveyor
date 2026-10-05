@@ -128,7 +128,7 @@ def guard(db, llm, db_path: Path, explicit_db: bool):
 # --------------------------------------------------------------------------- #
 
 def seed(db, auth, approvals, main_mod):
-    from app.main import RequestIn
+    from app.modules.surveys.schemas import RequestIn
 
     db.ensure_schema()
     passwords = {}
@@ -283,7 +283,7 @@ def main():
         clean(db, approvals)
     else:
         from app import auth
-        from app import main as main_mod
+        from app.modules.surveys import api as main_mod
         seed(db, auth, approvals, main_mod)
 
 

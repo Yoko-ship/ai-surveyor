@@ -16,7 +16,7 @@
   4. pick_lang отрабатывает все источники и их приоритет;
   5. /i18n/uz.json отдаёт валидный JSON с заголовком кэша, /i18n/langs — список языков,
      неизвестный язык → 404 с понятным текстом;
-  6. каждый rule-код из app/engine.py либо переведён, либо назван в списке непереведённых.
+  6. каждый rule-код из app/modules/pricing/engine.py либо переведён, либо назван в списке непереведённых.
 """
 import asyncio
 import json
@@ -191,7 +191,7 @@ def test_routes():
 # ---------- 6. коды правил движка ----------
 
 def test_rules():
-    src = (ROOT / "app" / "engine.py").read_text(encoding="utf-8")
+    src = (ROOT / "app" / "modules" / "pricing" / "engine.py").read_text(encoding="utf-8")
     # add("код", "статус", "заголовок", …) в checks_for
     codes = sorted(set(re.findall(r'add\(\s*"([a-z_0-9]+)"', src)))
     ok("коды правил из движка нашлись", len(codes) >= 15, codes)

@@ -287,7 +287,13 @@ def check_versions(tmp: Path, img: Path, reg: dict):
     web = FakeWeb()
     sleeps = []
     client = cf.Client(get=web.get, sleep=lambda s: sleeps.append(s))
-    real_pdf = next(p for p in sorted(cf.LOCAL_DIR.rglob("*.pdf")))
+    # Документ синтетический: проверке версий не нужны отсутствующие оригиналы конкурентов.
+    import pymupdf
+    real_pdf = tmp / "fixture.pdf"
+    with pymupdf.open() as document:
+        page = document.new_page()
+        page.insert_text((72, 72), "Insurance rules. Synthetic fixture. Property coverage.")
+        document.save(real_pdf)
     by = {s["document"]: s for s in reg["sources"]}
     by["Правила"]["orig_sha256"] = hashlib.sha256(real_pdf.read_bytes()).hexdigest()
     web.pages["https://test-sug.uz/files/rules.pdf"] = (200, "application/pdf", real_pdf.read_bytes())

@@ -74,7 +74,7 @@ REG_HTML = """<table class="table"><thead><tr>
 # ------------------------------------------------------------------ 1–3. разбор
 def check_parse():
     print("1. Котировочный лист (sandbox/uzex_c.html)")
-    html = (ROOT / "sandbox" / "uzex_c.html").read_text(encoding="utf-8")
+    html = (ROOT / "tests" / "fixtures" / "exchange.html").read_text(encoding="utf-8")
     rows = us.parse_page("ContractsSumNew", html, "2026-10-02T02:00:00", us.page_url("ContractsSumNew"))
     by = {r["contract_no"]: r for r in rows}
     ok("10 строк, у всех ссылка на страницу биржи и пометка «на дату загрузки», даты сделки нет",
@@ -289,7 +289,7 @@ def check_api():
     st, _ = call("POST", "/exchange/refresh", who="тест-uzex-агент")
     ok("refresh агентом — 403", st == 403, st)
 
-    html = (ROOT / "sandbox" / "uzex_c.html").read_text(encoding="utf-8")
+    html = (ROOT / "tests" / "fixtures" / "exchange.html").read_text(encoding="utf-8")
     orig = us.fetch_quotes
     seen = []
 

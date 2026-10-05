@@ -27,9 +27,8 @@
 (в ред. ПКМ № 458 от 30.07.2024, № 443 от 15.07.2025, № 709 от 07.11.2025); КоАО ст. 49².
 Разбор актов — docs/ОСГОР — оценка риска.md.
 
-Модуль работает и без базы: классификация читается из CSV
-library/05_Методология/ОСГОР — классификация видов деятельности и коэффициенты КСТ (ПКМ 177, прил. 9).csv,
-если таблицы osgor_activities ещё нет.
+Модуль работает и без базы: классификация читается из поставляемого db/osgor_activities.csv,
+если таблицы osgor_activities ещё нет. Для старых локальных поставок оставлен запасной путь в library/.
 """
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,8 +37,10 @@ import csv
 import sqlite3
 
 ROOT = Path(__file__).resolve().parent.parent
-ACTIVITIES_CSV = (ROOT / "library" / "05_Методология" /
-                  "ОСГОР — классификация видов деятельности и коэффициенты КСТ (ПКМ 177, прил. 9).csv")
+ACTIVITIES_CSV = ROOT / "db" / "osgor_activities.csv"
+if not ACTIVITIES_CSV.exists():
+    ACTIVITIES_CSV = (ROOT / "library" / "05_Методология" /
+                      "ОСГОР — классификация видов деятельности и коэффициенты КСТ (ПКМ 177, прил. 9).csv")
 
 PRODUCT_CODE = "1323"
 CLASS_CODE = "13"
@@ -128,7 +129,7 @@ def _num(text: str) -> float:
 def load_activities(con: Optional[sqlite3.Connection] = None) -> list:
     """
     Классификация 934 видов деятельности (прил. № 9, разд. I, п. 3).
-    Сначала таблица osgor_activities, если она уже есть в базе; иначе — CSV библиотеки.
+    Сначала таблица osgor_activities, если она уже есть в базе; иначе — поставляемый CSV.
     Возврат: [{"no","category","kst","okved","name"}].
     """
     if con is not None:

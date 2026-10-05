@@ -95,7 +95,7 @@ def seed(con) -> int:
 
 
 def _ensure_seed():
-    """Вызывается при импорте модуля: таблицы уже созданы db_build, темы доливаем."""
+    """Вызывается при инициализации хранения: таблицы уже созданы db_build, темы доливаем."""
     try:
         NOTES_DIR.mkdir(parents=True, exist_ok=True)
         with db.tx() as con:
@@ -238,6 +238,3 @@ def daily():
             "progress": {"total": total, "learned": done, "gaps": total - done},
             "learned_today": today_n,
             "notes_dir": "docs/Знания"}
-
-
-_ensure_seed()

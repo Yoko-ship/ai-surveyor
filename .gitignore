@@ -1,5 +1,7 @@
 .secrets.env
 .env
+.env.*
+!.env.example
 data/photos/
 data/backups/
 sandbox/
@@ -9,6 +11,7 @@ data/surveyor.db
 # журнал WAL базы (с 21.09.2026): в нём свежие записи, те же данные людей
 data/surveyor.db-wal
 data/surveyor.db-shm
+data/*.lock
 data/uploads/
 data/reports/
 data/inbox/portfolio/

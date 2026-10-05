@@ -1236,7 +1236,7 @@ def check_misc():
 
 DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-CONTRACT = Path(__file__).resolve().parent.parent / "sandbox" / "flow150_contract.docx"
+CONTRACT = Path(__file__).resolve().parent / "fixtures" / "contract.docx"
 WH_MUST = {"product_code": "0808", "sum_insured": 1_000_000_000, "object_value": 1_200_000_000,
            "region": "Ташкент"}
 WH_OPT = {"object_kind": "warehouse", "protection": "alarm", "losses_3y": {"count": 0, "small_count": 0}}
@@ -4825,7 +4825,7 @@ def check_review_fixes():
            and not re.search(r"[А-Яа-яЁё]", " ".join(r["lines"])), r["lines"])
 
     # --- 41.4. пример оборудования для снимков: запрос филиала даёт вид, деятельность и описание ---
-    br_file = ROOT_DIR / "sandbox" / "br30" / "sorov_equipment.docx"
+    br_file = ROOT_DIR / "tests" / "fixtures" / "equipment.docx"
     ok("41.4: образец запроса филиала для снимков оборудования лежит в sandbox/br30", br_file.exists())
     if br_file.exists():
         st, b = upload([("sorov_equipment.docx", DOCX_MIME, br_file.read_bytes())], {"lang": "ru"})

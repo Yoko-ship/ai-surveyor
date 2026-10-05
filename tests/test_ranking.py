@@ -138,6 +138,7 @@ def check_load(rows):
     print("3. загрузка в копию базы, идемпотентность")
     db.ensure_schema()
     with db.tx() as con:
+        con.execute("DELETE FROM company_rankings")  # проверяем пустую таблицу, независимо от исходной копии
         need0 = rp.needs_load(con)
     r1 = rankings.ensure_loaded()
     with db.tx() as con:

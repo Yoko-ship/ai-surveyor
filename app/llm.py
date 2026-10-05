@@ -99,25 +99,8 @@ last_error = {"text": None}       # текст последней ошибки �
 # --------------------------------------------------------------------------- #
 
 def _env_file() -> dict:
-    """Чтение .env и .secrets.env (без пакета python-dotenv): KEY=value, строки с # пропускаем.
-    Первый файл главнее: значения из .secrets.env только дополняют.
-    encoding utf-8-sig — иначе первый ключ файла с BOM читается как "﻿KEY"."""
-    out = {}
-    for path in ENV_FILES:
-        try:
-            text = path.read_text(encoding="utf-8-sig")
-        except Exception:
-            continue
-        for line in text.splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            k = k.strip()
-            v = v.strip().strip('"').strip("'")
-            if k and k not in out:
-                out[k] = v
-    return out
+    from .config import read_env_files
+    return read_env_files(ENV_FILES)
 
 
 def _db_settings() -> dict:
@@ -1202,7 +1185,7 @@ def llm_mask_preview(body: MaskIn):
 @router.get("/requests/{rid}/explain")
 def request_explain(rid: int):
     """Объяснение расчёта для клиента. Без ИИ отдаётся тот же текст, собранный по шаблону."""
-    from .main import _card                     # карточка запроса собирается в main.py
+    from .modules.surveys.repository import _card                     # карточка запроса собирается в main.py
     with db.tx() as con:
         card = _card(con, rid)
         cls = db.rows(con, "SELECT class_code FROM product_classes WHERE product_code=? ORDER BY part_no",

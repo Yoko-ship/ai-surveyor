@@ -160,7 +160,7 @@ def make_request(author_id: int) -> int:
     with db.tx() as con:
         cur = con.execute("INSERT INTO requests (external_no, branch, product_code, policyholder,"
                           " created_by_user_id, created_at, status) VALUES (?,?,?,?,?,?,?)",
-                          ("ТЕСТ-РЕГ-1", BRANCH, "0311", "ООО «Тест-Рег»", author_id, db.now(), "посчитан"))
+                          ("ТЕСТ-РЕГ-1", BRANCH, "0311", "ООО «Тест-Рег»", author_id or None, db.now(), "посчитан"))
         rid = cur.lastrowid
         cur = con.execute("INSERT INTO objects (request_id, object_type, address, region, value_amount,"
                           " sum_insured, attributes) VALUES (?,?,?,?,?,?,?)",

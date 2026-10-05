@@ -409,5 +409,5 @@ def approvals_page(embed: int = 0):
 
 def _page(html: str, active: str, embed: int) -> str:
     """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
-    from .main import page
+    from .ui.pages import page
     return page(html, active, bool(embed))

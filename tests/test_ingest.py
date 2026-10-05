@@ -735,7 +735,10 @@ def test_kind_source_texts_stay_other():
     """
     src = Path(__file__).resolve().parent.parent / "docs" / "source"
     files_ = sorted(src.glob("*.txt"))
-    assert len(files_) >= 10, "текстов в docs/source слишком мало: %d" % len(files_)
+    # Минимальный корпус хранится в Git; локальная библиотека дополнительно проверяется, если есть.
+    fixtures = Path(__file__).resolve().parent / "fixtures" / "source"
+    files_ = sorted(fixtures.glob("*.txt")) + files_
+    assert len(files_) >= 3, "отсутствует тестовый корпус tests/fixtures/source"
     checked, skipped = 0, []
     for f in files_:
         out = ingest.detect_kind(f.read_text(encoding="utf-8", errors="ignore"), [], f.name)

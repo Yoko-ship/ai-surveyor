@@ -376,7 +376,7 @@ def make_report(day: Optional[date] = None) -> dict:
 
 def scheduler():
     """Каждый день в 08:00 — доклад за вчера. Если сервер стоял в 08:00, доклад делается при первом запуске после."""
-    while True:
+    while not background.stopping():
         now = datetime.now()
         target = now.replace(hour=8, minute=0, second=0, microsecond=0)
         yesterday = (date.today() - timedelta(days=1)).isoformat()
@@ -388,7 +388,7 @@ def scheduler():
             background.ok("daily-report")
         except Exception as e:                       # поток живёт дальше, ошибка — в журнал
             background.failed("daily-report", e)
-        time.sleep(600)
+        background.wait(600)
 
 
 def start_scheduler():
@@ -427,5 +427,5 @@ def tasks_page(embed: int = 0):
 
 def _page(html: str, active: str, embed: int) -> str:
     """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
-    from .main import page
+    from .ui.pages import page
     return page(html, active, bool(embed))

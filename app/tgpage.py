@@ -1,10 +1,10 @@
-"""
-Сборка мини-приложения Telegram: исходники в app/tg/ → одна страница app/tg.html.
+r"""
+Сборка мини-приложения Telegram: исходники в frontend/tg/ → одна страница app/tg.html.
 
 Telegram получает один HTML, как раньше: стили и скрипт встроены в страницу. Исходники:
-  app/tg/tg.html   — разметка-шаблон с метками /*@TG_CSS*/ и /*@TG_JS*/
-  app/tg/tg.css    — стили
-  app/tg/js/*.js   — модули скрипта, склеиваются в порядке MODULES в один <script>
+  frontend/tg/tg.html   — разметка-шаблон с метками /*@TG_CSS*/ и /*@TG_JS*/
+  frontend/tg/tg.css    — стили
+  frontend/tg/js/*.js   — модули скрипта, склеиваются в порядке MODULES в один <script>
                      (общие имена — CH, MK, TAB, ME и т. п. — глобальные, как в одном файле)
 
 Собранный app/tg.html хранится в репозитории и отдаётся сервером (app/telegram.py, GET /tg).
@@ -15,7 +15,7 @@ Telegram получает один HTML, как раньше: стили и ск
 from pathlib import Path
 
 APP = Path(__file__).resolve().parent
-SRC = APP / "tg"
+SRC = APP.parent / "frontend" / "tg"
 OUT = APP / "tg.html"
 TEMPLATE = SRC / "tg.html"
 CSS = SRC / "tg.css"
@@ -33,10 +33,10 @@ def _read(p: Path) -> str:
 
 
 def build_page() -> str:
-    """Готовая страница мини-приложения из исходников app/tg/."""
+    """Готовая страница мини-приложения из исходников frontend/tg/."""
     tpl = _read(TEMPLATE)
     if tpl.count(CSS_MARK) != 1 or tpl.count(JS_MARK) != 1:
-        raise ValueError("в app/tg/tg.html должно быть ровно по одной метке " + CSS_MARK + " и " + JS_MARK)
+        raise ValueError("в frontend/tg/tg.html должно быть ровно по одной метке " + CSS_MARK + " и " + JS_MARK)
     js = "".join(_read(SRC / "js" / (m + ".js")) for m in MODULES)
     if "</script" in js.lower():
         raise ValueError("в модуле скрипта встретилось «</script» — страница сломается")

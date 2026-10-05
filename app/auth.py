@@ -86,7 +86,8 @@ PERMISSIONS = {
 
 
 def dev_mode() -> bool:
-    return os.environ.get("SURVEYOR_DEV") == "1"
+    from .config import boolean
+    return boolean(os.environ, "SURVEYOR_DEV")
 
 
 # ---------- пароли ----------

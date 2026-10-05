@@ -166,7 +166,7 @@ def seed_acts(con) -> int:
 
 
 def _ensure_seed():
-    """Вызывается при импорте модуля: таблицы уже созданы db_build/ensure_schema, акты доливаем."""
+    """Вызывается при инициализации хранения: таблицы уже созданы db_build/ensure_schema, акты доливаем."""
     try:
         with db.tx() as con:
             n = seed_acts(con)
@@ -580,9 +580,9 @@ CHECK_MINUTE = 30
 
 def _scheduler():
     """Раз в сутки, тем же приёмом, что автообновление НАПП: поток внутри сервера."""
-    time.sleep(120)                    # даём серверу подняться
+    background.wait(120)                    # даём серверу подняться
     done_for = None
-    while True:
+    while not background.stopping():
         try:
             now = datetime.now()
             today = now.date().isoformat()
@@ -595,7 +595,7 @@ def _scheduler():
                     background.ok("lawwatch")
         except Exception as e:
             background.failed("lawwatch", e)
-        time.sleep(600)
+        background.wait(600)
 
 
 def start_scheduler():
@@ -721,10 +721,9 @@ def law_feed_page(embed: int = 0):
     return _page(web.read_text(FEED_HTML), "/law-feed", embed)
 
 
-_ensure_seed()
 
 
 def _page(html: str, active: str, embed: int) -> str:
     """Общая раскладка из app/main.py; импорт отложенный — main.py сам подключает этот модуль."""
-    from .main import page
+    from .ui.pages import page
     return page(html, active, bool(embed))

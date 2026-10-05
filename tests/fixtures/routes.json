@@ -1,0 +1,788 @@
+{
+  "/health": [
+    "get"
+  ],
+  "/reference/{name}": [
+    "get"
+  ],
+  "/calculate": [
+    "post"
+  ],
+  "/requests": [
+    "get",
+    "post"
+  ],
+  "/requests/{rid}": [
+    "get"
+  ],
+  "/requests/{rid}/documents": [
+    "post"
+  ],
+  "/analytics/summary": [
+    "get"
+  ],
+  "/market/rows": [
+    "get"
+  ],
+  "/market/series": [
+    "get"
+  ],
+  "/market/refresh": [
+    "post"
+  ],
+  "/market/status": [
+    "get"
+  ],
+  "/market/branches": [
+    "get"
+  ],
+  "/market/claims": [
+    "get"
+  ],
+  "/stats": [
+    "get"
+  ],
+  "/agents/status": [
+    "get"
+  ],
+  "/office": [
+    "get"
+  ],
+  "/capacity": [
+    "get"
+  ],
+  "/admin/reserves": [
+    "post"
+  ],
+  "/admin/assets": [
+    "post"
+  ],
+  "/admin/solvency": [
+    "put"
+  ],
+  "/capacity-page": [
+    "get"
+  ],
+  "/admin/tariff-versions": [
+    "post"
+  ],
+  "/admin/min-rates": [
+    "post"
+  ],
+  "/admin/coefficients": [
+    "post"
+  ],
+  "/admin/products": [
+    "post"
+  ],
+  "/admin/financials": [
+    "put"
+  ],
+  "/audit": [
+    "get"
+  ],
+  "/theme.js": [
+    "get"
+  ],
+  "/i18n.js": [
+    "get"
+  ],
+  "/ui": [
+    "get"
+  ],
+  "/admin": [
+    "get"
+  ],
+  "/admin/hub/": [
+    "get"
+  ],
+  "/admin/hub": [
+    "get"
+  ],
+  "/graph": [
+    "get"
+  ],
+  "/portfolio/template.xlsx": [
+    "get"
+  ],
+  "/portfolio/preview": [
+    "post"
+  ],
+  "/portfolio/import": [
+    "post"
+  ],
+  "/portfolio/batches": [
+    "get"
+  ],
+  "/portfolio/batches/{bid}": [
+    "get"
+  ],
+  "/portfolio/batches/{bid}/summary": [
+    "get"
+  ],
+  "/portfolio/batches/{bid}/overview": [
+    "get"
+  ],
+  "/portfolio/overview": [
+    "get"
+  ],
+  "/portfolio": [
+    "get"
+  ],
+  "/requests/{rid}/proposal.pdf": [
+    "get"
+  ],
+  "/calibration/exposure": [
+    "get"
+  ],
+  "/calibration/run": [
+    "post"
+  ],
+  "/calibration/runs": [
+    "get"
+  ],
+  "/calibration/runs/{run_id}": [
+    "get"
+  ],
+  "/calibration/runs/{run_id}/approve": [
+    "post"
+  ],
+  "/calibration/runs/{run_id}/reject": [
+    "post"
+  ],
+  "/claims": [
+    "get",
+    "post"
+  ],
+  "/calibration": [
+    "get"
+  ],
+  "/portfolio/history/{external_no}": [
+    "get"
+  ],
+  "/portfolio/batches/{bid}/diff": [
+    "get"
+  ],
+  "/portfolio/auto-import": [
+    "post"
+  ],
+  "/auth/register": [
+    "post"
+  ],
+  "/auth/pending": [
+    "get"
+  ],
+  "/auth/users": [
+    "get"
+  ],
+  "/auth/colleagues": [
+    "get"
+  ],
+  "/auth/approve/{uid}": [
+    "post"
+  ],
+  "/auth/reject/{uid}": [
+    "post"
+  ],
+  "/auth/block/{uid}": [
+    "post"
+  ],
+  "/auth/login": [
+    "post"
+  ],
+  "/auth/verify-code": [
+    "post"
+  ],
+  "/auth/logout": [
+    "post"
+  ],
+  "/auth/password": [
+    "put"
+  ],
+  "/auth/me": [
+    "get"
+  ],
+  "/login": [
+    "get"
+  ],
+  "/tasks": [
+    "get",
+    "post"
+  ],
+  "/tasks/{tid}/start": [
+    "post"
+  ],
+  "/tasks/{tid}/done": [
+    "post"
+  ],
+  "/tasks/{tid}/ask": [
+    "post"
+  ],
+  "/reports/make": [
+    "post"
+  ],
+  "/reports": [
+    "get"
+  ],
+  "/reports/{day}.md": [
+    "get"
+  ],
+  "/reports-page": [
+    "get"
+  ],
+  "/tasks-page": [
+    "get"
+  ],
+  "/knowledge/topics": [
+    "get",
+    "post"
+  ],
+  "/knowledge/topics/{topic_id}/learned": [
+    "post"
+  ],
+  "/knowledge/log": [
+    "get"
+  ],
+  "/knowledge/next": [
+    "get"
+  ],
+  "/knowledge/daily": [
+    "get"
+  ],
+  "/office/shelves": [
+    "get"
+  ],
+  "/requests/{rid}/photos": [
+    "get",
+    "post"
+  ],
+  "/photos/{photo_id}": [
+    "delete",
+    "get"
+  ],
+  "/requests/{rid}/documents/upload": [
+    "post"
+  ],
+  "/requests/{rid}/documents/files": [
+    "get"
+  ],
+  "/valuation/norms": [
+    "get",
+    "post"
+  ],
+  "/valuation/norms/{code}": [
+    "delete"
+  ],
+  "/valuation/settings": [
+    "get",
+    "post"
+  ],
+  "/valuations": [
+    "get",
+    "post"
+  ],
+  "/valuations/{vid}": [
+    "get"
+  ],
+  "/valuations/{vid}/confirm": [
+    "post"
+  ],
+  "/valuations/estimate": [
+    "post"
+  ],
+  "/valuations/object/latest": [
+    "get"
+  ],
+  "/documents/parse": [
+    "post"
+  ],
+  "/requests/{rid}/documents/fields": [
+    "get"
+  ],
+  "/requests/{rid}/checklist": [
+    "get"
+  ],
+  "/requests/{rid}/ingest": [
+    "post"
+  ],
+  "/documents/{photo_id}/ingest": [
+    "post"
+  ],
+  "/requests/{rid}/extracts": [
+    "get"
+  ],
+  "/requests/{rid}/extracted-fields": [
+    "get"
+  ],
+  "/stat/refresh": [
+    "post"
+  ],
+  "/stat/series": [
+    "get"
+  ],
+  "/stat/status": [
+    "get"
+  ],
+  "/stat/indicators": [
+    "get"
+  ],
+  "/stat/indicators/premiums-per-capita": [
+    "get"
+  ],
+  "/stat/indicators/penetration": [
+    "get"
+  ],
+  "/stat/indicators/housing": [
+    "get"
+  ],
+  "/stat/indicators/osago": [
+    "get"
+  ],
+  "/stat/indexation": [
+    "get"
+  ],
+  "/stat/house-index": [
+    "get"
+  ],
+  "/stat/risk-indicators": [
+    "get"
+  ],
+  "/stat/catalog": [
+    "get"
+  ],
+  "/exchange/quotes": [
+    "get"
+  ],
+  "/exchange/summary": [
+    "get"
+  ],
+  "/exchange/status": [
+    "get"
+  ],
+  "/exchange/refresh": [
+    "post"
+  ],
+  "/requests/{request_id}/reviewers": [
+    "post"
+  ],
+  "/requests/{request_id}/decide": [
+    "post"
+  ],
+  "/requests/{request_id}/reviewer-candidates": [
+    "get"
+  ],
+  "/requests/{request_id}/approvals": [
+    "get"
+  ],
+  "/approvals/inbox": [
+    "get"
+  ],
+  "/approvals/feed": [
+    "get"
+  ],
+  "/approvals/pending": [
+    "get"
+  ],
+  "/general-agreements": [
+    "get",
+    "post"
+  ],
+  "/approvals": [
+    "get"
+  ],
+  "/law-events": [
+    "get"
+  ],
+  "/law-events/{event_id}/seen": [
+    "post"
+  ],
+  "/rules/{code}/review-ok": [
+    "post"
+  ],
+  "/watched-acts": [
+    "get"
+  ],
+  "/lawwatch/check": [
+    "post"
+  ],
+  "/lawwatch/status": [
+    "get"
+  ],
+  "/law-feed": [
+    "get"
+  ],
+  "/llm/status": [
+    "get"
+  ],
+  "/llm/ping": [
+    "post"
+  ],
+  "/llm/calls": [
+    "get"
+  ],
+  "/llm/mask-preview": [
+    "post"
+  ],
+  "/requests/{rid}/explain": [
+    "get"
+  ],
+  "/deploy/status": [
+    "get"
+  ],
+  "/deploy/settings": [
+    "get",
+    "post"
+  ],
+  "/deploy/backup": [
+    "post"
+  ],
+  "/deploy/backups": [
+    "get"
+  ],
+  "/deploy/backup/download": [
+    "get"
+  ],
+  "/deploy/restore": [
+    "post"
+  ],
+  "/deploy/schema-check": [
+    "get"
+  ],
+  "/deploy/checklist": [
+    "get",
+    "post"
+  ],
+  "/admin/deploy": [
+    "get"
+  ],
+  "/tg/auth": [
+    "post"
+  ],
+  "/tg/status": [
+    "get"
+  ],
+  "/tg": [
+    "get"
+  ],
+  "/tg/webhook/{secret}": [
+    "post"
+  ],
+  "/tg/me": [
+    "get"
+  ],
+  "/tg/inbox": [
+    "get"
+  ],
+  "/tg/my-requests": [
+    "get"
+  ],
+  "/tg/bot-status": [
+    "get"
+  ],
+  "/tg/consent": [
+    "get"
+  ],
+  "/tg/register/positions": [
+    "get"
+  ],
+  "/tg/register/departments": [
+    "get"
+  ],
+  "/tg/register/send-code": [
+    "post"
+  ],
+  "/tg/register/verify-code": [
+    "post"
+  ],
+  "/tg/register/submit": [
+    "post"
+  ],
+  "/tg/users": [
+    "get"
+  ],
+  "/tg/users/{uid}/make-admin": [
+    "post"
+  ],
+  "/tg/users/{uid}/revoke-admin": [
+    "post"
+  ],
+  "/tg/me/name": [
+    "put"
+  ],
+  "/auth/tg-link/start": [
+    "post"
+  ],
+  "/auth/tg-link/status": [
+    "get"
+  ],
+  "/auth/links": [
+    "get"
+  ],
+  "/auth/link/google/start": [
+    "post"
+  ],
+  "/auth/link/telegram/start": [
+    "post"
+  ],
+  "/auth/link/{provider}": [
+    "delete"
+  ],
+  "/auth/admin-request": [
+    "get",
+    "post"
+  ],
+  "/auth/admin-request/{rid}/approve": [
+    "post"
+  ],
+  "/auth/admin-request/{rid}/reject": [
+    "post"
+  ],
+  "/requests/{rid}/analysis.pdf": [
+    "get"
+  ],
+  "/requests/{rid}/analysis.xlsx": [
+    "get"
+  ],
+  "/requests/{rid}/analysis/send-telegram": [
+    "post"
+  ],
+  "/i18n/langs": [
+    "get"
+  ],
+  "/i18n/{lang}.json": [
+    "get"
+  ],
+  "/vehicle/reference": [
+    "get"
+  ],
+  "/vehicle/classify": [
+    "post"
+  ],
+  "/osgor/activities": [
+    "get"
+  ],
+  "/osgor/assess": [
+    "post"
+  ],
+  "/osgor/quick": [
+    "post"
+  ],
+  "/osgor/brv": [
+    "get",
+    "put"
+  ],
+  "/finance/reserves/structure": [
+    "get"
+  ],
+  "/finance/reserves/template.xlsx": [
+    "get"
+  ],
+  "/finance/reserves/parse": [
+    "post"
+  ],
+  "/finance/reserves": [
+    "get",
+    "post"
+  ],
+  "/finance/reserves/{pid}": [
+    "delete",
+    "get"
+  ],
+  "/analytics/risk/fields": [
+    "get"
+  ],
+  "/analytics/risk/presets": [
+    "get"
+  ],
+  "/analytics/risk/last": [
+    "get",
+    "put"
+  ],
+  "/analytics/risk": [
+    "post"
+  ],
+  "/analytics/risk/thresholds": [
+    "get",
+    "put"
+  ],
+  "/analytics/risk/docs": [
+    "get"
+  ],
+  "/analytics/risk/document": [
+    "post"
+  ],
+  "/analytics/risk/documents": [
+    "get"
+  ],
+  "/analytics/risk/document/{doc_id}": [
+    "delete",
+    "get"
+  ],
+  "/legal/ask": [
+    "post"
+  ],
+  "/legal/suggest": [
+    "get"
+  ],
+  "/legal/faq": [
+    "get"
+  ],
+  "/legal/silences": [
+    "get"
+  ],
+  "/legal/acts": [
+    "get"
+  ],
+  "/legal/reindex": [
+    "post"
+  ],
+  "/chat/start": [
+    "post"
+  ],
+  "/chat/state": [
+    "get"
+  ],
+  "/chat/answer": [
+    "post"
+  ],
+  "/chat/upload": [
+    "post"
+  ],
+  "/chat/analyze": [
+    "post"
+  ],
+  "/chat/message": [
+    "post"
+  ],
+  "/chat/lang": [
+    "post"
+  ],
+  "/act/photos": [
+    "post"
+  ],
+  "/act/market/links": [
+    "get"
+  ],
+  "/act/market/shots": [
+    "post"
+  ],
+  "/act/make": [
+    "post"
+  ],
+  "/act/settings": [
+    "get",
+    "put"
+  ],
+  "/act/templates": [
+    "get"
+  ],
+  "/act/templates/{class_code}/history": [
+    "get"
+  ],
+  "/act/templates/{class_code}": [
+    "get",
+    "put"
+  ],
+  "/act/{aid}.docx": [
+    "get"
+  ],
+  "/act/{aid}.pdf": [
+    "get"
+  ],
+  "/act/{aid}/scoring.pdf": [
+    "get"
+  ],
+  "/act/{aid}/scoring.png": [
+    "get"
+  ],
+  "/act/{aid}/send": [
+    "post"
+  ],
+  "/act/{aid}": [
+    "get"
+  ],
+  "/reference/min-rates": [
+    "get"
+  ],
+  "/reference/min-rates/template.xlsx": [
+    "get"
+  ],
+  "/reference/min-rates/{product_code}/history": [
+    "get"
+  ],
+  "/reference/min-rates/{product_code}": [
+    "put"
+  ],
+  "/reference/min-rates/import": [
+    "post"
+  ],
+  "/tg/users/manual": [
+    "post"
+  ],
+  "/tg/users/{uid}": [
+    "put"
+  ],
+  "/tg/users/{uid}/reset-password": [
+    "post"
+  ],
+  "/reference/products/template.xlsx": [
+    "get"
+  ],
+  "/reference/products/import": [
+    "post"
+  ],
+  "/reference/products/import/apply": [
+    "post"
+  ],
+  "/claims/template.xlsx": [
+    "get"
+  ],
+  "/claims/import": [
+    "post"
+  ],
+  "/claims/import/apply": [
+    "post"
+  ],
+  "/claims/summary": [
+    "get"
+  ],
+  "/market/knowledge/rebuild": [
+    "post"
+  ],
+  "/market/knowledge/status": [
+    "get"
+  ],
+  "/market/competitors/status": [
+    "get"
+  ],
+  "/market/competitors/refresh": [
+    "post"
+  ],
+  "/auth/google/status": [
+    "get"
+  ],
+  "/auth/google": [
+    "get"
+  ],
+  "/auth/google/callback": [
+    "get"
+  ],
+  "/auth/google/exchange": [
+    "post"
+  ],
+  "/auth/google/register": [
+    "post"
+  ],
+  "/auth/bootstrap-needed": [
+    "get"
+  ],
+  "/auth/bootstrap": [
+    "post"
+  ],
+  "/accumulation": [
+    "get"
+  ],
+  "/": [
+    "get"
+  ]
+}

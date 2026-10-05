@@ -14,6 +14,7 @@ import logging
 import os
 import threading
 import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 
 log = logging.getLogger("surveyor.background")
@@ -21,10 +22,24 @@ log = logging.getLogger("surveyor.background")
 _lock = threading.Lock()
 _threads = {}            # имя -> threading.Thread
 _state = {}              # имя -> {"started", "last_ok", "last_error_at", "last_error", "errors"}
+_stop = threading.Event()
+_suspended = 0
 
 
 def disabled() -> bool:
-    return os.environ.get("SURVEYOR_NO_BACKGROUND") == "1"
+    from .config import boolean
+    return bool(_suspended) or boolean(os.environ, "SURVEYOR_NO_BACKGROUND")
+
+
+@contextmanager
+def suspend():
+    """Во время подготовки базы никакая интеграция не запускает поток."""
+    global _suspended
+    _suspended += 1
+    try:
+        yield
+    finally:
+        _suspended -= 1
 
 
 def _now() -> str:
@@ -70,31 +85,65 @@ def _guarded(name: str, target):
 
 def start(name: str, target) -> bool:
     """Запускает поток, если он ещё не запущен (или умер). False — отключено или уже работает."""
-    if disabled():
+    if disabled() or _stop.is_set():
         return False
     with _lock:
+        if _stop.is_set():
+            return False
         t = _threads.get(name)
         if t is not None and t.is_alive():
             return False
         t = threading.Thread(target=_guarded(name, target), daemon=True, name=name)
         _threads[name] = t
         _st(name)["started"] = _now()
-    t.start()
+        # Старт под той же блокировкой: второй вызов не увидит ещё не запущенный поток.
+        t.start()
     return True
 
 
 def run_loop(name: str, step, first_delay: float, every: float):
     """Цикл «пауза → step() → пауза». Исключение в step() журналируется, цикл продолжается."""
     plan(name, first_delay)
-    time.sleep(first_delay)
-    while True:
+    if wait(first_delay):
+        return
+    while not stopping():
         try:
             step()
             ok(name)
         except Exception as e:
             failed(name, e)
         plan(name, every)
-        time.sleep(every)
+        if wait(every):
+            return
+
+
+def stopping() -> bool:
+    return _stop.is_set()
+
+
+def wait(seconds: float) -> bool:
+    """Прерываемая пауза; True означает завершение процесса."""
+    return _stop.wait(max(0, seconds))
+
+
+def reset():
+    """Новый lifespan возможен лишь после завершения предыдущих потоков."""
+    with _lock:
+        if any(t.is_alive() for t in _threads.values()):
+            raise RuntimeError("Предыдущие фоновые задания ещё выполняются")
+        _threads.clear()
+        _stop.clear()
+
+
+def stop_all(timeout: float = 5) -> bool:
+    deadline = time.monotonic() + timeout
+    with _lock:
+        _stop.set()
+        threads = list(_threads.values())
+    for thread in threads:
+        if thread is not threading.current_thread():
+            thread.join(max(0, deadline - time.monotonic()))
+    return not any(t.is_alive() for t in threads)
 
 
 def state(name: str) -> dict:

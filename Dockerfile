@@ -31,6 +31,7 @@ COPY db db
 COPY docs docs
 COPY tools tools
 COPY app app
+COPY frontend frontend
 
 # База собирается при сборке образа: справочники нужны сразу. STORAGE_DIR при сборке не учитываем:
 # база образа — всегда data/surveyor.db; на постоянный диск её переносит сервер при первом старте,

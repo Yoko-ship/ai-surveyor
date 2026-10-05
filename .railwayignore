@@ -44,3 +44,5 @@ library/03_Рынок_НАПП/**/*.xlsx
 library/03_Рынок_НАПП/**/*.xls
 data/surveyor.db-wal
 data/surveyor.db-shm
+
+data/*.lock

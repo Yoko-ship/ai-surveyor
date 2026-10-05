@@ -18,6 +18,7 @@ sandbox/
 data/surveyor.db
 data/surveyor.db-wal
 data/surveyor.db-shm
+data/*.lock
 data/uploads/
 data/photos/
 data/reports/
