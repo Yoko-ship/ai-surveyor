@@ -58,6 +58,7 @@ class SpecialistTests(unittest.TestCase):
         self.assertEqual(result["ai"]["status"], "ok")
         self.assertIn("lex.uz", chat.call_args.args[2])
         self.assertGreaterEqual(chat.call_args.kwargs["timeout"], 30)
+        self.assertTrue(chat.call_args.kwargs["web_search"])
 
     def test_faq_still_gets_ai_and_failure_is_not_cached(self):
         unavailable = {"status": "unavailable", "source": "lex.uz"}

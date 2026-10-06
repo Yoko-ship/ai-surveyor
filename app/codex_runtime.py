@@ -7,6 +7,7 @@ from pathlib import Path
 import signal
 import subprocess
 import tempfile
+from datetime import datetime, timezone
 from . import ai_policy
 
 
@@ -28,11 +29,11 @@ def _toml(value):
     return json.dumps(value)
 
 
-def command(binary, model, folder, images):
+def command(binary, model, folder, images, web_search=False):
     flags = {"model": model, "model_reasoning_effort": "low", "approval_policy": "never",
              "cli_auth_credentials_store": "file",
              "model_instructions_file": str(folder / "instructions.txt"),
-             "project_doc_max_bytes": 0, "web_search": "disabled",
+             "project_doc_max_bytes": 0, "web_search": "live" if web_search and not images else "disabled",
              "default_permissions": "gateway",
              "permissions.gateway.filesystem": {"/": "deny", ":minimal": "read", str(folder): "read"},
              "permissions.gateway.network.enabled": False,
@@ -91,8 +92,9 @@ def attachments(parts, folder):
     return images
 
 
-def parse_events(stdout):
+def parse_events(stdout, web_search=False):
     answer, usage, completed = None, {}, False
+    searches = set()
     for line in stdout.splitlines():
         event = json.loads(line)
         kind = event.get("type")
@@ -100,8 +102,13 @@ def parse_events(stdout):
             raise RuntimeFailure("Codex did not complete")
         if kind in {"item.started", "item.completed"}:
             item = event.get("item") or {}
-            if item.get("type") not in {"agent_message", "reasoning", "error"}:
+            allowed = {"agent_message", "reasoning", "error"}
+            if web_search:
+                allowed.add("web_search")
+            if item.get("type") not in allowed:
                 raise RuntimeFailure("Unexpected tool activity")
+            if item.get("type") == "web_search" and kind == "item.completed":
+                searches.add(item.get("id") or str(len(searches)))
             if kind == "item.completed" and item.get("type") == "agent_message":
                 answer = item.get("text")
         if kind == "turn.completed":
@@ -109,7 +116,8 @@ def parse_events(stdout):
     if not completed or not isinstance(answer, str) or not answer.strip():
         raise RuntimeFailure("Codex did not return a completed answer")
     answer = ai_policy.safe_output(answer, [os.environ.get("CODEX_GATEWAY_TOKEN", "")])
-    return {"ok": True, "text": answer, "usage": {"prompt_tokens": usage.get("input_tokens"),
+    return {"ok": True, "text": answer, "web_search": {"enabled": web_search, "calls": len(searches)},
+            "usage": {"prompt_tokens": usage.get("input_tokens"),
             "completion_tokens": usage.get("output_tokens"),
             "total_tokens": (usage.get("input_tokens") or 0) + (usage.get("output_tokens") or 0)}}
 
@@ -117,6 +125,10 @@ def parse_events(stdout):
 def infer(payload, binary, model):
     messages = payload["messages"]
     ai_policy.validate_messages(messages)
+    if not isinstance(payload.get("web_search", False), bool):
+        raise ValueError("web_search")
+    # Только сервер явно разрешает поиск; вложения никогда его не получают.
+    web_search = payload.get("web_search", False) and not payload.get("files")
     if any(not isinstance(m, dict) or m.get("role") not in {"system", "user", "assistant"}
            or not isinstance(m.get("content"), str) or len(m["content"]) > 12000 for m in messages):
         raise ValueError("message")
@@ -128,6 +140,8 @@ def infer(payload, binary, model):
         folder = Path(tmp)
         images = attachments(payload.get("files", []), folder)
         rules = ai_policy.SYSTEM_RULES + "\nTask instructions (subject to the rules above):\n"
+        if web_search:
+            rules += ai_policy.WEB_RULES + "\nCurrent UTC date: " + datetime.now(timezone.utc).date().isoformat() + "\n"
         rules += "\n".join(m["content"] for m in messages
                            if m["role"] == "system" and m["content"] != ai_policy.SYSTEM_RULES)
         rules = ai_policy.redact_credentials(rules, [os.environ.get("CODEX_GATEWAY_TOKEN", "")])
@@ -137,7 +151,7 @@ def infer(payload, binary, model):
         env = {k: v for k, v in os.environ.items() if k in {"HOME", "PATH", "TMPDIR", "USER", "LOGNAME", "CODEX_HOME"}}
         # Ни ключ шлюза, ни переменные Railway не наследуются дочерним процессом.
         with tempfile.TemporaryFile() as output, tempfile.TemporaryFile() as errors:
-            proc = subprocess.Popen(command(binary, model, folder, images), stdin=subprocess.PIPE,
+            proc = subprocess.Popen(command(binary, model, folder, images, web_search), stdin=subprocess.PIPE,
                                     stdout=output, stderr=errors, env=env, start_new_session=True)
             try:
                 proc.communicate(prompt.encode(), timeout=limit)
@@ -150,4 +164,4 @@ def infer(payload, binary, model):
             if output.tell() > 1024 * 1024:
                 raise RuntimeFailure("Codex output too large")
             output.seek(0)
-            return parse_events(output.read().decode())
+            return parse_events(output.read().decode(), web_search)

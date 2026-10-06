@@ -44,12 +44,13 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None  # не передавать ключ и документы на другой адрес
 
 
-def request(messages, file_parts, timeout=None):
+def request(messages, file_parts, timeout=None, web_search=False):
     if not ready():
         raise PlanError(reason())
     limit = max(1, min(float(timeout or 90), 120))
     body = {"tester_id": chatgpt_plan.actor.get(), "messages": messages,
-            "files": file_parts, "timeout": limit, "model": model()}
+            "files": file_parts, "timeout": limit, "model": model(),
+            "web_search": web_search is True and not file_parts}
     req = urllib.request.Request(endpoint() + "/infer", data=json.dumps(body).encode(), headers={
         "Content-Type": "application/json",
         "Authorization": "Bearer " + os.environ["CODEX_GATEWAY_TOKEN"]})

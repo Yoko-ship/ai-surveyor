@@ -510,7 +510,7 @@ def _gemini_usage(data: dict) -> dict:
 
 def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: float = 0.2,
              files: Optional[list] = None, timeout: Optional[float] = None,
-             retries: Optional[int] = None) -> dict:
+             retries: Optional[int] = None, web_search: bool = False) -> dict:
     """
     Низкий уровень: готовый список сообщений (роли system/user/assistant) и вложения.
     Маскировка персональных данных обязательна и делается здесь — обойти её нельзя.
@@ -552,7 +552,8 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
         try:
             if provider() == "codex_gateway":
                 from . import codex_gateway
-                data = codex_gateway.request(safe, file_parts, timeout)
+                data = codex_gateway.request(safe, file_parts, timeout,
+                                             web_search=web_search is True and not files)
                 text, usage = data["text"], data["usage"]
             elif provider() == "chatgpt_plan":
                 from . import chatgpt_plan
@@ -604,14 +605,14 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
 
 def chat(purpose: str, system: str, user: str, max_tokens: int = 700,
          temperature: float = 0.2, files: Optional[list] = None,
-         timeout: Optional[float] = None) -> Optional[str]:
+         timeout: Optional[float] = None, web_search: bool = False) -> Optional[str]:
     """
     Единственная точка обращения к модели. Маскирует персональные данные, логирует метрики.
     Возвращает текст ответа или None — вызывающий код обязан уметь работать без ИИ.
     """
     return chat_raw(purpose, [{"role": "system", "content": system},
                               {"role": "user", "content": user}],
-                    max_tokens, temperature, files, timeout=timeout)["text"]
+                    max_tokens, temperature, files, timeout=timeout, web_search=web_search)["text"]
 
 
 def ping() -> dict:

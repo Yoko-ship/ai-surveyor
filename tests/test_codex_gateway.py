@@ -99,6 +99,30 @@ class GatewayClientTests(unittest.TestCase):
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_search_events_require_permission_and_do_not_allow_other_tools(self):
+        search = {"type": "item.completed", "item": {"type": "web_search", "id": "search-1"}}
+        message = {"type": "item.completed", "item": {"type": "agent_message", "text": "Source: https://lex.uz/"}}
+        done = {"type": "turn.completed"}
+        stream = "\n".join(map(json.dumps, (search, message, done)))
+        with self.assertRaises(runtime.RuntimeFailure):
+            runtime.parse_events(stream)
+        self.assertEqual(runtime.parse_events(stream, True)["web_search"], {"enabled": True, "calls": 1})
+        for tool in ("command_execution", "mcp_tool_call", "file_change"):
+            bad = {"type": "item.started", "item": {"type": tool}}
+            with self.assertRaises(runtime.RuntimeFailure):
+                runtime.parse_events(json.dumps(bad) + "\n" + stream, True)
+
+    def test_live_search_keeps_host_tools_off_and_attachments_disable_search(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            for images, enabled in (([], True), ([folder / "private.png"], False)):
+                cmd = runtime.command("/test/codex", "test-model", folder, images, True)
+                flags = [cmd[i + 1] for i, v in enumerate(cmd) if v == "-c"]
+                self.assertIn('web_search="live"' if enabled else 'web_search="disabled"', flags)
+                for flag in ('features.shell_tool=false', 'features.plugins=false',
+                             'permissions.gateway.network.enabled=false'):
+                    self.assertIn(flag, flags)
+
     def test_only_final_completed_answer(self):
         def events(*items):
             return "\n".join(json.dumps(x) for x in items)

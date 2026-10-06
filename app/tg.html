@@ -2043,6 +2043,7 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;
 /* Только отображаемая проза ИИ: JSON, цитаты и исходные пользовательские данные не меняем. */
 function aiPlainText(value){
   return String(value == null ? "" : value).replace(/\r\n?/g, "\n")
+    .replace(/\uE200cite\uE202[^\uE201]*\uE201/g, "")
     .replace(/^[ \t]*(`{3,}|~{3,})[^\n]*$/gm, "")
     .replace(/^[ \t]{0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?$/gm, "$1")
     .replace(/^[ \t]*(?:[-*_][ \t]*){3,}$/gm, "")
@@ -2058,7 +2059,22 @@ function aiPlainText(value){
     .replace(/^[ \t]*\|(.+)\|[ \t]*$/gm, (m, cells) => cells.split("|").map(s => s.trim()).join(" · "))
     .replace(/\n{3,}/g, "\n\n").trim();
 }
-function aiText(value){ return esc(aiPlainText(value)); }
+function aiText(value){
+  const text = aiPlainText(value);
+  const urls = /https?:\/\/[^\s<>"']+/gi;
+  let out = "", at = 0, match;
+  while ((match = urls.exec(text))) {
+    const url = match[0].replace(/[.,;:!?)}\]]+$/, "");
+    out += esc(text.slice(at, match.index));
+    try {
+      const parsed = new URL(url);
+      if (parsed.username || parsed.password) throw new Error("credentials");
+      out += '<a href="' + esc(url) + '" target="_blank" rel="noopener noreferrer">' + esc(url) + '</a>';
+    } catch (e) { out += esc(url); }
+    at = match.index + url.length;
+  }
+  return out + esc(text.slice(at));
+}
 /* Подписи: T("ключ", "русский запас") из /i18n.js. Словарь не подключился — остаётся русский. */
 if (!window.T) window.T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };
 if (!window.I18N_LANG) window.I18N_LANG = "ru";
