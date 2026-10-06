@@ -5,7 +5,7 @@
       "dockerfilePath": "Dockerfile"
     },
     "deploy": {
-      "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1",
+      "startCommand": "sh -c 'exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1'",
       "healthcheckPath": "/health",
       "healthcheckTimeout": 60,
       "restartPolicyType": "ON_FAILURE",
@@ -16,7 +16,14 @@
   "codex-gateway": {
     "build": {
       "builder": "DOCKERFILE",
-      "dockerfilePath": "Dockerfile.gateway"
+      "dockerfilePath": "Dockerfile.gateway",
+      "watchPatterns": [
+        "/Dockerfile.gateway",
+        "/requirements.txt",
+        "/app/**",
+        "/tools/codex_gateway.py",
+        "/.dockerignore"
+      ]
     },
     "deploy": {
       "startCommand": "python tools/codex_gateway.py --from-env",
