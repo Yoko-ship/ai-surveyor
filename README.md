@@ -465,3 +465,8 @@ sandbox/bin/cloudflared tunnel --url http://127.0.0.1:8787 --no-autoupdate
 Основание реализации: [non-interactive Codex](https://learn.chatgpt.com/docs/non-interactive-mode),
 [официальный серверный вход](https://learn.chatgpt.com/docs/auth),
 [настройки изоляции](https://learn.chatgpt.com/docs/config-file/config-reference).
+
+
+Общая политика ИИ, проверяемые кодом ограничения и форматирование ответов описаны
+в [docs/AI_GUARDRAILS.md](docs/AI_GUARDRAILS.md). Новых зависимостей и переменных
+окружения для этих правил не требуется.

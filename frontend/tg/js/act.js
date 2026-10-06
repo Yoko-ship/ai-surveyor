@@ -1617,7 +1617,7 @@ function actDocHtml(a){
     + actRowsHtml(a.header, [], "act-head")
     // разделы сворачиваются; 4 и 5 кратко есть в сводке выше, поэтому по умолчанию свёрнуты
     + secs.map(s => '<details class="act-s" data-sn="' + esc(s.n) + '"' + (actSecOpen(s.n) ? " open" : "") + '><summary><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3></summary>"
-      + (s.paragraphs || []).map(p => "<p>" + esc(p) + "</p>").join("")
+      + (s.paragraphs || []).map(p => "<p>" + aiText(p) + "</p>").join("")
       + actRowsHtml(s.rows, s.n === 1 ? discLabels : [])
       // строки источника под таблицей (оценка по объявлениям): плашка источника обязательна
       + (Array.isArray(s.source_lines) && s.source_lines.length ? actSrcLines(s.source_lines) : "")
@@ -1626,7 +1626,7 @@ function actDocHtml(a){
         if (li.table && Array.isArray(li.table.columns) && li.table.columns.length && Array.isArray(li.table.rows)) return actDocTableHtml(li);
         const hot = (li.items || []).some(x => discText.indexOf(x) >= 0);
         return '<div class="act-list' + (hot ? " disc" : "") + '"><h4>' + esc(li.title) + "</h4><ul>"
-          + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + esc(anStr(x)) + "</li>").join("") + "</ul></div>";
+          + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + aiText(anStr(x)) + "</li>").join("") + "</ul></div>";
       }).join("")
       + "</details>").join("")
     + '<p class="act-foot">' + esc(a.footer) + "</p>"
@@ -1846,4 +1846,3 @@ function chatRelang(){
 }
 
 chatBoot();
-

@@ -3,6 +3,7 @@ import base64
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import io
+import http.client
 import json
 import os
 from pathlib import Path
@@ -84,7 +85,7 @@ class GatewayClientTests(unittest.TestCase):
     def test_failure_no_retry_no_paid_fallback(self):
         with patch.object(gateway, "request", side_effect=plan.PlanError("offline")) as call, \
              patch.object(llm, "_log_call"), patch.object(llm, "_request") as paid:
-            self.assertFalse(llm.chat_raw("test", [], retries=4)["ok"])
+            self.assertFalse(llm.chat_raw("test", [{"role": "user", "content": "test"}], retries=4)["ok"])
             self.assertEqual(call.call_count, 1)
             paid.assert_not_called()
 
@@ -197,6 +198,19 @@ class HttpGatewayTests(unittest.TestCase):
                 self.assertEqual(self.call(good)[0], 200)
             self.assertEqual(self.call(good)[0], 429)
             self.assertEqual(infer.call_count, 60)
+
+    def test_ambiguous_http_framing_is_rejected(self):
+        with patch("tools.codex_gateway.infer") as infer:
+            for duplicate in (False, True):
+                connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
+                connection.putrequest("POST", "/infer")
+                connection.putheader("Authorization", "Bearer " + self.token)
+                connection.putheader("Content-Length", "2")
+                connection.putheader("Content-Length" if duplicate else "Transfer-Encoding", "2" if duplicate else "chunked")
+                connection.endheaders(b"{}")
+                self.assertEqual(connection.getresponse().status, 400)
+                connection.close()
+            infer.assert_not_called()
 
     def test_concurrency_and_timeout(self):
         good = {"tester_id": "123", "model": "test-model", "messages": []}

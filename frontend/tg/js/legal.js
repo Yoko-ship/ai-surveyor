@@ -253,16 +253,16 @@ function lgReply(it){
   return '<div class="lga">'
     + (ctx.follow_up ? '<p class="lgfu">' + esc(T("tg.lg.follow_up", "уточнение к предыдущему вопросу")) + "</p>" : "")
     + '<div class="lgblk"><div class="lgblk-h">' + esc((data && lgStr(data.label)) || T("tg.lg.data", "Данные")) + lgKindBadge(kind, label) + "</div>"
-    + '<p class="lgans">' + esc(dataText || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
+    + '<p class="lgans">' + aiText(dataText || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
     + (mk ? lgTable(mk.table) + (lgStr(mk.ytd_note) ? '<p class="lgytd">' + esc(lgStr(mk.ytd_note)) + "</p>" : "") : "")
     + "</div>"
     + (op ? '<div class="lgblk lgop"><div class="lgblk-h">' + esc(lgStr(op.label) || T("tg.lg.opinion", "Вывод специалиста"))
       + '<span class="sk ' + (op.by === "ai" ? "sk-ai" : "sk-note") + '">'
       + esc(op.by === "ai" ? T("tg.lg.by_ai", "ИИ") : T("tg.lg.by_rules", "по правилам")) + "</span></div>"
-      + '<p class="lgans">' + esc(lgStr(op.text)) + "</p></div>" : "")
+      + '<p class="lgans">' + aiText(lgStr(op.text)) + "</p></div>" : "")
     + lgLiveLine(lv)
     + (note ? '<p class="note mt-s2">' + esc(note) + "</p>" : "")
-    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + esc(res.ai.text) + "</p>" : "")
+    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + aiText(res.ai.text) + "</p>" : "")
     + lgSkipped(lv)
     + cits.map(c => lgCitation(c || {}, lv)).join("")
     + srcs.map(lgSourceBar).join("")
@@ -374,4 +374,3 @@ function lgRepaint(){
   lgPaintChips();
   if (LG.booted && LG.sugLang !== I18N_LANG) lgFetchSuggest();
 }
-

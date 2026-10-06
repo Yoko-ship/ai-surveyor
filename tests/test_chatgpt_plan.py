@@ -178,7 +178,7 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(request.get_header("Authorization"), "Bearer test-access")
             self.assertEqual(network.call_count, 1)
         with patch.object(plan, "request", side_effect=plan.PlanError("safe error")) as call, patch.object(llm, "_log_call"):
-            self.assertFalse(llm.chat_raw("test", [], retries=3)["ok"])
+            self.assertFalse(llm.chat_raw("test", [{"role": "user", "content": "test"}], retries=3)["ok"])
             self.assertEqual(call.call_count, 1)
 
     def test_quota_precedes_network(self):

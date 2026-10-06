@@ -2039,6 +2039,25 @@ body.side-open #nav button i{width:24px}
 /* app/tg/js/core.js — утилиты, форматирование чисел и дат, Telegram WebApp, api(), состояние входа (ME) */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* Только отображаемая проза ИИ: JSON, цитаты и исходные пользовательские данные не меняем. */
+function aiPlainText(value){
+  return String(value == null ? "" : value).replace(/\r\n?/g, "\n")
+    .replace(/^[ \t]*(`{3,}|~{3,})[^\n]*$/gm, "")
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?$/gm, "$1")
+    .replace(/^[ \t]*(?:[-*_][ \t]*){3,}$/gm, "")
+    .replace(/^[ \t]*\|?[ :|-]+\|[ :|-]*$/gm, "")
+    .replace(/^[ \t]*[*+-][ \t]+/gm, "• ")
+    .replace(/^[ \t]*>[ \t]?/gm, "")
+    .replace(/!?\[([^\]\n]+)\]\(([^\s)]+)\)/g, (m, label, url) => /^https?:\/\//i.test(url) ? label + " — " + url : label)
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, "$1")
+    .replace(/\*(?=\S)([^*\n]*?\S)\*/g, "$1")
+    .replace(/(^|\s)__([^\n]+?)__(?=\s|[.,:;!?]|$)/g, "$1$2")
+    .replace(/(^|\s)_([^_\n]+)_(?=\s|[.,:;!?]|$)/g, "$1$2")
+    .replace(/`+([^`\n]+)`+/g, "$1")
+    .replace(/^[ \t]*\|(.+)\|[ \t]*$/gm, (m, cells) => cells.split("|").map(s => s.trim()).join(" · "))
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+function aiText(value){ return esc(aiPlainText(value)); }
 /* Подписи: T("ключ", "русский запас") из /i18n.js. Словарь не подключился — остаётся русский. */
 if (!window.T) window.T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };
 if (!window.I18N_LANG) window.I18N_LANG = "ru";
@@ -3183,16 +3202,16 @@ function lgReply(it){
   return '<div class="lga">'
     + (ctx.follow_up ? '<p class="lgfu">' + esc(T("tg.lg.follow_up", "уточнение к предыдущему вопросу")) + "</p>" : "")
     + '<div class="lgblk"><div class="lgblk-h">' + esc((data && lgStr(data.label)) || T("tg.lg.data", "Данные")) + lgKindBadge(kind, label) + "</div>"
-    + '<p class="lgans">' + esc(dataText || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
+    + '<p class="lgans">' + aiText(dataText || T("tg.lg.none", "В текстах актов ответа не нашлось. Спросите короче или другими словами.")) + "</p>"
     + (mk ? lgTable(mk.table) + (lgStr(mk.ytd_note) ? '<p class="lgytd">' + esc(lgStr(mk.ytd_note)) + "</p>" : "") : "")
     + "</div>"
     + (op ? '<div class="lgblk lgop"><div class="lgblk-h">' + esc(lgStr(op.label) || T("tg.lg.opinion", "Вывод специалиста"))
       + '<span class="sk ' + (op.by === "ai" ? "sk-ai" : "sk-note") + '">'
       + esc(op.by === "ai" ? T("tg.lg.by_ai", "ИИ") : T("tg.lg.by_rules", "по правилам")) + "</span></div>"
-      + '<p class="lgans">' + esc(lgStr(op.text)) + "</p></div>" : "")
+      + '<p class="lgans">' + aiText(lgStr(op.text)) + "</p></div>" : "")
     + lgLiveLine(lv)
     + (note ? '<p class="note mt-s2">' + esc(note) + "</p>" : "")
-    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + esc(res.ai.text) + "</p>" : "")
+    + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + aiText(res.ai.text) + "</p>" : "")
     + lgSkipped(lv)
     + cits.map(c => lgCitation(c || {}, lv)).join("")
     + srcs.map(lgSourceBar).join("")
@@ -3304,7 +3323,6 @@ function lgRepaint(){
   lgPaintChips();
   if (LG.booted && LG.sugLang !== I18N_LANG) lgFetchSuggest();
 }
-
 /* app/tg/js/calc.js — вкладка «Калькулятор» */
 /* =====================================================================================
    Калькулятор премии (заказчик 22.09.2026): продукт, страховая сумма, срок и пара главных
@@ -9411,7 +9429,7 @@ function actDocHtml(a){
     + actRowsHtml(a.header, [], "act-head")
     // разделы сворачиваются; 4 и 5 кратко есть в сводке выше, поэтому по умолчанию свёрнуты
     + secs.map(s => '<details class="act-s" data-sn="' + esc(s.n) + '"' + (actSecOpen(s.n) ? " open" : "") + '><summary><h3><span>' + esc(s.n) + "</span>" + esc(s.title) + "</h3></summary>"
-      + (s.paragraphs || []).map(p => "<p>" + esc(p) + "</p>").join("")
+      + (s.paragraphs || []).map(p => "<p>" + aiText(p) + "</p>").join("")
       + actRowsHtml(s.rows, s.n === 1 ? discLabels : [])
       // строки источника под таблицей (оценка по объявлениям): плашка источника обязательна
       + (Array.isArray(s.source_lines) && s.source_lines.length ? actSrcLines(s.source_lines) : "")
@@ -9420,7 +9438,7 @@ function actDocHtml(a){
         if (li.table && Array.isArray(li.table.columns) && li.table.columns.length && Array.isArray(li.table.rows)) return actDocTableHtml(li);
         const hot = (li.items || []).some(x => discText.indexOf(x) >= 0);
         return '<div class="act-list' + (hot ? " disc" : "") + '"><h4>' + esc(li.title) + "</h4><ul>"
-          + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + esc(anStr(x)) + "</li>").join("") + "</ul></div>";
+          + (li.items || []).map(x => "<li" + (discText.indexOf(x) >= 0 ? ' class="disc"' : "") + ">" + aiText(anStr(x)) + "</li>").join("") + "</ul></div>";
       }).join("")
       + "</details>").join("")
     + '<p class="act-foot">' + esc(a.footer) + "</p>"
@@ -9640,7 +9658,6 @@ function chatRelang(){
 }
 
 chatBoot();
-
 /* app/tg/js/osgor.js — вкладка «ОСГОР» */
 /* =====================================================================================
    ОСГОР: калькулятор премии (POST /osgor/quick), подсказка ОКЭД по мере ввода (GET /osgor/activities).

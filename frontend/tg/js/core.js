@@ -1,6 +1,25 @@
 /* app/tg/js/core.js — утилиты, форматирование чисел и дат, Telegram WebApp, api(), состояние входа (ME) */
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+/* Только отображаемая проза ИИ: JSON, цитаты и исходные пользовательские данные не меняем. */
+function aiPlainText(value){
+  return String(value == null ? "" : value).replace(/\r\n?/g, "\n")
+    .replace(/^[ \t]*(`{3,}|~{3,})[^\n]*$/gm, "")
+    .replace(/^[ \t]{0,3}#{1,6}[ \t]+(.+?)(?:[ \t]+#+)?$/gm, "$1")
+    .replace(/^[ \t]*(?:[-*_][ \t]*){3,}$/gm, "")
+    .replace(/^[ \t]*\|?[ :|-]+\|[ :|-]*$/gm, "")
+    .replace(/^[ \t]*[*+-][ \t]+/gm, "• ")
+    .replace(/^[ \t]*>[ \t]?/gm, "")
+    .replace(/!?\[([^\]\n]+)\]\(([^\s)]+)\)/g, (m, label, url) => /^https?:\/\//i.test(url) ? label + " — " + url : label)
+    .replace(/\*\*(?=\S)([^\n]*?\S)\*\*/g, "$1")
+    .replace(/\*(?=\S)([^*\n]*?\S)\*/g, "$1")
+    .replace(/(^|\s)__([^\n]+?)__(?=\s|[.,:;!?]|$)/g, "$1$2")
+    .replace(/(^|\s)_([^_\n]+)_(?=\s|[.,:;!?]|$)/g, "$1$2")
+    .replace(/`+([^`\n]+)`+/g, "$1")
+    .replace(/^[ \t]*\|(.+)\|[ \t]*$/gm, (m, cells) => cells.split("|").map(s => s.trim()).join(" · "))
+    .replace(/\n{3,}/g, "\n\n").trim();
+}
+function aiText(value){ return esc(aiPlainText(value)); }
 /* Подписи: T("ключ", "русский запас") из /i18n.js. Словарь не подключился — остаётся русский. */
 if (!window.T) window.T = (k, f, v) => { let s = f != null ? f : k; if (v) for (const x in v) s = String(s).split("{" + x + "}").join(v[x]); return s; };
 if (!window.I18N_LANG) window.I18N_LANG = "ru";

@@ -1,6 +1,6 @@
-"""Локальный шлюз: python tools/codex_gateway.py --config <защищённый JSON>.
+"""Шлюз Codex: --config <защищённый JSON> локально или --from-env на Railway.
 
-Слушает только loopback; HTTPS организует отдельный туннель. Доступ — серверный
+Локально слушает loopback; в облаке HTTPS завершает Railway. Доступ — серверный
 Bearer-ключ + список Telegram ID. Не публиковать config, токены или тела запросов.
 """
 import argparse
@@ -64,6 +64,8 @@ def handler(config):
                 return
             if self.path != "/infer":
                 return self.reply(404, {"ok": False})
+            if self.headers.get("Transfer-Encoding") or len(self.headers.get_all("Content-Length", [])) != 1:
+                return self.reply(400, {"ok": False})
             try:
                 length = int(self.headers.get("Content-Length", "0"))
             except ValueError:
@@ -74,6 +76,8 @@ def handler(config):
                 return self.reply(429, {"ok": False})
             try:
                 payload = json.loads(self.rfile.read(length))
+                if not isinstance(payload, dict):
+                    return self.reply(422, {"ok": False})
                 uid = payload.get("tester_id")
                 if uid not in config["tester_ids"]:
                     return self.reply(403, {"ok": False})

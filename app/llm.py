@@ -39,7 +39,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from . import db
+from . import db, ai_policy
 
 router = APIRouter()
 ROOT = Path(__file__).resolve().parent.parent
@@ -527,10 +527,18 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
         last_error["text"] = status()["reason"]
         _log_call(purpose, 0, False, error=last_error["text"])
         return {"text": None, "ok": False, "notes": notes, "ms": 0, "reason": last_error["text"]}
-    safe = []
+    try:
+        ai_policy.validate_messages(messages, reserve=1)
+    except ValueError:
+        reason = "Некорректный или слишком большой запрос к ИИ"
+        _log_call(purpose, 0, False, error=reason)
+        return {"text": None, "ok": False, "notes": notes, "ms": 0, "reason": reason}
+    secrets = [api_key()] + [os.environ.get(k, "") for k in
+        ("CODEX_GATEWAY_TOKEN", "TELEGRAM_BOT_TOKEN", "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE")]
+    safe = [{"role": "system", "content": ai_policy.SYSTEM_RULES}]
     for m in messages:
         role = m.get("role") if m.get("role") in ("system", "user", "assistant") else "user"
-        content = mask_pd(m.get("content"))
+        content = mask_pd(ai_policy.redact_credentials(m["content"], secrets))
         safe.append({"role": role, "content": content[:MAX_PROMPT_CHARS]})
     file_parts = []
     if files:
@@ -575,6 +583,8 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
                 data = _request(safe, max_tokens, temperature, timeout)
                 text = (data.get("choices") or [{}])[0].get("message", {}).get("content")
                 usage = data.get("usage") or {}
+            if text:
+                text = ai_policy.safe_output(text, secrets)
             ms = (time.time() - t0) * 1000
             _log_call(purpose, ms, bool(text), usage, None if text else "пустой ответ модели")
             return {"text": text, "ok": bool(text), "notes": notes, "ms": int(ms),
