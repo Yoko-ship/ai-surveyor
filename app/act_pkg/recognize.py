@@ -6,6 +6,7 @@ import json
 import re
 import time
 from concurrent.futures import TimeoutError as FutureTimeout
+from contextvars import copy_context
 from typing import Any, Callable, Optional
 
 from .. import act_engine as ae
@@ -527,7 +528,7 @@ def _model_call(purpose: str, messages: list, files: Optional[list], lim: dict, 
         return {"ok": False, "reason": t("ai_busy", lang, n=int(lim["ai_calls_per_hour"])), "sent": [],
                 "not_sent": []}
     deadline = float(lim["ai_deadline_sec"]) if deadline is None else deadline
-    fut = _AI_POOL.submit(llm.chat_raw, purpose, messages, max_tokens=4096, temperature=0.1, files=files,
+    fut = _AI_POOL.submit(copy_context().run, llm.chat_raw, purpose, messages, max_tokens=4096, temperature=0.1, files=files,
                           timeout=min(float(lim["ai_timeout_sec"]), max(1.0, deadline)), retries=0)
     try:
         res = fut.result(timeout=max(0.5, deadline - (time.monotonic() - t0)))

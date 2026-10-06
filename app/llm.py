@@ -148,20 +148,33 @@ def mask_key(value: str) -> str:
 
 
 def provider() -> str:
+    from . import chatgpt_plan
+    if chatgpt_plan.selected():
+        return "chatgpt_plan"
     p = (get("LLM_PROVIDER") or "none").strip().lower()
+    if p == "chatgpt_plan":
+        return "none"  # активация только через закрытую конфигурацию окружения
     return p if p in PROVIDERS else "none"
 
 
 def base_url() -> str:
+    if provider() == "chatgpt_plan":
+        from . import chatgpt_plan
+        return chatgpt_plan.API
     return (get("LLM_BASE_URL") or PROVIDERS[provider()]["base_url"]).rstrip("/")
 
 
 def model() -> str:
+    if provider() == "chatgpt_plan":
+        from . import chatgpt_plan
+        return chatgpt_plan.model()
     return get("LLM_MODEL") or PROVIDERS[provider()]["model"]
 
 
 def api_key() -> str:
     """Ключ провайдера. У Gemini общий LLM_API_KEY может быть пуст — тогда берём GEMINI_API_KEY."""
+    if provider() == "chatgpt_plan":
+        return ""  # OAuth никогда не возвращается через API статуса/настроек
     key = get("LLM_API_KEY") or ""
     if not key and provider() == "gemini":
         key = get("GEMINI_API_KEY") or ""
@@ -169,18 +182,24 @@ def api_key() -> str:
 
 
 def enabled() -> bool:
+    if provider() == "chatgpt_plan":
+        from . import chatgpt_plan
+        return chatgpt_plan.ready()
     return provider() in ("kimi", "openai", "gemini") and bool(api_key()) and bool(base_url())
 
 
 def supports_files() -> bool:
-    """Вложения (фото, PDF) умеет только Gemini; остальным отдаём извлечённый текст."""
-    return provider() == "gemini" and enabled()
+    """Файлы: Gemini или выбранная при подключении мультимодальная модель ChatGPT."""
+    return provider() in ("gemini", "chatgpt_plan") and enabled()
 
 
 def status() -> dict:
     """Честный ответ о состоянии ИИ. Никогда не показывает ключ целиком."""
     p = provider()
-    if p == "none":
+    if p == "chatgpt_plan":
+        from . import chatgpt_plan
+        reason = chatgpt_plan.reason()
+    elif p == "none":
         reason = "ИИ выключен в настройках (провайдер «none»)"
     elif p == "anthropic":
         reason = "Провайдер Anthropic в этой версии не поддержан — выберите kimi или openai"
@@ -188,7 +207,7 @@ def status() -> dict:
         reason = NOT_CONNECTED
     else:
         reason = "Ключ задан. Нажмите «Проверить», чтобы убедиться в связи"
-    return {"provider": p, "provider_name": PROVIDERS[p]["name"], "model": model(),
+    return {"provider": p, "provider_name": "ChatGPT plan (тест)" if p == "chatgpt_plan" else PROVIDERS[p]["name"], "model": model(),
             "base_url": base_url(), "key_mask": mask_key(api_key()),
             "connected": enabled(), "reason": reason,
             "pd_mode": get("PD_MODE"),
@@ -317,6 +336,9 @@ def _log_call(purpose: str, ms: int, ok: bool, usage: dict = None, error: str = 
 
 def _friendly(err: Exception) -> str:
     """Понятные сообщения по-русски вместо трассировок."""
+    from .chatgpt_plan import PlanError
+    if isinstance(err, PlanError):
+        return str(err)
     if isinstance(err, urllib.error.HTTPError):
         code = err.code
         if code in (401, 403):
@@ -482,6 +504,8 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     Возвращает {"text", "ok", "notes", "ms", "reason"}; text=None, если ИИ недоступен.
     """
     retries = RETRIES if retries is None else max(0, int(retries))
+    if provider() == "chatgpt_plan":
+        retries = 0  # не расходовать подписку повторно после оборванного stream
     last_error["text"] = None
     notes = []
     if not enabled():
@@ -503,7 +527,11 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     for attempt in range(retries + 1):
         t0 = time.time()
         try:
-            if provider() == "gemini":
+            if provider() == "chatgpt_plan":
+                from . import chatgpt_plan
+                data = chatgpt_plan.request(safe, file_parts, timeout)
+                text, usage = data["text"], data["usage"]
+            elif provider() == "gemini":
                 data = _request_gemini(safe, max_tokens, temperature, file_parts, timeout)
                 text, finish = _gemini_text(data)
                 usage = _gemini_usage(data)

@@ -1,4 +1,5 @@
 .secrets.env
+.chatgpt-plan/
 .env
 .env.*
 !.env.example

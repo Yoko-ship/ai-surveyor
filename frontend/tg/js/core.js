@@ -154,6 +154,9 @@ async function api(url, opts){
   try{
     opts = opts || {};
     if (TOKEN) opts.headers = Object.assign({}, opts.headers || {}, {Authorization: "Bearer " + TOKEN});
+    // Сервер сам проверяет подпись Telegram и список тестировщиков подписки.
+    if (IN_TG && new URL(url, location.href).origin === location.origin)
+      opts.headers = Object.assign({}, opts.headers || {}, {"X-Telegram-Init-Data": TG.initData});
     const r = await fetch(url, opts);
     let j = null;
     try { j = await r.json(); } catch (e) { j = null; }
@@ -209,4 +212,3 @@ function screen(name){
   $("#nav").classList.toggle("hidden", name !== "app" || !$("#nav").querySelector("button"));
   if (typeof syncTgButtons === "function") syncTgButtons();
 }
-

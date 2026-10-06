@@ -687,6 +687,7 @@ async function actUpload(){
     const x = new XMLHttpRequest();
     x.open("POST", "/act/photos");
     if (TOKEN) x.setRequestHeader("Authorization", "Bearer " + TOKEN);
+    if (IN_TG) x.setRequestHeader("X-Telegram-Init-Data", TG.initData);
     x.upload.onprogress = e => { if (e.lengthComputable) { CH.upPct = Math.round(e.loaded / e.total * 100); chatProgress(); } };
     // файлы ушли — дальше их читает модель: «Читаю фото…»
     x.upload.onload = () => { CH.phase = "read"; wzPart("files"); wzBarPaint(); };
@@ -4263,4 +4264,3 @@ function chatBoot(){
     if (CH.wz === 2) mkAddFiles(files); else wzAddFiles(files);   // шаг «Проверить»: снимок экрана со списком объявлений
   });
 }
-

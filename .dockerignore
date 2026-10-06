@@ -6,6 +6,7 @@
 .github/
 .railway/
 .secrets.env
+**/.chatgpt-plan/
 .env
 **/__pycache__/
 *.pyc

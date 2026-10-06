@@ -49,6 +49,8 @@ def create_app() -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=ASSET_DIR / "static"), name="static")
     guard.install(app)
+    from .chatgpt_plan import TesterContextMiddleware
+    app.add_middleware(TesterContextMiddleware)
     app.add_middleware(web.CacheControlMiddleware)
     app.add_middleware(web.PageGzipCache, compresslevel=6)
     excluded = DEFAULT_EXCLUDED_CONTENT_TYPES + (
