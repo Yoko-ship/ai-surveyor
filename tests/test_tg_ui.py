@@ -246,7 +246,8 @@ def check_guest_photos(html):
     """Фото гостя (лёгкая версия, 29.09.2026): камера, галерея, перетаскивание, буфер — одним POST /act/photos."""
     must = {'"/act/photos"': "фото не уходят на распознавание",
             'id="chatFile"': "нет поля выбора файлов",
-            'accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,': "форматы файлов не ограничены фото, PDF, DOCX и XLSX",
+            '<input type="file" id="chatFile" multiple hidden>': "общий выбор файлов снова ограничен MIME-фильтром Android",
+            'tg.wz.legacy_office': "нет понятной инструкции для старых Word/Excel",
             'function wzToJpeg': "картинки других форматов (WEBP, HEIC) не переводятся в JPG",
             'errHtml(CH.err)': "отказ сервера (413, 422, 429) показывается не его словами"}
     miss = [why for key, why in must.items() if key not in html]

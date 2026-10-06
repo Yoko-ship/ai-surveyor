@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 2402,
+    "keys": 2403,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -1462,6 +1462,7 @@
   "tg.wz.s2_title": "Check the data",
   "tg.wz.sending": "sending…",
   "tg.wz.steps_aria": "Analysis steps",
+  "tg.wz.legacy_office": "{name}: the older {format} format is not supported yet. Open it in Word or Excel and save a copy as {target}, or export it to PDF. Renaming the file does not convert it.",
   "tg.wz.too_big": "{name}: the file is larger than {mb} MB — compress or split it.",
   "tg.wz.top1": "Photos and documents",
   "tg.wz.top2": "Check the data",

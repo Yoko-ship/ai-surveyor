@@ -94,8 +94,9 @@
     <ol class="wz-steps" id="wzSteps" data-i18n-aria="tg.wz.steps_aria" aria-label="Шаги анализа"></ol>
     <div id="wzBody"></div>
     <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.act.no_photos">Без фото</button></div></div>
-    <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
-    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+    <!-- Без MIME-фильтра: Android-провайдер может неверно описывать Word-файл.
+         Тип/размер проверяются в wzAddFiles, содержимое — сервером. Камера остаётся отдельной. -->
+    <input type="file" id="chatFile" multiple hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <input type="file" id="mkFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>

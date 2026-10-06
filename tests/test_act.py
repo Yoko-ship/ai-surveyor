@@ -2930,7 +2930,10 @@ def pdf_table(rows) -> bytes:
     doc = pymupdf.open()
     page = doc.new_page()
     y = 40
-    font = r"C:\Windows\Fonts\arial.ttf"
+    from app.act_pkg.export import FONT_CANDIDATES
+    fonts = [pair[0] for pair in FONT_CANDIDATES]
+    font = next((name for name in fonts if Path(name).is_file()), None)
+    assert font, "Тестовому PDF нужен Arial или DejaVu/Liberation Sans (как в Dockerfile)"
     for n, lab, val in rows:
         for t in [n, lab] + (val if isinstance(val, list) else [val]):
             if t:

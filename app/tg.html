@@ -1904,8 +1904,9 @@ body.side-open #nav button i{width:24px}
     <ol class="wz-steps" id="wzSteps" data-i18n-aria="tg.wz.steps_aria" aria-label="Шаги анализа"></ol>
     <div id="wzBody"></div>
     <div class="wz-bar"><div><button type="button" class="btn btn-primary btn-block tg-main" id="chatMain" data-i18n="tg.act.no_photos">Без фото</button></div></div>
-    <!-- «Галерея / файлы»: фото и снимки документов (PDF), несколько сразу; «Камера»: снимок с задней камеры телефона -->
-    <input type="file" id="chatFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,.pdf,.docx,.xlsx,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+    <!-- Без MIME-фильтра: Android-провайдер может неверно описывать Word-файл.
+         Тип/размер проверяются в wzAddFiles, содержимое — сервером. Камера остаётся отдельной. -->
+    <input type="file" id="chatFile" multiple hidden>
     <input type="file" id="chatCam" accept="image/*" capture="environment" hidden>
     <input type="file" id="mkFile" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/*" hidden>
     <div class="dropzone hidden" id="chatDrop"><span data-i18n="tg.chat.drop">Отпустите, чтобы загрузить</span></div>
@@ -4162,6 +4163,11 @@ async function wzAddFiles(files){
     const name = String(f.name || "");
     const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
     const type = String(f.type || "");
+    if (ext && /^(doc|xls)$/i.test(ext)) {
+      bad.push(T("tg.wz.legacy_office", "{name}: старый формат {format} пока не читается. Откройте файл в Word или Excel и сохраните копию как {target} либо экспортируйте в PDF. Простое переименование файла не меняет формат.",
+        {name: name, format: ext.toUpperCase(), target: ext.toLowerCase() === "doc" ? "DOCX" : "XLSX"}));
+      return;
+    }
     const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf"
       || MIME_DOCS.indexOf(type) >= 0;
     if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC, PDF, DOCX или XLSX. Старые DOC и XLS пересохраните в новом формате.", {name: name || "?"})); return; }

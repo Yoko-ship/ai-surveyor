@@ -613,6 +613,11 @@ async function wzAddFiles(files){
     const name = String(f.name || "");
     const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
     const type = String(f.type || "");
+    if (ext && /^(doc|xls)$/i.test(ext)) {
+      bad.push(T("tg.wz.legacy_office", "{name}: старый формат {format} пока не читается. Откройте файл в Word или Excel и сохраните копию как {target} либо экспортируйте в PDF. Простое переименование файла не меняет формат.",
+        {name: name, format: ext.toUpperCase(), target: ext.toLowerCase() === "doc" ? "DOCX" : "XLSX"}));
+      return;
+    }
     const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf"
       || MIME_DOCS.indexOf(type) >= 0;
     if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC, PDF, DOCX или XLSX. Старые DOC и XLS пересохраните в новом формате.", {name: name || "?"})); return; }
