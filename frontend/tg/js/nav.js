@@ -15,6 +15,14 @@ const WIDE = window.matchMedia("(min-width:900px)");
 function sideOpen(on){
   document.body.classList.toggle("side-open", !!on);
   $("#burger").setAttribute("aria-expanded", on ? "true" : "false");
+  const menu = $("#mobileMenu");
+  if (menu) menu.setAttribute("aria-expanded", on ? "true" : "false");
+  const side = $("#side");
+  side.inert = !on && !WIDE.matches;
+  if (menu && !WIDE.matches) {
+    const more = $("#mobileNav [data-more]");
+    if (more) more.setAttribute("aria-expanded", on ? "true" : "false");
+  }
 }
 function sideSync(){
   document.body.classList.toggle("side-wide", WIDE.matches);
@@ -22,12 +30,21 @@ function sideSync(){
 }
 if (WIDE.addEventListener) WIDE.addEventListener("change", sideSync); else WIDE.addListener(sideSync);
 sideSync();
-$("#burger").onclick = () => sideOpen(!document.body.classList.contains("side-open"));
+$("#burger").onclick = () => { sideOpen(false); const b = $("#mobileMenu"); if (b) b.focus(); };
+if ($("#mobileMenu")) $("#mobileMenu").onclick = () => { sideOpen(true); $("#burger").focus(); };
 $("#scrim").onclick = () => { if (!WIDE.matches) sideOpen(false); };
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !WIDE.matches) sideOpen(false); });
+document.addEventListener("keydown", e => {
+  if (WIDE.matches || !document.body.classList.contains("side-open")) return;
+  if (e.key === "Escape") { sideOpen(false); $("#mobileMenu").focus(); }
+  if (e.key === "Tab") {
+    const items = Array.from($("#side").querySelectorAll('button, a[href], input, select, [tabindex="0"]')).filter(el => !el.disabled && el.getClientRects().length);
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
 
 /* ---------- разделы меню: рисуются по ответу сервера ---------- */
-const NAV_ICON = {chat: "◎", calc: "₌", osgor: "⛨", legal: "⚖", users: "◍", settings: "⚙"};
 /* «Аналитику» и «Фото» сервер отдаёт по отдельности — в интерфейсе это один раздел «ИИ-сюрвейер».
    «Калькулятор» остаётся сам по себе: быстрый расчёт премии без диалога. */
 const NAV_MERGE = {analytics: "chat", photos: "chat"};
@@ -76,11 +93,11 @@ function paintNav(items, repaint){
   // «Настройки» с профилем — у всех: сервер отдаёт этот пункт только админу, остальным добавляем сами
   if (ME.user && !list.some(it => it.key === "settings")) list.push({key: "settings", title: ""});
   nav.classList.toggle("hidden", !list.length);
-  if (!list.length) { nav.innerHTML = ""; return; }
+  if (!list.length) { nav.innerHTML = ""; paintMobileNav([]); return; }
   nav.innerHTML = list.map(it => {
     const full = navFull(it.key, it.title);
     return '<button type="button" data-tab="' + esc(it.key) + '" title="' + esc(full) + '">'
-      + "<i aria-hidden=\"true\">" + esc(NAV_ICON[it.key] || "•") + "</i>"
+      + "<i aria-hidden=\"true\">" + uiIcon(it.key) + "</i>"
       + "<u>" + esc(navRail(it.key, it.title)) + "</u>"
       + "<span>" + esc(full) + "</span><cite></cite></button>";
   }).join("");
@@ -95,6 +112,7 @@ function paintNav(items, repaint){
       + '<i aria-hidden="true">▦</i><u>' + esc(hub) + "</u><span>" + esc(hub) + "</span></button>");
     $("#navAdmin").onclick = () => { location.href = "/admin/hub"; };
   }
+  paintMobileNav(list);
   Object.keys(BADGES).forEach(k => navBadge(k, BADGES[k]));
   if (repaint && TAB) { markTab(TAB); return; }
   /* ?tab=osgor — прямая ссылка на раздел: открываем его, если такой раздел человеку доступен */
@@ -103,8 +121,20 @@ function paintNav(items, repaint){
   openTab(want || (list.some(it => it.key === TAB) ? TAB : list[0].key));
 }
 
+function paintMobileNav(items){
+  const nav = $("#mobileNav");
+  if (!nav) return;
+  nav.classList.toggle("hidden", !items.length);
+  if (!items.length) { nav.innerHTML = ""; return; }
+  nav.innerHTML = items.filter(it => ["chat", "calc", "legal"].includes(it.key)).map(it =>
+    '<button type="button" data-tab="' + esc(it.key) + '">' + uiIcon(it.key) + '<span>'
+    + esc(it.key === "chat" ? T("tg.design.survey", "Осмотр") : navFull(it.key)) + '</span></button>'
+  ).join("") + '<button type="button" data-more aria-controls="side" aria-expanded="false">' + uiIcon("menu") + '<span>' + esc(T("tg.design.more", "Ещё")) + '</span></button>';
+  nav.querySelectorAll("[data-tab]").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+  nav.querySelector("[data-more]").onclick = () => { sideOpen(true); $("#burger").focus(); };
+}
 function markTab(key){
-  $("#nav").querySelectorAll("[data-tab]").forEach(b => {
+  document.querySelectorAll("#nav [data-tab], #mobileNav [data-tab]").forEach(b => {
     const on = b.dataset.tab === key;
     b.classList.toggle("on", on);
     b.setAttribute("aria-current", on ? "page" : "false");
@@ -164,8 +194,8 @@ function syncTgButtons(){
   if (TG.MainButton) tgCall(() => {
     if (!text) { TG.MainButton.hide(); return; }
     TG.MainButton.setText(text);
-    // цвет кнопки — наш фиолетовый, а не цвет темы Telegram
-    if (TG.MainButton.setParams) TG.MainButton.setParams({color: "#6D4AE8", text_color: "#FFFFFF"});
+    // Нативная кнопка совпадает с выбранной темой интерфейса.
+    if (TG.MainButton.setParams) TG.MainButton.setParams(tgThemeColors());
     if (off && !TGB.busy) TG.MainButton.disable(); else TG.MainButton.enable();
     TG.MainButton.show();
   });
@@ -208,6 +238,7 @@ window.addEventListener("i18n:changed", repaintCurrent);
 /* подписи, которые JS держит сам (у них нет data-i18n: текст меняется по ходу работы) */
 function paintStatic(){
   paintTop();
+  paintThemeToggle();
 }
 /* строка заголовка: название раздела; у мастера — название шага, как на снимке «Фото и документы» */
 function paintTop(){
@@ -411,6 +442,7 @@ const APP_BG = {chat: "chat", calc: "calc", osgor: "osgor", legal: "specialist",
   users: "documents", settings: "admin"};
 let APP_BG_NOW = "";
 function appBg(key){
+  if (window.INSON_MINI_APP) return; // Спокойный фон Clear Desk / Field Kit без декоративных изображений.
   const scene = APP_BG[key] || "particles";
   if (scene === APP_BG_NOW || document.body.classList.contains("fx-lite")) return;
   APP_BG_NOW = scene;

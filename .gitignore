@@ -47,3 +47,6 @@ docs/stat_uz_catalog.json
 __pycache__/
 *.pyc
 .railway/
+
+# Метаданные Finder остаются на локальном компьютере
+.DS_Store

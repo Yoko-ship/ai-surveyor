@@ -57,12 +57,21 @@ const okHtml = t => '<span class="ok">' + esc(t) + "</span>";
 function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-/* ---------- Telegram: готовность, разворот, светлая или тёмная тема ---------- */
-/* У мини-аппа своя палитра (заказчик 28.09.2026): лавандовый фон, белые карточки, фиолетовый акцент.
-   Telegram решает только, светлая она или тёмная, — по яркости своего фона (bg_color, section_bg_color)
-   или по colorScheme. Цвета Telegram на страницу не накладываются: ни на фон и текст, ни на кнопки
-   (у кнопок свои явные цвета — ui-kit выше), иначе разделы выглядели бы по-разному у разных тем клиента.
-   Шапку и фон самого клиента красим в наш цвет фона — так мини-апп не отделяется от рамки Telegram. */
+/* ---------- Clear Desk / Field Kit: одна структура, две темы ---------- */
+function uiIcon(name){
+  const paths = {
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    chat: '<path d="M8 5l2-2h4l2 2h4v15H4V5z"/><circle cx="12" cy="12" r="4"/>',
+    calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2m-8 3h2m4 0h2"/>',
+    legal: '<path d="M4 4h6l2 2 2-2h6v15h-6l-2 2-2-2H4zM12 6v15"/>',
+    osgor: '<path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/>',
+    users: '<circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0112 0v3M17 4a3 3 0 010 6m1 5a5 5 0 013 4v2"/>',
+    settings: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12l1 1M5 19l1-1M18 6l1-1"/>',
+    moon: '<path d="M20 14a8 8 0 01-10-10 8 8 0 1010 10z"/>'
+  };
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || paths.menu) + '</svg>';
+}
 function hexColor(s){
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(s || "").trim());
   if (!m) return null;
@@ -74,32 +83,58 @@ function luminance(hex){
     .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 }
-const THEME_URL = new URLSearchParams(location.search).get("theme");   // ?theme=dark — проверка тёмной темы
-/* светлая — по умолчанию, в том числе в обычном браузере */
-document.documentElement.dataset.theme = THEME_URL === "dark" ? "dark" : "light";
+const THEME_URL = new URLSearchParams(location.search).get("theme");
+let themePreference = THEME_URL;
+if (!(themePreference === "light" || themePreference === "dark")) {
+  try { themePreference = localStorage.getItem("surveyor-theme"); } catch (e) { themePreference = null; }
+}
+function paintThemeToggle(){
+  const b = $("#themeToggle");
+  if (!b) return;
+  const dark = document.documentElement.dataset.theme === "dark";
+  b.innerHTML = uiIcon(dark ? "sun" : "moon");
+  b.setAttribute("aria-label", dark ? T("tg.design.theme_light", "Включить светлую тему") : T("tg.design.theme_dark", "Включить тёмную тему"));
+  b.title = b.getAttribute("aria-label");
+  b.setAttribute("data-i18n-aria", dark ? "tg.design.theme_light" : "tg.design.theme_dark");
+}
+function tgThemeColors(){
+  const css = getComputedStyle(document.documentElement);
+  return {color: hexColor(css.getPropertyValue("--action")), text_color: hexColor(css.getPropertyValue("--on-accent"))};
+}
 function applyTheme(){
-  if (!TG) return;
   const root = document.documentElement;
-  if (!(THEME_URL === "light" || THEME_URL === "dark")) {
-    const p = TG.themeParams || {};
+  if (themePreference === "light" || themePreference === "dark") root.dataset.theme = themePreference;
+  else {
+    const p = TG && TG.themeParams || {};
     const base = hexColor(p.bg_color) || hexColor(p.section_bg_color) || hexColor(p.secondary_bg_color);
-    const dark = base ? luminance(base) < 0.4 : !!(TG.initData && TG.colorScheme === "dark");
+    const dark = base ? luminance(base) < 0.4 : !!(TG && TG.initData && TG.colorScheme === "dark");
     root.dataset.theme = dark ? "dark" : "light";
   }
-  const paper = hexColor(getComputedStyle(root).getPropertyValue("--paper"));
-  if (paper && TG.initData) {
-    tgCallEarly(() => TG.setHeaderColor(paper));
-    tgCallEarly(() => TG.setBackgroundColor(paper));
+  paintThemeToggle();
+  if (TG && TG.initData) {
+    const paper = hexColor(getComputedStyle(root).getPropertyValue("--paper"));
+    if (paper) {
+      tgCallEarly(() => TG.setHeaderColor(paper));
+      tgCallEarly(() => TG.setBackgroundColor(paper));
+    }
+    if (TG.MainButton && TG.MainButton.setParams) tgCallEarly(() => TG.MainButton.setParams(tgThemeColors()));
   }
 }
-function tgCallEarly(f){ try { f(); } catch (e) { /* старая версия клиента: цвета рамки не меняются */ } }
+function tgCallEarly(f){ try { f(); } catch (e) { /* старый клиент: сохраняем кнопки страницы */ } }
+applyTheme();
+const themeToggle = $("#themeToggle");
+if (themeToggle) themeToggle.onclick = () => {
+  themePreference = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("surveyor-theme", themePreference); } catch (e) {}
+  if (THEME_URL) {
+    const url = new URL(location.href); url.searchParams.set("theme", themePreference);
+    history.replaceState(null, "", url);
+  }
+  applyTheme();
+};
 if (TG) {
-  try {
-    TG.ready();
-    TG.expand();
-    applyTheme();
-    TG.onEvent("themeChanged", applyTheme);
-  } catch (e) { /* старая версия клиента — работаем на наших цветах */ }
+  try { TG.ready(); TG.expand(); TG.onEvent("themeChanged", applyTheme); }
+  catch (e) { /* старый клиент */ }
 }
 const IN_TG = !!(TG && TG.initData);
 

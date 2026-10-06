@@ -3,19 +3,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title data-i18n="tg.title">Сюрвейер INSON</title>
 <link rel="icon" href="data:,">
+<script>window.INSON_MINI_APP = true;</script>
+<script src="/theme.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- язык переключается без перезагрузки: app/i18n.js шлёт событие i18n:changed, страница перерисовывает экран -->
 <!-- переключатель RU/UZ/EN стоит в левом меню (#sideLang), плавающий из app/i18n.js здесь не нужен -->
 <script>window.I18N_LIVE = true; window.I18N_NO_FLOAT = true;</script>
 <script src="/i18n.js"></script>
 <style>
-/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
-   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
-   Контраст белого текста: основная — фиолетовый градиент #6D4AE8 → #4B2FC9 (5,5:1 на светлом краю, 8,2:1 на тёмном;
-   решение заказчика 28.09.2026); успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
-   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
-:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
-html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+/* ===== ui-kit кнопок INSON mini-app v2 — семантические цвета общей темы =====
+   Одна геометрия в светлой и тёмной темах. Основное действие — зелёное;
+   контраст текста обеспечивают пары --action / --on-accent. */
 .btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
   box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:12px;
   font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
@@ -23,9 +21,9 @@ html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--foc
 .btn svg{flex:none;width:18px;height:18px}
 .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
-.btn-primary,.btn-primary:visited{background:#5B3CD9 linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);border-color:#5B3CD9;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
-.btn-primary:hover:not(:disabled){background:#4B2FC9 linear-gradient(135deg,#5E3DDB 0%,#3F25B0 100%);border-color:#4B2FC9;color:#FFFFFF}
-.btn-primary:active:not(:disabled){background:#3A22A3}
+.btn-primary,.btn-primary:visited{background:var(--action);border-color:var(--action);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+.btn-primary:hover:not(:disabled){background:var(--action-hover);border-color:var(--action-hover);color:var(--on-accent)}
+.btn-primary:active:not(:disabled){background:var(--action-pressed)}
 .btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
 .btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
 .btn-success:active:not(:disabled){background:#0E5230}
@@ -44,25 +42,9 @@ html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--foc
 .actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
 @media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
 /* ===== конец ui-kit ===== */
-/* ===== Палитра INSON (заказчик 28.09.2026, снимки «Тарифы» и «Фото и документы») =====
-   Светлый фон с лавандовым оттенком, белые карточки со скруглением 16px и тонкой рамкой, тёмно-синий текст,
-   серо-лавандовый вторичный, один акцент — фиолетовый (кнопки — градиент #6D4AE8 → #4B2FC9, см. ui-kit).
-   Светлая тема — по умолчанию; тёмная — когда фон Telegram тёмный (или ?theme=dark). Цвета Telegram
-   на страницу не накладываются (applyTheme): все разделы выглядят одинаково у любой темы клиента.
-   Контраст на светлой теме (на белом / на фоне страницы): --ink 17,6 / 16,0; --muted 6,4 / 5,9;
-   --accent 6,8 / 6,1; --good 5,4; --warn 5,9; --stop 6,5. На тёмной: --muted 7,2; --accent 6,6 на карточке. */
-:root,html[data-theme="light"]{--paper:#F4F2FB;--card:#FFFFFF;--soft:#F1EEFB;--soft2:#F8F7FD;--ink:#16142E;--muted:#5E5A7A;--line:#E3DFF2;
-  --accent:#5B3CD9;--accent-dim:#6D4AE8;--accent-bg:rgba(109,74,232,.10);--accent-line:rgba(109,74,232,.38);
-  --grad:linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);--good:#177A41;--gold:#8A5A00;--warn:#8A5A00;--stop:#B3261E;
-  --on-accent:#FFFFFF;--on-stop:#FFFFFF;--brand-a:#1D2C8F;--brand-b:#177A41;
-  --btn-line:#C9C2E6;--btn-hover:rgba(91,60,217,.06);--focus:#5B3CD9;--link:#5B3CD9;
-  --shadow:0 1px 2px rgba(22,20,46,.04),0 6px 20px rgba(22,20,46,.05);
-  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+/* Цвета Clear Desk / Field Kit приходят из общей темы app/theme.js. */
+:root{--sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
   --rail:60px;--side:248px;--s1:8px;--s2:12px;--s3:16px;--s4:24px}
-html[data-theme="dark"]{--paper:#0F0E1A;--card:#17152A;--soft:#1F1C36;--soft2:#1A1830;--ink:#ECEAF7;--muted:#A5A1C4;--line:#2E2A4A;
-  --accent:#A993FF;--accent-dim:#7C5CF0;--accent-bg:rgba(169,147,255,.12);--accent-line:rgba(169,147,255,.40);
-  --good:#4CC684;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;--on-accent:#FFFFFF;--on-stop:#0F0E1A;--brand-a:#A993FF;--brand-b:#4CC684;
-  --btn-line:#4A4570;--btn-hover:rgba(255,255,255,.06);--focus:#A993FF;--link:#A993FF;--shadow:none}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;
@@ -1626,7 +1608,8 @@ body.cine .card{box-shadow:var(--shadow)}
 html[data-theme="dark"] body.cine .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
 /* переход между вкладками: 200 мс, лёгкий сдвиг снизу */
 [data-section]:not(.hidden){animation:secIn .2s cubic-bezier(.22,.61,.36,1) both}
-@keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* Не трансформировать предка fixed-панели действий: она привязана к viewport. */
+@keyframes secIn{from{opacity:0}to{opacity:1}}
 body.fx-still [data-section]:not(.hidden){animation:none}
 @media (prefers-reduced-motion:reduce){[data-section]:not(.hidden){animation:none}}
 /* полосы результата вырастают, спидометр проявляется — при каждой отрисовке */
@@ -1737,12 +1720,113 @@ p.note.brv-src{margin:6px 0 0}
 .tbl td.w90{width:90px}
 .tbl td.w1{width:1%}
 .tbl td.nw{white-space:nowrap}
+
+/* ===== Clear Desk / Field Kit — общий каркас осмотра, 06.10.2026 ===== */
+body{font-size:15px;-webkit-font-smoothing:antialiased}
+#appbg{display:none}
+body.cine{background:var(--paper)}
+html[data-theme="dark"] body.cine .card{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
+h1,h2,.wz-h,.sec-head h1{color:var(--heading);text-wrap:balance}
+.wz-h{font-size:28px;line-height:1.2;letter-spacing:-.035em;margin-bottom:8px}
+.wz-lead{font-size:14px;line-height:1.55;max-width:56ch;margin-bottom:24px}
+input,select,textarea{background-color:var(--control);min-height:48px;font-variant-numeric:tabular-nums}
+.btn{min-height:48px;border-radius:12px}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.card{padding:20px;border-radius:16px}
+.card h2{font-size:16px}
+.topbar{display:flex;justify-content:space-between;gap:12px;min-height:80px;background:var(--paper);border-bottom:1px solid var(--line)}
+.topbar-brand{min-width:0;display:flex;flex-direction:column;gap:6px}
+.topbar .logo{font-size:24px;letter-spacing:-.04em;line-height:1}
+.topbar .logo span:first-child{color:var(--brand-a)}
+.topbar .logo span:last-child{color:var(--brand-b)}
+.topbar .tb-title{font-size:12px;font-weight:500;color:var(--muted);text-align:left;max-width:none}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+.icon-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.icon-button:hover{background:var(--btn-hover)}
+.icon-button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+#mobileMenu{display:none}
+#nav button i svg{width:21px;height:21px;vertical-align:middle}
+body.side-wide #side{background:var(--paper);padding-top:24px}
+body.side-open #nav{padding:16px 12px;gap:4px}
+body.side-open #nav button{border-radius:10px;padding:10px 12px;gap:12px}
+body.side-open #nav button i{width:24px}
+#nav button.on{box-shadow:none;font-weight:700}
+#nav button:hover{background:var(--btn-hover)}
+#sideLang button{min-height:44px}
+.tgopen{box-shadow:none;padding:0;border:0;background:none;gap:4px;margin-bottom:16px}
+.tgopen .btn{padding:4px 0;min-height:44px;font-size:12px}
+.tgopen p{flex-basis:100%;font-size:12px}
+.tgopen.hidden{display:none}
+#pdWarn{font-size:12px;line-height:1.5;border:0;border-left:3px solid var(--warn);border-radius:4px;background:var(--warn-bg);padding:8px 12px}
+.wz-steps{gap:0;margin:24px 0 28px}
+.wz-steps li{position:relative}
+.wz-steps li:not(:last-child)::after{content:"";position:absolute;top:17px;left:calc(50% + 22px);width:calc(100% - 44px);height:1px;background:var(--line)}
+.wz-steps li.done::after{background:var(--accent)}
+.wz-steps button{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;padding:0 4px 4px;min-height:64px;font-size:12px}
+.wz-steps button b{display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;border:1px solid var(--line);border-radius:50%;background:var(--soft);color:var(--muted);font:700 14px var(--sans)}
+.wz-steps li.on button b,.wz-steps li.done button b{background:var(--action);border-color:var(--action);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+.wz-steps li.done button{color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.capture{background:var(--capture);border:1px dashed var(--btn-line);border-radius:16px;padding:24px;text-align:center}
+.capture-icon{display:flex;justify-content:center;align-items:center;margin:0 auto 16px;width:64px;height:64px;border-radius:18px;background:var(--accent-bg);color:var(--accent)}
+.capture-icon svg{width:32px;height:32px}
+.capture>h3{margin:0 0 8px;font-size:17px;letter-spacing:-.02em;color:var(--heading)}
+.capture>p{margin:0 0 24px;font-size:13px;color:var(--muted)}
+.wz-tiles{gap:12px}
+.wz-tile{min-height:52px;flex-direction:row;gap:8px;padding:12px;background:var(--card);border:1px solid var(--btn-line);border-radius:10px;font-size:13px}
+.wz-tile svg{width:20px;height:20px;flex:none}
+.wz-tile:hover{background:var(--btn-hover);border-color:var(--accent)}
+.wz-drop{min-height:44px;padding:8px;margin:12px 0 0;border:0;background:none;font-size:12px}
+.upload-help{margin:16px 0;color:var(--muted);font-size:12px}
+.upload-help summary{min-height:44px;display:list-item;cursor:pointer;padding:12px 0;font-weight:600;color:var(--ink)}
+.upload-help summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.upload-help .hint{line-height:1.65;margin:0 0 12px}
+#wzFiles .wz-files{background:none;border:0;box-shadow:none;padding:0;margin-top:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#wzFiles .wz-files>.eyebrow{grid-column:1/-1;color:var(--ink);font-size:13px;text-transform:none;letter-spacing:0;margin-bottom:0}
+#wzFiles .wz-file{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:0 0 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+#wzFiles .wz-file .ic{width:100%;height:128px;border-radius:0;background:var(--soft);font-size:22px;text-transform:uppercase;color:var(--muted)}
+#wzFiles .wz-file>span:not(.ic){padding:0 12px}
+#wzFiles .wz-file small{font-size:11px}
+#wzFiles .wz-file .rm{position:absolute;right:4px;top:4px;width:44px;height:44px;border-radius:50%;background:var(--card);color:var(--ink);-webkit-text-fill-color:var(--ink);font-size:22px;text-decoration:none;box-shadow:var(--shadow)}
+#wzFiles .wz-file .cbk{margin:0 8px;font-size:11px;min-height:44px}
+#wzFiles .wz-file .bar{width:100%;padding:0;margin-top:auto}
+.wz-need{box-shadow:none;background:var(--card)}
+.wz-need h2{font-size:14px}
+.wz-need p.sub,.wz-need p.note{font-size:12px}
+.wz-warn{font-size:12px;line-height:1.6}
+.wz-bar{box-shadow:none}
+.wz-bar .btn{border-radius:12px}
+#mobileNav{display:none}
+/* Телефон: вся ширина занята рабочей областью, остальные разделы — в меню. */
+@media(max-width:899px){
+  body,body.side-wide{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  .wrap{padding:0 20px calc(80px + var(--safe-bottom));max-width:752px}
+  #side{width:min(300px,86vw);transform:translateX(-100%);visibility:hidden;transition:transform .18s ease-out,visibility .18s}
+  body.side-open #side{width:min(300px,86vw);transform:none;visibility:visible}
+  .topbar{margin:0 -20px 16px;padding:8px 20px;min-height:76px;padding-top:calc(8px + env(safe-area-inset-top))}
+  #mobileMenu{display:inline-flex}
+  .topbar-brand{align-items:center;flex:1}
+  .topbar .tb-title{font-size:11px;max-width:48vw;text-align:center}
+  .topbar .logo{font-size:22px}
+  .wz-h{font-size:27px}
+  .capture{padding:20px 16px}
+  .card{padding:16px}
+  .wz-bar,body.side-wide .wz-bar{left:0;bottom:calc(64px + var(--safe-bottom));padding:12px 20px;border-top:1px solid var(--line)}
+  #mobileNav:not(.hidden){position:fixed;display:flex;align-items:stretch;bottom:0;left:0;right:0;z-index:46;height:calc(64px + var(--safe-bottom));padding:4px 12px calc(4px + var(--safe-bottom));background:var(--card);border-top:1px solid var(--line)}
+  #mobileNav button{flex:1;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 2px;border:0;border-radius:10px;background:none;color:var(--muted);font:600 10px var(--sans)}
+  #mobileNav button svg{width:22px;height:22px}
+  #mobileNav button.on{color:var(--accent);background:var(--accent-bg)}
+  #mobileNav button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  #tab-chat{padding-bottom:100px}
+  body.in-tg #tab-chat{padding-bottom:16px}
+}
+@media(max-width:359px){.wrap{padding-left:16px;padding-right:16px}.topbar{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.wz-tiles{grid-template-columns:1fr}.capture{padding:16px}.wz-h{font-size:25px}}
+@media(prefers-reduced-motion:reduce){#side,.btn,[data-section]{transition:none!important;animation:none!important}.btn:active:not(:disabled){transform:none}}
 </style>
 
 <aside id="side">
   <button class="burger" id="burger" type="button" aria-controls="nav" aria-expanded="false">
     <i aria-hidden="true">&#9776;</i><span data-i18n="tg.menu_collapse">Свернуть меню</span></button>
-  <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
+  <div class="brand"><i aria-hidden="true"><b>INS</b><b>ON</b></i>
     <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode"></span></div></div>
   <nav id="nav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
   <!-- Способы входа: как этот человек попадает в приложение. Данные: GET /auth/links →
@@ -1796,10 +1880,14 @@ p.note.brv-src{margin:6px 0 0}
 
 <div class="wrap">
   <!-- строка заголовка раздела: название по центру (ставит paintTop), INSON справа -->
-  <header class="topbar" id="topbar"><span aria-hidden="true"></span><div class="tb-title" id="topTitle" role="heading" aria-level="1"></div><b class="logo">INSON</b></header>
+  <header class="topbar" id="topbar">
+    <button type="button" class="icon-button" id="mobileMenu" aria-controls="side" aria-expanded="false" data-i18n-aria="tg.design.menu" aria-label="Открыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div class="topbar-brand"><b class="logo"><span>INS</span><span>ON</span></b><div class="tb-title" id="topTitle"></div></div>
+    <button type="button" class="icon-button" id="themeToggle" data-i18n-aria="tg.design.theme_dark" aria-label="Включить тёмную тему"></button>
+  </header>
   <!-- страница открыта не в Telegram: ведём в мини-апп, там вход автоматический -->
   <div class="tgopen hidden" id="tgOpenBar">
-    <a class="btn btn-primary" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
+    <a class="btn btn-link" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
     <p data-i18n="tg.open_in_tg_hint">Приложение работает внутри Telegram — там вход автоматический.</p>
   </div>
   <div class="banner" id="pdWarn" data-i18n="tg.test_server_rule">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
@@ -1946,6 +2034,7 @@ p.note.brv-src{margin:6px 0 0}
 </div>
 
 
+<nav id="mobileNav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
 <script>
 /* app/tg/js/core.js — утилиты, форматирование чисел и дат, Telegram WebApp, api(), состояние входа (ME) */
 const $ = s => document.querySelector(s);
@@ -2006,12 +2095,21 @@ const okHtml = t => '<span class="ok">' + esc(t) + "</span>";
 function anLoadingCard(){ return '<p class="note">' + spin(T("common.loading", "загружаю…")) + "</p>"; }
 const TG = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
 
-/* ---------- Telegram: готовность, разворот, светлая или тёмная тема ---------- */
-/* У мини-аппа своя палитра (заказчик 28.09.2026): лавандовый фон, белые карточки, фиолетовый акцент.
-   Telegram решает только, светлая она или тёмная, — по яркости своего фона (bg_color, section_bg_color)
-   или по colorScheme. Цвета Telegram на страницу не накладываются: ни на фон и текст, ни на кнопки
-   (у кнопок свои явные цвета — ui-kit выше), иначе разделы выглядели бы по-разному у разных тем клиента.
-   Шапку и фон самого клиента красим в наш цвет фона — так мини-апп не отделяется от рамки Telegram. */
+/* ---------- Clear Desk / Field Kit: одна структура, две темы ---------- */
+function uiIcon(name){
+  const paths = {
+    menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+    chat: '<path d="M8 5l2-2h4l2 2h4v15H4V5z"/><circle cx="12" cy="12" r="4"/>',
+    calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2m4 0h2m-8 4h2m4 0h2m-8 3h2m4 0h2"/>',
+    legal: '<path d="M4 4h6l2 2 2-2h6v15h-6l-2 2-2-2H4zM12 6v15"/>',
+    osgor: '<path d="M12 3l8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/>',
+    users: '<circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0112 0v3M17 4a3 3 0 010 6m1 5a5 5 0 013 4v2"/>',
+    settings: '<path d="M4 6h16M4 12h16M4 18h16"/><circle cx="8" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="10" cy="18" r="2"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1 1m12 12l1 1M5 19l1-1M18 6l1-1"/>',
+    moon: '<path d="M20 14a8 8 0 01-10-10 8 8 0 1010 10z"/>'
+  };
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || paths.menu) + '</svg>';
+}
 function hexColor(s){
   const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(s || "").trim());
   if (!m) return null;
@@ -2023,32 +2121,58 @@ function luminance(hex){
     .map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
   return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
 }
-const THEME_URL = new URLSearchParams(location.search).get("theme");   // ?theme=dark — проверка тёмной темы
-/* светлая — по умолчанию, в том числе в обычном браузере */
-document.documentElement.dataset.theme = THEME_URL === "dark" ? "dark" : "light";
+const THEME_URL = new URLSearchParams(location.search).get("theme");
+let themePreference = THEME_URL;
+if (!(themePreference === "light" || themePreference === "dark")) {
+  try { themePreference = localStorage.getItem("surveyor-theme"); } catch (e) { themePreference = null; }
+}
+function paintThemeToggle(){
+  const b = $("#themeToggle");
+  if (!b) return;
+  const dark = document.documentElement.dataset.theme === "dark";
+  b.innerHTML = uiIcon(dark ? "sun" : "moon");
+  b.setAttribute("aria-label", dark ? T("tg.design.theme_light", "Включить светлую тему") : T("tg.design.theme_dark", "Включить тёмную тему"));
+  b.title = b.getAttribute("aria-label");
+  b.setAttribute("data-i18n-aria", dark ? "tg.design.theme_light" : "tg.design.theme_dark");
+}
+function tgThemeColors(){
+  const css = getComputedStyle(document.documentElement);
+  return {color: hexColor(css.getPropertyValue("--action")), text_color: hexColor(css.getPropertyValue("--on-accent"))};
+}
 function applyTheme(){
-  if (!TG) return;
   const root = document.documentElement;
-  if (!(THEME_URL === "light" || THEME_URL === "dark")) {
-    const p = TG.themeParams || {};
+  if (themePreference === "light" || themePreference === "dark") root.dataset.theme = themePreference;
+  else {
+    const p = TG && TG.themeParams || {};
     const base = hexColor(p.bg_color) || hexColor(p.section_bg_color) || hexColor(p.secondary_bg_color);
-    const dark = base ? luminance(base) < 0.4 : !!(TG.initData && TG.colorScheme === "dark");
+    const dark = base ? luminance(base) < 0.4 : !!(TG && TG.initData && TG.colorScheme === "dark");
     root.dataset.theme = dark ? "dark" : "light";
   }
-  const paper = hexColor(getComputedStyle(root).getPropertyValue("--paper"));
-  if (paper && TG.initData) {
-    tgCallEarly(() => TG.setHeaderColor(paper));
-    tgCallEarly(() => TG.setBackgroundColor(paper));
+  paintThemeToggle();
+  if (TG && TG.initData) {
+    const paper = hexColor(getComputedStyle(root).getPropertyValue("--paper"));
+    if (paper) {
+      tgCallEarly(() => TG.setHeaderColor(paper));
+      tgCallEarly(() => TG.setBackgroundColor(paper));
+    }
+    if (TG.MainButton && TG.MainButton.setParams) tgCallEarly(() => TG.MainButton.setParams(tgThemeColors()));
   }
 }
-function tgCallEarly(f){ try { f(); } catch (e) { /* старая версия клиента: цвета рамки не меняются */ } }
+function tgCallEarly(f){ try { f(); } catch (e) { /* старый клиент: сохраняем кнопки страницы */ } }
+applyTheme();
+const themeToggle = $("#themeToggle");
+if (themeToggle) themeToggle.onclick = () => {
+  themePreference = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  try { localStorage.setItem("surveyor-theme", themePreference); } catch (e) {}
+  if (THEME_URL) {
+    const url = new URL(location.href); url.searchParams.set("theme", themePreference);
+    history.replaceState(null, "", url);
+  }
+  applyTheme();
+};
 if (TG) {
-  try {
-    TG.ready();
-    TG.expand();
-    applyTheme();
-    TG.onEvent("themeChanged", applyTheme);
-  } catch (e) { /* старая версия клиента — работаем на наших цветах */ }
+  try { TG.ready(); TG.expand(); TG.onEvent("themeChanged", applyTheme); }
+  catch (e) { /* старый клиент */ }
 }
 const IN_TG = !!(TG && TG.initData);
 
@@ -2141,6 +2265,14 @@ const WIDE = window.matchMedia("(min-width:900px)");
 function sideOpen(on){
   document.body.classList.toggle("side-open", !!on);
   $("#burger").setAttribute("aria-expanded", on ? "true" : "false");
+  const menu = $("#mobileMenu");
+  if (menu) menu.setAttribute("aria-expanded", on ? "true" : "false");
+  const side = $("#side");
+  side.inert = !on && !WIDE.matches;
+  if (menu && !WIDE.matches) {
+    const more = $("#mobileNav [data-more]");
+    if (more) more.setAttribute("aria-expanded", on ? "true" : "false");
+  }
 }
 function sideSync(){
   document.body.classList.toggle("side-wide", WIDE.matches);
@@ -2148,12 +2280,21 @@ function sideSync(){
 }
 if (WIDE.addEventListener) WIDE.addEventListener("change", sideSync); else WIDE.addListener(sideSync);
 sideSync();
-$("#burger").onclick = () => sideOpen(!document.body.classList.contains("side-open"));
+$("#burger").onclick = () => { sideOpen(false); const b = $("#mobileMenu"); if (b) b.focus(); };
+if ($("#mobileMenu")) $("#mobileMenu").onclick = () => { sideOpen(true); $("#burger").focus(); };
 $("#scrim").onclick = () => { if (!WIDE.matches) sideOpen(false); };
-document.addEventListener("keydown", e => { if (e.key === "Escape" && !WIDE.matches) sideOpen(false); });
+document.addEventListener("keydown", e => {
+  if (WIDE.matches || !document.body.classList.contains("side-open")) return;
+  if (e.key === "Escape") { sideOpen(false); $("#mobileMenu").focus(); }
+  if (e.key === "Tab") {
+    const items = Array.from($("#side").querySelectorAll('button, a[href], input, select, [tabindex="0"]')).filter(el => !el.disabled && el.getClientRects().length);
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  }
+});
 
 /* ---------- разделы меню: рисуются по ответу сервера ---------- */
-const NAV_ICON = {chat: "◎", calc: "₌", osgor: "⛨", legal: "⚖", users: "◍", settings: "⚙"};
 /* «Аналитику» и «Фото» сервер отдаёт по отдельности — в интерфейсе это один раздел «ИИ-сюрвейер».
    «Калькулятор» остаётся сам по себе: быстрый расчёт премии без диалога. */
 const NAV_MERGE = {analytics: "chat", photos: "chat"};
@@ -2202,11 +2343,11 @@ function paintNav(items, repaint){
   // «Настройки» с профилем — у всех: сервер отдаёт этот пункт только админу, остальным добавляем сами
   if (ME.user && !list.some(it => it.key === "settings")) list.push({key: "settings", title: ""});
   nav.classList.toggle("hidden", !list.length);
-  if (!list.length) { nav.innerHTML = ""; return; }
+  if (!list.length) { nav.innerHTML = ""; paintMobileNav([]); return; }
   nav.innerHTML = list.map(it => {
     const full = navFull(it.key, it.title);
     return '<button type="button" data-tab="' + esc(it.key) + '" title="' + esc(full) + '">'
-      + "<i aria-hidden=\"true\">" + esc(NAV_ICON[it.key] || "•") + "</i>"
+      + "<i aria-hidden=\"true\">" + uiIcon(it.key) + "</i>"
       + "<u>" + esc(navRail(it.key, it.title)) + "</u>"
       + "<span>" + esc(full) + "</span><cite></cite></button>";
   }).join("");
@@ -2221,6 +2362,7 @@ function paintNav(items, repaint){
       + '<i aria-hidden="true">▦</i><u>' + esc(hub) + "</u><span>" + esc(hub) + "</span></button>");
     $("#navAdmin").onclick = () => { location.href = "/admin/hub"; };
   }
+  paintMobileNav(list);
   Object.keys(BADGES).forEach(k => navBadge(k, BADGES[k]));
   if (repaint && TAB) { markTab(TAB); return; }
   /* ?tab=osgor — прямая ссылка на раздел: открываем его, если такой раздел человеку доступен */
@@ -2229,8 +2371,20 @@ function paintNav(items, repaint){
   openTab(want || (list.some(it => it.key === TAB) ? TAB : list[0].key));
 }
 
+function paintMobileNav(items){
+  const nav = $("#mobileNav");
+  if (!nav) return;
+  nav.classList.toggle("hidden", !items.length);
+  if (!items.length) { nav.innerHTML = ""; return; }
+  nav.innerHTML = items.filter(it => ["chat", "calc", "legal"].includes(it.key)).map(it =>
+    '<button type="button" data-tab="' + esc(it.key) + '">' + uiIcon(it.key) + '<span>'
+    + esc(it.key === "chat" ? T("tg.design.survey", "Осмотр") : navFull(it.key)) + '</span></button>'
+  ).join("") + '<button type="button" data-more aria-controls="side" aria-expanded="false">' + uiIcon("menu") + '<span>' + esc(T("tg.design.more", "Ещё")) + '</span></button>';
+  nav.querySelectorAll("[data-tab]").forEach(b => { b.onclick = () => openTab(b.dataset.tab); });
+  nav.querySelector("[data-more]").onclick = () => { sideOpen(true); $("#burger").focus(); };
+}
 function markTab(key){
-  $("#nav").querySelectorAll("[data-tab]").forEach(b => {
+  document.querySelectorAll("#nav [data-tab], #mobileNav [data-tab]").forEach(b => {
     const on = b.dataset.tab === key;
     b.classList.toggle("on", on);
     b.setAttribute("aria-current", on ? "page" : "false");
@@ -2290,8 +2444,8 @@ function syncTgButtons(){
   if (TG.MainButton) tgCall(() => {
     if (!text) { TG.MainButton.hide(); return; }
     TG.MainButton.setText(text);
-    // цвет кнопки — наш фиолетовый, а не цвет темы Telegram
-    if (TG.MainButton.setParams) TG.MainButton.setParams({color: "#6D4AE8", text_color: "#FFFFFF"});
+    // Нативная кнопка совпадает с выбранной темой интерфейса.
+    if (TG.MainButton.setParams) TG.MainButton.setParams(tgThemeColors());
     if (off && !TGB.busy) TG.MainButton.disable(); else TG.MainButton.enable();
     TG.MainButton.show();
   });
@@ -2334,6 +2488,7 @@ window.addEventListener("i18n:changed", repaintCurrent);
 /* подписи, которые JS держит сам (у них нет data-i18n: текст меняется по ходу работы) */
 function paintStatic(){
   paintTop();
+  paintThemeToggle();
 }
 /* строка заголовка: название раздела; у мастера — название шага, как на снимке «Фото и документы» */
 function paintTop(){
@@ -2537,6 +2692,7 @@ const APP_BG = {chat: "chat", calc: "calc", osgor: "osgor", legal: "specialist",
   users: "documents", settings: "admin"};
 let APP_BG_NOW = "";
 function appBg(key){
+  if (window.INSON_MINI_APP) return; // Спокойный фон Clear Desk / Field Kit без декоративных изображений.
   const scene = APP_BG[key] || "particles";
   if (scene === APP_BG_NOW || document.body.classList.contains("fx-lite")) return;
   APP_BG_NOW = scene;
@@ -3749,7 +3905,7 @@ function wzBack(){ if (CH.wz > 1) wzGo(CH.wz - 1); }
 function wzMainLabel(){
   if (CH.wz === 1) {
     if (CH.busy) return CH.phase === "read" ? T("tg.act.reading_btn", "Читаю фото…") : T("tg.wz.uploading", "Загружаю… {n}%", {n: CH.upPct || 0});
-    return CH.queue.length || CH.photoCount ? T("tg.wz.next", "Дальше") : T("tg.act.no_photos", "Без фото");
+    return CH.queue.length || CH.photoCount ? T("tg.wz.next", "Проверить материалы") : T("tg.act.no_photos", "Без фото");
   }
   if (CH.wz === 2) return CH.busy ? T("tg.act.making", "Формирую акт…") : T("tg.act.make", "Сформировать акт");
   if (!IN_TG) return T("tg.act.dl_pdf", "Скачать PDF");
@@ -3816,16 +3972,21 @@ const msgHtml = () => '<div class="msg" role="status">' + (CH.err ? errHtml(CH.e
 
 /* ---------- шаг 1: фото и снимки документов ---------- */
 function wzStep1Html(){
-  return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Сфотографируйте объект")) + "</h2>"
-    + '<p class="wz-lead">' + esc(T("tg.act.s1_lead", "Снимите объект и документы на него. Приложение прочитает снимки и подскажет, каких ракурсов не хватает.")) + "</p>"
+  return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Новый осмотр")) + "</h2>"
+    + '<p class="wz-lead">' + esc(T("tg.act.s1_lead", "Добавьте фото и документы. Затем проверьте сведения перед подготовкой акта.")) + "</p>"
+    + '<div class="capture"><div class="capture-icon" aria-hidden="true">' + ICON_CAM + '</div>'
+    + '<h3>' + esc(T("tg.design.capture_title", "Фото и документы объекта")) + '</h3>'
+    + '<p>' + esc(T("tg.design.capture_hint", "Общий вид, детали и документы — в одном осмотре")) + '</p>'
     + '<div class="wz-tiles">'
-    + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Камера")) + "</span></button>"
-    + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Галерея / файлы")) + "</span></button>"
+    + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Сделать фото")) + "</span></button>"
+    + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Выбрать файлы")) + "</span></button>"
     + "</div>"
-    + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
+    + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button></div>"
+    + '<details class="upload-help"><summary>' + esc(T("tg.design.file_help", "Форматы и требования к файлам")) + "</summary>"
     + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
     + '<p class="hint">' + esc(T("tg.act.formats_more", "Кроме фото можно загрузить запрос филиала, договор страхования, техпаспорт или лист технических параметров — скан, фото, PDF, Word или Excel. Запрос и договор приложение прочитает и сверит с расчётом акта; Word, Excel и PDF с текстом разберёт без модели.")) + "</p>"
     + (cbCredit() ? '<p class="hint cb-hint">' + esc(T("tg.cb.s1_hint", "Кредитный продукт: можно загрузить отчёт кредитного бюро по заёмщику — только PDF с текстом (скан не читается: отчёт содержит кредитную историю). Данные бюро в ставку не входят, это проверки андеррайтеру.")) + "</p>" : "")
+    + '</details>'
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
     + '<div id="wzViews">' + wzViewsHtml() + "</div>"
     + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
@@ -3876,12 +4037,12 @@ function wzFilesHtml(){
     else if (q.sent && q.isDoc) { state = T("tg.act.st_doc_empty", "документ не разобран — введите данные сами"); cls = "warn"; }
     else if (q.sent && q.notRead) { state = T("tg.act.st_not_read", "не прочитан: не поместился в запрос"); cls = "warn"; }
     else if (q.sent) state = q.view ? T("tg.act.st_view", "прочитан · {v}", {v: viewName(q.view)}) : T("tg.act.st_sent", "прочитан");
-    else state = T("tg.act.st_queued", "уйдёт по кнопке «Дальше»");
+    else state = T("tg.act.st_queued", "готов к проверке");
     return '<div class="wz-file' + (q.error ? " bad" : "") + '"><span class="ic" aria-hidden="true">'
       + (q.url ? '<img src="' + esc(q.url) + '" alt="">' : esc(extOf(q.name))) + "</span>"
       + "<span><b>" + esc(q.name) + '</b><small class="' + cls + '">' + esc(sizeName(q.size) + " · " + state) + "</small></span>"
       + (CH.busy ? (CH.phase === "upload" ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>" : '<span class="st"></span>')
-        : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
+        : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + '<span aria-hidden="true">×</span>' + "</button>")
       + (CH.busy && CH.phase === "upload" ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "")
       + (cbKindable(q) ? '<button type="button" class="cbk" data-cbk="' + q.id + '" aria-pressed="' + (q.isCb ? "true" : "false") + '">'
         + esc(T("tg.cb.mark", "это отчёт бюро")) + "</button>" : "") + "</div>";

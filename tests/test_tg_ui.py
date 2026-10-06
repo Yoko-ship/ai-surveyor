@@ -412,30 +412,26 @@ def check_candidates_and_exports(rid, uids):
 
 
 def check_ui_kit(html):
-    """Кнопки (21.09.2026): один ui-kit на tg.html, admin_hub.html, login.html; тема Telegram кнопки не перекрашивает."""
+    """Мини-приложение использует две семантические палитры; остальные страницы сохраняют ui-kit."""
     app_dir = Path(__file__).resolve().parent.parent / "app"
-    pat = re.compile(r"/\* ===== ui-kit кнопок INSON v1.*?/\* ===== конец ui-kit ===== \*/", re.S)
+    pat = re.compile(r"/\* ===== ui-kit кнопок INSON .*?/\* ===== конец ui-kit ===== \*/", re.S)
     kits = {n: pat.search((app_dir / n).read_text(encoding="utf-8")) for n in ("tg.html", "admin_hub.html", "login.html")}
-    miss = [n for n, m in kits.items() if not m]
-    assert not miss, "нет блока ui-kit в " + ", ".join(miss)
-    assert len({m.group(0) for m in kits.values()}) == 1, "блок ui-kit на страницах различается"
+    assert all(kits.values()), "нет блока ui-kit"
+    assert kits["admin_hub.html"].group(0) == kits["login.html"].group(0), "изменён ui-kit других страниц"
     kit = kits["tg.html"].group(0)
     for cls in (".btn-primary", ".btn-secondary", ".btn-danger", ".btn-success", ".btn-link"):
         assert cls + "," in kit or cls + "{" in kit, "в ui-kit нет " + cls
-    assert "min-height:44px" in kit and "-webkit-text-fill-color:#FFFFFF" in kit, "кнопки ниже 44px или без явного цвета текста"
-    # старые классы кнопок в мини-аппе больше не используются
-    old = re.findall(r'<button[^>]*class="(?:go|ghost|no)"', html)
-    assert not old, "остались старые классы кнопок: " + str(old[:5])
-    # тема Telegram (28.09.2026): своя палитра INSON, Telegram выбирает только светлую или тёмную —
-    # ни кнопки (button_color), ни фон и текст страницы его цветами не перекрашиваются
-    assert "button_color" not in html and "link_color" not in html, "цвета кнопок Telegram снова накладываются на страницу"
-    left = [v for v in ("--paper", "--card", "--ink", "--muted") if f'root.style.setProperty("{v}"' in html]
-    assert not left, "цвета Telegram снова перекрашивают страницу: " + ", ".join(left)
-    assert "function applyTheme(" in html and "luminance(base)" in html, "светлая или тёмная тема не выбирается по фону Telegram"
-    assert 'dataset.theme = THEME_URL === "dark" ? "dark" : "light"' in html, "светлая тема не по умолчанию"
-    # основная кнопка — фиолетовый градиент, белый текст (контраст 5,5:1 и 8,2:1 — в комментарии ui-kit)
-    assert "linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%)" in kit, "основная кнопка не фиолетовым градиентом"
-    print("20. ui-kit кнопок один на три страницы, основная — фиолетовый градиент, тема Telegram страницу не перекрашивает — ок")
+    assert "min-height:44px" in kit and "-webkit-text-fill-color:var(--on-accent)" in kit
+    assert not re.findall(r'<button[^>]*class="(?:go|ghost|no)"', html), "остались старые классы кнопок"
+    assert "button_color" not in html and "link_color" not in html, "Telegram перекрашивает палитру"
+    assert "function applyTheme(" in html and "luminance(base)" in html
+    assert 'localStorage.setItem("surveyor-theme", themePreference)' in html, "выбор темы не сохраняется"
+    assert 'id="themeToggle"' in html and 'src="/theme.js"' in html
+    assert "background:var(--action)" in kit and "color:var(--on-accent)" in kit
+    theme = (app_dir / "theme.js").read_text(encoding="utf-8")
+    assert 'window.INSON_MINI_APP' in theme and '--action:#147D47' in theme and '--action:#46D588' in theme
+    assert 'id="mobileNav"' in html and 'side.inert = !on && !WIDE.matches' in html
+    print("20. две палитры мини-приложения, сохранение темы, общие цвета веб/Telegram и мобильная навигация — ок")
 
 
 def check_removed_tabs(html):
@@ -491,7 +487,7 @@ def check_chat_tab(html):
         'data-pick="cam"': "нет плитки «Камера»",
         'data-pick="files"': "нет плитки «Галерея / файлы»",
         'T("tg.act.no_photos", "Без фото")': "нет кнопки «Без фото»",
-        'T("tg.wz.next", "Дальше")': "кнопка не меняется на «Дальше», когда файлы есть",
+        'T("tg.wz.next", "Проверить материалы")': "нет перехода к проверке материалов",
         'T("tg.act.reading", "Читаю фото…")': "пока модель читает фото, индикатора нет",
         "CH.warning": "предупреждение сервера о данных людей не показывается",
         "anObj(tp.required_views)": "нужные ракурсы не подсказываются по шаблону класса",
@@ -523,7 +519,7 @@ def check_chat_tab(html):
         'T("tg.act.new", "Новый акт")': "нет кнопки «Новый акт»",
         'T("tg.chat.ask_legal", "Спросить специалиста")': "нет кнопки «Спросить специалиста»",
         "back = CH.wz > 1 ? wzBack : null": "«Назад» Telegram не ведёт на шаг раньше",
-        'color: "#6D4AE8"': "основная кнопка Telegram не фиолетовая",
+        'TG.MainButton.setParams(tgThemeColors())': "Telegram не использует цвета выбранной темы",
         'id="topbar"': "нет строки заголовка раздела",
         # 29.09.2026: документы без модели, prefill, уточнения сценариев, франшиза, PML/EML/MFL, рекомендации
         'CH_EXT = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"]': "DOCX и XLSX не принимаются",

@@ -3,6 +3,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title data-i18n="tg.title">Сюрвейер INSON</title>
 <link rel="icon" href="data:,">
+<script>window.INSON_MINI_APP = true;</script>
+<script src="/theme.js"></script>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <!-- язык переключается без перезагрузки: app/i18n.js шлёт событие i18n:changed, страница перерисовывает экран -->
 <!-- переключатель RU/UZ/EN стоит в левом меню (#sideLang), плавающий из app/i18n.js здесь не нужен -->
@@ -14,7 +16,7 @@
 <aside id="side">
   <button class="burger" id="burger" type="button" aria-controls="nav" aria-expanded="false">
     <i aria-hidden="true">&#9776;</i><span data-i18n="tg.menu_collapse">Свернуть меню</span></button>
-  <div class="brand"><i aria-hidden="true"><b>IN</b><b>S</b></i>
+  <div class="brand"><i aria-hidden="true"><b>INS</b><b>ON</b></i>
     <div><b class="t" data-i18n="tg.title">Сюрвейер INSON</b><span id="mode"></span></div></div>
   <nav id="nav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
   <!-- Способы входа: как этот человек попадает в приложение. Данные: GET /auth/links →
@@ -68,10 +70,14 @@
 
 <div class="wrap">
   <!-- строка заголовка раздела: название по центру (ставит paintTop), INSON справа -->
-  <header class="topbar" id="topbar"><span aria-hidden="true"></span><div class="tb-title" id="topTitle" role="heading" aria-level="1"></div><b class="logo">INSON</b></header>
+  <header class="topbar" id="topbar">
+    <button type="button" class="icon-button" id="mobileMenu" aria-controls="side" aria-expanded="false" data-i18n-aria="tg.design.menu" aria-label="Открыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <div class="topbar-brand"><b class="logo"><span>INS</span><span>ON</span></b><div class="tb-title" id="topTitle"></div></div>
+    <button type="button" class="icon-button" id="themeToggle" data-i18n-aria="tg.design.theme_dark" aria-label="Включить тёмную тему"></button>
+  </header>
   <!-- страница открыта не в Telegram: ведём в мини-апп, там вход автоматический -->
   <div class="tgopen hidden" id="tgOpenBar">
-    <a class="btn btn-primary" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
+    <a class="btn btn-link" id="tgOpenLink" href="https://t.me/inson_surveyor_bot?start=app" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M21.94 4.3 18.9 18.9c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.95.46l.34-4.79 8.72-7.88c.38-.34-.08-.53-.59-.19L6.97 12.8l-4.64-1.45c-1.01-.32-1.03-1.01.21-1.5l18.14-6.99c.84-.31 1.58.2 1.26 1.44z"/></svg><span data-i18n="tg.open_in_tg">Открыть в Telegram</span></a>
     <p data-i18n="tg.open_in_tg_hint">Приложение работает внутри Telegram — там вход автоматический.</p>
   </div>
   <div class="banner" id="pdWarn" data-i18n="tg.test_server_rule">Тестовый сервер. Данные реальных клиентов вводить нельзя — только учебные примеры (правило проекта № 8).</div>
@@ -218,5 +224,6 @@
 </div>
 
 
+<nav id="mobileNav" class="hidden" data-i18n-aria="tg.nav_label" aria-label="Разделы"></nav>
 <script>
 /*@TG_JS*/</script>

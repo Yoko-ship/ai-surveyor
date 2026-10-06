@@ -379,7 +379,7 @@ function wzBack(){ if (CH.wz > 1) wzGo(CH.wz - 1); }
 function wzMainLabel(){
   if (CH.wz === 1) {
     if (CH.busy) return CH.phase === "read" ? T("tg.act.reading_btn", "Читаю фото…") : T("tg.wz.uploading", "Загружаю… {n}%", {n: CH.upPct || 0});
-    return CH.queue.length || CH.photoCount ? T("tg.wz.next", "Дальше") : T("tg.act.no_photos", "Без фото");
+    return CH.queue.length || CH.photoCount ? T("tg.wz.next", "Проверить материалы") : T("tg.act.no_photos", "Без фото");
   }
   if (CH.wz === 2) return CH.busy ? T("tg.act.making", "Формирую акт…") : T("tg.act.make", "Сформировать акт");
   if (!IN_TG) return T("tg.act.dl_pdf", "Скачать PDF");
@@ -446,16 +446,21 @@ const msgHtml = () => '<div class="msg" role="status">' + (CH.err ? errHtml(CH.e
 
 /* ---------- шаг 1: фото и снимки документов ---------- */
 function wzStep1Html(){
-  return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Сфотографируйте объект")) + "</h2>"
-    + '<p class="wz-lead">' + esc(T("tg.act.s1_lead", "Снимите объект и документы на него. Приложение прочитает снимки и подскажет, каких ракурсов не хватает.")) + "</p>"
+  return '<h2 class="wz-h">' + esc(T("tg.wz.s1_title", "Новый осмотр")) + "</h2>"
+    + '<p class="wz-lead">' + esc(T("tg.act.s1_lead", "Добавьте фото и документы. Затем проверьте сведения перед подготовкой акта.")) + "</p>"
+    + '<div class="capture"><div class="capture-icon" aria-hidden="true">' + ICON_CAM + '</div>'
+    + '<h3>' + esc(T("tg.design.capture_title", "Фото и документы объекта")) + '</h3>'
+    + '<p>' + esc(T("tg.design.capture_hint", "Общий вид, детали и документы — в одном осмотре")) + '</p>'
     + '<div class="wz-tiles">'
-    + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Камера")) + "</span></button>"
-    + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Галерея / файлы")) + "</span></button>"
+    + '<button type="button" class="wz-tile" data-pick="cam">' + ICON_CAM + "<span>" + esc(T("tg.wz.camera", "Сделать фото")) + "</span></button>"
+    + '<button type="button" class="wz-tile" data-pick="files">' + ICON_IMG + "<span>" + esc(T("tg.wz.gallery", "Выбрать файлы")) + "</span></button>"
     + "</div>"
-    + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button>"
+    + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button></div>"
+    + '<details class="upload-help"><summary>' + esc(T("tg.design.file_help", "Форматы и требования к файлам")) + "</summary>"
     + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
     + '<p class="hint">' + esc(T("tg.act.formats_more", "Кроме фото можно загрузить запрос филиала, договор страхования, техпаспорт или лист технических параметров — скан, фото, PDF, Word или Excel. Запрос и договор приложение прочитает и сверит с расчётом акта; Word, Excel и PDF с текстом разберёт без модели.")) + "</p>"
     + (cbCredit() ? '<p class="hint cb-hint">' + esc(T("tg.cb.s1_hint", "Кредитный продукт: можно загрузить отчёт кредитного бюро по заёмщику — только PDF с текстом (скан не читается: отчёт содержит кредитную историю). Данные бюро в ставку не входят, это проверки андеррайтеру.")) + "</p>" : "")
+    + '</details>'
     + '<div id="wzFiles">' + wzFilesHtml() + "</div>"
     + '<div id="wzViews">' + wzViewsHtml() + "</div>"
     + '<p class="wz-warn">' + esc(CH.warning && CH.upLang === I18N_LANG ? CH.warning
@@ -506,12 +511,12 @@ function wzFilesHtml(){
     else if (q.sent && q.isDoc) { state = T("tg.act.st_doc_empty", "документ не разобран — введите данные сами"); cls = "warn"; }
     else if (q.sent && q.notRead) { state = T("tg.act.st_not_read", "не прочитан: не поместился в запрос"); cls = "warn"; }
     else if (q.sent) state = q.view ? T("tg.act.st_view", "прочитан · {v}", {v: viewName(q.view)}) : T("tg.act.st_sent", "прочитан");
-    else state = T("tg.act.st_queued", "уйдёт по кнопке «Дальше»");
+    else state = T("tg.act.st_queued", "готов к проверке");
     return '<div class="wz-file' + (q.error ? " bad" : "") + '"><span class="ic" aria-hidden="true">'
       + (q.url ? '<img src="' + esc(q.url) + '" alt="">' : esc(extOf(q.name))) + "</span>"
       + "<span><b>" + esc(q.name) + '</b><small class="' + cls + '">' + esc(sizeName(q.size) + " · " + state) + "</small></span>"
       + (CH.busy ? (CH.phase === "upload" ? '<span class="st">' + esc(nf(CH.upPct || 0, 0)) + "%</span>" : '<span class="st"></span>')
-        : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + esc(T("tg.wz.remove", "Убрать")) + "</button>")
+        : '<button type="button" class="rm" data-rm="' + q.id + '" aria-label="' + esc(T("tg.wz.remove_aria", "Убрать файл {name}", {name: q.name})) + '">' + '<span aria-hidden="true">×</span>' + "</button>")
       + (CH.busy && CH.phase === "upload" ? '<span class="bar"><i style="width:' + (CH.upPct || 0) + '%"></i></span>' : "")
       + (cbKindable(q) ? '<button type="button" class="cbk" data-cbk="' + q.id + '" aria-pressed="' + (q.isCb ? "true" : "false") + '">'
         + esc(T("tg.cb.mark", "это отчёт бюро")) + "</button>" : "") + "</div>";

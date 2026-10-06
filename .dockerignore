@@ -58,3 +58,6 @@ docs/stat_uz_catalog.json
 
 # тесты в образе не нужны
 tests/
+
+# Метаданные Finder остаются на локальном компьютере
+.DS_Store

@@ -1,10 +1,6 @@
-/* ===== ui-kit кнопок INSON v1 — один и тот же блок в app/tg.html, app/admin_hub.html, app/login.html =====
-   Цвет текста и фона у каждой кнопки задан явно и от темы Telegram не зависит (themeParams к кнопкам не применяются).
-   Контраст белого текста: основная — фиолетовый градиент #6D4AE8 → #4B2FC9 (5,5:1 на светлом краю, 8,2:1 на тёмном;
-   решение заказчика 28.09.2026); успешная #177A41 — 5,4:1 (фирменный #22A85A даёт 3,1:1, не годится);
-   опасная #A4231C — 7,4:1. Высота не меньше 44px. */
-:root{--btn-line:#6B7883;--btn-hover:rgba(255,255,255,.06);--focus:#8EA9FF;--link:#8EA9FF}
-html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--focus:#1D2C8F;--link:#1D2C8F}
+/* ===== ui-kit кнопок INSON mini-app v2 — семантические цвета общей темы =====
+   Одна геометрия в светлой и тёмной темах. Основное действие — зелёное;
+   контраст текста обеспечивают пары --action / --on-accent. */
 .btn{-webkit-appearance:none;appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;
   box-sizing:border-box;min-height:44px;width:auto;max-width:100%;margin:0;padding:10px 18px;border:1px solid transparent;border-radius:12px;
   font:700 14px/1.25 var(--sans,system-ui,sans-serif);text-align:center;text-decoration:none;white-space:normal;
@@ -12,9 +8,9 @@ html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--foc
 .btn svg{flex:none;width:18px;height:18px}
 .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
-.btn-primary,.btn-primary:visited{background:#5B3CD9 linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);border-color:#5B3CD9;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
-.btn-primary:hover:not(:disabled){background:#4B2FC9 linear-gradient(135deg,#5E3DDB 0%,#3F25B0 100%);border-color:#4B2FC9;color:#FFFFFF}
-.btn-primary:active:not(:disabled){background:#3A22A3}
+.btn-primary,.btn-primary:visited{background:var(--action);border-color:var(--action);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+.btn-primary:hover:not(:disabled){background:var(--action-hover);border-color:var(--action-hover);color:var(--on-accent)}
+.btn-primary:active:not(:disabled){background:var(--action-pressed)}
 .btn-success,.btn-success:visited{background:#177A41;border-color:#177A41;color:#FFFFFF;-webkit-text-fill-color:#FFFFFF}
 .btn-success:hover:not(:disabled){background:#12653A;border-color:#12653A;color:#FFFFFF}
 .btn-success:active:not(:disabled){background:#0E5230}
@@ -33,25 +29,9 @@ html[data-theme="light"]{--btn-line:#7A8894;--btn-hover:rgba(16,28,38,.06);--foc
 .actions{display:flex;flex-direction:row-reverse;flex-wrap:wrap;justify-content:flex-start;align-items:center;gap:8px;margin-top:16px}
 @media (max-width:599px){.actions{flex-direction:column;align-items:stretch}.actions .btn{width:100%}}
 /* ===== конец ui-kit ===== */
-/* ===== Палитра INSON (заказчик 28.09.2026, снимки «Тарифы» и «Фото и документы») =====
-   Светлый фон с лавандовым оттенком, белые карточки со скруглением 16px и тонкой рамкой, тёмно-синий текст,
-   серо-лавандовый вторичный, один акцент — фиолетовый (кнопки — градиент #6D4AE8 → #4B2FC9, см. ui-kit).
-   Светлая тема — по умолчанию; тёмная — когда фон Telegram тёмный (или ?theme=dark). Цвета Telegram
-   на страницу не накладываются (applyTheme): все разделы выглядят одинаково у любой темы клиента.
-   Контраст на светлой теме (на белом / на фоне страницы): --ink 17,6 / 16,0; --muted 6,4 / 5,9;
-   --accent 6,8 / 6,1; --good 5,4; --warn 5,9; --stop 6,5. На тёмной: --muted 7,2; --accent 6,6 на карточке. */
-:root,html[data-theme="light"]{--paper:#F4F2FB;--card:#FFFFFF;--soft:#F1EEFB;--soft2:#F8F7FD;--ink:#16142E;--muted:#5E5A7A;--line:#E3DFF2;
-  --accent:#5B3CD9;--accent-dim:#6D4AE8;--accent-bg:rgba(109,74,232,.10);--accent-line:rgba(109,74,232,.38);
-  --grad:linear-gradient(135deg,#6D4AE8 0%,#4B2FC9 100%);--good:#177A41;--gold:#8A5A00;--warn:#8A5A00;--stop:#B3261E;
-  --on-accent:#FFFFFF;--on-stop:#FFFFFF;--brand-a:#1D2C8F;--brand-b:#177A41;
-  --btn-line:#C9C2E6;--btn-hover:rgba(91,60,217,.06);--focus:#5B3CD9;--link:#5B3CD9;
-  --shadow:0 1px 2px rgba(22,20,46,.04),0 6px 20px rgba(22,20,46,.05);
-  --sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+/* Цвета Clear Desk / Field Kit приходят из общей темы app/theme.js. */
+:root{--sans:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"Spline Sans Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
   --rail:60px;--side:248px;--s1:8px;--s2:12px;--s3:16px;--s4:24px}
-html[data-theme="dark"]{--paper:#0F0E1A;--card:#17152A;--soft:#1F1C36;--soft2:#1A1830;--ink:#ECEAF7;--muted:#A5A1C4;--line:#2E2A4A;
-  --accent:#A993FF;--accent-dim:#7C5CF0;--accent-bg:rgba(169,147,255,.12);--accent-line:rgba(169,147,255,.40);
-  --good:#4CC684;--gold:#E2B44D;--warn:#E0A83F;--stop:#EE8272;--on-accent:#FFFFFF;--on-stop:#0F0E1A;--brand-a:#A993FF;--brand-b:#4CC684;
-  --btn-line:#4A4570;--btn-hover:rgba(255,255,255,.06);--focus:#A993FF;--link:#A993FF;--shadow:none}
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.5 var(--sans);-webkit-text-size-adjust:100%;overflow-x:hidden;
@@ -1615,7 +1595,8 @@ body.cine .card{box-shadow:var(--shadow)}
 html[data-theme="dark"] body.cine .card{-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.22)}
 /* переход между вкладками: 200 мс, лёгкий сдвиг снизу */
 [data-section]:not(.hidden){animation:secIn .2s cubic-bezier(.22,.61,.36,1) both}
-@keyframes secIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+/* Не трансформировать предка fixed-панели действий: она привязана к viewport. */
+@keyframes secIn{from{opacity:0}to{opacity:1}}
 body.fx-still [data-section]:not(.hidden){animation:none}
 @media (prefers-reduced-motion:reduce){[data-section]:not(.hidden){animation:none}}
 /* полосы результата вырастают, спидометр проявляется — при каждой отрисовке */
@@ -1726,3 +1707,104 @@ p.note.brv-src{margin:6px 0 0}
 .tbl td.w90{width:90px}
 .tbl td.w1{width:1%}
 .tbl td.nw{white-space:nowrap}
+
+/* ===== Clear Desk / Field Kit — общий каркас осмотра, 06.10.2026 ===== */
+body{font-size:15px;-webkit-font-smoothing:antialiased}
+#appbg{display:none}
+body.cine{background:var(--paper)}
+html[data-theme="dark"] body.cine .card{backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none}
+h1,h2,.wz-h,.sec-head h1{color:var(--heading);text-wrap:balance}
+.wz-h{font-size:28px;line-height:1.2;letter-spacing:-.035em;margin-bottom:8px}
+.wz-lead{font-size:14px;line-height:1.55;max-width:56ch;margin-bottom:24px}
+input,select,textarea{background-color:var(--control);min-height:48px;font-variant-numeric:tabular-nums}
+.btn{min-height:48px;border-radius:12px}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.card{padding:20px;border-radius:16px}
+.card h2{font-size:16px}
+.topbar{display:flex;justify-content:space-between;gap:12px;min-height:80px;background:var(--paper);border-bottom:1px solid var(--line)}
+.topbar-brand{min-width:0;display:flex;flex-direction:column;gap:6px}
+.topbar .logo{font-size:24px;letter-spacing:-.04em;line-height:1}
+.topbar .logo span:first-child{color:var(--brand-a)}
+.topbar .logo span:last-child{color:var(--brand-b)}
+.topbar .tb-title{font-size:12px;font-weight:500;color:var(--muted);text-align:left;max-width:none}
+.icon-button{display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+.icon-button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.icon-button:hover{background:var(--btn-hover)}
+.icon-button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+#mobileMenu{display:none}
+#nav button i svg{width:21px;height:21px;vertical-align:middle}
+body.side-wide #side{background:var(--paper);padding-top:24px}
+body.side-open #nav{padding:16px 12px;gap:4px}
+body.side-open #nav button{border-radius:10px;padding:10px 12px;gap:12px}
+body.side-open #nav button i{width:24px}
+#nav button.on{box-shadow:none;font-weight:700}
+#nav button:hover{background:var(--btn-hover)}
+#sideLang button{min-height:44px}
+.tgopen{box-shadow:none;padding:0;border:0;background:none;gap:4px;margin-bottom:16px}
+.tgopen .btn{padding:4px 0;min-height:44px;font-size:12px}
+.tgopen p{flex-basis:100%;font-size:12px}
+.tgopen.hidden{display:none}
+#pdWarn{font-size:12px;line-height:1.5;border:0;border-left:3px solid var(--warn);border-radius:4px;background:var(--warn-bg);padding:8px 12px}
+.wz-steps{gap:0;margin:24px 0 28px}
+.wz-steps li{position:relative}
+.wz-steps li:not(:last-child)::after{content:"";position:absolute;top:17px;left:calc(50% + 22px);width:calc(100% - 44px);height:1px;background:var(--line)}
+.wz-steps li.done::after{background:var(--accent)}
+.wz-steps button{display:flex;flex-direction:column;align-items:center;gap:8px;border:0;padding:0 4px 4px;min-height:64px;font-size:12px}
+.wz-steps button b{display:flex;align-items:center;justify-content:center;width:34px;height:34px;margin:0;border:1px solid var(--line);border-radius:50%;background:var(--soft);color:var(--muted);font:700 14px var(--sans)}
+.wz-steps li.on button b,.wz-steps li.done button b{background:var(--action);border-color:var(--action);color:var(--on-accent);-webkit-text-fill-color:var(--on-accent)}
+.wz-steps li.done button{color:var(--accent);-webkit-text-fill-color:var(--accent)}
+.capture{background:var(--capture);border:1px dashed var(--btn-line);border-radius:16px;padding:24px;text-align:center}
+.capture-icon{display:flex;justify-content:center;align-items:center;margin:0 auto 16px;width:64px;height:64px;border-radius:18px;background:var(--accent-bg);color:var(--accent)}
+.capture-icon svg{width:32px;height:32px}
+.capture>h3{margin:0 0 8px;font-size:17px;letter-spacing:-.02em;color:var(--heading)}
+.capture>p{margin:0 0 24px;font-size:13px;color:var(--muted)}
+.wz-tiles{gap:12px}
+.wz-tile{min-height:52px;flex-direction:row;gap:8px;padding:12px;background:var(--card);border:1px solid var(--btn-line);border-radius:10px;font-size:13px}
+.wz-tile svg{width:20px;height:20px;flex:none}
+.wz-tile:hover{background:var(--btn-hover);border-color:var(--accent)}
+.wz-drop{min-height:44px;padding:8px;margin:12px 0 0;border:0;background:none;font-size:12px}
+.upload-help{margin:16px 0;color:var(--muted);font-size:12px}
+.upload-help summary{min-height:44px;display:list-item;cursor:pointer;padding:12px 0;font-weight:600;color:var(--ink)}
+.upload-help summary:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.upload-help .hint{line-height:1.65;margin:0 0 12px}
+#wzFiles .wz-files{background:none;border:0;box-shadow:none;padding:0;margin-top:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+#wzFiles .wz-files>.eyebrow{grid-column:1/-1;color:var(--ink);font-size:13px;text-transform:none;letter-spacing:0;margin-bottom:0}
+#wzFiles .wz-file{position:relative;display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:0 0 12px;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+#wzFiles .wz-file .ic{width:100%;height:128px;border-radius:0;background:var(--soft);font-size:22px;text-transform:uppercase;color:var(--muted)}
+#wzFiles .wz-file>span:not(.ic){padding:0 12px}
+#wzFiles .wz-file small{font-size:11px}
+#wzFiles .wz-file .rm{position:absolute;right:4px;top:4px;width:44px;height:44px;border-radius:50%;background:var(--card);color:var(--ink);-webkit-text-fill-color:var(--ink);font-size:22px;text-decoration:none;box-shadow:var(--shadow)}
+#wzFiles .wz-file .cbk{margin:0 8px;font-size:11px;min-height:44px}
+#wzFiles .wz-file .bar{width:100%;padding:0;margin-top:auto}
+.wz-need{box-shadow:none;background:var(--card)}
+.wz-need h2{font-size:14px}
+.wz-need p.sub,.wz-need p.note{font-size:12px}
+.wz-warn{font-size:12px;line-height:1.6}
+.wz-bar{box-shadow:none}
+.wz-bar .btn{border-radius:12px}
+#mobileNav{display:none}
+/* Телефон: вся ширина занята рабочей областью, остальные разделы — в меню. */
+@media(max-width:899px){
+  body,body.side-wide{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+  .wrap{padding:0 20px calc(80px + var(--safe-bottom));max-width:752px}
+  #side{width:min(300px,86vw);transform:translateX(-100%);visibility:hidden;transition:transform .18s ease-out,visibility .18s}
+  body.side-open #side{width:min(300px,86vw);transform:none;visibility:visible}
+  .topbar{margin:0 -20px 16px;padding:8px 20px;min-height:76px;padding-top:calc(8px + env(safe-area-inset-top))}
+  #mobileMenu{display:inline-flex}
+  .topbar-brand{align-items:center;flex:1}
+  .topbar .tb-title{font-size:11px;max-width:48vw;text-align:center}
+  .topbar .logo{font-size:22px}
+  .wz-h{font-size:27px}
+  .capture{padding:20px 16px}
+  .card{padding:16px}
+  .wz-bar,body.side-wide .wz-bar{left:0;bottom:calc(64px + var(--safe-bottom));padding:12px 20px;border-top:1px solid var(--line)}
+  #mobileNav:not(.hidden){position:fixed;display:flex;align-items:stretch;bottom:0;left:0;right:0;z-index:46;height:calc(64px + var(--safe-bottom));padding:4px 12px calc(4px + var(--safe-bottom));background:var(--card);border-top:1px solid var(--line)}
+  #mobileNav button{flex:1;min-width:0;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:4px 2px;border:0;border-radius:10px;background:none;color:var(--muted);font:600 10px var(--sans)}
+  #mobileNav button svg{width:22px;height:22px}
+  #mobileNav button.on{color:var(--accent);background:var(--accent-bg)}
+  #mobileNav button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+  #tab-chat{padding-bottom:100px}
+  body.in-tg #tab-chat{padding-bottom:16px}
+}
+@media(max-width:359px){.wrap{padding-left:16px;padding-right:16px}.topbar{margin-left:-16px;margin-right:-16px;padding-left:16px;padding-right:16px}.wz-tiles{grid-template-columns:1fr}.capture{padding:16px}.wz-h{font-size:25px}}
+@media(prefers-reduced-motion:reduce){#side,.btn,[data-section]{transition:none!important;animation:none!important}.btn:active:not(:disabled){transform:none}}

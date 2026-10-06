@@ -46,3 +46,6 @@ data/surveyor.db-wal
 data/surveyor.db-shm
 
 data/*.lock
+
+# Метаданные Finder остаются на локальном компьютере
+.DS_Store

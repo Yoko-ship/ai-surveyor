@@ -1,6 +1,35 @@
 /* Тема и бренд InsuranceON: светлая/тёмная по выбору пользователя, логотип INSON в меню.
    Подключается одной строкой на каждой странице: <script src="/theme.js"></script> */
 (function () {
+  // Мини-приложение: Clear Desk / Field Kit. Остальные страницы сохраняют свою тему.
+  if (window.INSON_MINI_APP) {
+    document.documentElement.dataset.insonUi = "surveyor";
+    const style = document.createElement("style");
+    style.textContent = `
+    html[data-inson-ui="surveyor"]{
+      --paper:#F3F6F8;--card:#FFFFFF;--soft:#EDF2F5;--soft2:#F8FAFB;
+      --ink:#172B45;--heading:#1D2C8F;--muted:#586B80;--line:#DCE4EB;
+      --accent:#147D47;--accent-dim:#11683D;--accent-bg:#E8F4EC;--accent-line:#91C5A7;
+      --action:#147D47;--action-hover:#11683D;--action-pressed:#0D5632;--on-accent:#FFFFFF;
+      --grad:#147D47;--good:#147D47;--gold:#95620B;--warn:#94600A;--warn-bg:#FFF5E5;--stop:#B3261E;--on-stop:#FFFFFF;
+      --brand-a:#1D2C8F;--brand-b:#147D47;--btn-line:#B8C7D3;--btn-hover:#EDF2F5;--focus:#1D2C8F;--link:#1D2C8F;
+      --shadow:0 2px 8px rgba(23,43,69,.035);--capture:#F8FAFB;--control:#F8FAFB;
+      --safe-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+    html[data-inson-ui="surveyor"][data-theme="dark"]{
+      --paper:#111A20;--card:#18252D;--soft:#20313B;--soft2:#152129;
+      --ink:#EDF4F8;--heading:#F3F7FA;--muted:#A7BCCA;--line:#30434F;
+      --accent:#46D588;--accent-dim:#46D588;--accent-bg:#17382C;--accent-line:#397957;
+      --action:#46D588;--action-hover:#69E39F;--action-pressed:#33C576;--on-accent:#092619;
+      --grad:#46D588;--good:#65D69A;--gold:#F1B34B;--warn:#F1B34B;--warn-bg:#332A1C;--stop:#FF9C91;--on-stop:#291210;
+      --brand-a:#EDF4F8;--brand-b:#46D588;--btn-line:#557181;--btn-hover:#243742;--focus:#83B6F5;--link:#A6CAFF;
+      --shadow:none;--capture:#152129;--control:#111D24;color-scheme:dark}`;
+    document.head.appendChild(style);
+    let saved;
+    try { saved = localStorage.getItem("surveyor-theme"); } catch (e) {}
+    const wanted = new URLSearchParams(location.search).get("theme") || saved;
+    document.documentElement.dataset.theme = wanted === "dark" ? "dark" : "light";
+    return;
+  }
   const BRAND_BLUE = "#1D2C8F", BRAND_GREEN = "#22A85A";
   const css = `
   html[data-theme="light"]{--paper:#F5F7F9;--card:#FFFFFF;--ink:#101C26;--muted:#5C6C78;--line:#DDE4E9;--soft:#EDF1F4;
