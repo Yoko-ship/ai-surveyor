@@ -3,7 +3,7 @@
     "lang": "en",
     "note": "English — working translation for the interface, not a statutory text.",
     "terms_source": "docs/i18n_terms.json",
-    "keys": 2400,
+    "keys": 2402,
     "unofficial": [
       "osgor.full",
       "osgor.short"
@@ -1027,6 +1027,8 @@
   "tg.its_you": "this is you",
   "tg.last_login": "Last sign-in",
   "tg.lg.asking": "searching the laws…",
+  "tg.lg.ai_unavailable": "AI is currently unavailable. For test access, open the mini-app from the bot with an approved account.",
+  "tg.lg.ai_retry": "AI could not answer. Available sources are shown; please try again.",
   "tg.lg.cached": "from cache",
   "tg.lg.empty": "Write a question — at least a few words.",
   "tg.lg.failed": "No answer: {reason}. Please ask again.",

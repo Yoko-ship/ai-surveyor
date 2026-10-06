@@ -690,6 +690,12 @@ def _market_decision(q: str, s: dict) -> tuple:
 def detect(question: str, lang: str = "ru", last: Optional[dict] = None, con=None) -> dict:
     """Вопрос о рынке? → {is_market, entity, metric, rank, dim, year, ago, follow_up, strong}."""
     q = nrm(question)
+    # Явная правовая формулировка важнее названия компании или финансового показателя.
+    # «минимальный капитал по закону» — нормативный вопрос, а не рэнкинг страховщиков.
+    if re.search(r"\b(?:закон\w*|законодатель\w*|стать[яиюе]\w*|кодекс\w*|постановлен\w*|"
+                 r"правомер\w*|вправе|обязан\w*|qonun\w*|modda\w*|kodeks\w*|"
+                 r"law|laws|legal|legislation|statutory|article|code)\b|lex\.uz", q):
+        return {"is_market": False, "clarify": False, "competitor": False}
     comp, cls_key, cls_strong, cls_explicit, region = _find_entities(q, con)
     metric = _metric(q)
     rank = _has(q, RANK_WORDS)
@@ -1462,16 +1468,16 @@ MARKET_SYSTEM = ("Ты — «ИИ специалист по страховани
 
 def ai_retell(question: str, facts_: dict, lang: str, history: list) -> dict:
     if not llm.enabled():
-        return {"status": "off", "text": None}
+        return {"status": "off", "text": None, "reason_code": "ai_unavailable"}
     hist = "\n".join("%s: %s" % ("Пользователь" if h["role"] == "user" else "Специалист", h["text"][:300])
                      for h in (history or [])[-6:])
     user = ("Контекст диалога:\n%s\n\nВопрос: %s\n\nФакты:\n%s" % (hist or "—", question,
                                                                  json.dumps(facts_, ensure_ascii=False)[:6000]))
     try:
         text = llm.chat("рынок: пересказ по данным", MARKET_SYSTEM % (ROLE["ru"], lang), user, max_tokens=400,
-                        timeout=8)
-    except Exception as e:
-        return {"status": "error", "text": None, "reason": str(e)[:200]}
+                        timeout=45)
+    except Exception:
+        return {"status": "error", "text": None, "reason_code": "ai_unavailable"}
     if not text:
         return {"status": "error", "text": None, "reason": (llm.last_error or {}).get("text")}
     return {"status": "ok", "text": text.strip(), "label": AI_LABEL[lang]}

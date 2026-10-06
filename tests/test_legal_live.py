@@ -236,10 +236,10 @@ def run_all(lib: Path):
     ok("акт попал в индекс", n > 10, n)
     ok("в журнале вопросов источник lex (текста вопроса нет)", src == "lex", src)
 
-    print("\n2. повторный вопрос — из базы, без обращения к сайту")
+    print("\n2. повтор после сброса кэша — lex.uz проверяется перед базой")
     fake2 = fresh(FakeLex())
     r2 = legal.ask(Q_FOUND, "ru")
-    ok("к lex.uz не обращались", fake2.calls == [], fake2.calls)
+    ok("сначала поиск на lex.uz, затем сохранённый акт", bool(fake2.lex_calls()) and r2["live"]["status"] == "found_base", fake2.calls)
     ok("ответ по норме из базы", r2["answer"]["source"] == "passages" and r2["citations"], r2["answer"])
     ok("цитата ЗРУ-1031 из базы", any("1031" in (x.get("act") or "") for x in r2["citations"]), r2["citations"][:1])
 
@@ -532,7 +532,8 @@ def run_more(lib: Path, tmp: Path):
            bool(saved) and legal.verbatim(legal.rel_path(saved[0]), c.get("quote") or ""))
         fake14 = fresh(FakeLex())
         r14b = legal.ask(Q_FOUND, "ru")
-        ok("повторный вопрос — из базы, без сайта", fake14.calls == [] and r14b["answer"]["source"] == "passages",
+        ok("повтор после перезапуска — сначала lex.uz", bool(fake14.lex_calls())
+           and r14b["live"]["status"] == "found_base" and r14b["answer"]["source"] == "passages",
            fake14.calls)
     finally:
         legal.LIVE_LIB = None

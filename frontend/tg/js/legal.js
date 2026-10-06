@@ -263,6 +263,9 @@ function lgReply(it){
     + lgLiveLine(lv)
     + (note ? '<p class="note mt-s2">' + esc(note) + "</p>" : "")
     + (!op && ai === "ok" && res.ai.text ? '<p class="lgans mt-s2">' + aiText(res.ai.text) + "</p>" : "")
+    + (ai === "error" ? '<p class="note">' + esc(T("tg.lg.ai_retry", "ИИ не смог ответить. Показаны доступные источники; попробуйте ещё раз.")) + "</p>"
+      : (res.ai || {}).reason_code === "ai_unavailable"
+        ? '<p class="note">' + esc(T("tg.lg.ai_unavailable", "ИИ сейчас недоступен. Для тестового доступа откройте мини-приложение из бота под разрешённым аккаунтом.")) + "</p>" : "")
     + lgSkipped(lv)
     + cits.map(c => lgCitation(c || {}, lv)).join("")
     + srcs.map(lgSourceBar).join("")
@@ -318,7 +321,7 @@ async function lgAsk(q, lang, shown){
   syncTgButtons();
   tgBusy(true);
   const sid = LG.sid;
-  const body = Object.assign({q: text, lang: I18N_LANG, ai: false}, {lang: ask, session_id: sid});
+  const body = {q: text, lang: ask, ai: true, session_id: sid};
   const r = await api("/legal/ask", jsonOpts("POST", body));
   tgBusy(false);
   LG.busy = false;

@@ -29,6 +29,11 @@ def _cache_get(key):
 
 
 def _cache_put(key, value):
+    # Временная недоступность источника/модели не должна маскировать восстановление.
+    if (value.get("live") or {}).get("status") in ("unavailable", "limit", "error"):
+        return
+    if (value.get("ai") or {}).get("status") == "error":
+        return
     with _cache_lock:
         if len(_cache) >= CACHE_MAX:
             _cache.clear()

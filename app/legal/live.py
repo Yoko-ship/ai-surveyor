@@ -1,4 +1,4 @@
-"""Живой поиск на lex.uz (обёртка над app/legal_live.py): только если ни FAQ, ни индекс нормы не нашли."""
+"""lex.uz — первый источник правового ответа, перед FAQ и локальным индексом."""
 import time
 from typing import Optional
 
@@ -14,9 +14,10 @@ def _live(question: str, lang: str, who: str = None) -> dict:
     try:
         from .. import legal_live
         return legal_live.lookup(question, lang, who=who)
-    except Exception as e:                     # живой поиск не должен ронять ответ по базе
-        print("legal: живой поиск не выполнен:", e)
-        return {"status": "error", "source": "lex.uz", "reason": str(e)[:200]}
+    except Exception as e:                     # без содержимого запроса и внутренних путей в ответе
+        print("legal: живой поиск не выполнен:", type(e).__name__)
+        return {"status": "unavailable", "source": "lex.uz",
+                "text": legal_live_text("unavailable", lang)}
 
 
 def _live_public(live: dict) -> dict:

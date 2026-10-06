@@ -1,8 +1,8 @@
 """
 Сборка ответа специалиста — ask(): лестница источников и части ответа.
 
-Лестница: тема вопроса (рынок / конкуренты / уточнение — app/legal/market.py) → кэш → FAQ → известное
-молчание закона → поиск по индексу (норма, документы INSON, заметки) → нормы нет: живой поиск на lex.uz →
+Лестница: тема вопроса (рынок / конкуренты / уточнение — app/legal/market.py) → личный кэш → lex.uz →
+FAQ → известное молчание закона → поиск по индексу (норма, документы INSON, заметки) →
 свободный ответ ИИ (только с ai=true). Части ответа: data — данные с источником, opinion — вывод
 (правила или ИИ), sources — плашки источников; у цитат из изменившихся актов — actuality.
 """
@@ -14,10 +14,11 @@ from typing import Optional
 
 from fastapi import HTTPException
 
-from .. import db
+from .. import db, llm
+from ..chatgpt_plan import actor
 from . import market as mx
 from . import memory as dm
-from .ai import ai_answer, ai_free_answer
+from .ai import ai_answer, ai_free_answer, ai_reference_answer
 from .cache import _cache_get, _cache_put, log_question
 from .competitors import _competitor_answer
 from .faq import faq_answer, faq_match, related, silence_answer, silence_match
@@ -154,6 +155,9 @@ def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None,
     intent = mx.detect(question, lang, last)
     if intent.get("competitor"):
         out = _competitor_answer(question, lang, intent)
+        if with_ai:
+            out["ai"] = ai_reference_answer(question, out["answer"]["text"],
+                                            out.get("citations") or [], lang, mem["turns"])
         out["session_id"] = session_id
         dm.memory.add(mkey, question, out["answer"]["text"], {"kind": "competitor", "entity": intent.get("entity")})
         return out
@@ -303,15 +307,18 @@ def _market_answer(question: str, lang: str, with_ai: bool, it: dict, history: l
 
 
 # --------------------------------------------------------------------------- #
-#  Ответ по праву и практике (_ask): кэш → FAQ → молчание закона → индекс → lex.uz → ИИ
+#  Ответ по праву и практике (_ask): личный кэш → lex.uz → локальные источники → ИИ
 # --------------------------------------------------------------------------- #
 
-def _cache_key(question: str, lang: str, with_ai: bool, history: Optional[list]) -> tuple:
+def _cache_key(question: str, lang: str, with_ai: bool, history: Optional[list], who: str = None) -> tuple:
     # история диалога влияет только на пересказ модели: без ИИ ответ от неё не зависит
     hist_key = ""
     if with_ai and history:
         hist_key = hashlib.sha256("\n".join(h.get("text") or "" for h in history).encode("utf-8")).hexdigest()[:16]
-    return (norm(question), lang, bool(with_ai), _live_enabled(), hist_key)
+    # Проверяем доступ на каждом запросе: чужой кэш не обходит допуск к подписке.
+    owner = hashlib.sha256(f"{actor.get()}|{who or ''}".encode()).hexdigest()
+    return (norm(question), lang, bool(with_ai), _live_enabled(), hist_key,
+            owner, bool(with_ai and llm.enabled()))
 
 
 def _from_cache(key: tuple, t0: float) -> Optional[dict]:
@@ -324,7 +331,8 @@ def _from_cache(key: tuple, t0: float) -> Optional[dict]:
     return out
 
 
-def _silence_out(question: str, lang: str, silent: dict, key: tuple, t0: float) -> dict:
+def _silence_out(question: str, lang: str, silent: dict, key: tuple, t0: float,
+                 live: dict, with_ai: bool, history: Optional[list]) -> dict:
     """Известное молчание закона: отвечаем по списку, нормы не подбираем."""
     text, citations = silence_answer(silent, lang)
     answer = {"text": text, "source": "none", "confidence": SILENCE_MAX_CONF,
@@ -332,8 +340,9 @@ def _silence_out(question: str, lang: str, silent: dict, key: tuple, t0: float) 
     note = SILENCE_NOTE.get(lang) or SILENCE_NOTE[DEFAULT_LANG]
     out = {"lang": lang, "took_ms": int((time.time() - t0) * 1000), "answer": answer,
            "citations": citations, "related": related(lang),
-           "ai": {"status": "off", "text": None}, "note": note, "cached": False,
-           "assistant_name": dict(ASSISTANT_NAME), "live": dict(LIVE_NOT_NEEDED)}
+           "ai": ai_reference_answer(question, text, citations, lang, history) if with_ai
+                 else {"status": "off", "text": None}, "note": note, "cached": False,
+           "assistant_name": dict(ASSISTANT_NAME), "live": _live_public(live)}
     _cache_put(key, out)
     log_question(question, lang, "none", SILENCE_MAX_CONF, out["took_ms"], False)
     return out
@@ -365,7 +374,8 @@ def _confidence(passages: list) -> float:
 
 
 def _no_norm_out(question: str, lang: str, with_ai: bool, who: Optional[str], history: Optional[list], key: tuple,
-                 t0: float, stems: list, passages: list, conf: float, note: Optional[str], on_topic: bool) -> dict:
+                 t0: float, stems: list, passages: list, conf: float, note: Optional[str], on_topic: bool,
+                 live: dict) -> dict:
     """Нормы по вопросу в базе нет: ближайшие статьи, живой поиск на lex.uz, свободный ответ ИИ."""
     # закон молчит: не выдаём три произвольных нормы за ответ. Ближайшие по смыслу
     # статьи показываем отдельной пометкой closest — чтобы было что проверить руками,
@@ -374,17 +384,7 @@ def _no_norm_out(question: str, lang: str, with_ai: bool, who: Optional[str], hi
     # нет ни в одном (вопрос про крышу склада, про билет в кино), показывать нечего
     near = [r for r in passages[:3] if not r.get("rare_missing")] if on_topic else []
     closest = [dict(_citation(r, lang, stems), closest=True) for r in near]
-    # локальная база ответа не дала — ищем на lex.uz (app/legal_live.py). Только здесь:
-    # обычные ответы из базы живой поиск не замедляет
-    live = _live(question, lang, who)
-    if live.get("status") in ("found", "found_base"):
-        out = _live_answer(question, lang, with_ai, live, closest, t0, history)
-        if out:
-            _cache_put(key, out)
-            log_question(question, lang, "lex", out["answer"]["confidence"], out["took_ms"], True)
-            return out
-        live = dict(live, status="not_found",
-                    text=(legal_live_text("not_found", lang)))
+    # lex.uz уже проверен до FAQ/индекса; повторный сетевой запрос здесь не нужен.
     conf = min(conf, SILENCE_MAX_CONF)
     passages, citations = [], closest
     texts = NO_NORM if closest else NO_NORM_BARE
@@ -435,16 +435,25 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
         raise HTTPException(422, "Вопрос пустой")
     lang = lang if lang in LANGS else detect_lang(question)
     ensure_index()
-    key = _cache_key(question, lang, with_ai, history)
+    key = _cache_key(question, lang, with_ai, history, who)
     hit = _from_cache(key, t0)
     if hit:
         return hit
+
+    live = _live(question, lang, who)
+    if live.get("status") in ("found", "found_base"):
+        out = _live_answer(question, lang, with_ai, live, [], t0, history)
+        if out:
+            _cache_put(key, out)
+            log_question(question, lang, "lex", out["answer"]["confidence"], out["took_ms"], True)
+            return out
+        live = dict(live, status="not_found", text=legal_live_text("not_found", lang))
 
     note = None
     item, conf = faq_match(question, lang)
     silent = None if item else silence_match(question, lang)
     if silent:
-        return _silence_out(question, lang, silent, key, t0)
+        return _silence_out(question, lang, silent, key, t0, live, with_ai, history)
     if item:
         a = faq_answer(item, lang, conf)
         answer = {"text": a["text"], "source": "faq", "confidence": conf,
@@ -460,7 +469,7 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
         on_topic = _on_topic(passages[0] if passages else None, stems)
         if conf < MIN_CONFIDENCE or not on_topic:
             return _no_norm_out(question, lang, with_ai, who, history, key, t0, stems, passages, conf, note,
-                                on_topic)
+                                on_topic, live)
         answer = {"text": summarize_passages(passages, lang, stems),
                   "source": "passages", "confidence": conf}
         citations, note = _passage_citations(question, lang, stems, passages, note)
@@ -468,11 +477,13 @@ def _ask(question: str, lang: str = None, with_ai: bool = False, who: str = None
     ai = {"status": "off", "text": None}
     if with_ai and passages:
         ai = ai_answer(question, passages, lang, history)
+    elif with_ai and item:
+        ai = ai_reference_answer(question, answer["text"], citations, lang, history)
 
     took = int((time.time() - t0) * 1000)
     out = {"lang": lang, "took_ms": took, "answer": answer, "citations": citations,
            "related": related(lang), "ai": ai, "note": note, "cached": False,
-           "assistant_name": dict(ASSISTANT_NAME), "live": dict(LIVE_NOT_NEEDED)}
+           "assistant_name": dict(ASSISTANT_NAME), "live": _live_public(live)}
     _cache_put(key, out)
     log_question(question, lang, answer["source"], answer["confidence"], took, bool(citations))
     return out
