@@ -1,4 +1,4 @@
-"""Приватный HTTPS-шлюз к локальному Codex; токены ChatGPT остаются на Mac."""
+"""Аутентифицированный HTTPS-шлюз к отдельному исполнителю Codex."""
 import json
 import os
 import urllib.error
@@ -36,7 +36,7 @@ def reason():
         return "Codex доступен только допущенным тестировщикам внутри Telegram"
     if not ready():
         return "Шлюз Codex ещё не настроен"
-    return "Шлюз Codex настроен; компьютер владельца должен быть включён"
+    return "Шлюз Codex настроен"
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -69,6 +69,6 @@ def request(messages, file_parts, timeout=None):
                     422: "Шлюз Codex не смог прочитать вложение; уменьшите документ",
                     429: "Шлюз Codex занят или достигнут тестовый лимит",
                     504: "Codex не завершил ответ вовремя"}
-        raise PlanError(messages.get(exc.code, "Шлюз Codex недоступен; проверьте компьютер владельца")) from None
+        raise PlanError(messages.get(exc.code, "Шлюз Codex недоступен")) from None
     except (OSError, ValueError, TypeError):
-        raise PlanError("Нет связи со шлюзом Codex; проверьте компьютер владельца") from None
+        raise PlanError("Нет связи со шлюзом Codex") from None

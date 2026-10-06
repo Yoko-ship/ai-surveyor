@@ -95,3 +95,8 @@ PostgreSQL пока не реализован: приложение напрям
 - [README.md](README.md) — подготовка и запуск, API и описание функций.
 - [docs/RUN_READINESS.md](docs/RUN_READINESS.md) — проверенные результаты и конкретные препятствия.
 - [WORK_LOG.md](WORK_LOG.md) — что делалось, зачем, чем проверено и что осталось.
+
+Подготовлен перенос Codex в отдельный Railway-сервис (`Dockerfile.gateway`,
+`docs/railway-services.json`) с постоянным volume отдельной авторизации и одним
+исполнителем. До серверного входа и проверки inference активна описанная выше
+связка через Mac. Состояние переноса — в WORK_LOG и RUN_READINESS.

@@ -18,7 +18,7 @@ from http.server import ThreadingHTTPServer
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app import codex_gateway as gateway, chatgpt_plan as plan, codex_runtime as runtime, llm
-from tools.codex_gateway import handler
+from tools.codex_gateway import handler, environment_config
 
 
 class GatewayClientTests(unittest.TestCase):
@@ -176,6 +176,19 @@ class HttpGatewayTests(unittest.TestCase):
             self.assertEqual(self.call(good)[0], 200)
             self.assertEqual(infer.call_count, 1)
             self.assertEqual(self.call(path="/health")[0], 200)
+            self.assertEqual(self.call(path="/health", token=False)[0], 401)
+            self.assertEqual(self.call(path="/livez", token=False), (200, {"ok": True}))
+
+    def test_environment_config_does_not_invent_credentials(self):
+        with patch.dict(os.environ, {}, clear=True):
+            config = environment_config()
+            self.assertEqual(config["token"], "")
+            self.assertEqual(config["tester_ids"], [])
+        with patch.dict(os.environ, {"CODEX_GATEWAY_TOKEN": "test-only", "CHATGPT_PLAN_TESTER_IDS": "123, 456",
+                                    "CODEX_GATEWAY_MODEL": "test-model", "PORT": "4567"}, clear=True):
+            config = environment_config()
+            self.assertEqual(config["tester_ids"], ["123", "456"])
+            self.assertEqual(config["port"], 4567)
 
     def test_hourly_quota(self):
         good = {"tester_id": "123", "model": "test-model", "messages": []}
@@ -187,13 +200,13 @@ class HttpGatewayTests(unittest.TestCase):
 
     def test_concurrency_and_timeout(self):
         good = {"tester_id": "123", "model": "test-model", "messages": []}
-        barrier, release = threading.Barrier(3), threading.Event()
+        barrier, release = threading.Barrier(2), threading.Event()
         def blocking(*args):
             barrier.wait(timeout=5)
             release.wait(timeout=5)
             return {"ok": True, "text": "ok"}
-        with patch("tools.codex_gateway.infer", side_effect=blocking), ThreadPoolExecutor(2) as pool:
-            futures = [pool.submit(self.call, good) for _ in range(2)]
+        with patch("tools.codex_gateway.infer", side_effect=blocking), ThreadPoolExecutor(1) as pool:
+            futures = [pool.submit(self.call, good)]
             try:
                 barrier.wait(timeout=5)
                 self.assertEqual(self.call(good)[0], 429)

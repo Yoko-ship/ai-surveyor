@@ -1,0 +1,30 @@
+{
+  "ai-surveyor": {
+    "build": {
+      "builder": "DOCKERFILE",
+      "dockerfilePath": "Dockerfile"
+    },
+    "deploy": {
+      "startCommand": "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1",
+      "healthcheckPath": "/health",
+      "healthcheckTimeout": 60,
+      "restartPolicyType": "ON_FAILURE",
+      "restartPolicyMaxRetries": 5,
+      "sleepApplication": false
+    }
+  },
+  "codex-gateway": {
+    "build": {
+      "builder": "DOCKERFILE",
+      "dockerfilePath": "Dockerfile.gateway"
+    },
+    "deploy": {
+      "startCommand": "python tools/codex_gateway.py --from-env",
+      "healthcheckPath": "/livez",
+      "healthcheckTimeout": 60,
+      "restartPolicyType": "ALWAYS",
+      "overlapSeconds": 0,
+      "sleepApplication": false
+    }
+  }
+}

@@ -28,6 +28,7 @@ def _toml(value):
 
 def command(binary, model, folder, images):
     flags = {"model": model, "model_reasoning_effort": "low", "approval_policy": "never",
+             "cli_auth_credentials_store": "file",
              "model_instructions_file": str(folder / "instructions.txt"),
              "project_doc_max_bytes": 0, "web_search": "disabled",
              "default_permissions": "gateway",
