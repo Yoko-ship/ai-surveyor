@@ -32,12 +32,16 @@ TG_ID = "999000111"                       # вымышленный telegram_id �
 MADE_LOGINS = []
 
 
-def make_init_data(token: str = TOKEN, auth_date: int = None, user: dict = None) -> str:
+def make_init_data(token: str = TOKEN, auth_date: int = None, user: dict = None,
+                   signature: str = None) -> str:
     """Собирает initData так, как это делает Telegram: подпись по алгоритму Web Apps."""
     user = user or {"id": int(TG_ID), "first_name": "Тест", "last_name": "Тестов", "username": "testuser"}
     fields = {"query_id": "AAEtest", "user": json.dumps(user, ensure_ascii=False),
               "auth_date": str(auth_date or int(time.time()))}
-    dcs = tg.data_check_string(list(fields.items()))
+    if signature is not None:
+        fields["signature"] = signature
+    # Независимый генератор Telegram HMAC: все поля, кроме ещё не добавленного hash.
+    dcs = "\n".join(f"{k}={v}" for k, v in sorted(fields.items()))
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
     fields["hash"] = hmac.new(secret, dcs.encode(), hashlib.sha256).hexdigest()
     return urlencode(fields)
@@ -47,6 +51,15 @@ def test_valid_init_data():
     res = tg.check_init_data(make_init_data(), TOKEN)
     assert res["ok"], res
     assert res["user"]["id"] == int(TG_ID), res
+
+
+def test_current_signature_field_is_authenticated():
+    raw = make_init_data(signature="test-ed25519-value")
+    assert tg.check_init_data(raw, TOKEN)["ok"]
+    assert not tg.check_init_data(raw.replace("test-ed25519-value", "tampered"), TOKEN)["ok"]
+    assert not tg.check_init_data(raw.replace("signature=test-ed25519-value&", ""), TOKEN)["ok"]
+    # Нельзя приклеить новую подпись к старому hash без этого поля.
+    assert not tg.check_init_data(make_init_data() + "&signature=unsigned", TOKEN)["ok"]
 
 
 def test_broken_hash():

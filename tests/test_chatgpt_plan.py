@@ -232,8 +232,10 @@ run().catch(e => { console.error(e); process.exitCode = 1; });
 
     def test_signed_telegram_access_and_context_isolation(self):
         bot = "test-only-bot-token"
-        def signed(uid="123", age=0):
+        def signed(uid="123", age=0, signature=None):
             values = {"auth_date": str(int(time.time()) - age), "user": json.dumps({"id": int(uid)})}
+            if signature is not None:
+                values["signature"] = signature
             secret = hmac.new(b"WebAppData", bot.encode(), hashlib.sha256).digest()
             values["hash"] = hmac.new(secret, "\n".join(f"{k}={v}" for k, v in sorted(values.items())).encode(), hashlib.sha256).hexdigest()
             return urlencode(values).encode()
@@ -245,11 +247,14 @@ run().catch(e => { console.error(e); process.exitCode = 1; });
             middleware = plan.TesterContextMiddleware(app)
             raw = signed()
             cases = {"valid": raw, "missing": b"", "forged": raw.replace(b"123", b"999"),
-                     "other": signed("456"), "old": signed(age=3601), "future": signed(age=-600)}
+                     "modern": signed(signature="test-ed25519"),
+                     "modern_forged": signed(signature="test-ed25519").replace(b"test-ed25519", b"tampered"),
+                     "other": signed("456", signature="test-ed25519"),
+                     "old": signed(age=3601, signature="test-ed25519"), "future": signed(age=-600)}
             with patch("app.telegram.bot_token", return_value=bot):
                 await asyncio.gather(*(middleware({"type": "http", "test": label,
                     "headers": [(b"x-telegram-init-data", value)]}, None, None) for label, value in cases.items()))
-            self.assertEqual(dict(seen), {k: "123" if k == "valid" else "" for k in cases})
+            self.assertEqual(dict(seen), {k: "123" if k in ("valid", "modern") else "" for k in cases})
             self.assertEqual(plan.actor.get(), "123")  # внешний контекст восстановлен
         asyncio.run(run())
 

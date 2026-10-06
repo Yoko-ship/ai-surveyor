@@ -3,7 +3,7 @@
 
 Проверка initData — по описанию Telegram Web Apps (https://core.telegram.org/bots/webapps):
   secret_key         = HMAC_SHA256(key="WebAppData", msg=<токен бота>)
-  data_check_string  = пары "key=value" из initData, кроме hash (и служебного signature),
+  data_check_string  = пары "key=value" из initData, кроме hash (signature включается),
                        отсортированные по ключу и склеенные через перевод строки
   ожидаемый hash     = hex(HMAC_SHA256(key=secret_key, msg=data_check_string))
 Дополнительно проверяем auth_date: данные старше суток не принимаем.
@@ -77,8 +77,10 @@ def check_init_data(init_data: str, token: str, max_age_sec: int = MAX_AGE_SEC) 
     got_hash = data.get("hash", "")
     if not got_hash:
         return {"ok": False, "reason": "В данных Telegram нет подписи", "data": data, "user": None}
-    # signature — отдельная подпись сторонних приложений, в строку проверки не входит
-    checked = [(k, v) for k, v in pairs if k not in ("hash", "signature")]
+    # Bot-token HMAC включает signature, если Telegram передал это поле.
+    # Исключение hash И signature относится только к сторонней Ed25519-проверке.
+    # https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+    checked = [(k, v) for k, v in pairs if k != "hash"]
     secret = hmac.new(b"WebAppData", token.encode("utf-8"), hashlib.sha256).digest()
     calc = hmac.new(secret, data_check_string(checked).encode("utf-8"), hashlib.sha256).hexdigest()
     # hash присылает браузер: там может оказаться что угодно, вплоть до кириллицы,
