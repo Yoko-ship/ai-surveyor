@@ -42,10 +42,10 @@ SEND_FORMATS = {"docx": "application/vnd.openxmlformats-officedocument.wordproce
 DOC_NAME_HINTS = ("doc", "scan", "sheet", "plate", "passport", "pasport", "скан", "док", "лист", "таблич",
                   "паспорт", "техпас", "hujjat")
 
-FMT_MIME = {"jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf",
+FMT_MIME = {"doc": "application/msword", "jpg": "image/jpeg", "png": "image/png", "pdf": "application/pdf",
             "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
-DOC_FMTS = ("docx", "xlsx")               # документы с текстом: разбираются парсерами, в модель не уходят
+DOC_FMTS = ("doc", "docx", "xlsx")               # документы с текстом: разбираются парсерами, в модель не уходят
 # значения документа, которые похожи на ПД по шаблону, но являются данными объекта
 PD_KEEP = {"reg_no": "[ГОСНОМЕР]", "cadastre_no": "[КАДАСТР]"}
 MODEL_SOURCES = ("photo", "plate", "document", "marking")

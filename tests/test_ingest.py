@@ -777,10 +777,10 @@ def test_read_pdf_text():
     print("PDF: символов", len(text))
 
 
-def test_old_doc_not_supported():
+def test_damaged_doc_rejected():
     out = ingest.read_file(files()["old_doc"])
-    assert out["status"] == ingest.ST_UNSUPPORTED
-    assert ".doc" in out["note"] and "docx" in out["note"].lower()
+    assert out["status"] == ingest.ST_ERROR
+    assert "DocReadError" in out["note"]
     print("старый формат:", out["note"])
 
 
@@ -1297,7 +1297,7 @@ def main():
              "test_kind_foreign_phrases_stay_other",
              "test_kind_source_texts_stay_other",
              "test_read_docx_table", "test_read_xlsx_sheet", "test_read_pdf_text",
-             "test_old_doc_not_supported", "test_scan_needs_ocr", "test_sniff_formats",
+             "test_damaged_doc_rejected", "test_scan_needs_ocr", "test_sniff_formats",
              "test_photos_sniff_mime",
              "test_fields_passport_uz", "test_fields_cadastre_ru", "test_fields_staff_en",
              "test_llm_prompts_by_language",

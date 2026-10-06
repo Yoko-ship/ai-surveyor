@@ -214,7 +214,14 @@ def _save_files(files: list, folder: Path, limits: dict, lang: str) -> tuple:
             continue
         fmt = _format_of(blob)
         info = {}
-        if fmt in DOC_FMTS:
+        if fmt == "doc":
+            from ..legacy_doc import DocReadError, read_doc_bytes
+            try:
+                read_doc_bytes(blob)  # OLE сам по себе не доказывает, что это Word
+                err = None
+            except DocReadError:
+                err = t("doc_unreadable", lang)
+        elif fmt in DOC_FMTS:
             code, info = ax.zip_check(blob, limits)
             err = t(code, lang) if code else None
         else:

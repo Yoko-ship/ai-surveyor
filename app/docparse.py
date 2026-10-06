@@ -73,6 +73,13 @@ def tick() -> None:
     if at is not None and time.monotonic() > at:
         raise ParseTimeout()
 
+
+def remaining_seconds(default: float) -> float:
+    """Оставшийся срок для внешнего парсера, который нельзя прервать через tick."""
+    tick()
+    at = getattr(_deadline, "at", None)
+    return min(default, max(0.001, at - time.monotonic())) if at is not None else default
+
 ROOT = Path(__file__).resolve().parent.parent
 LAWYER_NOTE = ROOT / "docs" / "Документы объекта — поля для автозаполнения.md"
 

@@ -12,7 +12,7 @@ ENV INSURER_NAME="INSON"
 # Шрифт DejaVu Sans для PDF акта (app/act.py): в slim-образе нет шрифтов с узбекской ʻ и кириллицей.
 # Системный пакет образа, не python-пакет проекта; списки apt удаляются, чтобы не раздувать образ.
 RUN apt-get update \
- && apt-get install -y --no-install-recommends fonts-dejavu-core \
+ && apt-get install -y --no-install-recommends fonts-dejavu-core antiword \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -78,7 +78,7 @@ button{font:inherit;cursor:pointer}
 .two>div{min-width:0}
 @media (max-width:420px){.two:not(.keep){grid-template-columns:1fr}}
 .note{font-size:13px;color:var(--muted)}
-.msg{margin-top:var(--s1);font-size:13px}
+.msg{margin-top:var(--s1);font-size:13px;min-width:0;overflow-wrap:anywhere}
 .msg:empty{display:none}
 .err{color:var(--stop)}.ok{color:var(--accent)}.warn{color:var(--warn)}
 .big{font:700 30px/1.1 var(--mono);margin:2px 0}

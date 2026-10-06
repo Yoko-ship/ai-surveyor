@@ -16,6 +16,9 @@ from .common import AI_MAX_SIDE, _DECODE, FMT_MIME
 # --------------------------------------------------------------------------- #
 
 def _format_of(blob: bytes) -> Optional[str]:
+    from ..legacy_doc import OLE_SIGNATURE
+    if blob.startswith(OLE_SIGNATURE):
+        return "doc"  # только кандидат: Word проверяет antiword перед сохранением
     if blob[:4] == b"%PDF":
         return "pdf"
     if blob[:4] == b"PK\x03\x04":

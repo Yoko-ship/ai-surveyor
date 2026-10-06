@@ -523,7 +523,7 @@ def check_chat_tab(html):
         'TG.MainButton.setParams(tgThemeColors())': "Telegram не использует цвета выбранной темы",
         'id="topbar"': "нет строки заголовка раздела",
         # 29.09.2026: документы без модели, prefill, уточнения сценариев, франшиза, PML/EML/MFL, рекомендации
-        'CH_EXT = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"]': "DOCX и XLSX не принимаются",
+        'CH_EXT = ["pdf", "jpg", "jpeg", "png", "doc", "docx", "xlsx"]': "DOCX и XLSX не принимаются",
         'T("tg.act.st_parsed", "документ разобран")': "у разобранного документа нет пометки «документ разобран»",
         "docKindName(q.kind, q.kindLabel)": "не показан вид разобранного документа",
         "function wzApplyPrefill(": "prefill из документа не подставляется",

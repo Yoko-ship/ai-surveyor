@@ -25,9 +25,9 @@ const CH_KEY = "surveyor_act";
 const CH_REGION = "surveyor_region";
 const CH_MAX_FILES = 10;                   // app/act.py: MAX_FILES
 const CH_MAX_MB = 15;                      // app/act.py: MAX_BYTES
-const CH_EXT = ["pdf", "jpg", "jpeg", "png", "docx", "xlsx"];
+const CH_EXT = ["pdf", "jpg", "jpeg", "png", "doc", "docx", "xlsx"];
 // DOCX и XLSX сервер разбирает без модели (app/act_extras.parse_document); текстовый PDF — тоже
-const MIME_DOCS = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+const MIME_DOCS = ["application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
 const FR_OFF = () => ({on: false, type: "unconditional", unit: "pct", pct: "", amount: null});
 const CH = {booted: false, busy: false, phase: "", err: "", wz: 1, seq: 0, queue: [], upPct: 0, filesDirty: false,
@@ -457,7 +457,7 @@ function wzStep1Html(){
     + "</div>"
     + '<button type="button" class="wz-drop" id="wzDrop">' + esc(T("tg.wz.drop", "Или перетащите файл сюда / вставьте Ctrl+V")) + "</button></div>"
     + '<details class="upload-help"><summary>' + esc(T("tg.design.file_help", "Форматы и требования к файлам")) + "</summary>"
-    + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
+    + '<p class="hint">' + esc(T("tg.act.formats", "Фото: JPG, PNG, WEBP, HEIC · документы: PDF, Word (DOC, DOCX), Excel (XLSX) · до {n} файлов, каждый до {mb} МБ", {n: CH_MAX_FILES, mb: CH_MAX_MB})) + "</p>"
     + '<p class="hint">' + esc(T("tg.act.formats_more", "Кроме фото можно загрузить запрос филиала, договор страхования, техпаспорт или лист технических параметров — скан, фото, PDF, Word или Excel. Запрос и договор приложение прочитает и сверит с расчётом акта; Word, Excel и PDF с текстом разберёт без модели.")) + "</p>"
     + (cbCredit() ? '<p class="hint cb-hint">' + esc(T("tg.cb.s1_hint", "Кредитный продукт: можно загрузить отчёт кредитного бюро по заёмщику — только PDF с текстом (скан не читается: отчёт содержит кредитную историю). Данные бюро в ставку не входят, это проверки андеррайтеру.")) + "</p>" : "")
     + '</details>'
@@ -566,7 +566,7 @@ function wzViewsHtml(){
 const WZ_CONVERT = /\.(webp|gif|bmp|avif|heic|heif|jfif|tiff?)$/i;
 function wzNeedsConvert(f){
   const name = String(f.name || ""), type = String(f.type || "");
-  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png|pdf|docx|xlsx)$/i.test(name) || type === "application/pdf"
+  if (/^image\/(jpeg|png)$/.test(type) || /\.(jpe?g|png|pdf|doc|docx|xlsx)$/i.test(name) || type === "application/pdf"
       || MIME_DOCS.indexOf(type) >= 0) return false;
   return /^image\//.test(type) || WZ_CONVERT.test(name);
 }
@@ -613,14 +613,14 @@ async function wzAddFiles(files){
     const name = String(f.name || "");
     const ext = (/\.([a-z0-9]+)$/i.exec(name) || [])[1];
     const type = String(f.type || "");
-    if (ext && /^(doc|xls)$/i.test(ext)) {
+    if (ext && /^xls$/i.test(ext)) {
       bad.push(T("tg.wz.legacy_office", "{name}: старый формат {format} пока не читается. Откройте файл в Word или Excel и сохраните копию как {target} либо экспортируйте в PDF. Простое переименование файла не меняет формат.",
         {name: name, format: ext.toUpperCase(), target: ext.toLowerCase() === "doc" ? "DOCX" : "XLSX"}));
       return;
     }
     const okType = (ext && CH_EXT.indexOf(ext.toLowerCase()) >= 0) || /^image\/(jpeg|png)$/.test(type) || type === "application/pdf"
       || MIME_DOCS.indexOf(type) >= 0;
-    if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC, PDF, DOCX или XLSX. Старые DOC и XLS пересохраните в новом формате.", {name: name || "?"})); return; }
+    if (!okType) { bad.push(T("tg.act.bad_format", "{name}: такой формат не читается — нужен JPG, PNG, WEBP, HEIC, PDF, DOC, DOCX или XLSX. Старый XLS пересохраните в XLSX.", {name: name || "?"})); return; }
     if (f.size > CH_MAX_MB * 1048576) { bad.push(T("tg.wz.too_big", "{name}: файл больше {mb} МБ — сожмите его или разделите.", {name: name, mb: CH_MAX_MB})); return; }
     if (CH.queue.length >= CH_MAX_FILES) { over = true; return; }
     const img = /^image\//.test(type);
@@ -637,7 +637,7 @@ async function wzAddFiles(files){
 }
 /* кредитный продукт: сотрудник помечает файл «это отчёт бюро» — картинка или скан с такой пометкой в модель не уходит
    (сервер: поле kinds у POST /act/photos, настройка credit_report.allow_scan); DOCX и XLSX — не отчёт бюро */
-function cbKindable(q){ return !CH.busy && cbCredit() && !q.error && !/\.(docx|xlsx)$/i.test(String(q.name || "")); }
+function cbKindable(q){ return !CH.busy && cbCredit() && !q.error && !/\.(doc|docx|xlsx)$/i.test(String(q.name || "")); }
 function cbToggle(id){
   const q = CH.queue.filter(x => x.id === id)[0];
   if (!q || CH.busy) return;
@@ -752,7 +752,7 @@ function actApplyPhotos(d, list){
     q.sid = f.id ? String(f.id) : "";        // id файла на сервере («f1») — для привязки фото к объекту
     q.view = f.view || null;
     q.parsed = !!f.parsed;
-    q.isDoc = f.format === "docx" || f.format === "xlsx";
+    q.isDoc = f.format === "doc" || f.format === "docx" || f.format === "xlsx";
     q.kind = doc && doc.kind ? String(doc.kind) : null;
     q.kindLabel = doc && doc.kind_label ? String(doc.kind_label) : "";
     q.values = doc ? Number(doc.values) || 0 : 0;
@@ -765,7 +765,7 @@ function actApplyPhotos(d, list){
   });
   CH.docs = docs.map(x => ({index: Number(x.index), kind: x.kind ? String(x.kind) : null, text_layer: !!x.text_layer,
     values: Number(x.values) || 0}));
-  CH.modelN = files.filter(f => !f.parsed && f.format !== "docx" && f.format !== "xlsx").length;
+  CH.modelN = files.filter(f => !f.parsed && f.format !== "doc" && f.format !== "docx" && f.format !== "xlsx").length;
   CH.filesDirty = false;
   CH.stale = false;
   CH.session = String(d.session || "");

@@ -20,7 +20,7 @@
 | Расчёт ставки и премии, проверки, рекомендации | `app/modules/pricing/`, `app/modules/surveys/`, `db/schema.sql` |
 | Сюрвейерский акт, документы Word/PDF, фото и составные объекты | `app/act.py`, `app/act_pkg/`, `app/docx_lite.py` |
 | Мини-приложение Telegram и веб-версия | `frontend/tg/`, `app/tg.html`, `app/tgpage.py`, `app/telegram.py`, `app/tgbot.py` |
-| Приём документов, извлечение текста и полей | `app/ingest.py`, `app/docparse.py`, `app/analysis_docs.py` |
+| Приём документов, извлечение текста и полей | `app/ingest.py`, `app/docparse.py`, `app/analysis_docs.py`, `app/legacy_doc.py` |
 | Оценка риска и стоимости имущества | `app/risk_analytics.py`, `app/risk_api.py`, `app/valuation.py`, `app/valuation_sources.py` |
 | ОСГОР — ответственность работодателя | `app/osgor.py`, `db/osgor_activities.csv` |
 | Специалист, местная библиотека, поиск нормативных актов | `app/llm.py`, `app/legal/`, `app/legal_live.py`, `app/lawwatch.py` |
@@ -53,6 +53,12 @@ restart ALWAYS; действуют квоты подписки и возможн
 его первоначальный OAuth-вход не реализован. Общие правила ИИ, защита от инструкций в документах и чистый текст интерфейса —
 `app/ai_policy.py` и `docs/AI_GUARDRAILS.md`. Настройки и границы обоих способов
 описаны в README, фактическая публикация — в WORK_LOG. Тарифные расчёты не менялись.
+
+В шаге «Фото и документы» мини-приложения поддерживаются старые Word DOC: antiword
+в Docker извлекает текст отдельным ограниченным процессом. Документ не исполняется
+и не передаётся модели; извлечённый текст проходит существующий разбор и фильтры.
+Таблицы DOC читаются как текст, изображения внутри DOC не распознаются. Защищённые
+паролем и повреждённые файлы могут потребовать сохранения как DOCX/PDF.
 
 ## Карта каталогов
 

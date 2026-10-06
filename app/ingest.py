@@ -18,7 +18,8 @@
     Пакеты не ставим;
   * XLSX — читаем openpyxl (read_only, data_only): формулы приходят значениями, до 2000 строк
     на лист, обрезка помечается честно;
-  * .doc, .xls, .rtf, .odt — статус «не поддерживается» и понятное сообщение агенту, что сделать;
+  * .doc — текст через отдельный процесс antiword;
+  * .xls, .rtf, .odt — статус «не поддерживается» и понятное сообщение агенту, что сделать;
   * языки — ru, uz-latn, uz-cyrl, en, mixed или «не определён». Словари — docs/ingest_dicts.json,
     свёртка написаний (Sugʻurta / Sug'urta / Суғурта / sugurta) — docs/i18n_terms.json;
   * виды документов — техпаспорт, кадастр, отчёт оценщика, договор, выписка, штатное расписание,
@@ -72,7 +73,6 @@ MAX_SHEET_ROWS = 2000                # разумный предел на лис
 MAX_TABLE_COLS = 60
 
 OLD_FORMAT_HINT = {
-    "doc": "Формат .doc не поддерживается. Откройте файл в Word и сохраните как .docx.",
     "xls": "Формат .xls не поддерживается. Откройте файл в Excel и сохраните как .xlsx.",
     "rtf": "Формат .rtf не поддерживается. Откройте файл в Word и сохраните как .docx.",
     "odt": "Формат .odt не поддерживается. Откройте файл в Word и сохраните как .docx.",
@@ -907,10 +907,13 @@ def read_file(path: Path, mime: str = None) -> dict:
         return {"format": fmt, "text": "", "tables": [], "status": ST_OCR, "note": D.OCR_TEXT}
     if fmt == "unknown":
         return {"format": fmt, "text": "", "tables": [], "status": ST_UNSUPPORTED,
-                "note": "Формат файла не распознан. Принимаются PDF, DOCX и XLSX."}
+                "note": "Формат файла не распознан. Принимаются PDF, DOC, DOCX и XLSX."}
     try:
         if fmt == "pdf":
             text, tables = read_pdf(path)
+        elif fmt == "doc":
+            from .legacy_doc import read_doc
+            text, tables = read_doc(path)
         elif fmt == "docx":
             text, tables = read_docx(path)
         else:

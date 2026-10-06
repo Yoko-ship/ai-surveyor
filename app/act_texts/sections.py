@@ -606,11 +606,11 @@ TX_SECTIONS = {
                         "the report will still be generated."},
     "ph_bad_json": {"ru": "языковая модель вернула ответ не по схеме", "uz": "til modeli javobi sxemaga mos emas",
                     "en": "the language model returned an answer that does not match the schema"},
-    "ph_format": {"ru": "формат не принимается — пришлите JPG, PNG или PDF, документы — DOCX или XLSX (WEBP и HEIC "
+    "ph_format": {"ru": "формат не принимается — пришлите JPG, PNG или PDF, документы — DOC, DOCX или XLSX (WEBP и HEIC "
                         "приложение переводит в JPG само)",
-                  "uz": "format qabul qilinmaydi — JPG, PNG yoki PDF, hujjatlarni esa DOCX yoki XLSX yuboring (WEBP "
+                  "uz": "format qabul qilinmaydi — JPG, PNG yoki PDF, hujjatlarni esa DOC, DOCX yoki XLSX yuboring (WEBP "
                         "va HEIC ilova oʻzi JPG ga oʻtkazadi)",
-                  "en": "format not accepted — send JPG, PNG or PDF, documents as DOCX or XLSX (the app converts "
+                  "en": "format not accepted — send JPG, PNG or PDF, documents as DOC, DOCX or XLSX (the app converts "
                         "WEBP and HEIC to JPG itself)"},
     "ph_too_big": {"ru": "файл больше {mb} МБ", "uz": "fayl {mb} MB dan katta", "en": "file larger than {mb} MB"},    "ph_empty_file": {"ru": "пустой файл", "uz": "boʻsh fayl", "en": "empty file"},
     "ph_too_many": {"ru": "За один раз — не больше {n} файлов", "uz": "Bir martada {n} tadan koʻp fayl emas",

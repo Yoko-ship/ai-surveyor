@@ -680,12 +680,23 @@ def read_limited(path: Path, limits: Optional[dict] = None) -> dict:
     from . import docparse as D
     from . import ingest
     fmt = ingest.sniff_format(path)
-    if fmt not in ("pdf", "docx", "xlsx"):
+    if fmt not in ("pdf", "doc", "docx", "xlsx"):
         return {**ingest.read_file(path), "truncated": False}
     bud = _Budget(doc_limits(limits))
     try:
         if fmt == "pdf":
             text, tables = _read_pdf_limited(path, bud)
+        elif fmt == "doc":
+            from .legacy_doc import read_doc
+            raw, tables = read_doc(path)
+            lines = []
+            for line in raw.splitlines():
+                D.tick()
+                line = bud.cut_para(line)
+                if not bud.take_para(len(line)):
+                    break
+                lines.append(line)
+            text = "\n".join(lines)
         elif fmt == "docx":
             text, tables = _read_docx_limited(path, bud)
         else:

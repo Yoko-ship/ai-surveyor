@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 
 class FilePickerTests(unittest.TestCase):
-    def test_client_accepts_docx_with_missing_or_legacy_mime_and_explains_doc(self):
+    def test_client_accepts_doc_and_docx_with_unreliable_mime(self):
         source = Path("frontend/tg/js/wizard.js").read_text()
         constants = source[source.index("const CH_MAX_FILES"):source.index("const FR_OFF")]
         convert = source[source.index("const WZ_CONVERT"):source.index("function wzToJpeg")]
@@ -29,13 +29,16 @@ const T = (key,fallback,values={}) => Object.keys(values).reduce((s,k)=>s.replac
   {name:'Таблица.xlsx',type:'application/octet-stream',size:2048}]);
  assert.equal(CH.queue.length,3);
  assert.equal(CH.err,'');
- await wzAddFiles([{name:'Договор.doc',type:'application/msword',size:1024}]);
- assert.equal(CH.queue.length,3);
- assert.match(CH.err,/DOCX/); assert.match(CH.err,/PDF/); assert.match(CH.err,/переименование/);
+ await wzAddFiles([{name:'Договор.doc',type:'application/msword',size:1024},
+  {name:'Другой.DOC',type:'',size:1024}]);
+ assert.equal(CH.queue.length,5); assert.equal(CH.err,'');
+ await wzAddFiles([{name:'Таблица.xls',type:'',size:1024}]);
+ assert.equal(CH.queue.length,5);
+ assert.match(CH.err,/XLSX/); assert.match(CH.err,/PDF/); assert.match(CH.err,/переименование/);
  await wzAddFiles([{name:'program.exe',type:'application/octet-stream',size:1024}]);
- assert.equal(CH.queue.length,3); assert.ok(CH.err);
+ assert.equal(CH.queue.length,5); assert.ok(CH.err);
  await wzAddFiles([{name:'large.docx',type:'',size:16*1048576}]);
- assert.equal(CH.queue.length,3); assert.match(CH.err,/15/);
+ assert.equal(CH.queue.length,5); assert.match(CH.err,/15/);
 })().catch(e=>{console.error(e);process.exit(1)});
 """
         result = subprocess.run(["node", "-e", script], capture_output=True, text=True)
