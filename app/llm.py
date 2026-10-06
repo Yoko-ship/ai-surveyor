@@ -148,6 +148,9 @@ def mask_key(value: str) -> str:
 
 
 def provider() -> str:
+    from . import codex_gateway
+    if codex_gateway.selected():
+        return "codex_gateway"
     from . import chatgpt_plan
     if chatgpt_plan.selected():
         return "chatgpt_plan"
@@ -158,6 +161,8 @@ def provider() -> str:
 
 
 def base_url() -> str:
+    if provider() == "codex_gateway":
+        return ""  # приватный адрес шлюза не показывается в публичном статусе
     if provider() == "chatgpt_plan":
         from . import chatgpt_plan
         return chatgpt_plan.API
@@ -165,6 +170,9 @@ def base_url() -> str:
 
 
 def model() -> str:
+    if provider() == "codex_gateway":
+        from . import codex_gateway
+        return codex_gateway.model()
     if provider() == "chatgpt_plan":
         from . import chatgpt_plan
         return chatgpt_plan.model()
@@ -173,7 +181,7 @@ def model() -> str:
 
 def api_key() -> str:
     """Ключ провайдера. У Gemini общий LLM_API_KEY может быть пуст — тогда берём GEMINI_API_KEY."""
-    if provider() == "chatgpt_plan":
+    if provider() in ("chatgpt_plan", "codex_gateway"):
         return ""  # OAuth никогда не возвращается через API статуса/настроек
     key = get("LLM_API_KEY") or ""
     if not key and provider() == "gemini":
@@ -182,6 +190,9 @@ def api_key() -> str:
 
 
 def enabled() -> bool:
+    if provider() == "codex_gateway":
+        from . import codex_gateway
+        return codex_gateway.ready()
     if provider() == "chatgpt_plan":
         from . import chatgpt_plan
         return chatgpt_plan.ready()
@@ -190,13 +201,16 @@ def enabled() -> bool:
 
 def supports_files() -> bool:
     """Файлы: Gemini или выбранная при подключении мультимодальная модель ChatGPT."""
-    return provider() in ("gemini", "chatgpt_plan") and enabled()
+    return provider() in ("gemini", "chatgpt_plan", "codex_gateway") and enabled()
 
 
 def status() -> dict:
     """Честный ответ о состоянии ИИ. Никогда не показывает ключ целиком."""
     p = provider()
-    if p == "chatgpt_plan":
+    if p == "codex_gateway":
+        from . import codex_gateway
+        reason = codex_gateway.reason()
+    elif p == "chatgpt_plan":
         from . import chatgpt_plan
         reason = chatgpt_plan.reason()
     elif p == "none":
@@ -207,7 +221,8 @@ def status() -> dict:
         reason = NOT_CONNECTED
     else:
         reason = "Ключ задан. Нажмите «Проверить», чтобы убедиться в связи"
-    return {"provider": p, "provider_name": "ChatGPT plan (тест)" if p == "chatgpt_plan" else PROVIDERS[p]["name"], "model": model(),
+    name = {"chatgpt_plan": "ChatGPT plan (тест)", "codex_gateway": "Codex (закрытый тест)"}.get(p)
+    return {"provider": p, "provider_name": name or PROVIDERS[p]["name"], "model": model(),
             "base_url": base_url(), "key_mask": mask_key(api_key()),
             "connected": enabled(), "reason": reason,
             "pd_mode": get("PD_MODE"),
@@ -504,7 +519,7 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     Возвращает {"text", "ok", "notes", "ms", "reason"}; text=None, если ИИ недоступен.
     """
     retries = RETRIES if retries is None else max(0, int(retries))
-    if provider() == "chatgpt_plan":
+    if provider() in ("chatgpt_plan", "codex_gateway"):
         retries = 0  # не расходовать подписку повторно после оборванного stream
     last_error["text"] = None
     notes = []
@@ -527,7 +542,11 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     for attempt in range(retries + 1):
         t0 = time.time()
         try:
-            if provider() == "chatgpt_plan":
+            if provider() == "codex_gateway":
+                from . import codex_gateway
+                data = codex_gateway.request(safe, file_parts, timeout)
+                text, usage = data["text"], data["usage"]
+            elif provider() == "chatgpt_plan":
                 from . import chatgpt_plan
                 data = chatgpt_plan.request(safe, file_parts, timeout)
                 text, usage = data["text"], data["usage"]

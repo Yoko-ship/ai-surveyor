@@ -272,7 +272,8 @@ class TesterContextMiddleware:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         tester = ""
-        if selected() and allowed_ids():
+        from . import codex_gateway
+        if (selected() or codex_gateway.selected()) and allowed_ids():
             headers = dict(scope.get("headers", []))
             raw = headers.get(b"x-telegram-init-data", b"")
             if 0 < len(raw) <= 16384:
