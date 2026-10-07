@@ -1,0 +1,21 @@
+# Шлюз Claude (tools/claude_gateway.py): отдельный сервис Railway в частной сети проекта.
+# Версия CLI закреплена, чтобы поведение не менялось само; обновлять осознанно.
+FROM node:22-bookworm-slim AS claude
+RUN npm install --prefix /opt/claude --omit=dev @anthropic-ai/claude-code@2.1.292
+
+FROM python:3.12-slim-bookworm
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PYTHONIOENCODING=utf-8 \
+    HOME=/home/gateway CLAUDE_CONFIG_DIR=/home/gateway/.claude PORT=8787
+WORKDIR /srv
+COPY --from=claude /usr/local/bin/node /usr/local/bin/node
+COPY --from=claude /opt/claude /opt/claude
+RUN ln -s /opt/claude/node_modules/.bin/claude /usr/local/bin/claude && claude --version \
+    && useradd --system --create-home --home-dir /home/gateway gateway \
+    && install -d -o gateway -g gateway -m 700 /home/gateway/.claude
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app ./app
+COPY tools/claude_gateway.py ./tools/claude_gateway.py
+# Без root: вход подписки и временные файлы принадлежат только пользователю шлюза.
+USER gateway
+CMD ["python", "tools/claude_gateway.py"]

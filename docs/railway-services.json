@@ -33,5 +33,26 @@
       "overlapSeconds": 0,
       "sleepApplication": false
     }
+  },
+  "claude-gateway": {
+    "build": {
+      "builder": "DOCKERFILE",
+      "dockerfilePath": "Dockerfile.claude-gateway",
+      "watchPatterns": [
+        "/Dockerfile.claude-gateway",
+        "/requirements.txt",
+        "/app/**",
+        "/tools/claude_gateway.py",
+        "/.dockerignore"
+      ]
+    },
+    "deploy": {
+      "startCommand": "python tools/claude_gateway.py",
+      "healthcheckPath": "/livez",
+      "healthcheckTimeout": 60,
+      "restartPolicyType": "ALWAYS",
+      "overlapSeconds": 0,
+      "sleepApplication": false
+    }
   }
 }

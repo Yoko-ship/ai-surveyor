@@ -148,6 +148,9 @@ def mask_key(value: str) -> str:
 
 
 def provider() -> str:
+    from . import claude_gateway
+    if claude_gateway.selected():
+        return "claude_gateway"
     from . import codex_gateway
     if codex_gateway.selected():
         return "codex_gateway"
@@ -161,7 +164,7 @@ def provider() -> str:
 
 
 def base_url() -> str:
-    if provider() == "codex_gateway":
+    if provider() in ("claude_gateway", "codex_gateway"):
         return ""  # приватный адрес шлюза не показывается в публичном статусе
     if provider() == "chatgpt_plan":
         from . import chatgpt_plan
@@ -170,6 +173,9 @@ def base_url() -> str:
 
 
 def model() -> str:
+    if provider() == "claude_gateway":
+        from . import claude_gateway
+        return claude_gateway.model()
     if provider() == "codex_gateway":
         from . import codex_gateway
         return codex_gateway.model()
@@ -181,7 +187,7 @@ def model() -> str:
 
 def api_key() -> str:
     """Ключ провайдера. У Gemini общий LLM_API_KEY может быть пуст — тогда берём GEMINI_API_KEY."""
-    if provider() in ("chatgpt_plan", "codex_gateway"):
+    if provider() in ("chatgpt_plan", "codex_gateway", "claude_gateway"):
         return ""  # OAuth никогда не возвращается через API статуса/настроек
     key = get("LLM_API_KEY") or ""
     if not key and provider() == "gemini":
@@ -190,6 +196,9 @@ def api_key() -> str:
 
 
 def enabled() -> bool:
+    if provider() == "claude_gateway":
+        from . import claude_gateway
+        return claude_gateway.ready()
     if provider() == "codex_gateway":
         from . import codex_gateway
         return codex_gateway.ready()
@@ -201,13 +210,16 @@ def enabled() -> bool:
 
 def supports_files() -> bool:
     """Файлы: Gemini или выбранная при подключении мультимодальная модель ChatGPT."""
-    return provider() in ("gemini", "chatgpt_plan", "codex_gateway") and enabled()
+    return provider() in ("gemini", "chatgpt_plan", "codex_gateway", "claude_gateway") and enabled()
 
 
 def status() -> dict:
     """Честный ответ о состоянии ИИ. Никогда не показывает ключ целиком."""
     p = provider()
-    if p == "codex_gateway":
+    if p == "claude_gateway":
+        from . import claude_gateway
+        reason = claude_gateway.reason()
+    elif p == "codex_gateway":
         from . import codex_gateway
         reason = codex_gateway.reason()
     elif p == "chatgpt_plan":
@@ -221,7 +233,8 @@ def status() -> dict:
         reason = NOT_CONNECTED
     else:
         reason = "Ключ задан. Нажмите «Проверить», чтобы убедиться в связи"
-    name = {"chatgpt_plan": "ChatGPT plan (тест)", "codex_gateway": "Codex (закрытый тест)"}.get(p)
+    name = {"chatgpt_plan": "ChatGPT plan (тест)", "codex_gateway": "Codex (закрытый тест)",
+            "claude_gateway": "Claude (закрытый тест)"}.get(p)
     return {"provider": p, "provider_name": name or PROVIDERS[p]["name"], "model": model(),
             "base_url": base_url(), "key_mask": mask_key(api_key()),
             "connected": enabled(), "reason": reason,
@@ -519,7 +532,7 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     Возвращает {"text", "ok", "notes", "ms", "reason"}; text=None, если ИИ недоступен.
     """
     retries = RETRIES if retries is None else max(0, int(retries))
-    if provider() in ("chatgpt_plan", "codex_gateway"):
+    if provider() in ("chatgpt_plan", "codex_gateway", "claude_gateway"):
         retries = 0  # не расходовать подписку повторно после оборванного stream
     last_error["text"] = None
     notes = []
@@ -534,7 +547,7 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
         _log_call(purpose, 0, False, error=reason)
         return {"text": None, "ok": False, "notes": notes, "ms": 0, "reason": reason}
     secrets = [api_key()] + [os.environ.get(k, "") for k in
-        ("CODEX_GATEWAY_TOKEN", "TELEGRAM_BOT_TOKEN", "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE")]
+        ("CODEX_GATEWAY_TOKEN", "CLAUDE_GATEWAY_TOKEN", "TELEGRAM_BOT_TOKEN", "TG_WEBHOOK_SECRET", "ADMIN_BOOTSTRAP_CODE")]
     safe = [{"role": "system", "content": ai_policy.SYSTEM_RULES}]
     for m in messages:
         role = m.get("role") if m.get("role") in ("system", "user", "assistant") else "user"
@@ -550,7 +563,12 @@ def chat_raw(purpose: str, messages: list, max_tokens: int = 700, temperature: f
     for attempt in range(retries + 1):
         t0 = time.time()
         try:
-            if provider() == "codex_gateway":
+            if provider() == "claude_gateway":
+                from . import claude_gateway
+                data = claude_gateway.request(safe, file_parts, timeout,
+                                              web_search=web_search is True and not files)
+                text, usage = data["text"], data["usage"]
+            elif provider() == "codex_gateway":
                 from . import codex_gateway
                 data = codex_gateway.request(safe, file_parts, timeout,
                                              web_search=web_search is True and not files)

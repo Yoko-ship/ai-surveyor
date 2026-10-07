@@ -350,3 +350,18 @@ i18n_tg, legal, legal_live, legal_market, specialist_ai и tg_ui — 8/8 PASS.
 web_search, ссылка на lex.uz за 23,8 с; с вложением поиск принудительно выключен
 (0 вызовов), синтетический код прочитан. Через публичный /legal/ask: ai=ok и
 ссылка за 14,3 с. Физический Telegram WebView не проверялся.
+
+## Claude-шлюз вместо Codex — 07.10.2026
+
+- Новый сервис Railway `claude-gateway` (`Dockerfile.claude-gateway`, настройки в
+  `docs/railway-services.json`) работает на сервере круглосуточно; компьютер владельца не нужен.
+  CLI закреплён: `@anthropic-ai/claude-code@2.1.292`, запуск без root.
+- Вход подписки: `claude setup-token` один раз на своём компьютере → переменная
+  `CLAUDE_CODE_OAUTH_TOKEN` сервиса (около года). Логин ноутбука на сервер не копировать.
+- Переменные шлюза: `CLAUDE_GATEWAY_TOKEN` (общий секрет, ≥32 символа), `CHATGPT_PLAN_TESTER_IDS`,
+  `CLAUDE_GATEWAY_MODEL=claude-sonnet-5-5`, `CLAUDE_GATEWAY_FALLBACK_MODEL=claude-haiku-4-5`,
+  `CLAUDE_GATEWAY_EFFORT=low`, `PORT=8787`. Публичный домен не нужен.
+- Переменные приложения: `CLAUDE_GATEWAY_ENABLED=1`, `CLAUDE_GATEWAY_URL=http://claude-gateway.railway.internal:8787`,
+  тот же `CLAUDE_GATEWAY_TOKEN`, та же модель. Claude имеет приоритет над Codex; возврат —
+  `CLAUDE_GATEWAY_ENABLED=0`.
+- Проверка: `GET /health` шлюза с ключом показывает `logged_in` и загрузку окон подписки (5 ч / неделя).
