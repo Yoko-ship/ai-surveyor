@@ -17,7 +17,7 @@ ASSISTANT_ROLE = dict(mx.ROLE)
 # тип источника куска индекса и подпись для человека
 SOURCE_LABEL = {
     "law": {"ru": "закон", "uz": "qonun", "en": "law"},
-    "company": {"ru": "тарифная политика INSON", "uz": "INSON tarif siyosati", "en": "INSON tariff policy"},
+    "company": {"ru": "документ INSON", "uz": "INSON hujjati", "en": "INSON document"},
     "market": {"ru": "данные НАПП", "uz": "NAPP maʼlumotlari", "en": "NAPP data"},
     "competitor": {"ru": "документ другого страховщика — не норма", "uz": "boshqa sugʻurtalovchi hujjati — norma emas",
                    "en": "another insurer's document — not a legal rule"},

@@ -2,6 +2,7 @@
 Поиск по индексу: основы слов, вес редких слов, ранжирование выдачи, цитаты (только дословные)
 и пересказ из цитат. Имя модуля — не search.py: функция search() — публичное имя app.legal.search.
 """
+from contextvars import ContextVar
 import re
 import threading
 from typing import Optional
@@ -167,6 +168,11 @@ def _on_topic(r: dict, stems: list) -> bool:
 # документ компании (тарифная политика — распознанный скан с перечнем продуктов) отвечает только на вопрос
 # о компании: иначе перечень продуктов («страхование лиц, выезжающих за рубеж») выдавался за ответ
 # на правовой вопрос «нужно ли страховать туристов» и живой поиск закона на lex.uz не запускался
+# Документы компании (тарифная политика, актуарный отчёт) конфиденциальны, а специалист открыт гостям
+# (решение 22.09.2026): в выдачу они попадают только вошедшему сотруднику. ask() ставит флаг по «u:<id>».
+staff = ContextVar("legal_staff", default=False)
+
+
 def wants_company(question: str) -> bool:
     q = norm(question)
     return any(w in q for w in COMPANY_WORDS)
@@ -221,7 +227,7 @@ def _distinct(scored: list, limit: int) -> list:
 
 def search(question: str, lang: str, limit: int = MAX_PASSAGES, allow_competitor: Optional[bool] = None) -> list:
     stems = stems_of(question, lang)
-    company_ok = wants_company(question)
+    company_ok = staff.get() and wants_company(question)
     competitor_ok = wants_competitor(question) if allow_competitor is None else allow_competitor
     q = match_query(question, lang)
     if not q:

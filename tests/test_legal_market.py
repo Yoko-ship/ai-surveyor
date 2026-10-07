@@ -363,9 +363,10 @@ def check_index_kinds():
         ok("тарифная политика INSON в индексе (company)", "company" in kinds, kinds)
     if legal.market_notes_dir().exists() and list(legal.market_notes_dir().glob("*.md")):
         ok("обзоры рынка docs/Знания/Рынок в индексе (market)", "market" in kinds, kinds)
-    ok("подписи источников", legal.source_label("company", "ru") == "тарифная политика INSON"
+    ok("подписи источников", legal.source_label("company", "ru") == "документ INSON"
        and legal.source_label("market", "ru") == "данные НАПП" and legal.source_label("law", "ru") == "закон")
     ok("тип по пути", legal.source_kind("library/02_Компания_INSON/x.txt") == "company"
+       and legal.source_kind("/srv/storage/library_live/Компания/x.txt") == "company"
        and legal.source_kind("docs/Знания/Рынок/01.md") == "market"
        and legal.source_kind("docs/Знания/x.md") == "note"
        and legal.source_kind("library/01_Законодательство/x.txt") == "law")
@@ -376,9 +377,9 @@ def check_index_kinds():
         ok("тарифная политика проиндексирована", n >= 1, n)
     r = ask("Минимальный тариф по тарифной политике INSON для страхования туристов", sid="idx-1")
     comp = [c for c in r["citations"] if c.get("source_kind") == "company"]
-    ok("вопрос о компании может опираться на тарифную политику (подпись «тарифная политика INSON»)",
+    ok("вопрос о компании может опираться на тарифную политику (подпись «документ INSON»)",
        r["source_kind"] in ("company", "note", "law", "none") and all(
-           c["source_label"] == "тарифная политика INSON" for c in comp), (r["source_kind"], comp[:1]))
+           c["source_label"] == "документ INSON" for c in comp), (r["source_kind"], comp[:1]))
 
 
 def check_review_fixes():
@@ -559,6 +560,45 @@ def check_ranking():
     ok("правовой вопрос об отказе — не рэнкинг", not sns(r), r.get("intent"))
 
 
+def check_company_access():
+    print("14. документы компании: только вошедшему сотруднику, не гостю")
+    import tempfile
+    from unittest.mock import patch
+    from app.legal import answer as la, api as lapi, index as lix, search_core as lsc
+    with tempfile.TemporaryDirectory() as root:
+        tmp = Path(root, "library_live", "Компания")   # как на сервере: STORAGE_DIR/library_live/Компания
+        tmp.mkdir(parents=True)
+        Path(tmp, "Актуарный отчёт тест.txt").write_text(
+            "Актуарный отчёт INSON\n\n1. Маржа платежеспособности\nМаржа платежеспособности "
+            "актуарийзнак составила 1,07 на конец года.\n", encoding="utf-8")
+        with patch.object(lix, "company_dir", return_value=tmp):
+            lix._index_ready["checked"] = 0    # отпечаток состава сверяется не чаще раза в 10 с
+            legal.ensure_index()
+            q = "актуарий INSON маржа платежеспособности актуарийзнак"
+            kinds = {s_["kind"] for s_ in legal.source_files()}
+            ok("документ компании в индексе (company)", "company" in kinds, kinds)
+            guest = [r for r in lsc.search(q, "ru") if r.get("source_kind") == "company"]
+            mark = lsc.staff.set(True)
+            try:
+                emp = [r for r in lsc.search(q, "ru") if r.get("source_kind") == "company"]
+            finally:
+                lsc.staff.reset(mark)
+            ok("гость не получает документ компании", not guest, guest[:1])
+            ok("сотрудник получает документ компании", bool(emp), emp[:1])
+            seen = []
+            with patch.object(la, "_ask_routed", side_effect=lambda *a: seen.append(lsc.staff.get()) or {}):
+                legal.ask(q, "ru", who="u:test-1")
+                legal.ask(q, "ru", who="g:abc")
+                legal.ask(q, "ru", who=None)
+            ok("ask(): флаг сотрудника только для «u:<id>» и сбрасывается", seen == [True, False, False]
+               and lsc.staff.get() is False, seen)
+            acts = [a["act"] for a in lapi.legal_acts()["acts"]]
+            ok("открытый список актов не называет документы компании",
+               not any(a.startswith("Документ INSON") for a in acts), [a for a in acts if "INSON" in a])
+        lix._index_ready["checked"] = 0
+        legal.ensure_index()
+
+
 def main():
     with temp_db():
         setup()
@@ -576,6 +616,7 @@ def main():
         check_competitor_intent()
         check_ranking()
         check_privacy()
+        check_company_access()
         check_inson()              # последним: удаляет строку INSON из копии базы
     print(f"\nИтого: {passed} ок, {failed} плохо")
     sys.exit(1 if failed else 0)

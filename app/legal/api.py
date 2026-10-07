@@ -109,7 +109,8 @@ def legal_acts():
     ensure_index()
     with db.tx() as con:
         rs = db.rows(con, "SELECT act, act_code, language, SUM(chunks) AS chunks FROM legal_files"
-                          " WHERE path <> ? GROUP BY act_code, language ORDER BY act", PARSER_ROW)
+                          " WHERE path <> ? AND act NOT LIKE ? GROUP BY act_code, language ORDER BY act",
+                     PARSER_ROW, "Документ INSON:%")   # список открыт гостям: документы компании не называем
     acts = {}
     for r in rs:
         a = acts.setdefault(r["act_code"], {"act_code": r["act_code"], "act": r["act"],

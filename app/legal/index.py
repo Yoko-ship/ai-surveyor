@@ -27,7 +27,9 @@ NOTES = ROOT / "docs"
 # Папки знаний считаются от ROOT/NOTES в момент обращения (тесты подменяют ROOT и NOTES):
 #   NOTES/Знания/*.md          — разборы команды (app/knowledge.py), тип note;
 #   NOTES/Знания/Рынок/*.md    — обзоры рынка (строит агент рынка; может не быть), тип market;
-#   ROOT/library/02_Компания_INSON/*.txt — тарифная политика и документы компании, тип company.
+#   ROOT/library/02_Компания_INSON/*.txt — тарифная политика и документы компании, тип company;
+#   на сервере — STORAGE_DIR/library_live/Компания/*.txt: документы компании не идут ни в Git
+#   (репозиторий публичный), ни в образ. Выдаются только вошедшим сотрудникам (search_core.staff).
 
 
 def knowledge_dir() -> Path:
@@ -51,6 +53,22 @@ def competitors_dir() -> Path:
 # Без STORAGE_DIR — None: акты кладутся в LIB, как при ручной загрузке tools/lex_fetch.py.
 LIVE_LIB = (db.DATA_DIR / "library_live") if os.environ.get("STORAGE_DIR") else None
 HISTORY_DIR = "_history"         # прежние версии документов конкурентов (tools/competitors_fetch.py) — не в индекс
+
+
+def company_live_dir() -> Optional[Path]:
+    """Документы компании на постоянном диске сервера (STORAGE_DIR/library_live/Компания)."""
+    return (LIVE_LIB / "Компания") if LIVE_LIB is not None else None
+
+
+def company_files() -> list:
+    """Документы компании: library/02_Компания_INSON и постоянный диск; одноимённый файл — свежий."""
+    found = {}
+    for base in (company_dir(), company_live_dir()):
+        if base is None or not base.exists():
+            continue
+        for p in base.glob("*.txt"):
+            _fresher(found, p.name, p)
+    return [found[k][1] for k in sorted(found)]
 
 
 def competitors_live_dir() -> Optional[Path]:
@@ -106,7 +124,7 @@ ACTS_REGISTRY = ROOT / "docs" / "Отслеживаемые акты.json"
 def source_kind(path: str) -> str:
     """law | company | competitor | market | note по пути файла индекса."""
     p = path or ""
-    if p.startswith("library/02_"):
+    if p.startswith("library/02_") or "/library_live/Компания/" in p:
         return "company"
     if p.startswith("library/03_") or "/library_live/Конкуренты/" in p:
         return "competitor"      # правила и оферты других страховщиков (library/03_Рынок_НАПП/Конкуренты)
@@ -219,20 +237,19 @@ def source_files() -> list:
     dirs = [LIB]
     if LIVE_LIB is not None and LIVE_LIB != LIB:
         dirs.append(LIVE_LIB)
-    live_comp = competitors_live_dir()
+    live_comp, live_company = competitors_live_dir(), company_live_dir()
     for d in dirs:
         if not d.exists():
             continue
         for p in sorted(d.rglob("*.txt")):
-            if live_comp is not None and live_comp in p.parents:
-                continue                     # документы конкурентов на постоянном диске — ниже, не акты
+            if any(x is not None and x in p.parents for x in (live_comp, live_company)):
+                continue                     # документы конкурентов и компании на постоянном диске — ниже, не акты
             if skipped(p):
                 continue
             out.append({"path": p, "kind": "act"})
-    if company_dir().exists():
-        for p in sorted(company_dir().glob("*.txt")):
-            if not skipped(p):
-                out.append({"path": p, "kind": "company"})
+    for p in company_files():
+        if not skipped(p):
+            out.append({"path": p, "kind": "company"})
     # сканы без расшифровки помечены «Индексировать: нет» — в индекс не идут
     for p in competitor_files():
         if not skipped(p):

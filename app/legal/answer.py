@@ -25,6 +25,7 @@ from .faq import faq_answer, faq_match, related, silence_answer, silence_match
 from .index import _registry, ensure_index, market_notes_dirs
 from .live import LIVE_NOT_NEEDED, _live, _live_answer, _live_enabled, _live_public, legal_live_text
 from .parse import detect_lang, norm
+from .search_core import staff
 from .search_core import (KEY_SHARE_MIN, RARE_PENALTY, _citation, _on_topic, search, stems_of, summarize_passages,
                           wants_competitor)
 from .texts import (ACTUALITY_NOTE, ACTUALITY_SINCE, ACTUALITY_TEXT, ASSISTANT_NAME, ASSISTANT_ROLE, DEFAULT_LANG,
@@ -138,6 +139,16 @@ def with_actuality(out: dict) -> dict:
 
 def ask(question: str, lang: str = None, with_ai: bool = False, who: str = None,
         session_id: str = None) -> dict:
+    """Документы компании ищутся только для вошедшего сотрудника (who «u:<id>»), не для гостя."""
+    mark = staff.set((who or "").startswith("u:"))
+    try:
+        return _ask_routed(question, lang, with_ai, who, session_id)
+    finally:
+        staff.reset(mark)
+
+
+def _ask_routed(question: str, lang: str = None, with_ai: bool = False, who: str = None,
+                session_id: str = None) -> dict:
     """who — кто спрашивает («u:<id>», «g:<guest_id>», «ip:<адрес>»): для личного предела живого
     поиска на lex.uz и для ключа памяти диалога; в журнал и в ответ не попадает.
     session_id — диалог (строка до 64 знаков от фронта): последние 8 реплик держатся в памяти процесса,
